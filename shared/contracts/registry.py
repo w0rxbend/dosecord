@@ -9,7 +9,12 @@ from shared.contracts.chat import (
     ChatResponseSendRequestedData,
 )
 from shared.contracts.envelope import MessageEnvelope
-from shared.contracts.identity import IDENTITY_START_REQUESTED, IdentityStartRequestedData
+from shared.contracts.identity import (
+    IDENTITY_SIGNUP_REQUESTED,
+    IDENTITY_START_REQUESTED,
+    IdentitySignupRequestedData,
+    IdentityStartRequestedData,
+)
 from shared.contracts.medication import (
     MEDICATION_SCHEDULE_CREATE_REQUESTED,
     MedicationScheduleCreateRequestedData,
@@ -27,6 +32,7 @@ from shared.contracts.wellbeing import (
 PAYLOAD_REGISTRY: dict[str, type[BaseModel]] = {
     CHAT_RESPONSE_SEND_REQUESTED: ChatResponseSendRequestedData,
     IDENTITY_START_REQUESTED: IdentityStartRequestedData,
+    IDENTITY_SIGNUP_REQUESTED: IdentitySignupRequestedData,
     MEDICATION_SCHEDULE_CREATE_REQUESTED: MedicationScheduleCreateRequestedData,
     MOOD_CHECKIN_RECORD_REQUESTED: MoodCheckinRecordRequestedData,
     MEDICATION_INTAKE_MARK_TAKEN_REQUESTED: MedicationIntakeMarkTakenRequestedData,

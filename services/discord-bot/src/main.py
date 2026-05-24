@@ -93,6 +93,11 @@ class DosecordBot(commands.Cog):
     async def start_tracking(self, ctx: commands.Context):
         """Start wellbeing tracking"""
         await self.command_handler.handle_start(ctx)
+
+    @commands.command(name='signup')
+    async def signup(self, ctx: commands.Context, handle: str):
+        """Create a Dosecord account linked to this Discord user"""
+        await self.command_handler.handle_signup(ctx, handle)
     
     @commands.command(name='mood')
     async def log_mood(self, ctx: commands.Context, *, mood: str):
@@ -103,6 +108,16 @@ class DosecordBot(commands.Cog):
     async def log_medicine(self, ctx: commands.Context, *, medicine_name: str):
         """Log medicine intake"""
         await self.command_handler.handle_medicine(ctx, medicine_name)
+
+    @commands.command(name='schedule')
+    async def create_medicine_schedule(
+        self,
+        ctx: commands.Context,
+        medicine_name: str,
+        time: str,
+    ):
+        """Create a daily medication schedule"""
+        await self.command_handler.handle_schedule(ctx, medicine_name, time)
     
     @commands.command(name='habit')
     async def log_habit(self, ctx: commands.Context, *, habit_name: str):

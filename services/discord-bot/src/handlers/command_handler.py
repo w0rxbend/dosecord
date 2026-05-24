@@ -3,12 +3,19 @@ Command handler for processing Discord bot commands
 """
 
 import logging
+from datetime import date
 from discord.ext import commands
 
 from src.config import Config
 from src.kafka_producer import KafkaEventProducer
 from shared.contracts import Actor, Platform
-from shared.contracts.identity import identity_start_requested
+from shared.contracts.identity import identity_signup_requested, identity_start_requested
+from shared.contracts.medication import (
+    FixedTimeScheduleData,
+    MedicationData,
+    MedicationScheduleCreateRequestedData,
+    medication_schedule_create_requested,
+)
 from shared.contracts.wellbeing import (
     habit_checkin_record_requested,
     medication_intake_mark_taken_requested,
@@ -49,6 +56,26 @@ class CommandHandler:
         except Exception as e:
             logger.error(f"Error in handle_start: {e}")
             await ctx.send("❌ An error occurred. Please try again.")
+
+    async def handle_signup(self, ctx: commands.Context, handle: str):
+        """Handle /signup command."""
+        try:
+            success = self.producer.publish(
+                identity_signup_requested(
+                    actor=self._actor_from_context(ctx),
+                    source=self.config.service_name,
+                    handle=handle,
+                    display_name=ctx.author.display_name,
+                    idempotency_key=f"discord:message:{ctx.message.id}",
+                )
+            )
+            if success:
+                await ctx.send(f"Creating Dosecord account `{handle}`...")
+            else:
+                await ctx.send("❌ Failed to request account creation.")
+        except Exception as e:
+            logger.error(f"Error in handle_signup: {e}")
+            await ctx.send("❌ An error occurred.")
     
     async def handle_mood(self, ctx: commands.Context, mood: str):
         """Handle /mood command"""
@@ -109,6 +136,36 @@ class CommandHandler:
                 
         except Exception as e:
             logger.error(f"Error in handle_medicine: {e}")
+            await ctx.send("❌ An error occurred.")
+
+    async def handle_schedule(self, ctx: commands.Context, medicine_name: str, time: str):
+        """Handle /schedule command for a daily fixed-time medication."""
+        try:
+            if not self._is_hhmm(time):
+                await ctx.send("Use 24-hour time like `/schedule VitaminD 09:00`.")
+                return
+
+            command = medication_schedule_create_requested(
+                actor=self._actor_from_context(ctx),
+                source=self.config.service_name,
+                data=MedicationScheduleCreateRequestedData(
+                    medication=MedicationData(name=medicine_name),
+                    schedule=FixedTimeScheduleData(
+                        timezone="UTC",
+                        days=["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+                        times=[time],
+                        start_date=date.today(),
+                    ),
+                ),
+                idempotency_key=f"discord:message:{ctx.message.id}",
+            )
+            success = self.producer.publish(command)
+            if success:
+                await ctx.send(f"Creating daily schedule for {medicine_name} at {time}...")
+            else:
+                await ctx.send("❌ Failed to request medication schedule.")
+        except Exception as e:
+            logger.error(f"Error in handle_schedule: {e}")
             await ctx.send("❌ An error occurred.")
     
     async def handle_habit(self, ctx: commands.Context, habit_name: str):
@@ -183,6 +240,17 @@ class CommandHandler:
         }
         
         return mood_map.get(mood.lower())
+
+    def _is_hhmm(self, value: str) -> bool:
+        parts = value.split(":")
+        if len(parts) != 2:
+            return False
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+        except ValueError:
+            return False
+        return 0 <= hour <= 23 and 0 <= minute <= 59
     
     def _get_mood_response(self, mood_level: int) -> str:
         """Get response based on mood level"""
@@ -225,6 +293,7 @@ class CommandHandler:
             value=(
                 "`/mood <1-10>` - Log your mood\n"
                 "`/medicine <name>` - Log medicine intake\n"
+                "`/schedule <name> <HH:MM>` - Create a daily medicine reminder\n"
                 "`/habit <name>` - Log a habit\n"
                 "`/stats` - View your statistics\n"
                 "`/help` - Show this message"
@@ -252,8 +321,18 @@ class CommandHandler:
             inline=False
         )
         embed.add_field(
+            name="/signup <handle>",
+            value="Create a Dosecord account linked to this Discord user",
+            inline=False
+        )
+        embed.add_field(
             name="/medicine <name>",
             value="Log your medicine intake",
+            inline=False
+        )
+        embed.add_field(
+            name="/schedule <name> <HH:MM>",
+            value="Create a daily medication reminder",
             inline=False
         )
         embed.add_field(

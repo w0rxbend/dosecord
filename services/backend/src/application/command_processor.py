@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from shared.contracts import MessageEnvelope
 from shared.contracts.chat import chat_response_send_requested
-from shared.contracts.identity import IDENTITY_START_REQUESTED
+from shared.contracts.identity import IDENTITY_SIGNUP_REQUESTED, IDENTITY_START_REQUESTED
+from shared.contracts.medication import MEDICATION_SCHEDULE_CREATE_REQUESTED
 from shared.contracts.wellbeing import (
     HABIT_CHECKIN_RECORD_REQUESTED,
     MEDICATION_INTAKE_MARK_TAKEN_REQUESTED,
@@ -21,10 +22,13 @@ from src.infrastructure.db.models import (
     ConversationSession,
     Habit,
     HabitCheckin,
+    Medication,
+    MedicationSchedule,
     MoodCheckin,
     OutboxMessage,
     PlatformIdentity,
     ProcessedMessage,
+    User,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,8 +86,12 @@ class CommandProcessor:
     ) -> None:
         if command.type == IDENTITY_START_REQUESTED:
             await self._handle_identity_start(session, command)
+        elif command.type == IDENTITY_SIGNUP_REQUESTED:
+            await self._handle_identity_signup(session, command)
         elif command.type == MOOD_CHECKIN_RECORD_REQUESTED:
             await self._handle_mood_checkin(session, command)
+        elif command.type == MEDICATION_SCHEDULE_CREATE_REQUESTED:
+            await self._handle_medication_schedule_create(session, command)
         elif command.type == MEDICATION_INTAKE_MARK_TAKEN_REQUESTED:
             await self._handle_medication_taken(session, command)
         elif command.type == HABIT_CHECKIN_RECORD_REQUESTED:
@@ -116,8 +124,59 @@ class CommandProcessor:
             session,
             command,
             (
-                "Welcome to Dosecord. Choose: Create account, Link existing, "
-                "or Restore access."
+                "Welcome to Dosecord. Use /signup <handle> to create an "
+                "account, or link/restore from the account menu soon."
+            ),
+        )
+
+    async def _handle_identity_signup(
+        self,
+        session: AsyncSession,
+        command: MessageEnvelope[Any],
+    ) -> None:
+        existing_identity = await self._resolve_user_id(session, command)
+        if existing_identity is not None:
+            await self._enqueue_response(
+                session,
+                command,
+                "This Discord account is already linked to a Dosecord account.",
+            )
+            return
+
+        existing_handle = await session.execute(
+            select(User).where(User.handle == command.data.handle)
+        )
+        if existing_handle.scalar_one_or_none() is not None:
+            await self._enqueue_response(
+                session,
+                command,
+                "That handle is already taken. Try another one.",
+            )
+            return
+
+        user = User(
+            handle=command.data.handle,
+            display_name=command.data.display_name,
+            timezone=command.data.timezone,
+            status="pending_credentials",
+        )
+        session.add(user)
+        await session.flush()
+        session.add(
+            PlatformIdentity(
+                user_id=user.id,
+                platform=command.actor.platform.value,
+                platform_user_id=command.actor.platform_user_id,
+                platform_username=command.actor.platform_username,
+                platform_display_name=command.data.display_name,
+            )
+        )
+        await self._enqueue_response(
+            session,
+            command,
+            (
+                f"Account @{command.data.handle} created and linked to Discord. "
+                "Password setup through a secure link is the next production step."
             ),
         )
 
@@ -142,6 +201,49 @@ class CommandProcessor:
             session,
             command,
             f"Recorded your mood as {command.data.mood_level}/10.",
+        )
+
+    async def _handle_medication_schedule_create(
+        self,
+        session: AsyncSession,
+        command: MessageEnvelope[Any],
+    ) -> None:
+        user_id = await self._resolve_user_id(session, command)
+        if user_id is None:
+            await self._enqueue_account_required(session, command)
+            return
+
+        medication = Medication(
+            user_id=user_id,
+            name=command.data.medication.name,
+            dose_amount=command.data.medication.dose_amount,
+            dose_unit=command.data.medication.dose_unit,
+            instructions=command.data.medication.instructions,
+            timezone=command.data.schedule.timezone,
+        )
+        session.add(medication)
+        await session.flush()
+        session.add(
+            MedicationSchedule(
+                medication_id=medication.id,
+                schedule_kind=command.data.schedule.kind,
+                rule={
+                    "days": command.data.schedule.days,
+                    "times": command.data.schedule.times,
+                    "reminder_policy": command.data.reminder_policy.model_dump(),
+                },
+                start_date=command.data.schedule.start_date,
+                end_date=command.data.schedule.end_date,
+                timezone=command.data.schedule.timezone,
+            )
+        )
+        await self._enqueue_response(
+            session,
+            command,
+            (
+                f"Created daily medication schedule for {command.data.medication.name} "
+                f"at {', '.join(command.data.schedule.times)}."
+            ),
         )
 
     async def _handle_medication_taken(
