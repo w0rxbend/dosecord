@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Kafka Broker
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - dosecord-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - dosecord-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: dosecord
+      POSTGRES_PASSWORD: dosecord
+      POSTGRES_DB: dosecord_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dosecord-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dosecord"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka UI (optional - for development)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - dosecord-network
+
+  discord-bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.discord-bot
+    profiles:
+      - apps
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC_EVENTS: wellbeing.events
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: "false"
+    depends_on:
+      - kafka
+    networks:
+      - dosecord-network
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    profiles:
+      - apps
+    environment:
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_CONSUMER_GROUP: dosecord-backend
+      KAFKA_TOPIC_EVENTS: wellbeing.events
+      DATABASE_URL: postgresql://dosecord:dosecord@postgres:5432/dosecord_db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: "false"
+    depends_on:
+      - kafka
+      - postgres
+    networks:
+      - dosecord-network
+
+volumes:
+  postgres_data:
+
+networks:
+  dosecord-network:
+    driver: bridge

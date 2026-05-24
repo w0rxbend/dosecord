@@ -1,0 +1,29 @@
+# Backend Service Dockerfile
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN pip install poetry
+
+# Copy project files
+COPY services/backend/pyproject.toml ./
+COPY services/backend/src ./src
+
+# Install Python dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --only main --no-root
+
+# Set environment
+ENV PYTHONUNBUFFERED=1
+ENV SERVICE_ENV=production
+
+# Run backend
+CMD ["poetry", "run", "python", "-m", "src.main"]
