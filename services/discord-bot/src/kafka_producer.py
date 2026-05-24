@@ -1,19 +1,18 @@
-"""
-Kafka Event Producer for publishing wellbeing events
-"""
+"""Kafka producer for publishing platform-neutral Dosecord commands."""
 
 import logging
-import json
+from typing import Any
+
 from confluent_kafka import Producer
 
 from src.config import Config
-from src.models import WellbeingEvent
+from shared.contracts.envelope import MessageEnvelope
 
 logger = logging.getLogger(__name__)
 
 
 class KafkaEventProducer:
-    """Produces wellbeing events to Kafka"""
+    """Produces command envelopes to Kafka."""
     
     def __init__(self, config: Config):
         self.config = config
@@ -35,40 +34,36 @@ class KafkaEventProducer:
         else:
             logger.debug(f"Message delivered to {msg.topic()} [{msg.partition()}]")
     
-    def publish_event(self, event: WellbeingEvent) -> bool:
-        """
-        Publish a wellbeing event to Kafka
-        
-        Args:
-            event: WellbeingEvent to publish
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
+    def publish(self, message: MessageEnvelope[Any]) -> bool:
+        """Publish a validated command envelope to Kafka."""
         try:
-            event_data = event.model_dump(mode="json")
-            message = json.dumps(event_data, default=str)
-            
-            # Publish to Kafka
+            payload = message.model_dump_json().encode("utf-8")
             self.producer.produce(
                 topic=self.topic,
-                key=event.partition_key,
-                value=message.encode("utf-8"),
+                key=message.partition_key,
+                value=payload,
+                headers={
+                    "type": message.type,
+                    "correlation_id": message.correlation_id,
+                    "schema_version": str(message.schema_version),
+                },
                 callback=self._delivery_report
             )
-            
-            # Flush to ensure delivery
-            self.producer.flush(timeout=5)
+            self.producer.poll(0)
             logger.info(
-                "Event published: %s for %s",
-                event.event_type,
-                event.partition_key,
+                "Command published: %s for %s",
+                message.type,
+                message.partition_key,
             )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to publish event: {e}")
+            logger.error(f"Failed to publish command: {e}")
             return False
+
+    def publish_event(self, event: MessageEnvelope[Any]) -> bool:
+        """Backward-compatible alias while callers migrate to `publish`."""
+        return self.publish(event)
     
     def close(self):
         """Close the producer"""

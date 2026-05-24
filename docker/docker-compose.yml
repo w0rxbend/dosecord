@@ -72,7 +72,7 @@ services:
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN:-}
       KAFKA_BROKERS: kafka:29092
-      KAFKA_TOPIC_EVENTS: wellbeing.events
+      KAFKA_TOPIC_EVENTS: dosecord.commands
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: "false"
     depends_on:
@@ -89,7 +89,30 @@ services:
     environment:
       KAFKA_BROKERS: kafka:29092
       KAFKA_CONSUMER_GROUP: dosecord-backend
-      KAFKA_TOPIC_EVENTS: wellbeing.events
+      KAFKA_TOPIC_EVENTS: dosecord.commands
+      KAFKA_TOPIC_CHAT_RESPONSES: dosecord.chat.responses
+      KAFKA_TOPIC_DLQ: dosecord.dlq
+      DATABASE_URL: postgresql://dosecord:dosecord@postgres:5432/dosecord_db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: "false"
+    depends_on:
+      - kafka
+      - postgres
+    networks:
+      - dosecord-network
+
+  backend-outbox-publisher:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    profiles:
+      - apps
+    command: ["python", "-m", "src.workers.outbox_publisher"]
+    environment:
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC_EVENTS: dosecord.commands
+      KAFKA_TOPIC_CHAT_RESPONSES: dosecord.chat.responses
+      KAFKA_TOPIC_DLQ: dosecord.dlq
       DATABASE_URL: postgresql://dosecord:dosecord@postgres:5432/dosecord_db
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: "false"

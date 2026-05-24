@@ -1,7 +1,7 @@
 """
 Backend service entry point
 
-Consumes wellbeing events from Kafka and processes them:
+Consumes platform-neutral commands from Kafka and processes them:
 - Stores events in database
 - Calculates statistics
 - Manages reminders

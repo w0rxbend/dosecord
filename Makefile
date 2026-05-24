@@ -1,6 +1,6 @@
 # Makefile for Dosecord
 
-.PHONY: help setup up up-apps down logs bot backend test fmt lint clean
+.PHONY: help setup up up-apps down logs bot backend backend-init-db outbox test fmt lint clean
 
 help:
 	@echo "Dosecord Development Commands"
@@ -11,6 +11,8 @@ help:
 	@echo "make down          - Stop all services"
 	@echo "make bot           - Start Discord bot service"
 	@echo "make backend       - Start backend service"
+	@echo "make backend-init-db - Create backend tables for local development"
+	@echo "make outbox        - Start backend outbox publisher"
 	@echo "make logs          - View Docker logs"
 	@echo "make test          - Run tests"
 	@echo "make fmt           - Format code"
@@ -38,14 +40,20 @@ logs:
 	docker-compose -f docker/docker-compose.yml logs -f
 
 bot:
-	cd services/discord-bot && poetry run python -m src.main
+	cd services/discord-bot && PYTHONPATH=../.. poetry run python -m src.main
 
 backend:
-	cd services/backend && poetry run python -m src.main
+	cd services/backend && PYTHONPATH=../.. poetry run python -m src.main
+
+backend-init-db:
+	cd services/backend && PYTHONPATH=../.. poetry run python -m src.workers.init_db
+
+outbox:
+	cd services/backend && PYTHONPATH=../.. poetry run python -m src.workers.outbox_publisher
 
 test:
-	cd services/discord-bot && poetry run pytest
-	cd services/backend && poetry run pytest
+	cd services/discord-bot && PYTHONPATH=../.. poetry run pytest
+	cd services/backend && PYTHONPATH=../.. poetry run pytest
 
 fmt:
 	cd services/discord-bot && poetry run black src/
@@ -67,4 +75,4 @@ kafka-topics:
 	docker-compose -f docker/docker-compose.yml exec kafka kafka-topics --bootstrap-server localhost:9092 --list
 
 kafka-console:
-	docker-compose -f docker/docker-compose.yml exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic wellbeing.events --from-beginning
+	docker-compose -f docker/docker-compose.yml exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic dosecord.commands --from-beginning

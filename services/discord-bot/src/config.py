@@ -11,7 +11,7 @@ class Config(BaseSettings):
     
     discord_token: str
     kafka_brokers: str = "localhost:9092"
-    kafka_topic_events: str = "wellbeing.events"
+    kafka_topic_events: str = "dosecord.commands"
     log_level: str = "INFO"
     debug: bool = False
     service_name: str = "dosecord-discord-bot"

@@ -93,7 +93,7 @@ docker-compose -f docker/docker-compose.yml up
 DISCORD_TOKEN=your_bot_token docker-compose -f docker/docker-compose.yml --profile apps up --build
 
 # Or run individual services
-cd services/discord-bot && poetry run python -m src.main
+cd services/discord-bot && PYTHONPATH=../.. poetry run python -m src.main
 ```
 
 ## Contributing

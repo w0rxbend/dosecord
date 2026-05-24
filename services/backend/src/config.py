@@ -11,7 +11,9 @@ class Config(BaseSettings):
     
     kafka_brokers: str = "localhost:9092"
     kafka_consumer_group: str = "dosecord-backend"
-    kafka_topic_events: str = "wellbeing.events"
+    kafka_topic_events: str = "dosecord.commands"
+    kafka_topic_chat_responses: str = "dosecord.chat.responses"
+    kafka_topic_dlq: str = "dosecord.dlq"
     database_url: str = "postgresql://user:pass@localhost/db"
     log_level: str = "INFO"
     debug: bool = False

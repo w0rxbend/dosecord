@@ -26,6 +26,8 @@ mypy = "^1.0"
 
 [tool.poetry.scripts]
 dosecord-backend = "src.main:main"
+dosecord-backend-init-db = "src.workers.init_db:main"
+dosecord-outbox-publisher = "src.workers.outbox_publisher:main"
 
 [build-system]
 requires = ["poetry-core"]

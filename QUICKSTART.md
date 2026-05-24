@@ -47,7 +47,7 @@ cp .env.example .env
 DISCORD_TOKEN=your_token_here
 
 # Run the bot
-poetry run python -m src.main
+PYTHONPATH=../.. poetry run python -m src.main
 ```
 
 ### 5. Setup Backend (in another terminal)
@@ -61,7 +61,7 @@ poetry install
 cp .env.example .env
 
 # Run backend
-poetry run python -m src.main
+PYTHONPATH=../.. poetry run python -m src.main
 ```
 
 ### 6. Test the Bot

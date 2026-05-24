@@ -7,7 +7,13 @@ from discord.ext import commands
 
 from src.config import Config
 from src.kafka_producer import KafkaEventProducer
-from src.models import EventActor, HabitEvent, MedicineEvent, MoodEvent, Platform
+from shared.contracts import Actor, Platform
+from shared.contracts.identity import identity_start_requested
+from shared.contracts.wellbeing import (
+    habit_checkin_record_requested,
+    medication_intake_mark_taken_requested,
+    mood_checkin_record_requested,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +26,9 @@ class CommandHandler:
         self.producer = producer
         self.config = config
 
-    def _actor_from_context(self, ctx: commands.Context) -> EventActor:
+    def _actor_from_context(self, ctx: commands.Context) -> Actor:
         """Build a platform-neutral actor reference from Discord metadata."""
-        return EventActor(
+        return Actor(
             platform=Platform.DISCORD,
             platform_user_id=str(ctx.author.id),
             platform_username=str(ctx.author),
@@ -31,6 +37,13 @@ class CommandHandler:
     async def handle_start(self, ctx: commands.Context):
         """Handle /start command"""
         try:
+            self.producer.publish(
+                identity_start_requested(
+                    actor=self._actor_from_context(ctx),
+                    source=self.config.service_name,
+                    idempotency_key=f"discord:message:{ctx.message.id}",
+                )
+            )
             embed = self._create_welcome_embed(ctx.author)
             await ctx.send(embed=embed)
         except Exception as e:
@@ -50,14 +63,15 @@ class CommandHandler:
                 )
                 return
             
-            # Create and publish event
-            event = MoodEvent(
+            command = mood_checkin_record_requested(
                 actor=self._actor_from_context(ctx),
+                source=self.config.service_name,
                 mood_level=mood_level,
-                mood_description=mood
+                note=mood,
+                idempotency_key=f"discord:message:{ctx.message.id}",
             )
             
-            success = self.producer.publish_event(event)
+            success = self.producer.publish(command)
             
             if success:
                 response = self._get_mood_response(mood_level)
@@ -76,13 +90,14 @@ class CommandHandler:
                 await ctx.send("💊 Please specify the medicine name.")
                 return
             
-            # Create and publish event
-            event = MedicineEvent(
+            command = medication_intake_mark_taken_requested(
                 actor=self._actor_from_context(ctx),
-                medicine_name=medicine_name
+                source=self.config.service_name,
+                medication_name=medicine_name,
+                idempotency_key=f"discord:message:{ctx.message.id}",
             )
             
-            success = self.producer.publish_event(event)
+            success = self.producer.publish(command)
             
             if success:
                 await ctx.send(
@@ -103,13 +118,14 @@ class CommandHandler:
                 await ctx.send("🎯 Please specify the habit name.")
                 return
             
-            # Create and publish event
-            event = HabitEvent(
+            command = habit_checkin_record_requested(
                 actor=self._actor_from_context(ctx),
-                habit_name=habit_name
+                source=self.config.service_name,
+                habit_name=habit_name,
+                idempotency_key=f"discord:message:{ctx.message.id}",
             )
             
-            success = self.producer.publish_event(event)
+            success = self.producer.publish(command)
             
             if success:
                 await ctx.send(

@@ -9,7 +9,12 @@ from discord.ext import commands
 
 from src.config import Config
 from src.kafka_producer import KafkaEventProducer
-from src.models import EventActor, HabitEvent, MedicineEvent, MoodEvent, Platform
+from shared.contracts import Actor, Platform
+from shared.contracts.wellbeing import (
+    habit_checkin_record_requested,
+    medication_intake_mark_taken_requested,
+    mood_checkin_record_requested,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +26,9 @@ class MessageHandler:
         self.producer = producer
         self.config = config
 
-    def _actor_from_message(self, message: Message) -> EventActor:
+    def _actor_from_message(self, message: Message) -> Actor:
         """Build a platform-neutral actor reference from Discord metadata."""
-        return EventActor(
+        return Actor(
             platform=Platform.DISCORD,
             platform_user_id=str(message.author.id),
             platform_username=str(message.author),
@@ -83,14 +88,15 @@ class MessageHandler:
                 )
                 return
             
-            # Create and publish mood event
-            event = MoodEvent(
+            command = mood_checkin_record_requested(
                 actor=self._actor_from_message(message),
+                source=self.config.service_name,
                 mood_level=mood_level,
-                mood_description=message.content
+                note=message.content,
+                idempotency_key=f"discord:message:{message.id}",
             )
             
-            success = self.producer.publish_event(event)
+            success = self.producer.publish(command)
             
             if success:
                 response = self._get_mood_response(mood_level)
@@ -115,14 +121,15 @@ class MessageHandler:
                 )
                 return
             
-            # Create and publish medicine event
-            event = MedicineEvent(
+            command = medication_intake_mark_taken_requested(
                 actor=self._actor_from_message(message),
+                source=self.config.service_name,
                 medicine_name=medicine_name,
-                notes=message.content
+                note=message.content,
+                idempotency_key=f"discord:message:{message.id}",
             )
             
-            success = self.producer.publish_event(event)
+            success = self.producer.publish(command)
             
             if success:
                 await message.reply(
@@ -149,14 +156,15 @@ class MessageHandler:
                 )
                 return
             
-            # Create and publish habit event
-            event = HabitEvent(
+            command = habit_checkin_record_requested(
                 actor=self._actor_from_message(message),
+                source=self.config.service_name,
                 habit_name=habit_name,
-                notes=message.content
+                note=message.content,
+                idempotency_key=f"discord:message:{message.id}",
             )
             
-            success = self.producer.publish_event(event)
+            success = self.producer.publish(command)
             
             if success:
                 await message.reply(

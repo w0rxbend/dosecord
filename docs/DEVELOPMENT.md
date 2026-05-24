@@ -51,7 +51,7 @@ cp .env.example .env
 # Add your DISCORD_TOKEN to .env
 
 # Run bot
-poetry run python -m src.main
+PYTHONPATH=../.. poetry run python -m src.main
 ```
 
 #### Backend Service
@@ -66,7 +66,7 @@ poetry install
 cp .env.example .env
 
 # Run backend (in another terminal)
-poetry run python -m src.main
+PYTHONPATH=../.. poetry run python -m src.main
 ```
 
 ## Project Structure
@@ -178,7 +178,7 @@ poetry run mypy src/
 ```env
 DISCORD_TOKEN=your_token_here
 KAFKA_BROKERS=localhost:9092
-KAFKA_TOPIC_EVENTS=wellbeing.events
+KAFKA_TOPIC_EVENTS=dosecord.commands
 LOG_LEVEL=INFO
 DEBUG=false
 ```
@@ -188,7 +188,7 @@ DEBUG=false
 ```env
 KAFKA_BROKERS=localhost:9092
 KAFKA_CONSUMER_GROUP=dosecord-backend
-KAFKA_TOPIC_EVENTS=wellbeing.events
+KAFKA_TOPIC_EVENTS=dosecord.commands
 DATABASE_URL=postgresql://dosecord:dosecord@localhost:5432/dosecord_db
 LOG_LEVEL=INFO
 DEBUG=false

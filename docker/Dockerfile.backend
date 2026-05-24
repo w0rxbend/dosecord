@@ -15,6 +15,7 @@ RUN pip install poetry
 
 # Copy project files
 COPY services/backend/pyproject.toml ./
+COPY shared ./shared
 COPY services/backend/src ./src
 
 # Install Python dependencies
@@ -23,6 +24,7 @@ RUN poetry config virtualenvs.create false \
 
 # Set environment
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 ENV SERVICE_ENV=production
 
 # Run backend
