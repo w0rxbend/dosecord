@@ -1,0 +1,40 @@
+name: Roadmap slice
+description: Claim one dependency-unblocked Dosecord delivery slice.
+title: "[M0.0] "
+labels: [roadmap]
+body:
+  - type: input
+    id: slice
+    attributes:
+      label: Roadmap slice
+      description: Use the exact ID and name from docs/ROADMAP.md.
+      placeholder: M0.0 — Documentation cut 1
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List every dependency and its Appendix B status.
+      placeholder: M0.0 has no dependencies.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Copy the criteria from the roadmap verbatim.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Smallest reviewable scope
+      description: Name the files or behavior this slice changes.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks or open decisions
+      description: Name any named ADR, spike, or unresolved design conflict.
