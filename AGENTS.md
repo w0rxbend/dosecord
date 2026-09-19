@@ -22,15 +22,11 @@ specification.
 
 ## Current entry point
 
-The current eligible product slice is **M0.0 — Documentation cut 1**, marked
-`building` in the roadmap. Its remaining work is exactly the work listed in
-the M0.0 entry: retire or archive obsolete Python/Kafka documentation, add the
-doc-lint allowlist, and verify its acceptance criteria.
-
-Do not start M0.1 or later until M0.0 is `green`. Do not begin the Scala build,
-delete the prototype, or change product status merely because a file exists.
-`green` requires merged-to-main work, passing required checks or a recorded
-smoke transcript for every acceptance criterion, and updated documentation.
+M0.0 is `green`. The current eligible product slice is **M0.1 — Mill build and
+module graph**. Its remaining work is exactly the work listed in the M0.1
+entry: the `build.mill` module graph (`contracts`, `core`, `infra`,
+`adapter-console`, `app`, `tests/conformance`), the pinned toolchain and
+quality flags, and the acceptance checks recorded in the roadmap.
 
 ## Agent workflow
 
