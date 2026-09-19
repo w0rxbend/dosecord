@@ -492,7 +492,7 @@ Double your next dose.
 ## Implementation Path
 
 1. Add shared medication command/event contracts.
-2. Add backend DB models and Alembic migration for medication tables.
+2. Add the backend schema and Flyway migration for medication tables.
 3. Add backend medication service for create schedule, generate occurrences, mark taken/skip/snooze/missed.
 4. Add reminder worker with row locking and outbox messages.
 5. Add Discord nested menu handlers for add medication and today's doses.

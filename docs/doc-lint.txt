@@ -1,0 +1,27 @@
+# Dosecord documentation lint configuration
+#
+# M0.4 turns this manifest into a CI check. The scope is documentation and
+# repository guidance; executable legacy code is removed by M0.2. A section
+# allowlist means the heading whose number is given, including its content.
+
+[scope]
+AGENTS.md
+README.md
+QUICKSTART.md
+docs/**/*.md
+
+[forbidden]
+dosecord.commands
+discord.py
+/medicine
+users.id BIGINT
+Alembic
+KAFKA_
+postgresql+asyncpg
+
+[allowlist]
+docs/doc-lint.txt
+docs/archive/**
+docs/adr/**
+docs/design-tracks/**
+docs/ROADMAP.md#section-2
