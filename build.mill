@@ -1,0 +1,45 @@
+//| mvnDeps:
+//| - com.goyeau::mill-scalafix::0.6.2
+
+package build
+
+import com.goyeau.mill.scalafix.ScalafixModule
+import mill.*, scalalib.*, scalafmt.*
+
+// Versions pinned per docs/DESIGN.md section 2: Scala 3.8.4, Ox 1.0.6,
+// upickle 4.4.3, munit 1.3.6, munit-scalacheck 1.3.1.
+trait DosecordModule extends ScalaModule, ScalafmtModule, ScalafixModule:
+  def scalaVersion = "3.8.4"
+  def scalacOptions = Seq("-Werror", "-Wunused:all", "-deprecation")
+
+  trait DosecordTests extends ScalaTests, TestModule.Munit:
+    def mvnDeps = Seq(
+      mvn"org.scalameta::munit:1.3.6",
+      mvn"org.scalameta::munit-scalacheck:1.3.1"
+    )
+
+object contracts extends DosecordModule:
+  def mvnDeps = Seq(mvn"com.lihaoyi::upickle:4.4.3")
+  object test extends DosecordTests
+
+object core extends DosecordModule:
+  def moduleDeps = Seq(contracts)
+  def mvnDeps = Seq(mvn"com.softwaremill.ox::core:1.0.6")
+  object test extends DosecordTests
+
+object infra extends DosecordModule:
+  def moduleDeps = Seq(core, contracts)
+  object test extends DosecordTests
+
+object `adapter-console` extends DosecordModule:
+  def moduleDeps = Seq(core, contracts)
+  object test extends DosecordTests
+
+object app extends DosecordModule:
+  def moduleDeps = Seq(`adapter-console`, infra, core, contracts)
+  object test extends DosecordTests
+
+object tests extends Module:
+  object conformance extends DosecordModule:
+    def moduleDeps = Seq(core, contracts)
+    object test extends DosecordTests

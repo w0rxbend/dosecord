@@ -1,3 +1,8 @@
+# Mill / JVM
+out/
+.bsp/
+.mill-jvm-opts*
+
 # Python
 __pycache__/
 *.py[cod]

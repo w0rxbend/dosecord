@@ -22,11 +22,10 @@ specification.
 
 ## Current entry point
 
-M0.0 is `green`. The current eligible product slice is **M0.1 — Mill build and
-module graph**. Its remaining work is exactly the work listed in the M0.1
-entry: the `build.mill` module graph (`contracts`, `core`, `infra`,
-`adapter-console`, `app`, `tests/conformance`), the pinned toolchain and
-quality flags, and the acceptance checks recorded in the roadmap.
+M0.1 is `green`. The next eligible slices are **M0.2 — Delete Python, Kafka
+and the old compose stack** (deps M0.1) and, interleaving freely, the
+risk-first slices **M0.6** (CallbackCodec), **M0.7** (DST primitives) and
+**M0.8** (JDA DM spike), all depending only on M0.1.
 
 ## Agent workflow
 
