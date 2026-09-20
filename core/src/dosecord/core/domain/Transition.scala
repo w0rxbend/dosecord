@@ -96,9 +96,6 @@ enum Refusal:
   /** Cancelled rows (superseded/paused/archived) accept no user action. */
   case RowCancelled
 
-  /** M1.3 intermediate-green placeholder (system-rows commit); removed by the slice's user-rows commit. */
-  case UserRowPending
-
 /** What the caller tells the user (or nothing, for system ticks). Final copy is the M1.4a catalogue's job; these are
   * the semantic outcomes the copy renders.
   */

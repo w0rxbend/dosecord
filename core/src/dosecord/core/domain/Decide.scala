@@ -62,13 +62,79 @@ object Decide:
       case (OccurrenceStatus.Missed, OccurrenceEvent.Tick)    => Transition.unchanged(occ, Feedback.None)
       case (OccurrenceStatus.Unknown, OccurrenceEvent.Tick)   => Transition.unchanged(occ, Feedback.None)
       case (OccurrenceStatus.Cancelled, OccurrenceEvent.Tick) => Transition.unchanged(occ, Feedback.None)
-      // ---- User rows: land in the second commit of M1.3 (intermediate green: system rows first) ----
-      case (_, OccurrenceEvent.Taken)        => userRowPending(occ)
-      case (_, OccurrenceEvent.Skipped(_))   => userRowPending(occ)
-      case (_, OccurrenceEvent.Snoozed(_))   => userRowPending(occ)
-      case (_, OccurrenceEvent.Corrected(_)) => userRowPending(occ)
-      case (_, OccurrenceEvent.Undo)         => userRowPending(occ)
-      case (_, OccurrenceEvent.NoteAdded(_)) => userRowPending(occ)
+      // ---- taken ----
+      case (OccurrenceStatus.Pending, OccurrenceEvent.Taken) => take(occ, policy, now)
+      case (OccurrenceStatus.Due, OccurrenceEvent.Taken)     => take(occ, policy, now)
+      case (OccurrenceStatus.Snoozed, OccurrenceEvent.Taken) => take(occ, policy, now)
+      case (OccurrenceStatus.Taken, OccurrenceEvent.Taken)   =>
+        Transition.unchanged(occ, Feedback.AlreadyRecorded(occ.takenAt.getOrElse(now)))
+      case (OccurrenceStatus.Skipped, OccurrenceEvent.Taken) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.CorrectionPrompt))
+      case (OccurrenceStatus.Missed, OccurrenceEvent.Taken)    => take(occ, policy, now)
+      case (OccurrenceStatus.Unknown, OccurrenceEvent.Taken)   => take(occ, policy, now)
+      case (OccurrenceStatus.Cancelled, OccurrenceEvent.Taken) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.RowCancelled))
+      // ---- skipped ----
+      case (OccurrenceStatus.Pending, OccurrenceEvent.Skipped(reason)) => skip(occ, now, reason)
+      case (OccurrenceStatus.Due, OccurrenceEvent.Skipped(reason))     => skip(occ, now, reason)
+      case (OccurrenceStatus.Snoozed, OccurrenceEvent.Skipped(reason)) => skip(occ, now, reason)
+      case (OccurrenceStatus.Taken, OccurrenceEvent.Skipped(_))        =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.AlreadyResolved))
+      case (OccurrenceStatus.Skipped, OccurrenceEvent.Skipped(_)) =>
+        Transition.unchanged(occ, Feedback.AlreadyRecorded(occ.skippedAt.getOrElse(now)))
+      case (OccurrenceStatus.Missed, OccurrenceEvent.Skipped(reason))  => skip(occ, now, reason)
+      case (OccurrenceStatus.Unknown, OccurrenceEvent.Skipped(reason)) => skip(occ, now, reason)
+      case (OccurrenceStatus.Cancelled, OccurrenceEvent.Skipped(_))    =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.RowCancelled))
+      // ---- snoozed ----
+      case (OccurrenceStatus.Pending, OccurrenceEvent.Snoozed(minutes)) => snooze(occ, policy, now, ctx, minutes)
+      case (OccurrenceStatus.Due, OccurrenceEvent.Snoozed(minutes))     => snooze(occ, policy, now, ctx, minutes)
+      case (OccurrenceStatus.Snoozed, OccurrenceEvent.Snoozed(minutes)) => snooze(occ, policy, now, ctx, minutes)
+      case (OccurrenceStatus.Taken, OccurrenceEvent.Snoozed(_))         =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.SnoozeNotAllowed))
+      case (OccurrenceStatus.Skipped, OccurrenceEvent.Snoozed(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.SnoozeNotAllowed))
+      case (OccurrenceStatus.Missed, OccurrenceEvent.Snoozed(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.SnoozeNotAllowed))
+      case (OccurrenceStatus.Unknown, OccurrenceEvent.Snoozed(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.SnoozeNotAllowed))
+      case (OccurrenceStatus.Cancelled, OccurrenceEvent.Snoozed(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.RowCancelled))
+      // ---- corrected ----
+      case (OccurrenceStatus.Pending, OccurrenceEvent.Corrected(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.CorrectOnOpenRow))
+      case (OccurrenceStatus.Due, OccurrenceEvent.Corrected(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.CorrectOnOpenRow))
+      case (OccurrenceStatus.Snoozed, OccurrenceEvent.Corrected(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.CorrectOnOpenRow))
+      case (OccurrenceStatus.Taken, OccurrenceEvent.Corrected(at))    => correct(occ, now, at)
+      case (OccurrenceStatus.Skipped, OccurrenceEvent.Corrected(at))  => correct(occ, now, at)
+      case (OccurrenceStatus.Missed, OccurrenceEvent.Corrected(at))   => correct(occ, now, at)
+      case (OccurrenceStatus.Unknown, OccurrenceEvent.Corrected(at))  => correct(occ, now, at)
+      case (OccurrenceStatus.Cancelled, OccurrenceEvent.Corrected(_)) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.RowCancelled))
+      // ---- undo ----
+      case (OccurrenceStatus.Pending, OccurrenceEvent.Undo) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.NothingToUndo))
+      case (OccurrenceStatus.Due, OccurrenceEvent.Undo)     => undo(occ, policy, now, ctx)
+      case (OccurrenceStatus.Snoozed, OccurrenceEvent.Undo) => undo(occ, policy, now, ctx)
+      case (OccurrenceStatus.Taken, OccurrenceEvent.Undo)   => undo(occ, policy, now, ctx)
+      case (OccurrenceStatus.Skipped, OccurrenceEvent.Undo) => undo(occ, policy, now, ctx)
+      case (OccurrenceStatus.Missed, OccurrenceEvent.Undo)  =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.NothingToUndo))
+      case (OccurrenceStatus.Unknown, OccurrenceEvent.Undo) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.NothingToUndo))
+      case (OccurrenceStatus.Cancelled, OccurrenceEvent.Undo) =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.RowCancelled))
+      // ---- note_added never changes status (ADR-012) ----
+      case (OccurrenceStatus.Pending, OccurrenceEvent.NoteAdded(note))   => addNote(occ, now, note)
+      case (OccurrenceStatus.Due, OccurrenceEvent.NoteAdded(note))       => addNote(occ, now, note)
+      case (OccurrenceStatus.Snoozed, OccurrenceEvent.NoteAdded(note))   => addNote(occ, now, note)
+      case (OccurrenceStatus.Taken, OccurrenceEvent.NoteAdded(note))     => addNote(occ, now, note)
+      case (OccurrenceStatus.Skipped, OccurrenceEvent.NoteAdded(note))   => addNote(occ, now, note)
+      case (OccurrenceStatus.Missed, OccurrenceEvent.NoteAdded(note))    => addNote(occ, now, note)
+      case (OccurrenceStatus.Unknown, OccurrenceEvent.NoteAdded(note))   => addNote(occ, now, note)
+      case (OccurrenceStatus.Cancelled, OccurrenceEvent.NoteAdded(note)) => addNote(occ, now, note)
 
   /** The snooze options the UI may offer (ADR-012): the policy's options filtered so the resulting `snoozed_until`
     * never passes the next occurrence of the schedule minus one minute, `scheduled_for + maxLate`, or (for chains,
@@ -275,12 +341,189 @@ object Decide:
     )
 
   // --------------------------------------------------------------------------
-  // Helpers
+  // User rows
   // --------------------------------------------------------------------------
 
-  /** M1.3 intermediate-green placeholder: user rows are implemented in the slice's second commit. */
-  private def userRowPending(occ: Occurrence): Transition =
-    Transition.unchanged(occ, Feedback.Refused(Refusal.UserRowPending))
+  /** Taken from an open or system-resolved row (ADR-012): within the late-log window records `effective_at = now`
+    * (`taken_late` past `due_window_end`); beyond it the direct tap becomes the correction flow with an explicit time.
+    * A user-resolved row (skipped) is refused above with the correction prompt instead of entering here.
+    */
+  private def take(occ: Occurrence, policy: ReminderPolicy, now: Instant): Transition =
+    if now.isAfter(occ.scheduledFor.plusSeconds(policy.lateLogWindowMinutes.toLong * 60L)) then
+      Transition.unchanged(occ, Feedback.Refused(Refusal.CorrectionPrompt))
+    else
+      val late = now.isAfter(occ.dueWindowEnd)
+      val row = occ.copy(
+        status = OccurrenceStatus.Taken,
+        takenAt = Some(now),
+        effectiveAt = Some(now),
+        snoozedUntil = None,
+        missedAt = None,
+        unknownReason = None,
+        nextActionAt = None,
+        epoch = occ.epoch + 1
+      )
+      Transition(
+        row,
+        Some(
+          userAction(DoseActionKind.Taken, occ, OccurrenceStatus.Taken, now, effectiveAt = Some(now), takenLate = late)
+        ),
+        List(DispatchIntent.FinalizeControls(FinalizeReason.Resolved)),
+        None,
+        Feedback.Recorded(late)
+      )
+
+  /** Skipped with a reason code. Allowed from open rows and from system-resolved rows (the missed notice's [Skip]; the
+    * user's word resolves an `unknown` row as real evidence). Chain child creation is declared on `Transition` but
+    * inert until M7.2.
+    */
+  private def skip(occ: Occurrence, now: Instant, reason: Option[SkipReason]): Transition =
+    val row = occ.copy(
+      status = OccurrenceStatus.Skipped,
+      skippedAt = Some(now),
+      snoozedUntil = None,
+      missedAt = None,
+      unknownReason = None,
+      nextActionAt = None,
+      epoch = occ.epoch + 1
+    )
+    Transition(
+      row,
+      Some(userAction(DoseActionKind.Skipped, occ, OccurrenceStatus.Skipped, now, reasonCode = reason.map(_.code))),
+      List(DispatchIntent.FinalizeControls(FinalizeReason.Resolved)),
+      None,
+      Feedback.SkippedRecorded
+    )
+
+  /** Snooze from due, or from pending via Today (ADR-012): `snoozed_until = max(now, due_window_start) + N`, bounded by
+    * the next occurrence minus one minute, `scheduled_for + maxLate`, and the declared-inert chain bound;
+    * `miss_deadline := max(miss_deadline, snoozed_until + missAfterSnooze)`;
+    * `due_window_end := snoozed_until + onTimeGrace`. Explicit snoozes bypass quiet-hours defer (the wake tick delivers
+    * with the silent flag inside quiet hours).
+    */
+  private def snooze(
+      occ: Occurrence,
+      policy: ReminderPolicy,
+      now: Instant,
+      ctx: DecideContext,
+      minutes: Int
+  ): Transition =
+    if occ.snoozeCount >= policy.maxSnoozes then Transition.unchanged(occ, Feedback.Refused(Refusal.SnoozeLimitReached))
+    else
+      val until = snoozedUntil(occ, now, minutes)
+      val bound = snoozeBound(occ, policy, ctx.nextOccurrenceScheduledFor, ctx.chainIntervalMinutes)
+      if until.isAfter(bound) then Transition.unchanged(occ, Feedback.Refused(Refusal.SnoozePastBound))
+      else
+        val row = occ.copy(
+          status = OccurrenceStatus.Snoozed,
+          snoozedUntil = Some(until),
+          snoozeCount = occ.snoozeCount + 1,
+          missDeadline = maxOf(occ.missDeadline, until.plusSeconds(policy.missAfterSnoozeMinutes.toLong * 60L)),
+          dueWindowEnd = until.plusSeconds(policy.onTimeGraceMinutes.toLong * 60L),
+          nextActionAt = Some(until),
+          epoch = occ.epoch + 1
+        )
+        Transition(
+          row,
+          Some(userAction(DoseActionKind.Snoozed, occ, OccurrenceStatus.Snoozed, now)),
+          List(DispatchIntent.FinalizeControls(FinalizeReason.Resolved)),
+          None,
+          Feedback.SnoozedUntil(until)
+        )
+
+  /** Correct from any resolved status, with an explicit `effective_at` (ADR-012); recorded as `manually_corrected` so
+    * delay statistics can exclude it (DESIGN.md section 7.3).
+    */
+  private def correct(occ: Occurrence, now: Instant, effectiveAt: Instant): Transition =
+    if effectiveAt.isAfter(now) then Transition.unchanged(occ, Feedback.Refused(Refusal.InvalidEffectiveAt))
+    else
+      val row = occ.copy(
+        status = OccurrenceStatus.Taken,
+        takenAt = Some(now),
+        effectiveAt = Some(effectiveAt),
+        skippedAt = None,
+        missedAt = None,
+        unknownReason = None,
+        snoozedUntil = None,
+        nextActionAt = None,
+        epoch = occ.epoch + 1
+      )
+      Transition(
+        row,
+        Some(
+          userAction(
+            DoseActionKind.ManuallyCorrected,
+            occ,
+            OccurrenceStatus.Taken,
+            now,
+            effectiveAt = Some(effectiveAt)
+          )
+        ),
+        List(DispatchIntent.FinalizeControls(FinalizeReason.Resolved)),
+        None,
+        Feedback.Corrected(effectiveAt)
+      )
+
+  /** Undo of the latest user action within the window (ADR-012): back to `due` with
+    * `next_action_at = now + repeatEvery`, `miss_deadline := max(miss_deadline, now + 2 * repeatEvery)`, `reminder_seq`
+    * unchanged, `taken_at/skipped_at/snoozed_until` cleared. Applies to a taken, a skipped, a snooze (status
+    * `snoozed`), and a snooze whose wake already fired (status `due` again). Past the window a resolved row is refused
+    * with the correction hint (M1.10). The chain-child cascade (`cancel_reason = anchor_undone`) is declared, inert
+    * until M7.2. `snooze_count` deliberately stays: ADR-012 clears the instant, not the budget.
+    */
+  private def undo(occ: Occurrence, policy: ReminderPolicy, now: Instant, ctx: DecideContext): Transition =
+    def appliesTo(action: LastUserAction): Boolean =
+      (occ.status, action.kind) match
+        case (OccurrenceStatus.Taken, DoseActionKind.Taken)     => true
+        case (OccurrenceStatus.Skipped, DoseActionKind.Skipped) => true
+        case (OccurrenceStatus.Snoozed, DoseActionKind.Snoozed) => true
+        case (OccurrenceStatus.Due, DoseActionKind.Snoozed)     => true
+        case _                                                  => false
+    ctx.lastUndoableAction.filter(appliesTo) match
+      case scala.None =>
+        Transition.unchanged(occ, Feedback.Refused(Refusal.NothingToUndo))
+      case Some(action)
+          if Duration.between(action.occurredAt, now).compareTo(Duration.ofMinutes(policy.undoWindowMinutes)) > 0 =>
+        val refusal =
+          if occ.status == OccurrenceStatus.Taken || occ.status == OccurrenceStatus.Skipped
+          then Refusal.UndoWindowPassedOfferCorrect
+          else Refusal.UndoWindowPassed
+        Transition.unchanged(occ, Feedback.Refused(refusal))
+      case Some(action) =>
+        val next = now.plusSeconds(policy.repeatEveryMinutes.toLong * 60L)
+        val row = occ.copy(
+          status = OccurrenceStatus.Due,
+          takenAt = None,
+          effectiveAt = None,
+          skippedAt = None,
+          snoozedUntil = None,
+          nextActionAt = Some(next),
+          missDeadline = maxOf(occ.missDeadline, now.plusSeconds(2L * policy.repeatEveryMinutes.toLong * 60L)),
+          epoch = occ.epoch + 1
+        )
+        Transition(
+          row,
+          Some(userAction(DoseActionKind.Undone, occ, OccurrenceStatus.Due, now, undoesSeq = Some(action.seq))),
+          List(DispatchIntent.FinalizeControls(FinalizeReason.Resolved)),
+          None,
+          Feedback.Undone(next)
+        )
+
+  /** `note_added` never changes status (ADR-012): the row is returned untouched (no epoch increment) and only the
+    * action row is appended.
+    */
+  private def addNote(occ: Occurrence, now: Instant, note: String): Transition =
+    Transition(
+      occ,
+      Some(userAction(DoseActionKind.NoteAdded, occ, occ.status, now, note = Some(note))),
+      Nil,
+      None,
+      Feedback.NoteRecorded
+    )
+
+  // --------------------------------------------------------------------------
+  // Helpers
+  // --------------------------------------------------------------------------
 
   /** The repeat cadence of the system table: `min(now + repeatEvery, miss_deadline)` while more reminders remain, else
     * `miss_deadline`. `maxReminders` counts the initial reminder.
@@ -320,6 +563,30 @@ object Decide:
       occ.status,
       newStatus,
       catchUp = occ.nextActionAt.exists(na => Duration.between(na, now).compareTo(CatchUpThreshold) > 0)
+    )
+
+  private def userAction(
+      kind: DoseActionKind,
+      occ: Occurrence,
+      newStatus: OccurrenceStatus,
+      now: Instant,
+      effectiveAt: Option[Instant] = None,
+      reasonCode: Option[String] = None,
+      note: Option[String] = None,
+      undoesSeq: Option[Int] = None,
+      takenLate: Boolean = false
+  ): ActionRowIntent =
+    ActionRowIntent(
+      kind,
+      Actor.User,
+      now,
+      occ.status,
+      newStatus,
+      effectiveAt = effectiveAt,
+      reasonCode = reasonCode,
+      note = note,
+      undoesSeq = undoesSeq,
+      takenLate = takenLate
     )
 
   private def minOf(a: Instant, b: Instant): Instant = if a.isBefore(b) then a else b
