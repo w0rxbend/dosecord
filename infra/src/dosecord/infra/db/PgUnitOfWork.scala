@@ -1,6 +1,8 @@
 package dosecord.infra.db
 
 import dosecord.core.ports.Clock
+import dosecord.core.ports.OutboxRepository
+import dosecord.core.ports.RenderedMessageRepository
 import dosecord.core.ports.SessionRepository
 import dosecord.core.ports.Tx
 import dosecord.core.ports.UnitOfWork
@@ -28,3 +30,5 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
 
   private final class PgTx(conn: Connection) extends Tx:
     override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock)
+    override lazy val outbox: OutboxRepository = PgOutboxRepository(conn)
+    override lazy val renderedMessages: RenderedMessageRepository = PgRenderedMessageRepository(conn)
