@@ -22,12 +22,11 @@ specification.
 
 ## Current entry point
 
-M0.4 and M0.9 are `green`. The next eligible slices are **M0.5 — Settings,
-composition root, health, image, shutdown** (deps M0.4), **M0.10 — Outbox
-dispatcher protocol** (deps M0.3, M0.9), **M1.1 — Rule enum, ReminderPolicy,
-QuietHours** (deps M0.9) and **M1.4a — Copy catalogue** (deps M0.9), which may
-interleave. **M0.8** (JDA DM spike) is dependency-unblocked but requires live
-Discord credentials; do not start it until the owner provides them.
+M0.5, M0.10, M1.1 and M1.4a are `green`. The next eligible slices are
+**M0.11 — Telemetry skeleton** (deps M0.5) and **M1.2 — Evaluator and
+materialiser (pure)** (deps M1.1, M0.7), which may interleave. **M0.8** (JDA
+DM spike) is dependency-unblocked but requires live Discord credentials; do
+not start it until the owner provides them.
 
 ## Agent workflow
 
