@@ -68,6 +68,8 @@ jobs:
       - run: ./mill __.compile
       # Infra tests use Testcontainers (Docker is available on the runner).
       - run: ./mill __.test
+      # M0.5: the committed .env.example must equal the generated one.
+      - run: ./mill app.test.runMain dosecord.app.envExampleCheck .env.example
       - name: flyway validate
         run: scripts/flyway-validate.sh
 
@@ -82,6 +84,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: scripts/doc-lint.sh
+
+  # M0.5: the Dockerfile is born here — build the image, then a compose smoke
+  # (/healthz 200, idle RSS <= 200 MB with the console adapter enabled).
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build -f docker/Dockerfile -t dosecord:ci .
+      - name: compose smoke
+        run: |
+          docker compose -f docker/compose.yml up -d --build --wait
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:28080/healthz
+      - name: idle RSS <= 200 MB
+        run: scripts/rss-check.sh 200
+      - name: compose down
+        if: always()
+        run: docker compose -f docker/compose.yml down -v
 
   license-gate:
     runs-on: ubuntu-latest

@@ -15,5 +15,30 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: dosecord:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENABLED_ADAPTERS: console
+      CONSOLE_USER_ID: owner
+      DATABASE_URL: jdbc:postgresql://postgres:5432/dosecord?user=dosecord&password=dosecord
+      CALLBACK_KEYS: 0:MDEyMzQ1Njc4OWFiY2RlZg
+      ROLE: all
+      LOG_LEVEL: INFO
+      LOG_FORMAT: plain
+    ports:
+      - "28080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
 volumes:
   postgres_data:
