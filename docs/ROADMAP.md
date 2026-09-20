@@ -396,12 +396,12 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M0.1 | Mill build and module graph | S | M0.0 | | green |
 | M0.2 | Delete Python, Kafka, old compose | S | M0.1 | | green |
 | M0.3 | Flyway V1, SQL layer, UnitOfWork, sessions, Testcontainers | M | M0.2 | | green |
-| M0.4 | CI and quality gates, doc-lint | S | M0.3 | | todo |
+| M0.4 | CI and quality gates, doc-lint | S | M0.3 | | green |
 | M0.5 | Settings, root, health, image, shutdown, migrate | M | M0.4 | | todo |
 | M0.6 | CallbackCodec and action registry (kept) | S | M0.1 | | green |
 | M0.7 | DST materialiser primitives (kept) | S | M0.1 | | green |
 | M0.8 | Spike C: JDA DM (throwaway) | S | M0.1 | | todo |
-| M0.9 | Contracts, chat model, renderer, FakeAdapter, goldens (B1) | M | M0.6 | | todo |
+| M0.9 | Contracts, chat model, renderer, FakeAdapter, goldens (B1) | M | M0.6 | | green |
 | M0.10 | Outbox dispatcher protocol (kept) | M | M0.3, M0.9 | | todo |
 | M0.11 | Telemetry skeleton | S | M0.5 | | todo |
 | M0.12a | Mediator core on FakeAdapter | M | M0.5, M0.9, M0.11 | | todo |
