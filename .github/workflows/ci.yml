@@ -1,0 +1,118 @@
+# CI and quality gates (ROADMAP M0.4). The exact local equivalents of every
+# job are the commands in each `run:` step; the gate scripts live in scripts/.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  scalafmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/coursier
+          key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      - run: ./mill __.checkFormat
+
+  scalafix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/coursier
+          key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      - run: ./mill __.fix --check
+
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: dosecord
+          POSTGRES_PASSWORD: dosecord
+          POSTGRES_DB: dosecord
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dosecord -d dosecord"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/coursier
+          key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      # scalacOptions carry -Werror -Wunused:all -deprecation (build.mill).
+      - run: ./mill __.compile
+      # Infra tests use Testcontainers (Docker is available on the runner).
+      - run: ./mill __.test
+      - name: flyway validate
+        run: scripts/flyway-validate.sh
+
+  vendor-symbols:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-vendor-symbols.sh
+
+  doc-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/doc-lint.sh
+
+  license-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/coursier
+          key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      - run: scripts/license-gate.sh
+
+  # Coverage-gate scaffold: 85% on core/domain and core/chat, measured but
+  # NOT enforced until M1 exit (then set COVERAGE_GATE_ARMED: "true").
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_GATE_ARMED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/coursier
+          key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      - run: ./mill core.test
+      - run: ./mill core.scoverage.xmlReport
+      - run: scripts/coverage-gate.sh
