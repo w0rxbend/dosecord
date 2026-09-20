@@ -22,9 +22,9 @@ specification.
 
 ## Current entry point
 
-M0.5, M0.10, M1.1 and M1.4a are `green`. The next eligible slices are
-**M0.11 — Telemetry skeleton** (deps M0.5) and **M1.2 — Evaluator and
-materialiser (pure)** (deps M1.1, M0.7), which may interleave. **M0.8** (JDA
+M0.11 and M1.2 are `green`. The next eligible slices are **M0.12a —
+Mediator core on FakeAdapter** (deps M0.5, M0.9, M0.11) and **M1.3 —
+Occurrence FSM decide()** (deps M1.2), which may interleave. **M0.8** (JDA
 DM spike) is dependency-unblocked but requires live Discord credentials; do
 not start it until the owner provides them.
 
