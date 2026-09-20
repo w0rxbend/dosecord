@@ -29,7 +29,21 @@ object core extends DosecordModule:
 
 object infra extends DosecordModule:
   def moduleDeps = Seq(core, contracts)
-  object test extends DosecordTests
+  def resources = Task.Sources("src/main/resources")
+  // Versions pinned per docs/DESIGN.md section 2: pgjdbc 42.7.13,
+  // HikariCP 7.1.0, Flyway 13.6.0 (PostgreSQL support is a separate artifact).
+  def mvnDeps = Seq(
+    mvn"org.postgresql:postgresql:42.7.13",
+    mvn"com.zaxxer:HikariCP:7.1.0",
+    mvn"org.flywaydb:flyway-core:13.6.0",
+    mvn"org.flywaydb:flyway-database-postgresql:13.6.0"
+  )
+  object test extends DosecordTests:
+    // testcontainers-scala 0.44.1 per docs/DESIGN.md section 2 (pulls testcontainers 1.21.x).
+    override def mvnDeps = super.mvnDeps() ++ Seq(
+      mvn"com.dimafeng::testcontainers-scala-postgresql:0.44.1",
+      mvn"com.dimafeng::testcontainers-scala-munit:0.44.1"
+    )
 
 object `adapter-console` extends DosecordModule:
   def moduleDeps = Seq(core, contracts)
