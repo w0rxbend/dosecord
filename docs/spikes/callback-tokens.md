@@ -31,7 +31,8 @@ ids 1-7, 20, 30-32, 40. One deliberate deviation: `dose.correct` is registered
 with `opensForm = false`, because M1.10/M2.2 define correction as a two-choice
 button row ("Log as taken: [Now][At scheduled time][Cancel]"), not a modal;
 DESIGN.md section 4.4's `dose.correct[opensForm]` annotation is stale and
-should be reconciled in the M0.9 documentation pass.
+should be reconciled in the M0.9 documentation pass. (Reconciled in M0.9: the
+section 4.4 annotation now reads `dose.correct` with opensForm = false.)
 
 ## Key overlap
 

@@ -1,7 +1,6 @@
 package dosecord.core.chat
 
-enum Visibility:
-  case Persistent, Ephemeral
+import dosecord.contracts.Visibility
 
 final case class ActionEntry(
     id: Int,

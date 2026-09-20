@@ -1,0 +1,18 @@
+scenario: post-taken
+profile: telegram
+report:
+  rung finalize=finalize.nativeEdit
+  rung post_taken.followup=choices.buttons
+  splitInto=1 paged=false
+  warnings: -
+op 1: EDIT telegram:dm:owner:m42@r0
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (18 chars):
+  ---
+  Recorded at 09:03.
+  ---
+  controls[0] buttons:
+    row 1: [1] Undo -> dc:EQAABAARIjNEVWZ3iJmqu8zd7v8AAAAAAAAhTcFYj2DeRg (Secondary) [2] Correct -> dc:EQAABgARIjNEVWZ3iJmqu8zd7v8AAAAAAACTbjARnVBTkg (Secondary)
+  choiceMap:
+    post_taken.followup 1 Undo emoji=- -> dc:EQAABAARIjNEVWZ3iJmqu8zd7v8AAAAAAAAhTcFYj2DeRg
+    post_taken.followup 2 Correct emoji=- -> dc:EQAABgARIjNEVWZ3iJmqu8zd7v8AAAAAAACTbjARnVBTkg

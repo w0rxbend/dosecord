@@ -1,0 +1,31 @@
+scenario: days-multi-select
+profile: discord
+report:
+  rung visibility=visibility.persistent
+  rung wizard.days=choices.select
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=discord:dm:owner sendKey=days:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (34 chars):
+  ---
+  Set up your schedule.
+  
+  Which days?
+  ---
+  controls[0] select id=wizard.days min=1 max=7:
+    [1] Mon -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAEmucbap50GzQ (Secondary)
+    [2] Tue -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAL-6SL8MjkysA (Secondary)
+    [3] Wed -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAOnvfhKgcQ9YA (Secondary)
+    [4] Thu -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAQnsvFVsyb0kg (Secondary)
+    [5] Fri -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAV0_oL-O2vsEA (Secondary)
+    [6] Sat -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAYQxWDFV84Naw (Secondary)
+    [7] Sun -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAdj00inE7DDig (Secondary)
+  choiceMap:
+    wizard.days 1 Mon emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAEmucbap50GzQ
+    wizard.days 2 Tue emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAL-6SL8MjkysA
+    wizard.days 3 Wed emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAOnvfhKgcQ9YA
+    wizard.days 4 Thu emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAQnsvFVsyb0kg
+    wizard.days 5 Fri emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAV0_oL-O2vsEA
+    wizard.days 6 Sat emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAYQxWDFV84Naw
+    wizard.days 7 Sun emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAdj00inE7DDig

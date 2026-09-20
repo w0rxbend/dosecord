@@ -183,12 +183,14 @@ raw = 34 bytes -> base64url without padding = 46 chars; wire form = "dc:" + 46 =
 byte 0      version (4 bits) | key_id (4 bits)         # two active HMAC keys, rotated
 byte 1      mode: 0 = direct, 1 = slot
 bytes 2-3   action: UInt16 from a registry; each entry declares opensForm, visibility, requiresSession
-            (1 dose.taken, 2 dose.snooze, 3 dose.skip, 4 dose.undo, 5 dose.note[opensForm], 6 dose.correct[opensForm],
+            (1 dose.taken, 2 dose.snooze, 3 dose.skip, 4 dose.undo, 5 dose.note[opensForm], 6 dose.correct,
              7 dose.keep_missed, 20 menu.open, 30 wizard.step, 31 wizard.text_step[opensForm], 32 wizard.confirm, 40 link.confirm ...)
 bytes 4-19  subject: 16-byte UUID (occurrence id in direct mode; callback_slots.id in slot mode)
 bytes 20-25 value: 6 bytes, zero-padded (snooze minutes, choice index, step_seq, enum code)
 bytes 26-33 MAC: HMAC-SHA256(server_key[key_id], bytes 0..25)[:8]
 ```
+
+dose.correct is registered with opensForm = false: correction is a two-choice button row ("Log as taken: [Now][At scheduled time][Cancel]", ROADMAP M1.10/M2.2), not a modal; the earlier [opensForm] annotation on id 6 was stale and was reconciled in M0.9.
 
 Direct mode is stateless: a reminder from last week still works because occurrence ids never expire and the transition is idempotent. Slot mode points at `callback_slots {id, account_id, chat, payload jsonb, session_id, step_seq, expires_at}` for wizard/menu payloads larger than 6 bytes; reminder follow-up slots never expire, menu/wizard slots expire with the session. The mediator verifies the MAC before anything reaches the core; a bad MAC yields a toast "This button is no longer valid" and an audit row. Discord routes by the `dc:` prefix on `getComponentId` / modal custom id (JDA needs no view registration: buttons, selects and modal submits arrive as plain events keyed by custom id, so persistence across restarts is free). A property test asserts every valid token matches the `^dc:[A-Za-z0-9_-]{46}$` shape and fits both budgets. Zulip and Matrix never receive tokens; they resolve through `rendered_messages.choice_map`.
 

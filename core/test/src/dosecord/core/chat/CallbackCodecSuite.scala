@@ -6,6 +6,8 @@ import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
+import dosecord.contracts.Visibility
+
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
 

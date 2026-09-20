@@ -1,0 +1,18 @@
+scenario: form
+profile: zulip
+report:
+  rung medication.add=form.formRunner
+  rung visibility=visibility.persistent
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=zulip:dm:owner sendKey=form:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (81 chars):
+  ---
+  Let's add a medication.
+  
+  Add medication — question 1 of 4:
+  
+  Name (e.g. Vitamin D)
+  ---
+  form medication.add (4 fields, via FormRunner)

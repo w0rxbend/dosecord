@@ -1,0 +1,31 @@
+scenario: reminder
+profile: zulip
+report:
+  rung reminder.main=choices.numberedReactions
+  rung reminder.more=choices.numbered
+  rung visibility=visibility.persistent
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=zulip:dm:owner sendKey=reminder:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (88 chars):
+  ---
+  Time for Vitamin D, 1000 IU.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  ---
+  controls[0] numbered id=reminder.main reactions=1️⃣,2️⃣,3️⃣
+    [1] Taken -> dc:EQAAAQARIjNEVWZ3iJmqu8zd7v8AAAAAAADJCNEciJeSXA (Success)
+    [2] Snooze 10m -> dc:EQAAAgARIjNEVWZ3iJmqu8zd7v8AAAAAAAq8k1UzW83kjQ (Secondary)
+    [3] Skip -> dc:EQAAAwARIjNEVWZ3iJmqu8zd7v8AAAAAAADtpu3KD7Rv3Q (Secondary)
+  controls[1] numbered id=reminder.more reactions=
+    [4] Snooze 30m -> dc:EQAAAgARIjNEVWZ3iJmqu8zd7v8AAAAAAB61AhugShm7EQ (Secondary)
+    [5] Snooze 1h -> dc:EQAAAgARIjNEVWZ3iJmqu8zd7v8AAAAAADyKbojSnIEEug (Secondary)
+  choiceMap:
+    reminder.main 1 Taken emoji=1️⃣ -> dc:EQAAAQARIjNEVWZ3iJmqu8zd7v8AAAAAAADJCNEciJeSXA
+    reminder.main 2 Snooze 10m emoji=2️⃣ -> dc:EQAAAgARIjNEVWZ3iJmqu8zd7v8AAAAAAAq8k1UzW83kjQ
+    reminder.main 3 Skip emoji=3️⃣ -> dc:EQAAAwARIjNEVWZ3iJmqu8zd7v8AAAAAAADtpu3KD7Rv3Q
+    reminder.more 4 Snooze 30m emoji=- -> dc:EQAAAgARIjNEVWZ3iJmqu8zd7v8AAAAAAB61AhugShm7EQ
+    reminder.more 5 Snooze 1h emoji=- -> dc:EQAAAgARIjNEVWZ3iJmqu8zd7v8AAAAAADyKbojSnIEEug
