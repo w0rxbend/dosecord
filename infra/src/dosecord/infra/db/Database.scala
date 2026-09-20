@@ -12,3 +12,10 @@ object Database:
     config.setPassword(password)
     config.setMaximumPoolSize(maxPoolSize)
     HikariDataSource(config)
+
+  /** Pool over a `DATABASE_URL` that carries its own credentials as pgjdbc query parameters (DESIGN.md section 12). */
+  def pooled(url: String, maxPoolSize: Int): HikariDataSource =
+    val config = HikariConfig()
+    config.setJdbcUrl(url)
+    config.setMaximumPoolSize(maxPoolSize)
+    HikariDataSource(config)
