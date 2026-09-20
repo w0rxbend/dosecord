@@ -394,7 +394,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 |---|---|---|---|---|---|
 | M0.0 | Documentation cut 1 | S | — | | green |
 | M0.1 | Mill build and module graph | S | M0.0 | | green |
-| M0.2 | Delete Python, Kafka, old compose | S | M0.1 | | todo |
+| M0.2 | Delete Python, Kafka, old compose | S | M0.1 | | green |
 | M0.3 | Flyway V1, SQL layer, UnitOfWork, sessions, Testcontainers | M | M0.2 | | todo |
 | M0.4 | CI and quality gates, doc-lint | S | M0.3 | | todo |
 | M0.5 | Settings, root, health, image, shutdown, migrate | M | M0.4 | | todo |

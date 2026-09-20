@@ -2,7 +2,7 @@
 
 ## Mission and source of truth
 
-Dosecord is being rewritten from the Python/Kafka prototype into the Scala
+Dosecord is being rewritten from the retired Python prototype into the Scala
 system defined in [docs/DESIGN.md](docs/DESIGN.md). The delivery order and the
 only product-slice status table are in [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -22,10 +22,10 @@ specification.
 
 ## Current entry point
 
-M0.1 is `green`. The next eligible slices are **M0.2 — Delete Python, Kafka
-and the old compose stack** (deps M0.1) and, interleaving freely, the
-risk-first slices **M0.6** (CallbackCodec), **M0.7** (DST primitives) and
-**M0.8** (JDA DM spike), all depending only on M0.1.
+M0.2 is `green`. The next eligible slice is **M0.3 — Flyway V1, SQL layer,
+UnitOfWork, session repository, Testcontainers harness** (deps M0.2) and,
+interleaving freely, the risk-first slices **M0.6** (CallbackCodec), **M0.7**
+(DST primitives) and **M0.8** (JDA DM spike), all depending only on M0.1.
 
 ## Agent workflow
 
@@ -49,9 +49,9 @@ For every product slice:
 
 - Keep `core` and `contracts` vendor-neutral. The forbidden vendor-symbol
   boundary in ROADMAP M0.4 is a release gate, not an optional convention.
-- Do not retain executable Python, Kafka, or Poetry implementation work after
-  the M0.2 migration slice. Until then, treat the current implementation as
-  historical, not a pattern to extend.
+- The executable Python/Poetry prototype and its broker-based compose stack
+  were deleted in M0.2 and must not return. Treat them as git history, not a
+  pattern to extend.
 - Never log credentials, message bodies, medication names, or notes. Do not
   collect passwords in chat.
 - Keep all medication guidance non-clinical. The bot records user actions; it

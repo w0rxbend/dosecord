@@ -8,6 +8,6 @@ slice may start only when its listed dependencies are green. Use
 [DESIGN.md](DESIGN.md) for architecture and the accepted records in
 [adr/](adr/) for decisions.
 
-The current entry point is M0.0, the documentation cut. There is no supported
-application setup command until a roadmap slice defines and verifies one.
-Prototype setup instructions remain available only in git history.
+The current entry point is named in [AGENTS.md](../AGENTS.md). There is no
+supported application setup command until a roadmap slice defines and verifies
+one. Prototype setup instructions remain available only in git history.
