@@ -5,6 +5,8 @@ package dosecord.core.ports
   */
 trait Tx:
   def sessions: SessionRepository
+  def outbox: OutboxRepository
+  def renderedMessages: RenderedMessageRepository
 
 trait UnitOfWork:
   def transaction[A](f: Tx => A): A
