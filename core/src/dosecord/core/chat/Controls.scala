@@ -1,0 +1,53 @@
+package dosecord.core.chat
+
+import dosecord.contracts.Block
+import dosecord.contracts.Choice
+import dosecord.contracts.ChoiceSet
+import dosecord.contracts.ChoiceStyle
+
+/** The control layouts fixed by ROADMAP M0.9. Copy (labels) belongs to the M1.4a catalogue; the shapes — two reminder
+  * rows, styles, and the post-Taken follow-up — are part of this slice and pinned by the suite B1 goldens.
+  *
+  * Each ChoiceSet renders as one packed row group on the native-buttons rung, so the two-row reminder layout is two
+  * ChoiceSets; on the numbered tiers the renderer numbers choices continuously across sets.
+  */
+object Controls:
+
+  private def snoozeLabel(minutes: Int): String =
+    if minutes % 60 == 0 then s"Snooze ${minutes / 60}h" else s"Snooze ${minutes}m"
+
+  /** Reminder rows: row 1 [Taken][Snooze 10m][Skip], row 2 the remaining snooze options ([Snooze 30m][Snooze 1h] for
+    * the defaults). `snooze` is pre-filtered by the caller against the snooze bounds (that filtering is decide()'s job,
+    * M1.3); the first option goes on row 1. Styles: Taken = success, everything else secondary.
+    */
+  def reminder(
+      taken: CallbackToken,
+      skip: CallbackToken,
+      snooze: List[(Int, CallbackToken)]
+  ): List[Block] =
+    require(snooze.nonEmpty, "at least the default snooze option")
+    val row1 = Block.Choices(
+      ChoiceSet(
+        id = "reminder.main",
+        choices = List(
+          Choice("Taken", taken.wire, ChoiceStyle.Success),
+          Choice(snoozeLabel(snooze.head._1), snooze.head._2.wire),
+          Choice("Skip", skip.wire)
+        )
+      )
+    )
+    snooze.tail match
+      case Nil  => List(row1)
+      case rest =>
+        List(
+          row1,
+          Block.Choices(ChoiceSet(id = "reminder.more", choices = rest.map((m, t) => Choice(snoozeLabel(m), t.wire))))
+        )
+
+  /** Post-Taken follow-up: [Undo][Correct] (M3.1 appends [Add note]). */
+  def postTaken(undo: CallbackToken, correct: CallbackToken): ChoiceSet =
+    ChoiceSet(
+      id = "post_taken.followup",
+      choices = List(Choice("Undo", undo.wire), Choice("Correct", correct.wire))
+    )
+end Controls

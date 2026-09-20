@@ -1,0 +1,22 @@
+scenario: post-taken
+profile: matrix
+report:
+  rung finalize=finalize.reactionReplyQuote
+  rung post_taken.followup=choices.numberedReactions
+  splitInto=1 paged=false
+  warnings: -
+op 1: UNREACT_ALL matrix:dm:owner:m42@r0
+op 2: SEND chat=matrix:dm:owner sendKey=post_taken:1 replyTo=matrix:dm:owner:m42@r0
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (38 chars):
+  ---
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  ---
+  controls[0] numbered id=post_taken.followup reactions=1️⃣,2️⃣
+    [1] Undo -> dc:EQAABAARIjNEVWZ3iJmqu8zd7v8AAAAAAAAhTcFYj2DeRg (Secondary)
+    [2] Correct -> dc:EQAABgARIjNEVWZ3iJmqu8zd7v8AAAAAAACTbjARnVBTkg (Secondary)
+  choiceMap:
+    post_taken.followup 1 Undo emoji=1️⃣ -> dc:EQAABAARIjNEVWZ3iJmqu8zd7v8AAAAAAAAhTcFYj2DeRg
+    post_taken.followup 2 Correct emoji=2️⃣ -> dc:EQAABgARIjNEVWZ3iJmqu8zd7v8AAAAAAACTbjARnVBTkg

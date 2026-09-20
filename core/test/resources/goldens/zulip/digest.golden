@@ -1,0 +1,121 @@
+scenario: digest
+profile: zulip
+report:
+  rung digest.item1=choices.numberedReactions
+  rung digest.item2=choices.numbered
+  rung digest.item3=choices.numbered
+  rung digest.item4=choices.numbered
+  rung digest.item5=choices.numbered
+  rung digest.item6=choices.numbered
+  rung digest.item7=choices.numbered
+  rung digest.item8=choices.numbered
+  rung digest.item9=choices.numbered
+  rung visibility=visibility.persistent
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=zulip:dm:owner sendKey=digest:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (430 chars):
+  ---
+  While I was away, 9 doses passed without a reminder.
+  
+  Dose 1
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  Dose 2
+  
+  4) Taken 5) Snooze 10m 6) Skip
+  
+  Dose 3
+  
+  7) Taken 8) Snooze 10m 9) Skip
+  
+  Dose 4
+  
+  10) Taken 11) Snooze 10m 12) Skip
+  
+  Dose 5
+  
+  13) Taken 14) Snooze 10m 15) Skip
+  
+  Dose 6
+  
+  16) Taken 17) Snooze 10m 18) Skip
+  
+  Dose 7
+  
+  19) Taken 20) Snooze 10m 21) Skip
+  
+  Dose 8
+  
+  22) Taken 23) Snooze 10m 24) Skip
+  
+  Dose 9
+  
+  25) Taken 26) Snooze 10m 27) Skip
+  ---
+  controls[0] numbered id=digest.item1 reactions=1️⃣,2️⃣,3️⃣
+    [1] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAADhqt33pLNyDw (Success)
+    [2] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAApIAwSC23WNpw (Secondary)
+    [3] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAEAAAAAAAB_EClsxmFWWA (Secondary)
+  controls[1] numbered id=digest.item2 reactions=
+    [4] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAChtl0l7Khdpg (Success)
+    [5] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAr5c6LomH8MmQ (Secondary)
+    [6] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAIAAAAAAAAT48h8oH75vw (Secondary)
+  controls[2] numbered id=digest.item3 reactions=
+    [7] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAMAAAAAAADitT7zkP1PcA (Success)
+    [8] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAMAAAAAAApD_RH8GlLQLQ (Secondary)
+    [9] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAMAAAAAAADsdoTBvvpYnA (Secondary)
+  controls[3] numbered id=digest.item4 reactions=
+    [10] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAQAAAAAAADpMR4_MzmxRQ (Success)
+    [11] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAQAAAAAAAqVCOn14RcbHQ (Secondary)
+    [12] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAQAAAAAAABwYIoOmQLL3Q (Secondary)
+  controls[4] numbered id=digest.item5 reactions=
+    [13] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAUAAAAAAAAZwvA5GV7ivA (Success)
+    [14] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAUAAAAAAAqq7NRLI1q_hA (Secondary)
+    [15] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAUAAAAAAACYgtZJHLdNsg (Secondary)
+  controls[5] numbered id=digest.item6 reactions=
+    [16] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAYAAAAAAACLIj54jVBmyg (Success)
+    [17] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAYAAAAAAArsf7v3AEbRHA (Secondary)
+    [18] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAYAAAAAAABIi5Lrv_8u4g (Secondary)
+  controls[6] numbered id=digest.item7 reactions=
+    [19] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAcAAAAAAADQXb5wh9WFjg (Success)
+    [20] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAcAAAAAAAqboSe6gnV2HQ (Secondary)
+    [21] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAcAAAAAAABx4c0NAjPgPg (Secondary)
+  controls[7] numbered id=digest.item8 reactions=
+    [22] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAgAAAAAAACkGn6qu2oxOA (Success)
+    [23] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAgAAAAAAArQd1FcCEk2bg (Secondary)
+    [24] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAgAAAAAAACYn75qD-8QsQ (Secondary)
+  controls[8] numbered id=digest.item9 reactions=
+    [25] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAkAAAAAAABk0qIqXhxI3A (Success)
+    [26] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAkAAAAAAAp3h_dFoe-PoA (Secondary)
+    [27] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAkAAAAAAADsViJdEdyppw (Secondary)
+  choiceMap:
+    digest.item1 1 Taken emoji=1️⃣ -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAADhqt33pLNyDw
+    digest.item1 2 Snooze 10m emoji=2️⃣ -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAApIAwSC23WNpw
+    digest.item1 3 Skip emoji=3️⃣ -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAEAAAAAAAB_EClsxmFWWA
+    digest.item2 4 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAChtl0l7Khdpg
+    digest.item2 5 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAr5c6LomH8MmQ
+    digest.item2 6 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAIAAAAAAAAT48h8oH75vw
+    digest.item3 7 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAMAAAAAAADitT7zkP1PcA
+    digest.item3 8 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAMAAAAAAApD_RH8GlLQLQ
+    digest.item3 9 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAMAAAAAAADsdoTBvvpYnA
+    digest.item4 10 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAQAAAAAAADpMR4_MzmxRQ
+    digest.item4 11 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAQAAAAAAAqVCOn14RcbHQ
+    digest.item4 12 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAQAAAAAAABwYIoOmQLL3Q
+    digest.item5 13 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAUAAAAAAAAZwvA5GV7ivA
+    digest.item5 14 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAUAAAAAAAqq7NRLI1q_hA
+    digest.item5 15 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAUAAAAAAACYgtZJHLdNsg
+    digest.item6 16 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAYAAAAAAACLIj54jVBmyg
+    digest.item6 17 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAYAAAAAAArsf7v3AEbRHA
+    digest.item6 18 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAYAAAAAAABIi5Lrv_8u4g
+    digest.item7 19 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAcAAAAAAADQXb5wh9WFjg
+    digest.item7 20 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAcAAAAAAAqboSe6gnV2HQ
+    digest.item7 21 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAcAAAAAAABx4c0NAjPgPg
+    digest.item8 22 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAgAAAAAAACkGn6qu2oxOA
+    digest.item8 23 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAgAAAAAAArQd1FcCEk2bg
+    digest.item8 24 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAgAAAAAAACYn75qD-8QsQ
+    digest.item9 25 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAkAAAAAAABk0qIqXhxI3A
+    digest.item9 26 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAkAAAAAAAp3h_dFoe-PoA
+    digest.item9 27 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAkAAAAAAADsViJdEdyppw

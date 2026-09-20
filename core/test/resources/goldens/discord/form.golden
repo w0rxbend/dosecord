@@ -1,0 +1,18 @@
+scenario: form
+profile: discord
+report:
+  rung medication.add=form.modal
+  rung visibility=visibility.persistent
+  splitInto=1 paged=false
+  warnings: -
+op 1: OPEN_FORM medication.add title=Add medication submit=dc:EQAAH_8RIjNEVWZ3iJmqu8zd7v8AAAAAAAEPW9A4dzkg5g
+  field name: Name (Text) required=true
+  field dose: Dose (Text) required=false
+  field times: Times (HH:MM, comma-separated) (Text) required=true
+  field instructions: Instructions (Text) required=false
+op 2: SEND chat=discord:dm:owner sendKey=form:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (23 chars):
+  ---
+  Let's add a medication.
+  ---

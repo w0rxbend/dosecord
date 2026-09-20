@@ -1,0 +1,23 @@
+scenario: menu
+profile: discord
+report:
+  rung menu.main=choices.buttons
+  rung visibility=visibility.persistent
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=discord:dm:owner sendKey=menu:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (26 chars):
+  ---
+  What would you like to do?
+  ---
+  controls[0] buttons:
+    row 1: [1] Today -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA (Secondary) [2] Medications -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAALtWf-_gSgaJQ (Secondary) [3] Habits -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAMrFGRVYMMu-w (Secondary) [4] Reminders -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAASS_nCp4vyi2w (Secondary) [5] Stats -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAXiWkaCeZugJw (Secondary)
+    row 2: [6] Account -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAZ_ydvDPPNNeA (Secondary)
+  choiceMap:
+    menu.main 1 Today emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA
+    menu.main 2 Medications emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAALtWf-_gSgaJQ
+    menu.main 3 Habits emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAMrFGRVYMMu-w
+    menu.main 4 Reminders emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAASS_nCp4vyi2w
+    menu.main 5 Stats emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAXiWkaCeZugJw
+    menu.main 6 Account emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAZ_ydvDPPNNeA

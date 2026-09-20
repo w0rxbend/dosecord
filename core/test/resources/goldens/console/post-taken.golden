@@ -1,0 +1,21 @@
+scenario: post-taken
+profile: console
+report:
+  rung finalize=finalize.replaceOnly
+  rung post_taken.followup=choices.numbered
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=console:dm:owner sendKey=post_taken:1 replyTo=console:dm:owner:m42@r0
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (38 chars):
+  ---
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  ---
+  controls[0] numbered id=post_taken.followup reactions=
+    [1] Undo -> dc:EQAABAARIjNEVWZ3iJmqu8zd7v8AAAAAAAAhTcFYj2DeRg (Secondary)
+    [2] Correct -> dc:EQAABgARIjNEVWZ3iJmqu8zd7v8AAAAAAACTbjARnVBTkg (Secondary)
+  choiceMap:
+    post_taken.followup 1 Undo emoji=- -> dc:EQAABAARIjNEVWZ3iJmqu8zd7v8AAAAAAAAhTcFYj2DeRg
+    post_taken.followup 2 Correct emoji=- -> dc:EQAABgARIjNEVWZ3iJmqu8zd7v8AAAAAAACTbjARnVBTkg

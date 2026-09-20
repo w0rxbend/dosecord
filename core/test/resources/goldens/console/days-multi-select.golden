@@ -1,0 +1,35 @@
+scenario: days-multi-select
+profile: console
+report:
+  rung visibility=visibility.persistent
+  rung wizard.days=choices.numbered
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=console:dm:owner sendKey=days:1 replyTo=-
+  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (164 chars):
+  ---
+  Set up your schedule.
+  
+  Which days?
+  
+  1) Mon 2) Tue 3) Wed 4) Thu 5) Fri 6) Sat 7) Sun
+  
+  Select all that apply — reply with the numbers, separated by spaces or commas.
+  ---
+  controls[0] numbered id=wizard.days reactions=
+    [1] Mon -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAEmucbap50GzQ (Secondary)
+    [2] Tue -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAL-6SL8MjkysA (Secondary)
+    [3] Wed -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAOnvfhKgcQ9YA (Secondary)
+    [4] Thu -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAQnsvFVsyb0kg (Secondary)
+    [5] Fri -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAV0_oL-O2vsEA (Secondary)
+    [6] Sat -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAYQxWDFV84Naw (Secondary)
+    [7] Sun -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAdj00inE7DDig (Secondary)
+  choiceMap:
+    wizard.days 1 Mon emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAEmucbap50GzQ
+    wizard.days 2 Tue emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAL-6SL8MjkysA
+    wizard.days 3 Wed emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAOnvfhKgcQ9YA
+    wizard.days 4 Thu emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAQnsvFVsyb0kg
+    wizard.days 5 Fri emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAV0_oL-O2vsEA
+    wizard.days 6 Sat emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAYQxWDFV84Naw
+    wizard.days 7 Sun emoji=- -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAdj00inE7DDig
