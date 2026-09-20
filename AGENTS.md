@@ -22,10 +22,11 @@ specification.
 
 ## Current entry point
 
-M0.2 is `green`. The next eligible slice is **M0.3 — Flyway V1, SQL layer,
-UnitOfWork, session repository, Testcontainers harness** (deps M0.2) and,
-interleaving freely, the risk-first slices **M0.6** (CallbackCodec), **M0.7**
-(DST primitives) and **M0.8** (JDA DM spike), all depending only on M0.1.
+M0.3, M0.6 and M0.7 are `green`. The next eligible slices are **M0.4 — CI
+and quality gates** (deps M0.3) and **M0.9 — Contracts, chat model, renderer,
+FakeAdapter, goldens** (deps M0.6), which may interleave. **M0.8** (JDA DM
+spike) is dependency-unblocked but requires live Discord credentials; do not
+start it until the owner provides them.
 
 ## Agent workflow
 
