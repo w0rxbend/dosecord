@@ -3,9 +3,15 @@ package dosecord.core.chat
 import java.util.UUID
 
 import dosecord.contracts.*
+import dosecord.core.domain.copy.DigestCopy
+import dosecord.core.domain.copy.Labels
+import dosecord.core.domain.copy.MenuCopy
+import dosecord.core.domain.copy.ReminderCopy
+import dosecord.core.domain.copy.WizardCopy
 
 /** The suite B1 fixture set (ROADMAP M0.9): one golden per scenario per profile. Callback tokens are minted with the
-  * real CallbackCodec under a fixed test key, so goldens show the true 49-char wire form.
+  * real CallbackCodec under a fixed test key, so goldens show the true 49-char wire form. All user-facing copy comes
+  * from the M1.4a catalogue (`core/domain/copy`), so the goldens pin the catalogue's rendered form, not placeholders.
   */
 object GoldenScenarios:
 
@@ -21,6 +27,8 @@ object GoldenScenarios:
 
   private def text(s: String): RichText = List(Node.Paragraph(List(Inline.Text(s))))
 
+  private def lines(ls: List[String]): RichText = ls.map(l => Node.Paragraph(List(Inline.Text(l))))
+
   private def base(body: RichText, blocks: List[Block], importance: Importance = Importance.Info): OutboundMessage =
     OutboundMessage(
       body = body,
@@ -34,7 +42,7 @@ object GoldenScenarios:
 
   private def reminderMessage: OutboundMessage =
     base(
-      text("Time for Vitamin D, 1000 IU."),
+      lines(ReminderCopy.reminderBody("Vitamin D", Some("1000 IU"), None)),
       Controls.reminder(
         taken = doseToken("dose.taken"),
         skip = doseToken("dose.skip"),
@@ -49,13 +57,13 @@ object GoldenScenarios:
 
   private def menuMessage: OutboundMessage =
     base(
-      text("What would you like to do?"),
+      text(MenuCopy.mainPrompt),
       List(
         Block.Choices(
           ChoiceSet(
             id = "menu.main",
-            choices = List("Today", "Medications", "Habits", "Reminders", "Stats", "Account").zipWithIndex.map {
-              (label, i) => Choice(label, token("menu.open", sessionSubject, i + 1).wire)
+            choices = MenuCopy.topLevel.zipWithIndex.map { (label, i) =>
+              Choice(label, token("menu.open", sessionSubject, i + 1).wire)
             }
           )
         )
@@ -64,13 +72,13 @@ object GoldenScenarios:
 
   private def daysMessage: OutboundMessage =
     base(
-      text("Set up your schedule."),
+      text(WizardCopy.scheduleSetupIntro),
       List(
         Block.Choices(
           ChoiceSet(
             id = "wizard.days",
-            prompt = Some(text("Which days?")),
-            choices = List("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").zipWithIndex.map { (label, i) =>
+            prompt = Some(text(WizardCopy.daysPrompt)),
+            choices = WizardCopy.weekdayLabels.zipWithIndex.map { (label, i) =>
               Choice(label, token("wizard.step", sessionSubject, i + 1).wire)
             },
             layout = ChoiceLayout.Select,
@@ -83,17 +91,23 @@ object GoldenScenarios:
 
   private def formMessage: OutboundMessage =
     base(
-      text("Let's add a medication."),
+      text(WizardCopy.addMedicationIntro),
       List(
         Block.FormBlock(
           Form(
             id = "medication.add",
-            title = "Add medication",
+            title = WizardCopy.addMedicationTitle,
             fields = List(
-              Field("name", "Name", FieldType.Text, placeholder = Some("e.g. Vitamin D")),
-              Field("dose", "Dose", FieldType.Text, required = false, placeholder = Some("e.g. 1000 IU")),
-              Field("times", "Times (HH:MM, comma-separated)", FieldType.Text),
-              Field("instructions", "Instructions", FieldType.Text, required = false)
+              Field("name", WizardCopy.fieldName, FieldType.Text, placeholder = Some(WizardCopy.namePlaceholder)),
+              Field(
+                "dose",
+                WizardCopy.fieldDose,
+                FieldType.Text,
+                required = false,
+                placeholder = Some(WizardCopy.dosePlaceholder)
+              ),
+              Field("times", WizardCopy.fieldTimes, FieldType.Text),
+              Field("instructions", WizardCopy.fieldInstructions, FieldType.Text, required = false)
             ),
             submit = token("wizard.text_step", sessionSubject, 1).wire
           )
@@ -126,22 +140,22 @@ object GoldenScenarios:
           id = s"digest.item$i",
           prompt = Some(text(s"Dose $i")),
           choices = List(
-            Choice("Taken", token("dose.taken", itemSubject, 0).wire, ChoiceStyle.Success),
-            Choice("Snooze 10m", token("dose.snooze", itemSubject, 10).wire),
-            Choice("Skip", token("dose.skip", itemSubject, 0).wire)
+            Choice(Labels.Taken, token("dose.taken", itemSubject, 0).wire, ChoiceStyle.Success),
+            Choice(Labels.snooze(10), token("dose.snooze", itemSubject, 10).wire),
+            Choice(Labels.Skip, token("dose.skip", itemSubject, 0).wire)
           )
         )
       )
     }
-    base(text("While I was away, 9 doses passed without a reminder."), items, Importance.Bulk)
+    base(text(DigestCopy.header(9)), items, Importance.Bulk)
 
   private def discreetMessage: OutboundMessage =
-    reminderMessage.copy(body = text("Time for your 09:00 dose."), discreet = true)
+    reminderMessage.copy(body = text(ReminderCopy.discreetReminderBody("09:00")), discreet = true)
 
   private def postTakenOps(profile: String, p: CapabilityProfile): (List[VendorOp], RenderReport) =
     Renderer.renderFinalize(
       handle = MessageHandle(profile, "dm:owner", "m42"),
-      summary = text("Recorded at 09:03."),
+      summary = text(ReminderCopy.takenConfirmation("09:03")),
       keep = Some(Controls.postTaken(doseToken("dose.undo"), doseToken("dose.correct"))),
       chat = chat(profile),
       profile = p,
