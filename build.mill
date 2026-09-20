@@ -43,12 +43,18 @@ object infra extends DosecordModule:
   def moduleDeps = Seq(core, contracts)
   def resources = Task.Sources("src/main/resources")
   // Versions pinned per docs/DESIGN.md section 2: pgjdbc 42.7.13,
-  // HikariCP 7.1.0, Flyway 13.6.0 (PostgreSQL support is a separate artifact).
+  // HikariCP 7.1.0, Flyway 13.6.0 (PostgreSQL support is a separate artifact),
+  // scribe 3.19.0 (scribe-slf4j2 routes slf4j library logs through scribe),
+  // micrometer 1.17.1 (DESIGN pins 1.17.x).
   def mvnDeps = Seq(
     mvn"org.postgresql:postgresql:42.7.13",
     mvn"com.zaxxer:HikariCP:7.1.0",
     mvn"org.flywaydb:flyway-core:13.6.0",
-    mvn"org.flywaydb:flyway-database-postgresql:13.6.0"
+    mvn"org.flywaydb:flyway-database-postgresql:13.6.0",
+    mvn"com.outr::scribe:3.19.0",
+    mvn"com.outr::scribe-slf4j2:3.19.0",
+    mvn"io.micrometer:micrometer-core:1.17.1",
+    mvn"io.micrometer:micrometer-registry-prometheus:1.17.1"
   )
   object test extends DosecordTests:
     // testcontainers-scala 0.44.1 per docs/DESIGN.md section 2 (pulls testcontainers 1.21.x).

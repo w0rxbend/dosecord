@@ -1,12 +1,14 @@
 package dosecord.app
 
+import dosecord.infra.Metrics
 import dosecord.infra.Settings
+import dosecord.infra.Telemetry
 import dosecord.infra.TzdbGuard
 import dosecord.infra.db.Database
 import dosecord.infra.db.Migrator
 
-/** Composition root (DESIGN.md section 3): settings, tzdb startup assertion (M0.7 remedy), Flyway under
-  * `pg_advisory_lock`, then one Ox `supervised` root scope serving `/healthz` until SIGTERM.
+/** Composition root (DESIGN.md section 3): settings, scribe telemetry (M0.11), tzdb startup assertion (M0.7 remedy),
+  * Flyway under `pg_advisory_lock`, then one Ox `supervised` root scope serving `/healthz` until SIGTERM.
   */
 object Main:
   def main(args: Array[String]): Unit =
@@ -16,6 +18,8 @@ object Main:
         Console.err.println(Cli.usage)
         sys.exit(2)
       case Right(command) => sys.exit(run(command))
+
+  private def info(message: String): Unit = scribe.info(message)
 
   private def run(command: Cli.Command): Int =
     val base =
@@ -27,9 +31,10 @@ object Main:
     val settings = command match
       case Cli.Command.Run(Some(role)) => base.copy(role = role)
       case _                           => base
-    val log = Log(settings.logLevel, settings.logFormat)
-    TzdbGuard.assertSupported(log.info)
-    log.info(
+    Telemetry.configure(settings.logLevel, settings.logFormat)
+    val tzdbVersion = TzdbGuard.assertSupported(info)
+    Metrics.registerTzdb(tzdbVersion)
+    info(
       s"starting: role=${settings.role.envName} instance=${settings.instanceId} " +
         s"adapters=${settings.enabledAdapters.map(_.envName).mkString(",")}"
     )
@@ -37,22 +42,22 @@ object Main:
     try
       val result = Migrator(dataSource).migrateLocked()
       val target = Option(result.targetSchemaVersion).getOrElse("unchanged")
-      log.info(s"migrate: ${result.migrationsExecuted} migration(s) applied, target $target")
+      info(s"migrate: ${result.migrationsExecuted} migration(s) applied, target $target")
       command match
         case Cli.Command.Migrate => 0
         case Cli.Command.Run(_)  =>
           Shutdown.serve(
             body = {
               val binding = Health.start()
-              log.info(s"/healthz listening on :${Health.DefaultPort}")
+              info(s"/healthz listening on :${Health.DefaultPort}")
               Drain(
                 inbound = List("health" -> (() => binding.stop())),
                 claiming = Nil,
                 inFlight = InFlightRegistry(),
                 budget = Shutdown.DrainBudget,
-                log = log.info
+                log = info
               )
             },
-            log = log.info
+            log = info
           )
     finally dataSource.close()
