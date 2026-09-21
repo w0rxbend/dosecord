@@ -16,6 +16,7 @@ object Labels:
   val Create = "Create"
   val Done = "Done"
   val Yes = "Yes"
+  val No = "No"
   val Change = "Change"
   val Continue = "Continue"
   val NoNote = "No note"
@@ -44,6 +45,7 @@ object Labels:
     CopyEntry("label.create", Create),
     CopyEntry("label.done", Done),
     CopyEntry("label.yes", Yes),
+    CopyEntry("label.no", No),
     CopyEntry("label.change", Change),
     CopyEntry("label.continue", Continue),
     CopyEntry("label.no_note", NoNote),

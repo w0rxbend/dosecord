@@ -11,6 +11,8 @@ trait Tx:
   def domainEvents: DomainEventRepository
   def identities: IdentityRepository
   def audit: AuditRepository
+  def slots: CallbackSlotRepository
+  def formRuns: FormRunRepository
 
 trait UnitOfWork:
   def transaction[A](f: Tx => A): A

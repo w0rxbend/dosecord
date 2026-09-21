@@ -204,21 +204,26 @@ object Renderer:
       form.submit
     )
 
+  /** One FormRunner question (rung 2 of the form ladder): the title with its progress line, then the field label with
+    * its placeholder hint and numbered options (DESIGN.md section 4.3).
+    */
+  def formQuestionNodes(title: String, fields: List[Field], index: Int): List[Node] =
+    val field = fields(index)
+    val hint = field.placeholder.map(p => s" ($p)").getOrElse("")
+    val options =
+      if field.options.nonEmpty then
+        " " + field.options.zipWithIndex.map((o, i) => s"${i + 1}) ${o.label}").mkString(" ")
+      else ""
+    List(
+      Node.Paragraph(List(Inline.Text(s"$title — question ${index + 1} of ${fields.size}:"))),
+      Node.Paragraph(List(Inline.Text(s"${field.label}$hint$options")))
+    )
+
   /** The FormRunner's first question (rung 2 of the form ladder): the mediator asks one field per message, keeps
     * partial answers in `form_runs` and emits one FormSubmitted (DESIGN.md section 4.3); the runner itself lands with
     * the wizard engine in M0.12b.
     */
-  private def firstQuestionNodes(form: Form): List[Node] =
-    val first = form.fields.head
-    val hint = first.placeholder.map(p => s" ($p)").getOrElse("")
-    val options =
-      if first.options.nonEmpty then
-        " " + first.options.zipWithIndex.map((o, i) => s"${i + 1}) ${o.label}").mkString(" ")
-      else ""
-    List(
-      Node.Paragraph(List(Inline.Text(s"${form.title} — question 1 of ${form.fields.size}:"))),
-      Node.Paragraph(List(Inline.Text(s"${first.label}$hint$options")))
-    )
+  private def firstQuestionNodes(form: Form): List[Node] = formQuestionNodes(form.title, form.fields, 0)
 
   def render(
       msg: OutboundMessage,

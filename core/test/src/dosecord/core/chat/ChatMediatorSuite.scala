@@ -153,7 +153,7 @@ class ChatMediatorSuite extends munit.FunSuite:
       val m = mediator(uow, adapter, handler)
       val unstamped = event(Inbound.MessageReceived("hi", None, truncated = false), "evt-unstamped")
       assert(unstamped.principal.isEmpty)
-      intercept[MissingPrincipal](m.dispatchCore(unstamped))
+      intercept[MissingPrincipal](uow.transaction(tx => m.dispatchCore(unstamped, tx)))
       assertEquals(handler.handled, 0, "nothing reaches the handler without a principal")
 
   // Acceptance 4 (unit half): a tampered token yields the toast and an audit row and nothing reaches the core.

@@ -54,3 +54,23 @@ final class PgSessionRepository(conn: Connection, clock: Clock) extends SessionR
                 updated_at = ${clock.now()}
             WHERE id = ${session.id} AND version = ${session.version}""".execute()
     if updated != 1 then throw StaleSessionVersion(session.id, session.version)
+
+  override def delete(id: java.util.UUID): Unit =
+    sql"DELETE FROM conversation_sessions WHERE id = $id".execute()
+
+  override def expiring(now: java.time.Instant, limit: Int): List[ConversationSession] =
+    sql"""SELECT id, principal_key, vendor, chat_id, flow, step, step_seq, data, version,
+                 last_prompt, expires_at, created_at, updated_at
+          FROM conversation_sessions
+          WHERE expires_at <= $now
+          ORDER BY expires_at
+          LIMIT $limit
+          FOR UPDATE SKIP LOCKED""".query[ConversationSession]()
+
+  override def resumable(now: java.time.Instant, limit: Int): List[ConversationSession] =
+    sql"""SELECT id, principal_key, vendor, chat_id, flow, step, step_seq, data, version,
+                 last_prompt, expires_at, created_at, updated_at
+          FROM conversation_sessions
+          WHERE last_prompt IS NOT NULL AND expires_at > $now
+          ORDER BY updated_at
+          LIMIT $limit""".query[ConversationSession]()

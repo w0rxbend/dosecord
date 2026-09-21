@@ -48,6 +48,15 @@ object WizardCopy:
   val stillThere = "Still there?"
   val setupCancelled = "Setup cancelled — nothing saved."
   val cancelCurrentSetup = "Cancel the current setup?"
+  val nothingToCancel = "There is no setup in progress."
+
+  /** Text/form steps carry Back/Cancel as a typed hint instead of numbered controls, so a bare digit is never eaten
+    * while the wizard waits for free text (DESIGN.md section 4.6 step 5).
+    */
+  val textNavHint = "Reply Back to go back or Cancel to stop."
+
+  /** FormRunner: a blank answer to a required field (M0.12b). */
+  val fieldRequired = "That one is required — please type an answer."
 
   val entries: List[CopyEntry] = List(
     CopyEntry("wizard.add.intro", addMedicationIntro),
@@ -76,6 +85,9 @@ object WizardCopy:
     CopyEntry("wizard.timezone.confirm", timezoneConfirm("14:32")),
     CopyEntry("wizard.still_there", stillThere),
     CopyEntry("wizard.setup_cancelled", setupCancelled),
-    CopyEntry("wizard.cancel_current_setup", cancelCurrentSetup)
+    CopyEntry("wizard.cancel_current_setup", cancelCurrentSetup),
+    CopyEntry("wizard.nothing_to_cancel", nothingToCancel),
+    CopyEntry("wizard.text_nav_hint", textNavHint),
+    CopyEntry("wizard.field_required", fieldRequired)
   )
 end WizardCopy

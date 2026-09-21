@@ -128,10 +128,56 @@ object MediatorFakes:
     override def failPermanently(id: UUID, error: String): Unit = ()
 
   final class InMemorySessions extends SessionRepository:
+    private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, ConversationSession]
+    def all: List[ConversationSession] = this.synchronized(rows.values.toList)
+
     override def loadForUpdate(principalKey: String, vendor: String, chatId: String): Option[ConversationSession] =
-      None
-    override def insert(session: ConversationSession): Unit = ()
-    override def save(session: ConversationSession): Unit = ()
+      this.synchronized(rows.values.find(s =>
+        s.principalKey == principalKey && s.vendor == vendor && s.chatId == chatId
+      ))
+
+    override def insert(session: ConversationSession): Unit = this.synchronized(rows += session.id -> session)
+
+    override def save(session: ConversationSession): Unit = this.synchronized:
+      rows.get(session.id) match
+        case Some(stored) if stored.version == session.version =>
+          rows += session.id -> session.copy(version = session.version + 1, updatedAt = Instant.now())
+        case Some(_) => throw StaleSessionVersion(session.id, session.version)
+        case None    => throw StaleSessionVersion(session.id, session.version)
+
+    override def delete(id: UUID): Unit = this.synchronized:
+      rows -= id
+      ()
+
+    override def expiring(now: Instant, limit: Int): List[ConversationSession] = this.synchronized:
+      rows.values.filter(_.expiresAt.compareTo(now) <= 0).toList.sortBy(_.expiresAt).take(limit)
+
+    override def resumable(now: Instant, limit: Int): List[ConversationSession] = this.synchronized:
+      rows.values
+        .filter(s => s.lastPrompt.isDefined && s.expiresAt.isAfter(now))
+        .toList
+        .sortBy(_.updatedAt)
+        .take(limit)
+
+  final class InMemorySlots extends CallbackSlotRepository:
+    private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, CallbackSlot]
+    def all: List[CallbackSlot] = this.synchronized(rows.values.toList)
+    override def insert(slot: CallbackSlot): Unit = this.synchronized(rows += slot.id -> slot)
+    override def loadForUpdate(id: UUID): Option[CallbackSlot] = this.synchronized(rows.get(id))
+    override def deleteForSession(sessionId: UUID): Int = this.synchronized:
+      val doomed = rows.values.filter(_.sessionId.contains(sessionId)).map(_.id).toList
+      doomed.foreach(rows -= _)
+      doomed.size
+
+  final class InMemoryFormRuns extends FormRunRepository:
+    private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, FormRun]
+    def all: List[FormRun] = this.synchronized(rows.values.toList)
+    override def insert(run: FormRun): Unit = this.synchronized(rows += run.sessionId -> run)
+    override def loadForUpdate(sessionId: UUID): Option[FormRun] = this.synchronized(rows.get(sessionId))
+    override def save(run: FormRun): Unit = this.synchronized(rows += run.sessionId -> run)
+    override def delete(sessionId: UUID): Unit = this.synchronized:
+      rows -= sessionId
+      ()
 
   final class InMemoryUnitOfWork extends UnitOfWork:
     val inboundEvents = InMemoryInboundEvents()
@@ -141,6 +187,8 @@ object MediatorFakes:
     val renderedMessages = InMemoryRenderedMessages()
     val outbox = InMemoryOutbox()
     val sessions = InMemorySessions()
+    val slots = InMemorySlots()
+    val formRuns = InMemoryFormRuns()
 
     private val tx: Tx = new Tx:
       override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions
@@ -150,6 +198,8 @@ object MediatorFakes:
       override def domainEvents: DomainEventRepository = InMemoryUnitOfWork.this.domainEvents
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
       override def audit: AuditRepository = InMemoryUnitOfWork.this.audit
+      override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
+      override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns
 
     override def transaction[A](f: Tx => A): A = f(tx)
 
@@ -185,7 +235,7 @@ object MediatorFakes:
     private val count = AtomicInteger(0)
     def calls: List[(InboundEvent, Principal)] = received.asScala.toList
     def handled: Int = count.get()
-    override def handle(event: InboundEvent, principal: Principal): Reply =
+    override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
       received.add((event, principal))
       count.incrementAndGet()
       reply(event)

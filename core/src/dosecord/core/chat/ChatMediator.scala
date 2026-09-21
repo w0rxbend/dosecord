@@ -18,10 +18,11 @@ final class MissingPrincipal(event: InboundEvent)
     extends RuntimeException(s"inbound event ${event.eventId.uuid} reached the core without a stamped principal")
 
 /** The minimal handler contract of DESIGN.md section 4.6 steps 6-7; the real flow handlers land in M0.12d
-  * (`core/application`). Handlers only ever see stamped events and return one [[Reply]].
+  * (`core/application`). Handlers only ever see stamped events, run inside the per-event transaction and return one
+  * [[Reply]].
   */
 trait ChatHandler:
-  def handle(event: InboundEvent, principal: Principal): Reply
+  def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply
 
 object ChatMediator:
   /** The outbox safety-row delay for synchronously delivered replies (DESIGN.md section 4.6 step 8). */
@@ -171,8 +172,8 @@ final class ChatMediator(
       val reply =
         resolve(stamped, tx) match
           case Resolution.Ignore         => Reply.empty
-          case Resolution.PassThrough    => dispatchCore(stamped)
-          case Resolution.Resolved(body) => dispatchCore(stamped.copy(body = body))
+          case Resolution.PassThrough    => dispatchCore(stamped, tx)
+          case Resolution.Resolved(body) => dispatchCore(stamped.copy(body = body), tx)
       reply.domainEvents.foreach(appendDomainEvent(_, stamped, principal, tx, correlationId, now))
       val sends = (reply.replace.toList ++ reply.followUps).map: message =>
         val outboxId = UUID.randomUUID()
@@ -200,9 +201,9 @@ final class ChatMediator(
       Outcome.Processed(DeliveryPlan(principal.accountId.map(_.uuid), sends, reply.toast))
 
   /** The core boundary: only stamped events reach a handler (R8). */
-  private[chat] def dispatchCore(event: InboundEvent): Reply =
+  private[chat] def dispatchCore(event: InboundEvent, tx: Tx): Reply =
     val principal = event.principal.getOrElse(throw MissingPrincipal(event))
-    handler.handle(event, principal)
+    handler.handle(event, principal, tx)
 
   private def appendDomainEvent(
       event: Event,
