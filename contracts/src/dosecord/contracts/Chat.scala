@@ -1,6 +1,7 @@
 package dosecord.contracts
 
 import upickle.default.ReadWriter
+import upickle.default.readwriter
 
 import java.time.Duration
 import java.time.Instant
@@ -32,11 +33,13 @@ final case class Principal(identityId: IdentityId, accountId: Option[AccountId],
 enum LifecycleState derives ReadWriter:
   case Connected, Disconnected, Resumed
 
-/** A callback already decoded and MAC-verified by the mediator (ADR-006). The raw token never reaches the core.
+/** A callback already decoded and MAC-verified by the mediator (ADR-006); the mediator re-verifies `raw` against the
+  * claimed fields before anything reaches the core. The decoded form never carries the MAC itself.
   */
-final case class CallbackRef(actionId: Int, subject: UUID, value: Long, slot: Boolean) derives ReadWriter:
+final case class CallbackRef(actionId: Int, subject: UUID, value: Long, slot: Boolean, raw: String) derives ReadWriter:
   require(actionId >= 0 && actionId <= 0xffff, "action id is UInt16")
   require(value >= 0, "value is unsigned")
+  require(raw.nonEmpty, "raw token must not be empty")
 
 enum Inbound derives ReadWriter:
   case MessageReceived(text: String, replyTo: Option[MessageHandle], truncated: Boolean)
@@ -58,10 +61,56 @@ final case class InboundEvent(
     chat: ChatRef,
     cursor: Option[String] = None,
     principal: Option[Principal] = None,
-    body: Inbound
-) derives ReadWriter:
+    body: Inbound,
+    // The live vendor handle the mediator acks through (DESIGN.md section 4.1); never serialised — see the wire
+    // surrogate in the companion.
+    interaction: Option[InteractionHandle] = None
+):
   require(vendor.nonEmpty, "vendor must not be empty")
   require(vendorEventId.nonEmpty, "vendorEventId must not be empty")
+
+object InboundEvent:
+  private final case class Wire(
+      eventId: EventId,
+      vendor: String,
+      vendorEventId: String,
+      receivedAt: Instant,
+      createdAt: Option[Instant],
+      actor: PlatformIdentity,
+      chat: ChatRef,
+      cursor: Option[String],
+      principal: Option[Principal],
+      body: Inbound
+  ) derives ReadWriter
+
+  given ReadWriter[InboundEvent] = readwriter[Wire].bimap(
+    e =>
+      Wire(
+        e.eventId,
+        e.vendor,
+        e.vendorEventId,
+        e.receivedAt,
+        e.createdAt,
+        e.actor,
+        e.chat,
+        e.cursor,
+        e.principal,
+        e.body
+      ),
+    w =>
+      InboundEvent(
+        w.eventId,
+        w.vendor,
+        w.vendorEventId,
+        w.receivedAt,
+        w.createdAt,
+        w.actor,
+        w.chat,
+        w.cursor,
+        w.principal,
+        w.body
+      )
+  )
 
 /** The one vendor-timing abstraction (DESIGN.md section 4.1). Opaque to the core; the mediator acks through it. Not
   * serialisable by design — it is a live vendor handle, so it is the one adapter-API type excluded from the ReadWriter
@@ -180,6 +229,11 @@ final case class OutboundMessage(
   require(dedupeKey.nonEmpty, "dedupeKey must not be empty")
   require(correlationId.nonEmpty, "correlationId must not be empty")
 
+object OutboundMessage:
+  /** Serialisation lives in contracts so the core stays free of a JSON library. */
+  def toJson(message: OutboundMessage): String = upickle.default.write(message)
+  def fromJson(json: String): OutboundMessage = upickle.default.read[OutboundMessage](json)
+
 // ---------- Capability profile (DESIGN.md section 4.3) ----------
 
 enum EditCapability derives ReadWriter:
@@ -224,3 +278,22 @@ final case class CapabilityProfile(
   require(maxText > 0, "maxText must be positive")
   require(maxChoicesPerRow >= 0 && maxRows >= 0, "row budgets must be >= 0")
   require(eventsPerMessageBudget >= 1, "eventsPerMessageBudget must be >= 1")
+
+// ---------- Handler reply (DESIGN.md section 4.6 step 7) ----------
+
+/** What a core handler returns for one inbound event. Stored as the `inbound_events.reply` document and replayed
+  * verbatim on a duplicate delivery (C3); `sessionPatch` arrives with the wizard engine (M0.12b).
+  */
+final case class Reply(
+    replace: Option[OutboundMessage] = None,
+    followUps: List[OutboundMessage] = Nil,
+    toast: Option[String] = None,
+    domainEvents: List[Event] = Nil
+) derives ReadWriter
+
+object Reply:
+  val empty: Reply = Reply()
+
+  /** Serialisation lives in contracts so the core stays free of a JSON library. */
+  def toJson(reply: Reply): String = upickle.default.write(reply)
+  def fromJson(json: String): Reply = upickle.default.read[Reply](json)

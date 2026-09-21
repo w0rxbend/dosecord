@@ -46,3 +46,34 @@ object Event:
     IntakeTakenType,
     HabitCheckinRecordedType
   )
+
+  /** The envelope `source` for an event: `dosecord.<module>`, derived from its type so the two can never drift (C6). */
+  def sourceOf(event: Event): Source =
+    Source.unsafe(messageType(event).split('.').take(2).mkString("."))
+
+  /** The serialised CloudEvents envelope and actor for one `domain_events` row (DESIGN.md section 8). Serialisation
+    * lives in contracts so the core stays free of a JSON library.
+    */
+  def toEnvelopeJson(
+      event: Event,
+      actor: Actor,
+      time: Instant,
+      correlationId: Option[String],
+      causationId: Option[String]
+  ): EventEnvelope =
+    val envelope = Envelope[Event](
+      id = EventId(UUID.randomUUID()),
+      messageType = messageType(event),
+      source = sourceOf(event),
+      time = time,
+      actor = actor,
+      data = event,
+      subject = Some(actor.subject),
+      correlationId = correlationId,
+      causationId = causationId
+    )
+    EventEnvelope(envelope.id, upickle.default.write(actor), upickle.default.write(envelope))
+end Event
+
+/** The JSON halves of one `domain_events` row: `actor` column and `data` (envelope) column, sharing one event id. */
+final case class EventEnvelope(id: EventId, actorJson: String, envelopeJson: String)

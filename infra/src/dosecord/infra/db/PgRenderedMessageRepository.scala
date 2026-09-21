@@ -2,6 +2,7 @@ package dosecord.infra.db
 
 import dosecord.contracts.ChoiceMapEntry
 import dosecord.contracts.MessageHandle
+import dosecord.core.ports.RenderedChoiceMap
 import dosecord.core.ports.RenderedMessageRepository
 
 import java.sql.Connection
@@ -28,3 +29,38 @@ final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessag
           VALUES (${UUID.randomUUID()}, $accountId, ${handle.vendor}, ${handle.chatId}, ${handle.messageId},
                   $kind, $subjectType, $subjectId, $epoch, $choiceMapJson, $now)
           ON CONFLICT (vendor, chat_id, message_id) DO NOTHING""".execute() == 1
+
+  override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] =
+    sql"""SELECT revision, choice_map, controls_removed_at
+          FROM rendered_messages
+          WHERE vendor = ${handle.vendor} AND chat_id = ${handle.chatId} AND message_id = ${handle.messageId}"""
+      .queryOne[(Int, Option[String], Option[Instant])]()
+      .map: (revision, choiceMapJson, controlsRemovedAt) =>
+        RenderedChoiceMap(handle, revision, readChoiceMap(choiceMapJson), controlsRemovedAt.isDefined)
+
+  override def latestPendingPrompt(vendor: String, chatId: String): Option[RenderedChoiceMap] =
+    sql"""SELECT message_id, revision, choice_map
+          FROM rendered_messages
+          WHERE vendor = $vendor AND chat_id = $chatId
+            AND choice_map IS NOT NULL AND controls_removed_at IS NULL
+          ORDER BY sent_at DESC, message_id DESC
+          LIMIT 1"""
+      .queryOne[(String, Int, String)]()
+      .map: (messageId, revision, choiceMapJson) =>
+        RenderedChoiceMap(
+          MessageHandle(vendor, chatId, messageId, revision),
+          revision,
+          readChoiceMap(Some(choiceMapJson)),
+          controlsRemoved = false
+        )
+
+  private given RowMapper[(Int, Option[String], Option[Instant])] = rs =>
+    (rs.getInt("revision"), rs.optString("choice_map"), rs.optInstant("controls_removed_at"))
+
+  private given RowMapper[(String, Int, String)] = rs =>
+    (rs.getString("message_id"), rs.getInt("revision"), rs.getString("choice_map"))
+
+  private def readChoiceMap(json: Option[String]): List[ChoiceMapEntry] =
+    json match
+      case Some(document) => upickle.default.read[List[ChoiceMapEntry]](document)
+      case None           => Nil
