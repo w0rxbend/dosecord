@@ -123,3 +123,48 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
             WHERE schedule_id = $scheduleId AND local_date = $localDate
               AND (status NOT IN ('pending', 'cancelled') OR (status = 'pending' AND due_window_start <= $now))
           )""".queryOne[Boolean]().getOrElse(false)
+
+  override def claimDue(now: Instant, limit: Int): List[StoredOccurrence] =
+    val threshold = OccurrenceRepository.QuarantineErrorThreshold
+    sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
+                 tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
+                 epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version
+          FROM dose_occurrences
+          WHERE status IN ('pending', 'due', 'snoozed') AND next_action_at <= $now
+            AND error_count < $threshold
+          ORDER BY next_action_at, id
+          LIMIT $limit
+          FOR UPDATE SKIP LOCKED""".query[StoredOccurrence]()
+
+  override def applyTransition(
+      id: UUID,
+      expectedVersion: Int,
+      expectedEpoch: Int,
+      newState: Occurrence,
+      now: Instant
+  ): Boolean =
+    sql"""UPDATE dose_occurrences
+          SET status = ${newState.status.dbValue}::occ_status,
+              due_window_start = ${newState.dueWindowStart}, due_window_end = ${newState.dueWindowEnd},
+              miss_deadline = ${newState.missDeadline}, next_action_at = ${newState.nextActionAt},
+              reminder_seq = ${newState.reminderSeq}, snooze_count = ${newState.snoozeCount},
+              snoozed_until = ${newState.snoozedUntil}, last_reminded_at = ${newState.lastRemindedAt},
+              taken_at = ${newState.takenAt}, effective_at = ${newState.effectiveAt},
+              skipped_at = ${newState.skippedAt}, missed_at = ${newState.missedAt},
+              unknown_reason = ${newState.unknownReason.map(_.dbValue)},
+              epoch = ${newState.epoch}, version = version + 1, updated_at = $now
+          WHERE id = $id AND version = $expectedVersion AND epoch = $expectedEpoch""".execute() == 1
+
+  override def quarantine(id: UUID, retryAt: Instant, now: Instant): Unit =
+    sql"""UPDATE dose_occurrences
+          SET error_count = error_count + 1, next_action_at = $retryAt, updated_at = $now
+          WHERE id = $id""".execute()
+    ()
+
+  override def nextScheduledAfter(scheduleId: UUID, after: Instant): Option[Instant] =
+    // MIN() over an empty set yields one NULL row, so map the nullable column explicitly.
+    given RowMapper[Option[Instant]] = rs => Option(rs.getObject(1, classOf[java.time.OffsetDateTime])).map(_.toInstant)
+    sql"""SELECT MIN(scheduled_for) FROM dose_occurrences
+          WHERE schedule_id = $scheduleId AND scheduled_for > $after
+            AND status IN ('pending', 'due', 'snoozed')""".queryOne[Option[Instant]]().flatten

@@ -242,7 +242,9 @@ object MediatorFakes:
 
   final class InMemoryOccurrences extends OccurrenceRepository:
     private val rows = ListBuffer.empty[StoredOccurrence]
+    private val errorCounts = scala.collection.mutable.Map.empty[UUID, Int].withDefaultValue(0)
     def all: List[StoredOccurrence] = this.synchronized(rows.toList)
+    def errorCount(id: UUID): Int = this.synchronized(errorCounts(id))
 
     override def insertAll(newRows: List[NewOccurrence]): Int = this.synchronized:
       var inserted = 0
@@ -289,6 +291,42 @@ object MediatorFakes:
             ((r.status != OccurrenceStatus.Pending && r.status != OccurrenceStatus.Cancelled) ||
               (r.status == OccurrenceStatus.Pending && !r.state.dueWindowStart.isAfter(now)))
         )
+    override def claimDue(now: Instant, limit: Int): List[StoredOccurrence] =
+      this.synchronized(
+        rows
+          .filter(r =>
+            r.status.isOpen && r.state.nextActionAt.exists(!_.isAfter(now)) &&
+              errorCounts(r.id) < OccurrenceRepository.QuarantineErrorThreshold
+          )
+          .toList
+          .sortBy(r => (r.state.nextActionAt, r.id))
+          .take(limit)
+      )
+    override def applyTransition(
+        id: UUID,
+        expectedVersion: Int,
+        expectedEpoch: Int,
+        newState: dosecord.core.domain.Occurrence,
+        now: Instant
+    ): Boolean = this.synchronized:
+      rows.find(_.id == id) match
+        case Some(r) if r.version == expectedVersion && r.state.epoch == expectedEpoch =>
+          rows.mapInPlace(x => if x.id == id then r.copy(version = r.version + 1, state = newState) else x)
+          true
+        case _ => false
+    override def quarantine(id: UUID, retryAt: Instant, now: Instant): Unit = this.synchronized:
+      errorCounts(id) = errorCounts(id) + 1
+      rows.mapInPlace(r =>
+        if r.id == id then r.copy(state = r.state.copy(nextActionAt = Some(retryAt))) else r
+      )
+    override def nextScheduledAfter(scheduleId: UUID, after: Instant): Option[Instant] =
+      this.synchronized(
+        rows
+          .filter(r => r.scheduleId.contains(scheduleId) && r.status.isOpen && r.state.scheduledFor.isAfter(after))
+          .map(_.state.scheduledFor)
+          .toList
+          .minOption
+      )
 
   final class InMemoryDoseActions extends DoseActionRepository:
     private val rows = ListBuffer.empty[StoredDoseAction]
@@ -300,6 +338,28 @@ object MediatorFakes:
         row.catchUp, row.correlationId, row.idempotencyKey, row.metadata)
     override def listForOccurrence(occurrenceId: UUID): List[StoredDoseAction] =
       this.synchronized(rows.filter(_.occurrenceId == occurrenceId).sortBy(_.seq).toList)
+
+  /** Policies from the in-memory revisions; a scheduled row with a missing revision throws (the poison-row path). */
+  final class InMemoryPolicies(revisions: InMemoryRevisions) extends PolicyRepository:
+    @volatile var quiet: Option[dosecord.core.domain.QuietHours] = None
+    override def forOccurrence(occ: StoredOccurrence): (dosecord.core.domain.ReminderPolicy, dosecord.core.domain.QuietHoursContext) =
+      val policy = (occ.scheduleId, occ.revision) match
+        case (Some(scheduleId), Some(revision)) =>
+          revisions
+            .get(scheduleId, revision)
+            .map(_.policy)
+            .getOrElse(
+              throw new NoSuchElementException(s"occurrence ${occ.id} references missing revision $revision")
+            )
+        case _ => dosecord.core.domain.ReminderPolicy.Default
+      (policy, dosecord.core.domain.QuietHoursContext(quiet, occ.tz))
+
+  final class InMemoryChannels extends DeliveryChannelRepository:
+    private val targets = scala.collection.mutable.Map.empty[UUID, List[DeliveryTarget]].withDefaultValue(Nil)
+    def register(accountId: UUID, target: DeliveryTarget): Unit = this.synchronized:
+      targets(accountId) = targets(accountId) :+ target
+    override def activePrimaryChannels(accountId: UUID): List[DeliveryTarget] =
+      this.synchronized(targets(accountId))
 
   final class InMemoryUnitOfWork extends UnitOfWork:
     val inboundEvents = InMemoryInboundEvents()
@@ -316,6 +376,8 @@ object MediatorFakes:
     val revisions = InMemoryRevisions()
     val occurrences = InMemoryOccurrences()
     val doseActions = InMemoryDoseActions()
+    val policies = InMemoryPolicies(revisions)
+    val channels = InMemoryChannels()
 
     private val tx: Tx = new Tx:
       override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions
@@ -332,6 +394,9 @@ object MediatorFakes:
       override def revisions: ScheduleRevisionRepository = InMemoryUnitOfWork.this.revisions
       override def occurrences: OccurrenceRepository = InMemoryUnitOfWork.this.occurrences
       override def doseActions: DoseActionRepository = InMemoryUnitOfWork.this.doseActions
+      override def policies: PolicyRepository = InMemoryUnitOfWork.this.policies
+      override def channels: DeliveryChannelRepository = InMemoryUnitOfWork.this.channels
+      override def savepoint[A](f: => A): A = f
 
     override def transaction[A](f: Tx => A): A = f(tx)
 
