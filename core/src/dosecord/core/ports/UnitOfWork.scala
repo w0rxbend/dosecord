@@ -7,6 +7,10 @@ trait Tx:
   def sessions: SessionRepository
   def outbox: OutboxRepository
   def renderedMessages: RenderedMessageRepository
+  def inboundEvents: InboundEventRepository
+  def domainEvents: DomainEventRepository
+  def identities: IdentityRepository
+  def audit: AuditRepository
 
 trait UnitOfWork:
   def transaction[A](f: Tx => A): A

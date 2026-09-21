@@ -112,6 +112,16 @@ trait OutboxRepository:
   /** Non-retryable failure (`failed_permanent`); channel-fatal fallback is wired in M1.7. */
   def failPermanently(id: UUID, error: String): Unit
 
+/** A `rendered_messages` row as the mediator's resolution rules need it (DESIGN.md section 4.6 step 5): the
+  * `choice_map` plus whether finalize already removed the controls.
+  */
+final case class RenderedChoiceMap(
+    handle: MessageHandle,
+    revision: Int,
+    choiceMap: List[ChoiceMapEntry],
+    controlsRemoved: Boolean
+)
+
 /** Records rendered handles with their `choice_map` so controls stay resolvable after a crash (DESIGN.md section 9,
   * ADR-009: the post-resolution finalize op edits every recorded handle).
   */
@@ -127,3 +137,13 @@ trait RenderedMessageRepository:
       choiceMap: List[ChoiceMapEntry],
       now: Instant
   ): Boolean
+
+  /** Quoted-reply numbers and reactions resolve through the target's `choice_map` unconditionally (DESIGN.md section
+    * 4.6 step 5).
+    */
+  def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap]
+
+  /** Bare digits and hotkeys resolve against the latest pending prompt of the chat only: the newest message with a
+    * `choice_map` whose controls were not removed.
+    */
+  def latestPendingPrompt(vendor: String, chatId: String): Option[RenderedChoiceMap]

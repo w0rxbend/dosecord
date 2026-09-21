@@ -189,9 +189,11 @@ object Gens:
   given Arbitrary[LifecycleState] = Arbitrary(Gen.oneOf(LifecycleState.values.toList))
 
   private val CallbackCodecMax = (1L << 48) - 1
+  private val genRawToken: Gen[String] =
+    Gen.listOfN(46, Gen.oneOf(('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9') ++ Seq('-', '_'))).map(cs => s"dc:${cs.mkString}")
   given Arbitrary[CallbackRef] = Arbitrary(
     Gen
-      .zip(Gen.choose(0, 0xffff), genUuid, Gen.choose(0L, CallbackCodecMax), Gen.oneOf(true, false))
+      .zip(Gen.choose(0, 0xffff), genUuid, Gen.choose(0L, CallbackCodecMax), Gen.oneOf(true, false), genRawToken)
       .map(
         CallbackRef.apply
       )
