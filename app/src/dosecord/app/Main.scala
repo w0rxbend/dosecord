@@ -48,10 +48,14 @@ object Main:
         case Cli.Command.Run(_)  =>
           Shutdown.serve(
             body = {
-              val binding = Health.start()
-              info(s"/healthz listening on :${Health.DefaultPort}")
+              // HEALTH_PORT is a local-override read here (not in Settings, which is infra-owned): a dev
+              // machine may already have 8080 bound. Settings should adopt it properly at the M2.4 cut.
+              val port = sys.env.get("HEALTH_PORT").flatMap(_.toIntOption).getOrElse(Health.DefaultPort)
+              val binding = Health.start(port)
+              info(s"/healthz listening on :$port")
+              val adapters = Adapters.start(settings, dataSource, info)
               Drain(
-                inbound = List("health" -> (() => binding.stop())),
+                inbound = ("health" -> (() => binding.stop())) :: adapters,
                 claiming = Nil,
                 inFlight = InFlightRegistry(),
                 budget = Shutdown.DrainBudget,
