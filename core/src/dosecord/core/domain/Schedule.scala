@@ -5,8 +5,10 @@ import dosecord.contracts.Json.given
 import dosecord.contracts.Weekday
 import upickle.default.ReadWriter
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 
 /** One group of weekdays sharing the same wall times inside a `FixedTimes` rule.
   */
@@ -171,3 +173,27 @@ final case class QuietHours(start: HhMm, end: HhMm) derives ReadWriter:
     if from == to then false
     else if from < to then minute >= from && minute < to
     else minute >= from || minute < to
+
+/** Quiet hours as `Decide.decide` consumes them (ROADMAP M1.3): the optional hours plus the zone that gives the wall
+  * times meaning. `quietEndAfter` resolves the end of the quiet interval containing `now` through M0.7's
+  * `Dst.resolveLocal`, checking the wall time on `now`'s local date and the next (a wrapping interval like 22:00-06:00
+  * ends on the following date). Caveat: on a fold day the end wall time resolves to the earlier instant, so the quiet
+  * interval can run long by the fold length; containment and the end stay consistent because both derive from
+  * `quietEndAfter`.
+  */
+final case class QuietHoursContext(hours: Option[QuietHours], zone: ZoneId):
+  def quietEndAfter(now: Instant): Option[Instant] =
+    hours.filter(_.isActive).flatMap { quiet =>
+      val zoned = now.atZone(zone)
+      if !quiet.contains(zoned.toLocalTime) then scala.None
+      else
+        List(zoned.toLocalDate, zoned.toLocalDate.plusDays(1))
+          .map(date => Dst.resolveLocal(date, LocalTime.of(quiet.end.hour, quiet.end.minute), zone)._1)
+          .filter(_.isAfter(now))
+          .minOption
+    }
+
+  def contains(now: Instant): Boolean = quietEndAfter(now).isDefined
+
+object QuietHoursContext:
+  def none(zone: ZoneId): QuietHoursContext = QuietHoursContext(scala.None, zone)
