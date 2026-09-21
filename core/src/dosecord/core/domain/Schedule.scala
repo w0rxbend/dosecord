@@ -102,6 +102,20 @@ object Rule:
     }
     Rule.Taper(phases)
 
+  /** The `medication_schedules.kind` tag of a rule (set once at schedule create; pause/resume/archive keep it).
+    * Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
+    */
+  def kindTag(rule: Rule): String = rule match
+    case _: Rule.FixedTimes         => "fixed_times"
+    case _: Rule.EveryNDays         => "every_n_days"
+    case _: Rule.EveryNWeeks        => "every_n_weeks"
+    case _: Rule.Cycle              => "cycle"
+    case _: Rule.IntervalFixedStart => "interval_fixed_start"
+    case _: Rule.Chain              => "chain"
+    case _: Rule.Taper              => "taper"
+    case _: Rule.AsNeeded           => "as_needed"
+    case Rule.Paused                => "paused"
+
   private def validateFixedTimes(slotGroups: List[SlotGroup]): List[String] =
     if slotGroups.isEmpty then List("FixedTimes needs at least one slot group")
     else
@@ -114,6 +128,17 @@ object Rule:
         ).flatten
       }
 end Rule
+
+/** The medication facts a revision snapshots at write time (DESIGN.md section 8 `dose_snapshot` on `schedule_revisions`
+  * and `dose_occurrences`): the materialiser copies it onto every occurrence so the row explains what the user was
+  * asked to take even after the medication is later edited.
+  */
+final case class DoseSnapshot(
+    medicationName: String,
+    doseAmount: Option[BigDecimal],
+    doseUnit: Option[String],
+    instructions: Option[String]
+) derives ReadWriter
 
 /** How a reminder is delivered inside quiet hours (ADR-012): `Deliver` sends normally, `Silent` sends with the vendor's
   * silent flag and counts the reminder, `Defer` shifts the due window to quiet end and records `reminder_deferred`.

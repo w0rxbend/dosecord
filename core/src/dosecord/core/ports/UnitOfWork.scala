@@ -11,6 +11,11 @@ trait Tx:
   def domainEvents: DomainEventRepository
   def identities: IdentityRepository
   def audit: AuditRepository
+  def medications: MedicationRepository
+  def schedules: ScheduleRepository
+  def revisions: ScheduleRevisionRepository
+  def occurrences: OccurrenceRepository
+  def doseActions: DoseActionRepository
 
 trait UnitOfWork:
   def transaction[A](f: Tx => A): A

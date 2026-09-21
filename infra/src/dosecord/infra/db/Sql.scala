@@ -7,6 +7,8 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
@@ -15,6 +17,9 @@ import scala.language.implicitConversions
 
 /** A raw JSON document bound to or read from a `jsonb` column. */
 final case class Jsonb(value: String)
+
+/** A `uuid[]` bind; the wrapper keeps it distinct from `text[]` after erasure. */
+final case class UuidArray(values: Array[UUID])
 
 /** One bind parameter of a [[SqlQuery]]: writes a value into a prepared statement, allocating server-side arrays on
   * `conn` when needed and registering them in `cleanup` so they are freed after execution.
@@ -29,6 +34,9 @@ object SqlBind:
   given Conversion[Boolean, SqlBind] = v => (ps, i, _, _) => ps.setBoolean(i, v)
   given Conversion[UUID, SqlBind] = v => (ps, i, _, _) => ps.setObject(i, v)
   given Conversion[Instant, SqlBind] = v => (ps, i, _, _) => ps.setObject(i, v.atOffset(ZoneOffset.UTC))
+  given Conversion[LocalDate, SqlBind] = v => (ps, i, _, _) => ps.setObject(i, v)
+  given Conversion[LocalTime, SqlBind] = v => (ps, i, _, _) => ps.setObject(i, v)
+  given Conversion[BigDecimal, SqlBind] = v => (ps, i, _, _) => ps.setBigDecimal(i, v.bigDecimal)
   given Conversion[Jsonb, SqlBind] = v =>
     (ps, i, _, _) =>
       val pg = PGobject()
@@ -38,6 +46,11 @@ object SqlBind:
   given Conversion[Array[String], SqlBind] = v =>
     (ps, i, conn, cleanup) =>
       val arr = conn.createArrayOf("text", v.map(s => s: AnyRef))
+      cleanup += arr
+      ps.setArray(i, arr)
+  given Conversion[UuidArray, SqlBind] = v =>
+    (ps, i, conn, cleanup) =>
+      val arr = conn.createArrayOf("uuid", v.values.map(s => s: AnyRef))
       cleanup += arr
       ps.setArray(i, arr)
   given [A](using toBind: Conversion[A, SqlBind]): Conversion[Option[A], SqlBind] =
@@ -56,15 +69,25 @@ object RowMapper:
   given RowMapper[Boolean] = _.getBoolean(1)
   given RowMapper[UUID] = _.getObject(1, classOf[UUID])
   given RowMapper[Instant] = _.getObject(1, classOf[OffsetDateTime]).toInstant
+  given RowMapper[LocalDate] = _.getObject(1, classOf[LocalDate])
+  given RowMapper[LocalTime] = _.getObject(1, classOf[LocalTime])
+  given RowMapper[BigDecimal] = rs => BigDecimal(rs.getBigDecimal(1))
   given RowMapper[Jsonb] = rs => Jsonb(rs.getString(1))
   given RowMapper[Array[String]] = rs => rs.getArray(1).getArray.asInstanceOf[Array[AnyRef]].map(_.toString)
 
 /** Column getters for hand-written [[RowMapper]]s. */
 extension (rs: ResultSet)
   def uuid(col: String): UUID = rs.getObject(col, classOf[UUID])
+  def optUuid(col: String): Option[UUID] = Option(rs.getObject(col, classOf[UUID]))
+  def optInt(col: String): Option[Int] =
+    val v = rs.getInt(col)
+    if rs.wasNull() then scala.None else Some(v)
   def instant(col: String): Instant = rs.getObject(col, classOf[OffsetDateTime]).toInstant
   def optInstant(col: String): Option[Instant] = Option(rs.getObject(col, classOf[OffsetDateTime])).map(_.toInstant)
   def optString(col: String): Option[String] = Option(rs.getString(col))
+  def localDate(col: String): LocalDate = rs.getObject(col, classOf[LocalDate])
+  def optLocalDate(col: String): Option[LocalDate] = Option(rs.getObject(col, classOf[LocalDate]))
+  def optLocalTime(col: String): Option[LocalTime] = Option(rs.getObject(col, classOf[LocalTime]))
   def jsonb(col: String): Jsonb = Jsonb(rs.getString(col))
   def optJsonb(col: String): Option[Jsonb] = Option(rs.getString(col)).map(Jsonb(_))
   def stringArray(col: String): Array[String] = rs.getArray(col).getArray.asInstanceOf[Array[AnyRef]].map(_.toString)
