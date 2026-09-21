@@ -2,10 +2,12 @@ package dosecord.core.scheduling
 
 import dosecord.core.domain.Evaluator
 import dosecord.core.domain.ScheduleRevision
+import dosecord.core.ports.Clock
 import dosecord.core.ports.NewOccurrence
 import dosecord.core.ports.StoredSchedule
 import dosecord.core.ports.StoredScheduleRevision
 import dosecord.core.ports.Tx
+import dosecord.core.ports.UnitOfWork
 
 import java.time.Instant
 import java.util.UUID
@@ -60,3 +62,26 @@ object Materialiser:
       )
     )
     tx.occurrences.insertAll(rows)
+
+/** The materialiser job (ROADMAP M1.5, DESIGN.md section 7.2): runs every 15 minutes and on demand, extends every due
+  * schedule's materialised window to `now + 48 h` and advances `materialized_through` (the
+  * `min(materialized_through) < now` lag alert reads it). One transaction per batch; the SKIP LOCKED claim gives
+  * concurrent materialisers disjoint schedules and the no-target `ON CONFLICT DO NOTHING` insert makes overlapping runs
+  * produce identical row sets (ADR-004).
+  */
+final class Materialiser(uow: UnitOfWork, clock: Clock):
+
+  /** One batch; returns the number of schedules claimed. */
+  def runOnce(limit: Int = 100): Int =
+    val now = clock.now()
+    uow.transaction { tx =>
+      val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
+      val claimed = tx.schedules.claimForMaterialisation(horizonEnd, limit)
+      claimed.foreach { schedule =>
+        tx.revisions.latest(schedule.id).foreach { revision =>
+          Materialiser.materializeSchedule(tx, schedule, revision, now, horizonEnd)
+          tx.schedules.advanceMaterializedThrough(schedule.id, horizonEnd, now)
+        }
+      }
+      claimed.size
+    }
