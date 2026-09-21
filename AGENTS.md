@@ -22,11 +22,13 @@ specification.
 
 ## Current entry point
 
-M0.11 and M1.2 are `green`. The next eligible slices are **M0.12a —
-Mediator core on FakeAdapter** (deps M0.5, M0.9, M0.11) and **M1.3 —
-Occurrence FSM decide()** (deps M1.2), which may interleave. **M0.8** (JDA
-DM spike) is dependency-unblocked but requires live Discord credentials; do
-not start it until the owner provides them.
+M0.12a and M1.3 are `green`. The next eligible slices are **M0.12b —
+WizardEngine, sessions, sweeper, FormRunner** (deps M0.12a), **M0.12c —
+Console adapter** (deps M0.12a), **M1.4b — Projection fold and adherence**
+(deps M1.3) and **M1.5 — Repositories, revisions, materialiser job** (deps
+M1.2, M0.3), which may interleave. **M0.8** (JDA DM spike) is
+dependency-unblocked but requires live Discord credentials; do not start it
+until the owner provides them.
 
 ## Agent workflow
 
