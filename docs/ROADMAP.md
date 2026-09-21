@@ -404,14 +404,14 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M0.9 | Contracts, chat model, renderer, FakeAdapter, goldens (B1) | M | M0.6 | | green |
 | M0.10 | Outbox dispatcher protocol (kept) | M | M0.3, M0.9 | | green |
 | M0.11 | Telemetry skeleton | S | M0.5 | | green |
-| M0.12a | Mediator core on FakeAdapter | M | M0.5, M0.9, M0.11 | | todo |
+| M0.12a | Mediator core on FakeAdapter | M | M0.5, M0.9, M0.11 | | green |
 | M0.12b | WizardEngine, sessions, sweeper, FormRunner | M | M0.12a | | todo |
 | M0.12c | Console adapter | S | M0.12a | | todo |
 | M0.12d | Account create, /mood, /help | M | M0.12b, M0.12c | | todo |
 | M0.13 | Conformance suite v1 (A, B2 console) | M | M0.12d | | todo |
 | M1.1 | Rule enum, ReminderPolicy, QuietHours | S | M0.9 | | green |
 | M1.2 | Evaluator and materialiser (pure) | M | M1.1, M0.7 | | green |
-| M1.3 | Occurrence FSM decide() | L | M1.2 | | todo |
+| M1.3 | Occurrence FSM decide() | L | M1.2 | | green |
 | M1.4a | Copy catalogue and control layouts | S | M0.9 | | green |
 | M1.4b | Projection fold and adherence | M | M1.3 | | todo |
 | M1.5 | Repositories, revisions, materialiser job, fixtures | L | M1.2, M0.3 | | todo |
