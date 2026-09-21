@@ -108,7 +108,7 @@ class ChatMediatorPgSuite extends PgSuite:
   private final class RecordingHandler(reply: InboundEvent => Reply) extends ChatHandler:
     val received = new ConcurrentLinkedQueue[(InboundEvent, Principal)]()
     def calls: List[(InboundEvent, Principal)] = received.asScala.toList
-    override def handle(event: InboundEvent, principal: Principal): Reply =
+    override def handle(event: InboundEvent, principal: Principal, tx: dosecord.core.ports.Tx): Reply =
       received.add((event, principal))
       reply(event)
 

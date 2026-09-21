@@ -34,3 +34,16 @@ trait SessionRepository:
     * [[StaleSessionVersion]] otherwise.
     */
   def save(session: ConversationSession): Unit
+
+  /** Ends the session (abort/complete, M0.12b). */
+  def delete(id: UUID): Unit
+
+  /** Sessions idle past their deadline, oldest first, locked `FOR UPDATE SKIP LOCKED` so concurrent sweepers do not
+    * double-process (M0.12b).
+    */
+  def expiring(now: Instant, limit: Int): List[ConversationSession]
+
+  /** Sessions with a persisted prompt that is still inside its expiry window; re-sent on restart (persist-then-send,
+    * M0.12b).
+    */
+  def resumable(now: Instant, limit: Int): List[ConversationSession]
