@@ -19,6 +19,7 @@ import dosecord.core.ports.ScheduleRevisionRepository
 import dosecord.core.ports.SessionRepository
 import dosecord.core.ports.Tx
 import dosecord.core.ports.UnitOfWork
+import dosecord.core.ports.WorkerHeartbeatRepository
 
 import java.sql.Connection
 import javax.sql.DataSource
@@ -58,6 +59,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val doseActions: DoseActionRepository = PgDoseActionRepository(conn)
     override lazy val policies: PolicyRepository = PgPolicyRepository(conn)
     override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
+    override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
 
     override def savepoint[A](f: => A): A =
       val sp = conn.setSavepoint()

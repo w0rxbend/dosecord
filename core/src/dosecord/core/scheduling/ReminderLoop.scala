@@ -25,6 +25,7 @@ import dosecord.core.ports.Wake
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 object ReminderLoop:
 
@@ -55,30 +56,44 @@ object ReminderLoop:
   * UPDATE SKIP LOCKED`, runs the pure `Decide.decide` per row under a savepoint, and writes the state change, the
   * `dose_actions` row, the `domain_events` row and the outbox rows in one transaction with no network calls; a failing
   * row is quarantined instead of stalling the batch, and epoch fencing skips a row a user action changed mid-tick.
-  * `run` adds the materialiser safety net, the fallback poll and the LISTEN wake-up. The per-instance heartbeat lands
-  * with the second half of M1.6.
+  * `run` adds the materialiser safety net, the per-instance heartbeat (its own short transaction, outside the batch),
+  * the fallback poll and the LISTEN wake-up.
   */
 final class ReminderLoop(
     uow: UnitOfWork,
     materialiser: Materialiser,
     wake: Wake,
     clock: Clock,
+    instance: String,
+    role: String = "worker",
     batchSize: Int = ReminderLoop.BatchSize,
     pollInterval: Duration = ReminderLoop.PollInterval
 ):
   import ReminderLoop.*
 
-  /** The process loop (DESIGN.md section 7.4): safety net, tick, then wait for a wake or the poll interval. Runs until
-    * the calling fork is cancelled (interruption propagates out of `wake.awaitOrTimeout`); callers place it in an Ox
-    * fork, so the method itself needs no scope.
+  /** The instant of the last completed tick (set after the heartbeat commits); the
+    * `dosecord_scheduler_tick_age_seconds` gauge (DESIGN.md section 10) reads it.
+    */
+  val lastTickCompletedAt = new AtomicReference[Instant]()
+
+  /** The process loop (DESIGN.md section 7.4): tick (with the safety net), heartbeat, then wait for a wake or the poll
+    * interval. Runs until the calling fork is cancelled (interruption propagates out of `wake.awaitOrTimeout`); callers
+    * place it in an Ox fork, so the method itself needs no scope.
     */
   def run(): Unit =
-    materialiseLagging(clock.now())
     while true do
-      val now = clock.now()
-      materialiseLagging(now)
-      val claimed = tick(now)
+      val claimed = tickOnce(clock.now())
       wake.awaitOrTimeout(if claimed >= batchSize then Duration.ZERO else pollInterval)
+
+  /** One iteration of the process loop: the safety net, one `tick`, then the per-instance heartbeat in its own short
+    * transaction (DESIGN.md section 7.4: written after the batch, so a long batch cannot hold the heartbeat row).
+    */
+  def tickOnce(now: Instant): Int =
+    materialiseLagging(now)
+    val claimed = tick(now)
+    uow.transaction(tx => tx.heartbeat.touch(instance, role, clock.now()))
+    lastTickCompletedAt.set(clock.now())
+    claimed
 
   /** The materialiser safety net: extend every schedule whose materialised window ends before
     * `now + SafetyNetLagTicks * pollInterval` (DESIGN.md section 7.2). Cheap when nothing lags (the claim returns
@@ -91,9 +106,11 @@ final class ReminderLoop(
     */
   def tick(now: Instant): Int =
     uow.transaction { tx =>
+      // Read once per tick (DESIGN.md section 7.3): the unknown(outage | undelivered) evidence.
+      val lastHealthyTick = tx.heartbeat.maxLastTick().getOrElse(Instant.EPOCH)
       val claimed = tx.occurrences.claimDue(now, batchSize)
       claimed.foreach { occ =>
-        try tx.savepoint(processRow(tx, occ, now))
+        try tx.savepoint(processRow(tx, occ, now, lastHealthyTick))
         catch
           case _: StaleWrite => () // fenced: a user action landed mid-tick and wins; skip the row
           case _: Exception  =>
@@ -107,13 +124,14 @@ final class ReminderLoop(
     * with the new epoch in the `send_key`, and append `dose_due.v1` on the pending -> due transition — all inside the
     * row's savepoint.
     */
-  private def processRow(tx: Tx, occ: StoredOccurrence, now: Instant): Unit =
+  private def processRow(tx: Tx, occ: StoredOccurrence, now: Instant, lastHealthyTick: Instant): Unit =
     val (policy, quiet) = tx.policies.forOccurrence(occ)
     val nextOccurrence =
       occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor))
     val ctx = DecideContext(
       event = OccurrenceEvent.Tick,
       delivered = tx.outbox.deliveredFor(occ.id),
+      lastHealthyTick = lastHealthyTick,
       nextOccurrenceScheduledFor = nextOccurrence
     )
     val transition = Decide.decide(occ.state, policy, quiet, now, ctx)

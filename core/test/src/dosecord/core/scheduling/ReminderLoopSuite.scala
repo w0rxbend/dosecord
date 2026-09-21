@@ -90,7 +90,13 @@ class ReminderLoopSuite extends munit.FunSuite:
     Seed(accountId, scheduleId, occurrenceId, channelId)
 
   private def loop(uow: MediatorFakes.InMemoryUnitOfWork): ReminderLoop =
-    ReminderLoop(uow, Materialiser(uow, MediatorFakes.FixedClock(t0)), Wake.polling, MediatorFakes.FixedClock(t0))
+    ReminderLoop(
+      uow,
+      Materialiser(uow, MediatorFakes.FixedClock(t0)),
+      Wake.polling,
+      MediatorFakes.FixedClock(t0),
+      instance = "pure-test"
+    )
 
   test("a pending row past its due window fires once: due, action row, one outbox row, one dose_due.v1"):
     val uow = MediatorFakes.InMemoryUnitOfWork()

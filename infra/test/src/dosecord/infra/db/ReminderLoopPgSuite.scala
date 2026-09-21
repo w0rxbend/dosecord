@@ -4,12 +4,14 @@ import dosecord.contracts.Event
 import dosecord.contracts.HhMm
 import dosecord.contracts.Weekday
 import dosecord.core.domain.Evaluator
+import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.domain.ReminderPolicy
 import dosecord.core.domain.Rule
 import dosecord.core.domain.SlotGroup
 import dosecord.core.ports.Wake
 import dosecord.core.scheduling.Materialiser
 import dosecord.core.scheduling.ReminderLoop
+import dosecord.infra.Metrics
 
 import java.sql.Connection
 import java.time.Duration
@@ -49,7 +51,8 @@ class ReminderLoopPgSuite extends PgSuite:
       PgUnitOfWork(dataSource, clock),
       Materialiser(PgUnitOfWork(dataSource, clock), clock),
       Wake.polling,
-      clock
+      clock,
+      instance = "pg-test"
     )
 
   private def occurrencesOf(scheduleId: UUID): List[(UUID, String, Int, Option[Instant])] = withConnection { conn =>
@@ -218,3 +221,131 @@ class ReminderLoopPgSuite extends PgSuite:
       slots.contains(monday.plus(Duration.ofHours(73))), // Thursday 09:00: beyond the pre-net horizon
       "the horizon moved a full day further out"
     )
+
+  // Acceptance 5, guard half: the fenced write itself refuses a row changed underneath the tick.
+  test("a user action that bumped the epoch mid-tick leaves the tick's stale write refused (epoch fencing)"):
+    val clock = MutableClock(monday)
+    val accountId = fixtures.account()
+    val created = fixtures.schedule(clock, accountId, "Vitamin D", dailyAt("09:00"), utc)
+    fixtures.deliveryChannel(accountId, "console", "dm:owner", monday)
+    clock.advance(Duration.ofMinutes(65))
+    val now = clock.now()
+    val uow = PgUnitOfWork(dataSource, clock)
+
+    val claimed = uow.transaction(_.occurrences.claimDue(now, 50)).head
+
+    // The M1.10 tap path's shape: lock, decide on the fresh row, write — the epoch and version advance.
+    withConnection { conn =>
+      given Connection = conn
+      sql"""UPDATE dose_occurrences
+            SET status = 'taken', taken_at = $now, effective_at = $now, next_action_at = NULL,
+                epoch = epoch + 1, version = version + 1, updated_at = $now
+            WHERE id = ${claimed.id}""".execute()
+    }
+
+    val applied = uow.transaction(
+      _.occurrences.applyTransition(
+        claimed.id,
+        claimed.version,
+        claimed.state.epoch,
+        claimed.state.copy(
+          status = OccurrenceStatus.Due,
+          reminderSeq = 1,
+          epoch = claimed.state.epoch + 1
+        ),
+        now
+      )
+    )
+    assert(!applied, "the guarded write refuses the stale epoch/version the tick had read")
+    val row = occurrencesOf(created.scheduleId).head
+    assertEquals((row._2, row._3), ("taken", 1), "the user action's write stands untouched")
+
+  // Acceptance 5, loop half: the stale queued row is cancelled, the fresh decision lands under the new epoch.
+  test("a tick after a mid-flight epoch bump cancels the stale queued row and enqueues under the new epoch"):
+    val clock = MutableClock(monday)
+    val accountId = fixtures.account()
+    val created = fixtures.schedule(clock, accountId, "Vitamin D", dailyAt("09:00"), utc)
+    fixtures.deliveryChannel(accountId, "console", "dm:owner", monday)
+    clock.advance(Duration.ofMinutes(65))
+
+    val l = loop(clock)
+    assertEquals(l.tick(clock.now()), 1) // pending -> due, epoch 1, send_key e1
+    val occurrenceId =
+      fixtures.uow.transaction(_.occurrences.listBySchedule(created.scheduleId)).head.id
+
+    // A user action lands between ticks: the epoch advances while the first reminder is still queued.
+    withConnection { conn =>
+      given Connection = conn
+      sql"""UPDATE dose_occurrences
+            SET epoch = epoch + 1, version = version + 1, updated_at = ${clock.now()}
+            WHERE id = $occurrenceId""".execute()
+    }
+
+    clock.advance(Duration.ofMinutes(10))
+    assertEquals(l.tick(clock.now()), 1, "the repeat fires at the bumped epoch")
+
+    withConnection { conn =>
+      given Connection = conn
+      given RowMapper[(Int, String)] = rs => (rs.getInt("epoch"), rs.getString("status"))
+      val rows =
+        sql"SELECT epoch, status FROM outbox_messages WHERE occurrence_id = $occurrenceId ORDER BY created_at"
+          .query[(Int, String)]()
+      assert(rows.contains((1, "cancelled")), s"the stale-epoch row was cancelled: $rows")
+      assertEquals(rows.count(_._2 == "queued"), 2, "the repeat's finalize + reminder are queued at the new epoch")
+      assert(rows.filter(_._2 == "queued").forall(_._1 == 3), s"fresh rows carry the new epoch: $rows")
+    }
+    val state = occurrencesOf(created.scheduleId).head
+    assertEquals((state._2, state._3), ("due", 3))
+
+  test("lastHealthyTick from worker_heartbeat drives unknown(undelivered) versus unknown(outage)"):
+    val clock = MutableClock(monday)
+    val accountId = fixtures.account()
+    val first = fixtures.schedule(clock, accountId, "MedA", dailyAt("09:00"), utc)
+    val l = loop(clock)
+    clock.advance(Duration.ofMinutes(185)) // 11:05: past the 11:00 miss deadline, nothing delivered
+
+    assertEquals(l.tick(clock.now()), 1)
+    assertEquals(unknownReasonOf(first.scheduleId), "outage", "no worker heartbeat before the due window")
+
+    // A second occurrence whose window also elapsed (created late, so the first tick never saw it).
+    val second = fixtures.schedule(clock, accountId, "MedB", dailyAt("09:00"), utc)
+    fixtures.occurrenceAt(second.scheduleId, monday.plus(Duration.ofHours(1)), "t0900")
+    fixtures.uow.transaction(_.heartbeat.touch("healthy-peer", "worker", clock.now()))
+    assertEquals(l.tick(clock.now()), 1, "only the second schedule's row is still claimable")
+    assertEquals(
+      unknownReasonOf(second.scheduleId),
+      "undelivered",
+      "a heartbeat inside the due window means workers were healthy"
+    )
+
+  test("the heartbeat is written outside the batch and the tick-age metric is exported"):
+    val clock = MutableClock(monday)
+    val l = loop(clock)
+    assertEquals(l.tickOnce(clock.now()), 0, "nothing due")
+
+    withConnection { conn =>
+      given Connection = conn
+      val beat =
+        sql"SELECT last_tick_at FROM worker_heartbeat WHERE instance = 'pg-test'".queryOne[Instant]()
+      assertEquals(beat, Some(clock.now()), "one heartbeat row per instance, written after the batch")
+    }
+    assertEquals(l.lastTickCompletedAt.get(), clock.now())
+
+    clock.advance(Duration.ofSeconds(7))
+    Metrics.registerSchedulerTickAge("pg-test", clock, l.lastTickCompletedAt)
+    assert(
+      Metrics
+        .scrape()
+        .contains("dosecord_scheduler_tick_age_seconds{instance=\"pg-test\"} 7.0"),
+      "dosecord_scheduler_tick_age_seconds exported (DESIGN.md section 10)"
+    )
+
+  private def unknownReasonOf(scheduleId: UUID): String = withConnection { conn =>
+    given Connection = conn
+    given RowMapper[Option[String]] = rs => Option(rs.getString(1))
+    sql"""SELECT unknown_reason FROM dose_occurrences
+          WHERE schedule_id = $scheduleId ORDER BY scheduled_for LIMIT 1"""
+      .queryOne[Option[String]]()
+      .flatten
+      .getOrElse("not-unknown")
+  }

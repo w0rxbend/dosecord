@@ -361,6 +361,13 @@ object MediatorFakes:
     override def activePrimaryChannels(accountId: UUID): List[DeliveryTarget] =
       this.synchronized(targets(accountId))
 
+  final class InMemoryHeartbeat extends WorkerHeartbeatRepository:
+    private val rows = scala.collection.mutable.Map.empty[String, Instant]
+    override def touch(instance: String, role: String, now: Instant): Unit =
+      this.synchronized:
+        rows(instance) = now
+    override def maxLastTick(): Option[Instant] = this.synchronized(rows.values.toList.maxOption)
+
   final class InMemoryUnitOfWork extends UnitOfWork:
     val inboundEvents = InMemoryInboundEvents()
     val domainEvents = InMemoryDomainEvents()
@@ -378,6 +385,7 @@ object MediatorFakes:
     val doseActions = InMemoryDoseActions()
     val policies = InMemoryPolicies(revisions)
     val channels = InMemoryChannels()
+    val heartbeat = InMemoryHeartbeat()
 
     private val tx: Tx = new Tx:
       override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions
@@ -396,6 +404,7 @@ object MediatorFakes:
       override def doseActions: DoseActionRepository = InMemoryUnitOfWork.this.doseActions
       override def policies: PolicyRepository = InMemoryUnitOfWork.this.policies
       override def channels: DeliveryChannelRepository = InMemoryUnitOfWork.this.channels
+      override def heartbeat: WorkerHeartbeatRepository = InMemoryUnitOfWork.this.heartbeat
       override def savepoint[A](f: => A): A = f
 
     override def transaction[A](f: Tx => A): A = f(tx)

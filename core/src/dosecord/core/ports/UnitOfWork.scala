@@ -20,6 +20,7 @@ trait Tx:
   def doseActions: DoseActionRepository
   def policies: PolicyRepository
   def channels: DeliveryChannelRepository
+  def heartbeat: WorkerHeartbeatRepository
 
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
