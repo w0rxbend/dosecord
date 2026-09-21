@@ -79,6 +79,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: scripts/check-vendor-symbols.sh
 
+  # M1.5: SQL now() is allowed only in DEFAULT clauses; queries bind `now`.
+  sql-now:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-sql-now.sh
+
   doc-lint:
     runs-on: ubuntu-latest
     steps:

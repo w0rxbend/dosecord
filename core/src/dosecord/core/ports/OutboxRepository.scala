@@ -112,6 +112,16 @@ trait OutboxRepository:
   /** Non-retryable failure (`failed_permanent`); channel-fatal fallback is wired in M1.7. */
   def failPermanently(id: UUID, error: String): Unit
 
+  /** Delivery evidence for the missed/unknown decision (DESIGN.md section 7.3, ADR-012): whether any outbox row for the
+    * occurrence has `sent_at` set.
+    */
+  def deliveredFor(occurrenceId: UUID): Boolean
+
+  /** Epoch fencing (DESIGN.md sections 7.3/7.4): cancels the occurrence's queued rows below `epoch` — a catch-up or
+    * edit decision replaces them with fresh `send_key`s. Returns the number of rows cancelled.
+    */
+  def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int
+
 /** A `rendered_messages` row as the mediator's resolution rules need it (DESIGN.md section 4.6 step 5): the
   * `choice_map` plus whether finalize already removed the controls.
   */

@@ -2,13 +2,14 @@ package dosecord.app
 
 import dosecord.contracts.*
 import dosecord.core.chat.ChatHandler
+import dosecord.core.ports.Tx
 
 /** Minimal stand-in handler (ROADMAP M0.12c): the real flow handlers land in `core/application` with M0.12d; until then
   * this echoes what the mediator delivered so the console vertical runs end to end. It never logs — the text goes only
   * to the user's own console.
   */
 final class EchoHandler extends ChatHandler:
-  override def handle(event: InboundEvent, principal: Principal): Reply =
+  override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val text = event.body match
       case Inbound.MessageReceived(body, replyTo, _) =>
         replyTo match

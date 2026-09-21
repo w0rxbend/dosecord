@@ -13,6 +13,11 @@ trait Tx:
   def audit: AuditRepository
   def slots: CallbackSlotRepository
   def formRuns: FormRunRepository
+  def medications: MedicationRepository
+  def schedules: ScheduleRepository
+  def revisions: ScheduleRevisionRepository
+  def occurrences: OccurrenceRepository
+  def doseActions: DoseActionRepository
 
 trait UnitOfWork:
   def transaction[A](f: Tx => A): A

@@ -21,6 +21,10 @@ enum OccurrenceStatus(val dbValue: String):
   def isOpen: Boolean =
     this == OccurrenceStatus.Pending || this == OccurrenceStatus.Due || this == OccurrenceStatus.Snoozed
 
+object OccurrenceStatus:
+  def fromDbValue(value: String): OccurrenceStatus =
+    values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown occ_status '$value'"))
+
 /** Why an occurrence became `unknown` (ADR-012): `outage` when no worker was healthy across the due window,
   * `undelivered` when workers were healthy but no outbox row for the occurrence was ever sent. The `dbValue` strings
   * match what `dose_occurrences.unknown_reason` stores.
@@ -28,6 +32,23 @@ enum OccurrenceStatus(val dbValue: String):
 enum UnknownReason(val dbValue: String):
   case Outage extends UnknownReason("outage")
   case Undelivered extends UnknownReason("undelivered")
+
+object UnknownReason:
+  def fromDbValue(value: String): UnknownReason =
+    values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown unknown_reason '$value'"))
+
+/** Why an occurrence was cancelled (the `dose_occurrences.cancel_reason` CHECK values, ADR-004): `superseded` by a
+  * newer revision, `paused`, `archived`, or `anchor_undone` (chain child of an undone anchor, M7.2).
+  */
+enum CancelReason(val dbValue: String):
+  case Superseded extends CancelReason("superseded")
+  case Paused extends CancelReason("paused")
+  case Archived extends CancelReason("archived")
+  case AnchorUndone extends CancelReason("anchor_undone")
+
+object CancelReason:
+  def fromDbValue(value: String): CancelReason =
+    values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown cancel_reason '$value'"))
 
 /** Skip reason codes recorded on `dose_actions.reason_code` (ROADMAP M1.3 "skipped with reason codes"; the chips land
   * in M3.1).

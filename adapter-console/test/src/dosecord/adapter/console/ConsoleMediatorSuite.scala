@@ -130,7 +130,7 @@ private object ConsoleMediatorFakes:
 
   final class ScriptedHandler(reply: InboundEvent => Reply) extends ChatHandler:
     val calls = ConcurrentLinkedQueue[(InboundEvent, Principal)]()
-    override def handle(event: InboundEvent, principal: Principal): Reply =
+    override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
       calls.add((event, principal))
       reply(event)
 
@@ -206,12 +206,34 @@ private object ConsoleMediatorFakes:
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit = ()
     override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
     override def failPermanently(id: UUID, error: String): Unit = ()
+    override def deliveredFor(occurrenceId: UUID): Boolean = false
+    override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
 
   final class InMemorySessions extends SessionRepository:
     override def loadForUpdate(principalKey: String, vendor: String, chatId: String): Option[ConversationSession] =
       None
     override def insert(session: ConversationSession): Unit = ()
     override def save(session: ConversationSession): Unit = ()
+    override def delete(id: UUID): Unit = ()
+    override def expiring(now: Instant, limit: Int): List[ConversationSession] = Nil
+    override def resumable(now: Instant, limit: Int): List[ConversationSession] = Nil
+
+  /** The console suite never touches wizard slots, form runs, or the medication repositories. */
+  private object UnusedPorts:
+    val slots: CallbackSlotRepository = new CallbackSlotRepository:
+      override def insert(slot: CallbackSlot): Unit = ()
+      override def loadForUpdate(id: UUID): Option[CallbackSlot] = None
+      override def deleteForSession(sessionId: UUID): Int = 0
+    val formRuns: FormRunRepository = new FormRunRepository:
+      override def insert(run: FormRun): Unit = ()
+      override def loadForUpdate(sessionId: UUID): Option[FormRun] = None
+      override def save(run: FormRun): Unit = ()
+      override def delete(sessionId: UUID): Unit = ()
+    val medications: MedicationRepository = ???
+    val schedules: ScheduleRepository = ???
+    val revisions: ScheduleRevisionRepository = ???
+    val occurrences: OccurrenceRepository = ???
+    val doseActions: DoseActionRepository = ???
 
   final class InMemoryUnitOfWork extends UnitOfWork:
     private val inboundEvents = InMemoryInboundEvents()
@@ -228,5 +250,12 @@ private object ConsoleMediatorFakes:
       override def domainEvents: DomainEventRepository = _ => ()
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
       override def audit: AuditRepository = _ => ()
+      override def slots: CallbackSlotRepository = UnusedPorts.slots
+      override def formRuns: FormRunRepository = UnusedPorts.formRuns
+      override def medications: MedicationRepository = UnusedPorts.medications
+      override def schedules: ScheduleRepository = UnusedPorts.schedules
+      override def revisions: ScheduleRevisionRepository = UnusedPorts.revisions
+      override def occurrences: OccurrenceRepository = UnusedPorts.occurrences
+      override def doseActions: DoseActionRepository = UnusedPorts.doseActions
 
     override def transaction[A](f: Tx => A): A = f(tx)

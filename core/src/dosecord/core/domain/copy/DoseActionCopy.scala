@@ -19,6 +19,10 @@ enum DoseActionKind(val dbValue: String):
   case ChainChildCreated extends DoseActionKind("chain_child_created")
 end DoseActionKind
 
+object DoseActionKind:
+  def fromDbValue(value: String): DoseActionKind =
+    values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown dose_action '$value'"))
+
 /** One neutral, non-shaming sentence per `dose_action` kind (ROADMAP M1.4a acceptance), used wherever history renders
   * an action row. The `match` is exhaustive, so a new enum kind fails compilation here.
   */

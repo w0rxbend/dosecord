@@ -1,11 +1,14 @@
 package dosecord.core.chat
 
 import dosecord.contracts.*
+import dosecord.core.domain.CancelReason
+import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.ports.*
 
 import java.sql.SQLTransientConnectionException
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalTime
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -126,6 +129,8 @@ object MediatorFakes:
       this.synchronized(sent += id)
     override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
     override def failPermanently(id: UUID, error: String): Unit = ()
+    override def deliveredFor(occurrenceId: UUID): Boolean = false
+    override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
 
   final class InMemorySessions extends SessionRepository:
     private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, ConversationSession]
@@ -179,6 +184,123 @@ object MediatorFakes:
       rows -= sessionId
       ()
 
+  final class InMemoryMedications extends MedicationRepository:
+    private val rows = ListBuffer.empty[StoredMedication]
+    def all: List[StoredMedication] = this.synchronized(rows.toList)
+    override def insert(row: NewMedication, now: Instant): Unit = this.synchronized:
+      rows += StoredMedication(row.id, row.accountId, row.name, row.name.trim.toLowerCase, row.doseAmount,
+        row.doseUnit, row.instructions, MedicationStatus.Active, now)
+    override def get(id: UUID): Option[StoredMedication] = this.synchronized(rows.find(_.id == id))
+    override def findByNameNorm(accountId: UUID, nameNorm: String): Option[StoredMedication] =
+      this.synchronized(
+        rows.find(r => r.accountId == accountId && r.nameNorm == nameNorm && r.status != MedicationStatus.Archived)
+      )
+
+  final class InMemorySchedules extends ScheduleRepository:
+    private val rows = ListBuffer.empty[StoredSchedule]
+    def all: List[StoredSchedule] = this.synchronized(rows.toList)
+    override def insert(row: NewSchedule, now: Instant): Unit = this.synchronized:
+      rows += StoredSchedule(row.id, row.medicationId, row.accountId, row.kind, ScheduleStatus.Active, 1, row.tz,
+        row.tzFollowsUser, row.startDate, row.endDate, None)
+    override def get(id: UUID): Option[StoredSchedule] = this.synchronized(rows.find(_.id == id))
+    override def getForUpdate(id: UUID): Option[StoredSchedule] = get(id)
+    override def setStatus(id: UUID, status: ScheduleStatus, now: Instant): Unit = update(id)(_.copy(status = status))
+    override def setTimezone(id: UUID, tz: java.time.ZoneId, now: Instant): Unit = update(id)(_.copy(tz = tz))
+    override def setCurrentRevision(id: UUID, revision: Int, now: Instant): Unit =
+      update(id)(_.copy(currentRevision = revision))
+    override def advanceMaterializedThrough(id: UUID, through: Instant, now: Instant): Unit =
+      update(id)(s =>
+        if s.materializedThrough.exists(!_.isBefore(through)) then s
+        else s.copy(materializedThrough = Some(through))
+      )
+    override def listFollowingForTzChange(accountId: UUID): List[StoredSchedule] =
+      this.synchronized(
+        rows.filter(r => r.accountId == accountId && r.tzFollowsUser && r.status != ScheduleStatus.Archived).toList
+      )
+    override def claimForMaterialisation(horizonEnd: Instant, limit: Int): List[StoredSchedule] =
+      this.synchronized(
+        rows
+          .filter(s => s.status == ScheduleStatus.Active && s.materializedThrough.forall(_.isBefore(horizonEnd)))
+          .take(limit)
+          .toList
+      )
+    private def update(id: UUID)(f: StoredSchedule => StoredSchedule): Unit = this.synchronized:
+      rows.mapInPlace(s => if s.id == id then f(s) else s)
+
+  final class InMemoryRevisions extends ScheduleRevisionRepository:
+    private val rows = ListBuffer.empty[StoredScheduleRevision]
+    def all: List[StoredScheduleRevision] = this.synchronized(rows.toList)
+    override def append(row: NewScheduleRevision, now: Instant): Unit = this.synchronized:
+      rows += StoredScheduleRevision(row.id, row.scheduleId, row.revision, row.effectiveFrom, row.tz, row.rule,
+        row.policy, row.doseSnapshot, row.createdBy, row.reason, now)
+    override def latest(scheduleId: UUID): Option[StoredScheduleRevision] =
+      this.synchronized(rows.filter(_.scheduleId == scheduleId).maxByOption(_.revision))
+    override def get(scheduleId: UUID, revision: Int): Option[StoredScheduleRevision] =
+      this.synchronized(rows.find(r => r.scheduleId == scheduleId && r.revision == revision))
+    override def list(scheduleId: UUID): List[StoredScheduleRevision] =
+      this.synchronized(rows.filter(_.scheduleId == scheduleId).sortBy(_.revision).toList)
+
+  final class InMemoryOccurrences extends OccurrenceRepository:
+    private val rows = ListBuffer.empty[StoredOccurrence]
+    def all: List[StoredOccurrence] = this.synchronized(rows.toList)
+
+    override def insertAll(newRows: List[NewOccurrence]): Int = this.synchronized:
+      var inserted = 0
+      newRows.foreach { row =>
+        val duplicate = rows.exists(r =>
+          r.scheduleId == row.scheduleId && r.localDate == row.localDate && r.slotKey == row.slotKey &&
+            (r.revision == row.revision || r.status != OccurrenceStatus.Cancelled)
+        )
+        if !duplicate then
+          rows += StoredOccurrence(row.id, row.accountId, row.medicationId, row.scheduleId, row.revision, row.origin,
+            row.localDate, row.localTime.map(t => LocalTime.of(t.hour, t.minute)), row.slotKey, row.tz, row.dstKind,
+            None, version = 1, row.state)
+          inserted += 1
+      }
+      inserted
+
+    override def get(id: UUID): Option[StoredOccurrence] = this.synchronized(rows.find(_.id == id))
+    override def listBySchedule(scheduleId: UUID): List[StoredOccurrence] =
+      this.synchronized(
+        rows
+          .filter(_.scheduleId.contains(scheduleId))
+          .sortBy(r => (r.state.scheduledFor, r.localDate.toEpochDay, r.slotKey))
+          .toList
+      )
+    override def lockOpenRows(scheduleId: UUID): List[StoredOccurrence] =
+      this.synchronized(rows.filter(r => r.scheduleId.contains(scheduleId) && r.status.isOpen).toList)
+    override def cancel(ids: List[UUID], reason: CancelReason, now: Instant): Int = this.synchronized:
+      var cancelled = 0
+      rows.mapInPlace { r =>
+        if ids.contains(r.id) && r.status.isOpen then
+          cancelled += 1
+          r.copy(
+            cancelReason = Some(reason),
+            version = r.version + 1,
+            state = r.state.copy(status = OccurrenceStatus.Cancelled, nextActionAt = None, epoch = r.state.epoch + 1)
+          )
+        else r
+      }
+      cancelled
+    override def hasResolvedOrDueOn(scheduleId: UUID, localDate: java.time.LocalDate, now: Instant): Boolean =
+      this.synchronized:
+        rows.exists(r =>
+          r.scheduleId.contains(scheduleId) && r.localDate == localDate &&
+            ((r.status != OccurrenceStatus.Pending && r.status != OccurrenceStatus.Cancelled) ||
+              (r.status == OccurrenceStatus.Pending && !r.state.dueWindowStart.isAfter(now)))
+        )
+
+  final class InMemoryDoseActions extends DoseActionRepository:
+    private val rows = ListBuffer.empty[StoredDoseAction]
+    def all: List[StoredDoseAction] = this.synchronized(rows.toList)
+    override def append(row: NewDoseAction): Unit = this.synchronized:
+      val seq = rows.count(_.occurrenceId == row.occurrenceId) + 1
+      rows += StoredDoseAction(row.id, row.occurrenceId, row.accountId, seq, row.action, row.actor, row.occurredAt,
+        row.occurredAt, row.priorStatus, row.newStatus, row.effectiveAt, row.reasonCode, row.note, row.undoesSeq,
+        row.catchUp, row.correlationId, row.idempotencyKey, row.metadata)
+    override def listForOccurrence(occurrenceId: UUID): List[StoredDoseAction] =
+      this.synchronized(rows.filter(_.occurrenceId == occurrenceId).sortBy(_.seq).toList)
+
   final class InMemoryUnitOfWork extends UnitOfWork:
     val inboundEvents = InMemoryInboundEvents()
     val domainEvents = InMemoryDomainEvents()
@@ -189,6 +311,11 @@ object MediatorFakes:
     val sessions = InMemorySessions()
     val slots = InMemorySlots()
     val formRuns = InMemoryFormRuns()
+    val medications = InMemoryMedications()
+    val schedules = InMemorySchedules()
+    val revisions = InMemoryRevisions()
+    val occurrences = InMemoryOccurrences()
+    val doseActions = InMemoryDoseActions()
 
     private val tx: Tx = new Tx:
       override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions
@@ -200,6 +327,11 @@ object MediatorFakes:
       override def audit: AuditRepository = InMemoryUnitOfWork.this.audit
       override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
       override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns
+      override def medications: MedicationRepository = InMemoryUnitOfWork.this.medications
+      override def schedules: ScheduleRepository = InMemoryUnitOfWork.this.schedules
+      override def revisions: ScheduleRevisionRepository = InMemoryUnitOfWork.this.revisions
+      override def occurrences: OccurrenceRepository = InMemoryUnitOfWork.this.occurrences
+      override def doseActions: DoseActionRepository = InMemoryUnitOfWork.this.doseActions
 
     override def transaction[A](f: Tx => A): A = f(tx)
 
