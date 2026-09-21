@@ -22,13 +22,11 @@ specification.
 
 ## Current entry point
 
-M0.12a and M1.3 are `green`. The next eligible slices are **M0.12b —
-WizardEngine, sessions, sweeper, FormRunner** (deps M0.12a), **M0.12c —
-Console adapter** (deps M0.12a), **M1.4b — Projection fold and adherence**
-(deps M1.3) and **M1.5 — Repositories, revisions, materialiser job** (deps
-M1.2, M0.3), which may interleave. **M0.8** (JDA DM spike) is
-dependency-unblocked but requires live Discord credentials; do not start it
-until the owner provides them.
+M0.12b, M0.12c, M1.4b and M1.5 are `green`. The next eligible slices are
+**M0.12d — First flows: account create, /mood, /help** (deps M0.12b, M0.12c)
+and **M1.6 — ReminderLoop** (deps M1.3, M1.5), which may interleave.
+**M0.8** (JDA DM spike) is dependency-unblocked but requires live Discord
+credentials; do not start it until the owner provides them.
 
 ## Agent workflow
 
