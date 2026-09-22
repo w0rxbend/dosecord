@@ -69,6 +69,11 @@ object MediatorFakes:
       principals((actor.vendor, actor.vendorUserId)) =
         Principal(IdentityId(UUID.randomUUID()), Some(AccountId(accountId)), linked = true)
 
+    /** Links by identity id, as `AccountRepository.createAccount` does on the real `platform_identities` row. */
+    def linkIdentity(identityId: IdentityId, accountId: UUID): Unit = this.synchronized:
+      principals.collectFirst { case (key, p) if p.identityId == identityId => key }.foreach: key =>
+        principals.update(key, principals(key).copy(accountId = Some(AccountId(accountId)), linked = true))
+
     override def resolve(actor: PlatformIdentity, now: Instant): Principal = this.synchronized:
       principals.getOrElseUpdate(
         (actor.vendor, actor.vendorUserId),
@@ -77,6 +82,28 @@ object MediatorFakes:
 
     override def find(actor: PlatformIdentity): Option[Principal] =
       this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
+
+  /** In-memory account creates (M0.12d): every created account records `displayName = None` — the neutral default the
+    * Postgres write guarantees by never selecting the vendor nickname (K8).
+    */
+  final class CreatedAccount(val accountId: UUID, val identityId: UUID, val timezone: String):
+    val displayName: Option[String] = None
+    val handle: Option[String] = None
+
+  final class InMemoryAccounts(identities: InMemoryIdentities) extends AccountRepository:
+    private val rows = ListBuffer.empty[CreatedAccount]
+    def all: List[CreatedAccount] = this.synchronized(rows.toList)
+    override def createAccount(identityId: IdentityId, timezone: String, now: Instant): AccountId =
+      this.synchronized:
+        val accountId = UUID.randomUUID()
+        rows += CreatedAccount(accountId, identityId.uuid, timezone)
+        identities.linkIdentity(identityId, accountId)
+        AccountId(accountId)
+
+  final class InMemoryMoodCheckins extends MoodCheckinRepository:
+    private val rows = ListBuffer.empty[NewMoodCheckin]
+    def all: List[NewMoodCheckin] = this.synchronized(rows.toList)
+    override def insert(row: NewMoodCheckin): Unit = this.synchronized(rows += row)
 
   final class InMemoryAudit extends AuditRepository:
     private val entries = ListBuffer.empty[AuditEntry]
@@ -372,6 +399,8 @@ object MediatorFakes:
     val inboundEvents = InMemoryInboundEvents()
     val domainEvents = InMemoryDomainEvents()
     val identities = InMemoryIdentities()
+    val accounts = InMemoryAccounts(identities)
+    val moodCheckins = InMemoryMoodCheckins()
     val audit = InMemoryAudit()
     val renderedMessages = InMemoryRenderedMessages()
     val outbox = InMemoryOutbox()
@@ -394,6 +423,8 @@ object MediatorFakes:
       override def inboundEvents: InboundEventRepository = InMemoryUnitOfWork.this.inboundEvents
       override def domainEvents: DomainEventRepository = InMemoryUnitOfWork.this.domainEvents
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
+      override def accounts: AccountRepository = InMemoryUnitOfWork.this.accounts
+      override def moodCheckins: MoodCheckinRepository = InMemoryUnitOfWork.this.moodCheckins
       override def audit: AuditRepository = InMemoryUnitOfWork.this.audit
       override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
       override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns

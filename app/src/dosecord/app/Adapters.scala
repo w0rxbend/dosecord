@@ -2,6 +2,8 @@ package dosecord.app
 
 import dosecord.adapter.console.ConsoleAdapter
 import dosecord.contracts.ChatAdapter
+import dosecord.core.application.CommandRegistry
+import dosecord.core.application.FirstFlows
 import dosecord.core.chat.CallbackCodec
 import dosecord.core.chat.ChatMediator
 import dosecord.core.ports.Clock
@@ -12,10 +14,10 @@ import ox.Ox
 
 import javax.sql.DataSource
 
-/** Adapter wiring (ROADMAP M0.12c): builds the adapters named by `ENABLED_ADAPTERS`, wires them into the mediator as
+/** Adapter wiring (ROADMAP M0.12c/d): builds the adapters named by `ENABLED_ADAPTERS`, wires them into the mediator as
   * their inbound sink and starts them inside the Ox root scope. Only the console adapter exists so far; other vendors
-  * fail fast until their slices land. The handler is the M0.12c stand-in [[EchoHandler]] until M0.12d lands the real
-  * flow handlers.
+  * fail fast until their slices land. The handler is the M0.12d [[FirstFlows]] composition (account create, `/mood`,
+  * `/help`); the mediator's ack policy reads the [[CommandRegistry]].
   */
 object Adapters:
 
@@ -30,12 +32,15 @@ object Adapters:
       case other =>
         throw IllegalArgumentException(s"adapter '${other.envName}' is not implemented in this build")
     }.toMap
+    val uow = PgUnitOfWork(dataSource, Clock.system)
+    val codec = CallbackCodec(settings.callbackKeys)
     val mediator = ChatMediator(
-      PgUnitOfWork(dataSource, Clock.system),
+      uow,
       adapters,
-      CallbackCodec(settings.callbackKeys),
-      EchoHandler(),
-      Clock.system
+      codec,
+      FirstFlows.handler(uow, adapters, codec, Clock.system),
+      Clock.system,
+      commands = CommandRegistry.byName
     )
     adapters.foreach((name, adapter) =>
       adapter.start(mediator, None)

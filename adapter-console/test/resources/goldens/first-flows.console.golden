@@ -1,0 +1,48 @@
+> /start
+[#1] Welcome to Dosecord! Let's get you set up.
+
+Pick your timezone:
+
+1) UTC-10:00 — Pacific/Honolulu 2) UTC-08:00 — America/Anchorage 3) UTC-07:00 — America/Los_Angeles 4) UTC-06:00 — America/Denver 5) UTC-05:00 — America/Chicago 6) UTC-04:00 — America/New_York 7) UTC-03:00 — America/Sao_Paulo 8) UTC+00:00 — Atlantic/Azores 9) UTC+00:00 — UTC 10) UTC+01:00 — Europe/London 11) UTC+02:00 — Europe/Berlin 12) UTC+02:00 — Europe/Paris 13) UTC+03:00 — Europe/Kyiv 14) UTC+03:00 — Europe/Moscow 15) UTC+04:00 — Asia/Dubai 16) UTC+05:30 — Asia/Kolkata 17) UTC+07:00 — Asia/Bangkok 18) UTC+08:00 — Asia/Shanghai 19) UTC+09:00 — Asia/Tokyo 20) UTC+10:00 — Australia/Sydney 21) UTC+12:00 — Pacific/Auckland 22) Other — type your timezone
+
+23) Back 24) Cancel
+> 22
+[#2] Type your timezone (an IANA name like Europe/Kyiv).
+
+Reply Back to go back or Cancel to stop.
+> Mars/Olympus_Mons
+[#3] I don't recognise that timezone — pick one from the list.
+
+Welcome to Dosecord! Let's get you set up.
+
+Pick your timezone:
+
+1) UTC-10:00 — Pacific/Honolulu 2) UTC-08:00 — America/Anchorage 3) UTC-07:00 — America/Los_Angeles 4) UTC-06:00 — America/Denver 5) UTC-05:00 — America/Chicago 6) UTC-04:00 — America/New_York 7) UTC-03:00 — America/Sao_Paulo 8) UTC+00:00 — Atlantic/Azores 9) UTC+00:00 — UTC 10) UTC+01:00 — Europe/London 11) UTC+02:00 — Europe/Berlin 12) UTC+02:00 — Europe/Paris 13) UTC+03:00 — Europe/Kyiv 14) UTC+03:00 — Europe/Moscow 15) UTC+04:00 — Asia/Dubai 16) UTC+05:30 — Asia/Kolkata 17) UTC+07:00 — Asia/Bangkok 18) UTC+08:00 — Asia/Shanghai 19) UTC+09:00 — Asia/Tokyo 20) UTC+10:00 — Australia/Sydney 21) UTC+12:00 — Pacific/Auckland 22) Other — type your timezone
+
+23) Back 24) Cancel
+> 13
+[#4] It is 03:00 for you now, right?
+
+1) Yes 2) Change
+
+3) Back 4) Cancel
+> 1
+[#5] You're all set — your account is ready. Try /mood or /help.
+> /mood 8 slept well #sleep
+[#6] Mood recorded: 8/10.
+> /mood 8
+[#7] Mood recorded: 8/10.
+> /help
+[#8] Dosecord keeps track of your medications, reminders and mood.
+
+/start — Create your account and pick a timezone.
+
+/mood <level> [note] [tags] — Log your mood.
+
+/menu — Open the main menu.
+
+/cancel — Cancel the current setup.
+
+/help — Show this help.
+> /start
+[#9] This account is already set up — no need to create it again.
