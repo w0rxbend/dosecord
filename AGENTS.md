@@ -22,9 +22,9 @@ specification.
 
 ## Current entry point
 
-M0.12b, M0.12c, M1.4b and M1.5 are `green`. The next eligible slices are
-**M0.12d — First flows: account create, /mood, /help** (deps M0.12b, M0.12c)
-and **M1.6 — ReminderLoop** (deps M1.3, M1.5), which may interleave.
+M0.12d and M1.6 are `green`. The next eligible slices are **M0.13 — Adapter
+conformance suite v1** (deps M0.12d) and **M1.7 — Outbox dispatcher and
+delivery channels** (deps M1.6, M0.10, M1.4a), which may interleave.
 **M0.8** (JDA DM spike) is dependency-unblocked but requires live Discord
 credentials; do not start it until the owner provides them.
 

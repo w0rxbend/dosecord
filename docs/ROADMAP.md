@@ -407,7 +407,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M0.12a | Mediator core on FakeAdapter | M | M0.5, M0.9, M0.11 | | green |
 | M0.12b | WizardEngine, sessions, sweeper, FormRunner | M | M0.12a | | green |
 | M0.12c | Console adapter | S | M0.12a | | green |
-| M0.12d | Account create, /mood, /help | M | M0.12b, M0.12c | | todo |
+| M0.12d | Account create, /mood, /help | M | M0.12b, M0.12c | | green |
 | M0.13 | Conformance suite v1 (A, B2 console) | M | M0.12d | | todo |
 | M1.1 | Rule enum, ReminderPolicy, QuietHours | S | M0.9 | | green |
 | M1.2 | Evaluator and materialiser (pure) | M | M1.1, M0.7 | | green |
@@ -415,7 +415,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M1.4a | Copy catalogue and control layouts | S | M0.9 | | green |
 | M1.4b | Projection fold and adherence | M | M1.3 | | green |
 | M1.5 | Repositories, revisions, materialiser job, fixtures | L | M1.2, M0.3 | | green |
-| M1.6 | ReminderLoop | L | M1.3, M1.5 | | todo |
+| M1.6 | ReminderLoop | L | M1.3, M1.5 | | green |
 | M1.7 | Outbox dispatcher and delivery channels | L | M1.6, M0.10, M1.4a | | todo |
 | M1.8 | Catch-up and digest | M | M1.7 | | todo |
 | M1.9 | Wizard, menu, Today, History, Pause/Resume, Timezone | L | M1.5, M1.4a, M0.12d | | todo |
