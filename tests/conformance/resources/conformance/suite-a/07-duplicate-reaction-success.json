@@ -1,0 +1,14 @@
+{
+  "name": "duplicate-reaction-success",
+  "title": "Adding a reaction the vendor reports as already present (REACTION_ALREADY_EXISTS / M_DUPLICATE_ANNOTATION) is a success",
+  "requires": ["react"],
+  "steps": [
+    { "do": "start" },
+    { "do": "send", "text": "v1", "sendKey": "k1" },
+    { "do": "injectFault", "fault": "duplicateReaction" },
+    { "do": "react", "messageId": "$last", "emoji": "1️⃣", "on": true }
+  ],
+  "expect": [
+    { "expect": "noError" }
+  ]
+}

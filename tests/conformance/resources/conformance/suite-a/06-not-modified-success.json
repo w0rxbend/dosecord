@@ -1,0 +1,14 @@
+{
+  "name": "not-modified-success",
+  "title": "An edit the vendor rejects as 'message is not modified' is a success (DESIGN.md section 4.5)",
+  "requires": ["edit"],
+  "steps": [
+    { "do": "start" },
+    { "do": "send", "text": "v1", "sendKey": "k1" },
+    { "do": "injectFault", "fault": "notModified" },
+    { "do": "edit", "messageId": "$last", "text": "v1" }
+  ],
+  "expect": [
+    { "expect": "noError" }
+  ]
+}

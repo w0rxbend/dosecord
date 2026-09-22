@@ -1,0 +1,12 @@
+{
+  "name": "capability-honesty",
+  "title": "Every capability the profile claims works when exercised: a profile claiming buttons but rejecting button sends fails here",
+  "requires": [],
+  "steps": [
+    { "do": "start" },
+    { "do": "exerciseClaimedCapabilities" }
+  ],
+  "expect": [
+    { "expect": "noError" }
+  ]
+}

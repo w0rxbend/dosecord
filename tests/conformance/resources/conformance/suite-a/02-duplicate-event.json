@@ -1,0 +1,15 @@
+{
+  "name": "duplicate-event",
+  "title": "The vendor redelivers the same wire event: both deliveries map to the same vendor_event_id so the mediator's inbound_events key dedupes them",
+  "requires": ["redelivery"],
+  "steps": [
+    { "do": "start" },
+    { "do": "deliver", "event": { "kind": "message", "wireId": "w1", "chat": "dm:owner", "text": "hello" } },
+    { "do": "deliver", "event": { "kind": "message", "wireId": "w1", "chat": "dm:owner", "text": "hello" } }
+  ],
+  "expect": [
+    { "expect": "inboundCount", "count": 2 },
+    { "expect": "sameVendorEventId", "wireId": "w1" },
+    { "expect": "inbound", "wireId": "w1", "kind": "MessageReceived", "text": "hello" }
+  ]
+}

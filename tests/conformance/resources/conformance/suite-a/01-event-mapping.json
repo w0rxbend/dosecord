@@ -1,0 +1,19 @@
+{
+  "name": "event-mapping",
+  "title": "Wire events map to Inbound events with the right body, chat and actor; cursors are monotonic; distinct wire events get distinct vendor_event_ids",
+  "requires": [],
+  "steps": [
+    { "do": "start" },
+    { "do": "deliver", "event": { "kind": "message", "wireId": "w1", "chat": "dm:owner", "text": "hello there" } },
+    { "do": "deliver", "event": { "kind": "command", "wireId": "w2", "chat": "dm:owner", "name": "mood", "text": "/mood 8 slept well" } },
+    { "do": "deliver", "event": { "kind": "message", "wireId": "w3", "chat": "dm:owner", "text": "1", "replyToMessageId": "1" } }
+  ],
+  "expect": [
+    { "expect": "inboundCount", "count": 3 },
+    { "expect": "inbound", "wireId": "w1", "kind": "MessageReceived", "text": "hello there", "chatId": "dm:owner" },
+    { "expect": "inbound", "wireId": "w2", "kind": "CommandInvoked", "name": "mood", "text": "/mood 8 slept well" },
+    { "expect": "inbound", "wireId": "w3", "kind": "MessageReceived", "text": "1", "replyToMessageId": "1" },
+    { "expect": "cursorMonotonic" },
+    { "expect": "vendorEventIdsDistinct", "wireIds": ["w1", "w2", "w3"] }
+  ]
+}

@@ -65,7 +65,9 @@ object infra extends DosecordModule:
 
 object `adapter-console` extends DosecordModule:
   def moduleDeps = Seq(core, contracts)
-  object test extends DosecordTests
+  object test extends DosecordTests:
+    // M0.13: the adapter conformance suite (tests/conformance) runs inside this module's test task.
+    def moduleDeps = super.moduleDeps ++ Seq(tests.conformance)
 
 object app extends DosecordModule:
   def moduleDeps = Seq(`adapter-console`, infra, core, contracts)

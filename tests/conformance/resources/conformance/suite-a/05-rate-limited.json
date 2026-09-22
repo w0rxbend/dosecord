@@ -1,0 +1,13 @@
+{
+  "name": "rate-limited",
+  "title": "A vendor 429 with Retry-After surfaces as ChatError.RateLimited carrying the retry delay; the adapter does not retry beyond it",
+  "requires": ["httpStatus"],
+  "steps": [
+    { "do": "start" },
+    { "do": "injectFault", "fault": "rateLimited", "retryAfterSeconds": 30 },
+    { "do": "send", "text": "hello", "sendKey": "k1" }
+  ],
+  "expect": [
+    { "expect": "error", "kind": "rateLimited", "retryAfterSeconds": 30 }
+  ]
+}

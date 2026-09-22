@@ -1,0 +1,14 @@
+{
+  "name": "deadline-auto-ack",
+  "title": "With a fake clock, an un-acked interaction past the vendor's ack deadline is auto-acked by the adapter's watchdog with the declared ack type",
+  "requires": ["ackDeadline"],
+  "steps": [
+    { "do": "start" },
+    { "do": "deliver", "event": { "kind": "callback", "wireId": "w1", "chat": "dm:owner", "callback": "dc:conformance-token", "sourceMessageId": "1" } },
+    { "do": "advanceClock", "seconds": 10 }
+  ],
+  "expect": [
+    { "expect": "inboundCount", "count": 1 },
+    { "expect": "acked", "withinSeconds": 3 }
+  ]
+}
