@@ -1,5 +1,6 @@
 package dosecord.infra.db
 
+import dosecord.core.ports.AccountRepository
 import dosecord.core.ports.AuditRepository
 import dosecord.core.ports.CallbackSlotRepository
 import dosecord.core.ports.Clock
@@ -9,6 +10,7 @@ import dosecord.core.ports.FormRunRepository
 import dosecord.core.ports.IdentityRepository
 import dosecord.core.ports.InboundEventRepository
 import dosecord.core.ports.MedicationRepository
+import dosecord.core.ports.MoodCheckinRepository
 import dosecord.core.ports.OccurrenceRepository
 import dosecord.core.ports.OutboxRepository
 import dosecord.core.ports.RenderedMessageRepository
@@ -46,6 +48,8 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val inboundEvents: InboundEventRepository = PgInboundEventRepository(conn)
     override lazy val domainEvents: DomainEventRepository = PgDomainEventRepository(conn)
     override lazy val identities: IdentityRepository = PgIdentityRepository(conn)
+    override lazy val accounts: AccountRepository = PgAccountRepository(conn)
+    override lazy val moodCheckins: MoodCheckinRepository = PgMoodCheckinRepository(conn)
     override lazy val audit: AuditRepository = PgAuditRepository(conn, clock)
     override lazy val slots: CallbackSlotRepository = PgCallbackSlotRepository(conn)
     override lazy val formRuns: FormRunRepository = PgFormRunRepository(conn)

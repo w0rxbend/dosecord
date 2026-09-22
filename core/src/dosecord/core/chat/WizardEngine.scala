@@ -131,7 +131,7 @@ final class WizardEngine(
                   flows.get(flowId) match
                     case Some(flow) => begin(event, principal, flow, source, tx)
                     case None       => Reply(toast = Some(ReminderCopy.staleControlToast))
-                case key => choose(event, session, key, source, tx)
+                case key => choose(event, principal, session, key, source, tx)
             case _ => staleTap(session)
 
   /** A stale `step_seq` tap: the toast and the current prompt again (DESIGN.md section 4.6). */
@@ -143,6 +143,7 @@ final class WizardEngine(
 
   private def choose(
       event: InboundEvent,
+      principal: Principal,
       session: ConversationSession,
       key: String,
       source: Option[MessageHandle],
@@ -153,8 +154,7 @@ final class WizardEngine(
       case Some((flow, step)) =>
         step.accept(StepInput.Chosen(key), dataOf(session)) match
           case Left(reason)   => reprompt(event, session, step, reason, source, tx)
-          case Right(through) => transition(event, session, flow, through, source, tx)
-
+          case Right(through) => transition(event, principal, session, flow, through, source, tx)
   private def onFormSubmit(
       event: InboundEvent,
       principal: Principal,
@@ -174,7 +174,7 @@ final class WizardEngine(
                 case Some((flow, step)) =>
                   step.accept(StepInput.FormAnswered(fields), dataOf(session)) match
                     case Left(reason)   => reprompt(event, session, step, reason, None, tx)
-                    case Right(through) => transition(event, session, flow, through, None, tx)
+                    case Right(through) => transition(event, principal, session, flow, through, None, tx)
             case _ => staleTap(session)
 
   // ---------- Free text ----------
@@ -190,14 +190,14 @@ final class WizardEngine(
             val navBack = text.equalsIgnoreCase(Labels.Back)
             val navCancel = text.equalsIgnoreCase(Labels.Cancel)
             step.kind match
-              case StepKind.Choices(_) => inner.handle(event, principal, tx)
-              case StepKind.Text       =>
+              case StepKind.Choices(_, _) => inner.handle(event, principal, tx)
+              case StepKind.Text          =>
                 if navBack then goBack(event, session, None, tx)
                 else if navCancel then abort(session, None, tx)
                 else
                   step.accept(StepInput.TextEntered(text), dataOf(session)) match
                     case Left(reason)   => reprompt(event, session, step, reason, None, tx)
-                    case Right(through) => transition(event, session, flow, through, None, tx)
+                    case Right(through) => transition(event, principal, session, flow, through, None, tx)
               case StepKind.Form(_, title, fields) =>
                 tx.formRuns.loadForUpdate(session.id) match
                   case None      => inner.handle(event, principal, tx)
@@ -213,7 +213,8 @@ final class WizardEngine(
                         case FormRunner.AnswerOutcome.Completed(submitted) =>
                           step.accept(StepInput.FormAnswered(submitted.fields), dataOf(session)) match
                             case Left(reason)   => reprompt(event, session, step, reason, None, tx)
-                            case Right(through) => transition(event, session, flow, through, None, tx)
+                            case Right(through) =>
+                              transition(event, principal, session, flow, through, None, tx)
 
   /** One FormRunner question; becomes the session's `last_prompt` so a restart re-asks the current field. */
   private def formQuestion(
@@ -262,6 +263,14 @@ final class WizardEngine(
         flowCommands.get(other).flatMap(flows.get) match
           case Some(flow) => startOrConfirm(event, principal, flow, tx)
           case None       => inner.handle(event, principal, tx)
+
+  /** Starts a flow by id for the event's chat, honouring the "Cancel the current setup?" confirmation when a session is
+    * active (M0.12d: `ConversationStarted` and `/start` both begin the account-create flow through this).
+    */
+  def startFlow(event: InboundEvent, principal: Principal, flowId: String, tx: Tx): Reply =
+    flows.get(flowId) match
+      case Some(flow) => startOrConfirm(event, principal, flow, tx)
+      case None       => Reply(toast = Some(ReminderCopy.failureToast))
 
   /** A new flow while a session is active asks "Cancel the current setup?" first (ROADMAP M0.12b). */
   private def startOrConfirm(event: InboundEvent, principal: Principal, flow: Flow, tx: Tx): Reply =
@@ -392,6 +401,7 @@ final class WizardEngine(
 
   private def transition(
       event: InboundEvent,
+      principal: Principal,
       session: ConversationSession,
       flow: Flow,
       through: StepTransition,
@@ -407,7 +417,7 @@ final class WizardEngine(
       case StepTransition.Complete =>
         val data = dataOf(session)
         cleanup(session, tx)
-        flow.onComplete(data)
+        flow.onComplete(data, FlowContext(event, principal, tx))
 
   /** The one write path for a step change: render the prompt (minting fresh slots at the new `step_seq`), then persist
     * step/data/`last_prompt`/expiry in the versioned save — persist-then-send, because the mediator delivers the reply
@@ -490,12 +500,13 @@ final class WizardEngine(
   ): OutboundMessage =
     val (blocks, extraBody) =
       step.kind match
-        case StepKind.Choices(options) =>
+        case StepKind.Choices(options, layout) =>
           val choices = ChoiceSet(
             id = s"wizard.${step.id}",
-            choices = options.map((key, label) =>
+            choices = options(data).map((key, label) =>
               Choice(label, mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire)
-            )
+            ),
+            layout = layout
           )
           (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, tx)), Nil)
         case StepKind.Text =>

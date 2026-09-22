@@ -1,8 +1,12 @@
 package dosecord.core.chat
 
+import dosecord.contracts.ChoiceLayout
 import dosecord.contracts.Field
+import dosecord.contracts.InboundEvent
+import dosecord.contracts.Principal
 import dosecord.contracts.Reply
 import dosecord.contracts.RichText
+import dosecord.core.ports.Tx
 
 /** The declarative wizard model of DESIGN.md section 4.6: a `Flow` is a map of steps, each step renders a prompt from
   * the accumulated data and accepts one input; the [[WizardEngine]] drives sessions over it. M1.9's add-medication
@@ -31,14 +35,21 @@ enum StepTransition:
 
 /** What kind of input a step takes. The engine renders the prompt controls from this and routes inputs accordingly. */
 enum StepKind:
-  /** Tappable options as (payload key, label); `[Back]`/`[Cancel]` are appended by the engine. */
-  case Choices(options: List[(String, String)])
+  /** Tappable options as (payload key, label), computed from the accumulated data at render time so steps like the
+    * timezone picker can group by the current offset; `[Back]`/`[Cancel]` are appended by the engine.
+    */
+  case Choices(options: Map[String, String] => List[(String, String)], layout: ChoiceLayout = ChoiceLayout.Buttons)
 
   /** Free text; Back/Cancel render as a typed hint so bare digits stay wizard input (DESIGN.md section 4.6 step 5). */
   case Text
 
   /** A form: one native modal where supported, the mediator FormRunner elsewhere; both yield one FormAnswered. */
   case Form(formId: String, title: String, fields: List[Field])
+
+object StepKind:
+  /** A static option list (the common case). */
+  def choices(options: List[(String, String)], layout: ChoiceLayout = ChoiceLayout.Buttons): StepKind =
+    StepKind.Choices(_ => options, layout)
 
 final case class Step(
     id: String,
@@ -49,12 +60,18 @@ final case class Step(
     accept: (StepInput, Map[String, String]) => Either[String, StepTransition]
 )
 
+/** What a flow sees at completion (M0.12d): the triggering event, the stamped principal and the per-event transaction,
+  * so a completing flow can write its rows (account create inserts `users`/`platform_identities`/`delivery_channels`)
+  * inside the mediator's transaction.
+  */
+final case class FlowContext(event: InboundEvent, principal: Principal, tx: Tx)
+
 final case class Flow(
     id: String,
     firstStep: String,
     steps: Map[String, Step],
     /** The closing reply for `StepTransition.Complete`, built from the final session data. */
-    onComplete: Map[String, String] => Reply
+    onComplete: (Map[String, String], FlowContext) => Reply
 ):
   require(steps.contains(firstStep), s"flow '$id' first step '$firstStep' is not a step")
   require(steps.keySet.forall(k => !k.startsWith("_")), s"flow '$id' step ids must not start with '_'")

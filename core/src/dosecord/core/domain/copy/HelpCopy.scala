@@ -7,6 +7,10 @@ object HelpCopy:
 
   val intro = "Dosecord keeps track of your medications, reminders and mood."
 
+  /** Fallbacks for input that matches no command (the console is free-text). */
+  val unknownCommand = "I don't know that command — try /help."
+  val unknownMessage = "I didn't understand that — try /help."
+
   /** (usage, description) per command, in display order. */
   val commands: List[(String, String)] = List(
     "/start" -> "Create your account and pick a timezone.",
@@ -23,7 +27,11 @@ object HelpCopy:
   )
 
   val entries: List[CopyEntry] =
-    CopyEntry("help.intro", intro) +: commands.map((usage, description) =>
+    List(
+      CopyEntry("help.intro", intro),
+      CopyEntry("help.unknown_command", unknownCommand),
+      CopyEntry("help.unknown_message", unknownMessage)
+    ) ++ commands.map((usage, description) =>
       CopyEntry(s"help.command.${usage.drop(1).takeWhile(_.isLetterOrDigit)}", s"$usage — $description")
     )
 end HelpCopy

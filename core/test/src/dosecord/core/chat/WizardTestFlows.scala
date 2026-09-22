@@ -34,7 +34,7 @@ object WizardTestFlows:
       ),
       "color" -> Step(
         id = "color",
-        kind = StepKind.Choices(List("red" -> "Red", "blue" -> "Blue")),
+        kind = StepKind.choices(List("red" -> "Red", "blue" -> "Blue")),
         render = data => List(paragraph(s"Pick a color for ${data("name")}.")),
         accept = {
           case (StepInput.Chosen(key), _) if Set("red", "blue").contains(key) =>
@@ -44,7 +44,7 @@ object WizardTestFlows:
       ),
       "confirm" -> Step(
         id = "confirm",
-        kind = StepKind.Choices(List("create" -> Labels.Create)),
+        kind = StepKind.choices(List("create" -> Labels.Create)),
         render = data => List(paragraph(s"${data("name")}, ${data("color")} — create it?")),
         accept = {
           case (StepInput.Chosen("create"), _) => Right(StepTransition.Complete)
@@ -52,7 +52,7 @@ object WizardTestFlows:
         }
       )
     ),
-    onComplete = data => Reply(followUps = List(outbound(s"Created ${data("name")} (${data("color")}).", "done")))
+    onComplete = (data, _) => Reply(followUps = List(outbound(s"Created ${data("name")} (${data("color")}).", "done")))
   )
 
   val formFields: List[Field] = List(
@@ -77,7 +77,7 @@ object WizardTestFlows:
       ),
       "done" -> Step(
         id = "done",
-        kind = StepKind.Choices(List("finish" -> "Finish")),
+        kind = StepKind.choices(List("finish" -> "Finish")),
         render = data => List(paragraph(s"A=${data("a")} B=${data("b")}")),
         accept = {
           case (StepInput.Chosen("finish"), _) => Right(StepTransition.Complete)
@@ -85,7 +85,7 @@ object WizardTestFlows:
         }
       )
     ),
-    onComplete = data => Reply(followUps = List(outbound(s"Form done ${data("a")}/${data("b")}.", "form-done")))
+    onComplete = (data, _) => Reply(followUps = List(outbound(s"Form done ${data("a")}/${data("b")}.", "form-done")))
   )
 
   val flows: Map[String, Flow] = List(example, formFlow).map(f => f.id -> f).toMap

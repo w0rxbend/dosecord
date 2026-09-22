@@ -174,7 +174,10 @@ final class ChatMediator(
           case Resolution.Ignore         => Reply.empty
           case Resolution.PassThrough    => dispatchCore(stamped, tx)
           case Resolution.Resolved(body) => dispatchCore(stamped.copy(body = body), tx)
-      reply.domainEvents.foreach(appendDomainEvent(_, stamped, principal, tx, correlationId, now))
+      // The handler may have linked the account inside this transaction (M0.12d account create): re-resolve so the
+      // stored reply, the outbox rows and the domain events all carry the effective account id (C2).
+      val effectivePrincipal = tx.identities.resolve(event.actor, now)
+      reply.domainEvents.foreach(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
       val sends = (reply.replace.toList ++ reply.followUps).map: message =>
         val outboxId = UUID.randomUUID()
         val enqueued = tx.outbox.enqueue(
@@ -184,7 +187,7 @@ final class ChatMediator(
             op = OutboxOp.Send,
             kind = "interaction_reply",
             vendor = event.vendor,
-            accountId = principal.accountId.map(_.uuid),
+            accountId = effectivePrincipal.accountId.map(_.uuid),
             payload = OutboundMessage.toJson(message),
             importance = "interaction_reply",
             nextAttemptAt = now.plus(SyncSafetyDelay)
@@ -194,11 +197,11 @@ final class ChatMediator(
       tx.inboundEvents.complete(
         event.vendor,
         event.vendorEventId,
-        principal.accountId.map(_.uuid),
+        effectivePrincipal.accountId.map(_.uuid),
         Reply.toJson(reply),
         now
       )
-      Outcome.Processed(DeliveryPlan(principal.accountId.map(_.uuid), sends, reply.toast))
+      Outcome.Processed(DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast))
 
   /** The core boundary: only stamped events reach a handler (R8). */
   private[chat] def dispatchCore(event: InboundEvent, tx: Tx): Reply =

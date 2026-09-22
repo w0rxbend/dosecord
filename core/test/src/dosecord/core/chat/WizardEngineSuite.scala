@@ -142,7 +142,7 @@ class WizardEngineSuite extends munit.FunSuite:
         )
       )
       step.kind match
-        case StepKind.Choices(_) =>
+        case StepKind.Choices(_, _) =>
           val labels = prompt.blocks
             .collect { case Block.Choices(cs) => cs.choices.map(_.label) }
             .flatten

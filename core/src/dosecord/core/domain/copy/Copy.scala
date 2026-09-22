@@ -21,5 +21,7 @@ object Copy:
       MenuCopy.entries ++
       OpsCopy.entries ++
       HelpCopy.entries ++
-      HabitCopy.entries
+      HabitCopy.entries ++
+      IdentityCopy.entries ++
+      MoodCopy.entries
 end Copy
