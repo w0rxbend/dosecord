@@ -162,6 +162,11 @@ private object ConsoleFlowFakes:
     val revisions: ScheduleRevisionRepository = ???
     val occurrences: OccurrenceRepository = ???
     val doseActions: DoseActionRepository = ???
+    val policies: PolicyRepository = _ => ???
+    val channels: DeliveryChannelRepository = _ => Nil
+    val heartbeat: WorkerHeartbeatRepository = new WorkerHeartbeatRepository:
+      override def touch(instance: String, role: String, now: Instant): Unit = ()
+      override def maxLastTick(): Option[Instant] = None
 
   final class InMemoryUnitOfWork extends UnitOfWork:
     val inboundEvents = InMemoryInboundEvents()
@@ -192,5 +197,9 @@ private object ConsoleFlowFakes:
       override def revisions: ScheduleRevisionRepository = UnusedPorts.revisions
       override def occurrences: OccurrenceRepository = UnusedPorts.occurrences
       override def doseActions: DoseActionRepository = UnusedPorts.doseActions
+      override def savepoint[A](f: => A): A = f
+      override def policies: PolicyRepository = UnusedPorts.policies
+      override def channels: DeliveryChannelRepository = UnusedPorts.channels
+      override def heartbeat: WorkerHeartbeatRepository = UnusedPorts.heartbeat
 
     override def transaction[A](f: Tx => A): A = f(tx)
