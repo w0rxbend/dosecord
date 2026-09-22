@@ -234,6 +234,9 @@ private object ConsoleMediatorFakes:
     val revisions: ScheduleRevisionRepository = ???
     val occurrences: OccurrenceRepository = ???
     val doseActions: DoseActionRepository = ???
+    val policies: PolicyRepository = ???
+    val channels: DeliveryChannelRepository = ???
+    val heartbeat: WorkerHeartbeatRepository = ???
 
   final class InMemoryUnitOfWork extends UnitOfWork:
     private val inboundEvents = InMemoryInboundEvents()
@@ -257,5 +260,9 @@ private object ConsoleMediatorFakes:
       override def revisions: ScheduleRevisionRepository = UnusedPorts.revisions
       override def occurrences: OccurrenceRepository = UnusedPorts.occurrences
       override def doseActions: DoseActionRepository = UnusedPorts.doseActions
+      override def policies: PolicyRepository = UnusedPorts.policies
+      override def channels: DeliveryChannelRepository = UnusedPorts.channels
+      override def heartbeat: WorkerHeartbeatRepository = UnusedPorts.heartbeat
+      override def savepoint[A](f: => A): A = f
 
     override def transaction[A](f: Tx => A): A = f(tx)

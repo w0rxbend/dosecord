@@ -3,6 +3,7 @@ package dosecord.infra.db
 import dosecord.core.ports.AuditRepository
 import dosecord.core.ports.CallbackSlotRepository
 import dosecord.core.ports.Clock
+import dosecord.core.ports.DeliveryChannelRepository
 import dosecord.core.ports.DomainEventRepository
 import dosecord.core.ports.DoseActionRepository
 import dosecord.core.ports.FormRunRepository
@@ -11,12 +12,14 @@ import dosecord.core.ports.InboundEventRepository
 import dosecord.core.ports.MedicationRepository
 import dosecord.core.ports.OccurrenceRepository
 import dosecord.core.ports.OutboxRepository
+import dosecord.core.ports.PolicyRepository
 import dosecord.core.ports.RenderedMessageRepository
 import dosecord.core.ports.ScheduleRepository
 import dosecord.core.ports.ScheduleRevisionRepository
 import dosecord.core.ports.SessionRepository
 import dosecord.core.ports.Tx
 import dosecord.core.ports.UnitOfWork
+import dosecord.core.ports.WorkerHeartbeatRepository
 
 import java.sql.Connection
 import javax.sql.DataSource
@@ -54,3 +57,18 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val revisions: ScheduleRevisionRepository = PgScheduleRevisionRepository(conn)
     override lazy val occurrences: OccurrenceRepository = PgOccurrenceRepository(conn)
     override lazy val doseActions: DoseActionRepository = PgDoseActionRepository(conn)
+    override lazy val policies: PolicyRepository = PgPolicyRepository(conn)
+    override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
+    override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
+
+    override def savepoint[A](f: => A): A =
+      val sp = conn.setSavepoint()
+      try
+        val result = f
+        conn.releaseSavepoint(sp)
+        result
+      catch
+        case e: Throwable =>
+          conn.rollback(sp)
+          conn.releaseSavepoint(sp)
+          throw e

@@ -92,13 +92,15 @@ final class Fixtures(dataSource: DataSource):
 
   /** Inserts one occurrence of the schedule's current revision at a chosen instant with a chosen status (default:
     * freshly materialised `pending`). The slot key is the caller's, so fixtures can pick slots that do not collide
-    * with materialised rows.
+    * with materialised rows. `revisionOverride` points the row at another (possibly nonexistent) revision — the
+    * poison-row fixture of the loop tests.
     */
   def occurrenceAt(
       scheduleId: UUID,
       scheduledFor: Instant,
       slotKey: String,
-      status: OccurrenceStatus = OccurrenceStatus.Pending
+      status: OccurrenceStatus = OccurrenceStatus.Pending,
+      revisionOverride: Option[Int] = None
   ): UUID =
     uow.transaction { tx =>
       val schedule = tx.schedules
@@ -131,7 +133,7 @@ final class Fixtures(dataSource: DataSource):
         accountId = schedule.accountId,
         medicationId = schedule.medicationId,
         scheduleId = Some(scheduleId),
-        revision = Some(schedule.currentRevision),
+        revision = Some(revisionOverride.getOrElse(schedule.currentRevision)),
         origin = OccurrenceOrigin.Scheduled,
         localDate = local.toLocalDate,
         localTime = Some(HhMm.unsafe(f"${local.getHour}%02d:${local.getMinute}%02d")),
@@ -144,3 +146,19 @@ final class Fixtures(dataSource: DataSource):
       require(tx.occurrences.insertAll(List(row)) == 1, s"fixture occurrence at $scheduledFor conflicted")
       row.id
     }
+
+  /** A linked platform identity plus its healthy primary `delivery_channels` row (DESIGN.md section 6), so loop tests
+    * have a channel to enqueue to. Returns the channel id.
+    */
+  def deliveryChannel(accountId: UUID, vendor: String, chatId: String, now: Instant): UUID =
+    val identityId = UUID.randomUUID()
+    val channelId = UUID.randomUUID()
+    val conn = dataSource.getConnection
+    try {
+      given Connection = conn
+      sql"""INSERT INTO platform_identities (id, user_id, vendor, vendor_user_id, dm_channel_id, linked_at)
+            VALUES ($identityId, $accountId, $vendor, ${s"fixture-$identityId"}, $chatId, $now)""".execute()
+      sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
+            VALUES ($channelId, $accountId, $identityId, 'primary', 0, 'healthy', $now)""".execute()
+    } finally conn.close()
+    channelId

@@ -85,3 +85,21 @@ final class Materialiser(uow: UnitOfWork, clock: Clock):
       }
       claimed.size
     }
+
+  /** The reminder loop's safety net (DESIGN.md section 7.2, ROADMAP M1.6): schedules whose materialised window ends
+    * before `lagThreshold` (the loop passes `now + 4 * TICK`) are extended to the full horizon here, so a stopped
+    * 15-minute job cannot silently starve reminders. Returns the number of schedules claimed; zero when nothing lags.
+    */
+  def safetyNet(lagThreshold: Instant, limit: Int = 100): Int =
+    val now = clock.now()
+    uow.transaction { tx =>
+      val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
+      val claimed = tx.schedules.claimForMaterialisation(lagThreshold, limit)
+      claimed.foreach { schedule =>
+        tx.revisions.latest(schedule.id).foreach { revision =>
+          Materialiser.materializeSchedule(tx, schedule, revision, now, horizonEnd)
+          tx.schedules.advanceMaterializedThrough(schedule.id, horizonEnd, now)
+        }
+      }
+      claimed.size
+    }

@@ -126,3 +126,30 @@ trait OccurrenceRepository:
     * local midnight instead of "now".
     */
   def hasResolvedOrDueOn(scheduleId: UUID, localDate: LocalDate, now: Instant): Boolean
+
+  /** The reminder loop's claim (DESIGN.md section 7.4, ADR-004): open rows with `next_action_at <= now`, oldest first,
+    * `FOR UPDATE SKIP LOCKED` so concurrent loops take disjoint rows. Quarantined rows (`error_count >=
+    * [[QuarantineErrorThreshold]]) stay out of the claim set until an operator resets them (M2.4).
+    */
+  def claimDue(now: Instant, limit: Int): List[StoredOccurrence]
+
+  /** The fenced write of a decided transition (epoch fencing, DESIGN.md sections 7.3/7.4): applies `newState` (with
+    * `epoch` and `version` bumped) only when the row still carries the epoch and version the decider read; returns
+    * false when a user action landed mid-tick, in which case the tick's writes for the row are skipped entirely.
+    */
+  def applyTransition(id: UUID, expectedVersion: Int, expectedEpoch: Int, newState: Occurrence, now: Instant): Boolean
+
+  /** Poison-row isolation (ADR-004): increments `error_count` and postpones the row to `retryAt` (`now + 5 min` in the
+    * loop). At `error_count >= [[QuarantineErrorThreshold]]` the row leaves the claim set.
+    */
+  def quarantine(id: UUID, retryAt: Instant, now: Instant): Unit
+
+  /** The next open occurrence of the same schedule after `after` (DESIGN.md section 7.3: bounds snooze and the
+    * quiet-defer fallback).
+    */
+  def nextScheduledAfter(scheduleId: UUID, after: Instant): Option[Instant]
+
+object OccurrenceRepository:
+
+  /** The quarantine threshold of ROADMAP M1.6 (`error_count >= 3`): at or above it a row is no longer claimed. */
+  val QuarantineErrorThreshold = 3
