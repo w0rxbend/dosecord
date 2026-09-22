@@ -44,7 +44,12 @@ object ChatMediator:
 
   private final case class PlannedSend(message: OutboundMessage, outboxId: Option[UUID])
 
-  private final case class DeliveryPlan(accountId: Option[UUID], sends: List[PlannedSend], toast: Option[String])
+  private final case class DeliveryPlan(
+      accountId: Option[UUID],
+      sends: List[PlannedSend],
+      toast: Option[String],
+      domainEvents: List[NewDomainEvent]
+  )
 
 /** The ChatMediator (DESIGN.md section 4, ADR-005): adapters push intents through [[InboundSink]]; the mediator owns
   * MAC verification, the ack policy, identity stamping, per-chat ordering, the resolution rules, the per-event
@@ -57,7 +62,8 @@ final class ChatMediator(
     handler: ChatHandler,
     clock: Clock,
     commands: Map[String, CommandSpec] = Map.empty,
-    stripes: Int = 16
+    stripes: Int = 16,
+    events: DomainEventBus = DomainEventBus.noop
 )(using Ox)
     extends InboundSink:
 
@@ -154,8 +160,11 @@ final class ChatMediator(
             Outcome.Failed
       outcome match
         case Outcome.Duplicate       => replayStoredReply(event)
-        case Outcome.Processed(plan) => deliverAfterCommit(event, plan)
-        case Outcome.Failed          => ()
+        case Outcome.Processed(plan) =>
+          // ADR-003: domain events are consumed in-process, after the appending transaction commits.
+          plan.domainEvents.foreach(events.publish)
+          deliverAfterCommit(event, plan)
+        case Outcome.Failed => ()
 
   /** The per-event transaction (ADR-003): inbound insert-or-replay, identity stamping, the handler, `domain_events`,
     * outbox rows and the stored reply commit together or not at all.
@@ -177,7 +186,8 @@ final class ChatMediator(
       // The handler may have linked the account inside this transaction (M0.12d account create): re-resolve so the
       // stored reply, the outbox rows and the domain events all carry the effective account id (C2).
       val effectivePrincipal = tx.identities.resolve(event.actor, now)
-      reply.domainEvents.foreach(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
+      val appendedEvents =
+        reply.domainEvents.map(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
       val sends = (reply.replace.toList ++ reply.followUps).map: message =>
         val outboxId = UUID.randomUUID()
         val enqueued = tx.outbox.enqueue(
@@ -201,7 +211,9 @@ final class ChatMediator(
         Reply.toJson(reply),
         now
       )
-      Outcome.Processed(DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast))
+      Outcome.Processed(
+        DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast, appendedEvents)
+      )
 
   /** The core boundary: only stamped events reach a handler (R8). */
   private[chat] def dispatchCore(event: InboundEvent, tx: Tx): Reply =
@@ -215,24 +227,24 @@ final class ChatMediator(
       tx: Tx,
       correlationId: String,
       now: Instant
-  ): Unit =
+  ): NewDomainEvent =
     val actor = Actor(inbound.actor.vendor, inbound.actor.vendorUserId, inbound.actor.displayName, principal.accountId)
     val envelope =
       Event.toEnvelopeJson(event, actor, now, Some(correlationId), Some(inbound.eventId.uuid.toString))
-    tx.domainEvents.append(
-      NewDomainEvent(
-        id = envelope.id.uuid,
-        eventType = Event.messageType(event),
-        source = Event.sourceOf(event).value,
-        subject = Some(actor.subject),
-        accountId = principal.accountId.map(_.uuid),
-        correlationId = Some(correlationId),
-        causationId = Some(inbound.eventId.uuid.toString),
-        actorJson = envelope.actorJson,
-        occurredAt = now,
-        dataJson = envelope.envelopeJson
-      )
+    val row = NewDomainEvent(
+      id = envelope.id.uuid,
+      eventType = Event.messageType(event),
+      source = Event.sourceOf(event).value,
+      subject = Some(actor.subject),
+      accountId = principal.accountId.map(_.uuid),
+      correlationId = Some(correlationId),
+      causationId = Some(inbound.eventId.uuid.toString),
+      actorJson = envelope.actorJson,
+      occurredAt = now,
+      dataJson = envelope.envelopeJson
     )
+    tx.domainEvents.append(row)
+    row
 
   // ---------- Resolution rules (DESIGN.md section 4.6 step 5) ----------
 
@@ -352,7 +364,8 @@ final class ChatMediator(
       case Some((accountId, json)) =>
         val reply = Reply.fromJson(json)
         val sends = (reply.replace.toList ++ reply.followUps).map(PlannedSend(_, None))
-        deliverAfterCommit(event, DeliveryPlan(accountId, sends, reply.toast))
+        // A replay does not re-publish domain events: they were published when the event was first processed.
+        deliverAfterCommit(event, DeliveryPlan(accountId, sends, reply.toast, Nil))
       case None => () // still in flight elsewhere, or failed before the reply was stored: nothing to replay
 
   /** The catalogue failure toast when the database is unavailable (R68: visibly fails). */

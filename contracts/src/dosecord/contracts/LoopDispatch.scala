@@ -24,3 +24,4 @@ enum LoopDispatch derives ReadWriter:
 
 object LoopDispatch:
   def toJson(dispatch: LoopDispatch): String = upickle.default.write(dispatch)
+  def fromJson(json: String): LoopDispatch = upickle.default.read[LoopDispatch](json)

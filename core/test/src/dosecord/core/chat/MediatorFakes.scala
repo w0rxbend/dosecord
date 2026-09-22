@@ -155,7 +155,9 @@ object MediatorFakes:
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit =
       this.synchronized(sent += id)
     override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
+    override def dead(id: UUID, error: String): Unit = ()
     override def failPermanently(id: UUID, error: String): Unit = ()
+    override def cancel(id: UUID): Unit = ()
     override def deliveredFor(occurrenceId: UUID): Boolean = false
     override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
 
@@ -283,7 +285,7 @@ object MediatorFakes:
         if !duplicate then
           rows += StoredOccurrence(row.id, row.accountId, row.medicationId, row.scheduleId, row.revision, row.origin,
             row.localDate, row.localTime.map(t => LocalTime.of(t.hour, t.minute)), row.slotKey, row.tz, row.dstKind,
-            None, version = 1, row.state)
+            None, version = 1, row.state, Some(row.doseSnapshot))
           inserted += 1
       }
       inserted
@@ -354,6 +356,8 @@ object MediatorFakes:
           .toList
           .minOption
       )
+    override def epochIsStale(occurrenceId: UUID, epoch: Int): Boolean =
+      this.synchronized(rows.find(_.id == occurrenceId).forall(_.state.epoch > epoch))
 
   final class InMemoryDoseActions extends DoseActionRepository:
     private val rows = ListBuffer.empty[StoredDoseAction]

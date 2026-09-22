@@ -190,3 +190,21 @@ class ReminderLoopSuite extends munit.FunSuite:
     val after = uow.occurrences.get(poison.occurrenceId).get
     assertEquals(after.state.nextActionAt, before, "quarantined rows stay out of the claim set")
     assertEquals(uow.occurrences.errorCount(poison.occurrenceId), 3)
+
+  test("dose_due.v1 is published to the in-process bus after the tick transaction commits"):
+    val uow = MediatorFakes.InMemoryUnitOfWork()
+    seed(uow, t0)
+    val bus = dosecord.core.ports.InProcessDomainEventBus()
+    val seen = List.newBuilder[dosecord.core.ports.NewDomainEvent]
+    bus.subscribe(e => seen += e)
+    val l = ReminderLoop(
+      uow,
+      Materialiser(uow, MediatorFakes.FixedClock(t0)),
+      Wake.polling,
+      MediatorFakes.FixedClock(t0),
+      instance = "pure-test",
+      events = bus
+    )
+
+    assertEquals(l.tick(t0.plusSeconds(60)), 1)
+    assertEquals(seen.result().map(_.eventType), List(Event.DoseDueType))

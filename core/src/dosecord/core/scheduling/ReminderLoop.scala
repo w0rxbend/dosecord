@@ -13,6 +13,7 @@ import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.domain.ReminderKind
 import dosecord.core.ports.Clock
 import dosecord.core.ports.DeliveryTarget
+import dosecord.core.ports.DomainEventBus
 import dosecord.core.ports.NewDomainEvent
 import dosecord.core.ports.NewDoseAction
 import dosecord.core.ports.NewOutboxMessage
@@ -57,7 +58,8 @@ object ReminderLoop:
   * `dose_actions` row, the `domain_events` row and the outbox rows in one transaction with no network calls; a failing
   * row is quarantined instead of stalling the batch, and epoch fencing skips a row a user action changed mid-tick.
   * `run` adds the materialiser safety net, the per-instance heartbeat (its own short transaction, outside the batch),
-  * the fallback poll and the LISTEN wake-up.
+  * the fallback poll and the LISTEN wake-up. Appended `domain_events` rows are published to the in-process bus after
+  * the transaction commits (ADR-003).
   */
 final class ReminderLoop(
     uow: UnitOfWork,
@@ -67,7 +69,8 @@ final class ReminderLoop(
     instance: String,
     role: String = "worker",
     batchSize: Int = ReminderLoop.BatchSize,
-    pollInterval: Duration = ReminderLoop.PollInterval
+    pollInterval: Duration = ReminderLoop.PollInterval,
+    events: DomainEventBus = DomainEventBus.noop
 ):
   import ReminderLoop.*
 
@@ -102,15 +105,17 @@ final class ReminderLoop(
   def materialiseLagging(now: Instant): Int =
     materialiser.safetyNet(now.plus(pollInterval.multipliedBy(SafetyNetLagTicks.toLong)))
 
-  /** One batch; returns the number of rows claimed (a full batch tells `run` to re-tick immediately).
+  /** One batch; returns the number of rows claimed (a full batch tells `run` to re-tick immediately). The `dose_due.v1`
+    * rows appended by the batch are published to the in-process bus only after the transaction commits (ADR-003).
     */
   def tick(now: Instant): Int =
-    uow.transaction { tx =>
+    val dueEvents = List.newBuilder[NewDomainEvent]
+    val claimed = uow.transaction { tx =>
       // Read once per tick (DESIGN.md section 7.3): the unknown(outage | undelivered) evidence.
       val lastHealthyTick = tx.heartbeat.maxLastTick().getOrElse(Instant.EPOCH)
       val claimed = tx.occurrences.claimDue(now, batchSize)
       claimed.foreach { occ =>
-        try tx.savepoint(processRow(tx, occ, now, lastHealthyTick))
+        try dueEvents ++= tx.savepoint(processRow(tx, occ, now, lastHealthyTick))
         catch
           case _: StaleWrite => () // fenced: a user action landed mid-tick and wins; skip the row
           case _: Exception  =>
@@ -119,12 +124,15 @@ final class ReminderLoop(
       }
       claimed.size
     }
+    dueEvents.result().foreach(events.publish)
+    claimed
 
   /** The per-row unit of ADR-004: decide, guarded write, action row, cancel stale queued rows, enqueue the dispatches
     * with the new epoch in the `send_key`, and append `dose_due.v1` on the pending -> due transition — all inside the
-    * row's savepoint.
+    * row's savepoint. Returns the appended domain event (empty unless the transition was pending -> due) so the caller
+    * can publish it after the batch transaction commits.
     */
-  private def processRow(tx: Tx, occ: StoredOccurrence, now: Instant, lastHealthyTick: Instant): Unit =
+  private def processRow(tx: Tx, occ: StoredOccurrence, now: Instant, lastHealthyTick: Instant): List[NewDomainEvent] =
     val (policy, quiet) = tx.policies.forOccurrence(occ)
     val nextOccurrence =
       occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor))
@@ -147,7 +155,9 @@ final class ReminderLoop(
       tx.outbox.cancelOlderQueued(occ.id, newEpoch)
       transition.dispatches.foreach(enqueueDispatch(tx, occ, _, newEpoch, now))
       if occ.status == OccurrenceStatus.Pending && transition.row.status == OccurrenceStatus.Due then
-        appendDoseDue(tx, occ, transition.row.reminderSeq, now, correlationId)
+        List(appendDoseDue(tx, occ, transition.row.reminderSeq, now, correlationId))
+      else Nil
+    else Nil
 
   /** One outbox row per dispatch intent per healthy primary channel; `send_key` carries the new epoch so a restart or a
     * second worker cannot double-enqueue (UNIQUE `send_key` + `ON CONFLICT DO NOTHING`), and `cancelOlderQueued` above
@@ -235,22 +245,22 @@ final class ReminderLoop(
       reminderSeq: Int,
       now: Instant,
       correlationId: String
-  ): Unit =
+  ): NewDomainEvent =
     val account = AccountId(occ.accountId)
     val event = Event.DoseDue(account, occ.id, reminderSeq)
     val actor = ContractsActor("dosecord", occ.accountId.toString, None, Some(account))
     val envelope = Event.toEnvelopeJson(event, actor, now, Some(correlationId), None)
-    tx.domainEvents.append(
-      NewDomainEvent(
-        id = envelope.id.uuid,
-        eventType = Event.DoseDueType,
-        source = Event.sourceOf(event).value,
-        subject = Some(actor.subject),
-        accountId = Some(occ.accountId),
-        correlationId = Some(correlationId),
-        causationId = None,
-        actorJson = envelope.actorJson,
-        occurredAt = now,
-        dataJson = envelope.envelopeJson
-      )
+    val row = NewDomainEvent(
+      id = envelope.id.uuid,
+      eventType = Event.DoseDueType,
+      source = Event.sourceOf(event).value,
+      subject = Some(actor.subject),
+      accountId = Some(occ.accountId),
+      correlationId = Some(correlationId),
+      causationId = None,
+      actorJson = envelope.actorJson,
+      occurredAt = now,
+      dataJson = envelope.envelopeJson
     )
+    tx.domainEvents.append(row)
+    row

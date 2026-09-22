@@ -83,12 +83,26 @@ final class PgOutboxRepository(conn: Connection) extends OutboxRepository:
             WHERE id = $id""".execute()
     require(updated == 1, s"outbox row $id vanished before retry")
 
+  override def dead(id: java.util.UUID, error: String): Unit =
+    val updated =
+      sql"""UPDATE outbox_messages
+            SET status = 'dead', lease_until = NULL, last_error = $error
+            WHERE id = $id""".execute()
+    require(updated == 1, s"outbox row $id vanished before dead")
+
   override def failPermanently(id: java.util.UUID, error: String): Unit =
     val updated =
       sql"""UPDATE outbox_messages
             SET status = 'failed_permanent', lease_until = NULL, last_error = $error
             WHERE id = $id""".execute()
     require(updated == 1, s"outbox row $id vanished before failPermanently")
+
+  override def cancel(id: java.util.UUID): Unit =
+    val updated =
+      sql"""UPDATE outbox_messages
+            SET status = 'cancelled', lease_until = NULL
+            WHERE id = $id AND status IN ('queued', 'failed_retry', 'sending')""".execute()
+    require(updated == 1, s"outbox row $id vanished before cancel")
 
   override def deliveredFor(occurrenceId: java.util.UUID): Boolean =
     sql"""SELECT EXISTS(
@@ -108,6 +122,9 @@ object PgOutboxRepository:
     */
   given RowMapper[OutboxMessage] = rs =>
     val epoch = rs.getInt("epoch")
+    // wasNull must be read immediately: it reflects the last column read, and the named arguments below are
+    // evaluated in order (a later NULL channel_id would otherwise mask the epoch).
+    val epochIsNull = rs.wasNull()
     OutboxMessage(
       id = rs.uuid("id"),
       sendKey = rs.getString("send_key"),
@@ -117,7 +134,7 @@ object PgOutboxRepository:
       accountId = Option(rs.getObject("account_id", classOf[java.util.UUID])),
       occurrenceId = Option(rs.getObject("occurrence_id", classOf[java.util.UUID])),
       channelId = Option(rs.getObject("channel_id", classOf[java.util.UUID])),
-      epoch = Option.when(!rs.wasNull)(epoch),
+      epoch = Option.when(!epochIsNull)(epoch),
       payload = rs.getString("payload"),
       target = rs.optString("target").map(unwrapJsonString),
       importance = rs.getString("importance"),

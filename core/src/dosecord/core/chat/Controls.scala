@@ -42,6 +42,12 @@ object Controls:
           Block.Choices(ChoiceSet(id = "reminder.more", choices = rest.map((m, t) => Choice(Labels.snooze(m), t.wire))))
         )
 
+  /** Wire overload for callers outside `core.chat` (the outbox dispatcher's catalogue renderer mints `dc:` strings
+    * through its CallbackCodec): the same fixed layout.
+    */
+  def reminder(taken: String, skip: String, snooze: List[(Int, String)]): List[Block] =
+    reminder(CallbackToken(taken), CallbackToken(skip), snooze.map((m, t) => (m, CallbackToken(t))))
+
   /** Post-Taken follow-up: [Undo][Correct] (M3.1 appends [Add note]). */
   def postTaken(undo: CallbackToken, correct: CallbackToken): ChoiceSet =
     ChoiceSet(
