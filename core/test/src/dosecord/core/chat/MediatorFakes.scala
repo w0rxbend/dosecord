@@ -387,10 +387,20 @@ object MediatorFakes:
 
   final class InMemoryChannels extends DeliveryChannelRepository:
     private val targets = scala.collection.mutable.Map.empty[UUID, List[DeliveryTarget]].withDefaultValue(Nil)
+    private val dead = scala.collection.mutable.Set.empty[UUID]
     def register(accountId: UUID, target: DeliveryTarget): Unit = this.synchronized:
       targets(accountId) = targets(accountId) :+ target
     override def activePrimaryChannels(accountId: UUID): List[DeliveryTarget] =
-      this.synchronized(targets(accountId))
+      this.synchronized(targets(accountId).filterNot(t => dead.contains(t.channelId)))
+    override def markDead(channelId: UUID, error: String, now: Instant): Unit = this.synchronized:
+      dead += channelId
+      ()
+    override def fallbackChannel(accountId: UUID, excludeChannelId: UUID): Option[DeliveryTarget] =
+      this.synchronized:
+        targets(accountId).find(t => t.channelId != excludeChannelId && !dead.contains(t.channelId))
+    override def byId(channelId: UUID): Option[DeliveryTarget] =
+      this.synchronized:
+        targets.values.flatten.find(_.channelId == channelId)
 
   final class InMemoryHeartbeat extends WorkerHeartbeatRepository:
     private val rows = scala.collection.mutable.Map.empty[String, Instant]

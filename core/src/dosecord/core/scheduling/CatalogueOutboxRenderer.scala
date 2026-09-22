@@ -38,7 +38,9 @@ import java.util.UUID
   * rows against the current occurrence row and the M1.4a copy catalogue (reminder text, snooze options filtered by
   * `Decide.availableSnoozeOptions`), the mediator's 30 s safety rows (`OutboundMessage` payloads, DESIGN.md section 4.6
   * step 8) through the pure renderer. Every database read is a short transaction completed before the vendor call
-  * (ADR-009); the chat of a reminder row comes from the payload or the account's delivery channel.
+  * (ADR-009); the chat of a reminder row resolves through the row's delivery channel first (chat ids are vendor-scoped,
+  * so a dispatcher-enqueued fallback row renders against its own channel), with the payload's chat id as the fallback
+  * for rows without a channel.
   */
 final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock: Clock) extends OutboxRenderer:
 
@@ -196,7 +198,9 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
       )
       val (policy, _) = tx.policies.forOccurrence(occ)
       val nextOccurrence = occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor))
-      val chatId = payloadChatId.orElse(channelChatId(tx, row, occ))
+      // The row's channel is authoritative: chat ids are vendor-scoped, so a fallback row (enqueued by the
+      // dispatcher with the original payload) must resolve through its own channel, not the payload's chat id.
+      val chatId = channelChatId(tx, row).orElse(payloadChatId)
       ReminderFacts(
         ChatRef(
           row.vendor,
@@ -210,9 +214,8 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
         nextOccurrence
       )
 
-  private def channelChatId(tx: Tx, row: OutboxMessage, occ: StoredOccurrence): Option[String] =
-    row.channelId.flatMap: channelId =>
-      tx.channels.activePrimaryChannels(occ.accountId).find(_.channelId == channelId).flatMap(_.chatId)
+  private def channelChatId(tx: Tx, row: OutboxMessage): Option[String] =
+    row.channelId.flatMap(channelId => tx.channels.byId(channelId).flatMap(_.chatId))
 
   /** One message through the pure renderer's ladder (DESIGN.md section 4.3); the first send op is the deliverable — the
     * outbox protocol is one row, one message.

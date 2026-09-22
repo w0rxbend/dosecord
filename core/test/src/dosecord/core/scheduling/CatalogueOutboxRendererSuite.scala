@@ -209,3 +209,13 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
 
     assertEquals(chat, ChatRef("fake", "dm:owner"))
     assertEquals(rendered.chunks, List("Something went wrong on my side — please try again in a moment."))
+
+  test("the row's channel chat wins over the payload chat id (fallback rows are vendor-scoped)"):
+    val s = seed(dueState)
+    val fallbackChannelId = UUID.randomUUID()
+    s.uow.channels.register(s.accountId, DeliveryTarget(fallbackChannelId, "fake", Some("dm:other")))
+    val dispatch = LoopDispatch.Reminder(s.occurrenceId, Some("dm:owner"), "initial", 1, silent = false)
+    val fallbackRow = row(s, "reminder", LoopDispatch.toJson(dispatch)).copy(channelId = Some(fallbackChannelId))
+
+    val (chat, _) = renderer(s.uow).render(fallbackRow, CapabilityProfiles.Discord)
+    assertEquals(chat, ChatRef("fake", "dm:other"))

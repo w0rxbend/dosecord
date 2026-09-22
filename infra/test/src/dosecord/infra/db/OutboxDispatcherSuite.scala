@@ -39,6 +39,7 @@ import dosecord.core.ports.UnitOfWork
 import dosecord.core.scheduling.CatalogueOutboxRenderer
 import dosecord.core.scheduling.OutboxDispatcher
 import dosecord.core.scheduling.OutboxRenderer
+import dosecord.core.scheduling.TokenBuckets
 import dosecord.infra.Metrics
 import dosecord.infra.MicrometerOutboxMetrics
 
@@ -49,6 +50,7 @@ import java.time.ZoneId
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.*
 import scala.language.implicitConversions
 
@@ -565,3 +567,125 @@ class OutboxDispatcherSuite extends PgSuite:
     assertEquals(d.dispatchOnce(), 1)
     assertEquals(sendsOf(adapter).map(_.message.chunks), List(List(body)))
     assertEquals(rowBySendKey("dedupe-safety-1").status, OutboxStatus.Sent)
+
+  // ---------- M1.7 step 2: channel fallback and token buckets ----------
+
+  /** An account with a healthy primary on `fake` and a fallback channel on `fake2` (delivery_channels priorities). */
+  private final case class TwoChannels(accountId: UUID, primaryChannelId: UUID, fallbackChannelId: UUID)
+
+  private def twoChannels(fixtures: Fixtures, accountId: UUID): TwoChannels =
+    val primary = fixtures.deliveryChannel(accountId, "fake", "dm:owner", t0)
+    val fallback = fixtures.deliveryChannel(accountId, "fake2", "dm:other", t0, role = "fallback", priority = 1)
+    TwoChannels(accountId, primary, fallback)
+
+  private def channelState(channelId: UUID): Option[String] = withConnection { conn =>
+    given Connection = conn
+    sql"SELECT state FROM delivery_channels WHERE id = $channelId".queryOne[String]()
+  }
+
+  // Acceptance: channelFatal -> channel dead -> fallback to the next channel.
+  test("channelFatal kills the row and the channel, and the next channel's dispatch is enqueued"):
+    val clock = new MutableClock(t0)
+    val fixtures = Fixtures(dataSource)
+    val channels = twoChannels(fixtures, fixtures.account())
+    val uow = PgUnitOfWork(dataSource, clock)
+    val adapterA = newAdapter()
+    val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Discord, vendor = "fake2"))
+    val sendKey = s"reminder-fatal:c${channels.primaryChannelId}"
+    uow.transaction(
+      _.outbox.enqueue(
+        NewOutboxMessage(
+          id = UUID.randomUUID(),
+          sendKey = sendKey,
+          op = OutboxOp.Send,
+          kind = "reminder",
+          vendor = "fake",
+          accountId = Some(channels.accountId),
+          channelId = Some(channels.primaryChannelId),
+          payload = "\"body\"",
+          importance = "reminder",
+          nextAttemptAt = t0
+        )
+      )
+    )
+    adapterA.inner.failNext(ChatError.Unreachable("50007: cannot send messages to this user"))
+    val d = OutboxDispatcher(uow, Map("fake" -> adapterA, "fake2" -> adapterB), renderer(false), clock)
+
+    assertEquals(d.dispatchOnce(), 1)
+    assertEquals(sendsOf(adapterA), Nil, "the fatal send never reached the vendor")
+    assertEquals(rowBySendKey(sendKey).status, OutboxStatus.Dead)
+    assertEquals(channelState(channels.primaryChannelId), Some("dead"), "the channel is marked dead")
+
+    assertEquals(d.dispatchOnce(), 1, "the fallback row is claimed on the next cycle")
+    val fallbackRow = rowBySendKey(s"$sendKey:fb:${channels.fallbackChannelId}")
+    assertEquals(fallbackRow.status, OutboxStatus.Sent)
+    assertEquals(fallbackRow.vendor, "fake2")
+    val fallbackSends = adapterB.inner.ops.collect { case s: VendorOp.Send => s }
+    assertEquals(fallbackSends.size, 1)
+    assertEquals(fallbackSends.head.chat.vendor, "fake2")
+
+  // Acceptance: fallback_after — a send still unsent 5 minutes past next_attempt_at reaches the next channel.
+  test("a send still unsent 5 minutes after next_attempt_at falls back to the next channel"):
+    val clock = new MutableClock(t0)
+    val fixtures = Fixtures(dataSource)
+    val accountId = fixtures.account()
+    val scheduleId = fixtureSchedule(fixtures, clock, accountId)
+    val occurrenceId = fixtures.occurrenceAt(scheduleId, t0, "fixture-fallback-1", OccurrenceStatus.Due)
+    val channels = twoChannels(fixtures, accountId)
+    val uow = PgUnitOfWork(dataSource, clock)
+    val adapterA = newAdapter()
+    val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Discord, vendor = "fake2"))
+    val sendKey = s"occ:$occurrenceId:e0:s1:kinitial:c${channels.primaryChannelId}"
+    uow.transaction(
+      _.outbox.enqueue(
+        NewOutboxMessage(
+          id = UUID.randomUUID(),
+          sendKey = sendKey,
+          op = OutboxOp.Send,
+          kind = "reminder",
+          vendor = "fake",
+          accountId = Some(accountId),
+          occurrenceId = Some(occurrenceId),
+          channelId = Some(channels.primaryChannelId),
+          epoch = Some(0),
+          payload = LoopDispatch.toJson(LoopDispatch.Reminder(occurrenceId, Some("dm:owner"), "initial", 1, silent = false)),
+          importance = "reminder",
+          nextAttemptAt = t0.minusSeconds(360)
+        )
+      )
+    )
+    val d = OutboxDispatcher(
+      uow,
+      Map("fake" -> adapterA, "fake2" -> adapterB),
+      CatalogueOutboxRenderer(uow, codec, clock),
+      clock
+    )
+
+    assertEquals(d.dispatchOnce(), 1, "the overdue row is claimed and dispatched on the primary")
+    assertEquals(sendsOf(adapterA).map(_.chat.chatId), List("dm:owner"))
+    assertEquals(d.dispatchOnce(), 1, "the fallback row is claimed on the next cycle")
+    assertEquals(rowBySendKey(s"$sendKey:fb:${channels.fallbackChannelId}").status, OutboxStatus.Sent)
+    val fallbackSends = adapterB.inner.ops.collect { case s: VendorOp.Send => s }
+    assertEquals(fallbackSends.map(_.chat.chatId), List("dm:other"),
+      "the fallback renders against its own channel: chat ids are vendor-scoped")
+
+  // Acceptance: token buckets — per-vendor/per-chat limits respected under a burst.
+  test("token buckets throttle a burst per vendor and per chat"):
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock)
+    val adapter = newAdapter()
+    val sleeps = ListBuffer.empty[Duration]
+    val buckets = TokenBuckets(
+      clock,
+      Map("fake" -> TokenBuckets.Limits(TokenBuckets.Bucket(1, 1.0), TokenBuckets.Bucket(10, 10))),
+      d =>
+        sleeps += d
+        clock.at = clock.at.plus(d)
+    )
+    (1 to 3).foreach(i => assert(uow.transaction(_.outbox.enqueue(newSend(s"key-burst-$i", t0)))))
+    val d = OutboxDispatcher(uow, Map("fake" -> adapter), renderer(false), clock, buckets = Some(buckets))
+
+    assertEquals(d.dispatchOnce(), 3)
+    assertEquals(sendsOf(adapter).size, 3, "every row is eventually dispatched")
+    assertEquals(sleeps.toList, List(Duration.ofSeconds(1), Duration.ofSeconds(1)),
+      "the vendor bucket allows one event per second under the burst")

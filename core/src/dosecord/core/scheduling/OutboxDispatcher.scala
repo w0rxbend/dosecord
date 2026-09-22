@@ -9,6 +9,7 @@ import dosecord.contracts.ReactPayload
 import dosecord.contracts.RenderedControls
 import dosecord.contracts.RenderedMessage
 import dosecord.core.ports.Clock
+import dosecord.core.ports.NewOutboxMessage
 import dosecord.core.ports.OutboxMessage
 import dosecord.core.ports.OutboxMetrics
 import dosecord.core.ports.OutboxOp
@@ -16,6 +17,7 @@ import dosecord.core.ports.UnitOfWork
 
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 
 /** Renders one claimed outbox row into the chat it targets and the message to execute. The row's `payload` is opaque to
   * the dispatcher; the production implementation ([[CatalogueOutboxRenderer]]) resolves the delivery channel and
@@ -28,6 +30,12 @@ object OutboxDispatcher:
   val MaxAttempts = 8
   val PossibleDuplicateAfter: Duration = Duration.ofMinutes(2)
   val MinBackoff: Duration = Duration.ofSeconds(5)
+
+  /** `fallback_after` (DESIGN.md section 7.6): a send still unsent this long after `next_attempt_at` — above the early
+    * backoff rungs, so the dispatcher itself was down — also reaches the next healthy channel.
+    */
+  val FallbackAfter: Duration = Duration.ofMinutes(5)
+
   private val MaxBackoff: Duration = Duration.ofMinutes(30)
 
   /** `ops_done` bitmap: bit 0 = primary send recorded, bit i+1 = reaction i recorded. */
@@ -78,9 +86,10 @@ object OutboxDispatcher:
 
 /** The vendor-owned outbox dispatcher (ADR-009, DESIGN.md section 7.6), grown from its M0.10 form: ops
   * `send|edit|finalize|delete|react`, epoch fencing before any vendor call, backoff 5 s .. 30 min with jitter, 8
-  * attempts then `dead` (with the `dosecord_outbox_dead_total` metric), `possible_duplicate` after 2 minutes, and batch
-  * dispatch in priority order. One instance per owned vendor set; the claim transaction is short and every vendor call
-  * happens with no lock held.
+  * attempts then `dead` (with the `dosecord_outbox_dead_total` metric), `possible_duplicate` after 2 minutes, batch
+  * dispatch in priority order, channel fallback (channelFatal or 5 min unsent) through `delivery_channels`, and
+  * per-vendor/per-chat token buckets counting vendor events. One instance per owned vendor set; the claim transaction
+  * is short and every vendor call happens with no lock held.
   */
 final class OutboxDispatcher(
     uow: UnitOfWork,
@@ -90,7 +99,8 @@ final class OutboxDispatcher(
     claimLimit: Int = 20,
     lease: Duration = Duration.ofSeconds(60),
     metrics: OutboxMetrics = OutboxMetrics.noop,
-    random: () => Double = () => scala.math.random()
+    random: () => Double = () => scala.math.random(),
+    buckets: Option[TokenBuckets] = None
 ):
   import OutboxDispatcher.*
 
@@ -105,7 +115,12 @@ final class OutboxDispatcher(
     // Epoch fencing (DESIGN.md sections 7.3/7.6): a row the occurrence has passed is cancelled without a vendor call.
     if row.occurrenceId.isDefined && row.epoch.exists(epochIsStale(row, _)) then
       uow.transaction(_.outbox.cancel(row.id))
-    else dispatchOwned(row, now)
+    else
+      // `fallback_after` (DESIGN.md section 7.6): a send still unsent past the early backoff rungs also reaches the
+      // next healthy channel.
+      if row.op == OutboxOp.Send && Duration.between(row.nextAttemptAt, now).compareTo(FallbackAfter) > 0 then
+        fallback(row, now)
+      dispatchOwned(row, now)
 
   private def epochIsStale(row: OutboxMessage, epoch: Int): Boolean =
     uow.transaction(_.occurrences.epochIsStale(row.occurrenceId.get, epoch))
@@ -118,15 +133,18 @@ final class OutboxDispatcher(
         case OutboxOp.Edit | OutboxOp.Finalize =>
           val target = decodeHandle(row.vendor, requiredTarget(row))
           val (_, rendered) = renderer.render(row, adapter.capabilities)
+          throttle(row, target.chatId)
           val handle = adapter.edit(target, rendered) // idempotent by content
           uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false))
         case OutboxOp.Delete =>
           val target = decodeHandle(row.vendor, requiredTarget(row))
+          throttle(row, target.chatId)
           adapter.delete(target)
           uow.transaction(_.outbox.markSent(row.id, requiredTarget(row), now, possibleDuplicate = false))
         case OutboxOp.React =>
           val target = decodeHandle(row.vendor, requiredTarget(row))
           val payload = ReactPayload.fromJson(row.payload)
+          throttle(row, target.chatId)
           adapter.react(
             target,
             payload.emoji,
@@ -141,9 +159,50 @@ final class OutboxDispatcher(
         val duplicate =
           row.op == OutboxOp.Send && row.attemptedAt.exists(isPossibleDuplicateWindow(_, now))
         retryOrDead(row, now.plus(jitteredBackoff(row.attempts, random())), duplicate, error = e.getMessage)
+      case e: ChatError if e.channelFatal =>
+        // Channel fallback (DESIGN.md section 7.6): the row is dead, the channel is dead, and the next healthy
+        // channel's dispatch is enqueued with a new send_key.
+        uow.transaction: tx =>
+          tx.outbox.dead(row.id, e.getMessage)
+          row.channelId.foreach(tx.channels.markDead(_, e.getMessage, now))
+        metrics.outboxDead()
+        fallback(row, now)
       case e: ChatError =>
-        // channelFatal fallback (channel dead, next channel) is wired in the second M1.7 step; both land here for now.
+        // Permanent(channelFatal = false): no channel action (DESIGN.md section 7.6).
         uow.transaction(_.outbox.failPermanently(row.id, e.getMessage))
+
+  /** Enqueues the next healthy channel's dispatch with a new `send_key` (idempotent per channel through the UNIQUE
+    * constraint). Only sends fall back: an edit/delete/react target is a vendor-specific handle.
+    */
+  private def fallback(row: OutboxMessage, now: Instant): Unit =
+    if row.op == OutboxOp.Send then
+      row.accountId.foreach: accountId =>
+        row.channelId.foreach: channelId =>
+          uow.transaction: tx =>
+            tx.channels
+              .fallbackChannel(accountId, channelId)
+              .foreach: channel =>
+                tx.outbox.enqueue(
+                  NewOutboxMessage(
+                    id = UUID.randomUUID(),
+                    sendKey = s"${row.sendKey}:fb:${channel.channelId}",
+                    op = OutboxOp.Send,
+                    kind = row.kind,
+                    vendor = channel.vendor,
+                    accountId = row.accountId,
+                    occurrenceId = row.occurrenceId,
+                    channelId = Some(channel.channelId),
+                    epoch = row.epoch,
+                    payload = row.payload,
+                    importance = row.importance,
+                    nextAttemptAt = now
+                  )
+                )
+          ()
+
+  /** One token per vendor event (DESIGN.md section 7.6: the buckets count events, not rows). */
+  private def throttle(row: OutboxMessage, chatId: String): Unit =
+    buckets.foreach(_.acquire(row.vendor, chatId, 1))
 
   /** One retry within the attempt budget, or the terminal `dead` write plus its metric at `MaxAttempts` (ADR-009). */
   private def retryOrDead(row: OutboxMessage, at: Instant, possibleDuplicate: Boolean, error: String): Unit =
@@ -170,6 +229,7 @@ final class OutboxDispatcher(
           )
         )
       else
+        throttle(row, chat.chatId)
         val sent = adapter.send(chat, rendered, row.sendKey)
         val encoded = encodeHandle(sent)
         uow.transaction { tx =>
@@ -189,6 +249,7 @@ final class OutboxDispatcher(
     reactionsOf(rendered).zipWithIndex.foreach: (emoji, i) =>
       val opIndex = i + 1
       if !opsDoneHas(row.opsDone, opIndex) then
+        throttle(row, handle.chatId)
         adapter.react(handle, emoji, on = true, txnKey = s"${row.sendKey}:r$i")
         uow.transaction(_.outbox.markOpDone(row.id, opIndex))
     uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = resumeDuplicate))

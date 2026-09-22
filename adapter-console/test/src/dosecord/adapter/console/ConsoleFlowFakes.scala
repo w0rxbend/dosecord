@@ -165,7 +165,11 @@ private object ConsoleFlowFakes:
     val occurrences: OccurrenceRepository = ???
     val doseActions: DoseActionRepository = ???
     val policies: PolicyRepository = _ => ???
-    val channels: DeliveryChannelRepository = _ => Nil
+    val channels: DeliveryChannelRepository = new DeliveryChannelRepository:
+      override def activePrimaryChannels(accountId: UUID): List[DeliveryTarget] = Nil
+      override def markDead(channelId: UUID, error: String, now: Instant): Unit = ()
+      override def fallbackChannel(accountId: UUID, excludeChannelId: UUID): Option[DeliveryTarget] = None
+      override def byId(channelId: UUID): Option[DeliveryTarget] = None
     val heartbeat: WorkerHeartbeatRepository = new WorkerHeartbeatRepository:
       override def touch(instance: String, role: String, now: Instant): Unit = ()
       override def maxLastTick(): Option[Instant] = None
