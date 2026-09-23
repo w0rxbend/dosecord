@@ -21,7 +21,8 @@
   ],
   "expect": [
     { "expect": "renderTextGolden", "goldens": {
-      "plain": ["Time for Vitamin D, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\na < b"]
+      "plain": ["Time for Vitamin D, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\na < b"],
+      "discordMd": ["Time for **Vitamin D**, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\n```\na < b\n```"]
     } }
   ]
 }

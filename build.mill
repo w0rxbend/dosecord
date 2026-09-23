@@ -69,8 +69,16 @@ object `adapter-console` extends DosecordModule:
     // M0.13: the adapter conformance suite (tests/conformance) runs inside this module's test task.
     def moduleDeps = super.moduleDeps ++ Seq(tests.conformance)
 
+object `adapter-discord` extends DosecordModule:
+  def moduleDeps = Seq(core, contracts)
+  // JDA 6.6.0 pinned per docs/DESIGN.md section 2 (the only 6.6.x on Maven Central, verified in the M0.8 spike).
+  def mvnDeps = Seq(mvn"net.dv8tion:JDA:6.6.0")
+  object test extends DosecordTests:
+    // M0.13: the adapter conformance suite (tests/conformance) runs inside this module's test task.
+    def moduleDeps = super.moduleDeps ++ Seq(tests.conformance)
+
 object app extends DosecordModule:
-  def moduleDeps = Seq(`adapter-console`, infra, core, contracts)
+  def moduleDeps = Seq(`adapter-console`, `adapter-discord`, infra, core, contracts)
   def mainClass = Some("dosecord.app.Main")
   // Tapir 1.13.31 pinned per docs/DESIGN.md section 2: netty-sync serves
   // /healthz (M0.5), later /readyz, /metrics and the auth-link pages.

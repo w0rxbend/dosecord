@@ -283,6 +283,16 @@ private object ConsoleFlowFakes:
       this.synchronized(
         rows.filter(r => r.accountId == accountId && r.status != MedicationStatus.Archived).toList
       )
+    override def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication] =
+      this.synchronized(
+        rows
+          .filter(r =>
+            r.accountId == accountId && r.status != MedicationStatus.Archived &&
+              r.nameNorm.startsWith(prefix.trim.toLowerCase)
+          )
+          .take(limit)
+          .toList
+      )
 
   final class InMemorySchedules extends ScheduleRepository:
     private val rows = ListBuffer.empty[StoredSchedule]
