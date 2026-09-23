@@ -22,11 +22,11 @@ specification.
 
 ## Current entry point
 
-M1.8 is `green`. **M1.9 — Add-medication wizard, main menu, Today, History,
-Pause/Resume, Account -> Timezone** (deps M1.5, M1.4a, M0.12d) is in flight on
-`feature/m1-9-medication-wizard`. **M0.8** (JDA DM spike) is
-dependency-unblocked but requires live Discord credentials; do not start it
-until the owner provides them.
+M1.8 and M1.9 are `green`. The next eligible slice is **M1.10 — One-tap intake
+flows, correction, Log dose, universal commands** (deps M1.7, M1.9, M1.4b), then
+M1.11 (deps M1.8, M1.10). **M0.8** (JDA DM spike) is dependency-unblocked but
+requires live Discord credentials; do not start it until the owner provides
+them.
 
 ## Agent workflow
 

@@ -418,7 +418,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M1.6 | ReminderLoop | L | M1.3, M1.5 | | green |
 | M1.7 | Outbox dispatcher and delivery channels | L | M1.6, M0.10, M1.4a | | green |
 | M1.8 | Catch-up and digest | M | M1.7 | | green |
-| M1.9 | Wizard, menu, Today, History, Pause/Resume, Timezone | L | M1.5, M1.4a, M0.12d | | todo |
+| M1.9 | Wizard, menu, Today, History, Pause/Resume, Timezone | L | M1.5, M1.4a, M0.12d | | green |
 | M1.10 | One-tap flows, correction, Log dose, commands | L | M1.7, M1.9, M1.4b | | todo |
 | M1.11 | 30-day simulation | M | M1.8, M1.10 | | todo |
 | M2.1 | JDA gateway, slash commands, ack policy | L | M0.13, M0.8, M0.12d (interleaves with M1) | | todo |
