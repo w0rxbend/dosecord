@@ -22,11 +22,17 @@ specification.
 
 ## Current entry point
 
-M1.8 through M1.11 are `green` — the whole M1 milestone. The next eligible
-slice is **M0.8 — Spike C, JDA DM delivery** (deps M0.1); the owner has
-provided Discord credentials in the gitignored `.env` (`DISCORD_TOKEN`,
-`DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY`, `DISCORD_CLIENT_SECRET`). After
-M0.8: M2.1 (deps M0.13, M0.8, M0.12d).
+M0.8 is `green` (Spike C GO: proactive DM from a user-installed app with no
+shared guild; USER_INSTALL only, home-guild step dropped — ADR-001/ADR-013
+addenda; live autocomplete round trip deferred to M2.1 as a hard requirement).
+The next eligible slice is **M2.1 — JDA gateway, slash commands, ack policy**
+(deps M0.13, M0.8, M0.12d), then M2.2 (deps M2.1). The owner has provided
+Discord credentials in the gitignored `.env` (`DISCORD_TOKEN`,
+`DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY`, `DISCORD_CLIENT_SECRET`). The
+owner directive (docs/spikes/jda-dm.md "Inputs for M2"): DM-only app; any
+interaction from a shared context gets an ephemeral redirect visible only to
+the sender; weigh `BOT_DM`-only registration against the typed-option
+hover-leak caveat.
 
 ## Agent workflow
 

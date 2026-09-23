@@ -400,7 +400,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M0.5 | Settings, root, health, image, shutdown, migrate | M | M0.4 | | green |
 | M0.6 | CallbackCodec and action registry (kept) | S | M0.1 | | green |
 | M0.7 | DST materialiser primitives (kept) | S | M0.1 | | green |
-| M0.8 | Spike C: JDA DM (throwaway) | S | M0.1 | | todo |
+| M0.8 | Spike C: JDA DM (throwaway) | S | M0.1 | | green |
 | M0.9 | Contracts, chat model, renderer, FakeAdapter, goldens (B1) | M | M0.6 | | green |
 | M0.10 | Outbox dispatcher protocol (kept) | M | M0.3, M0.9 | | green |
 | M0.11 | Telemetry skeleton | S | M0.5 | | green |
