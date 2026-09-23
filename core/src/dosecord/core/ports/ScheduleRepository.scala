@@ -74,3 +74,8 @@ trait ScheduleRepository:
     * LOCKED`, so concurrent materialisers take disjoint schedules).
     */
   def claimForMaterialisation(horizonEnd: Instant, limit: Int): List[StoredSchedule]
+
+  /** Every schedule of one medication (M1.9's find-or-create update path and the menu's pause/resume/archive toggle;
+    * the wizard creates exactly one schedule per medication).
+    */
+  def listForMedication(medicationId: UUID): List[StoredSchedule]

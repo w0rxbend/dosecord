@@ -1,0 +1,25 @@
+> /start
+Welcome to Dosecord! Let's get you set up.
+
+Pick your timezone:
+> tap "UTC+03:00 — Europe/Kyiv"
+send: It is 03:00 for you now, right? | [Yes] [Change] [Back] [Cancel]
+> tap "Yes"
+send: You're all set — your account is ready. Try /mood or /help.
+> /menu
+What would you like to do?
+> tap "Medications"
+send: Medications
+
+No medications yet. | [Today's doses] [Add medication] [Settings] [History] [Back]
+> tap "Add medication"
+modal: medication.add (name, dose, times, instructions)
+send: Let's add a medication.
+
+Reply Back to go back or Cancel to stop.
+> submit name="Vitamin D" dose="1000 IU" times="09:00" instructions="with breakfast"
+send: Which days? | [Every day] [Weekdays] [Choose days...] [Back] [Cancel]
+> tap "Every day"
+send: Vitamin D 1000 IU, every day 09:00 Europe/Kyiv | [Create] [Change days] [Change timezone] [Cancel] [Back] [Cancel]
+> tap "Create"
+send: Vitamin D is set.

@@ -22,6 +22,9 @@ object Labels:
   val NoNote = "No note"
   val Now = "Now"
   val AtScheduledTime = "At scheduled time"
+  val Update = "Update"
+  val Archive = "Archive"
+  val Timezone = "Timezone"
 
   /** Snooze option labels: `Snooze 10m`, `Snooze 1h`. */
   def snooze(minutes: Int): String =
@@ -51,6 +54,9 @@ object Labels:
     CopyEntry("label.no_note", NoNote),
     CopyEntry("label.now", Now),
     CopyEntry("label.at_scheduled_time", AtScheduledTime),
+    CopyEntry("label.update", Update),
+    CopyEntry("label.archive", Archive),
+    CopyEntry("label.timezone", Timezone),
     CopyEntry("label.snooze.10", snooze(10)),
     CopyEntry("label.snooze.30", snooze(30)),
     CopyEntry("label.snooze.60", snooze(60))

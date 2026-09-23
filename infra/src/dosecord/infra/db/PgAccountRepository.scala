@@ -27,3 +27,10 @@ final class PgAccountRepository(conn: Connection) extends AccountRepository:
     sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state)
           VALUES (${UUID.randomUUID()}, $userId, ${identityId.uuid}, 'primary', 0, 'healthy')""".execute()
     AccountId(userId)
+
+  override def timezoneOf(accountId: UUID): Option[String] =
+    sql"SELECT timezone FROM users WHERE id = $accountId".queryOne[String]()
+
+  override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
+    val updated = sql"UPDATE users SET timezone = $timezone, updated_at = $now WHERE id = $accountId".execute()
+    require(updated == 1, s"account $accountId vanished before setTimezone")

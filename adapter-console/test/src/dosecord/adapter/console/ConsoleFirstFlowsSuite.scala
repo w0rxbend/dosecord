@@ -38,7 +38,7 @@ class ConsoleFirstFlowsSuite extends munit.FunSuite:
 
       // Row-level effects on the in-memory stores.
       assertEquals(rig.uow.accounts.all.size, 1, "exactly one account")
-      assertEquals(rig.uow.accounts.all.head.timezone, "Europe/Kyiv")
+      assertEquals(rig.uow.accounts.all.head.currentTimezone, "Europe/Kyiv")
       assertEquals(rig.uow.accounts.all.head.displayName, None, "display name stays neutral")
       assertEquals(
         rig.uow.moodCheckins.all.map(r => (r.moodLevel.value, r.note, r.tags)),

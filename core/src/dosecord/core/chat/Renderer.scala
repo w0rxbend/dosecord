@@ -200,30 +200,35 @@ object Renderer:
     RenderedForm(
       form.id,
       form.title,
-      form.fields.map(f => RenderedField(f.key, f.label, f.tpe, f.required, f.placeholder, f.options.map(_.label))),
+      form.fields.map(f =>
+        RenderedField(f.key, f.label, f.tpe, f.required, f.placeholder, f.options.map(_.label), f.value)
+      ),
       form.submit
     )
 
   /** One FormRunner question (rung 2 of the form ladder): the title with its progress line, then the field label with
-    * its placeholder hint and numbered options (DESIGN.md section 4.3).
+    * its placeholder hint, its current value when the step is re-rendered with previous answers (M1.9 pre-fill), and
+    * numbered options (DESIGN.md section 4.3).
     */
-  def formQuestionNodes(title: String, fields: List[Field], index: Int): List[Node] =
+  def formQuestionNodes(title: String, fields: List[Field], index: Int, current: Option[String] = None): List[Node] =
     val field = fields(index)
     val hint = field.placeholder.map(p => s" ($p)").getOrElse("")
+    val currentText = current.filter(_.nonEmpty).map(v => s" [current: $v]").getOrElse("")
     val options =
       if field.options.nonEmpty then
         " " + field.options.zipWithIndex.map((o, i) => s"${i + 1}) ${o.label}").mkString(" ")
       else ""
     List(
       Node.Paragraph(List(Inline.Text(s"$title — question ${index + 1} of ${fields.size}:"))),
-      Node.Paragraph(List(Inline.Text(s"${field.label}$hint$options")))
+      Node.Paragraph(List(Inline.Text(s"${field.label}$hint$currentText$options")))
     )
 
   /** The FormRunner's first question (rung 2 of the form ladder): the mediator asks one field per message, keeps
     * partial answers in `form_runs` and emits one FormSubmitted (DESIGN.md section 4.3); the runner itself lands with
-    * the wizard engine in M0.12b.
+    * the wizard engine in M0.12b. A pre-filled field (M1.9 `[Back]` re-render) shows its current value.
     */
-  private def firstQuestionNodes(form: Form): List[Node] = formQuestionNodes(form.title, form.fields, 0)
+  private def firstQuestionNodes(form: Form): List[Node] =
+    formQuestionNodes(form.title, form.fields, 0, form.fields.head.value)
 
   def render(
       msg: OutboundMessage,

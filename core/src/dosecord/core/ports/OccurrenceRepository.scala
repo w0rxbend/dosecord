@@ -157,6 +157,11 @@ trait OccurrenceRepository:
     */
   def epochIsStale(occurrenceId: UUID, epoch: Int): Boolean
 
+  /** Every occurrence of the account with `local_date` in the inclusive range, oldest first (M1.9's `/today` and
+    * `/history` read models).
+    */
+  def listForAccountBetween(accountId: UUID, from: LocalDate, to: LocalDate): List[StoredOccurrence]
+
 object OccurrenceRepository:
 
   /** The quarantine threshold of ROADMAP M1.6 (`error_count >= 3`): at or above it a row is no longer claimed. */

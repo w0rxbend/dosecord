@@ -62,8 +62,10 @@ private object ConsoleFlowFakes:
     override def find(actor: PlatformIdentity): Option[Principal] =
       this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
 
-  final class CreatedAccount(val accountId: UUID, val identityId: UUID, val timezone: String):
+  final class CreatedAccount(val accountId: UUID, val identityId: UUID, timezone: String):
     val displayName: Option[String] = None
+    @volatile var tz: String = timezone
+    def currentTimezone: String = tz
 
   final class InMemoryAccounts(identities: InMemoryIdentities) extends AccountRepository:
     private val rows = ListBuffer.empty[CreatedAccount]
@@ -74,6 +76,10 @@ private object ConsoleFlowFakes:
         rows += CreatedAccount(accountId, identityId.uuid, timezone)
         identities.linkIdentity(identityId, accountId)
         AccountId(accountId)
+    override def timezoneOf(accountId: UUID): Option[String] =
+      this.synchronized(rows.find(_.accountId == accountId).map(_.tz))
+    override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
+      this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
 
   final class InMemoryMoodCheckins extends MoodCheckinRepository:
     private val rows = ListBuffer.empty[NewMoodCheckin]

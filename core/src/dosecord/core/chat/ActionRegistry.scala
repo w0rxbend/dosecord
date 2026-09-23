@@ -24,6 +24,9 @@ object ActionRegistry:
     ActionEntry(6, "dose.correct", opensForm = false, Visibility.Persistent, requiresSession = false),
     ActionEntry(7, "dose.keep_missed", opensForm = false, Visibility.Persistent, requiresSession = false),
     ActionEntry(20, "menu.open", opensForm = false, Visibility.Persistent, requiresSession = false),
+    // M1.9: menu entries that open a flow whose first step is a Form (Add medication) keep the interaction un-acked
+    // so the renderer can answer with the native modal instead of the FormRunner (DESIGN.md section 4.3 form ladder).
+    ActionEntry(21, "menu.open_form", opensForm = true, Visibility.Persistent, requiresSession = false),
     ActionEntry(30, "wizard.step", opensForm = false, Visibility.Persistent, requiresSession = true),
     ActionEntry(31, "wizard.text_step", opensForm = true, Visibility.Persistent, requiresSession = true),
     ActionEntry(32, "wizard.confirm", opensForm = false, Visibility.Persistent, requiresSession = true),

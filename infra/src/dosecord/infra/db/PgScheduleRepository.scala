@@ -82,3 +82,10 @@ final class PgScheduleRepository(conn: Connection) extends ScheduleRepository:
           ORDER BY materialized_through NULLS FIRST
           LIMIT $limit
           FOR UPDATE SKIP LOCKED""".query[StoredSchedule]()
+
+  override def listForMedication(medicationId: UUID): List[StoredSchedule] =
+    sql"""SELECT id, medication_id, user_id, kind, status, current_revision, tz, tz_follows_user, start_date,
+                 end_date, materialized_through
+          FROM medication_schedules
+          WHERE medication_id = $medicationId
+          ORDER BY created_at, id""".query[StoredSchedule]()

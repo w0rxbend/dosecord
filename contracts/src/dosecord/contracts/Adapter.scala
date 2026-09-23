@@ -61,7 +61,9 @@ final case class RenderedField(
     tpe: FieldType,
     required: Boolean,
     placeholder: Option[String],
-    options: List[String]
+    options: List[String],
+    /** Pre-filled value (M1.9: modal inputs and FormRunner questions show the previous answers). */
+    value: Option[String] = None
 ) derives ReadWriter
 
 final case class RenderedForm(id: String, title: String, fields: List[RenderedField], submit: String) derives ReadWriter

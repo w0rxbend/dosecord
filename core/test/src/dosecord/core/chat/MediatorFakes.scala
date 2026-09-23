@@ -86,9 +86,11 @@ object MediatorFakes:
   /** In-memory account creates (M0.12d): every created account records `displayName = None` — the neutral default the
     * Postgres write guarantees by never selecting the vendor nickname (K8).
     */
-  final class CreatedAccount(val accountId: UUID, val identityId: UUID, val timezone: String):
+  final class CreatedAccount(val accountId: UUID, val identityId: UUID, timezone: String):
     val displayName: Option[String] = None
     val handle: Option[String] = None
+    @volatile var tz: String = timezone
+    def currentTimezone: String = tz
 
   final class InMemoryAccounts(identities: InMemoryIdentities) extends AccountRepository:
     private val rows = ListBuffer.empty[CreatedAccount]
@@ -99,6 +101,10 @@ object MediatorFakes:
         rows += CreatedAccount(accountId, identityId.uuid, timezone)
         identities.linkIdentity(identityId, accountId)
         AccountId(accountId)
+    override def timezoneOf(accountId: UUID): Option[String] =
+      this.synchronized(rows.find(_.accountId == accountId).map(_.tz))
+    override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
+      this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
 
   final class InMemoryMoodCheckins extends MoodCheckinRepository:
     private val rows = ListBuffer.empty[NewMoodCheckin]
@@ -231,6 +237,10 @@ object MediatorFakes:
       this.synchronized(
         rows.find(r => r.accountId == accountId && r.nameNorm == nameNorm && r.status != MedicationStatus.Archived)
       )
+    override def listForAccount(accountId: UUID): List[StoredMedication] =
+      this.synchronized(
+        rows.filter(r => r.accountId == accountId && r.status != MedicationStatus.Archived).toList
+      )
 
   final class InMemorySchedules extends ScheduleRepository:
     private val rows = ListBuffer.empty[StoredSchedule]
@@ -260,6 +270,8 @@ object MediatorFakes:
           .take(limit)
           .toList
       )
+    override def listForMedication(medicationId: UUID): List[StoredSchedule] =
+      this.synchronized(rows.filter(_.medicationId == medicationId).toList)
     private def update(id: UUID)(f: StoredSchedule => StoredSchedule): Unit = this.synchronized:
       rows.mapInPlace(s => if s.id == id then f(s) else s)
 
@@ -365,6 +377,14 @@ object MediatorFakes:
       )
     override def epochIsStale(occurrenceId: UUID, epoch: Int): Boolean =
       this.synchronized(rows.find(_.id == occurrenceId).forall(_.state.epoch > epoch))
+    override def listForAccountBetween(accountId: UUID, from: java.time.LocalDate, to: java.time.LocalDate)
+        : List[StoredOccurrence] =
+      this.synchronized(
+        rows
+          .filter(r => r.accountId == accountId && !r.localDate.isBefore(from) && !r.localDate.isAfter(to))
+          .sortBy(r => (r.state.scheduledFor, r.id))
+          .toList
+      )
 
   final class InMemoryDoseActions extends DoseActionRepository:
     private val rows = ListBuffer.empty[StoredDoseAction]

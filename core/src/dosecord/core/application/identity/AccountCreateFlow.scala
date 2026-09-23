@@ -32,7 +32,7 @@ object AccountCreateFlow:
   private val OtherKey = "tz.other"
 
   // Session-data keys.
-  private val TimezoneKey = "timezone"
+  private[identity] val TimezoneKey = "timezone"
   private val ErrorKey = "tz_error"
 
   /** The curated picker zones; labels are computed per render so the offset grouping follows DST. Together with the
@@ -84,50 +84,56 @@ object AccountCreateFlow:
   def flow(clock: Clock): Flow = Flow(
     id = Id,
     firstStep = "timezone",
-    steps = Map(
-      "timezone" -> Step(
-        id = "timezone",
-        kind = StepKind.Choices(_ => pickerOptions(clock.now()), ChoiceLayout.Select),
-        render = data =>
-          data.get(ErrorKey).filter(_.nonEmpty).map(e => paragraph(e)).toList ++
-            List(paragraph(IdentityCopy.welcome), paragraph(IdentityCopy.timezonePrompt)),
-        accept = {
-          case (StepInput.Chosen(OtherKey), _) => Right(StepTransition.Next("timezone_custom"))
-          case (StepInput.Chosen(key), _) if pickerZones.exists(_.getId == key) =>
-            Right(StepTransition.Next("confirm", Map(TimezoneKey -> key, ErrorKey -> "")))
-          case _ => Left(IdentityCopy.invalidZone)
-        }
-      ),
-      "timezone_custom" -> Step(
-        id = "timezone_custom",
-        kind = StepKind.Text,
-        render = _ => List(paragraph(IdentityCopy.timezoneCustomPrompt)),
-        accept = {
-          case (StepInput.TextEntered(text), _) =>
-            parseZone(text) match
-              case Some(zone) =>
-                Right(StepTransition.Next("confirm", Map(TimezoneKey -> zone.getId, ErrorKey -> "")))
-              // An invalid zone re-shows the picker (with the note), and writes no row (acceptance 3).
-              case None => Right(StepTransition.Next("timezone", Map(ErrorKey -> IdentityCopy.invalidZone)))
-          case _ => Left(IdentityCopy.invalidZone)
-        }
-      ),
-      "confirm" -> Step(
-        id = "confirm",
-        kind = StepKind.choices(List("yes" -> Labels.Yes, "change" -> Labels.Change)),
-        render = data =>
-          val zone = ZoneId.of(data(TimezoneKey))
-          val local = clock.now().atZone(zone)
-          List(paragraph(WizardCopy.timezoneConfirm(f"${local.getHour}%02d:${local.getMinute}%02d")))
-        ,
-        accept = {
-          case (StepInput.Chosen("yes"), _)    => Right(StepTransition.Complete)
-          case (StepInput.Chosen("change"), _) => Right(StepTransition.Next("timezone", Map(ErrorKey -> "")))
-          case _                               => Left(IdentityCopy.confirmHint)
-        }
-      )
-    ),
+    steps = timezonePickerSteps(clock, List(paragraph(IdentityCopy.welcome))),
     onComplete = (data, ctx) => complete(clock, data, ctx)
+  )
+
+  /** The timezone picker + custom entry + live-echo confirm steps, shared with Account -> Timezone (M1.9): both flows
+    * capture the zone the same way and differ only in what completion does with it. `intro` is the first body line (the
+    * create flow's welcome; the timezone change passes its own or none).
+    */
+  def timezonePickerSteps(clock: Clock, intro: List[Node]): Map[String, Step] = Map(
+    "timezone" -> Step(
+      id = "timezone",
+      kind = StepKind.Choices(_ => pickerOptions(clock.now()), ChoiceLayout.Select),
+      render = data =>
+        data.get(ErrorKey).filter(_.nonEmpty).map(e => paragraph(e)).toList ++
+          intro ++ List(paragraph(IdentityCopy.timezonePrompt)),
+      accept = {
+        case (StepInput.Chosen(OtherKey), _) => Right(StepTransition.Next("timezone_custom"))
+        case (StepInput.Chosen(key), _) if pickerZones.exists(_.getId == key) =>
+          Right(StepTransition.Next("confirm", Map(TimezoneKey -> key, ErrorKey -> "")))
+        case _ => Left(IdentityCopy.invalidZone)
+      }
+    ),
+    "timezone_custom" -> Step(
+      id = "timezone_custom",
+      kind = StepKind.Text,
+      render = _ => List(paragraph(IdentityCopy.timezoneCustomPrompt)),
+      accept = {
+        case (StepInput.TextEntered(text), _) =>
+          parseZone(text) match
+            case Some(zone) =>
+              Right(StepTransition.Next("confirm", Map(TimezoneKey -> zone.getId, ErrorKey -> "")))
+            // An invalid zone re-shows the picker (with the note), and writes no row (acceptance 3).
+            case None => Right(StepTransition.Next("timezone", Map(ErrorKey -> IdentityCopy.invalidZone)))
+        case _ => Left(IdentityCopy.invalidZone)
+      }
+    ),
+    "confirm" -> Step(
+      id = "confirm",
+      kind = StepKind.choices(List("yes" -> Labels.Yes, "change" -> Labels.Change)),
+      render = data =>
+        val zone = ZoneId.of(data(TimezoneKey))
+        val local = clock.now().atZone(zone)
+        List(paragraph(WizardCopy.timezoneConfirm(f"${local.getHour}%02d:${local.getMinute}%02d")))
+      ,
+      accept = {
+        case (StepInput.Chosen("yes"), _)    => Right(StepTransition.Complete)
+        case (StepInput.Chosen("change"), _) => Right(StepTransition.Next("timezone", Map(ErrorKey -> "")))
+        case _                               => Left(IdentityCopy.confirmHint)
+      }
+    )
   )
 
   private def complete(clock: Clock, data: Map[String, String], ctx: FlowContext): Reply =

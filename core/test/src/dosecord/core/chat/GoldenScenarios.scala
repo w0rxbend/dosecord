@@ -97,18 +97,8 @@ object GoldenScenarios:
           Form(
             id = "medication.add",
             title = WizardCopy.addMedicationTitle,
-            fields = List(
-              Field("name", WizardCopy.fieldName, FieldType.Text, placeholder = Some(WizardCopy.namePlaceholder)),
-              Field(
-                "dose",
-                WizardCopy.fieldDose,
-                FieldType.Text,
-                required = false,
-                placeholder = Some(WizardCopy.dosePlaceholder)
-              ),
-              Field("times", WizardCopy.fieldTimes, FieldType.Text),
-              Field("instructions", WizardCopy.fieldInstructions, FieldType.Text, required = false)
-            ),
+            // The M1.9 wizard's real step 1 form (times optional: empty = as-needed).
+            fields = dosecord.core.application.medication.AddMedicationFlow.formFields,
             submit = token("wizard.text_step", sessionSubject, 1).wire
           )
         )

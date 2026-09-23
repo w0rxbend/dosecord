@@ -49,3 +49,6 @@ trait MedicationRepository:
     * for the re-add-offers-update path of M1.9 (R18).
     */
   def findByNameNorm(accountId: UUID, nameNorm: String): Option[StoredMedication]
+
+  /** Every not-archived medication of the account (M1.9's Medications submenu, `/today` as-needed rows). */
+  def listForAccount(accountId: UUID): List[StoredMedication]
