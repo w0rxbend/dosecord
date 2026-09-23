@@ -1,0 +1,2128 @@
+2026-10-05T09:00:00Z p1 send/initial occ:p1-2026-10-05-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-05-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-05-t0900,10); 3) Skip -> dose.skip(p1-2026-10-05-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-05-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-05-t0900,60)
+2026-10-05T09:03:00Z >> p1 #1 1 (Taken)
+2026-10-05T09:03:00Z p1 send/toast toast:console:console:msg:sim:p1:1
+  Recorded at 09:03.
+2026-10-05T09:03:00Z p1 send/finalize occ:p1-2026-10-05-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-05-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-05-t0900,0); 2) Correct -> dose.correct(p1-2026-10-05-t0900,0)
+2026-10-05T09:07:00Z p2 send/initial occ:p2-2026-10-05-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-05-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-05-t0907,10); 3) Skip -> dose.skip(p2-2026-10-05-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-05-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-05-t0907,60)
+2026-10-05T09:09:00Z >> p2 #1 1 (Taken)
+2026-10-05T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:2
+  Recorded at 09:09.
+2026-10-05T09:09:00Z p2 send/finalize occ:p2-2026-10-05-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-05-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-05-t0907,0); 2) Correct -> dose.correct(p2-2026-10-05-t0907,0)
+2026-10-05T09:23:00Z p3 send/initial occ:p3-2026-10-05-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-05-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-05-t0923,10); 3) Skip -> dose.skip(p3-2026-10-05-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-05-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-05-t0923,60)
+2026-10-05T09:26:00Z >> p3 #1 1 (Taken)
+2026-10-05T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:3
+  Recorded at 09:26.
+2026-10-05T09:26:00Z p3 send/finalize occ:p3-2026-10-05-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-05-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-05-t0923,0); 2) Correct -> dose.correct(p3-2026-10-05-t0923,0)
+2026-10-05T21:07:00Z p2 send/initial occ:p2-2026-10-05-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-05-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-05-t2107,10); 3) Skip -> dose.skip(p2-2026-10-05-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-05-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-05-t2107,60)
+2026-10-05T21:11:00Z >> p2 #4 1 (Taken)
+2026-10-05T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:4
+  Recorded at 21:11.
+2026-10-05T21:11:00Z p2 send/finalize occ:p2-2026-10-05-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-05-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-05-t2107,0); 2) Correct -> dose.correct(p2-2026-10-05-t2107,0)
+2026-10-06T09:00:00Z p1 send/initial occ:p1-2026-10-06-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-06-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-06-t0900,10); 3) Skip -> dose.skip(p1-2026-10-06-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-06-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-06-t0900,60)
+2026-10-06T09:03:00Z >> p1 #4 1 (Taken)
+2026-10-06T09:03:00Z p1 send/toast toast:console:console:msg:sim:p1:5
+  Recorded at 09:03.
+2026-10-06T09:03:00Z p1 send/finalize occ:p1-2026-10-06-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-06-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-06-t0900,0); 2) Correct -> dose.correct(p1-2026-10-06-t0900,0)
+2026-10-06T09:07:00Z p2 send/initial occ:p2-2026-10-06-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-06-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-06-t0907,10); 3) Skip -> dose.skip(p2-2026-10-06-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-06-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-06-t0907,60)
+2026-10-06T09:09:00Z >> p2 #7 1 (Taken)
+2026-10-06T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:6
+  Recorded at 09:09.
+2026-10-06T09:09:00Z p2 send/finalize occ:p2-2026-10-06-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-06-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-06-t0907,0); 2) Correct -> dose.correct(p2-2026-10-06-t0907,0)
+2026-10-06T21:07:00Z p2 send/initial occ:p2-2026-10-06-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-06-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-06-t2107,10); 3) Skip -> dose.skip(p2-2026-10-06-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-06-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-06-t2107,60)
+2026-10-06T21:11:00Z >> p2 #10 1 (Taken)
+2026-10-06T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:7
+  Recorded at 21:11.
+2026-10-06T21:11:00Z p2 send/finalize occ:p2-2026-10-06-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-06-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-06-t2107,0); 2) Correct -> dose.correct(p2-2026-10-06-t2107,0)
+2026-10-07T09:00:00Z p1 send/initial occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-07-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-07-t0900,10); 3) Skip -> dose.skip(p1-2026-10-07-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-07-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-07-t0900,60)
+2026-10-07T09:07:00Z p2 send/initial occ:p2-2026-10-07-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-07-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-07-t0907,10); 3) Skip -> dose.skip(p2-2026-10-07-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-07-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-07-t0907,60)
+2026-10-07T09:09:00Z >> p2 #13 1 (Taken)
+2026-10-07T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:8
+  Recorded at 09:09.
+2026-10-07T09:09:00Z p2 send/finalize occ:p2-2026-10-07-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-07-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-07-t0907,0); 2) Correct -> dose.correct(p2-2026-10-07-t0907,0)
+2026-10-07T09:10:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-07T09:10:00Z p1 send/repeat occ:p1-2026-10-07-t0900:e2:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-07-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-07-t0900,10); 3) Skip -> dose.skip(p1-2026-10-07-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-07-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-07-t0900,60)
+2026-10-07T09:20:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-07T09:20:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-07T09:20:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e2:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-07T09:20:00Z p1 send/repeat occ:p1-2026-10-07-t0900:e3:s3:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-07-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-07-t0900,10); 3) Skip -> dose.skip(p1-2026-10-07-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-07-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-07-t0900,60)
+2026-10-07T09:23:00Z p3 send/initial occ:p3-2026-10-07-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-07-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-07-t0923,10); 3) Skip -> dose.skip(p3-2026-10-07-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-07-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-07-t0923,60)
+2026-10-07T09:26:00Z >> p3 #4 1 (Taken)
+2026-10-07T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:9
+  Recorded at 09:26.
+2026-10-07T09:26:00Z p3 send/finalize occ:p3-2026-10-07-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-07-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-07-t0923,0); 2) Correct -> dose.correct(p3-2026-10-07-t0923,0)
+2026-10-07T09:47:00Z >> p1 #13 1 (Taken)
+2026-10-07T09:47:00Z p1 send/toast toast:console:console:msg:sim:p1:10
+  Recorded at 09:47.
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e2:s2:krepeat
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e2:s2:krepeat
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T09:47:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-07-t0900:e3:s3:krepeat
+  Recorded at 09:47.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-07-t0900,0); 2) Correct -> dose.correct(p1-2026-10-07-t0900,0)
+2026-10-07T14:00:00Z >> p4 /log ibuprofen
+2026-10-07T14:00:00Z p4 send/toast toast:console:console:msg:sim:p4:11
+  Recorded at 14:00.
+2026-10-07T21:07:00Z p2 send/initial occ:p2-2026-10-07-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-07-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-07-t2107,10); 3) Skip -> dose.skip(p2-2026-10-07-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-07-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-07-t2107,60)
+2026-10-07T21:11:00Z >> p2 #16 1 (Taken)
+2026-10-07T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:12
+  Recorded at 21:11.
+2026-10-07T21:11:00Z p2 send/finalize occ:p2-2026-10-07-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-07-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-07-t2107,0); 2) Correct -> dose.correct(p2-2026-10-07-t2107,0)
+2026-10-08T09:00:00Z p1 send/initial occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-08-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-08-t0900,10); 3) Skip -> dose.skip(p1-2026-10-08-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-08-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-08-t0900,60)
+2026-10-08T09:02:00Z >> p1 #22 2 (Snooze 10m)
+2026-10-08T09:02:00Z p1 send/toast toast:console:console:msg:sim:p1:13
+  Okay, I'll remind you again at 09:12.
+2026-10-08T09:02:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-08T09:07:00Z p2 send/initial occ:p2-2026-10-08-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-08-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-08-t0907,10); 3) Skip -> dose.skip(p2-2026-10-08-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-08-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-08-t0907,60)
+2026-10-08T09:09:00Z >> p2 #19 1 (Taken)
+2026-10-08T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:14
+  Recorded at 09:09.
+2026-10-08T09:09:00Z p2 send/finalize occ:p2-2026-10-08-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-08-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-08-t0907,0); 2) Correct -> dose.correct(p2-2026-10-08-t0907,0)
+2026-10-08T09:12:00Z p1 send/snooze_wake occ:p1-2026-10-08-t0900:e3:s1:ksnooze_wake
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-08-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-08-t0900,10); 3) Skip -> dose.skip(p1-2026-10-08-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-08-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-08-t0900,60)
+2026-10-08T09:14:00Z >> p1 #25 4 (Snooze 30m)
+2026-10-08T09:14:00Z p1 send/toast toast:console:console:msg:sim:p1:15
+  Okay, I'll remind you again at 09:44.
+2026-10-08T09:14:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-08T09:14:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-08T09:14:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e3:s1:ksnooze_wake
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-08T09:44:00Z p1 send/snooze_wake occ:p1-2026-10-08-t0900:e5:s1:ksnooze_wake
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-08-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-08-t0900,10); 3) Skip -> dose.skip(p1-2026-10-08-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-08-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-08-t0900,60)
+2026-10-08T09:46:00Z >> p1 #30 1 (Taken)
+2026-10-08T09:46:00Z p1 send/toast toast:console:console:msg:sim:p1:16
+  Recorded at 09:46.
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e3:s1:ksnooze_wake
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e3:s1:ksnooze_wake
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T09:46:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e6:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e5:s1:ksnooze_wake
+  Recorded at 09:46.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-08-t0900,0); 2) Correct -> dose.correct(p1-2026-10-08-t0900,0)
+2026-10-08T21:07:00Z p2 send/initial occ:p2-2026-10-08-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-08-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-08-t2107,10); 3) Skip -> dose.skip(p2-2026-10-08-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-08-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-08-t2107,60)
+2026-10-08T21:11:00Z >> p2 #22 1 (Taken)
+2026-10-08T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:17
+  Recorded at 21:11.
+2026-10-08T21:11:00Z p2 send/finalize occ:p2-2026-10-08-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-08-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-08-t2107,0); 2) Correct -> dose.correct(p2-2026-10-08-t2107,0)
+2026-10-09T09:00:00Z p1 send/initial occ:p1-2026-10-09-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-09-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-09-t0900,10); 3) Skip -> dose.skip(p1-2026-10-09-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-09-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-09-t0900,60)
+2026-10-09T09:03:00Z >> p1 #39 1 (Taken)
+2026-10-09T09:03:00Z p1 send/toast toast:console:console:msg:sim:p1:18
+  Recorded at 09:03.
+2026-10-09T09:03:00Z p1 send/finalize occ:p1-2026-10-09-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-09-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-09-t0900,0); 2) Correct -> dose.correct(p1-2026-10-09-t0900,0)
+2026-10-09T09:07:00Z p2 send/initial occ:p2-2026-10-09-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-09-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-09-t0907,10); 3) Skip -> dose.skip(p2-2026-10-09-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-09-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-09-t0907,60)
+2026-10-09T09:09:00Z >> p2 #25 1 (Taken)
+2026-10-09T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:19
+  Recorded at 09:09.
+2026-10-09T09:09:00Z p2 send/finalize occ:p2-2026-10-09-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-09-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-09-t0907,0); 2) Correct -> dose.correct(p2-2026-10-09-t0907,0)
+2026-10-09T09:23:00Z p3 send/initial occ:p3-2026-10-09-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-09-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-09-t0923,10); 3) Skip -> dose.skip(p3-2026-10-09-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-09-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-09-t0923,60)
+2026-10-09T09:27:00Z >> p3 #7 3 (Skip)
+2026-10-09T09:27:00Z p3 send/toast toast:console:console:msg:sim:p3:20
+  Marked skipped.
+2026-10-09T09:27:00Z p3 send/finalize occ:p3-2026-10-09-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-09-t0923:e1:s1:kinitial
+  Marked skipped.
+2026-10-09T21:07:00Z p2 send/initial occ:p2-2026-10-09-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-09-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-09-t2107,10); 3) Skip -> dose.skip(p2-2026-10-09-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-09-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-09-t2107,60)
+2026-10-09T21:11:00Z >> p2 #28 1 (Taken)
+2026-10-09T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:21
+  Recorded at 21:11.
+2026-10-09T21:11:00Z p2 send/finalize occ:p2-2026-10-09-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-09-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-09-t2107,0); 2) Correct -> dose.correct(p2-2026-10-09-t2107,0)
+2026-10-10T09:00:00Z p1 send/initial occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-10-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-10-t0900,10); 3) Skip -> dose.skip(p1-2026-10-10-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-10-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-10-t0900,60)
+2026-10-10T09:07:00Z p2 send/initial occ:p2-2026-10-10-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-10-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-10-t0907,10); 3) Skip -> dose.skip(p2-2026-10-10-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-10-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-10-t0907,60)
+2026-10-10T09:09:00Z >> p2 #31 1 (Taken)
+2026-10-10T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:22
+  Recorded at 09:09.
+2026-10-10T09:09:00Z p2 send/finalize occ:p2-2026-10-10-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-10-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-10-t0907,0); 2) Correct -> dose.correct(p2-2026-10-10-t0907,0)
+2026-10-10T09:10:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-10T09:10:00Z p1 send/repeat occ:p1-2026-10-10-t0900:e2:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-10-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-10-t0900,10); 3) Skip -> dose.skip(p1-2026-10-10-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-10-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-10-t0900,60)
+2026-10-10T09:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-10T09:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-10T09:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e2:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-10T09:20:00Z p1 send/repeat occ:p1-2026-10-10-t0900:e3:s3:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-10-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-10-t0900,10); 3) Skip -> dose.skip(p1-2026-10-10-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-10-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-10-t0900,60)
+2026-10-10T10:20:00Z >> p1 #48 1 (Taken)
+2026-10-10T10:20:00Z p1 send/toast toast:console:console:msg:sim:p1:23
+  Recorded at 10:20.
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e2:s2:krepeat
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e2:s2:krepeat
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T10:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-10-t0900:e3:s3:krepeat
+  Recorded at 10:20.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-10-t0900,0); 2) Correct -> dose.correct(p1-2026-10-10-t0900,0)
+2026-10-10T21:07:00Z p2 send/initial occ:p2-2026-10-10-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-10-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-10-t2107,10); 3) Skip -> dose.skip(p2-2026-10-10-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-10-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-10-t2107,60)
+2026-10-10T21:11:00Z >> p2 #34 1 (Taken)
+2026-10-10T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:24
+  Recorded at 21:11.
+2026-10-10T21:11:00Z p2 send/finalize occ:p2-2026-10-10-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-10-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-10-t2107,0); 2) Correct -> dose.correct(p2-2026-10-10-t2107,0)
+2026-10-11T09:00:00Z p1 send/initial occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-11-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-11-t0900,10); 3) Skip -> dose.skip(p1-2026-10-11-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-11-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-11-t0900,60)
+2026-10-11T09:07:00Z p2 send/initial occ:p2-2026-10-11-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-11-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-11-t0907,10); 3) Skip -> dose.skip(p2-2026-10-11-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-11-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-11-t0907,60)
+2026-10-11T09:09:00Z >> p2 #37 1 (Taken)
+2026-10-11T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:25
+  Recorded at 09:09.
+2026-10-11T09:09:00Z p2 send/finalize occ:p2-2026-10-11-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-11-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-11-t0907,0); 2) Correct -> dose.correct(p2-2026-10-11-t0907,0)
+2026-10-11T09:10:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-11T09:10:00Z p1 send/repeat occ:p1-2026-10-11-t0900:e2:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-11-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-11-t0900,10); 3) Skip -> dose.skip(p1-2026-10-11-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-11-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-11-t0900,60)
+2026-10-11T09:20:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-11T09:20:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-11T09:20:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e2:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-11T09:20:00Z p1 send/repeat occ:p1-2026-10-11-t0900:e3:s3:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-11-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-11-t0900,10); 3) Skip -> dose.skip(p1-2026-10-11-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-11-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-11-t0900,60)
+2026-10-11T11:00:00Z p1 send/missed occ:p1-2026-10-11-t0900:e4:s0:kmissed
+  I did not get a response for Vitamin D at 09:00, so I marked it missed.
+  
+  1) I took it 2) Skip 3) Keep missed
+  choices: 1) I took it -> dose.taken(p1-2026-10-11-t0900,0); 2) Skip -> dose.skip(p1-2026-10-11-t0900,0); 3) Keep missed -> dose.keep_missed(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z >> p1 #64 1 (I took it)
+2026-10-11T18:00:00Z p1 send/toast toast:console:console:msg:sim:p1:26
+  Recorded at 18:00.
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e2:s2:krepeat
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e2:s2:krepeat
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e3:s3:krepeat
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T18:00:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-11-t0900:e4:s0:kmissed
+  Recorded at 18:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-11-t0900,0); 2) Correct -> dose.correct(p1-2026-10-11-t0900,0)
+2026-10-11T21:07:00Z p2 send/initial occ:p2-2026-10-11-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-11-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-11-t2107,10); 3) Skip -> dose.skip(p2-2026-10-11-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-11-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-11-t2107,60)
+2026-10-11T21:11:00Z >> p2 #40 1 (Taken)
+2026-10-11T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:27
+  Recorded at 21:11.
+2026-10-11T21:11:00Z p2 send/finalize occ:p2-2026-10-11-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-11-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-11-t2107,0); 2) Correct -> dose.correct(p2-2026-10-11-t2107,0)
+2026-10-12T09:00:00Z p1 send/initial occ:p1-2026-10-12-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-12-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-12-t0900,10); 3) Skip -> dose.skip(p1-2026-10-12-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-12-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-12-t0900,60)
+2026-10-12T09:03:00Z >> p1 #74 1 (Taken)
+2026-10-12T09:03:00Z p1 send/toast toast:console:console:msg:sim:p1:28
+  Recorded at 09:03.
+2026-10-12T09:03:00Z p1 send/finalize occ:p1-2026-10-12-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-12-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-12-t0900,0); 2) Correct -> dose.correct(p1-2026-10-12-t0900,0)
+2026-10-12T09:07:00Z p2 send/initial occ:p2-2026-10-12-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-12-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-12-t0907,10); 3) Skip -> dose.skip(p2-2026-10-12-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-12-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-12-t0907,60)
+2026-10-12T09:09:00Z >> p2 #43 1 (Taken)
+2026-10-12T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:29
+  Recorded at 09:09.
+2026-10-12T09:09:00Z p2 send/finalize occ:p2-2026-10-12-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-12-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-12-t0907,0); 2) Correct -> dose.correct(p2-2026-10-12-t0907,0)
+2026-10-12T09:23:00Z p3 send/initial occ:p3-2026-10-12-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-12-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-12-t0923,10); 3) Skip -> dose.skip(p3-2026-10-12-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-12-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-12-t0923,60)
+2026-10-12T09:26:00Z >> p3 #10 1 (Taken)
+2026-10-12T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:30
+  Recorded at 09:26.
+2026-10-12T09:26:00Z p3 send/finalize occ:p3-2026-10-12-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-12-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-12-t0923,0); 2) Correct -> dose.correct(p3-2026-10-12-t0923,0)
+2026-10-12T21:07:00Z p2 send/initial occ:p2-2026-10-12-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-12-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-12-t2107,10); 3) Skip -> dose.skip(p2-2026-10-12-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-12-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-12-t2107,60)
+2026-10-12T21:11:00Z >> p2 #46 1 (Taken)
+2026-10-12T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:31
+  Recorded at 21:11.
+2026-10-12T21:11:00Z p2 send/finalize occ:p2-2026-10-12-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-12-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-12-t2107,0); 2) Correct -> dose.correct(p2-2026-10-12-t2107,0)
+2026-10-13T09:00:00Z p1 send/initial occ:p1-2026-10-13-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-13-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-13-t0900,10); 3) Skip -> dose.skip(p1-2026-10-13-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-13-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-13-t0900,60)
+2026-10-13T09:03:00Z >> p1 #77 1 (Taken)
+2026-10-13T09:03:00Z p1 send/toast toast:console:console:msg:sim:p1:32
+  Recorded at 09:03.
+2026-10-13T09:03:00Z p1 send/finalize occ:p1-2026-10-13-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-13-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-13-t0900,0); 2) Correct -> dose.correct(p1-2026-10-13-t0900,0)
+2026-10-13T09:07:00Z p2 send/initial occ:p2-2026-10-13-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-13-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-13-t0907,10); 3) Skip -> dose.skip(p2-2026-10-13-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-13-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-13-t0907,60)
+2026-10-13T09:09:00Z >> p2 #49 1 (Taken)
+2026-10-13T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:33
+  Recorded at 09:09.
+2026-10-13T09:09:00Z p2 send/finalize occ:p2-2026-10-13-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-13-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-13-t0907,0); 2) Correct -> dose.correct(p2-2026-10-13-t0907,0)
+2026-10-13T12:30:00Z >> p1 /menu
+2026-10-13T12:30:00Z p1 send/reply menu:main:console:console:msg:sim:p1:34
+  What would you like to do?
+  
+  1) Today 2) Medications 3) Account
+  choices: 1) Today -> menu.open(-,0); 2) Medications -> menu.open(-,0); 3) Account -> menu.open(-,0)
+2026-10-13T12:30:00Z >> p1 #80 3 (Account)
+2026-10-13T12:30:00Z p1 send/reply menu:account:console:console:msg:sim:p1:35
+  Account
+  
+  1) Timezone 2) Back
+  choices: 1) Timezone -> menu.open(-,0); 2) Back -> menu.open(-,0)
+2026-10-13T12:30:00Z >> p1 #81 1 (Timezone)
+2026-10-13T12:30:00Z p1 send/reply wizard:session-1:0
+  Pick your timezone:
+  
+  1) UTC-10:00 — Pacific/Honolulu 2) UTC-08:00 — America/Anchorage 3) UTC-07:00 — America/Los_Angeles 4) UTC-06:00 — America/Denver 5) UTC-05:00 — America/Chicago 6) UTC-04:00 — America/New_York 7) UTC-03:00 — America/Sao_Paulo 8) UTC+00:00 — Atlantic/Azores 9) UTC+00:00 — UTC 10) UTC+01:00 — Europe/London 11) UTC+02:00 — Europe/Berlin 12) UTC+02:00 — Europe/Paris 13) UTC+03:00 — Europe/Kyiv 14) UTC+03:00 — Europe/Moscow 15) UTC+04:00 — Asia/Dubai 16) UTC+05:30 — Asia/Kolkata 17) UTC+07:00 — Asia/Bangkok 18) UTC+08:00 — Asia/Shanghai 19) UTC+09:00 — Asia/Tokyo 20) UTC+11:00 — Australia/Sydney 21) UTC+13:00 — Pacific/Auckland 22) Other — type your timezone
+  
+  23) Back 24) Cancel
+  choices: 1) UTC-10:00 — Pacific/Honolulu -> wizard.step(-,0); 2) UTC-08:00 — America/Anchorage -> wizard.step(-,0); 3) UTC-07:00 — America/Los_Angeles -> wizard.step(-,0); 4) UTC-06:00 — America/Denver -> wizard.step(-,0); 5) UTC-05:00 — America/Chicago -> wizard.step(-,0); 6) UTC-04:00 — America/New_York -> wizard.step(-,0); 7) UTC-03:00 — America/Sao_Paulo -> wizard.step(-,0); 8) UTC+00:00 — Atlantic/Azores -> wizard.step(-,0); 9) UTC+00:00 — UTC -> wizard.step(-,0); 10) UTC+01:00 — Europe/London -> wizard.step(-,0); 11) UTC+02:00 — Europe/Berlin -> wizard.step(-,0); 12) UTC+02:00 — Europe/Paris -> wizard.step(-,0); 13) UTC+03:00 — Europe/Kyiv -> wizard.step(-,0); 14) UTC+03:00 — Europe/Moscow -> wizard.step(-,0); 15) UTC+04:00 — Asia/Dubai -> wizard.step(-,0); 16) UTC+05:30 — Asia/Kolkata -> wizard.step(-,0); 17) UTC+07:00 — Asia/Bangkok -> wizard.step(-,0); 18) UTC+08:00 — Asia/Shanghai -> wizard.step(-,0); 19) UTC+09:00 — Asia/Tokyo -> wizard.step(-,0); 20) UTC+11:00 — Australia/Sydney -> wizard.step(-,0); 21) UTC+13:00 — Pacific/Auckland -> wizard.step(-,0); 22) Other — type your timezone -> wizard.step(-,0); 23) Back -> wizard.step(-,0); 24) Cancel -> wizard.step(-,0)
+2026-10-13T12:30:00Z >> p1 #82 22 (Other — type your timezone)
+2026-10-13T12:30:00Z p1 send/reply wizard:session-1:1
+  Type your timezone (an IANA name like Europe/Kyiv).
+  
+  Reply Back to go back or Cancel to stop.
+2026-10-13T12:30:00Z >> p1 "Africa/Lagos"
+2026-10-13T12:30:00Z p1 send/reply wizard:session-1:2
+  It is 13:30 for you now, right?
+  
+  1) Yes 2) Change
+  
+  3) Back 4) Cancel
+  choices: 1) Yes -> wizard.step(-,2); 2) Change -> wizard.step(-,2); 3) Back -> wizard.step(-,2); 4) Cancel -> wizard.step(-,2)
+2026-10-13T12:30:00Z >> p1 #84 1 (Yes)
+2026-10-13T12:30:00Z p1 send/reply account.timezone:done:de48e2d2-07b9-3dae-9b76-4455b826315c
+  It is 13:30 for you now.
+2026-10-13T21:07:00Z p2 send/initial occ:p2-2026-10-13-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-13-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-13-t2107,10); 3) Skip -> dose.skip(p2-2026-10-13-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-13-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-13-t2107,60)
+2026-10-13T21:11:00Z >> p2 #52 1 (Taken)
+2026-10-13T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:40
+  Recorded at 21:11.
+2026-10-13T21:11:00Z p2 send/finalize occ:p2-2026-10-13-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-13-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-13-t2107,0); 2) Correct -> dose.correct(p2-2026-10-13-t2107,0)
+2026-10-14T08:00:00Z p1 send/initial occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-14-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-14-t0900,10); 3) Skip -> dose.skip(p1-2026-10-14-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-14-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-14-t0900,60)
+2026-10-14T08:03:00Z >> p1 #86 1 (Taken)
+2026-10-14T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:41
+  Recorded at 09:03.
+2026-10-14T08:03:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:10:00Z >> p1 #88 1 (Undo)
+2026-10-14T08:10:00Z p1 send/toast toast:console:console:msg:sim:p1:42
+  Undone. I'll check again at 09:20.
+2026-10-14T08:10:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-14T08:10:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+2026-10-14T08:20:00Z p1 send/repeat occ:p1-2026-10-14-t0900:e4:s2:krepeat
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-14-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-14-t0900,10); 3) Skip -> dose.skip(p1-2026-10-14-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-14-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-14-t0900,60)
+2026-10-14T08:22:00Z >> p1 #96 1 (Taken)
+2026-10-14T08:22:00Z p1 send/toast toast:console:console:msg:sim:p1:43
+  Recorded at 09:22.
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T08:22:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e5:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e4:s2:krepeat
+  Recorded at 09:22.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-14-t0900,0); 2) Correct -> dose.correct(p1-2026-10-14-t0900,0)
+2026-10-14T09:00:00Z >> p4 /log ibuprofen
+2026-10-14T09:00:00Z p4 send/toast toast:console:console:msg:sim:p4:44
+  Recorded at 09:00.
+2026-10-14T09:07:00Z p2 send/initial occ:p2-2026-10-14-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-14-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-14-t0907,10); 3) Skip -> dose.skip(p2-2026-10-14-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-14-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-14-t0907,60)
+2026-10-14T09:09:00Z >> p2 #55 1 (Taken)
+2026-10-14T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:45
+  Recorded at 09:09.
+2026-10-14T09:09:00Z p2 send/finalize occ:p2-2026-10-14-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-14-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-14-t0907,0); 2) Correct -> dose.correct(p2-2026-10-14-t0907,0)
+2026-10-14T09:23:00Z p3 send/initial occ:p3-2026-10-14-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-14-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-14-t0923,10); 3) Skip -> dose.skip(p3-2026-10-14-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-14-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-14-t0923,60)
+2026-10-14T09:26:00Z >> p3 #13 1 (Taken)
+2026-10-14T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:46
+  Recorded at 09:26.
+2026-10-14T09:26:00Z p3 send/finalize occ:p3-2026-10-14-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-14-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-14-t0923,0); 2) Correct -> dose.correct(p3-2026-10-14-t0923,0)
+2026-10-14T21:07:00Z p2 send/initial occ:p2-2026-10-14-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-14-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-14-t2107,10); 3) Skip -> dose.skip(p2-2026-10-14-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-14-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-14-t2107,60)
+2026-10-14T21:11:00Z >> p2 #58 1 (Taken)
+2026-10-14T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:47
+  Recorded at 21:11.
+2026-10-14T21:11:00Z p2 send/finalize occ:p2-2026-10-14-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-14-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-14-t2107,0); 2) Correct -> dose.correct(p2-2026-10-14-t2107,0)
+2026-10-15T08:00:00Z p1 send/initial occ:p1-2026-10-15-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-15-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-15-t0900,10); 3) Skip -> dose.skip(p1-2026-10-15-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-15-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-15-t0900,60)
+2026-10-15T08:03:00Z >> p1 #107 1 (Taken)
+2026-10-15T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:48
+  Recorded at 09:03.
+2026-10-15T08:03:00Z p1 send/finalize occ:p1-2026-10-15-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-15-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-15-t0900,0); 2) Correct -> dose.correct(p1-2026-10-15-t0900,0)
+2026-10-15T09:07:00Z p2 send/initial occ:p2-2026-10-15-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-15-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-15-t0907,10); 3) Skip -> dose.skip(p2-2026-10-15-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-15-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-15-t0907,60)
+2026-10-15T09:09:00Z >> p2 #61 1 (Taken)
+2026-10-15T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:49
+  Recorded at 09:09.
+2026-10-15T09:09:00Z p2 send/finalize occ:p2-2026-10-15-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-15-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-15-t0907,0); 2) Correct -> dose.correct(p2-2026-10-15-t0907,0)
+2026-10-15T21:07:00Z p2 send/initial occ:p2-2026-10-15-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-15-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-15-t2107,10); 3) Skip -> dose.skip(p2-2026-10-15-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-15-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-15-t2107,60)
+2026-10-15T21:11:00Z >> p2 #64 1 (Taken)
+2026-10-15T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:50
+  Recorded at 21:11.
+2026-10-15T21:11:00Z p2 send/finalize occ:p2-2026-10-15-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-15-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-15-t2107,0); 2) Correct -> dose.correct(p2-2026-10-15-t2107,0)
+2026-10-16T08:00:00Z >> 6 h outage begins: the worker is not ticked
+2026-10-16T14:00:00Z >> outage ends: materialiser-first restart, catch-up tick
+2026-10-16T14:00:00Z p1 send/digest digest:p1:1991264
+  While I was away, 1 dose passed without a reminder.
+  
+  • Vitamin D, 1000 IU at 09:00
+  
+  1) I took it 2) Skip
+  choices: 1) I took it -> dose.taken(p1-2026-10-16-t0900,0); 2) Skip -> dose.skip(p1-2026-10-16-t0900,0)
+2026-10-16T14:00:00Z p2 send/digest digest:p2:1991268
+  While I was away, 1 dose passed without a reminder.
+  
+  • Metformin, 500 mg at 09:07
+  
+  1) I took it 2) Skip
+  choices: 1) I took it -> dose.taken(p2-2026-10-16-t0907,0); 2) Skip -> dose.skip(p2-2026-10-16-t0907,0)
+2026-10-16T14:00:00Z p3 send/digest digest:p3:1991269
+  While I was away, 1 dose passed without a reminder.
+  
+  • Iron, 25 mg at 09:23
+  
+  1) I took it 2) Skip
+  choices: 1) I took it -> dose.taken(p3-2026-10-16-t0923,0); 2) Skip -> dose.skip(p3-2026-10-16-t0923,0)
+2026-10-16T14:05:00Z >> p1 #110 1 (I took it)
+2026-10-16T14:05:00Z p1 send/toast toast:console:console:msg:sim:p1:51
+  Recorded at 15:05.
+2026-10-16T14:06:00Z >> p2 #67 2 (Skip)
+2026-10-16T14:06:00Z p2 send/toast toast:console:console:msg:sim:p2:52
+  Marked skipped.
+2026-10-16T21:07:00Z p2 send/initial occ:p2-2026-10-16-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-16-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-16-t2107,10); 3) Skip -> dose.skip(p2-2026-10-16-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-16-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-16-t2107,60)
+2026-10-16T21:11:00Z >> p2 #69 1 (Taken)
+2026-10-16T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:53
+  Recorded at 21:11.
+2026-10-16T21:11:00Z p2 send/finalize occ:p2-2026-10-16-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-16-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-16-t2107,0); 2) Correct -> dose.correct(p2-2026-10-16-t2107,0)
+2026-10-17T08:00:00Z p1 send/initial occ:p1-2026-10-17-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-17-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-17-t0900,10); 3) Skip -> dose.skip(p1-2026-10-17-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-17-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-17-t0900,60)
+2026-10-17T08:03:00Z >> p1 #112 1 (Taken)
+2026-10-17T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:54
+  Recorded at 09:03.
+2026-10-17T08:03:00Z p1 send/finalize occ:p1-2026-10-17-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-17-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-17-t0900,0); 2) Correct -> dose.correct(p1-2026-10-17-t0900,0)
+2026-10-17T09:07:00Z p2 send/initial occ:p2-2026-10-17-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-17-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-17-t0907,10); 3) Skip -> dose.skip(p2-2026-10-17-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-17-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-17-t0907,60)
+2026-10-17T09:09:00Z >> p2 #72 1 (Taken)
+2026-10-17T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:55
+  Recorded at 09:09.
+2026-10-17T09:09:00Z p2 send/finalize occ:p2-2026-10-17-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-17-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-17-t0907,0); 2) Correct -> dose.correct(p2-2026-10-17-t0907,0)
+2026-10-17T21:07:00Z p2 send/initial occ:p2-2026-10-17-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-17-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-17-t2107,10); 3) Skip -> dose.skip(p2-2026-10-17-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-17-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-17-t2107,60)
+2026-10-17T21:12:00Z >> p2 #75 3 (Skip)
+2026-10-17T21:12:00Z p2 send/toast toast:console:console:msg:sim:p2:56
+  Marked skipped.
+2026-10-17T21:12:00Z p2 send/finalize occ:p2-2026-10-17-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-17-t2107:e1:s1:kinitial
+  Marked skipped.
+2026-10-18T08:00:00Z p1 send/initial occ:p1-2026-10-18-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-18-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-18-t0900,10); 3) Skip -> dose.skip(p1-2026-10-18-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-18-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-18-t0900,60)
+2026-10-18T08:03:00Z >> p1 #115 1 (Taken)
+2026-10-18T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:57
+  Recorded at 09:03.
+2026-10-18T08:03:00Z p1 send/finalize occ:p1-2026-10-18-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-18-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-18-t0900,0); 2) Correct -> dose.correct(p1-2026-10-18-t0900,0)
+2026-10-18T08:25:00Z >> p1 #117 2 (Correct)
+2026-10-18T08:25:00Z p1 send/reply dose:correct:p1-2026-10-18-t0900:console:console:msg:sim:p1:58
+  When did you take it?
+  
+  1) Now 2) At scheduled time 3) Cancel
+  choices: 1) Now -> dose.correct(p1-2026-10-18-t0900,1); 2) At scheduled time -> dose.correct(p1-2026-10-18-t0900,2); 3) Cancel -> dose.correct(p1-2026-10-18-t0900,3)
+2026-10-18T08:26:00Z >> p1 #118 2 (At scheduled time)
+2026-10-18T08:26:00Z p1 send/toast toast:console:console:msg:sim:p1:59
+  Corrected — logged as taken at 09:00.
+2026-10-18T08:26:00Z p1 send/finalize occ:p1-2026-10-18-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-18-t0900:e1:s1:kinitial
+  Recorded at 09:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-18-t0900,0); 2) Correct -> dose.correct(p1-2026-10-18-t0900,0)
+2026-10-18T08:26:00Z p1 send/finalize occ:p1-2026-10-18-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-18-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-18-t0900:e1:s1:kinitial
+  Recorded at 09:00.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-18-t0900,0); 2) Correct -> dose.correct(p1-2026-10-18-t0900,0)
+2026-10-18T09:07:00Z p2 send/initial occ:p2-2026-10-18-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-18-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-18-t0907,10); 3) Skip -> dose.skip(p2-2026-10-18-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-18-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-18-t0907,60)
+2026-10-18T09:09:00Z >> p2 #78 1 (Taken)
+2026-10-18T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:60
+  Recorded at 09:09.
+2026-10-18T09:09:00Z p2 send/finalize occ:p2-2026-10-18-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-18-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-18-t0907,0); 2) Correct -> dose.correct(p2-2026-10-18-t0907,0)
+2026-10-18T21:07:00Z p2 send/initial occ:p2-2026-10-18-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-18-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-18-t2107,10); 3) Skip -> dose.skip(p2-2026-10-18-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-18-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-18-t2107,60)
+2026-10-18T21:11:00Z >> p2 #81 1 (Taken)
+2026-10-18T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:61
+  Recorded at 21:11.
+2026-10-18T21:11:00Z p2 send/finalize occ:p2-2026-10-18-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-18-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-18-t2107,0); 2) Correct -> dose.correct(p2-2026-10-18-t2107,0)
+2026-10-19T08:00:00Z p1 send/initial occ:p1-2026-10-19-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-19-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-19-t0900,10); 3) Skip -> dose.skip(p1-2026-10-19-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-19-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-19-t0900,60)
+2026-10-19T08:03:00Z >> p1 #122 1 (Taken)
+2026-10-19T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:62
+  Recorded at 09:03.
+2026-10-19T08:03:00Z p1 send/finalize occ:p1-2026-10-19-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-19-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-19-t0900,0); 2) Correct -> dose.correct(p1-2026-10-19-t0900,0)
+2026-10-19T08:20:00Z >> p1 #124 2 (Correct)
+2026-10-19T08:20:00Z p1 send/reply dose:correct:p1-2026-10-19-t0900:console:console:msg:sim:p1:63
+  When did you take it?
+  
+  1) Now 2) At scheduled time 3) Cancel
+  choices: 1) Now -> dose.correct(p1-2026-10-19-t0900,1); 2) At scheduled time -> dose.correct(p1-2026-10-19-t0900,2); 3) Cancel -> dose.correct(p1-2026-10-19-t0900,3)
+2026-10-19T08:21:00Z >> p1 #125 1 (Now)
+2026-10-19T08:21:00Z p1 send/toast toast:console:console:msg:sim:p1:64
+  Corrected — logged as taken at 09:21.
+2026-10-19T08:21:00Z p1 send/finalize occ:p1-2026-10-19-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-19-t0900:e1:s1:kinitial
+  Recorded at 09:21.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-19-t0900,0); 2) Correct -> dose.correct(p1-2026-10-19-t0900,0)
+2026-10-19T08:21:00Z p1 send/finalize occ:p1-2026-10-19-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-19-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-19-t0900:e1:s1:kinitial
+  Recorded at 09:21.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-19-t0900,0); 2) Correct -> dose.correct(p1-2026-10-19-t0900,0)
+2026-10-19T09:07:00Z p2 send/initial occ:p2-2026-10-19-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-19-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-19-t0907,10); 3) Skip -> dose.skip(p2-2026-10-19-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-19-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-19-t0907,60)
+2026-10-19T09:09:00Z >> p2 #84 1 (Taken)
+2026-10-19T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:65
+  Recorded at 09:09.
+2026-10-19T09:09:00Z p2 send/finalize occ:p2-2026-10-19-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-19-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-19-t0907,0); 2) Correct -> dose.correct(p2-2026-10-19-t0907,0)
+2026-10-19T09:23:00Z p3 send/initial occ:p3-2026-10-19-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-19-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-19-t0923,10); 3) Skip -> dose.skip(p3-2026-10-19-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-19-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-19-t0923,60)
+2026-10-19T09:26:00Z >> p3 #17 1 (Taken)
+2026-10-19T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:66
+  Recorded at 09:26.
+2026-10-19T09:26:00Z p3 send/finalize occ:p3-2026-10-19-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-19-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-19-t0923,0); 2) Correct -> dose.correct(p3-2026-10-19-t0923,0)
+2026-10-19T21:07:00Z p2 send/initial occ:p2-2026-10-19-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-19-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-19-t2107,10); 3) Skip -> dose.skip(p2-2026-10-19-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-19-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-19-t2107,60)
+2026-10-19T21:11:00Z >> p2 #87 1 (Taken)
+2026-10-19T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:67
+  Recorded at 21:11.
+2026-10-19T21:11:00Z p2 send/finalize occ:p2-2026-10-19-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-19-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-19-t2107,0); 2) Correct -> dose.correct(p2-2026-10-19-t2107,0)
+2026-10-20T08:00:00Z p1 send/initial occ:p1-2026-10-20-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-20-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-20-t0900,10); 3) Skip -> dose.skip(p1-2026-10-20-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-20-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-20-t0900,60)
+2026-10-20T08:03:00Z >> p1 #129 1 (Taken)
+2026-10-20T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:68
+  Recorded at 09:03.
+2026-10-20T08:03:00Z p1 send/finalize occ:p1-2026-10-20-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-20-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-20-t0900,0); 2) Correct -> dose.correct(p1-2026-10-20-t0900,0)
+2026-10-20T09:07:00Z p2 send/initial occ:p2-2026-10-20-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-20-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-20-t0907,10); 3) Skip -> dose.skip(p2-2026-10-20-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-20-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-20-t0907,60)
+2026-10-20T09:09:00Z >> p2 #90 1 (Taken)
+2026-10-20T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:69
+  Recorded at 09:09.
+2026-10-20T09:09:00Z p2 send/finalize occ:p2-2026-10-20-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-20-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-20-t0907,0); 2) Correct -> dose.correct(p2-2026-10-20-t0907,0)
+2026-10-20T21:07:00Z p2 send/initial occ:p2-2026-10-20-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-20-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-20-t2107,10); 3) Skip -> dose.skip(p2-2026-10-20-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-20-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-20-t2107,60)
+2026-10-20T21:11:00Z >> p2 #93 1 (Taken)
+2026-10-20T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:70
+  Recorded at 21:11.
+2026-10-20T21:11:00Z p2 send/finalize occ:p2-2026-10-20-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-20-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-20-t2107,0); 2) Correct -> dose.correct(p2-2026-10-20-t2107,0)
+2026-10-21T08:00:00Z p1 send/initial occ:p1-2026-10-21-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-21-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-21-t0900,10); 3) Skip -> dose.skip(p1-2026-10-21-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-21-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-21-t0900,60)
+2026-10-21T08:03:00Z >> p1 #132 1 (Taken)
+2026-10-21T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:71
+  Recorded at 09:03.
+2026-10-21T08:03:00Z p1 send/finalize occ:p1-2026-10-21-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-21-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-21-t0900,0); 2) Correct -> dose.correct(p1-2026-10-21-t0900,0)
+2026-10-21T09:07:00Z p2 send/initial occ:p2-2026-10-21-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-21-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-21-t0907,10); 3) Skip -> dose.skip(p2-2026-10-21-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-21-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-21-t0907,60)
+2026-10-21T09:09:00Z >> p2 #96 1 (Taken)
+2026-10-21T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:72
+  Recorded at 09:09.
+2026-10-21T09:09:00Z p2 send/finalize occ:p2-2026-10-21-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-21-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-21-t0907,0); 2) Correct -> dose.correct(p2-2026-10-21-t0907,0)
+2026-10-21T09:23:00Z p3 send/initial occ:p3-2026-10-21-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-21-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-21-t0923,10); 3) Skip -> dose.skip(p3-2026-10-21-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-21-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-21-t0923,60)
+2026-10-21T09:26:00Z >> p3 #20 1 (Taken)
+2026-10-21T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:73
+  Recorded at 09:26.
+2026-10-21T09:26:00Z p3 send/finalize occ:p3-2026-10-21-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-21-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-21-t0923,0); 2) Correct -> dose.correct(p3-2026-10-21-t0923,0)
+2026-10-21T12:00:00Z >> p1 /menu
+2026-10-21T12:00:00Z p1 send/reply menu:main:console:console:msg:sim:p1:74
+  What would you like to do?
+  
+  1) Today 2) Medications 3) Account
+  choices: 1) Today -> menu.open(-,0); 2) Medications -> menu.open(-,0); 3) Account -> menu.open(-,0)
+2026-10-21T12:00:00Z >> p1 #135 2 (Medications)
+2026-10-21T12:00:00Z p1 send/reply menu:medications:console:console:msg:sim:p1:75
+  Medications
+  
+  Vitamin D 1000 IU — every day 09:00
+  
+  1) Pause 2) Archive
+  
+  3) Today's doses 4) Add medication 5) Log dose 6) Settings 7) History
+  
+  8) Back
+  choices: 1) Pause -> menu.open(-,0); 2) Archive -> menu.open(-,0); 3) Today's doses -> menu.open(-,0); 4) Add medication -> menu.open_form(-,0); 5) Log dose -> menu.open(-,0); 6) Settings -> menu.open(-,0); 7) History -> menu.open(-,0); 8) Back -> menu.open(-,0)
+2026-10-21T12:00:00Z >> p1 #136 1 (Pause)
+2026-10-21T12:00:00Z p1 send/reply menu:medications:console:console:msg:sim:p1:76
+  Paused Vitamin D — no reminders until you resume.
+  
+  Medications
+  
+  Vitamin D 1000 IU — Paused since Wed
+  
+  1) Resume 2) Archive
+  
+  3) Today's doses 4) Add medication 5) Log dose 6) Settings 7) History
+  
+  8) Back
+  choices: 1) Resume -> menu.open(-,0); 2) Archive -> menu.open(-,0); 3) Today's doses -> menu.open(-,0); 4) Add medication -> menu.open_form(-,0); 5) Log dose -> menu.open(-,0); 6) Settings -> menu.open(-,0); 7) History -> menu.open(-,0); 8) Back -> menu.open(-,0)
+2026-10-21T18:30:00Z >> p4 /log ibuprofen
+2026-10-21T18:30:00Z p4 send/toast toast:console:console:msg:sim:p4:77
+  Recorded at 18:30.
+2026-10-21T21:07:00Z p2 send/initial occ:p2-2026-10-21-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-21-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-21-t2107,10); 3) Skip -> dose.skip(p2-2026-10-21-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-21-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-21-t2107,60)
+2026-10-21T21:11:00Z >> p2 #99 1 (Taken)
+2026-10-21T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:78
+  Recorded at 21:11.
+2026-10-21T21:11:00Z p2 send/finalize occ:p2-2026-10-21-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-21-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-21-t2107,0); 2) Correct -> dose.correct(p2-2026-10-21-t2107,0)
+2026-10-22T09:07:00Z p2 send/initial occ:p2-2026-10-22-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-22-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-22-t0907,10); 3) Skip -> dose.skip(p2-2026-10-22-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-22-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-22-t0907,60)
+2026-10-22T09:09:00Z >> p2 #102 1 (Taken)
+2026-10-22T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:79
+  Recorded at 09:09.
+2026-10-22T09:09:00Z p2 send/finalize occ:p2-2026-10-22-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-22-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-22-t0907,0); 2) Correct -> dose.correct(p2-2026-10-22-t0907,0)
+2026-10-22T21:07:00Z p2 send/initial occ:p2-2026-10-22-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-22-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-22-t2107,10); 3) Skip -> dose.skip(p2-2026-10-22-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-22-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-22-t2107,60)
+2026-10-22T21:11:00Z >> p2 #105 1 (Taken)
+2026-10-22T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:80
+  Recorded at 21:11.
+2026-10-22T21:11:00Z p2 send/finalize occ:p2-2026-10-22-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-22-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-22-t2107,0); 2) Correct -> dose.correct(p2-2026-10-22-t2107,0)
+2026-10-23T09:07:00Z p2 send/initial occ:p2-2026-10-23-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-23-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-23-t0907,10); 3) Skip -> dose.skip(p2-2026-10-23-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-23-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-23-t0907,60)
+2026-10-23T09:09:00Z >> p2 #108 1 (Taken)
+2026-10-23T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:81
+  Recorded at 09:09.
+2026-10-23T09:09:00Z p2 send/finalize occ:p2-2026-10-23-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-23-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-23-t0907,0); 2) Correct -> dose.correct(p2-2026-10-23-t0907,0)
+2026-10-23T09:23:00Z p3 send/initial occ:p3-2026-10-23-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-23-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-23-t0923,10); 3) Skip -> dose.skip(p3-2026-10-23-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-23-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-23-t0923,60)
+2026-10-23T09:26:00Z >> p3 #23 1 (Taken)
+2026-10-23T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:82
+  Recorded at 09:26.
+2026-10-23T09:26:00Z p3 send/finalize occ:p3-2026-10-23-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-23-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-23-t0923,0); 2) Correct -> dose.correct(p3-2026-10-23-t0923,0)
+2026-10-23T12:00:00Z >> p1 /menu
+2026-10-23T12:00:00Z p1 send/reply menu:main:console:console:msg:sim:p1:83
+  What would you like to do?
+  
+  1) Today 2) Medications 3) Account
+  choices: 1) Today -> menu.open(-,0); 2) Medications -> menu.open(-,0); 3) Account -> menu.open(-,0)
+2026-10-23T12:00:00Z >> p1 #138 2 (Medications)
+2026-10-23T12:00:00Z p1 send/reply menu:medications:console:console:msg:sim:p1:84
+  Medications
+  
+  Vitamin D 1000 IU — Paused since Wed
+  
+  1) Resume 2) Archive
+  
+  3) Today's doses 4) Add medication 5) Log dose 6) Settings 7) History
+  
+  8) Back
+  choices: 1) Resume -> menu.open(-,0); 2) Archive -> menu.open(-,0); 3) Today's doses -> menu.open(-,0); 4) Add medication -> menu.open_form(-,0); 5) Log dose -> menu.open(-,0); 6) Settings -> menu.open(-,0); 7) History -> menu.open(-,0); 8) Back -> menu.open(-,0)
+2026-10-23T12:00:00Z >> p1 #139 1 (Resume)
+2026-10-23T12:00:00Z p1 send/reply menu:medications:console:console:msg:sim:p1:85
+  Resumed Vitamin D — next dose Sat 09:00.
+  
+  Medications
+  
+  Vitamin D 1000 IU — every day 09:00
+  
+  1) Pause 2) Archive
+  
+  3) Today's doses 4) Add medication 5) Log dose 6) Settings 7) History
+  
+  8) Back
+  choices: 1) Pause -> menu.open(-,0); 2) Archive -> menu.open(-,0); 3) Today's doses -> menu.open(-,0); 4) Add medication -> menu.open_form(-,0); 5) Log dose -> menu.open(-,0); 6) Settings -> menu.open(-,0); 7) History -> menu.open(-,0); 8) Back -> menu.open(-,0)
+2026-10-23T21:07:00Z p2 send/initial occ:p2-2026-10-23-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-23-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-23-t2107,10); 3) Skip -> dose.skip(p2-2026-10-23-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-23-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-23-t2107,60)
+2026-10-23T21:11:00Z >> p2 #111 1 (Taken)
+2026-10-23T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:86
+  Recorded at 21:11.
+2026-10-23T21:11:00Z p2 send/finalize occ:p2-2026-10-23-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-23-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-23-t2107,0); 2) Correct -> dose.correct(p2-2026-10-23-t2107,0)
+2026-10-24T08:00:00Z p1 send/initial occ:p1-2026-10-24-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-24-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-24-t0900,10); 3) Skip -> dose.skip(p1-2026-10-24-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-24-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-24-t0900,60)
+2026-10-24T08:03:00Z >> p1 #141 1 (Taken)
+2026-10-24T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:87
+  Recorded at 09:03.
+2026-10-24T08:03:00Z p1 send/finalize occ:p1-2026-10-24-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-24-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-24-t0900,0); 2) Correct -> dose.correct(p1-2026-10-24-t0900,0)
+2026-10-24T09:07:00Z p2 send/initial occ:p2-2026-10-24-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-24-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-24-t0907,10); 3) Skip -> dose.skip(p2-2026-10-24-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-24-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-24-t0907,60)
+2026-10-24T09:09:00Z >> p2 #114 1 (Taken)
+2026-10-24T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:88
+  Recorded at 09:09.
+2026-10-24T09:09:00Z p2 send/finalize occ:p2-2026-10-24-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-24-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-24-t0907,0); 2) Correct -> dose.correct(p2-2026-10-24-t0907,0)
+2026-10-24T21:07:00Z p2 send/initial occ:p2-2026-10-24-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-24-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-24-t2107,10); 3) Skip -> dose.skip(p2-2026-10-24-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-24-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-24-t2107,60)
+2026-10-24T21:11:00Z >> p2 #117 1 (Taken)
+2026-10-24T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:89
+  Recorded at 21:11.
+2026-10-24T21:11:00Z p2 send/finalize occ:p2-2026-10-24-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-24-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-24-t2107,0); 2) Correct -> dose.correct(p2-2026-10-24-t2107,0)
+2026-10-25T08:00:00Z p1 send/initial occ:p1-2026-10-25-t0900:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-25-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-25-t0900,10); 3) Skip -> dose.skip(p1-2026-10-25-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-25-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-25-t0900,60)
+2026-10-25T08:03:00Z >> p1 #144 1 (Taken)
+2026-10-25T08:03:00Z p1 send/toast toast:console:console:msg:sim:p1:90
+  Recorded at 09:03.
+2026-10-25T08:03:00Z p1 send/finalize occ:p1-2026-10-25-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-25-t0900:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-25-t0900,0); 2) Correct -> dose.correct(p1-2026-10-25-t0900,0)
+2026-10-25T09:07:00Z p2 send/initial occ:p2-2026-10-25-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-25-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-25-t0907,10); 3) Skip -> dose.skip(p2-2026-10-25-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-25-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-25-t0907,60)
+2026-10-25T09:09:00Z >> p2 #120 1 (Taken)
+2026-10-25T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:91
+  Recorded at 09:09.
+2026-10-25T09:09:00Z p2 send/finalize occ:p2-2026-10-25-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-25-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-25-t0907,0); 2) Correct -> dose.correct(p2-2026-10-25-t0907,0)
+2026-10-25T12:30:00Z >> p1 /menu
+2026-10-25T12:30:00Z p1 send/reply menu:main:console:console:msg:sim:p1:92
+  What would you like to do?
+  
+  1) Today 2) Medications 3) Account
+  choices: 1) Today -> menu.open(-,0); 2) Medications -> menu.open(-,0); 3) Account -> menu.open(-,0)
+2026-10-25T12:30:00Z >> p1 #147 3 (Account)
+2026-10-25T12:30:00Z p1 send/reply menu:account:console:console:msg:sim:p1:93
+  Account
+  
+  1) Timezone 2) Back
+  choices: 1) Timezone -> menu.open(-,0); 2) Back -> menu.open(-,0)
+2026-10-25T12:30:00Z >> p1 #148 1 (Timezone)
+2026-10-25T12:30:00Z p1 send/reply wizard:session-2:0
+  Pick your timezone:
+  
+  1) UTC-10:00 — Pacific/Honolulu 2) UTC-08:00 — America/Anchorage 3) UTC-07:00 — America/Los_Angeles 4) UTC-06:00 — America/Denver 5) UTC-05:00 — America/Chicago 6) UTC-04:00 — America/New_York 7) UTC-03:00 — America/Sao_Paulo 8) UTC-01:00 — Atlantic/Azores 9) UTC+00:00 — Europe/London 10) UTC+00:00 — UTC 11) UTC+01:00 — Europe/Berlin 12) UTC+01:00 — Europe/Paris 13) UTC+02:00 — Europe/Kyiv 14) UTC+03:00 — Europe/Moscow 15) UTC+04:00 — Asia/Dubai 16) UTC+05:30 — Asia/Kolkata 17) UTC+07:00 — Asia/Bangkok 18) UTC+08:00 — Asia/Shanghai 19) UTC+09:00 — Asia/Tokyo 20) UTC+11:00 — Australia/Sydney 21) UTC+13:00 — Pacific/Auckland 22) Other — type your timezone
+  
+  23) Back 24) Cancel
+  choices: 1) UTC-10:00 — Pacific/Honolulu -> wizard.step(-,0); 2) UTC-08:00 — America/Anchorage -> wizard.step(-,0); 3) UTC-07:00 — America/Los_Angeles -> wizard.step(-,0); 4) UTC-06:00 — America/Denver -> wizard.step(-,0); 5) UTC-05:00 — America/Chicago -> wizard.step(-,0); 6) UTC-04:00 — America/New_York -> wizard.step(-,0); 7) UTC-03:00 — America/Sao_Paulo -> wizard.step(-,0); 8) UTC-01:00 — Atlantic/Azores -> wizard.step(-,0); 9) UTC+00:00 — Europe/London -> wizard.step(-,0); 10) UTC+00:00 — UTC -> wizard.step(-,0); 11) UTC+01:00 — Europe/Berlin -> wizard.step(-,0); 12) UTC+01:00 — Europe/Paris -> wizard.step(-,0); 13) UTC+02:00 — Europe/Kyiv -> wizard.step(-,0); 14) UTC+03:00 — Europe/Moscow -> wizard.step(-,0); 15) UTC+04:00 — Asia/Dubai -> wizard.step(-,0); 16) UTC+05:30 — Asia/Kolkata -> wizard.step(-,0); 17) UTC+07:00 — Asia/Bangkok -> wizard.step(-,0); 18) UTC+08:00 — Asia/Shanghai -> wizard.step(-,0); 19) UTC+09:00 — Asia/Tokyo -> wizard.step(-,0); 20) UTC+11:00 — Australia/Sydney -> wizard.step(-,0); 21) UTC+13:00 — Pacific/Auckland -> wizard.step(-,0); 22) Other — type your timezone -> wizard.step(-,0); 23) Back -> wizard.step(-,0); 24) Cancel -> wizard.step(-,0)
+2026-10-25T12:30:00Z >> p1 #149 22 (Other — type your timezone)
+2026-10-25T12:30:00Z p1 send/reply wizard:session-2:1
+  Type your timezone (an IANA name like Europe/Kyiv).
+  
+  Reply Back to go back or Cancel to stop.
+2026-10-25T12:30:00Z >> p1 "America/Phoenix"
+2026-10-25T12:30:00Z p1 send/reply wizard:session-2:2
+  It is 05:30 for you now, right?
+  
+  1) Yes 2) Change
+  
+  3) Back 4) Cancel
+  choices: 1) Yes -> wizard.step(-,2); 2) Change -> wizard.step(-,2); 3) Back -> wizard.step(-,2); 4) Cancel -> wizard.step(-,2)
+2026-10-25T12:30:00Z >> p1 #151 1 (Yes)
+2026-10-25T12:30:00Z p1 send/reply account.timezone:done:9524ff89-efc6-39ed-bbfd-f5d7210bb14b
+  It is 05:30 for you now.
+2026-10-25T21:07:00Z p2 send/initial occ:p2-2026-10-25-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-25-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-25-t2107,10); 3) Skip -> dose.skip(p2-2026-10-25-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-25-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-25-t2107,60)
+2026-10-25T21:11:00Z >> p2 #123 1 (Taken)
+2026-10-25T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:98
+  Recorded at 21:11.
+2026-10-25T21:11:00Z p2 send/finalize occ:p2-2026-10-25-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-25-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-25-t2107,0); 2) Correct -> dose.correct(p2-2026-10-25-t2107,0)
+2026-10-26T09:07:00Z p2 send/initial occ:p2-2026-10-26-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-26-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-26-t0907,10); 3) Skip -> dose.skip(p2-2026-10-26-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-26-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-26-t0907,60)
+2026-10-26T09:09:00Z >> p2 #126 1 (Taken)
+2026-10-26T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:99
+  Recorded at 09:09.
+2026-10-26T09:09:00Z p2 send/finalize occ:p2-2026-10-26-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-26-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-26-t0907,0); 2) Correct -> dose.correct(p2-2026-10-26-t0907,0)
+2026-10-26T09:23:00Z p3 send/initial occ:p3-2026-10-26-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-26-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-26-t0923,10); 3) Skip -> dose.skip(p3-2026-10-26-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-26-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-26-t0923,60)
+2026-10-26T09:26:00Z >> p3 #26 1 (Taken)
+2026-10-26T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:100
+  Recorded at 09:26.
+2026-10-26T09:26:00Z p3 send/finalize occ:p3-2026-10-26-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-26-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-26-t0923,0); 2) Correct -> dose.correct(p3-2026-10-26-t0923,0)
+2026-10-26T16:00:00Z p1 send/initial occ:p1-2026-10-26-t0900-2:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-26-t0900-2,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-26-t0900-2,10); 3) Skip -> dose.skip(p1-2026-10-26-t0900-2,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-26-t0900-2,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-26-t0900-2,60)
+2026-10-26T16:03:00Z >> p1 #153 1 (Taken)
+2026-10-26T16:03:00Z p1 send/toast toast:console:console:msg:sim:p1:101
+  Recorded at 09:03.
+2026-10-26T16:03:00Z p1 send/finalize occ:p1-2026-10-26-t0900-2:e2:s0:kfinalize_resolved->occ:p1-2026-10-26-t0900-2:e1:s1:kinitial
+  Recorded at 09:03.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-26-t0900-2,0); 2) Correct -> dose.correct(p1-2026-10-26-t0900-2,0)
+2026-10-26T17:00:00Z >> p1 schedule edit: 09:00 -> 09:30 America/Phoenix, same-day edit after the dose
+2026-10-26T21:07:00Z p2 send/initial occ:p2-2026-10-26-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-26-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-26-t2107,10); 3) Skip -> dose.skip(p2-2026-10-26-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-26-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-26-t2107,60)
+2026-10-26T21:11:00Z >> p2 #129 1 (Taken)
+2026-10-26T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:102
+  Recorded at 21:11.
+2026-10-26T21:11:00Z p2 send/finalize occ:p2-2026-10-26-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-26-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-26-t2107,0); 2) Correct -> dose.correct(p2-2026-10-26-t2107,0)
+2026-10-27T09:07:00Z p2 send/initial occ:p2-2026-10-27-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-27-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-27-t0907,10); 3) Skip -> dose.skip(p2-2026-10-27-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-27-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-27-t0907,60)
+2026-10-27T09:09:00Z >> p2 #132 1 (Taken)
+2026-10-27T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:103
+  Recorded at 09:09.
+2026-10-27T09:09:00Z p2 send/finalize occ:p2-2026-10-27-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-27-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-27-t0907,0); 2) Correct -> dose.correct(p2-2026-10-27-t0907,0)
+2026-10-27T16:30:00Z p1 send/initial occ:p1-2026-10-27-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-27-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-27-t0930,10); 3) Skip -> dose.skip(p1-2026-10-27-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-27-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-27-t0930,60)
+2026-10-27T16:33:00Z >> p1 #156 1 (Taken)
+2026-10-27T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:104
+  Recorded at 09:33.
+2026-10-27T16:33:00Z p1 send/finalize occ:p1-2026-10-27-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-10-27-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-27-t0930,0); 2) Correct -> dose.correct(p1-2026-10-27-t0930,0)
+2026-10-27T21:07:00Z p2 send/initial occ:p2-2026-10-27-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-27-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-27-t2107,10); 3) Skip -> dose.skip(p2-2026-10-27-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-27-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-27-t2107,60)
+2026-10-27T21:11:00Z >> p2 #135 1 (Taken)
+2026-10-27T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:105
+  Recorded at 21:11.
+2026-10-27T21:11:00Z p2 send/finalize occ:p2-2026-10-27-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-27-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-27-t2107,0); 2) Correct -> dose.correct(p2-2026-10-27-t2107,0)
+2026-10-28T09:07:00Z p2 send/initial occ:p2-2026-10-28-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-28-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-28-t0907,10); 3) Skip -> dose.skip(p2-2026-10-28-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-28-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-28-t0907,60)
+2026-10-28T09:09:00Z >> p2 #138 1 (Taken)
+2026-10-28T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:106
+  Recorded at 09:09.
+2026-10-28T09:09:00Z p2 send/finalize occ:p2-2026-10-28-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-28-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-28-t0907,0); 2) Correct -> dose.correct(p2-2026-10-28-t0907,0)
+2026-10-28T09:23:00Z p3 send/initial occ:p3-2026-10-28-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-28-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-28-t0923,10); 3) Skip -> dose.skip(p3-2026-10-28-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-28-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-28-t0923,60)
+2026-10-28T09:26:00Z >> p3 #29 1 (Taken)
+2026-10-28T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:107
+  Recorded at 09:26.
+2026-10-28T09:26:00Z p3 send/finalize occ:p3-2026-10-28-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-28-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-28-t0923,0); 2) Correct -> dose.correct(p3-2026-10-28-t0923,0)
+2026-10-28T12:00:00Z >> p4 /log ibuprofen
+2026-10-28T12:00:00Z p4 send/toast toast:console:console:msg:sim:p4:108
+  Recorded at 12:00.
+2026-10-28T16:30:00Z p1 send/initial occ:p1-2026-10-28-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-28-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-28-t0930,10); 3) Skip -> dose.skip(p1-2026-10-28-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-28-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-28-t0930,60)
+2026-10-28T16:33:00Z >> p1 #159 1 (Taken)
+2026-10-28T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:109
+  Recorded at 09:33.
+2026-10-28T16:33:00Z p1 send/finalize occ:p1-2026-10-28-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-10-28-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-28-t0930,0); 2) Correct -> dose.correct(p1-2026-10-28-t0930,0)
+2026-10-28T21:07:00Z p2 send/initial occ:p2-2026-10-28-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-28-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-28-t2107,10); 3) Skip -> dose.skip(p2-2026-10-28-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-28-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-28-t2107,60)
+2026-10-28T21:11:00Z >> p2 #141 1 (Taken)
+2026-10-28T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:110
+  Recorded at 21:11.
+2026-10-28T21:11:00Z p2 send/finalize occ:p2-2026-10-28-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-28-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-28-t2107,0); 2) Correct -> dose.correct(p2-2026-10-28-t2107,0)
+2026-10-29T09:07:00Z p2 send/initial occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-29-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t0907,10); 3) Skip -> dose.skip(p2-2026-10-29-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t0907,60)
+2026-10-29T09:17:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e2:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+2026-10-29T09:17:00Z p2 send/repeat occ:p2-2026-10-29-t0907:e2:s2:krepeat
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-29-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t0907,10); 3) Skip -> dose.skip(p2-2026-10-29-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t0907,60)
+2026-10-29T09:27:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+2026-10-29T09:27:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e2:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+2026-10-29T09:27:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e2:s2:krepeat
+  Time for Metformin, 500 mg.
+2026-10-29T09:27:00Z p2 send/repeat occ:p2-2026-10-29-t0907:e3:s3:krepeat
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-29-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t0907,10); 3) Skip -> dose.skip(p2-2026-10-29-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t0907,60)
+2026-10-29T11:07:00Z p2 send/missed occ:p2-2026-10-29-t0907:e4:s0:kmissed
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+  
+  1) I took it 2) Skip 3) Keep missed
+  choices: 1) I took it -> dose.taken(p2-2026-10-29-t0907,0); 2) Skip -> dose.skip(p2-2026-10-29-t0907,0); 3) Keep missed -> dose.keep_missed(p2-2026-10-29-t0907,0)
+2026-10-29T11:30:00Z >> p2 #151 3 (Keep missed)
+2026-10-29T11:30:00Z p2 send/toast toast:console:console:msg:sim:p2:111
+  Okay — left marked missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e2:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e2:s2:krepeat
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e2:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e2:s2:krepeat
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e3:s3:krepeat
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T11:30:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e4:s0:kfinalize_resolved->occ:p2-2026-10-29-t0907:e4:s0:kmissed
+  I did not get a response for Metformin at 09:07, so I marked it missed.
+2026-10-29T16:30:00Z p1 send/initial occ:p1-2026-10-29-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-29-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-29-t0930,10); 3) Skip -> dose.skip(p1-2026-10-29-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-29-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-29-t0930,60)
+2026-10-29T16:33:00Z >> p1 #162 1 (Taken)
+2026-10-29T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:112
+  Recorded at 09:33.
+2026-10-29T16:33:00Z p1 send/finalize occ:p1-2026-10-29-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-10-29-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-29-t0930,0); 2) Correct -> dose.correct(p1-2026-10-29-t0930,0)
+2026-10-29T21:07:00Z p2 send/initial occ:p2-2026-10-29-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-29-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t2107,10); 3) Skip -> dose.skip(p2-2026-10-29-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t2107,60)
+2026-10-29T21:11:00Z >> p2 #161 1 (Taken)
+2026-10-29T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:113
+  Recorded at 21:11.
+2026-10-29T21:11:00Z p2 send/finalize occ:p2-2026-10-29-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-29-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-29-t2107,0); 2) Correct -> dose.correct(p2-2026-10-29-t2107,0)
+2026-10-30T09:07:00Z p2 send/initial occ:p2-2026-10-30-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-30-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-30-t0907,10); 3) Skip -> dose.skip(p2-2026-10-30-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-30-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-30-t0907,60)
+2026-10-30T09:09:00Z >> p2 #164 1 (Taken)
+2026-10-30T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:114
+  Recorded at 09:09.
+2026-10-30T09:09:00Z p2 send/finalize occ:p2-2026-10-30-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-30-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-30-t0907,0); 2) Correct -> dose.correct(p2-2026-10-30-t0907,0)
+2026-10-30T09:23:00Z p3 send/initial occ:p3-2026-10-30-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-10-30-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-10-30-t0923,10); 3) Skip -> dose.skip(p3-2026-10-30-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-10-30-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-10-30-t0923,60)
+2026-10-30T09:26:00Z >> p3 #32 1 (Taken)
+2026-10-30T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:115
+  Recorded at 09:26.
+2026-10-30T09:26:00Z p3 send/finalize occ:p3-2026-10-30-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-10-30-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-10-30-t0923,0); 2) Correct -> dose.correct(p3-2026-10-30-t0923,0)
+2026-10-30T16:30:00Z p1 send/initial occ:p1-2026-10-30-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-30-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-30-t0930,10); 3) Skip -> dose.skip(p1-2026-10-30-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-30-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-30-t0930,60)
+2026-10-30T16:33:00Z >> p1 #165 1 (Taken)
+2026-10-30T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:116
+  Recorded at 09:33.
+2026-10-30T16:33:00Z p1 send/finalize occ:p1-2026-10-30-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-10-30-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-30-t0930,0); 2) Correct -> dose.correct(p1-2026-10-30-t0930,0)
+2026-10-30T21:07:00Z p2 send/initial occ:p2-2026-10-30-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-30-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-30-t2107,10); 3) Skip -> dose.skip(p2-2026-10-30-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-30-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-30-t2107,60)
+2026-10-30T21:11:00Z >> p2 #167 1 (Taken)
+2026-10-30T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:117
+  Recorded at 21:11.
+2026-10-30T21:11:00Z p2 send/finalize occ:p2-2026-10-30-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-30-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-30-t2107,0); 2) Correct -> dose.correct(p2-2026-10-30-t2107,0)
+2026-10-31T09:07:00Z p2 send/initial occ:p2-2026-10-31-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-31-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-31-t0907,10); 3) Skip -> dose.skip(p2-2026-10-31-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-31-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-31-t0907,60)
+2026-10-31T09:09:00Z >> p2 #170 1 (Taken)
+2026-10-31T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:118
+  Recorded at 09:09.
+2026-10-31T09:09:00Z p2 send/finalize occ:p2-2026-10-31-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-10-31-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-31-t0907,0); 2) Correct -> dose.correct(p2-2026-10-31-t0907,0)
+2026-10-31T16:30:00Z p1 send/initial occ:p1-2026-10-31-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-10-31-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-31-t0930,10); 3) Skip -> dose.skip(p1-2026-10-31-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-31-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-31-t0930,60)
+2026-10-31T16:33:00Z >> p1 #168 1 (Taken)
+2026-10-31T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:119
+  Recorded at 09:33.
+2026-10-31T16:33:00Z p1 send/finalize occ:p1-2026-10-31-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-10-31-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-10-31-t0930,0); 2) Correct -> dose.correct(p1-2026-10-31-t0930,0)
+2026-10-31T21:07:00Z p2 send/initial occ:p2-2026-10-31-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-10-31-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-31-t2107,10); 3) Skip -> dose.skip(p2-2026-10-31-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-31-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-31-t2107,60)
+2026-10-31T21:11:00Z >> p2 #173 1 (Taken)
+2026-10-31T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:120
+  Recorded at 21:11.
+2026-10-31T21:11:00Z p2 send/finalize occ:p2-2026-10-31-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-10-31-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-10-31-t2107,0); 2) Correct -> dose.correct(p2-2026-10-31-t2107,0)
+2026-11-01T09:07:00Z p2 send/initial occ:p2-2026-11-01-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-11-01-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-11-01-t0907,10); 3) Skip -> dose.skip(p2-2026-11-01-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-11-01-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-11-01-t0907,60)
+2026-11-01T09:09:00Z >> p2 #176 1 (Taken)
+2026-11-01T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:121
+  Recorded at 09:09.
+2026-11-01T09:09:00Z p2 send/finalize occ:p2-2026-11-01-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-11-01-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-11-01-t0907,0); 2) Correct -> dose.correct(p2-2026-11-01-t0907,0)
+2026-11-01T16:30:00Z p1 send/initial occ:p1-2026-11-01-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-11-01-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-11-01-t0930,10); 3) Skip -> dose.skip(p1-2026-11-01-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-11-01-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-11-01-t0930,60)
+2026-11-01T16:33:00Z >> p1 #171 1 (Taken)
+2026-11-01T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:122
+  Recorded at 09:33.
+2026-11-01T16:33:00Z p1 send/finalize occ:p1-2026-11-01-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-11-01-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-11-01-t0930,0); 2) Correct -> dose.correct(p1-2026-11-01-t0930,0)
+2026-11-01T21:07:00Z p2 send/initial occ:p2-2026-11-01-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-11-01-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-11-01-t2107,10); 3) Skip -> dose.skip(p2-2026-11-01-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-11-01-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-11-01-t2107,60)
+2026-11-01T21:11:00Z >> p2 #179 1 (Taken)
+2026-11-01T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:123
+  Recorded at 21:11.
+2026-11-01T21:11:00Z p2 send/finalize occ:p2-2026-11-01-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-11-01-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-11-01-t2107,0); 2) Correct -> dose.correct(p2-2026-11-01-t2107,0)
+2026-11-02T09:07:00Z p2 send/initial occ:p2-2026-11-02-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-11-02-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-11-02-t0907,10); 3) Skip -> dose.skip(p2-2026-11-02-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-11-02-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-11-02-t0907,60)
+2026-11-02T09:09:00Z >> p2 #182 1 (Taken)
+2026-11-02T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:124
+  Recorded at 09:09.
+2026-11-02T09:09:00Z p2 send/finalize occ:p2-2026-11-02-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-11-02-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-11-02-t0907,0); 2) Correct -> dose.correct(p2-2026-11-02-t0907,0)
+2026-11-02T09:23:00Z p3 send/initial occ:p3-2026-11-02-t0923:e1:s1:kinitial
+  Time for Iron, 25 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p3-2026-11-02-t0923,0); 2) Snooze 10m -> dose.snooze(p3-2026-11-02-t0923,10); 3) Skip -> dose.skip(p3-2026-11-02-t0923,0); 4) Snooze 30m -> dose.snooze(p3-2026-11-02-t0923,30); 5) Snooze 1h -> dose.snooze(p3-2026-11-02-t0923,60)
+2026-11-02T09:26:00Z >> p3 #35 1 (Taken)
+2026-11-02T09:26:00Z p3 send/toast toast:console:console:msg:sim:p3:125
+  Recorded at 09:26.
+2026-11-02T09:26:00Z p3 send/finalize occ:p3-2026-11-02-t0923:e2:s0:kfinalize_resolved->occ:p3-2026-11-02-t0923:e1:s1:kinitial
+  Recorded at 09:26.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p3-2026-11-02-t0923,0); 2) Correct -> dose.correct(p3-2026-11-02-t0923,0)
+2026-11-02T16:30:00Z p1 send/initial occ:p1-2026-11-02-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-11-02-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-11-02-t0930,10); 3) Skip -> dose.skip(p1-2026-11-02-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-11-02-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-11-02-t0930,60)
+2026-11-02T16:33:00Z >> p1 #174 1 (Taken)
+2026-11-02T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:126
+  Recorded at 09:33.
+2026-11-02T16:33:00Z p1 send/finalize occ:p1-2026-11-02-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-11-02-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-11-02-t0930,0); 2) Correct -> dose.correct(p1-2026-11-02-t0930,0)
+2026-11-02T21:07:00Z p2 send/initial occ:p2-2026-11-02-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-11-02-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-11-02-t2107,10); 3) Skip -> dose.skip(p2-2026-11-02-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-11-02-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-11-02-t2107,60)
+2026-11-02T21:11:00Z >> p2 #185 1 (Taken)
+2026-11-02T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:127
+  Recorded at 21:11.
+2026-11-02T21:11:00Z p2 send/finalize occ:p2-2026-11-02-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-11-02-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-11-02-t2107,0); 2) Correct -> dose.correct(p2-2026-11-02-t2107,0)
+2026-11-03T09:07:00Z p2 send/initial occ:p2-2026-11-03-t0907:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-11-03-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-11-03-t0907,10); 3) Skip -> dose.skip(p2-2026-11-03-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-11-03-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-11-03-t0907,60)
+2026-11-03T09:09:00Z >> p2 #188 1 (Taken)
+2026-11-03T09:09:00Z p2 send/toast toast:console:console:msg:sim:p2:128
+  Recorded at 09:09.
+2026-11-03T09:09:00Z p2 send/finalize occ:p2-2026-11-03-t0907:e2:s0:kfinalize_resolved->occ:p2-2026-11-03-t0907:e1:s1:kinitial
+  Recorded at 09:09.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-11-03-t0907,0); 2) Correct -> dose.correct(p2-2026-11-03-t0907,0)
+2026-11-03T16:30:00Z p1 send/initial occ:p1-2026-11-03-t0930:e1:s1:kinitial
+  Time for Vitamin D, 1000 IU.
+  
+  with breakfast
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p1-2026-11-03-t0930,0); 2) Snooze 10m -> dose.snooze(p1-2026-11-03-t0930,10); 3) Skip -> dose.skip(p1-2026-11-03-t0930,0); 4) Snooze 30m -> dose.snooze(p1-2026-11-03-t0930,30); 5) Snooze 1h -> dose.snooze(p1-2026-11-03-t0930,60)
+2026-11-03T16:33:00Z >> p1 #177 1 (Taken)
+2026-11-03T16:33:00Z p1 send/toast toast:console:console:msg:sim:p1:129
+  Recorded at 09:33.
+2026-11-03T16:33:00Z p1 send/finalize occ:p1-2026-11-03-t0930:e2:s0:kfinalize_resolved->occ:p1-2026-11-03-t0930:e1:s1:kinitial
+  Recorded at 09:33.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p1-2026-11-03-t0930,0); 2) Correct -> dose.correct(p1-2026-11-03-t0930,0)
+2026-11-03T21:07:00Z p2 send/initial occ:p2-2026-11-03-t2107:e1:s1:kinitial
+  Time for Metformin, 500 mg.
+  
+  1) Taken 2) Snooze 10m 3) Skip
+  
+  4) Snooze 30m 5) Snooze 1h
+  choices: 1) Taken -> dose.taken(p2-2026-11-03-t2107,0); 2) Snooze 10m -> dose.snooze(p2-2026-11-03-t2107,10); 3) Skip -> dose.skip(p2-2026-11-03-t2107,0); 4) Snooze 30m -> dose.snooze(p2-2026-11-03-t2107,30); 5) Snooze 1h -> dose.snooze(p2-2026-11-03-t2107,60)
+2026-11-03T21:11:00Z >> p2 #191 1 (Taken)
+2026-11-03T21:11:00Z p2 send/toast toast:console:console:msg:sim:p2:130
+  Recorded at 21:11.
+2026-11-03T21:11:00Z p2 send/finalize occ:p2-2026-11-03-t2107:e2:s0:kfinalize_resolved->occ:p2-2026-11-03-t2107:e1:s1:kinitial
+  Recorded at 21:11.
+  
+  1) Undo 2) Correct
+  choices: 1) Undo -> dose.undo(p2-2026-11-03-t2107,0); 2) Correct -> dose.correct(p2-2026-11-03-t2107,0)

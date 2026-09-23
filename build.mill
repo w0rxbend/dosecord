@@ -84,3 +84,14 @@ object tests extends Module:
   object conformance extends DosecordModule:
     def moduleDeps = Seq(core, contracts)
     object test extends DosecordTests
+  // M1.11: the 30-day scenario simulation drives the real loop, dispatcher, decide FSM and
+  // intake handlers on Testcontainers Postgres through the console adapter; the harness reuses
+  // the M1.5 Fixtures builder and PgSuite container harness from infra's test module.
+  object simulation extends DosecordModule:
+    def moduleDeps = Seq(core, contracts, infra, `adapter-console`)
+    object test extends DosecordTests:
+      def moduleDeps = super.moduleDeps ++ Seq(infra.test)
+      override def mvnDeps = super.mvnDeps() ++ Seq(
+        mvn"com.dimafeng::testcontainers-scala-postgresql:0.44.1",
+        mvn"com.dimafeng::testcontainers-scala-munit:0.44.1"
+      )
