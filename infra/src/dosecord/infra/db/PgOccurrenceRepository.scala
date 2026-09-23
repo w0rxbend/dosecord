@@ -1,6 +1,7 @@
 package dosecord.infra.db
 
 import dosecord.core.domain.CancelReason
+import dosecord.core.domain.DoseSnapshot
 import dosecord.core.domain.DstKind
 import dosecord.core.domain.Occurrence
 import dosecord.core.domain.OccurrenceStatus
@@ -9,6 +10,7 @@ import dosecord.core.ports.NewOccurrence
 import dosecord.core.ports.OccurrenceOrigin
 import dosecord.core.ports.OccurrenceRepository
 import dosecord.core.ports.StoredOccurrence
+import upickle.default.read
 import upickle.default.write
 
 import java.sql.Connection
@@ -60,7 +62,8 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
         missedAt = rs.optInstant("missed_at"),
         unknownReason = rs.optString("unknown_reason").map(UnknownReason.fromDbValue),
         epoch = rs.getInt("epoch")
-      )
+      ),
+      doseSnapshot = rs.optJsonb("dose_snapshot").map(json => read[DoseSnapshot](json.value))
     )
 
   override def insertAll(rows: List[NewOccurrence]): Int =
@@ -87,14 +90,14 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
           FROM dose_occurrences WHERE id = $id""".queryOne[StoredOccurrence]()
 
   override def listBySchedule(scheduleId: UUID): List[StoredOccurrence] =
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
           FROM dose_occurrences WHERE schedule_id = $scheduleId
           ORDER BY scheduled_for, local_date, slot_key""".query[StoredOccurrence]()
 
@@ -102,7 +105,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
           FROM dose_occurrences
           WHERE schedule_id = $scheduleId AND status IN ('pending', 'due', 'snoozed')
           ORDER BY scheduled_for
@@ -129,7 +132,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
           FROM dose_occurrences
           WHERE status IN ('pending', 'due', 'snoozed') AND next_action_at <= $now
             AND error_count < $threshold
@@ -168,3 +171,9 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT MIN(scheduled_for) FROM dose_occurrences
           WHERE schedule_id = $scheduleId AND scheduled_for > $after
             AND status IN ('pending', 'due', 'snoozed')""".queryOne[Option[Instant]]().flatten
+
+  override def epochIsStale(occurrenceId: UUID, epoch: Int): Boolean =
+    // A missing occurrence is stale: its dispatches must not reach a vendor.
+    sql"""SELECT COALESCE((SELECT epoch > $epoch FROM dose_occurrences WHERE id = $occurrenceId), true)"""
+      .queryOne[Boolean]()
+      .getOrElse(true)

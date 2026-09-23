@@ -106,11 +106,24 @@ trait OutboxRepository:
   /** Terminal write of a successful dispatch; always the last write. */
   def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit
 
-  /** Reschedules after a retryable failure; at `MaxAttempts` the row goes `dead` instead (ADR-009). */
+  /** Reschedules after a retryable failure. The dispatcher routes the row to [[dead]] instead once
+    * `OutboxDispatcher.MaxAttempts` is reached (ADR-009); the SQL keeps the same guard so a direct `retry` call cannot
+    * exceed the attempt budget either.
+    */
   def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit
 
-  /** Non-retryable failure (`failed_permanent`); channel-fatal fallback is wired in M1.7. */
+  /** Attempt budget spent or the channel is fatal (ADR-009): terminal `dead` status, the `dosecord_outbox_dead_total`
+    * alert source (DESIGN.md section 10).
+    */
+  def dead(id: UUID, error: String): Unit
+
+  /** Non-retryable, non-fatal failure (`failed_permanent`); no channel action (DESIGN.md section 7.6). */
   def failPermanently(id: UUID, error: String): Unit
+
+  /** Epoch fencing (DESIGN.md section 7.6): the dispatcher cancels a claimed row whose epoch the occurrence has passed,
+    * without a vendor call.
+    */
+  def cancel(id: UUID): Unit
 
   /** Delivery evidence for the missed/unknown decision (DESIGN.md section 7.3, ADR-012): whether any outbox row for the
     * occurrence has `sent_at` set.

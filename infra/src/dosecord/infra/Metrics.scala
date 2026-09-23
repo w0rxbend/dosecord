@@ -1,6 +1,8 @@
 package dosecord.infra
 
 import dosecord.core.ports.Clock
+import dosecord.core.ports.OutboxMetrics
+import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
@@ -11,11 +13,33 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
 /** Micrometer registry stub (ROADMAP M0.11): the one Prometheus meter registry of the process. M2.4 exposes it on
-  * `/metrics` and registers the core metric set of DESIGN.md section 10; only the tzdb info metric and the reminder
-  * loop's tick age exist now.
+  * `/metrics` and registers the rest of the core metric set of DESIGN.md section 10; the tzdb info metric, the reminder
+  * loop's tick age, and the outbox dispatcher's dead / possible-duplicate counters exist now.
   */
 object Metrics:
   val registry: PrometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+
+  private val outboxDeadCounter: Counter =
+    Counter.builder("dosecord_outbox_dead_total").register(registry)
+
+  private val possibleDuplicateCounters =
+    new java.util.concurrent.ConcurrentHashMap[String, Counter]()
+
+  /** `dosecord_outbox_dead_total` (DESIGN.md section 10, ROADMAP M1.7): terminal `dead` outbox rows (attempt budget
+    * spent or channelFatal); the M2.4 alert source.
+    */
+  def outboxDead(): Unit = outboxDeadCounter.increment()
+
+  /** `dosecord_possible_duplicates_total{vendor}` (DESIGN.md section 10, ROADMAP M1.7): sends flagged
+    * `possible_duplicate` under ADR-009's bounded-duplicate rule.
+    */
+  def possibleDuplicate(vendor: String): Unit =
+    possibleDuplicateCounters
+      .computeIfAbsent(
+        vendor,
+        v => Counter.builder("dosecord_possible_duplicates_total").tag("vendor", v).register(registry)
+      )
+      .increment()
 
   /** `dosecord_tzdb_info{version}` = 1 (DESIGN.md section 10): the runtime IANA tzdb version resolved by [[TzdbGuard]].
     */
@@ -52,3 +76,8 @@ object Metrics:
     ()
 
   def scrape(): String = registry.scrape()
+
+/** The dispatcher's metrics port over the shared registry (ROADMAP M1.7). */
+final class MicrometerOutboxMetrics extends OutboxMetrics:
+  override def outboxDead(): Unit = Metrics.outboxDead()
+  override def possibleDuplicate(vendor: String): Unit = Metrics.possibleDuplicate(vendor)

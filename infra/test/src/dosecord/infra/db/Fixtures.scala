@@ -148,9 +148,17 @@ final class Fixtures(dataSource: DataSource):
     }
 
   /** A linked platform identity plus its healthy primary `delivery_channels` row (DESIGN.md section 6), so loop tests
-    * have a channel to enqueue to. Returns the channel id.
+    * have a channel to enqueue to. Returns the channel id. `role`/`priority` order fallback channels behind the
+    * primary.
     */
-  def deliveryChannel(accountId: UUID, vendor: String, chatId: String, now: Instant): UUID =
+  def deliveryChannel(
+      accountId: UUID,
+      vendor: String,
+      chatId: String,
+      now: Instant,
+      role: String = "primary",
+      priority: Int = 0
+  ): UUID =
     val identityId = UUID.randomUUID()
     val channelId = UUID.randomUUID()
     val conn = dataSource.getConnection
@@ -159,6 +167,6 @@ final class Fixtures(dataSource: DataSource):
       sql"""INSERT INTO platform_identities (id, user_id, vendor, vendor_user_id, dm_channel_id, linked_at)
             VALUES ($identityId, $accountId, $vendor, ${s"fixture-$identityId"}, $chatId, $now)""".execute()
       sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
-            VALUES ($channelId, $accountId, $identityId, 'primary', 0, 'healthy', $now)""".execute()
+            VALUES ($channelId, $accountId, $identityId, $role, $priority, 'healthy', $now)""".execute()
     } finally conn.close()
     channelId

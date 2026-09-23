@@ -111,7 +111,9 @@ private object ConsoleFlowFakes:
     override def markOpDone(id: UUID, opIndex: Int): Unit = ()
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit = ()
     override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
+    override def dead(id: UUID, error: String): Unit = ()
     override def failPermanently(id: UUID, error: String): Unit = ()
+    override def cancel(id: UUID): Unit = ()
     override def deliveredFor(occurrenceId: UUID): Boolean = false
     override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
 
@@ -163,7 +165,11 @@ private object ConsoleFlowFakes:
     val occurrences: OccurrenceRepository = ???
     val doseActions: DoseActionRepository = ???
     val policies: PolicyRepository = _ => ???
-    val channels: DeliveryChannelRepository = _ => Nil
+    val channels: DeliveryChannelRepository = new DeliveryChannelRepository:
+      override def activePrimaryChannels(accountId: UUID): List[DeliveryTarget] = Nil
+      override def markDead(channelId: UUID, error: String, now: Instant): Unit = ()
+      override def fallbackChannel(accountId: UUID, excludeChannelId: UUID): Option[DeliveryTarget] = None
+      override def byId(channelId: UUID): Option[DeliveryTarget] = None
     val heartbeat: WorkerHeartbeatRepository = new WorkerHeartbeatRepository:
       override def touch(instance: String, role: String, now: Instant): Unit = ()
       override def maxLastTick(): Option[Instant] = None

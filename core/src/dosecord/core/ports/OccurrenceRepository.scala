@@ -78,7 +78,9 @@ object NewOccurrence:
     )
 
 /** A `dose_occurrences` row as read back. `state` is the pure FSM projection `Decide.decide` consumes; identity fields,
-  * `cancelReason` and the optimistic-lock `version` stay outside it.
+  * `cancelReason` and the optimistic-lock `version` stay outside it. `doseSnapshot` is the row's own denormalised copy
+  * (DESIGN.md section 8: it explains what the user was asked to take even after a later edit); the dispatcher's
+  * renderer reads it when rendering reminder copy at send time.
   */
 final case class StoredOccurrence(
     id: UUID,
@@ -94,7 +96,8 @@ final case class StoredOccurrence(
     dstKind: DstKind,
     cancelReason: Option[CancelReason],
     version: Int,
-    state: Occurrence
+    state: Occurrence,
+    doseSnapshot: Option[DoseSnapshot] = None
 ):
   def scheduledFor: Instant = state.scheduledFor
   def status: OccurrenceStatus = state.status
@@ -148,6 +151,11 @@ trait OccurrenceRepository:
     * quiet-defer fallback).
     */
   def nextScheduledAfter(scheduleId: UUID, after: Instant): Option[Instant]
+
+  /** The dispatcher's epoch fence (DESIGN.md section 7.6): true when the occurrence's current epoch is past `epoch` (a
+    * user action or a newer decide replaced the dispatch) or the occurrence no longer exists.
+    */
+  def epochIsStale(occurrenceId: UUID, epoch: Int): Boolean
 
 object OccurrenceRepository:
 
