@@ -1,0 +1,22 @@
+{
+  "name": "raw-modal-payload",
+  "title": "Opening a form through a live interaction produces the vendor's raw modal payload with the form id, title and fields",
+  "requires": ["modal", "wireModal"],
+  "form": {
+    "id": "f1",
+    "title": "Add medication",
+    "fields": [
+      { "key": "name", "label": "Name", "tpe": "Text", "required": true },
+      { "key": "dose", "label": "Dose", "tpe": "Text", "required": false, "placeholder": "1000 IU" }
+    ],
+    "submit": "dc:conformance-submit"
+  },
+  "steps": [
+    { "do": "start" },
+    { "do": "deliver", "event": { "kind": "callback", "wireId": "w1", "chat": "dm:owner", "callback": "dc:conformance-token", "sourceMessageId": "1" } },
+    { "do": "openForm" }
+  ],
+  "expect": [
+    { "expect": "modalPayloadContains", "values": ["f1", "Add medication", "name", "dose"] }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "resume",
+  "title": "start with a resume cursor replays nothing and continues the cursor: the first post-restart event gets a cursor after the resumed one",
+  "requires": [],
+  "steps": [
+    { "do": "start", "resumeFrom": "41" },
+    { "do": "deliver", "event": { "kind": "message", "wireId": "w1", "chat": "dm:owner", "text": "after restart" } }
+  ],
+  "expect": [
+    { "expect": "inboundCount", "count": 1 },
+    { "expect": "inbound", "wireId": "w1", "kind": "MessageReceived", "text": "after restart", "cursorGreaterThan": 41 }
+  ]
+}

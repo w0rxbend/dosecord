@@ -1,0 +1,14 @@
+{
+  "name": "delete-window-permanent",
+  "title": "A delete the vendor refuses ('message can't be deleted', outside the window) is Permanent with channelFatal = false",
+  "requires": ["delete"],
+  "steps": [
+    { "do": "start" },
+    { "do": "send", "text": "v1", "sendKey": "k1" },
+    { "do": "injectFault", "fault": "deleteWindow" },
+    { "do": "delete", "messageId": "$last" }
+  ],
+  "expect": [
+    { "expect": "error", "kind": "permanent", "channelFatal": false }
+  ]
+}

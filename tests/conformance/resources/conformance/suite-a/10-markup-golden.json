@@ -1,0 +1,27 @@
+{
+  "name": "markup-golden",
+  "title": "renderText lowers the RichText AST into the profile's vendor markup; the golden pins the exact output per markup",
+  "requires": [],
+  "richText": [
+    { "paragraph": [
+      { "text": "Time for " },
+      { "bold": "Vitamin D" },
+      { "text": ", 1000 IU." },
+      { "lineBreak": true },
+      { "text": "After food." }
+    ] },
+    { "bullets": [
+      [{ "text": "Taken" }],
+      [{ "text": "Skipped" }]
+    ] },
+    { "code": "a < b" }
+  ],
+  "steps": [
+    { "do": "renderText" }
+  ],
+  "expect": [
+    { "expect": "renderTextGolden", "goldens": {
+      "plain": ["Time for Vitamin D, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\na < b"]
+    } }
+  ]
+}

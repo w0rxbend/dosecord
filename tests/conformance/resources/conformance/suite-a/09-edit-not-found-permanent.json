@@ -1,0 +1,13 @@
+{
+  "name": "edit-not-found-permanent",
+  "title": "Editing a message the vendor no longer knows ('message to edit not found') is Permanent with channelFatal = false",
+  "requires": ["edit"],
+  "steps": [
+    { "do": "start" },
+    { "do": "injectFault", "fault": "editNotFound" },
+    { "do": "edit", "messageId": "999", "text": "v2" }
+  ],
+  "expect": [
+    { "expect": "error", "kind": "permanent", "channelFatal": false }
+  ]
+}

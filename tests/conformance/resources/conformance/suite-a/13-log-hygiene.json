@@ -1,0 +1,12 @@
+{
+  "name": "log-hygiene",
+  "title": "Sending a message never logs its body, medication names or callback material (DESIGN.md section 10: masking above DEBUG)",
+  "requires": [],
+  "steps": [
+    { "do": "start" },
+    { "do": "send", "text": "Time for Metformin, 500 mg. Token dc:AAAASECRET", "sendKey": "k1" }
+  ],
+  "expect": [
+    { "expect": "logClean", "canaries": ["Metformin", "500 mg", "AAAASECRET"] }
+  ]
+}

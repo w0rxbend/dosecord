@@ -1,0 +1,14 @@
+{
+  "name": "text-split",
+  "title": "Text over the profile's maxText splits into non-empty chunks within the limit (DESIGN.md section 4.3)",
+  "requires": [],
+  "richText": [
+    { "paragraph": [{ "repeat": ["x", 9000] }] }
+  ],
+  "steps": [
+    { "do": "renderText" }
+  ],
+  "expect": [
+    { "expect": "renderTextRespectsMaxText" }
+  ]
+}
