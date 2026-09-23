@@ -288,7 +288,8 @@ object Gens:
         Arbitrary.arbitrary[FieldType],
         Gen.oneOf(true, false),
         genOptText,
-        smallList(Arbitrary.arbitrary[Choice], 3)
+        smallList(Arbitrary.arbitrary[Choice], 3),
+        genOptText
       )
       .map(Field.apply)
   )
@@ -442,7 +443,8 @@ object Gens:
   )
   given Arbitrary[RenderedField] = Arbitrary(
     Gen
-      .zip(genText, genText, Arbitrary.arbitrary[FieldType], Gen.oneOf(true, false), genOptText, smallList(genText))
+      .zip(genText, genText, Arbitrary.arbitrary[FieldType], Gen.oneOf(true, false), genOptText, smallList(genText),
+        genOptText)
       .map(RenderedField.apply)
   )
   given Arbitrary[RenderedForm] = Arbitrary(

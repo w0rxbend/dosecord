@@ -177,3 +177,12 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT COALESCE((SELECT epoch > $epoch FROM dose_occurrences WHERE id = $occurrenceId), true)"""
       .queryOne[Boolean]()
       .getOrElse(true)
+
+  override def listForAccountBetween(accountId: UUID, from: LocalDate, to: LocalDate): List[StoredOccurrence] =
+    sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
+                 tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
+                 epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+          FROM dose_occurrences
+          WHERE account_id = $accountId AND local_date >= $from AND local_date <= $to
+          ORDER BY scheduled_for, id""".query[StoredOccurrence]()

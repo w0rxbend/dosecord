@@ -34,7 +34,7 @@ class FirstFlowsSuite extends munit.FunSuite:
       // One account, timezone captured, display name neutral (never the vendor nickname fixture, K8).
       assertEquals(rig.uow.accounts.all.size, 1, "exactly one account created")
       val account = rig.uow.accounts.all.head
-      assertEquals(account.timezone, "Europe/Kyiv")
+      assertEquals(account.currentTimezone, "Europe/Kyiv")
       assertEquals(account.displayName, None)
       assert(
         account.displayName != FirstFlowsRig.actor.displayName,

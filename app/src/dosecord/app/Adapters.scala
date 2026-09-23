@@ -2,8 +2,8 @@ package dosecord.app
 
 import dosecord.adapter.console.ConsoleAdapter
 import dosecord.contracts.ChatAdapter
+import dosecord.core.application.Application
 import dosecord.core.application.CommandRegistry
-import dosecord.core.application.FirstFlows
 import dosecord.core.chat.CallbackCodec
 import dosecord.core.chat.ChatMediator
 import dosecord.core.ports.Clock
@@ -14,10 +14,11 @@ import ox.Ox
 
 import javax.sql.DataSource
 
-/** Adapter wiring (ROADMAP M0.12c/d): builds the adapters named by `ENABLED_ADAPTERS`, wires them into the mediator as
-  * their inbound sink and starts them inside the Ox root scope. Only the console adapter exists so far; other vendors
-  * fail fast until their slices land. The handler is the M0.12d [[FirstFlows]] composition (account create, `/mood`,
-  * `/help`); the mediator's ack policy reads the [[CommandRegistry]].
+/** Adapter wiring (ROADMAP M0.12c/d, M1.9): builds the adapters named by `ENABLED_ADAPTERS`, wires them into the
+  * mediator as their inbound sink and starts them inside the Ox root scope. Only the console adapter exists so far;
+  * other vendors fail fast until their slices land. The handler is the M1.9 [[Application]] composition (account
+  * create, add-medication wizard, main menu, Today, History, pause/resume, Account -> Timezone, `/mood`, `/help`); the
+  * mediator's ack policy reads the [[CommandRegistry]].
   */
 object Adapters:
 
@@ -38,7 +39,7 @@ object Adapters:
       uow,
       adapters,
       codec,
-      FirstFlows.handler(uow, adapters, codec, Clock.system),
+      Application.handler(uow, adapters, codec, Clock.system),
       Clock.system,
       commands = CommandRegistry.byName
     )

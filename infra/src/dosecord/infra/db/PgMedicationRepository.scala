@@ -41,3 +41,9 @@ final class PgMedicationRepository(conn: Connection) extends MedicationRepositor
           FROM medications
           WHERE user_id = $accountId AND name_norm = $nameNorm AND status <> 'archived'"""
       .queryOne[StoredMedication]()
+
+  override def listForAccount(accountId: UUID): List[StoredMedication] =
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at
+          FROM medications
+          WHERE user_id = $accountId AND status <> 'archived'
+          ORDER BY created_at, id""".query[StoredMedication]()

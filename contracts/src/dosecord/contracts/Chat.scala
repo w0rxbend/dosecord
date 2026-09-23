@@ -189,7 +189,9 @@ final case class Field(
     tpe: FieldType,
     required: Boolean = true,
     placeholder: Option[String] = None,
-    options: List[Choice] = Nil
+    options: List[Choice] = Nil,
+    /** Pre-filled value (M1.9: a form step re-rendered after `[Back]` carries the previous answers). */
+    value: Option[String] = None
 ) derives ReadWriter:
   require(key.nonEmpty, "field key must not be empty")
 

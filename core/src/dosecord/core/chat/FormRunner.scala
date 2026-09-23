@@ -28,28 +28,49 @@ object FormRunner:
 final class FormRunner(codec: CallbackCodec):
   import FormRunner.*
 
-  /** Starts a run for a form-bearing prompt just persisted by the engine. */
-  def start(tx: Tx, sessionId: UUID, formId: String, submitWire: String): Unit =
+  /** Starts a run for a form-bearing prompt just persisted by the engine. `prefill` seeds previous answers (M1.9: a
+    * form step re-rendered after `[Back]` keeps them on an empty re-answer).
+    */
+  def start(
+      tx: Tx,
+      sessionId: UUID,
+      formId: String,
+      submitWire: String,
+      prefill: Map[String, String] = Map.empty
+  ): Unit =
     tx.formRuns.insert(
-      FormRun(sessionId, formId, WizardDocument.answersToJson(Map(SubmitKey -> submitWire)), fieldIndex = 0)
+      FormRun(sessionId, formId, WizardDocument.answersToJson(prefill + (SubmitKey -> submitWire)), fieldIndex = 0)
     )
 
-  /** Records one text answer for the run's current field; completes the run (and deletes it) after the last field. */
+  /** Records one text answer for the run's current field; completes the run (and deletes it) after the last field. An
+    * empty answer keeps the field's pre-filled value when there is one; a required field with no value is the M0.12b
+    * re-ask.
+    */
   def accept(tx: Tx, run: FormRun, fields: List[Field], text: String): AnswerOutcome =
     fields.lift(run.fieldIndex) match
       case None        => AnswerOutcome.Invalid(WizardCopy.fieldRequired)
       case Some(field) =>
+        val answers = WizardDocument.answersFromJson(run.answers)
         val trimmed = text.trim
-        if field.required && trimmed.isEmpty then AnswerOutcome.Invalid(WizardCopy.fieldRequired)
-        else
-          val answers = WizardDocument.answersFromJson(run.answers) + (field.key -> trimmed)
-          val nextIndex = run.fieldIndex + 1
-          if nextIndex < fields.size then
-            tx.formRuns.save(run.copy(answers = WizardDocument.answersToJson(answers), fieldIndex = nextIndex))
-            AnswerOutcome.Advanced(nextIndex)
-          else
-            tx.formRuns.delete(run.sessionId)
-            AnswerOutcome.Completed(formSubmitted(run.formId, answers))
+        val kept = answers.get(field.key).filter(_.nonEmpty)
+        val answer =
+          if trimmed.nonEmpty then Some(trimmed)
+          else kept
+        answer match
+          case None if field.required => AnswerOutcome.Invalid(WizardCopy.fieldRequired)
+          case value                  =>
+            val nextIndex = run.fieldIndex + 1
+            if nextIndex < fields.size then
+              tx.formRuns.save(
+                run.copy(
+                  answers = WizardDocument.answersToJson(answers + (field.key -> value.getOrElse(""))),
+                  fieldIndex = nextIndex
+                )
+              )
+              AnswerOutcome.Advanced(nextIndex)
+            else
+              tx.formRuns.delete(run.sessionId)
+              AnswerOutcome.Completed(formSubmitted(run.formId, answers + (field.key -> value.getOrElse(""))))
 
   private def formSubmitted(formId: String, answers: Map[String, String]): Inbound.FormSubmitted =
     val wire = answers(SubmitKey)

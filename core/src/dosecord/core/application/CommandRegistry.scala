@@ -3,9 +3,9 @@ package dosecord.core.application
 import dosecord.contracts.CommandArg
 import dosecord.contracts.CommandSpec
 
-/** The registered commands (ROADMAP M0.12d, R51, K9). `/help` renders from this registry, so it cannot omit a command —
-  * including itself; the mediator's ack policy reads the same specs. Unshipped commands (M1.9's `/today`, `/history`,
-  * `/log`, ...) are absent here, not flagged or teased.
+/** The registered commands (ROADMAP M0.12d, R51, K9; `/today` and `/history` from M1.9). `/help` renders from this
+  * registry, so it cannot omit a command — including itself; the mediator's ack policy reads the same specs. Unshipped
+  * commands (`/taken`, `/snooze`, `/skip`, `/log`, M1.10) are absent here, not flagged or teased.
   */
 object CommandRegistry:
 
@@ -24,6 +24,16 @@ object CommandRegistry:
     )
   )
 
+  val Today: CommandSpec = CommandSpec(
+    name = "today",
+    description = "Show today's doses and record them."
+  )
+
+  val History: CommandSpec = CommandSpec(
+    name = "history",
+    description = "Show the last 7 days."
+  )
+
   val Menu: CommandSpec = CommandSpec(
     name = "menu",
     description = "Open the main menu."
@@ -40,7 +50,7 @@ object CommandRegistry:
   )
 
   /** Display order is the registration order. */
-  val all: List[CommandSpec] = List(Start, Mood, Menu, Cancel, Help)
+  val all: List[CommandSpec] = List(Start, Today, History, Mood, Menu, Cancel, Help)
 
   val byName: Map[String, CommandSpec] = all.map(spec => spec.name -> spec).toMap
 

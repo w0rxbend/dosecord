@@ -86,62 +86,64 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
   def create(cmd: CreateSchedule): Either[List[String], RevisionOutcome] =
     val errors = ruleErrors(cmd.rule)
     if errors.nonEmpty then Left(errors)
-    else
-      val now = clock.now()
-      Right(uow.transaction { tx =>
-        val medicationId = UUID.randomUUID()
-        tx.medications.insert(
-          NewMedication(
-            medicationId,
-            cmd.accountId,
-            cmd.medicationName,
-            cmd.doseAmount,
-            cmd.doseUnit,
-            cmd.instructions
-          ),
-          now
-        )
-        val scheduleId = UUID.randomUUID()
-        val startDate = now.atZone(cmd.zone).toLocalDate
-        val kind = Rule.kindTag(cmd.rule)
-        tx.schedules.insert(
-          NewSchedule(scheduleId, medicationId, cmd.accountId, kind, cmd.zone, cmd.tzFollowsUser, startDate),
-          now
-        )
-        val snapshot = DoseSnapshot(cmd.medicationName, cmd.doseAmount, cmd.doseUnit, cmd.instructions)
-        val revision = NewScheduleRevision(
-          UUID.randomUUID(),
-          scheduleId,
-          revision = 1,
-          effectiveFrom = now,
-          tz = cmd.zone,
-          rule = cmd.rule,
-          policy = cmd.policy,
-          doseSnapshot = snapshot,
-          createdBy = "user",
-          reason = Some("create")
-        )
-        tx.revisions.append(revision, now)
-        val storedSchedule =
-          StoredSchedule(
-            scheduleId,
-            medicationId,
-            cmd.accountId,
-            kind,
-            ScheduleStatus.Active,
-            1,
-            cmd.zone,
-            cmd.tzFollowsUser,
-            startDate,
-            None,
-            None
-          )
-        val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
-        val inserted = Materialiser.materializeSchedule(tx, storedSchedule, stored(revision, now), now, horizonEnd)
-        tx.schedules.advanceMaterializedThrough(scheduleId, horizonEnd, now)
-        appendScheduleCreated(tx, cmd.accountId, medicationId, scheduleId, cmd.zone, now)
-        RevisionOutcome(scheduleId, medicationId, revision = 1, effectiveFrom = now, inserted, Nil, Nil)
-      })
+    else Right(uow.transaction(tx => createInTx(tx, cmd, clock.now())))
+
+  /** The transaction half of [[create]] (M1.9: the add-medication wizard completes inside the mediator's per-event
+    * transaction, so the rows commit or roll back with the conversation state).
+    */
+  def createInTx(tx: Tx, cmd: CreateSchedule, now: Instant): RevisionOutcome =
+    val medicationId = UUID.randomUUID()
+    tx.medications.insert(
+      NewMedication(
+        medicationId,
+        cmd.accountId,
+        cmd.medicationName,
+        cmd.doseAmount,
+        cmd.doseUnit,
+        cmd.instructions
+      ),
+      now
+    )
+    val scheduleId = UUID.randomUUID()
+    val startDate = now.atZone(cmd.zone).toLocalDate
+    val kind = Rule.kindTag(cmd.rule)
+    tx.schedules.insert(
+      NewSchedule(scheduleId, medicationId, cmd.accountId, kind, cmd.zone, cmd.tzFollowsUser, startDate),
+      now
+    )
+    val snapshot = DoseSnapshot(cmd.medicationName, cmd.doseAmount, cmd.doseUnit, cmd.instructions)
+    val revision = NewScheduleRevision(
+      UUID.randomUUID(),
+      scheduleId,
+      revision = 1,
+      effectiveFrom = now,
+      tz = cmd.zone,
+      rule = cmd.rule,
+      policy = cmd.policy,
+      doseSnapshot = snapshot,
+      createdBy = "user",
+      reason = Some("create")
+    )
+    tx.revisions.append(revision, now)
+    val storedSchedule =
+      StoredSchedule(
+        scheduleId,
+        medicationId,
+        cmd.accountId,
+        kind,
+        ScheduleStatus.Active,
+        1,
+        cmd.zone,
+        cmd.tzFollowsUser,
+        startDate,
+        None,
+        None
+      )
+    val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
+    val inserted = Materialiser.materializeSchedule(tx, storedSchedule, stored(revision, now), now, horizonEnd)
+    tx.schedules.advanceMaterializedThrough(scheduleId, horizonEnd, now)
+    appendScheduleCreated(tx, cmd.accountId, medicationId, scheduleId, cmd.zone, now)
+    RevisionOutcome(scheduleId, medicationId, revision = 1, effectiveFrom = now, inserted, Nil, Nil)
 
   /** A rule/policy edit in the schedule's current zone (the M3.2 edit wizard's data side). */
   def edit(
@@ -150,9 +152,20 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
       policy: Option[ReminderPolicy] = None,
       effectiveFrom: Option[Instant] = None
   ): RevisionOutcome =
+    uow.transaction(tx => editInTx(tx, scheduleId, rule, policy, effectiveFrom, clock.now()))
+
+  /** The transaction half of [[edit]] (M1.9's find-or-create update path). */
+  def editInTx(
+      tx: Tx,
+      scheduleId: UUID,
+      rule: Rule,
+      policy: Option[ReminderPolicy] = None,
+      effectiveFrom: Option[Instant],
+      now: Instant
+  ): RevisionOutcome =
     val errors = ruleErrors(rule)
     require(errors.isEmpty, errors.mkString("; "))
-    planned(scheduleId) { (_, schedule, latest, _) =>
+    plannedInTx(tx, scheduleId, now) { (_, schedule, latest, _) =>
       requireActive(schedule)
       RevisionPlan(
         rule,
@@ -168,7 +181,11 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
 
   /** Pause is a revision too (`Paused` rule, ADR-004), effective now: future pending rows are cancelled `paused`. */
   def pause(scheduleId: UUID): RevisionOutcome =
-    planned(scheduleId) { (_, schedule, latest, now) =>
+    uow.transaction(tx => pauseInTx(tx, scheduleId, clock.now()))
+
+  /** The transaction half of [[pause]] (M1.9's menu toggle). */
+  def pauseInTx(tx: Tx, scheduleId: UUID, now: Instant): RevisionOutcome =
+    plannedInTx(tx, scheduleId, now) { (_, schedule, latest, _) =>
       requireActive(schedule)
       RevisionPlan(
         Rule.Paused,
@@ -186,7 +203,11 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     * timezone change on a paused schedule moves the row, and resume picks the new zone up here).
     */
   def resume(scheduleId: UUID): RevisionOutcome =
-    planned(scheduleId) { (tx, schedule, latest, now) =>
+    uow.transaction(tx => resumeInTx(tx, scheduleId, clock.now()))
+
+  /** The transaction half of [[resume]] (M1.9's menu toggle). */
+  def resumeInTx(tx: Tx, scheduleId: UUID, now: Instant): RevisionOutcome =
+    plannedInTx(tx, scheduleId, now) { (tx, schedule, latest, _) =>
       require(
         schedule.status == ScheduleStatus.Paused,
         s"schedule $scheduleId is not paused (status ${schedule.status.dbValue})"
@@ -211,7 +232,11 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
 
   /** Archive is a revision that cancels future pending rows `archived` and materialises nothing more. */
   def archive(scheduleId: UUID): RevisionOutcome =
-    planned(scheduleId) { (_, schedule, latest, now) =>
+    uow.transaction(tx => archiveInTx(tx, scheduleId, clock.now()))
+
+  /** The transaction half of [[archive]] (M1.9's menu entry). */
+  def archiveInTx(tx: Tx, scheduleId: UUID, now: Instant): RevisionOutcome =
+    plannedInTx(tx, scheduleId, now) { (_, schedule, latest, _) =>
       require(schedule.status != ScheduleStatus.Archived, s"schedule $scheduleId is already archived")
       RevisionPlan(
         latest.rule,
@@ -230,7 +255,17 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     * (`RevisionOutcome.keptForQuestion`, the eastward-move case of DESIGN.md section 7.1).
     */
   def changeTimezone(scheduleId: UUID, newZone: ZoneId, effectiveFrom: Option[Instant] = None): RevisionOutcome =
-    planned(scheduleId) { (_, schedule, latest, _) =>
+    uow.transaction(tx => changeTimezoneInTx(tx, scheduleId, newZone, effectiveFrom, clock.now()))
+
+  /** The transaction half of [[changeTimezone]]. */
+  def changeTimezoneInTx(
+      tx: Tx,
+      scheduleId: UUID,
+      newZone: ZoneId,
+      effectiveFrom: Option[Instant],
+      now: Instant
+  ): RevisionOutcome =
+    plannedInTx(tx, scheduleId, now) { (_, schedule, latest, _) =>
       requireActive(schedule)
       RevisionPlan(
         latest.rule,
@@ -249,26 +284,31 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     * `Paused` revision materialises nothing and resume picks the new zone up.
     */
   def rezoneFollowingSchedules(accountId: UUID, newZone: ZoneId): List[RevisionOutcome] =
-    val following = uow.transaction(_.schedules.listFollowingForTzChange(accountId))
+    uow.transaction(tx => rezoneFollowingSchedulesInTx(tx, accountId, newZone, clock.now()))
+
+  /** The transaction half of [[rezoneFollowingSchedules]] (M1.9's Account -> Timezone completes inside the mediator's
+    * per-event transaction).
+    */
+  def rezoneFollowingSchedulesInTx(tx: Tx, accountId: UUID, newZone: ZoneId, now: Instant): List[RevisionOutcome] =
+    val following = tx.schedules.listFollowingForTzChange(accountId)
     val (active, paused) = following.partition(_.status == ScheduleStatus.Active)
     paused.filter(_.tz != newZone).foreach { schedule =>
-      uow.transaction(tx => tx.schedules.setTimezone(schedule.id, newZone, clock.now()))
+      tx.schedules.setTimezone(schedule.id, newZone, now)
     }
-    active.filter(_.tz != newZone).map(schedule => changeTimezone(schedule.id, newZone))
+    active.filter(_.tz != newZone).map(schedule => changeTimezoneInTx(tx, schedule.id, newZone, None, now))
 
-  private def planned(
-      scheduleId: UUID
+  private def plannedInTx(
+      tx: Tx,
+      scheduleId: UUID,
+      now: Instant
   )(f: (Tx, StoredSchedule, StoredScheduleRevision, Instant) => RevisionPlan): RevisionOutcome =
-    val now = clock.now()
-    uow.transaction { tx =>
-      val schedule = tx.schedules
-        .getForUpdate(scheduleId)
-        .getOrElse(throw new NoSuchElementException(s"unknown schedule $scheduleId"))
-      val latest = tx.revisions
-        .latest(scheduleId)
-        .getOrElse(throw new IllegalStateException(s"schedule $scheduleId has no revisions"))
-      applyPlan(tx, schedule, latest, f(tx, schedule, latest, now), now)
-    }
+    val schedule = tx.schedules
+      .getForUpdate(scheduleId)
+      .getOrElse(throw new NoSuchElementException(s"unknown schedule $scheduleId"))
+    val latest = tx.revisions
+      .latest(scheduleId)
+      .getOrElse(throw new IllegalStateException(s"schedule $scheduleId has no revisions"))
+    applyPlan(tx, schedule, latest, f(tx, schedule, latest, now), now)
 
   private def applyPlan(
       tx: Tx,

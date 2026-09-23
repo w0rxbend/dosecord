@@ -37,6 +37,10 @@ Pick your timezone:
 
 /start — Create your account and pick a timezone.
 
+/today — Show today's doses and record them.
+
+/history — Show the last 7 days.
+
 /mood <level> [note] [tags] — Log your mood.
 
 /menu — Open the main menu.

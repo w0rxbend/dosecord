@@ -37,7 +37,7 @@ object FirstFlows:
     IdentityGate(engine)
 
   /** Routes `ConversationStarted` and `/start` into the create flow, guarding the already-linked case. */
-  private final class IdentityGate(engine: WizardEngine) extends ChatHandler:
+  private[application] final class IdentityGate(engine: WizardEngine) extends ChatHandler:
     override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
       event.body match
         case Inbound.ConversationStarted                              => startCreate(event, principal, tx)
@@ -50,9 +50,10 @@ object FirstFlows:
       else engine.startFlow(event, principal, AccountCreateFlow.Id, tx)
 
   /** The non-wizard commands of the slice: `/mood`, `/help` (rendered from the registry) and the fallbacks. `/menu`
-    * shows help until M1.9 builds the real menu; the engine still treats it as the global interrupt first.
+    * shows help on this legacy path; the M1.9 [[Application]] composition wires the real menu behind the engine's
+    * global interrupt.
     */
-  private final class CommandHandlers(clock: Clock) extends ChatHandler:
+  private[application] final class CommandHandlers(clock: Clock) extends ChatHandler:
     private val mood = MoodCommand(clock)
 
     override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
@@ -86,4 +87,11 @@ object FirstFlows:
       dedupeKey = s"$kind:${event.vendor}:${event.vendorEventId}",
       correlationId = s"${event.vendor}:${event.vendorEventId}"
     )
+
+  /** The M1.9 composition's building blocks: the plain command handlers (`/mood`, `/help`, the fallbacks) as the inner
+    * handler behind the menu, and the identity gate in front of the engine.
+    */
+  private[application] def innerHandlers(clock: Clock): ChatHandler = CommandHandlers(clock)
+
+  private[application] def identityGate(engine: WizardEngine): ChatHandler = IdentityGate(engine)
 end FirstFlows
