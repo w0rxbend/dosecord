@@ -114,6 +114,18 @@ trait OccurrenceRepository:
   def get(id: UUID): Option[StoredOccurrence]
   def listBySchedule(scheduleId: UUID): List[StoredOccurrence]
 
+  /** The one-tap intake handler's lock (DESIGN.md section 7.4: "the tap handler does `SELECT ... FOR UPDATE` on the
+    * occurrence first, then calls `decide` on the fresh row"): a tap on a row claimed by an in-flight tick waits for
+    * the tick's transaction and then reads the fresh row, so the user action never fails with a version conflict.
+    */
+  def lockById(id: UUID): Option[StoredOccurrence]
+
+  /** The universal `/taken`, `/snooze` and `/skip` commands' target resolution (M1.10): the most recently scheduled
+    * open occurrence of the account that is already actionable (`scheduled_for <= now` — a future pending row is not
+    * "the latest dose"), optionally narrowed to one medication.
+    */
+  def latestOpenForAccount(accountId: UUID, medicationId: Option[UUID], now: Instant): Option[StoredOccurrence]
+
   /** The edit transaction's lock on the schedule's open rows (`FOR UPDATE`, not SKIP LOCKED: a concurrent tick is
     * waited for, DESIGN.md section 7.1).
     */

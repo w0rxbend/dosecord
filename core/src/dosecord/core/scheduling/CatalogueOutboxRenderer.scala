@@ -226,7 +226,9 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
   // ---------- finalize ----------
 
   /** The finalize edit carries the outcome copy of the occurrence's current status (DESIGN.md section 7.3): a resolved
-    * row shows its confirmation, a superseded one keeps the reminder text with the controls dropped.
+    * row shows its confirmation, a superseded one keeps the reminder text with the controls dropped. A resolved Taken
+    * keeps the post-Taken follow-up [Undo][Correct] (M1.4a recorded decision, M1.10): the correction and the undo
+    * within the 15-minute window stay one tap away on the recorded handle.
     */
   private def renderFinalize(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     val dispatch = row.payloadAs[LoopDispatch.FinalizeControls]("reminder_finalize")
@@ -246,14 +248,34 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     )
     val summary = occ.state.status match
       case OccurrenceStatus.Taken =>
-        List(ReminderCopy.takenConfirmation(formatTime(occ, occ.state.takenAt.getOrElse(occ.state.scheduledFor))))
+        // The effective time is what the user recorded (for a correction it differs from taken_at).
+        List(
+          ReminderCopy.takenConfirmation(
+            formatTime(occ, occ.state.effectiveAt.orElse(occ.state.takenAt).getOrElse(occ.state.scheduledFor))
+          )
+        )
       case OccurrenceStatus.Skipped => List(ReminderCopy.skippedConfirmation)
       case OccurrenceStatus.Missed  =>
         List(ReminderCopy.missedNotice(snapshot.medicationName, formatTime(occ, occ.state.scheduledFor)))
       case _ =>
         ReminderCopy.reminderBody(snapshot.medicationName, doseText(snapshot), snapshot.instructions)
+    val keep =
+      if occ.state.status == OccurrenceStatus.Taken && dispatch.reason == "resolved" then
+        List(
+          Block.Choices(
+            ChoiceSet(
+              id = "post_taken.followup",
+              choices = List(
+                Choice(Labels.Undo, token("dose.undo", occ.id, 0)),
+                Choice(Labels.Correct, token("dose.correct", occ.id, 0))
+              )
+            )
+          )
+        )
+      else Nil
     val message = OutboundMessage(
       body = summary.map(line => Node.Paragraph(List(Inline.Text(line)))),
+      blocks = keep,
       importance = Importance.Reminder,
       dedupeKey = row.sendKey,
       correlationId = row.sendKey

@@ -3,9 +3,9 @@ package dosecord.core.application
 import dosecord.contracts.CommandArg
 import dosecord.contracts.CommandSpec
 
-/** The registered commands (ROADMAP M0.12d, R51, K9; `/today` and `/history` from M1.9). `/help` renders from this
-  * registry, so it cannot omit a command — including itself; the mediator's ack policy reads the same specs. Unshipped
-  * commands (`/taken`, `/snooze`, `/skip`, `/log`, M1.10) are absent here, not flagged or teased.
+/** The registered commands (ROADMAP M0.12d, R51, K9; `/today` and `/history` from M1.9; `/taken`, `/snooze`, `/skip`,
+  * `/log` from M1.10). `/help` renders from this registry, so it cannot omit a command — including itself; the
+  * mediator's ack policy reads the same specs.
   */
 object CommandRegistry:
 
@@ -34,6 +34,30 @@ object CommandRegistry:
     description = "Show the last 7 days."
   )
 
+  val Taken: CommandSpec = CommandSpec(
+    name = "taken",
+    description = "Record the latest dose as taken.",
+    args = List(CommandArg("medication", "Which medication; omitted takes the latest open dose", required = false))
+  )
+
+  val Snooze: CommandSpec = CommandSpec(
+    name = "snooze",
+    description = "Snooze the latest dose.",
+    args = List(CommandArg("minutes", "How many minutes, e.g. /snooze 10"))
+  )
+
+  val Skip: CommandSpec = CommandSpec(
+    name = "skip",
+    description = "Skip the latest dose.",
+    args = List(CommandArg("medication", "Which medication; omitted skips the latest open dose", required = false))
+  )
+
+  val Log: CommandSpec = CommandSpec(
+    name = "log",
+    description = "Log a dose you already took.",
+    args = List(CommandArg("medication", "Which medication; omitted shows a picker", required = false))
+  )
+
   val Menu: CommandSpec = CommandSpec(
     name = "menu",
     description = "Open the main menu."
@@ -50,7 +74,7 @@ object CommandRegistry:
   )
 
   /** Display order is the registration order. */
-  val all: List[CommandSpec] = List(Start, Today, History, Mood, Menu, Cancel, Help)
+  val all: List[CommandSpec] = List(Start, Today, History, Taken, Snooze, Skip, Log, Mood, Menu, Cancel, Help)
 
   val byName: Map[String, CommandSpec] = all.map(spec => spec.name -> spec).toMap
 

@@ -30,6 +30,15 @@ final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessag
                   $kind, $subjectType, $subjectId, $epoch, $choiceMapJson, $now)
           ON CONFLICT (vendor, chat_id, message_id) DO NOTHING""".execute() == 1
 
+  override def recordEdit(handle: MessageHandle, choiceMap: List[ChoiceMapEntry], now: Instant): Unit =
+    if choiceMap.nonEmpty then
+      val choiceMapJson = Jsonb(upickle.default.write(choiceMap))
+      sql"""UPDATE rendered_messages
+            SET choice_map = $choiceMapJson, revision = revision + 1, last_edited_at = $now
+            WHERE vendor = ${handle.vendor} AND chat_id = ${handle.chatId} AND message_id = ${handle.messageId}"""
+        .execute()
+      ()
+
   override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] =
     sql"""SELECT revision, choice_map, controls_removed_at
           FROM rendered_messages

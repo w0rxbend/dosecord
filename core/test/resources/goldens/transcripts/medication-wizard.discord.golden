@@ -11,7 +11,7 @@ What would you like to do?
 > tap "Medications"
 send: Medications
 
-No medications yet. | [Today's doses] [Add medication] [Settings] [History] [Back]
+No medications yet. | [Today's doses] [Add medication] [Log dose] [Settings] [History] [Back]
 > tap "Add medication"
 modal: medication.add (name, dose, times, instructions)
 send: Let's add a medication.

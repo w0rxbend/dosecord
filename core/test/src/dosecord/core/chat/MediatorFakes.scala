@@ -20,6 +20,12 @@ import scala.jdk.CollectionConverters.*
   */
 object MediatorFakes:
 
+  /** Message identity is the (vendor, chat, message) triple; `revision` is the rendered-message edit counter, not
+    * part of the identity (mirrors the Postgres lookups, which key on the triple).
+    */
+  private def sameMessage(a: MessageHandle, b: MessageHandle): Boolean =
+    a.vendor == b.vendor && a.chatId == b.chatId && a.messageId == b.messageId
+
   final class FixedClock(var at: Instant) extends Clock:
     override def now(): Instant = at
 
@@ -135,10 +141,20 @@ object MediatorFakes:
 
     /** Test hook: finalize a message (controls removed). */
     def removeControls(handle: MessageHandle): Unit = this.synchronized:
-      rows.mapInPlace((h, map, removed, st, sid) => (h, map, removed || h == handle, st, sid))
+      rows.mapInPlace((h, map, removed, st, sid) =>
+        (h, map, removed || sameMessage(h, handle), st, sid)
+      )
+
+    override def recordEdit(handle: MessageHandle, choiceMap: List[ChoiceMapEntry], now: Instant): Unit =
+      this.synchronized:
+        if choiceMap.nonEmpty then
+          rows.mapInPlace((h, map, removed, st, sid) =>
+            if sameMessage(h, handle) then (h.copy(revision = h.revision + 1), choiceMap, removed, st, sid)
+            else (h, map, removed, st, sid)
+          )
 
     override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] = this.synchronized:
-      rows.collectFirst { case (h, map, removed, _, _) if h == handle =>
+      rows.collectFirst { case (h, map, removed, _, _) if sameMessage(h, handle) =>
         RenderedChoiceMap(h, h.revision, map, removed)
       }
 
@@ -154,25 +170,105 @@ object MediatorFakes:
   final class InMemoryOutbox extends OutboxRepository:
     private val enqueued = ListBuffer.empty[NewOutboxMessage]
     private val sent = ListBuffer.empty[UUID]
+    private final case class State(
+        status: OutboxStatus = OutboxStatus.Queued,
+        attempts: Int = 0,
+        nextAttemptAt: Option[Instant] = None,
+        attemptedAt: Option[Instant] = None,
+        opsDone: Int = 0,
+        platformMessageId: Option[String] = None,
+        possibleDuplicate: Boolean = false,
+        sentAt: Option[Instant] = None
+    )
+    private val states = scala.collection.mutable.Map.empty[UUID, State].withDefaultValue(State())
     def allEnqueued: List[NewOutboxMessage] = this.synchronized(enqueued.toList)
     def allSent: List[UUID] = this.synchronized(sent.toList)
     override def enqueue(msg: NewOutboxMessage): Boolean = this.synchronized:
-      enqueued += msg
-      true
-    override def enqueueDigest(msg: NewOutboxMessage): Boolean = this.synchronized:
-      enqueued += msg
-      true
-    override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] = Nil
-    override def recordHandle(id: UUID, encodedHandle: String): Unit = ()
-    override def markOpDone(id: UUID, opIndex: Int): Unit = ()
+      if enqueued.exists(_.sendKey == msg.sendKey) then false
+      else
+        enqueued += msg
+        states(msg.id) = State(nextAttemptAt = Some(msg.nextAttemptAt))
+        true
+    override def enqueueDigest(msg: NewOutboxMessage): Boolean = enqueue(msg)
+    override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] =
+      this.synchronized:
+        enqueued
+          .filter: msg =>
+            val s = states(msg.id)
+            vendors.contains(msg.vendor) &&
+            (s.status == OutboxStatus.Queued || s.status == OutboxStatus.FailedRetry) &&
+            s.nextAttemptAt.exists(!_.isAfter(now))
+          .sortBy(msg => states(msg.id).nextAttemptAt)
+          .take(limit)
+          .map: msg =>
+            val s = states(msg.id)
+            states(msg.id) = s.copy(
+              status = OutboxStatus.Sending,
+              attempts = s.attempts + 1,
+              attemptedAt = Some(now)
+            )
+            toOutboxMessage(msg, states(msg.id), previousAttemptedAt = s.attemptedAt)
+          .toList
+    override def recordHandle(id: UUID, encodedHandle: String): Unit = this.synchronized:
+      states(id) = states(id).copy(opsDone = states(id).opsDone | 1, platformMessageId = Some(encodedHandle))
+    override def markOpDone(id: UUID, opIndex: Int): Unit = this.synchronized:
+      states(id) = states(id).copy(opsDone = states(id).opsDone | (1 << opIndex))
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit =
-      this.synchronized(sent += id)
-    override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
-    override def dead(id: UUID, error: String): Unit = ()
-    override def failPermanently(id: UUID, error: String): Unit = ()
-    override def cancel(id: UUID): Unit = ()
-    override def deliveredFor(occurrenceId: UUID): Boolean = false
-    override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
+      this.synchronized:
+        sent += id
+        states(id) = states(id).copy(
+          status = OutboxStatus.Sent,
+          platformMessageId = Some(encodedHandle),
+          possibleDuplicate = possibleDuplicate,
+          sentAt = Some(now)
+        )
+    override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit =
+      this.synchronized:
+        states(id) = states(id).copy(status = OutboxStatus.FailedRetry, nextAttemptAt = Some(at),
+          possibleDuplicate = possibleDuplicate)
+    override def dead(id: UUID, error: String): Unit = this.synchronized:
+      states(id) = states(id).copy(status = OutboxStatus.Dead)
+    override def failPermanently(id: UUID, error: String): Unit = this.synchronized:
+      states(id) = states(id).copy(status = OutboxStatus.FailedPermanent)
+    override def cancel(id: UUID): Unit = this.synchronized:
+      states(id) = states(id).copy(status = OutboxStatus.Cancelled)
+    override def deliveredFor(occurrenceId: UUID): Boolean = this.synchronized:
+      enqueued.exists(msg => msg.occurrenceId.contains(occurrenceId) && states(msg.id).sentAt.isDefined)
+    override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = this.synchronized:
+      val doomed = enqueued.filter(msg =>
+        msg.occurrenceId.contains(occurrenceId) && msg.epoch.exists(_ < epoch) &&
+          Set(OutboxStatus.Queued, OutboxStatus.FailedRetry, OutboxStatus.Sending).contains(states(msg.id).status)
+      )
+      doomed.foreach(msg => states(msg.id) = states(msg.id).copy(status = OutboxStatus.Cancelled))
+      doomed.size
+
+    private def toOutboxMessage(msg: NewOutboxMessage, s: State, previousAttemptedAt: Option[Instant]): OutboxMessage =
+      OutboxMessage(
+        id = msg.id,
+        sendKey = msg.sendKey,
+        op = msg.op,
+        kind = msg.kind,
+        vendor = msg.vendor,
+        accountId = msg.accountId,
+        occurrenceId = msg.occurrenceId,
+        channelId = msg.channelId,
+        epoch = msg.epoch,
+        payload = msg.payload,
+        target = msg.target,
+        importance = msg.importance,
+        status = s.status,
+        attempts = s.attempts,
+        nextAttemptAt = s.nextAttemptAt.getOrElse(msg.nextAttemptAt),
+        leaseUntil = None,
+        attemptedAt = s.attemptedAt,
+        previousAttemptedAt = previousAttemptedAt,
+        opsDone = s.opsDone,
+        possibleDuplicate = s.possibleDuplicate,
+        platformMessageId = s.platformMessageId,
+        lastError = None,
+        createdAt = msg.nextAttemptAt,
+        sentAt = s.sentAt
+      )
 
   final class InMemorySessions extends SessionRepository:
     private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, ConversationSession]
@@ -310,6 +406,15 @@ object MediatorFakes:
       inserted
 
     override def get(id: UUID): Option[StoredOccurrence] = this.synchronized(rows.find(_.id == id))
+    override def lockById(id: UUID): Option[StoredOccurrence] = get(id)
+    override def latestOpenForAccount(accountId: UUID, medicationId: Option[UUID], now: Instant): Option[StoredOccurrence] =
+      this.synchronized:
+        rows
+          .filter(r =>
+            r.accountId == accountId && r.status.isOpen && medicationId.forall(_ == r.medicationId) &&
+              !r.state.scheduledFor.isAfter(now)
+          )
+          .maxByOption(_.state.scheduledFor)
     override def listBySchedule(scheduleId: UUID): List[StoredOccurrence] =
       this.synchronized(
         rows
@@ -393,7 +498,8 @@ object MediatorFakes:
       val seq = rows.count(_.occurrenceId == row.occurrenceId) + 1
       rows += StoredDoseAction(row.id, row.occurrenceId, row.accountId, seq, row.action, row.actor, row.occurredAt,
         row.occurredAt, row.priorStatus, row.newStatus, row.effectiveAt, row.reasonCode, row.note, row.undoesSeq,
-        row.catchUp, row.correlationId, row.idempotencyKey, row.metadata)
+        row.catchUp, row.correlationId, row.idempotencyKey, row.metadata, row.vendor, row.platformIdentityId,
+        row.platformMessageId)
     override def listForOccurrence(occurrenceId: UUID): List[StoredDoseAction] =
       this.synchronized(rows.filter(_.occurrenceId == occurrenceId).sortBy(_.seq).toList)
 

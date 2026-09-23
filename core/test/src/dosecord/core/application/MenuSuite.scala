@@ -7,8 +7,9 @@ import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.domain.Rule
 import dosecord.core.domain.SlotGroup
 import dosecord.core.domain.UnknownReason
+import dosecord.core.domain.copy.DoseActionKind
 import dosecord.core.domain.copy.Labels
-import dosecord.core.domain.copy.MenuCopy
+import dosecord.core.ports.OccurrenceOrigin
 import dosecord.core.ports.ScheduleStatus
 
 import java.time.Instant
@@ -17,9 +18,10 @@ import java.time.ZoneId
 import scala.jdk.CollectionConverters.*
 
 /** M1.9 menu acceptance on the in-memory ports: the main menu's shipped entries, the Medications submenu with the
-  * pause/resume/archive toggle (revisions through the M1.5 lifecycle), the interactive `/today` (direct dose tokens,
-  * as-needed log rows, the 8-row cap, the not-yet-recorded tap answer), the read-only `/history`, Medications ->
-  * Settings showing the ADR-012 defaults, and Account -> Timezone moving only the following schedule.
+  * pause/resume/archive toggle (revisions through the M1.5 lifecycle) and the M1.10 Log dose entry, the interactive
+  * `/today` (direct dose tokens, as-needed log rows, the 8-row cap, a tap that records through the M1.10 intake
+  * handler), the read-only `/history`, Medications -> Settings showing the ADR-012 defaults, and Account -> Timezone
+  * moving only the following schedule.
   */
 class MenuSuite extends munit.FunSuite:
 
@@ -57,9 +59,9 @@ class MenuSuite extends munit.FunSuite:
       assert(labels.contains("Archive"))
       assert(labels.contains("Today's doses"))
       assert(labels.contains("Add medication"))
+      assert(labels.contains("Log dose"), "Log dose ships in M1.10")
       assert(labels.contains("Settings"))
       assert(labels.contains("History"))
-      assert(!labels.contains("Log dose"), "Log dose is hidden until M1.10")
       assert(!labels.contains("Edit"), "Edit is hidden until M3.2")
 
   test("pause then resume from the menu fires the next slot"):
@@ -124,7 +126,7 @@ class MenuSuite extends munit.FunSuite:
         s"the policy line: ${rig.lastChunks}"
       )
 
-  test("/today renders per-dose Taken/Skip and per-as-needed Log; a tap records nothing yet"):
+  test("/today renders per-dose Taken/Skip and per-as-needed Log; a tap records (M1.10)"):
     withRig: rig =>
       val account = rig.seedAccount()
       rig.seedSchedule(account, "Vitamin D", dailyAt("09:00"), kyiv,
@@ -134,34 +136,43 @@ class MenuSuite extends munit.FunSuite:
       assert(today.exists(_.contains("09:00 Vitamin D 1000 IU — scheduled")), s"the dose row: $today")
       assert(today.exists(_.contains("Vitamin C — as needed")), s"the as-needed row: $today")
 
-      // The dose row's buttons are direct tokens on the occurrence (M1.10 will handle them).
+      // The dose row's buttons are direct tokens on the occurrence, handled by the M1.10 intake handler.
       val takenWire = rig.lastChoiceMap("Today's doses").find(_.label == "Taken").map(_.callback).get
       val payload = MedicationWizardRig.codec.decode(takenWire).toOption.get
       assertEquals(payload.action.name, "dose.taken")
       assertEquals(payload.mode, CallbackMode.Direct)
-      assertEquals(payload.subject, rig.uow.occurrences.all.head.id)
+      val occurrenceId = rig.uow.occurrences.all.head.id
+      assertEquals(payload.subject, occurrenceId)
       val skipPayload = MedicationWizardRig.codec
         .decode(rig.lastChoiceMap("Today's doses").find(_.label == "Skip").map(_.callback).get).toOption.get
       assertEquals(skipPayload.action.name, "dose.skip")
 
-      // A tap answers honestly and records nothing (the intake handlers land in M1.10); the toast goes to the
-      // interaction handle, as an ephemeral vendor toast would.
+      // The tap records: taken, exactly one intake_taken.v1, one action row carrying the inbound event's
+      // idempotency key and vendor attribution, and the catalogue toast (t0 is 03:00 in Kyiv).
       val (handle, _) = rig.tapWithHandle(takenWire)
       assert(
-        handle.calls.asScala.exists(_.contains(MenuCopy.doseButtonsPending)),
-        s"the pending answer: ${handle.calls}"
+        handle.calls.asScala.exists(_.contains("Recorded at 03:00.")),
+        s"the recorded toast: ${handle.calls}"
       )
-      assertEquals(rig.uow.occurrences.all.head.status, OccurrenceStatus.Pending)
-      assertEquals(rig.uow.doseActions.all, Nil, "no action rows")
+      assertEquals(rig.uow.occurrences.all.head.status, OccurrenceStatus.Taken)
+      val actions = rig.uow.doseActions.listForOccurrence(occurrenceId)
+      assertEquals(actions.map(_.action), List(DoseActionKind.Taken))
+      assert(actions.forall(_.idempotencyKey.isDefined), "the action row carries an idempotency key")
+      assertEquals(actions.head.vendor, Some("fake"))
+      assertEquals(rig.uow.domainEvents.all.count(_.eventType == Event.IntakeTakenType), 1)
 
-      // The as-needed log button answers the same way.
+      // A second Taken is the "Already recorded at 09:03" no-op with no new action row.
+      val (again, _) = rig.tapWithHandle(takenWire)
+      assert(again.calls.asScala.exists(_.contains("Already recorded at 03:00.")), s"the no-op: ${again.calls}")
+      assertEquals(rig.uow.doseActions.listForOccurrence(occurrenceId).size, 1, "no new action row")
+
+      // The as-needed log button creates one manual occurrence born taken.
       val logWire = rig.lastChoiceMap("Today's doses").find(_.label == "Log Vitamin C").map(_.callback).get
       val (logHandle, _) = rig.tapWithHandle(logWire)
-      assert(
-        logHandle.calls.asScala.exists(_.contains(MenuCopy.doseButtonsPending)),
-        s"the log answer: ${logHandle.calls}"
-      )
-      assertEquals(rig.uow.occurrences.all.size, 2, "no manual occurrence yet")
+      assert(logHandle.calls.asScala.exists(_.contains("Recorded at 03:00.")), s"the log toast: ${logHandle.calls}")
+      val manual = rig.uow.occurrences.all.filter(_.origin == OccurrenceOrigin.Manual)
+      assertEquals(manual.map(_.status), List(OccurrenceStatus.Taken))
+      assertEquals(manual.map(_.medicationId), List(rig.uow.medications.all.find(_.name == "Vitamin C").get.id))
 
   test("/today caps at 8 rows with a pointer to /history"):
     withRig: rig =>

@@ -1,6 +1,7 @@
 package dosecord.core.application.menu
 
 import dosecord.contracts.*
+import dosecord.core.application.dose.LogDosePicker
 import dosecord.core.application.identity.AccountTimezoneFlow
 import dosecord.core.application.medication.AddMedicationFlow
 import dosecord.core.chat.ActionEntry
@@ -35,21 +36,21 @@ import java.util.Locale
 import java.util.UUID
 
 /** Which menu entries are shipped (ROADMAP M1.9: unshipped entries are hidden by flag, never shown as "under
-  * development"). Habits (M7.4), Reminders (M7.6), Stats (M3.4), Log dose (M1.10) and Edit (M3.2) stay hidden until
-  * their slices land.
+  * development"). Habits (M7.4), Reminders (M7.6), Stats (M3.4) and Edit (M3.2) stay hidden until their slices land;
+  * Log dose shipped in M1.10 and is always shown.
   */
 final case class MenuFlags(
     habits: Boolean = false,
     reminders: Boolean = false,
     stats: Boolean = false,
-    logDose: Boolean = false,
     edit: Boolean = false
 )
 
 /** The menu, Today, History, Settings and pause/resume/archive chat side of ROADMAP M1.9 (menu tree per M1.4a and
-  * docs/MEDICATION_REMINDER_UX.md). Sits between the [[WizardEngine]] (which owns wizard sessions and the `/cancel` and
-  * `/menu` interrupts) and the plain command handlers: menu taps arrive as slot tokens minted here, dose-control taps
-  * (the `/today` `[Taken][Skip]` rows, rendered now, handled in M1.10) get the honest "nothing was recorded" answer.
+  * docs/MEDICATION_REMINDER_UX.md), with the M1.10 Log dose entry unflagged. Sits between the M1.10
+  * [[dosecord.core.application.dose.DoseIntakeHandler]] (which owns every dose-control tap) and the plain command
+  * handlers: menu taps arrive as slot tokens minted here; the `/today` `[Log <name>]` rows are direct `dose.log`
+  * tokens.
   *
   * Lifecycle ops are revisions through the M1.5 [[ScheduleLifecycle]] transaction halves, so they commit inside the
   * mediator's per-event transaction.
@@ -109,10 +110,9 @@ final class MenuHandler(
           case Some(slot) if slot.accountId == principal.accountId.map(_.uuid) =>
             dispatch(WizardDocument.slotPayloadKey(slot.payload), event, principal, source, tx)
           case _ => Reply(toast = Some(ReminderCopy.staleControlToast))
-      // The one-tap intake flows land in M1.10; the controls M1.9 renders (Today rows, reminder rows) resolve here
-      // and record nothing yet.
-      case Some(entry) if entry.name.startsWith("dose.") => Reply(toast = Some(MenuCopy.doseButtonsPending))
-      case _                                             => inner.handle(event, principal, tx)
+      // Dose-control taps (the /today [Taken][Skip] rows, reminder rows, the log picker) are direct-mode tokens
+      // handled by the M1.10 DoseIntakeHandler in front of this handler.
+      case _ => inner.handle(event, principal, tx)
 
   private def dispatch(
       key: String,
@@ -184,8 +184,8 @@ final class MenuHandler(
               )
             )
           )
-      case key if key.startsWith(KeyTodayLogPrefix) => Reply(toast = Some(MenuCopy.doseButtonsPending))
-      case _                                        => Reply(toast = Some(ReminderCopy.staleControlToast))
+      case KeyLogDose => guardLinked(event, principal)(LogDosePicker.reply(codec, event, principal, tx))
+      case _          => Reply(toast = Some(ReminderCopy.staleControlToast))
 
   private def startWizard(
       event: InboundEvent,
@@ -320,20 +320,11 @@ final class MenuHandler(
         MenuCopy.medicationsAdd,
         mint(chat, accountId, MenuOpenFormAction, KeyAdd, tx).wire,
         ChoiceStyle.Primary
-      )
-    ) ++
-      (if flags.logDose then
-         List(
-           Choice(
-             MenuCopy.medicationsLogDose,
-             mint(chat, accountId, MenuOpenAction, KeyTodayLogPrefix + "menu", tx).wire
-           )
-         )
-       else Nil) ++
-      List(
-        Choice(MenuCopy.medicationsSettings, mint(chat, accountId, MenuOpenAction, KeySettings, tx).wire),
-        Choice(MenuCopy.medicationsHistory, mint(chat, accountId, MenuOpenAction, KeyHistory, tx).wire)
-      )
+      ),
+      Choice(MenuCopy.medicationsLogDose, mint(chat, accountId, MenuOpenAction, KeyLogDose, tx).wire),
+      Choice(MenuCopy.medicationsSettings, mint(chat, accountId, MenuOpenAction, KeySettings, tx).wire),
+      Choice(MenuCopy.medicationsHistory, mint(chat, accountId, MenuOpenAction, KeyHistory, tx).wire)
+    )
     val blocks =
       toggles ++ List(
         Block.Choices(ChoiceSet(id = "menu.medications.actions", choices = actions)),
@@ -409,13 +400,7 @@ final class MenuHandler(
           choices = List(
             Choice(
               MenuCopy.logDoseLabel(medication.name),
-              mint(
-                event.chat,
-                principal.accountId.map(_.uuid),
-                MenuOpenAction,
-                KeyTodayLogPrefix + medication.id,
-                tx
-              ).wire
+              directToken("dose.log", medication.id)
             )
           )
         )
@@ -634,7 +619,7 @@ private object MenuHandler:
   val KeyResumePrefix = "menu:resume:"
   val KeyArchivePrefix = "menu:archive:"
   val KeyArchiveConfirmPrefix = "menu:archive:confirm:"
-  val KeyTodayLogPrefix = "today:log:"
+  val KeyLogDose = "menu:logdose"
 
   /** The 8 x 3 digest cap of DESIGN.md section 4.3 applied to the interactive Today. */
   val MaxTodayRows = 8

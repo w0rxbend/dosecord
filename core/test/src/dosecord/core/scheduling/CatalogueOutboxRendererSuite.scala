@@ -181,7 +181,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val actions = rendered.choiceMap.map(entry => codec.decode(entry.callback).toOption.get.action.name)
     assertEquals(actions, List("dose.taken", "dose.skip", "dose.keep_missed"))
 
-  test("finalize renders the outcome copy of the resolved occurrence"):
+  test("finalize renders the outcome copy of the resolved occurrence and keeps [Undo][Correct] on a taken one"):
     val taken = dueState.copy(
       status = OccurrenceStatus.Taken,
       takenAt = Some(t0.plusSeconds(180)),
@@ -195,7 +195,22 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
 
     assertEquals(chat, ChatRef("fake", "dm:owner"))
     assertEquals(rendered.chunks, List("Recorded at 09:03."))
+    rendered.controls match
+      case List(RenderedControls.Buttons(rows)) =>
+        assertEquals(rows.flatten.map(_.label), List("Undo", "Correct"), "the post-Taken follow-up stays (M1.10)")
+      case other => fail(s"unexpected controls: $other")
+    val actions = rendered.choiceMap.map(entry => codec.decode(entry.callback).toOption.get.action.name)
+    assertEquals(actions, List("dose.undo", "dose.correct"))
+
+  test("a superseded finalize drops the controls and keeps the reminder text"):
+    val s = seed(dueState)
+    val dispatch = LoopDispatch.FinalizeControls(s.occurrenceId, "superseded")
+    val finalizeRow = row(s, "reminder_finalize", LoopDispatch.toJson(dispatch), op = OutboxOp.Finalize)
+      .copy(target = Some("dm:owner:m1"))
+    val (_, rendered) = renderer(s.uow).render(finalizeRow, CapabilityProfiles.Discord)
+
     assertEquals(rendered.controls, Nil)
+    assert(rendered.chunks.exists(_.contains("Time for Vitamin D")), s"the reminder text stays: ${rendered.chunks}")
 
   test("an interaction_reply safety row renders through the pure renderer and resolves the account chat"):
     val s = seed(dueState)

@@ -125,6 +125,12 @@ class ConsoleMediatorSuite extends munit.FunSuite:
   */
 private object ConsoleMediatorFakes:
 
+  /** Message identity is the (vendor, chat, message) triple; `revision` is the rendered-message edit counter, not
+    * part of the identity.
+    */
+  private def sameMessage(a: MessageHandle, b: MessageHandle): Boolean =
+    a.vendor == b.vendor && a.chatId == b.chatId && a.messageId == b.messageId
+
   final class FixedClock(at: Instant) extends Clock:
     override def now(): Instant = at
 
@@ -188,8 +194,15 @@ private object ConsoleMediatorFakes:
     ): Boolean = this.synchronized:
       rows += ((handle, choiceMap, false, subjectType, subjectId))
       true
+    override def recordEdit(handle: MessageHandle, choiceMap: List[ChoiceMapEntry], now: Instant): Unit =
+      this.synchronized:
+        if choiceMap.nonEmpty then
+          rows.mapInPlace((h, map, removed, st, sid) =>
+            if sameMessage(h, handle) then (h.copy(revision = h.revision + 1), choiceMap, removed, st, sid)
+            else (h, map, removed, st, sid)
+          )
     override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] = this.synchronized:
-      rows.collectFirst { case (h, map, removed, _, _) if h == handle =>
+      rows.collectFirst { case (h, map, removed, _, _) if sameMessage(h, handle) =>
         RenderedChoiceMap(h, h.revision, map, removed)
       }
     override def latestPendingPrompt(vendor: String, chatId: String): Option[RenderedChoiceMap] = this.synchronized:

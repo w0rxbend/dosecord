@@ -4,6 +4,7 @@ import dosecord.contracts.CapabilityProfile
 import dosecord.contracts.ChatAdapter
 import dosecord.contracts.ChatError
 import dosecord.contracts.ChatRef
+import dosecord.contracts.EditCapability
 import dosecord.contracts.MessageHandle
 import dosecord.contracts.ReactPayload
 import dosecord.contracts.RenderedControls
@@ -140,8 +141,30 @@ final class OutboxDispatcher(
           val target = decodeHandle(row.vendor, requiredTarget(row))
           val (_, rendered) = renderer.render(row, adapter.capabilities)
           throttle(row, target.chatId)
-          val handle = adapter.edit(target, rendered) // idempotent by content
-          uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false))
+          if adapter.capabilities.editOwn == EditCapability.NoEdit then
+            // The finalize ladder's last rung (DESIGN.md section 4.3): on a profile that cannot edit (the console),
+            // the outcome goes out as a replacement message; the target's stale choice_map keeps resolving, and the
+            // FSM answers a late tap with the semantic no-op ("Already recorded").
+            val handle = adapter.send(ChatRef(row.vendor, target.chatId), rendered, row.sendKey)
+            uow.transaction: tx =>
+              tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
+              tx.renderedMessages.record(
+                handle,
+                row.accountId,
+                row.kind,
+                subjectType = row.occurrenceId.map(_ => "occurrence"),
+                subjectId = row.occurrenceId,
+                epoch = row.epoch,
+                rendered.choiceMap,
+                now
+              )
+          else
+            val handle = adapter.edit(target, rendered) // idempotent by content
+            // M1.10: an edit carrying a new choice_map (the post-Taken finalize keeps [Undo][Correct]) supersedes the
+            // recorded one so the kept controls stay resolvable on the numbered tiers; an empty map leaves the record.
+            uow.transaction: tx =>
+              tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
+              tx.renderedMessages.recordEdit(handle, rendered.choiceMap, now)
         case OutboxOp.Delete =>
           val target = decodeHandle(row.vendor, requiredTarget(row))
           throttle(row, target.chatId)
