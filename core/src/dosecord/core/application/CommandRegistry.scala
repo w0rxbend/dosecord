@@ -2,6 +2,7 @@ package dosecord.core.application
 
 import dosecord.contracts.CommandArg
 import dosecord.contracts.CommandSpec
+import dosecord.core.domain.ReminderPolicy
 
 /** The registered commands (ROADMAP M0.12d, R51, K9; `/today` and `/history` from M1.9; `/taken`, `/snooze`, `/skip`,
   * `/log` from M1.10). `/help` renders from this registry, so it cannot omit a command — including itself; the
@@ -37,25 +38,54 @@ object CommandRegistry:
   val Taken: CommandSpec = CommandSpec(
     name = "taken",
     description = "Record the latest dose as taken.",
-    args = List(CommandArg("medication", "Which medication; omitted takes the latest open dose", required = false))
+    args = List(
+      CommandArg(
+        "medication",
+        "Which medication; omitted takes the latest open dose",
+        required = false,
+        autocomplete = true
+      )
+    )
   )
 
+  // The slash registration offers the default policy's snooze minutes (ADR-012); per-user filtering stays a render-time
+  // concern of the reminder buttons.
   val Snooze: CommandSpec = CommandSpec(
     name = "snooze",
     description = "Snooze the latest dose.",
-    args = List(CommandArg("minutes", "How many minutes, e.g. /snooze 10"))
+    args = List(
+      CommandArg(
+        "minutes",
+        "How many minutes, e.g. /snooze 10",
+        choices = ReminderPolicy.Default.snoozeOptionsMinutes.map(_.toString)
+      )
+    )
   )
 
   val Skip: CommandSpec = CommandSpec(
     name = "skip",
     description = "Skip the latest dose.",
-    args = List(CommandArg("medication", "Which medication; omitted skips the latest open dose", required = false))
+    args = List(
+      CommandArg(
+        "medication",
+        "Which medication; omitted skips the latest open dose",
+        required = false,
+        autocomplete = true
+      )
+    )
   )
 
   val Log: CommandSpec = CommandSpec(
     name = "log",
     description = "Log a dose you already took.",
-    args = List(CommandArg("medication", "Which medication; omitted shows a picker", required = false))
+    args = List(
+      CommandArg(
+        "medication",
+        "Which medication; omitted shows a picker",
+        required = false,
+        autocomplete = true
+      )
+    )
   )
 
   val Menu: CommandSpec = CommandSpec(

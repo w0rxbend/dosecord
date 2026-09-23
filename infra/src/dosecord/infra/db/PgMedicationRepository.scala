@@ -47,3 +47,11 @@ final class PgMedicationRepository(conn: Connection) extends MedicationRepositor
           FROM medications
           WHERE user_id = $accountId AND status <> 'archived'
           ORDER BY created_at, id""".query[StoredMedication]()
+
+  // strpos rather than LIKE: a prefix containing LIKE wildcards must stay literal.
+  override def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication] =
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at
+          FROM medications
+          WHERE user_id = $accountId AND status <> 'archived' AND strpos(name_norm, $prefix) = 1
+          ORDER BY name_norm
+          LIMIT $limit""".query[StoredMedication]()
