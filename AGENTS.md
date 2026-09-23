@@ -22,10 +22,11 @@ specification.
 
 ## Current entry point
 
-M1.8, M1.9 and M1.10 are `green`. The next eligible slice is **M1.11 — 30-day
-scenario simulation** (deps M1.8, M1.10), the last slice that needs no live
-vendor credentials. **M0.8** (JDA DM spike) is dependency-unblocked but requires
-live Discord credentials; do not start it until the owner provides them.
+M1.8 through M1.11 are `green` — the whole M1 milestone. The next eligible
+slice is **M0.8 — Spike C, JDA DM delivery** (deps M0.1); the owner has
+provided Discord credentials in the gitignored `.env` (`DISCORD_TOKEN`,
+`DISCORD_APPLICATION_ID`, `DISCORD_PUBLIC_KEY`, `DISCORD_CLIENT_SECRET`). After
+M0.8: M2.1 (deps M0.13, M0.8, M0.12d).
 
 ## Agent workflow
 
