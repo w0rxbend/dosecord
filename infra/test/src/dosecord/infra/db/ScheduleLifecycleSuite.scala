@@ -9,6 +9,7 @@ import dosecord.core.domain.SlotGroup
 import dosecord.core.domain.copy.DoseActionKind
 import dosecord.core.ports.ScheduleStatus
 import dosecord.core.scheduling.CreateSchedule
+import dosecord.core.scheduling.Materialiser
 
 import java.sql.Connection
 import java.time.Duration
@@ -28,6 +29,7 @@ class ScheduleLifecycleSuite extends PgSuite:
   private val utc = ZoneId.of("UTC")
   private val kyiv = ZoneId.of("Europe/Kyiv")
   private val newYork = ZoneId.of("America/New_York")
+  private val lordHowe = ZoneId.of("Australia/Lord_Howe")
 
   override def beforeEach(context: BeforeEach): Unit =
     withConnection { conn =>
@@ -232,3 +234,39 @@ class ScheduleLifecycleSuite extends PgSuite:
     // A revision through the fixture path is a normal edit revision.
     val edited = fixtures.revision(clock, created.scheduleId, dailyAt("10:00"), effectiveFrom = Some(monday))
     assertEquals(edited.revision, 2)
+
+  test("a zone move flags the kept row that suppresses the new plan's slot through the live-slot index"):
+    // Pinned-seed sequence from LiveSlotPropertySuite: Kyiv -> Lord_Howe, 19 h later Lord_Howe -> UTC.
+    val clock = MutableClock(monday)
+    val accountId = fixtures.account()
+    val created = fixtures.schedule(clock, accountId, "Med", dailyAt("09:00", "21:00"), kyiv)
+
+    // Mon 09:00 Kyiv is past its due-window start, so revision 2 (Lord_Howe) governs from the next LH midnight.
+    val toLordHowe = fixtures.lifecycle(clock).changeTimezone(created.scheduleId, lordHowe)
+    assertEquals(toLordHowe.revision, 2)
+    val afterFirst = fixtures.uow.transaction(_.occurrences.listBySchedule(created.scheduleId))
+    val wed0900LordHowe = afterFirst
+      .find(row => row.revision.contains(2) && row.localDate.toString == "2026-09-23" && row.slotKey == "t0900")
+      .get
+
+    clock.advance(Duration.ofHours(19)) // Tue 03:00Z
+    Materialiser(PgUnitOfWork(dataSource, clock), clock).runOnce()
+    val toUtc = fixtures.lifecycle(clock).changeTimezone(created.scheduleId, utc)
+    Materialiser(PgUnitOfWork(dataSource, clock), clock).runOnce()
+
+    // Revision 3 (UTC) governs from the next UTC midnight; rev2's Wed 09:00 Lord_Howe row fires before the cutover,
+    // so it is kept and flagged — and through uq_occ_live_slot it suppresses rev3's (Wed, t0900) candidate.
+    assertEquals(toUtc.keptForQuestion.map(_.id), List(wed0900LordHowe.id))
+    assertEquals(toUtc.cancelled.size, 2)
+    val live = fixtures.uow
+      .transaction(_.occurrences.listBySchedule(created.scheduleId))
+      .filter(_.status != OccurrenceStatus.Cancelled)
+    val wed0900 = live.filter(row => row.localDate.toString == "2026-09-23" && row.slotKey == "t0900")
+    assertEquals(wed0900.map(_.id), List(wed0900LordHowe.id), "exactly one live Wed 09:00 row, at the kept instant")
+    assertEquals(wed0900.head.scheduledFor, Instant.parse("2026-09-22T22:30:00Z")) // Wed 09:00 Lord_Howe (UTC+11:30)
+    val rev3 = live.filter(_.revision.contains(3))
+    assertEquals(
+      rev3.map(row => (row.slotKey, row.scheduledFor)),
+      List(("t2100", Instant.parse("2026-09-23T21:00:00Z"))),
+      "rev3's Wed 09:00 candidate is suppressed; Wed 21:00 is materialised at the UTC instant"
+    )

@@ -43,10 +43,12 @@ final case class CreateSchedule(
     tzFollowsUser: Boolean = true
 )
 
-/** The result of one revision application. `keptForQuestion` holds the eastward-move rows of DESIGN.md section 7.1:
-  * old-revision pending rows that fire before the new revision's first candidate on a local date preceding the new
-  * effective date. They are kept live under the old revision and flagged here so the M3.2 wizard can ask ("Keep
-  * tonight's dose at 21:00 New York?").
+/** The result of one revision application. `keptForQuestion` holds the kept rows of DESIGN.md section 7.1 that the M3.2
+  * wizard must ask about ("Keep tonight's dose at 21:00 New York?"): old-revision pending rows that fire before the new
+  * revision's first candidate on a local date preceding the new effective date (the eastward move), and pending rows
+  * before the cutover that own a `(local_date, slot_key)` the new revision also produces — through the live-slot index
+  * they suppress that candidate, so the dose fires once, at the kept row's instant. They stay live under the old
+  * revision.
   */
 final case class RevisionOutcome(
     scheduleId: UUID,
@@ -298,10 +300,9 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     val updatedSchedule = schedule.copy(currentRevision = newRevision, tz = plan.zone)
     val storedRevision = stored(revision, now)
     val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
-    val firstCandidate = Evaluator
-      .occurrences(Materialiser.toEvaluator(updatedSchedule, storedRevision), now, horizonEnd)
-      .headOption
-      .map(_.scheduledFor)
+    val newCandidates =
+      Evaluator.occurrences(Materialiser.toEvaluator(updatedSchedule, storedRevision), now, horizonEnd)
+    val firstCandidate = newCandidates.headOption.map(_.scheduledFor)
 
     // Reconciliation (DESIGN.md section 7.1): cancel the superseded revision's pending rows at or after
     // effective_from, except the kept eastward rows (old local date precedes the new effective date and the row
@@ -336,6 +337,19 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
         )
       }
 
+    // A pending row before the cutover is never cancelled, but when it owns a `(local_date, slot_key)` the new
+    // revision also produces it suppresses that candidate through the cross-revision live-slot index (ADR-004: the
+    // index, not the reconciler, arbitrates — the dose fires once, at the kept row's instant). It is a kept row the
+    // M3.2 question must name (DESIGN.md section 7.1: "kept, not cancelled, and the wizard asks").
+    val candidateKeys = newCandidates.map(candidate => (candidate.localDate, candidate.slotKey)).toSet
+    val suppressed = openRows.filter(row =>
+      row.status == OccurrenceStatus.Pending &&
+        row.revision.contains(latest.revision) &&
+        row.scheduledFor.isBefore(effective) &&
+        candidateKeys.contains(row.localDate -> row.slotKey)
+    )
+    val keptForQuestion = kept ++ suppressed
+
     val resultingStatus = plan.status.getOrElse(schedule.status)
     val inserted =
       if resultingStatus != ScheduleStatus.Active then 0
@@ -343,7 +357,15 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
         val n = Materialiser.materializeSchedule(tx, updatedSchedule, storedRevision, now, horizonEnd)
         tx.schedules.advanceMaterializedThrough(schedule.id, horizonEnd, now)
         n
-    RevisionOutcome(schedule.id, schedule.medicationId, newRevision, effective, inserted, cancelled.map(_.id), kept)
+    RevisionOutcome(
+      schedule.id,
+      schedule.medicationId,
+      newRevision,
+      effective,
+      inserted,
+      cancelled.map(_.id),
+      keptForQuestion
+    )
 
   /** The next-local-midnight rule (DESIGN.md section 7.1): when any of today's slots under the old revision is already
     * resolved or due, the new plan starts tomorrow (in the new zone); otherwise it starts now.

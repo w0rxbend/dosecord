@@ -19,7 +19,9 @@ import org.scalacheck.Prop.forAll
 
 /** ROADMAP M1.5 property (acceptance 3): one live slot per `(schedule, local_date, slot_key)` across any sequence of
   * edits, pauses and zone moves, on Testcontainers Postgres 18. Additionally pins that the live rows of the latest
-  * revision are exactly the pure evaluator's window from the revision's application to `now + 48 h`.
+  * revision never leave the pure evaluator's window, and that every candidate of the latest revision is covered by
+  * exactly one live row — the latest revision's own, or an older kept row that owns the slot through the
+  * cross-revision live-slot index (ADR-004 arbitration suppresses the duplicate candidate).
   */
 class LiveSlotPropertySuite extends PgSuite, munit.ScalaCheckSuite:
 
@@ -106,14 +108,34 @@ class LiveSlotPropertySuite extends PgSuite, munit.ScalaCheckSuite:
         (tx.schedules.get(created.scheduleId).get, tx.revisions.latest(created.scheduleId).get)
       }
       val now = clock.now()
-      val expected = Evaluator
-        .occurrences(Materialiser.toEvaluator(schedule, latest), lastRevisionAt, now.plus(Evaluator.MaterialisationHorizon))
-        .map(candidate => (candidate.localDate, candidate.slotKey, candidate.scheduledFor))
-        .toSet
-      val actual = fixtures.uow
+      val expected = Evaluator.occurrences(
+        Materialiser.toEvaluator(schedule, latest),
+        lastRevisionAt,
+        now.plus(Evaluator.MaterialisationHorizon)
+      )
+      val expectedKeys = expected.map(candidate => (candidate.localDate, candidate.slotKey)).toSet
+      val expectedExact = expected.map(candidate => (candidate.localDate, candidate.slotKey, candidate.scheduledFor)).toSet
+      val live = fixtures.uow
         .transaction(_.occurrences.listBySchedule(created.scheduleId))
-        .filter(row => row.status != OccurrenceStatus.Cancelled && row.revision.contains(latest.revision))
+        .filter(_.status != OccurrenceStatus.Cancelled)
+
+      // No live row of the latest revision outside the evaluator's window.
+      val latestLive = live
+        .filter(_.revision.contains(latest.revision))
         .map(row => (row.localDate, row.slotKey, row.scheduledFor))
         .toSet
-      assertEquals(actual, expected, "live rows of the latest revision are exactly the evaluator's window")
+      assert(
+        latestLive.forall(expectedExact),
+        s"live rows of the latest revision outside the evaluator window: ${latestLive.diff(expectedExact)}"
+      )
+
+      // Every candidate of the latest revision has exactly one live row (the uniqueness half is the SQL check
+      // above). The live row is either the latest revision's own or an older kept row — a pending row before the
+      // cutover or a due/snoozed row — that owns the `(local_date, slot_key)` through the cross-revision live-slot
+      // index (ADR-004 arbitrates, the candidate is suppressed, the dose fires once at the kept row's instant).
+      val liveKeys = live.map(row => (row.localDate, row.slotKey)).toSet
+      assert(
+        expectedKeys.forall(liveKeys),
+        s"candidates with no live row: ${expectedKeys.diff(liveKeys)}"
+      )
     }
