@@ -168,6 +168,13 @@ trait RenderedMessageRepository:
       now: Instant
   ): Boolean
 
+  /** An edit that carries a new `choice_map` supersedes the recorded one (M1.10: the post-Taken finalize keeps
+    * [Undo][Correct], which must stay resolvable on the numbered tiers); an edit with an empty map leaves the record
+    * untouched, so a late tap still resolves to its token and the FSM answers the semantic no-op ("Already recorded",
+    * DESIGN.md section 4.3).
+    */
+  def recordEdit(handle: MessageHandle, choiceMap: List[ChoiceMapEntry], now: Instant): Unit
+
   /** Every handle recorded for one subject (DESIGN.md section 7.6: the post-resolution finalize op is enqueued for
     * every recorded handle of the occurrence, ROADMAP M1.8).
     */

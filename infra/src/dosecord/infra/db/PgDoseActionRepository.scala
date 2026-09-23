@@ -36,26 +36,29 @@ final class PgDoseActionRepository(conn: Connection) extends DoseActionRepositor
       catchUp = rs.getBoolean("catch_up"),
       correlationId = rs.getString("correlation_id"),
       idempotencyKey = rs.optString("idempotency_key"),
-      metadata = rs.getString("metadata")
+      metadata = rs.getString("metadata"),
+      vendor = rs.optString("vendor"),
+      platformIdentityId = rs.optUuid("platform_identity_id"),
+      platformMessageId = rs.optString("platform_message_id")
     )
 
   override def append(row: NewDoseAction): Unit =
     sql"""INSERT INTO dose_actions
             (id, occurrence_id, account_id, seq, action, actor_type, idempotency_key, occurred_at,
              prior_status, new_status, effective_at, reason_code, note, undoes_seq, catch_up,
-             correlation_id, metadata)
+             correlation_id, metadata, vendor, platform_identity_id, platform_message_id)
           SELECT ${row.id}, ${row.occurrenceId}, ${row.accountId}, COALESCE(MAX(seq), 0) + 1,
                  ${row.action.dbValue}::dose_action, ${row.actor.dbValue}, ${row.idempotencyKey}, ${row.occurredAt},
                  ${row.priorStatus.dbValue}::occ_status, ${row.newStatus.dbValue}::occ_status, ${row.effectiveAt},
                  ${row.reasonCode}, ${row.note}, ${row.undoesSeq}, ${row.catchUp}, ${row.correlationId},
-                 ${Jsonb(row.metadata)}
+                 ${Jsonb(row.metadata)}, ${row.vendor}, ${row.platformIdentityId}, ${row.platformMessageId}
           FROM dose_actions
           WHERE occurrence_id = ${row.occurrenceId}""".execute()
 
   override def listForOccurrence(occurrenceId: UUID): List[StoredDoseAction] =
     sql"""SELECT id, occurrence_id, account_id, seq, action, actor_type, occurred_at, recorded_at,
                  prior_status, new_status, effective_at, reason_code, note, undoes_seq, catch_up,
-                 correlation_id, idempotency_key, metadata
+                 correlation_id, idempotency_key, metadata, vendor, platform_identity_id, platform_message_id
           FROM dose_actions
           WHERE occurrence_id = $occurrenceId
           ORDER BY seq""".query[StoredDoseAction]()

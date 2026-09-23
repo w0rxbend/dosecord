@@ -59,11 +59,6 @@ object MenuCopy:
   def asNeededRow(name: String): String = s"$name — as needed"
   def logDoseLabel(name: String): String = s"Log $name"
 
-  /** The M1.9 answer to a dose-control tap (Taken/Skip/Snooze/Log): the one-tap intake handlers land in M1.10, so the
-    * tap records nothing and says so honestly.
-    */
-  val doseButtonsPending = "Dose buttons are not enabled yet — nothing was recorded."
-
   val entries: List[CopyEntry] =
     (CopyEntry("menu.main.prompt", mainPrompt) +: topLevel.map(l => CopyEntry(s"menu.main.${l.toLowerCase}", l))) ++
       List(
@@ -107,7 +102,6 @@ object MenuCopy:
         CopyEntry("menu.medications.resumed_confirm", resumedConfirm("Vitamin D", "Tue 09:00")),
         CopyEntry("menu.medications.resumed_no_next", resumedConfirmNoNext("Vitamin D")),
         CopyEntry("menu.medications.archive_prompt", archiveConfirmPrompt("Vitamin D")),
-        CopyEntry("menu.medications.archived_confirm", archivedConfirm("Vitamin D")),
-        CopyEntry("menu.dose_buttons_pending", doseButtonsPending)
+        CopyEntry("menu.medications.archived_confirm", archivedConfirm("Vitamin D"))
       )
 end MenuCopy

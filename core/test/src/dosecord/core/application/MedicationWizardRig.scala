@@ -14,6 +14,9 @@ import dosecord.core.domain.copy.WizardCopy
 import dosecord.core.ports.*
 import dosecord.core.scheduling.CatalogueOutboxRenderer
 import dosecord.core.scheduling.CreateSchedule
+import dosecord.core.scheduling.Materialiser
+import dosecord.core.scheduling.OutboxDispatcher
+import dosecord.core.scheduling.ReminderLoop
 import dosecord.core.scheduling.ScheduleLifecycle
 import ox.Ox
 
@@ -92,6 +95,23 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
     )
     pushAndCollect(body, Some(newHandle()))
       .collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten
+
+  // ---------- The M1.6/M1.7 machinery over the same stores (intake-flow tests) ----------
+
+  /** One reminder-loop tick: claims due rows and enqueues its dispatches. */
+  def tickLoop(): Int =
+    ReminderLoop(uow, Materialiser(uow, clock), Wake.polling, clock, "rig").tick(clock.now())
+
+  /** One outbox dispatch pass: sends/edits/finalizes the enqueued rows through the FakeAdapter. */
+  def dispatchOnce(): Int =
+    OutboxDispatcher(uow, adapters, CatalogueOutboxRenderer(uow, codec, clock), clock).dispatchOnce()
+
+  /** A quoted reply to console message `messageId` (the console's `#<n> <text>` grammar), through the mediator. */
+  def quoted(messageId: String, text: String): List[VendorOp] =
+    pushAndCollect(
+      Inbound.MessageReceived(text, Some(MessageHandle("fake", "dm:user-1", messageId)), truncated = false),
+      None
+    )
 
   // ---------- Console-profile helpers ----------
 

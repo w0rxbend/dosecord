@@ -8,6 +8,12 @@ import java.time.Instant
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
 
+/** Message identity is the (vendor, chat, message) triple; `revision` is the rendered-message edit counter, not part of
+  * the identity (mirrors the Postgres lookups, which key on the triple).
+  */
+private def sameMessage(a: MessageHandle, b: MessageHandle): Boolean =
+  a.vendor == b.vendor && a.chatId == b.chatId && a.messageId == b.messageId
+
 /** In-memory port fakes for suite B2 (the mediator-resolution harness). Mirrors core's test `MediatorFakes` — test
   * sources are not shared across modules — trimmed to the ports the B2 scenarios touch: inbound events, identities,
   * rendered messages (choice maps), outbox, sessions, slots, form runs and audit.
@@ -140,11 +146,18 @@ final class InMemoryRenderedMessages extends RenderedMessageRepository:
 
   /** Test hook: finalize a message (controls removed), as the mediator does after a finalize. */
   def removeControls(handle: MessageHandle): Unit = this.synchronized:
-    rows.mapInPlace((h, map, removed) => (h, map, removed || h == handle))
+    rows.mapInPlace((h, map, removed) => (h, map, removed || sameMessage(h, handle)))
+
+  override def recordEdit(handle: MessageHandle, choiceMap: List[ChoiceMapEntry], now: Instant): Unit =
+    this.synchronized:
+      if choiceMap.nonEmpty then
+        rows.mapInPlace((h, map, removed) =>
+          if sameMessage(h, handle) then (h.copy(revision = h.revision + 1), choiceMap, removed) else (h, map, removed)
+        )
 
   override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] = this.synchronized:
     rows.collectFirst {
-      case (h, map, removed) if h == handle =>
+      case (h, map, removed) if sameMessage(h, handle) =>
         RenderedChoiceMap(h, h.revision, map, removed)
     }
   override def latestPendingPrompt(vendor: String, chatId: String): Option[RenderedChoiceMap] = this.synchronized:

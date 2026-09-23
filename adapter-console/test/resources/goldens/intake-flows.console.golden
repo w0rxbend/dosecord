@@ -1,0 +1,74 @@
+[#1] Time for Vitamin D, 1000 IU.
+
+with breakfast
+
+1) Taken 2) Snooze 10m 3) Skip
+
+4) Snooze 30m 5) Snooze 1h
+> #1 1
+[#2] Recorded at 09:05.
+[#3] Recorded at 09:05.
+
+1) Undo 2) Correct
+> #3 2
+[#4] When did you take it?
+
+1) Now 2) At scheduled time 3) Cancel
+> #4 3
+[#5] No change.
+> #1 1
+[#6] Already recorded at 09:05.
+> #3 1
+[#7] The undo window has passed — correct it instead?
+
+1) Now 2) At scheduled time 3) Cancel
+> #7 2
+[#8] Corrected — logged as taken at 09:00.
+[#9] Recorded at 09:00.
+
+1) Undo 2) Correct
+[#10] Recorded at 09:00.
+
+1) Undo 2) Correct
+[#11] I did not get a response for Vitamin D at 08:30, so I marked it missed.
+
+1) I took it 2) Skip 3) Keep missed
+> #11 2
+[#12] Marked skipped.
+[#13] Marked skipped.
+[#14] I did not get a response for Vitamin D at 08:45, so I marked it missed.
+
+1) I took it 2) Skip 3) Keep missed
+> #14 3
+[#15] Okay — left marked missed.
+[#16] I did not get a response for Vitamin D at 08:45, so I marked it missed.
+[#17] Time for Vitamin D, 1000 IU.
+
+with breakfast
+
+1) Taken 2) Snooze 10m 3) Skip
+
+4) Snooze 30m 5) Snooze 1h
+> #17 2
+[#18] Okay, I'll remind you again at 09:35.
+[#19] Time for Vitamin D, 1000 IU.
+
+with breakfast
+> /log vitamin d
+[#20] Recorded at 09:25.
+> /history
+[#21] Last 7 days
+
+Mon 21 Sep
+
+08:30 Vitamin D 1000 IU — skipped at 09:25
+
+08:45 Vitamin D 1000 IU — missed
+
+08:50 Vitamin D 1000 IU — snoozed until 09:35
+
+09:00 Vitamin D 1000 IU — taken at 09:00
+
+09:25 Vitamin D 1000 IU — taken at 09:25
+
+1) Menu

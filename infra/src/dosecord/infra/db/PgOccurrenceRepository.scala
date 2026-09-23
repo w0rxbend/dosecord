@@ -93,6 +93,41 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
                  skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
           FROM dose_occurrences WHERE id = $id""".queryOne[StoredOccurrence]()
 
+  override def lockById(id: UUID): Option[StoredOccurrence] =
+    sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
+                 tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
+                 epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+          FROM dose_occurrences WHERE id = $id
+          FOR UPDATE""".queryOne[StoredOccurrence]()
+
+  override def latestOpenForAccount(
+      accountId: UUID,
+      medicationId: Option[UUID],
+      now: Instant
+  ): Option[StoredOccurrence] =
+    medicationId match
+      case Some(medId) =>
+        sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
+                     tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
+                     epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
+                     skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+              FROM dose_occurrences
+              WHERE account_id = $accountId AND medication_id = $medId AND status IN ('pending', 'due', 'snoozed')
+                AND scheduled_for <= $now
+              ORDER BY scheduled_for DESC
+              LIMIT 1""".queryOne[StoredOccurrence]()
+      case None =>
+        sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
+                     tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
+                     epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
+                     skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+              FROM dose_occurrences
+              WHERE account_id = $accountId AND status IN ('pending', 'due', 'snoozed')
+                AND scheduled_for <= $now
+              ORDER BY scheduled_for DESC
+              LIMIT 1""".queryOne[StoredOccurrence]()
+
   override def listBySchedule(scheduleId: UUID): List[StoredOccurrence] =
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,

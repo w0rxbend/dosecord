@@ -1,5 +1,7 @@
 package dosecord.core.domain.copy
 
+import dosecord.core.domain.Refusal
+
 /** Reminder, follow-up, missed, undo and correction copy (ROADMAP M1.4a; lifecycle semantics per ADR-012; wording per
   * docs/MEDICATION_REMINDER_UX.md). Multi-line copy is a list of lines; each line renders as its own paragraph.
   */
@@ -40,6 +42,39 @@ object ReminderCopy:
   /** Correction prompt (`dose.correct`, M1.10): [Now][At scheduled time][Cancel]. */
   def correctionPrompt: String = "When did you take it?"
 
+  /** Correction follow-up (M1.10): `Corrected — logged as taken at 09:00.` */
+  def correctedConfirmation(time: String): String = s"Corrected — logged as taken at $time."
+
+  /** [Keep missed] on the missed notice (M1.10): the row stays missed, the controls die. */
+  val keepMissedConfirmation: String = "Okay — left marked missed."
+
+  /** [Cancel] on the correction prompt (M1.10). */
+  val correctionCancelled: String = "No change."
+
+  /** The refusal toasts of the one-tap handlers (M1.10); the two correction-prompt refusals open the flow instead. */
+  def refusal(reason: Refusal): String =
+    reason match
+      case Refusal.NothingToUndo                => "There is nothing to undo."
+      case Refusal.UndoWindowPassed             => "The undo window has passed."
+      case Refusal.UndoWindowPassedOfferCorrect => undoWindowPassed
+      case Refusal.CorrectionPrompt             => correctionPrompt
+      case Refusal.AlreadyResolved              => "This dose is already recorded."
+      case Refusal.SnoozeLimitReached           => "No snoozes left for this dose."
+      case Refusal.SnoozePastBound              => "That snooze would run past the next dose."
+      case Refusal.SnoozeNotAllowed             => "This dose cannot be snoozed."
+      case Refusal.CorrectOnOpenRow             => "This dose is still open — Taken or Skip applies."
+      case Refusal.InvalidEffectiveAt           => "That time is in the future."
+      case Refusal.RowCancelled                 => "This dose is cancelled."
+
+  /** The universal commands' resolution failures (M1.10). */
+  val nothingDue: String = "Nothing is due right now."
+  def noOpenDose(name: String): String = s"No open dose for $name."
+  def unknownMedication(name: String): String = s"I could not find $name."
+
+  /** Medications -> Log dose / `/log` without a medication (M1.10). */
+  val logPickerPrompt: String = "Log a dose of which medication?"
+  val logEmpty: String = "No medications to log yet."
+
   /** The one safety sentence (UX spec): the bot never advises, it defers to the clinician/pharmacist. */
   def unsureAdvice: String =
     "If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions."
@@ -66,6 +101,23 @@ object ReminderCopy:
     CopyEntry("reminder.undone", undoConfirmation("11:15")),
     CopyEntry("reminder.undo_window_passed", undoWindowPassed),
     CopyEntry("reminder.correction_prompt", correctionPrompt),
+    CopyEntry("reminder.corrected", correctedConfirmation("09:00")),
+    CopyEntry("reminder.keep_missed", keepMissedConfirmation),
+    CopyEntry("reminder.correction_cancelled", correctionCancelled),
+    CopyEntry("reminder.refusal.nothing_to_undo", refusal(Refusal.NothingToUndo)),
+    CopyEntry("reminder.refusal.undo_window_passed", refusal(Refusal.UndoWindowPassed)),
+    CopyEntry("reminder.refusal.already_resolved", refusal(Refusal.AlreadyResolved)),
+    CopyEntry("reminder.refusal.snooze_limit", refusal(Refusal.SnoozeLimitReached)),
+    CopyEntry("reminder.refusal.snooze_past_bound", refusal(Refusal.SnoozePastBound)),
+    CopyEntry("reminder.refusal.snooze_not_allowed", refusal(Refusal.SnoozeNotAllowed)),
+    CopyEntry("reminder.refusal.correct_on_open_row", refusal(Refusal.CorrectOnOpenRow)),
+    CopyEntry("reminder.refusal.invalid_effective_at", refusal(Refusal.InvalidEffectiveAt)),
+    CopyEntry("reminder.refusal.row_cancelled", refusal(Refusal.RowCancelled)),
+    CopyEntry("reminder.nothing_due", nothingDue),
+    CopyEntry("reminder.no_open_dose", noOpenDose("Vitamin D")),
+    CopyEntry("reminder.unknown_medication", unknownMedication("Vitamin D")),
+    CopyEntry("reminder.log_picker_prompt", logPickerPrompt),
+    CopyEntry("reminder.log_empty", logEmpty),
     CopyEntry("reminder.unsure_advice", unsureAdvice),
     CopyEntry("reminder.failure_toast", failureToast),
     CopyEntry("reminder.stale_control_toast", staleControlToast)

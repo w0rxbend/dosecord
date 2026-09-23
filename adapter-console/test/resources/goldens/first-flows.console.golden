@@ -41,6 +41,14 @@ Pick your timezone:
 
 /history — Show the last 7 days.
 
+/taken [medication] — Record the latest dose as taken.
+
+/snooze <minutes> — Snooze the latest dose.
+
+/skip [medication] — Skip the latest dose.
+
+/log [medication] — Log a dose you already took.
+
 /mood <level> [note] [tags] — Log your mood.
 
 /menu — Open the main menu.

@@ -211,6 +211,7 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         5 -> "dose.note",
         6 -> "dose.correct",
         7 -> "dose.keep_missed",
+        8 -> "dose.log",
         20 -> "menu.open",
         21 -> "menu.open_form",
         30 -> "wizard.step",

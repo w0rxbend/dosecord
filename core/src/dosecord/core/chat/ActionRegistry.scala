@@ -20,9 +20,12 @@ object ActionRegistry:
     ActionEntry(3, "dose.skip", opensForm = false, Visibility.Persistent, requiresSession = false),
     ActionEntry(4, "dose.undo", opensForm = false, Visibility.Persistent, requiresSession = false),
     ActionEntry(5, "dose.note", opensForm = true, Visibility.Persistent, requiresSession = false),
-    // dose.correct is a two-choice button row (M1.10, M2.2), not a modal.
+    // dose.correct is a two-choice button row (M1.10, M2.2), not a modal; its value carries the choice
+    // (0 = open the prompt, 1 = Now, 2 = At scheduled time, 3 = Cancel).
     ActionEntry(6, "dose.correct", opensForm = false, Visibility.Persistent, requiresSession = false),
     ActionEntry(7, "dose.keep_missed", opensForm = false, Visibility.Persistent, requiresSession = false),
+    // M1.10: direct mode on the medication id (medication ids never expire, like occurrence ids); the value stays 0.
+    ActionEntry(8, "dose.log", opensForm = false, Visibility.Persistent, requiresSession = false),
     ActionEntry(20, "menu.open", opensForm = false, Visibility.Persistent, requiresSession = false),
     // M1.9: menu entries that open a flow whose first step is a Form (Add medication) keep the interaction un-acked
     // so the renderer can answer with the native modal instead of the FormRunner (DESIGN.md section 4.3 form ladder).

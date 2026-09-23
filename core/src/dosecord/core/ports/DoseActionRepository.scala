@@ -9,7 +9,9 @@ import java.time.Instant
 import java.util.UUID
 
 /** One `dose_actions` insert. `seq` is assigned by the database (`max(seq) + 1` per occurrence, inside the same
-  * transaction). The vendor/platform fields of the schema stay NULL until the one-tap flows of M1.10 fill them.
+  * transaction). The one-tap flows of M1.10 fill `idempotencyKey`, `vendor`, `platformIdentityId` and
+  * `platformMessageId` (R27: every user action row is attributable to the inbound event and the message it came from);
+  * system rows (the loop's) leave them NULL.
   */
 final case class NewDoseAction(
     id: UUID,
@@ -27,7 +29,10 @@ final case class NewDoseAction(
     undoesSeq: Option[Int] = None,
     catchUp: Boolean = false,
     idempotencyKey: Option[String] = None,
-    metadata: String = "{}"
+    metadata: String = "{}",
+    vendor: Option[String] = None,
+    platformIdentityId: Option[UUID] = None,
+    platformMessageId: Option[String] = None
 )
 
 object NewDoseAction:
@@ -78,7 +83,10 @@ final case class StoredDoseAction(
     catchUp: Boolean,
     correlationId: String,
     idempotencyKey: Option[String],
-    metadata: String
+    metadata: String,
+    vendor: Option[String] = None,
+    platformIdentityId: Option[UUID] = None,
+    platformMessageId: Option[String] = None
 )
 
 /** `dose_actions` (R27): the append-only audit log whose fold is the projection (DESIGN.md section 8). The INSERT-only

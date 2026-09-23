@@ -8,7 +8,6 @@ import dosecord.contracts.LoopDispatch
 import dosecord.core.domain.Decide
 import dosecord.core.domain.DecideContext
 import dosecord.core.domain.DispatchIntent
-import dosecord.core.domain.FinalizeReason
 import dosecord.core.domain.OccurrenceEvent
 import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.domain.ReminderKind
@@ -237,29 +236,7 @@ final class ReminderLoop(
               nextAttemptAt = now
             )
       case DispatchIntent.FinalizeControls(reason) =>
-        // DESIGN.md section 7.6: the finalize op is enqueued for every recorded handle of the occurrence (a repeat
-        // supersedes the previous message; a resolution drops its controls). With no recorded handle there is
-        // nothing to finalize — a target-less finalize row would be undispatchable.
-        tx.renderedMessages.handlesForSubject("occurrence", occ.id).foreach { handle =>
-          val target = OutboxDispatcher.encodeHandle(handle)
-          tx.outbox.enqueue(
-            NewOutboxMessage(
-              id = UUID.randomUUID(),
-              sendKey = s"occ:${occ.id}:e$epoch:s0:kfinalize_${reasonTag(reason)}:t$target",
-              op = OutboxOp.Finalize,
-              kind = "reminder_finalize",
-              vendor = handle.vendor,
-              accountId = Some(occ.accountId),
-              occurrenceId = Some(occ.id),
-              channelId = None,
-              epoch = Some(epoch),
-              payload = LoopDispatch.toJson(LoopDispatch.FinalizeControls(occ.id, reasonTag(reason))),
-              target = Some(target),
-              importance = "reminder",
-              nextAttemptAt = now
-            )
-          )
-        }
+        FinalizeDispatch.enqueue(tx, occ.id, occ.accountId, epoch, reason, now)
       case DispatchIntent.MissedNotice(notBefore, silent) =>
         if catchUp then digest.add(tx, occ, epoch, now, notBefore)
         else
@@ -327,10 +304,6 @@ final class ReminderLoop(
     case ReminderKind.Initial    => "initial"
     case ReminderKind.Repeat     => "repeat"
     case ReminderKind.SnoozeWake => "snooze_wake"
-
-  private def reasonTag(reason: FinalizeReason): String = reason match
-    case FinalizeReason.Superseded => "superseded"
-    case FinalizeReason.Resolved   => "resolved"
 
   /** `dosecord.medication.dose_due.v1` (R30): appended exactly once, on the pending -> due transition only (repeats and
     * snooze wakes are due -> due and produce none).
