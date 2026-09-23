@@ -22,11 +22,10 @@ specification.
 
 ## Current entry point
 
-M1.8 and M1.9 are `green`. The next eligible slice is **M1.10 — One-tap intake
-flows, correction, Log dose, universal commands** (deps M1.7, M1.9, M1.4b), then
-M1.11 (deps M1.8, M1.10). **M0.8** (JDA DM spike) is dependency-unblocked but
-requires live Discord credentials; do not start it until the owner provides
-them.
+M1.8, M1.9 and M1.10 are `green`. The next eligible slice is **M1.11 — 30-day
+scenario simulation** (deps M1.8, M1.10), the last slice that needs no live
+vendor credentials. **M0.8** (JDA DM spike) is dependency-unblocked but requires
+live Discord credentials; do not start it until the owner provides them.
 
 ## Agent workflow
 
