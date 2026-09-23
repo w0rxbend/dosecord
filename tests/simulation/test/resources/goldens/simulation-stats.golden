@@ -1,0 +1,47 @@
+# M1.11 30-day scenario simulation — final stats (golden; regenerate with
+# ./mill tests.simulation.test.runMain dosecord.simulation.simulationGoldenGenerate)
+window: 2026-10-05T00:00:00Z .. 2026-11-04T00:00:00Z (30 days, virtual clock)
+outage: 2026-10-16T08:00:00Z .. 2026-10-16T14:00:00Z (6 h, day 12)
+personas: p1 daily 09:00 (travels UTC->Africa/Lagos->America/Phoenix, pause/resume, same-day edit), p2 twice daily 09:07/21:07, p3 Mon/Wed/Fri 09:23, p4 as-needed via /log
+pending-personas (need M7 rule kinds, not implemented):
+  - every-8-hours interval dosing (Rule.IntervalFixedStart — M7)
+  - 3-weeks-on/1-week-off cycle (Rule.Cycle — M7)
+  - antibiotic chain every 6 h after the previous dose (Rule.Chain — M7.2)
+  - steroid taper (Rule.Taper — M7)
+occurrences by persona and status (scheduled_for < end):
+  p1: cancelled=3 taken=28
+  p2: missed=1 skipped=2 taken=57
+  p3: skipped=1 taken=11 unknown=1
+  p4: taken=4
+cancelled by persona and reason:
+  p1: superseded=3
+  p2: 
+  p3: 
+  p4: 
+unknown by reason:
+  outage=1
+outbox by kind and status:
+  digest/sent=3
+  interaction_reply/sent=20
+  missed_notice/sent=2
+  reminder/sent=109
+  reminder_finalize/sent=169
+dose_actions by action and actor:
+  reminder_sent/system=109
+  taken/user=101
+  skipped/user=3
+  snoozed/user=2
+  auto_marked_missed/system=2
+  marked_unknown/system=3
+  manually_corrected/user=2
+  undone/user=1
+  cancelled/system=3
+domain_events by type:
+  dosecord.medication.dose_due.v1=98
+  dosecord.medication.intake_taken.v1=103
+  dosecord.medication.schedule_created.v1=4
+manual occurrences:
+  manual=4
+dead-letters: 0
+marked-unknown: 3
+open-at-end: 0
