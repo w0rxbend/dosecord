@@ -2,6 +2,7 @@ package dosecord.core.scheduling
 
 import dosecord.contracts.AccountId
 import dosecord.contracts.Actor as ContractsActor
+import dosecord.contracts.DigestItem
 import dosecord.contracts.Event
 import dosecord.contracts.LoopDispatch
 import dosecord.core.domain.Decide
@@ -11,9 +12,11 @@ import dosecord.core.domain.FinalizeReason
 import dosecord.core.domain.OccurrenceEvent
 import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.domain.ReminderKind
+import dosecord.core.domain.UnknownReason
 import dosecord.core.ports.Clock
 import dosecord.core.ports.DeliveryTarget
 import dosecord.core.ports.DomainEventBus
+import dosecord.core.ports.LoopMetrics
 import dosecord.core.ports.NewDomainEvent
 import dosecord.core.ports.NewDoseAction
 import dosecord.core.ports.NewOutboxMessage
@@ -27,6 +30,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.mutable
 
 object ReminderLoop:
 
@@ -46,6 +50,15 @@ object ReminderLoop:
     */
   val SafetyNetLagTicks = 4
 
+  /** The digest bucket of DESIGN.md section 7.5: `bucket = floor(first next_action_at / 15 min)`. */
+  val DigestBucketSeconds = 900L
+
+  /** The catch-up rate limit (ROADMAP M1.8): at most this many claimed rows per tick are processed as catch-up (`now -
+    * next_action_at > 10 min`); the rest stay due for the next tick, so a long outage drains in bounded steps instead
+    * of one flood. Per-vendor send rate limiting stays with the dispatcher's token buckets.
+    */
+  val CatchUpBatchSize = 10
+
   /** Thrown inside a row's savepoint when the guarded write finds the row changed underneath the tick (a user action
     * bumped the epoch mid-tick). The savepoint rolls the tick's writes for that row back; the row is skipped, not
     * quarantined (epoch fencing, DESIGN.md sections 7.3/7.4).
@@ -60,6 +73,13 @@ object ReminderLoop:
   * `run` adds the materialiser safety net, the per-instance heartbeat (its own short transaction, outside the batch),
   * the fallback poll and the LISTEN wake-up. Appended `domain_events` rows are published to the in-process bus after
   * the transaction commits (ADR-003).
+  *
+  * ROADMAP M1.8 (DESIGN.md section 7.5): a dispatch whose row is in catch-up (`now - next_action_at > 10 min`) is not
+  * sent individually — it is folded into one digest per account per 15-minute bucket (`digest:$account:$bucket`,
+  * per-item epochs, the dispatcher re-reads before rendering), and an occurrence the outage marked `unknown` in
+  * catch-up contributes a digest item too, so the user hears about the downtime exactly once. Catch-up work is bounded
+  * per tick ([[ReminderLoop.CatchUpBatchSize]]); occurrences marked `unknown` increment
+  * `dosecord_unknown_total{reason}`.
   */
 final class ReminderLoop(
     uow: UnitOfWork,
@@ -70,7 +90,9 @@ final class ReminderLoop(
     role: String = "worker",
     batchSize: Int = ReminderLoop.BatchSize,
     pollInterval: Duration = ReminderLoop.PollInterval,
-    events: DomainEventBus = DomainEventBus.noop
+    events: DomainEventBus = DomainEventBus.noop,
+    catchUpBatchSize: Int = ReminderLoop.CatchUpBatchSize,
+    metrics: LoopMetrics = LoopMetrics.noop
 ):
   import ReminderLoop.*
 
@@ -88,8 +110,9 @@ final class ReminderLoop(
       val claimed = tickOnce(clock.now())
       wake.awaitOrTimeout(if claimed >= batchSize then Duration.ZERO else pollInterval)
 
-  /** One iteration of the process loop: the safety net, one `tick`, then the per-instance heartbeat in its own short
-    * transaction (DESIGN.md section 7.4: written after the batch, so a long batch cannot hold the heartbeat row).
+  /** One iteration of the process loop: the safety net (the materialiser-first startup of M1.8 — it runs before the
+    * loop resumes ticking), one `tick`, then the per-instance heartbeat in its own short transaction (DESIGN.md section
+    * 7.4: written after the batch, so a long batch cannot hold the heartbeat row).
     */
   def tickOnce(now: Instant): Int =
     materialiseLagging(now)
@@ -114,25 +137,41 @@ final class ReminderLoop(
       // Read once per tick (DESIGN.md section 7.3): the unknown(outage | undelivered) evidence.
       val lastHealthyTick = tx.heartbeat.maxLastTick().getOrElse(Instant.EPOCH)
       val claimed = tx.occurrences.claimDue(now, batchSize)
+      val digest = new TickDigest
+      var catchUpLeft = catchUpBatchSize
       claimed.foreach { occ =>
-        try dueEvents ++= tx.savepoint(processRow(tx, occ, now, lastHealthyTick))
-        catch
-          case _: StaleWrite => () // fenced: a user action landed mid-tick and wins; skip the row
-          case _: Exception  =>
-            tx.occurrences.quarantine(occ.id, now.plus(QuarantineRetryDelay), now)
-            ()
+        if isCatchUp(occ, now) && catchUpLeft <= 0 then
+          () // catch-up rate limit (M1.8): the row stays due and is claimed by the next tick
+        else
+          if isCatchUp(occ, now) then catchUpLeft -= 1
+          try dueEvents ++= tx.savepoint(processRow(tx, occ, now, lastHealthyTick, digest))
+          catch
+            case _: StaleWrite => () // fenced: a user action landed mid-tick and wins; skip the row
+            case _: Exception  =>
+              tx.occurrences.quarantine(occ.id, now.plus(QuarantineRetryDelay), now)
+              ()
       }
       claimed.size
     }
     dueEvents.result().foreach(events.publish)
     claimed
 
-  /** The per-row unit of ADR-004: decide, guarded write, action row, cancel stale queued rows, enqueue the dispatches
-    * with the new epoch in the `send_key`, and append `dose_due.v1` on the pending -> due transition — all inside the
-    * row's savepoint. Returns the appended domain event (empty unless the transition was pending -> due) so the caller
-    * can publish it after the batch transaction commits.
+  /** DESIGN.md section 7.5's catch-up predicate: the row's `next_action_at` is more than 10 minutes stale. */
+  private def isCatchUp(occ: StoredOccurrence, now: Instant): Boolean =
+    occ.state.nextActionAt.exists(na => Duration.between(na, now).compareTo(Decide.CatchUpThreshold) > 0)
+
+  /** The per-row unit of ADR-004: decide, guarded write, action rows, cancel stale queued rows, enqueue the dispatches
+    * (folded into the account digest in catch-up) with the new epoch in the `send_key`, and append `dose_due.v1` on the
+    * pending -> due transition — all inside the row's savepoint. Returns the appended domain event (empty unless the
+    * transition was pending -> due) so the caller can publish it after the batch transaction commits.
     */
-  private def processRow(tx: Tx, occ: StoredOccurrence, now: Instant, lastHealthyTick: Instant): List[NewDomainEvent] =
+  private def processRow(
+      tx: Tx,
+      occ: StoredOccurrence,
+      now: Instant,
+      lastHealthyTick: Instant,
+      digest: TickDigest
+  ): List[NewDomainEvent] =
     val (policy, quiet) = tx.policies.forOccurrence(occ)
     val nextOccurrence =
       occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor))
@@ -148,12 +187,17 @@ final class ReminderLoop(
         tx.occurrences.applyTransition(occ.id, occ.version, occ.state.epoch, transition.row, now)
       if !applied then throw StaleWrite(occ.id)
       val correlationId = UUID.randomUUID().toString
-      transition.action.foreach { intent =>
+      (transition.action.toList ++ transition.additionalActions).foreach { intent =>
         tx.doseActions.append(NewDoseAction.from(intent, occ.id, occ.accountId, correlationId))
       }
       val newEpoch = transition.row.epoch
       tx.outbox.cancelOlderQueued(occ.id, newEpoch)
-      transition.dispatches.foreach(enqueueDispatch(tx, occ, _, newEpoch, now))
+      if transition.row.status == OccurrenceStatus.Unknown then
+        metrics.unknownMarked(transition.row.unknownReason.map(_.dbValue).getOrElse(UnknownReason.Undelivered.dbValue))
+      val catchUp = isCatchUp(occ, now)
+      transition.dispatches.foreach(enqueueDispatch(tx, occ, _, newEpoch, now, catchUp, digest))
+      // An outage-marked unknown has no dispatch of its own; in catch-up it still belongs in the digest, once.
+      if catchUp && transition.row.status == OccurrenceStatus.Unknown then digest.add(tx, occ, newEpoch, now, None)
       if occ.status == OccurrenceStatus.Pending && transition.row.status == OccurrenceStatus.Due then
         List(appendDoseDue(tx, occ, transition.row.reminderSeq, now, correlationId))
       else Nil
@@ -161,64 +205,116 @@ final class ReminderLoop(
 
   /** One outbox row per dispatch intent per healthy primary channel; `send_key` carries the new epoch so a restart or a
     * second worker cannot double-enqueue (UNIQUE `send_key` + `ON CONFLICT DO NOTHING`), and `cancelOlderQueued` above
-    * has retired the stale-epoch rows (ADR-004).
+    * has retired the stale-epoch rows (ADR-004). In catch-up (M1.8) the sends are not enqueued individually: they fold
+    * into the account's digest bucket, so a restart after downtime cannot flood stale reminders.
     */
   private def enqueueDispatch(
       tx: Tx,
       occ: StoredOccurrence,
       intent: DispatchIntent,
       epoch: Int,
-      now: Instant
+      now: Instant,
+      catchUp: Boolean,
+      digest: TickDigest
   ): Unit =
     intent match
       case DispatchIntent.Reminder(kind, silent, seq) =>
-        perChannel(tx, occ): channel =>
-          NewOutboxMessage(
-            id = UUID.randomUUID(),
-            sendKey = sendKey(occ, epoch, s"s$seq", kindTag(kind), channel),
-            op = OutboxOp.Send,
-            kind = "reminder",
-            vendor = channel.vendor,
-            accountId = Some(occ.accountId),
-            occurrenceId = Some(occ.id),
-            channelId = Some(channel.channelId),
-            epoch = Some(epoch),
-            payload = LoopDispatch.toJson(LoopDispatch.Reminder(occ.id, channel.chatId, kindTag(kind), seq, silent)),
-            importance = "reminder",
-            nextAttemptAt = now
-          )
+        if catchUp then digest.add(tx, occ, epoch, now, notBefore = None)
+        else
+          perChannel(tx, occ): channel =>
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = sendKey(occ, epoch, s"s$seq", kindTag(kind), channel),
+              op = OutboxOp.Send,
+              kind = "reminder",
+              vendor = channel.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = Some(occ.id),
+              channelId = Some(channel.channelId),
+              epoch = Some(epoch),
+              payload = LoopDispatch.toJson(LoopDispatch.Reminder(occ.id, channel.chatId, kindTag(kind), seq, silent)),
+              importance = "reminder",
+              nextAttemptAt = now
+            )
       case DispatchIntent.FinalizeControls(reason) =>
-        perChannel(tx, occ): channel =>
-          NewOutboxMessage(
-            id = UUID.randomUUID(),
-            sendKey = sendKey(occ, epoch, "s0", s"finalize_${reasonTag(reason)}", channel),
-            op = OutboxOp.Finalize,
-            kind = "reminder_finalize",
-            vendor = channel.vendor,
-            accountId = Some(occ.accountId),
-            occurrenceId = Some(occ.id),
-            channelId = Some(channel.channelId),
-            epoch = Some(epoch),
-            payload = LoopDispatch.toJson(LoopDispatch.FinalizeControls(occ.id, reasonTag(reason))),
-            importance = "reminder",
-            nextAttemptAt = now
+        // DESIGN.md section 7.6: the finalize op is enqueued for every recorded handle of the occurrence (a repeat
+        // supersedes the previous message; a resolution drops its controls). With no recorded handle there is
+        // nothing to finalize — a target-less finalize row would be undispatchable.
+        tx.renderedMessages.handlesForSubject("occurrence", occ.id).foreach { handle =>
+          val target = OutboxDispatcher.encodeHandle(handle)
+          tx.outbox.enqueue(
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = s"occ:${occ.id}:e$epoch:s0:kfinalize_${reasonTag(reason)}:t$target",
+              op = OutboxOp.Finalize,
+              kind = "reminder_finalize",
+              vendor = handle.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = Some(occ.id),
+              channelId = None,
+              epoch = Some(epoch),
+              payload = LoopDispatch.toJson(LoopDispatch.FinalizeControls(occ.id, reasonTag(reason))),
+              target = Some(target),
+              importance = "reminder",
+              nextAttemptAt = now
+            )
           )
+        }
       case DispatchIntent.MissedNotice(notBefore, silent) =>
-        perChannel(tx, occ): channel =>
-          NewOutboxMessage(
-            id = UUID.randomUUID(),
-            sendKey = sendKey(occ, epoch, "s0", "missed", channel),
-            op = OutboxOp.Send,
-            kind = "missed_notice",
-            vendor = channel.vendor,
-            accountId = Some(occ.accountId),
-            occurrenceId = Some(occ.id),
-            channelId = Some(channel.channelId),
-            epoch = Some(epoch),
-            payload = LoopDispatch.toJson(LoopDispatch.MissedNotice(occ.id, channel.chatId, silent)),
-            importance = "reminder",
-            nextAttemptAt = notBefore.getOrElse(now)
+        if catchUp then digest.add(tx, occ, epoch, now, notBefore)
+        else
+          perChannel(tx, occ): channel =>
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = sendKey(occ, epoch, "s0", "missed", channel),
+              op = OutboxOp.Send,
+              kind = "missed_notice",
+              vendor = channel.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = Some(occ.id),
+              channelId = Some(channel.channelId),
+              epoch = Some(epoch),
+              payload = LoopDispatch.toJson(LoopDispatch.MissedNotice(occ.id, channel.chatId, silent)),
+              importance = "reminder",
+              nextAttemptAt = notBefore.getOrElse(now)
+            )
+
+  /** The per-tick digest folder (DESIGN.md section 7.5): one digest per account per 15-minute bucket. The bucket is
+    * anchored on the account's first folded row of the tick (`floor(first next_action_at / 15 min)`; rows are claimed
+    * oldest-first, so that is the earliest `next_action_at` in the batch); later rows merge their item into the same
+    * `send_key` through `enqueueDigest`'s upsert, inside the same row savepoint.
+    */
+  private final class TickDigest:
+    private val buckets = mutable.HashMap[UUID, Long]()
+
+    def add(tx: Tx, occ: StoredOccurrence, epoch: Int, now: Instant, notBefore: Option[Instant]): Unit =
+      val bucket = buckets.getOrElseUpdate(occ.accountId, anchor(occ, now))
+      tx.channels
+        .activePrimaryChannels(occ.accountId)
+        .headOption
+        .foreach: channel =>
+          tx.outbox.enqueueDigest(
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = s"digest:${occ.accountId}:$bucket",
+              op = OutboxOp.Send,
+              kind = "digest",
+              vendor = channel.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = None,
+              channelId = Some(channel.channelId),
+              epoch = None,
+              payload =
+                LoopDispatch.toJson(LoopDispatch.Digest(occ.accountId, bucket, List(DigestItem(occ.id, epoch)))),
+              importance = "reminder",
+              nextAttemptAt = notBefore.filter(_.isAfter(now)).getOrElse(now)
+            )
           )
+
+    private def anchor(occ: StoredOccurrence, now: Instant): Long =
+      occ.state.nextActionAt
+        .map(_.getEpochSecond / DigestBucketSeconds)
+        .getOrElse(now.getEpochSecond / DigestBucketSeconds)
 
   private def perChannel(tx: Tx, occ: StoredOccurrence)(msg: DeliveryTarget => NewOutboxMessage): Unit =
     tx.channels.activePrimaryChannels(occ.accountId).foreach(channel => tx.outbox.enqueue(msg(channel)))

@@ -89,6 +89,13 @@ trait OutboxRepository:
   /** Insert; false when a row with the same `send_key` already exists (ON CONFLICT DO NOTHING). */
   def enqueue(msg: NewOutboxMessage): Boolean
 
+  /** The digest fold of DESIGN.md section 7.5 (ROADMAP M1.8): inserts the digest row, or merges the payload's `items`
+    * into the still-queued row with the same `send_key` (one digest per account per 15-minute bucket) and pushes
+    * `next_attempt_at` to the later instant. Returns false when the bucket's digest already left the queue (sent, dead,
+    * or being sent): the late items are dropped by design — the bucket's digest was delivered.
+    */
+  def enqueueDigest(msg: NewOutboxMessage): Boolean
+
   /** Short claim (tx1 of DESIGN.md section 7.6): rows due for the owned vendors, `FOR UPDATE SKIP LOCKED`, flipped to
     * `sending` with `lease_until = now + lease`, `attempted_at = now` and `attempts + 1`. Rows stuck in `sending` are
     * re-claimable once their lease expired.
@@ -160,6 +167,11 @@ trait RenderedMessageRepository:
       choiceMap: List[ChoiceMapEntry],
       now: Instant
   ): Boolean
+
+  /** Every handle recorded for one subject (DESIGN.md section 7.6: the post-resolution finalize op is enqueued for
+    * every recorded handle of the occurrence, ROADMAP M1.8).
+    */
+  def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle]
 
   /** Quoted-reply numbers and reactions resolve through the target's `choice_map` unconditionally (DESIGN.md section
     * 4.6 step 5).

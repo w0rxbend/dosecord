@@ -6,6 +6,12 @@ import java.util.UUID
 
 import Json.given
 
+/** One catch-up digest line (DESIGN.md section 7.5): the occurrence and the epoch its state carried when the loop
+  * folded it into the digest. The dispatcher re-reads the row before rendering and drops items whose epoch moved on or
+  * whose occurrence resolved.
+  */
+final case class DigestItem(occurrenceId: UUID, epoch: Int) derives ReadWriter
+
 /** The payload of the outbox rows the reminder loop enqueues (DESIGN.md section 7.4, ADR-004). Opaque to the core's
   * outbox port; the dispatcher's renderer (M1.7) interprets it at send time and re-reads the occurrence row, so the
   * payload carries identity and intent, not rendered copy. Serialisation lives in contracts so the core stays free of a
@@ -21,6 +27,12 @@ enum LoopDispatch derives ReadWriter:
 
   /** The missed notice (ADR-012: deferred to quiet end via the outbox row's `next_attempt_at`, never the status). */
   case MissedNotice(occurrenceId: UUID, chatId: Option[String], silent: Boolean)
+
+  /** The catch-up digest (DESIGN.md section 7.5, ROADMAP M1.8): one send per account per 15-minute bucket after
+    * downtime. `bucket` is `floor(first next_action_at / 15 min)`; merging rows concatenate `items` under the same
+    * `send_key` (`digest:$account:$bucket`).
+    */
+  case Digest(accountId: UUID, bucket: Long, items: List[DigestItem])
 
 object LoopDispatch:
   def toJson(dispatch: LoopDispatch): String = upickle.default.write(dispatch)

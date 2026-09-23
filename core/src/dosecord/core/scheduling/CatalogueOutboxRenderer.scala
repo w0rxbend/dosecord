@@ -22,6 +22,7 @@ import dosecord.core.domain.Decide
 import dosecord.core.domain.DoseSnapshot
 import dosecord.core.domain.OccurrenceStatus
 import dosecord.core.domain.ReminderPolicy
+import dosecord.core.domain.copy.DigestCopy
 import dosecord.core.domain.copy.Labels
 import dosecord.core.domain.copy.ReminderCopy
 import dosecord.core.ports.Clock
@@ -49,6 +50,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
       case "reminder"          => renderReminder(row, capabilities)
       case "missed_notice"     => renderMissedNotice(row, capabilities)
       case "reminder_finalize" => renderFinalize(row, capabilities)
+      case "digest"            => renderDigest(row, capabilities)
       case "interaction_reply" => renderInteractionReply(row, capabilities)
       case other               => throw new IllegalArgumentException(s"outbox row ${row.id}: unknown kind '$other'")
 
@@ -136,6 +138,90 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
       correlationId = row.sendKey
     )
     lower(row, facts.chat, capabilities, message)
+
+  // ---------- catch-up digest (M1.8) ----------
+
+  /** The catch-up digest (DESIGN.md section 7.5): the payload's items are re-read immediately before rendering — an
+    * item whose occurrence resolved or whose epoch moved past the item's is dropped, and when nothing remains the send
+    * is skipped ([[DigestEmpty]]). Live items render one catalogue line each with resolution controls; at most
+    * [[DigestCopy.DigestMaxItems]] items carry controls (the renderer's native-component budget, "8 doses x 3
+    * buttons"), the rest fold into one closing line.
+    */
+  private def renderDigest(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
+    val dispatch = row.payloadAs[LoopDispatch.Digest]("digest")
+    val facts = digestFacts(row, dispatch)
+    val shown = facts.items.take(DigestCopy.DigestMaxItems)
+    val header = Node.Paragraph(List(Inline.Text(DigestCopy.header(facts.items.size))))
+    val itemLines = shown.map(item => Node.Paragraph(List(Inline.Text(item.line))))
+    val overflow =
+      if facts.items.size > shown.size then
+        List(Node.Paragraph(List(Inline.Text(DigestCopy.more(facts.items.size - shown.size)))))
+      else Nil
+    val blocks = shown.map: item =>
+      Block.Choices(ChoiceSet(id = s"digest.item.${item.occurrenceId}", choices = item.choices))
+    val message = OutboundMessage(
+      body = header :: itemLines ++ overflow,
+      blocks = blocks,
+      importance = Importance.Reminder,
+      dedupeKey = row.sendKey,
+      correlationId = row.sendKey
+    )
+    lower(row, facts.chat, capabilities, message)
+
+  private final case class DigestItemFacts(occurrenceId: UUID, line: String, choices: List[Choice])
+
+  private final case class DigestFacts(chat: ChatRef, items: List[DigestItemFacts])
+
+  /** The re-read of DESIGN.md section 7.5, in one short transaction completed before any vendor call: keep only items
+    * whose occurrence still exists, still carries the item's epoch, and is not resolved (`taken`/`skipped`/`cancelled`
+    * needs no digest line).
+    */
+  private def digestFacts(row: OutboxMessage, dispatch: LoopDispatch.Digest): DigestFacts =
+    uow.transaction: tx =>
+      val chatId = channelChatId(tx, row).getOrElse(
+        throw new IllegalStateException(s"outbox row ${row.id}: no channel chat for digest ${row.sendKey}")
+      )
+      val seen = scala.collection.mutable.HashSet[UUID]()
+      val items = dispatch.items.flatMap: item =>
+        if !seen.add(item.occurrenceId) then None // a merged bucket can carry an occurrence twice; render it once
+        else
+          tx.occurrences.get(item.occurrenceId) match
+            case None      => None
+            case Some(occ) =>
+              val live = occ.state.epoch == item.epoch &&
+                (occ.state.status.isOpen || occ.state.status == OccurrenceStatus.Unknown ||
+                  occ.state.status == OccurrenceStatus.Missed)
+              if !live then None else Some(digestItem(occ))
+      if items.isEmpty then throw DigestEmpty(row.sendKey)
+      DigestFacts(ChatRef(row.vendor, chatId), items)
+
+  /** One digest line and its resolution controls (M1.8): an open dose offers [Taken][Skip], an `unknown` one [I took
+    * it][Skip] (the user's word resolves it as real evidence, ADR-012), a `missed` one the missed-notice row [I took
+    * it][Skip][Keep missed].
+    */
+  private def digestItem(occ: StoredOccurrence): DigestItemFacts =
+    val snapshot = occ.doseSnapshot.getOrElse(
+      throw new IllegalStateException(s"occurrence ${occ.id} carries no dose snapshot")
+    )
+    val line = DigestCopy.item(snapshot.medicationName, doseText(snapshot), formatTime(occ, occ.state.scheduledFor))
+    val choices = occ.state.status match
+      case OccurrenceStatus.Unknown =>
+        List(
+          Choice(Labels.ITookIt, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
+          Choice(Labels.Skip, token("dose.skip", occ.id, 0))
+        )
+      case OccurrenceStatus.Missed =>
+        List(
+          Choice(Labels.ITookIt, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
+          Choice(Labels.Skip, token("dose.skip", occ.id, 0)),
+          Choice(Labels.KeepMissed, token("dose.keep_missed", occ.id, 0))
+        )
+      case _ =>
+        List(
+          Choice(Labels.Taken, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
+          Choice(Labels.Skip, token("dose.skip", occ.id, 0))
+        )
+    DigestItemFacts(occ.id, line, choices)
 
   // ---------- finalize ----------
 

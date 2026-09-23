@@ -111,7 +111,8 @@ object MediatorFakes:
     override def append(entry: AuditEntry): Unit = this.synchronized(entries += entry)
 
   final class InMemoryRenderedMessages extends RenderedMessageRepository:
-    private val rows = ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean)]
+    private val rows =
+      ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean, Option[String], Option[UUID])]
 
     override def record(
         handle: MessageHandle,
@@ -123,23 +124,26 @@ object MediatorFakes:
         choiceMap: List[ChoiceMapEntry],
         now: Instant
     ): Boolean = this.synchronized:
-      rows += ((handle, choiceMap, false))
+      rows += ((handle, choiceMap, false, subjectType, subjectId))
       true
 
     /** Test hook: finalize a message (controls removed). */
     def removeControls(handle: MessageHandle): Unit = this.synchronized:
-      rows.mapInPlace((h, map, removed) => (h, map, removed || h == handle))
+      rows.mapInPlace((h, map, removed, st, sid) => (h, map, removed || h == handle, st, sid))
 
     override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] = this.synchronized:
-      rows.collectFirst { case (h, map, removed) if h == handle =>
+      rows.collectFirst { case (h, map, removed, _, _) if h == handle =>
         RenderedChoiceMap(h, h.revision, map, removed)
       }
 
     override def latestPendingPrompt(vendor: String, chatId: String): Option[RenderedChoiceMap] = this.synchronized:
       rows.toList.reverse.collectFirst {
-        case (h, map, removed) if h.vendor == vendor && h.chatId == chatId && map.nonEmpty && !removed =>
+        case (h, map, removed, _, _) if h.vendor == vendor && h.chatId == chatId && map.nonEmpty && !removed =>
           RenderedChoiceMap(h, h.revision, map, controlsRemoved = false)
       }
+
+    override def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle] = this.synchronized:
+      rows.toList.collect { case (h, _, _, Some(st), Some(sid)) if st == subjectType && sid == subjectId => h }
 
   final class InMemoryOutbox extends OutboxRepository:
     private val enqueued = ListBuffer.empty[NewOutboxMessage]
@@ -147,6 +151,9 @@ object MediatorFakes:
     def allEnqueued: List[NewOutboxMessage] = this.synchronized(enqueued.toList)
     def allSent: List[UUID] = this.synchronized(sent.toList)
     override def enqueue(msg: NewOutboxMessage): Boolean = this.synchronized:
+      enqueued += msg
+      true
+    override def enqueueDigest(msg: NewOutboxMessage): Boolean = this.synchronized:
       enqueued += msg
       true
     override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] = Nil

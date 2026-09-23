@@ -273,6 +273,21 @@ class ReminderLoopPgSuite extends PgSuite:
     val occurrenceId =
       fixtures.uow.transaction(_.occurrences.listBySchedule(created.scheduleId)).head.id
 
+    // The dispatcher recorded the sent handle (M1.7); the repeat's finalize targets it (M1.8: the finalize op is
+    // enqueued for every recorded handle of the occurrence).
+    fixtures.uow.transaction(
+      _.renderedMessages.record(
+        dosecord.contracts.MessageHandle("console", "dm:owner", "m1"),
+        Some(accountId),
+        "reminder",
+        Some("occurrence"),
+        Some(occurrenceId),
+        Some(1),
+        Nil,
+        clock.now()
+      )
+    )
+
     // A user action lands between ticks: the epoch advances while the first reminder is still queued.
     withConnection { conn =>
       given Connection = conn

@@ -219,3 +219,178 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
 
     val (chat, _) = renderer(s.uow).render(fallbackRow, CapabilityProfiles.Discord)
     assertEquals(chat, ChatRef("fake", "dm:other"))
+
+  // ---------- catch-up digest (M1.8) ----------
+
+  private final case class DigestSeed(
+      uow: MediatorFakes.InMemoryUnitOfWork,
+      accountId: UUID,
+      channelId: UUID,
+      occurrenceIds: List[UUID]
+  )
+
+  /** One account, one channel, one occurrence per given state (distinct slot keys). */
+  private def digestSeed(states: List[Occurrence]): DigestSeed =
+    val uow = MediatorFakes.InMemoryUnitOfWork()
+    val accountId = UUID.randomUUID()
+    val medicationId = UUID.randomUUID()
+    val scheduleId = UUID.randomUUID()
+    val channelId = UUID.randomUUID()
+    val occurrenceIds = states.map(_ => UUID.randomUUID())
+    uow.transaction { tx =>
+      tx.schedules.insert(
+        NewSchedule(scheduleId, medicationId, accountId, "fixed_times", utc, true, LocalDate.of(2026, 9, 21)),
+        t0
+      )
+      tx.revisions.append(
+        NewScheduleRevision(
+          UUID.randomUUID(),
+          scheduleId,
+          revision = 1,
+          effectiveFrom = t0,
+          tz = utc,
+          rule = Rule.AsNeeded(1, 0),
+          policy = ReminderPolicy.Default,
+          doseSnapshot = snapshot,
+          createdBy = "user",
+          reason = None
+        ),
+        t0
+      )
+      tx.occurrences.insertAll(
+        states.zip(occurrenceIds).map { (state, id) =>
+          NewOccurrence(
+            id = id,
+            accountId = accountId,
+            medicationId = medicationId,
+            scheduleId = Some(scheduleId),
+            revision = Some(1),
+            origin = OccurrenceOrigin.Scheduled,
+            localDate = LocalDate.of(2026, 9, 21),
+            localTime = None,
+            slotKey = s"t${id.toString.take(8)}",
+            tz = utc,
+            dstKind = DstKind.None,
+            doseSnapshot = snapshot,
+            state = state
+          )
+        }
+      )
+      ()
+    }
+    uow.channels.register(accountId, DeliveryTarget(channelId, "fake", Some("dm:owner")))
+    DigestSeed(uow, accountId, channelId, occurrenceIds)
+
+  private def unknownState(epoch: Int): Occurrence =
+    Occurrence
+      .scheduled(t0, ReminderPolicy.Default)
+      .copy(status = OccurrenceStatus.Unknown, unknownReason = Some(dosecord.core.domain.UnknownReason.Outage),
+        nextActionAt = None, epoch = epoch)
+
+  private def missedState(epoch: Int): Occurrence =
+    Occurrence
+      .scheduled(t0, ReminderPolicy.Default)
+      .copy(status = OccurrenceStatus.Missed, missedAt = Some(t0), nextActionAt = None, epoch = epoch)
+
+  private def takenState(epoch: Int): Occurrence =
+    Occurrence
+      .scheduled(t0, ReminderPolicy.Default)
+      .copy(status = OccurrenceStatus.Taken, takenAt = Some(t0), effectiveAt = Some(t0), nextActionAt = None,
+        epoch = epoch)
+
+  private def digestRow(s: DigestSeed, items: List[dosecord.contracts.DigestItem]): OutboxMessage =
+    OutboxMessage(
+      id = UUID.randomUUID(),
+      sendKey = s"digest:${s.accountId}:32400",
+      op = OutboxOp.Send,
+      kind = "digest",
+      vendor = "fake",
+      accountId = Some(s.accountId),
+      occurrenceId = None,
+      channelId = Some(s.channelId),
+      epoch = None,
+      payload = LoopDispatch.toJson(LoopDispatch.Digest(s.accountId, 32400L, items)),
+      target = None,
+      importance = "reminder",
+      status = OutboxStatus.Queued,
+      attempts = 1,
+      nextAttemptAt = t0,
+      leaseUntil = None,
+      attemptedAt = None,
+      previousAttemptedAt = None,
+      opsDone = 0,
+      possibleDuplicate = false,
+      platformMessageId = None,
+      lastError = None,
+      createdAt = t0,
+      sentAt = None
+    )
+
+  test("a digest renders the catalogue header, one line per live item, and resolution controls"):
+    val s = digestSeed(List(unknownState(1), missedState(2), dueState))
+    val items = List(
+      dosecord.contracts.DigestItem(s.occurrenceIds(0), 1),
+      dosecord.contracts.DigestItem(s.occurrenceIds(1), 2),
+      dosecord.contracts.DigestItem(s.occurrenceIds(2), 1)
+    )
+    val (chat, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+
+    assertEquals(chat, ChatRef("fake", "dm:owner"))
+    val text = rendered.chunks.mkString("\n")
+    assert(text.contains(dosecord.core.domain.copy.DigestCopy.header(3)), s"header missing: $text")
+    assertEquals(text.linesIterator.count(_.startsWith("• ")), 3, "one line per live item")
+    val labels = rendered.controls.collect { case RenderedControls.Buttons(rows) => rows.flatten.map(_.label) }
+    assertEquals(
+      labels,
+      List(
+        List("I took it", "Skip"),
+        List("I took it", "Skip", "Keep missed"),
+        List("Taken", "Skip")
+      )
+    )
+    val decoded = rendered.choiceMap.map(entry => codec.decode(entry.callback).toOption.get)
+    assertEquals(
+      decoded.map(_.subject),
+      List(s.occurrenceIds(0), s.occurrenceIds(0), s.occurrenceIds(1), s.occurrenceIds(1), s.occurrenceIds(1),
+        s.occurrenceIds(2), s.occurrenceIds(2)),
+      "every token is bound to its occurrence"
+    )
+    assertEquals(decoded.map(_.action.name),
+      List("dose.taken", "dose.skip", "dose.taken", "dose.skip", "dose.keep_missed", "dose.taken", "dose.skip"))
+
+  test("stale-epoch and resolved items are dropped at render time; the header counts what remains"):
+    val s = digestSeed(List(takenState(2), unknownState(1)))
+    val items = List(
+      dosecord.contracts.DigestItem(s.occurrenceIds(0), 1), // stale epoch: the occurrence moved to epoch 2
+      dosecord.contracts.DigestItem(s.occurrenceIds(1), 1)
+    )
+    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+
+    val text = rendered.chunks.mkString("\n")
+    assert(text.contains(dosecord.core.domain.copy.DigestCopy.header(1)), s"header was: $text")
+    assertEquals(text.linesIterator.count(_.startsWith("• ")), 1)
+
+  test("a digest whose items all resolved is skipped with DigestEmpty"):
+    val s = digestSeed(List(takenState(1)))
+    val items = List(dosecord.contracts.DigestItem(s.occurrenceIds(0), 1))
+    intercept[DigestEmpty](renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord))
+
+  test("a merged bucket repeating an occurrence renders it once"):
+    val s = digestSeed(List(unknownState(1)))
+    val items = List(
+      dosecord.contracts.DigestItem(s.occurrenceIds(0), 1),
+      dosecord.contracts.DigestItem(s.occurrenceIds(0), 1)
+    )
+    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+    assertEquals(rendered.chunks.mkString("\n").linesIterator.count(_.startsWith("• ")), 1)
+
+  test("more items than the 8-dose cap: eight control rows and a closing count line"):
+    val s = digestSeed(List.fill(9)(unknownState(1)))
+    val items = s.occurrenceIds.map(id => dosecord.contracts.DigestItem(id, 1))
+    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+
+    val text = rendered.chunks.mkString("\n")
+    assert(text.contains(dosecord.core.domain.copy.DigestCopy.header(9)), s"header was: $text")
+    assert(text.contains(dosecord.core.domain.copy.DigestCopy.more(1)), s"closing line missing: $text")
+    assertEquals(text.linesIterator.count(_.startsWith("• ")), 8, "only the capped items get lines")
+    assertEquals(rendered.controls.size, 8)

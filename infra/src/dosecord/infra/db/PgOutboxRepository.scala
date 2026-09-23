@@ -28,6 +28,29 @@ final class PgOutboxRepository(conn: Connection) extends OutboxRepository:
                   'queued', ${msg.nextAttemptAt})
           ON CONFLICT (send_key) DO NOTHING""".execute() == 1
 
+  /** The digest fold (DESIGN.md section 7.5, M1.8): insert the digest row, or merge the payload's `items` into the
+    * still-queued row with the same `send_key` (one digest per account per 15-minute bucket), keeping the later
+    * `next_attempt_at` (a quiet-deferred missed notice folds its `not_before` into the digest). A row that already left
+    * the queue (`sending`, `sent`, `dead`, `cancelled`) keeps its state and the late items are dropped — the bucket's
+    * digest was delivered or is being delivered.
+    */
+  override def enqueueDigest(msg: NewOutboxMessage): Boolean =
+    sql"""INSERT INTO outbox_messages
+            (id, send_key, op, kind, vendor, account_id, occurrence_id, channel_id, epoch,
+             payload, target, importance, status, next_attempt_at)
+          VALUES (${msg.id}, ${msg.sendKey}, ${msg.op.db}, ${msg.kind}, ${msg.vendor}, ${msg.accountId},
+                  ${msg.occurrenceId}, ${msg.channelId}, ${msg.epoch}, ${Jsonb(msg.payload)},
+                  ${msg.target.map(t => Jsonb(PgOutboxRepository.wrapJsonString(t)))}, ${msg.importance},
+                  'queued', ${msg.nextAttemptAt})
+          ON CONFLICT (send_key) DO UPDATE
+            SET payload = jsonb_set(
+                  outbox_messages.payload,
+                  '{items}',
+                  (outbox_messages.payload -> 'items') || (EXCLUDED.payload -> 'items')
+                ),
+                next_attempt_at = GREATEST(outbox_messages.next_attempt_at, EXCLUDED.next_attempt_at)
+            WHERE outbox_messages.status IN ('queued', 'failed_retry')""".execute() == 1
+
   override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] =
     val leaseUntil = now.plus(lease)
     val vendorArray = vendors.toArray

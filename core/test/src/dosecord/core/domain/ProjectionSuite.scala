@@ -68,6 +68,15 @@ class ProjectionSuite extends munit.FunSuite:
     assertEquals(folded.skippedAt, None)
     assertEquals(folded.effectiveAt, Some(correctedEffective))
 
+  test("fold rebuilds the collapsed reminder_seq jump of a catch-up fire (M1.8)"):
+    // 09:00 due window, repeatEvery 10, maxReminders 3: a tick at 09:25 collapses the initial plus two repeats
+    // into one late reminder (DESIGN.md section 7.5).
+    val t1 = decide(seed, scheduledFor.plusSeconds(1500), DecideContext(OccurrenceEvent.Tick, delivered = false))
+    assertEquals(t1.row.reminderSeq, 3)
+    val actions = t1.action.toList ++ t1.additionalActions
+    assertEquals(actions.map(_.action), List(DoseActionKind.ReminderSent, DoseActionKind.CatchUpCollapsed))
+    assertEquals(Projection.fold(actions, seed), Projection.of(t1.row))
+
   test("note_added appends an action but never moves the projection"):
     val atDue = seed.dueWindowStart
     val t1 = decide(seed, atDue, DecideContext(OccurrenceEvent.Tick, delivered = true))

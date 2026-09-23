@@ -43,7 +43,7 @@ final case class DecideContext(
 object Decide:
 
   /** DESIGN.md section 7.5: a dispatch created when `now - next_action_at > 10 min` is a catch-up artifact. */
-  private val CatchUpThreshold: Duration = Duration.ofMinutes(10)
+  val CatchUpThreshold: Duration = Duration.ofMinutes(10)
 
   def decide(
       occ: Occurrence,
@@ -202,7 +202,9 @@ object Decide:
   ): Transition =
     if !now.isBefore(occ.missDeadline) then resolveAtMissDeadline(occ, policy, quiet, now, ctx)
     else if occ.reminderSeq < policy.maxReminders then
-      val seq = occ.reminderSeq + 1
+      // Collapse-not-replay (DESIGN.md section 7.5): one repeat carries the cadence to what would have elapsed by
+      // `now`; the reminders it stands in for are recorded as one `catch_up_collapsed` action row.
+      val seq = math.min(occ.reminderSeq + elapsedRepeats(occ, policy, now), policy.maxReminders)
       val next = nextCadence(policy, occ.missDeadline, now, seq)
       val silent = policy.quietHoursMode == QuietHoursMode.Silent && quiet.contains(now)
       val row = occ.copy(
@@ -219,7 +221,8 @@ object Decide:
           DispatchIntent.Reminder(ReminderKind.Repeat, silent, seq)
         ),
         None,
-        Feedback.None
+        Feedback.None,
+        collapseAction(occ, OccurrenceStatus.Due, now, collapsed = seq - occ.reminderSeq - 1)
       )
     else if occ.nextActionAt.contains(occ.missDeadline) then Transition.unchanged(occ, Feedback.None)
     else
@@ -322,8 +325,13 @@ object Decide:
             Feedback.None
           )
 
+  /** The initial fire, collapsed (DESIGN.md section 7.5): `reminder_seq` is set to what would have elapsed by `now`
+    * (the initial at `due_window_start` plus one per whole `repeatEvery` since, capped at `maxReminders`), so a late
+    * fire continues the cadence instead of replaying it; the reminders it stands in for are recorded as one
+    * `catch_up_collapsed` action row. On time (elapsed = 1) this is the plain initial reminder.
+    */
   private def fireInitial(occ: Occurrence, policy: ReminderPolicy, now: Instant, silent: Boolean): Transition =
-    val seq = 1
+    val seq = elapsedCadence(occ, policy, now)
     val next = nextCadence(policy, occ.missDeadline, now, seq)
     val row = occ.copy(
       status = OccurrenceStatus.Due,
@@ -337,7 +345,8 @@ object Decide:
       Some(systemAction(DoseActionKind.ReminderSent, occ, OccurrenceStatus.Due, now)),
       List(DispatchIntent.Reminder(ReminderKind.Initial, silent, seq)),
       None,
-      Feedback.None
+      Feedback.None,
+      collapseAction(occ, OccurrenceStatus.Due, now, collapsed = seq - 1)
     )
 
   // --------------------------------------------------------------------------
@@ -531,6 +540,49 @@ object Decide:
   private def nextCadence(policy: ReminderPolicy, missDeadline: Instant, now: Instant, seq: Int): Instant =
     if seq < policy.maxReminders then minOf(now.plusSeconds(policy.repeatEveryMinutes.toLong * 60L), missDeadline)
     else missDeadline
+
+  /** The cadence reminders that would have fired by `now` for a pending row (DESIGN.md section 7.5): the initial at
+    * `due_window_start` plus one per whole `repeatEvery` elapsed since, capped at `maxReminders`. Callers only fire at
+    * or after `due_window_start`, so the result is at least 1.
+    */
+  private def elapsedCadence(occ: Occurrence, policy: ReminderPolicy, now: Instant): Int =
+    val everySeconds = policy.repeatEveryMinutes.toLong * 60L
+    val since = math.max(0L, Duration.between(occ.dueWindowStart, now).getSeconds)
+    val extra = if everySeconds <= 0 then 0L else since / everySeconds
+    math.min(1 + extra.toInt, policy.maxReminders)
+
+  /** The repeat reminders that would have fired by `now` for a due row: one at `next_action_at` plus one per whole
+    * `repeatEvery` elapsed since (claimed rows have `next_action_at <= now`).
+    */
+  private def elapsedRepeats(occ: Occurrence, policy: ReminderPolicy, now: Instant): Int =
+    val everySeconds = policy.repeatEveryMinutes.toLong * 60L
+    val since = math.max(0L, occ.nextActionAt.map(na => Duration.between(na, now).getSeconds).getOrElse(0L))
+    val extra = if everySeconds <= 0 then 0L else since / everySeconds
+    1 + extra.toInt
+
+  /** The `catch_up_collapsed` row of a collapsed fire (DESIGN.md section 7.5): records how many cadence reminders the
+    * one sent reminder stands in for, so the projection fold rebuilds the `reminder_seq` jump. Empty when nothing was
+    * collapsed (an on-time fire).
+    */
+  private def collapseAction(
+      occ: Occurrence,
+      newStatus: OccurrenceStatus,
+      now: Instant,
+      collapsed: Int
+  ): List[ActionRowIntent] =
+    if collapsed <= 0 then Nil
+    else
+      List(
+        ActionRowIntent(
+          DoseActionKind.CatchUpCollapsed,
+          Actor.System,
+          now,
+          occ.status,
+          newStatus,
+          catchUp = true,
+          collapsedReminders = collapsed
+        )
+      )
 
   private def snoozedUntil(occ: Occurrence, now: Instant, minutes: Int): Instant =
     val base = if now.isBefore(occ.dueWindowStart) then occ.dueWindowStart else now
