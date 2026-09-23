@@ -54,6 +54,15 @@ final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessag
           controlsRemoved = false
         )
 
+  override def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle] =
+    sql"""SELECT vendor, chat_id, message_id, revision FROM rendered_messages
+          WHERE subject_type = $subjectType AND subject_id = $subjectId
+          ORDER BY sent_at, message_id"""
+      .query[MessageHandle]()
+
+  private given RowMapper[MessageHandle] = rs =>
+    MessageHandle(rs.getString("vendor"), rs.getString("chat_id"), rs.getString("message_id"), rs.getInt("revision"))
+
   private given RowMapper[(Int, Option[String], Option[Instant])] = rs =>
     (rs.getInt("revision"), rs.optString("choice_map"), rs.optInstant("controls_removed_at"))
 

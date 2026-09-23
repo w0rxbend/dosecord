@@ -218,6 +218,67 @@ class DecideSuite extends munit.FunSuite:
     val onTime = Decide.decide(pendingOcc, policy, noQuiet, t("09:05"), tick())
     assertEquals(onTime.action.map(_.catchUp), Some(false))
 
+  // ---- M1.8: collapse-not-replay (DESIGN.md section 7.5) ----
+
+  test("(pending, tick) a jump inside the window collapses the cadence: one late reminder at the elapsed seq"):
+    // 09:00 due window, repeatEvery 10, maxReminders 3: by 09:25 the initial and two repeats would have fired.
+    val result = Decide.decide(pendingOcc, policy, noQuiet, t("09:25"), tick())
+    assertEquals(result.row.status, OccurrenceStatus.Due)
+    assertEquals(result.row.reminderSeq, 3, "seq is what would have elapsed, so the cadence continues")
+    assertEquals(result.row.nextActionAt, Some(t("11:00")), "cadence exhausted: park at the miss deadline")
+    assertEquals(result.row.epoch, 1)
+    assertEquals(
+      result.dispatches,
+      List(DispatchIntent.Reminder(ReminderKind.Initial, silent = false, 3)),
+      "one late reminder, not a replay of the three"
+    )
+    assertEquals(result.action.map(_.action), Some(DoseActionKind.ReminderSent))
+    assertEquals(result.action.map(_.catchUp), Some(true))
+    assertEquals(
+      result.additionalActions.map(a => (a.action, a.collapsedReminders)),
+      List((DoseActionKind.CatchUpCollapsed, 2)),
+      "the two folded reminders are recorded as one catch_up_collapsed row"
+    )
+
+  test("(pending, tick) a jump past cadence exhaustion but before the miss deadline fires the last reminder once"):
+    val result = Decide.decide(pendingOcc, policy, noQuiet, t("10:30"), tick())
+    assertEquals(result.row.reminderSeq, 3, "capped at maxReminders")
+    assertEquals(result.row.nextActionAt, Some(t("11:00")))
+    assertEquals(result.dispatches, List(DispatchIntent.Reminder(ReminderKind.Initial, silent = false, 3)))
+    assertEquals(result.additionalActions.map(_.collapsedReminders), List(2))
+
+  test("(pending, tick) inside one repeat period: the plain initial fire records no collapse"):
+    val result = Decide.decide(pendingOcc, policy, noQuiet, t("09:05"), tick())
+    assertEquals(result.row.reminderSeq, 1)
+    assertEquals(result.additionalActions, Nil)
+
+  test("(due, tick) a jump across repeat points collapses to the elapsed seq with a catch_up_collapsed row"):
+    // due seq 1, next repeat at 09:10; by 09:35 three repeats would have fired, capped at maxReminders 3.
+    val result = Decide.decide(dueOcc(seq = 1), policy, noQuiet, t("09:35"), tick())
+    assertEquals(result.row.reminderSeq, 3)
+    assertEquals(result.row.nextActionAt, Some(t("11:00")))
+    assertEquals(
+      result.dispatches,
+      List(
+        DispatchIntent.FinalizeControls(FinalizeReason.Superseded),
+        DispatchIntent.Reminder(ReminderKind.Repeat, silent = false, 3)
+      )
+    )
+    assertEquals(
+      result.additionalActions.map(a => (a.action, a.priorStatus, a.newStatus, a.collapsedReminders)),
+      List((DoseActionKind.CatchUpCollapsed, OccurrenceStatus.Due, OccurrenceStatus.Due, 1))
+    )
+
+  test("(due, tick) an on-time repeat records no collapse row"):
+    val result = Decide.decide(dueOcc(seq = 1), policy, noQuiet, t("09:10"), tick())
+    assertEquals(result.row.reminderSeq, 2)
+    assertEquals(result.additionalActions, Nil)
+
+  test("(due, tick) a small jump of one repeat period collapses exactly one step"):
+    val result = Decide.decide(dueOcc(seq = 1), policy, noQuiet, t("09:15"), tick())
+    assertEquals(result.row.reminderSeq, 2)
+    assertEquals(result.additionalActions, Nil, "one elapsed repeat is the ordinary +1, not a collapse")
+
   // --------------------------------------------------------------------------
   // System rows: (due, tick)
   // --------------------------------------------------------------------------

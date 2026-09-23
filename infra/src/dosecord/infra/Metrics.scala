@@ -1,6 +1,7 @@
 package dosecord.infra
 
 import dosecord.core.ports.Clock
+import dosecord.core.ports.LoopMetrics
 import dosecord.core.ports.OutboxMetrics
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
@@ -24,6 +25,22 @@ object Metrics:
 
   private val possibleDuplicateCounters =
     new java.util.concurrent.ConcurrentHashMap[String, Counter]()
+
+  private val unknownCounters =
+    new java.util.concurrent.ConcurrentHashMap[String, Counter]()
+
+  /** `dosecord_unknown_total{reason}` (DESIGN.md section 10, ROADMAP M1.8): occurrences marked `unknown`, tagged by
+    * reason (`outage` when no worker was healthy across the due window, `undelivered` when workers were healthy but no
+    * reminder was confirmed sent); incremented by the reminder loop's catch-up collapse and the materialiser's outage
+    * inserts.
+    */
+  def unknownMarked(reason: String): Unit =
+    unknownCounters
+      .computeIfAbsent(
+        reason,
+        r => Counter.builder("dosecord_unknown_total").tag("reason", r).register(registry)
+      )
+      .increment()
 
   /** `dosecord_outbox_dead_total` (DESIGN.md section 10, ROADMAP M1.7): terminal `dead` outbox rows (attempt budget
     * spent or channelFatal); the M2.4 alert source.
@@ -81,3 +98,7 @@ object Metrics:
 final class MicrometerOutboxMetrics extends OutboxMetrics:
   override def outboxDead(): Unit = Metrics.outboxDead()
   override def possibleDuplicate(vendor: String): Unit = Metrics.possibleDuplicate(vendor)
+
+/** The reminder loop's metrics port over the shared registry (ROADMAP M1.8). */
+final class MicrometerLoopMetrics extends LoopMetrics:
+  override def unknownMarked(reason: String): Unit = Metrics.unknownMarked(reason)

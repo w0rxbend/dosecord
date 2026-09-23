@@ -40,6 +40,7 @@ final class InMemoryUnitOfWork extends UnitOfWork:
 
   private val outbox = new OutboxRepository:
     override def enqueue(msg: NewOutboxMessage): Boolean = true
+    override def enqueueDigest(msg: NewOutboxMessage): Boolean = true
     override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] = Nil
     override def recordHandle(id: UUID, encodedHandle: String): Unit = ()
     override def markOpDone(id: UUID, opIndex: Int): Unit = ()
@@ -117,6 +118,7 @@ final class InMemoryIdentities extends IdentityRepository:
 
 final class InMemoryRenderedMessages extends RenderedMessageRepository:
   private val rows = ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean)]
+  private val subjects = ListBuffer.empty[(MessageHandle, String, UUID)]
   def all: List[(MessageHandle, List[ChoiceMapEntry], Boolean)] = this.synchronized(rows.toList)
 
   override def record(
@@ -130,6 +132,10 @@ final class InMemoryRenderedMessages extends RenderedMessageRepository:
       now: Instant
   ): Boolean = this.synchronized:
     rows += ((handle, choiceMap, false))
+    for
+      st <- subjectType
+      sid <- subjectId
+    do subjects += ((handle, st, sid))
     true
 
   /** Test hook: finalize a message (controls removed), as the mediator does after a finalize. */
@@ -146,6 +152,8 @@ final class InMemoryRenderedMessages extends RenderedMessageRepository:
       case (h, map, removed) if h.vendor == vendor && h.chatId == chatId && map.nonEmpty && !removed =>
         RenderedChoiceMap(h, h.revision, map, controlsRemoved = false)
     }
+  override def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle] = this.synchronized:
+    subjects.toList.collect { case (h, st, sid) if st == subjectType && sid == subjectId => h }
 
 final class InMemorySessions extends SessionRepository:
   private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, ConversationSession]

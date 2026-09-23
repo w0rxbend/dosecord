@@ -91,8 +91,9 @@ object Projection:
         // No producer before M1.5 (revision reconciliation); the status record alone is the lifecycle change.
         base
       case DoseActionKind.CatchUpCollapsed =>
-        // Declared for M1.8, inert until then; collapse re-points scheduling state, never lifecycle fields.
-        base
+        // M1.8: a catch-up collapse folds `collapsedReminders` cadence reminders into the one actually sent; the
+        // stored row's reminder_seq jumps by that count on top of the ReminderSent row's +1 (DESIGN.md section 7.5).
+        base.copy(reminderSeq = projection.reminderSeq + action.collapsedReminders)
       case DoseActionKind.ChainChildCreated =>
         // Declared for M7.2, inert until then; the child is a separate occurrence with its own log.
         base

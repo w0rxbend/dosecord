@@ -13,6 +13,8 @@ enum Actor(val dbValue: String):
 /** The `dose_actions` row a transition appends, as data (ROADMAP M1.3: "`Transition` carries action rows"). The
   * persistence layer (M1.5) assigns `id`, `seq`, `idempotency_key` and the correlation/vendor fields; `takenLate` is
   * carried into `metadata` (there is no column for it; delay statistics derive lateness from `effective_at`).
+  * `collapsedReminders` (M1.8) is the number of cadence reminders a catch-up collapse folded into the one actually
+  * sent, so the projection fold can rebuild the stored `reminder_seq` jump (DESIGN.md section 7.5).
   */
 final case class ActionRowIntent(
     action: DoseActionKind,
@@ -25,7 +27,8 @@ final case class ActionRowIntent(
     note: Option[String] = None,
     undoesSeq: Option[Int] = None,
     takenLate: Boolean = false,
-    catchUp: Boolean = false
+    catchUp: Boolean = false,
+    collapsedReminders: Int = 0
 )
 
 /** Which reminder message a dispatch sends (DESIGN.md section 7.3): the initial reminder, a bounded repeat, or the
@@ -111,16 +114,18 @@ enum Feedback:
   case Refused(reason: Refusal)
 
 /** The result of `Decide.decide` (DESIGN.md section 7.3): the rewritten occurrence row, the `dose_actions` row to
-  * append, the outbox intents to enqueue, the declared-but-inert chain child, and the user-facing feedback. The loop
-  * (M1.6) persists `row` (epoch fencing via `row.epoch`), appends `action`, and enqueues `dispatches` in one
-  * transaction; nothing here performs I/O.
+  * append, any extra action rows the transition records (M1.8: `catch_up_collapsed` when a jump folds the repeat
+  * cadence, DESIGN.md section 7.5), the outbox intents to enqueue, the declared-but-inert chain child, and the
+  * user-facing feedback. The loop (M1.6) persists `row` (epoch fencing via `row.epoch`), appends `action` plus
+  * `additionalActions`, and enqueues `dispatches` in one transaction; nothing here performs I/O.
   */
 final case class Transition(
     row: Occurrence,
     action: Option[ActionRowIntent],
     dispatches: List[DispatchIntent],
     chainChild: Option[ChainChildIntent],
-    feedback: Feedback
+    feedback: Feedback,
+    additionalActions: List[ActionRowIntent] = Nil
 )
 
 object Transition:

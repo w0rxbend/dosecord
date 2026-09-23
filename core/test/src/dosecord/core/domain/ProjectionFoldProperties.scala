@@ -92,17 +92,19 @@ class ProjectionFoldProperties extends munit.ScalaCheckSuite:
         )
         val transition = Decide.decide(row, policy, QuietHoursContext.none(utc), now, ctx)
         row = transition.row
-        transition.action.foreach { action =>
+        // The loop persists the primary action plus any additional rows (M1.8: catch_up_collapsed); the fold is
+        // checked over exactly that log. The invariant holds after every transition prefix: a transition's rows
+        // commit atomically, so mid-transition prefixes are not meaningful fold points.
+        (transition.action.toList ++ transition.additionalActions).foreach { action =>
           seq += 1
           actions = actions :+ action
           undoable = nextUndoable(undoable, action, seq)
-          // Stronger than the acceptance: the invariant holds after every prefix, not only at the end.
-          assertEquals(
-            Projection.fold(actions, seed),
-            Projection.of(row),
-            s"fold diverged after ${actions.size} actions; last action: $action"
-          )
         }
+        assertEquals(
+          Projection.fold(actions, seed),
+          Projection.of(row),
+          s"fold diverged after ${actions.size} actions; last action: ${actions.lastOption}"
+        )
       }
     }
 end ProjectionFoldProperties

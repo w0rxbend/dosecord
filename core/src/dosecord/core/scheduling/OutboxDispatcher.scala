@@ -26,6 +26,12 @@ import java.util.UUID
 trait OutboxRenderer:
   def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage)
 
+/** Thrown by the digest renderer when every item resolved or went stale before the send (DESIGN.md section 7.5: the
+  * dispatcher re-reads the items and skips the send). The dispatcher catches it and cancels the row without a vendor
+  * call (ROADMAP M1.8).
+  */
+final case class DigestEmpty(sendKey: String) extends RuntimeException(s"digest $sendKey has no live items")
+
 object OutboxDispatcher:
   val MaxAttempts = 8
   val PossibleDuplicateAfter: Duration = Duration.ofMinutes(2)
@@ -153,6 +159,10 @@ final class OutboxDispatcher(
           ) // duplicate-annotation errors are success
           uow.transaction(_.outbox.markSent(row.id, requiredTarget(row), now, possibleDuplicate = false))
     catch
+      case _: DigestEmpty =>
+        // M1.8 (DESIGN.md section 7.5): every digest item resolved or went stale before the send — the digest is
+        // skipped without a vendor call.
+        uow.transaction(_.outbox.cancel(row.id))
       case ChatError.RateLimited(after) =>
         retryOrDead(row, now.plus(after), possibleDuplicate = false, error = "rate limited")
       case e @ (_: ChatError.Retryable | _: ChatError.TooOld) =>

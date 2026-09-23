@@ -32,8 +32,8 @@ final case class NewDoseAction(
 
 object NewDoseAction:
 
-  /** The persistence form of an M1.3 [[ActionRowIntent]]; `takenLate` is carried into `metadata` (there is no column
-    * for it, Transition.scala).
+  /** The persistence form of an M1.3 [[ActionRowIntent]]; `takenLate` and `collapsedReminders` are carried into
+    * `metadata` (there are no columns for them, Transition.scala).
     */
   def from(intent: ActionRowIntent, occurrenceId: UUID, accountId: UUID, correlationId: String): NewDoseAction =
     NewDoseAction(
@@ -51,8 +51,14 @@ object NewDoseAction:
       note = intent.note,
       undoesSeq = intent.undoesSeq,
       catchUp = intent.catchUp,
-      metadata = if intent.takenLate then """{"taken_late":true}""" else "{}"
+      metadata = metadataOf(intent)
     )
+
+  private def metadataOf(intent: ActionRowIntent): String =
+    val fields =
+      (if intent.takenLate then List("\"taken_late\":true") else Nil) ++
+        (if intent.collapsedReminders > 0 then List(s"\"collapsed_reminders\":${intent.collapsedReminders}") else Nil)
+    if fields.isEmpty then "{}" else fields.mkString("{", ",", "}")
 
 final case class StoredDoseAction(
     id: UUID,

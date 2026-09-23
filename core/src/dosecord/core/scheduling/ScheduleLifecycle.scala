@@ -137,7 +137,8 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
             None
           )
         val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
-        val inserted = Materialiser.materializeSchedule(tx, storedSchedule, stored(revision, now), now, horizonEnd)
+        val inserted =
+          Materialiser.materializeSchedule(tx, storedSchedule, stored(revision, now), now, horizonEnd, now).inserted
         tx.schedules.advanceMaterializedThrough(scheduleId, horizonEnd, now)
         appendScheduleCreated(tx, cmd.accountId, medicationId, scheduleId, cmd.zone, now)
         RevisionOutcome(scheduleId, medicationId, revision = 1, effectiveFrom = now, inserted, Nil, Nil)
@@ -354,7 +355,7 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     val inserted =
       if resultingStatus != ScheduleStatus.Active then 0
       else
-        val n = Materialiser.materializeSchedule(tx, updatedSchedule, storedRevision, now, horizonEnd)
+        val n = Materialiser.materializeSchedule(tx, updatedSchedule, storedRevision, now, horizonEnd, now).inserted
         tx.schedules.advanceMaterializedThrough(schedule.id, horizonEnd, now)
         n
     RevisionOutcome(
