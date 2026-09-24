@@ -29,6 +29,21 @@ object Metrics:
   private val unknownCounters =
     new java.util.concurrent.ConcurrentHashMap[String, Counter]()
 
+  private val formDegradedCounters =
+    new java.util.concurrent.ConcurrentHashMap[String, Counter]()
+
+  /** `dosecord_form_degraded_total{reason}` (DESIGN.md section 4.3): a Form block fell from the native modal rung to
+    * the mediator FormRunner; `reason = ack_deadline` when the vendor's ack deadline passed before the modal could
+    * open (ROADMAP M2.2). Incremented by the mediator's delivery path.
+    */
+  def formDegraded(reason: String): Unit =
+    formDegradedCounters
+      .computeIfAbsent(
+        reason,
+        r => Counter.builder("dosecord_form_degraded_total").tag("reason", r).register(registry)
+      )
+      .increment()
+
   /** `dosecord_unknown_total{reason}` (DESIGN.md section 10, ROADMAP M1.8): occurrences marked `unknown`, tagged by
     * reason (`outage` when no worker was healthy across the due window, `undelivered` when workers were healthy but no
     * reminder was confirmed sent); incremented by the reminder loop's catch-up collapse and the materialiser's outage

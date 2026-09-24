@@ -7,6 +7,7 @@ import dosecord.core.domain.copy.ReminderCopy
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.*
 
 /** M0.12a mediator unit tests on in-memory fakes (the Testcontainers half lives in infra): per-chat ordering, the
@@ -37,13 +38,15 @@ class ChatMediatorSuite extends munit.FunSuite:
       body: Inbound,
       vendorEventId: String,
       chatId: String = "chat-1",
-      interaction: Option[InteractionHandle] = None
+      interaction: Option[InteractionHandle] = None,
+      createdAt: Option[Instant] = None
   ): InboundEvent =
     InboundEvent(
       EventId(UUID.randomUUID()),
       "fake",
       vendorEventId,
       t0,
+      createdAt = createdAt,
       actor = actor,
       chat = ChatRef("fake", chatId),
       principal = None,
@@ -202,6 +205,121 @@ class ChatMediatorSuite extends munit.FunSuite:
       assertEquals(handle.calls.peek, "deferUpdate", "a component tap defers with an update (ADR-013)")
       latch.countDown()
       await(handler.handled == 1, "handler ran")
+
+  // M2.2 (the flagged resolution): the reply after an interaction rides the live handle (the deferred hook), not a
+  // channel message.
+  test("the first reply send is delivered through the live interaction handle, not a channel send"):
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val handler = RecordingHandler(_ => Reply(followUps = List(outbound("recorded", "reply-1"))))
+      val m = mediator(uow, adapter, handler)
+      val handle = RecordingInteractionHandle()
+      val tap = event(
+        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), Nil, None),
+        "evt-respond",
+        interaction = Some(handle)
+      )
+
+      m.push(tap)
+      await(
+        handle.calls.asScala.exists(_.startsWith("respond(")),
+        s"the reply rode the handle: ${handle.calls.asScala.mkString}"
+      )
+      assertEquals(sendsOf(adapter).size, 0, "no channel send for an interaction reply")
+
+  private def formMessage: OutboundMessage =
+    OutboundMessage(
+      body = List(Node.Paragraph(List(Inline.Text("Add medication")))),
+      blocks =
+        List(Block.FormBlock(Form("f1", "Add medication", List(Field("name", "Name", FieldType.Text)), "dc:token"))),
+      dedupeKey = "form-1",
+      correlationId = "c-form-1"
+    )
+
+  // M2.2: the modal IS the ack (ADR-013) — it opens while the vendor's ack deadline holds.
+  test("an opensForm reply opens the modal while the ack deadline holds; nothing is counted"):
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val degraded = ListBuffer.empty[String]
+      val handler = RecordingHandler(_ => Reply(replace = Some(formMessage)))
+      val m = ChatMediator(
+        uow, Map("fake" -> adapter), codec, handler, FixedClock(t0),
+        recordFormDegraded = degraded += _
+      )
+      val handle = RecordingInteractionHandle()
+      val tap = event(
+        Inbound.InteractionSubmitted(callbackRef(token("menu.open_form", UUID.randomUUID())), Nil, None),
+        "evt-modal",
+        interaction = Some(handle),
+        createdAt = Some(t0)
+      )
+
+      m.push(tap)
+      await(handle.calls.asScala.exists(_.startsWith("openForm(")), s"the modal opened: ${handle.calls.asScala.mkString}")
+      assertEquals(degraded.toList, Nil, "no degradation inside the deadline")
+      await(sendsOf(adapter).size == 1, "the form step's body text went out as a channel message")
+      assertEquals(sendsOf(adapter).head.message.chunks, List("Add medication"))
+
+  // M2.2 acceptance: a missed ack deadline falls the Form to the FormRunner and is counted.
+  test("a missed ack deadline degrades the modal to the FormRunner and is counted"):
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val degraded = ListBuffer.empty[String]
+      val handler = RecordingHandler(_ => Reply(replace = Some(formMessage)))
+      val m = ChatMediator(
+        uow, Map("fake" -> adapter), codec, handler, FixedClock(t0),
+        recordFormDegraded = degraded += _
+      )
+      val handle = RecordingInteractionHandle()
+      val tap = event(
+        Inbound.InteractionSubmitted(callbackRef(token("menu.open_form", UUID.randomUUID())), Nil, None),
+        "evt-degraded",
+        interaction = Some(handle),
+        createdAt = Some(t0.minusSeconds(5)) // the Discord ack deadline is 3 s (CapabilityProfiles.Discord)
+      )
+
+      m.push(tap)
+      await(sendsOf(adapter).size == 1, "the FormRunner question went out")
+      assert(!handle.calls.asScala.exists(_.startsWith("openForm(")), "no modal after the deadline")
+      assert(
+        sendsOf(adapter).head.message.chunks.exists(_.contains("question 1 of 1")),
+        s"the FormRunner first question: ${sendsOf(adapter).head.message.chunks}"
+      )
+      assertEquals(degraded.toList, List("ack_deadline"), "the degradation is counted")
+
+  // M2.2: DESIGN.md section 4.6 step 8 — a reply whose visibility differs from the declared one goes as a follow-up
+  // message, never through the deferred hook.
+  test("an ephemeral reply on a persistent-deferred command goes as a follow-up message"):
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val handler = RecordingHandler(_ =>
+        Reply(followUps =
+          List(outbound("ghost", "reply-eph").copy(visibility = Visibility.Ephemeral))
+        )
+      )
+      val m = ChatMediator(
+        uow, Map("fake" -> adapter), codec, handler, FixedClock(t0),
+        commands = Map("start" -> CommandSpec("start", "Create your account."))
+      )
+      val handle = RecordingInteractionHandle()
+      val invocation = event(
+        Inbound.CommandInvoked("start", Map.empty, "/start"),
+        "evt-mismatch",
+        interaction = Some(handle),
+        createdAt = Some(t0)
+      )
+
+      m.push(invocation)
+      await(sendsOf(adapter).size == 1, "the follow-up went out")
+      assertEquals(handle.calls.peek, "deferReply(false)")
+      assert(!handle.calls.asScala.exists(_.startsWith("respond(")), "the deferred hook is not edited")
+      val rendered = sendsOf(adapter).head.message
+      assert(!rendered.ephemeral, "the follow-up is the degraded auto-delete form")
+      assertEquals(rendered.deleteAfter, Some(Renderer.AutoDeleteAfter))
 
   // Acceptance 5 (unit half): the stored reply and the domain_events row carry the resolved account_id; one
   // domain_events row with the expected type and source.

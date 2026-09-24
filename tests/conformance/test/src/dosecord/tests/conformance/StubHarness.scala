@@ -36,6 +36,21 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
           Nil,
           Some(MessageHandle(vendor, chat, source))
         )
+      case WireEvent.Select(_, chat, callback, source) =>
+        Inbound.InteractionSubmitted(
+          CallbackRef(20, UUID(0L, 0L), 0, slot = false, callback),
+          List(callback),
+          Some(MessageHandle(vendor, chat, source))
+        )
+      case WireEvent.ModalSubmit(_, _, callback, fields, _) =>
+        val (formId, token) = callback.span(_ != ':') match
+          case (id, rest) if rest.nonEmpty => (id, rest.tail)
+          case _                           => (callback, callback)
+        Inbound.FormSubmitted(
+          formId,
+          CallbackRef(20, UUID(0L, 0L), 0, slot = false, token),
+          fields
+        )
     val inbound = InboundEvent(
       eventId = EventId(UUID.randomUUID()),
       vendor = vendor,
@@ -48,8 +63,10 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
       body = body
     )
     val delivered = event match
-      case WireEvent.Callback(_, _, _, _) => inbound.copy(interaction = Some(StubInteractionHandle(this)))
-      case _                              => inbound
+      case WireEvent.Callback(_, _, _, _)       => inbound.copy(interaction = Some(StubInteractionHandle(this)))
+      case WireEvent.Select(_, _, _, _)         => inbound.copy(interaction = Some(StubInteractionHandle(this)))
+      case WireEvent.ModalSubmit(_, _, _, _, _) => inbound.copy(interaction = Some(StubInteractionHandle(this)))
+      case _                                    => inbound
     sink.push(delivered)
     deliveriesBuf += ((event, delivered))
 

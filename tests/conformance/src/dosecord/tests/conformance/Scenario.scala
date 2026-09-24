@@ -43,7 +43,9 @@ enum Expect:
       name: Option[String],
       replyToMessageId: Option[String],
       chatId: Option[String],
-      cursorGreaterThan: Option[Long]
+      cursorGreaterThan: Option[Long],
+      callback: Option[String],
+      formId: Option[String]
   )
   case CursorMonotonic
   case SameVendorEventId(wireId: String)
@@ -135,7 +137,9 @@ object Scenario:
           name = json.obj.get("name").map(_.str),
           replyToMessageId = json.obj.get("replyToMessageId").map(_.str),
           chatId = json.obj.get("chatId").map(_.str),
-          cursorGreaterThan = json.obj.get("cursorGreaterThan").map(_.num.toLong)
+          cursorGreaterThan = json.obj.get("cursorGreaterThan").map(_.num.toLong),
+          callback = json.obj.get("callback").map(_.str),
+          formId = json.obj.get("formId").map(_.str)
         )
       case "cursorMonotonic"        => Expect.CursorMonotonic
       case "sameVendorEventId"      => Expect.SameVendorEventId(str(json, "wireId"))
@@ -173,6 +177,16 @@ object Scenario:
       case "command"  => WireEvent.Command(str(json, "wireId"), str(json, "chat"), str(json, "name"), str(json, "text"))
       case "callback" =>
         WireEvent.Callback(str(json, "wireId"), str(json, "chat"), str(json, "callback"), str(json, "sourceMessageId"))
+      case "select" =>
+        WireEvent.Select(str(json, "wireId"), str(json, "chat"), str(json, "callback"), str(json, "sourceMessageId"))
+      case "modalSubmit" =>
+        WireEvent.ModalSubmit(
+          str(json, "wireId"),
+          str(json, "chat"),
+          str(json, "callback"),
+          json.obj.get("fields").map(_.obj.map((k, v) => k -> v.str).toMap).getOrElse(Map.empty),
+          str(json, "sourceMessageId")
+        )
       case other => throw ScenarioFormatException(source, s"unknown wire event kind '$other'")
 
   private def fault(json: ujson.Value, source: String): VendorFault =

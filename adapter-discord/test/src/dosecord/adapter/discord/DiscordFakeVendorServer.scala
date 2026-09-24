@@ -38,16 +38,21 @@ final class DiscordFakeVendorServer(sink: RecordingSink) extends FakeVendorServe
         transport.deliver(DiscordEvent.SlashCommand(interaction(event, chat), name, optionsOf(name, text)))
       case WireEvent.Callback(_, chat, callback, sourceMessageId) =>
         transport.deliver(DiscordEvent.Component(interaction(event, chat), callback, Nil, sourceMessageId))
+      case WireEvent.Select(_, chat, callback, sourceMessageId) =>
+        // A select's custom id is the set id; the chosen option's token arrives in `values`.
+        transport.deliver(DiscordEvent.Component(interaction(event, chat), "conformance-select", List(callback), sourceMessageId))
+      case WireEvent.ModalSubmit(_, chat, callback, fields, _) =>
+        transport.deliver(DiscordEvent.ModalSubmit(interaction(event, chat), callback, fields))
     await(sink.all.size > before, s"no inbound event for $event")
     deliveriesBuf += ((event, sink.all.last))
 
   override def deliveries: List[(WireEvent, InboundEvent)] = deliveriesBuf.toList
 
-  override def sent: List[SentObservation] = transport.sent.toList
+  override def sent: List[SentObservation] = transport.sentSnapshot
 
-  override def acks: List[AckObservation] = transport.acks.toList
+  override def acks: List[AckObservation] = transport.ackSnapshot
 
-  override def modalPayloads: List[String] = transport.modalPayloads.toList
+  override def modalPayloads: List[String] = transport.modalSnapshot
 
   override def failNext(fault: VendorFault): Unit = transport.failNext(fault)
 

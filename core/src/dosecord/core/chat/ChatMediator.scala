@@ -63,7 +63,8 @@ final class ChatMediator(
     clock: Clock,
     commands: Map[String, CommandSpec] = Map.empty,
     stripes: Int = 16,
-    events: DomainEventBus = DomainEventBus.noop
+    events: DomainEventBus = DomainEventBus.noop,
+    recordFormDegraded: String => Unit = _ => ()
 )(using Ox)
     extends InboundSink:
 
@@ -303,42 +304,47 @@ final class ChatMediator(
 
   // ---------- Delivery after commit ----------
 
-  /** Synchronous delivery of the reply after commit (DESIGN.md section 4.6 step 8): every send records
-    * `rendered_messages.choice_map` and marks its outbox row sent in a follow-up write; if that write is lost the
-    * 30-second safety row redelivers.
+  /** Synchronous delivery of the reply after commit (DESIGN.md section 4.6 step 8): the first send rides the live
+    * interaction handle when the delivery is faithful (an un-acked handle carries the message's own ephemeral flag; a
+    * `deferReply(true)` hook preserves it; a persistent reply never edits an ephemeral-deferred hook — it goes as a
+    * follow-up message instead), every send records `rendered_messages.choice_map` and marks its outbox row sent in a
+    * follow-up write; if that write is lost the 30-second safety row redelivers. An opensForm modal can only open
+    * inside the vendor's ack deadline: past it the Form renders through the FormRunner and the degradation is counted
+    * (`dosecord_form_degraded_total{reason}`).
     */
   private def deliverAfterCommit(event: InboundEvent, plan: DeliveryPlan): Unit =
     val adapter = adapters(event.vendor)
-    val liveInteraction = event.interaction.exists(interaction => !interaction.acked)
+    val interaction = event.interaction
+    val deferredEphemeral = declaredAck(event, adapter.capabilities).contains(AckPolicy.Ack.DeferReply(true))
+    val liveInteraction = interaction.exists(i => !i.acked) || deferredEphemeral
+    val modalExpired = ackDeadlinePassed(event, adapter.capabilities)
+    var modalOpened = false
+    var responded = false
     plan.sends.foreach: planned =>
-      val (ops, _) = Renderer.render(
+      val (ops, report) = Renderer.render(
         planned.message,
         event.chat,
         adapter.capabilities,
         planned.message.dedupeKey,
-        RenderContext(liveInteraction = liveInteraction)
+        RenderContext(liveInteraction = liveInteraction && !modalExpired)
       )
+      if modalExpired && adapter.capabilities.modal && report.rungs.values.exists(_ == Renderer.Rung.FormRunner) then
+        recordFormDegraded("ack_deadline")
       ops.foreach:
         case VendorOp.Send(chat, rendered, sendKey, _) =>
-          try
-            val handle = adapter.send(chat, rendered, sendKey)
+          val viaInteraction = !modalOpened && !responded && !modalExpired && interaction.exists: i =>
+            // DESIGN.md section 4.6 step 8: a visibility mismatch goes as a follow-up message, never through the hook.
+            (planned.message.visibility == Visibility.Ephemeral) == deferredEphemeral &&
+              (if !i.acked then true else if deferredEphemeral then rendered.ephemeral else !rendered.ephemeral)
+          if viaInteraction then
+            responded = true
             try
-              uow.transaction: tx =>
-                tx.renderedMessages.record(
-                  handle,
-                  plan.accountId,
-                  kind = "interaction_reply",
-                  subjectType = None,
-                  subjectId = None,
-                  epoch = None,
-                  rendered.choiceMap,
-                  clock.now()
-                )
-                planned.outboxId.foreach: id =>
-                  tx.outbox.markSent(id, OutboxDispatcher.encodeHandle(handle), clock.now(), possibleDuplicate = false)
-            catch case _: SQLException => () // the safety row redelivers
-          catch case _: ChatError => () // the queued safety row redelivers
+              val handle = interaction.get.respond(rendered)
+              recordDelivery(plan, handle, rendered, planned.outboxId)
+            catch case _: ChatError => sendViaAdapter(adapter, plan, chat, rendered, sendKey, planned.outboxId)
+          else sendViaAdapter(adapter, plan, chat, rendered, sendKey, planned.outboxId)
         case VendorOp.OpenForm(form) =>
+          modalOpened = true
           event.interaction.foreach: interaction =>
             if !interaction.acked then interaction.openForm(form)
         case _ => ()
@@ -354,6 +360,63 @@ final class ChatMediator(
             )
             ()
           catch case _: ChatError => ()
+
+  /** The ack the mediator itself declared for this event (ADR-013); `deferReply(true)` means the ephemeral flag is
+    * fixed at defer time and a reply through the deferred hook stays ephemeral.
+    */
+  private def declaredAck(event: InboundEvent, profile: CapabilityProfile): Option[AckPolicy.Ack] =
+    event.body match
+      case Inbound.InteractionSubmitted(ref, _, _) =>
+        ActionRegistry.byId(ref.actionId).map(AckPolicy.forComponent(_, profile))
+      case Inbound.FormSubmitted(_, ref, _) =>
+        ActionRegistry.byId(ref.actionId).map(AckPolicy.forComponent(_, profile))
+      case Inbound.CommandInvoked(name, _, _) =>
+        commands.get(name).map(AckPolicy.forCommand(_, profile))
+      case _ => None
+
+  /** Whether the vendor's ack deadline (measured from `createdAt`) has passed at delivery time. */
+  private def ackDeadlinePassed(event: InboundEvent, profile: CapabilityProfile): Boolean =
+    (event.createdAt, profile.ackDeadline) match
+      case (Some(created), Some(deadline)) => clock.now().isAfter(created.plus(deadline))
+      case _                               => false
+
+  private def sendViaAdapter(
+      adapter: ChatAdapter,
+      plan: DeliveryPlan,
+      chat: ChatRef,
+      rendered: RenderedMessage,
+      sendKey: String,
+      outboxId: Option[UUID]
+  ): Unit =
+    try
+      val handle = adapter.send(chat, rendered, sendKey)
+      recordDelivery(plan, handle, rendered, outboxId)
+    catch case _: ChatError => () // the queued safety row redelivers
+
+  /** The follow-up write of a synchronously delivered reply: the choice map and the outbox row's sent mark commit
+    * together; if this write is lost the 30-second safety row redelivers.
+    */
+  private def recordDelivery(
+      plan: DeliveryPlan,
+      handle: MessageHandle,
+      rendered: RenderedMessage,
+      outboxId: Option[UUID]
+  ): Unit =
+    try
+      uow.transaction: tx =>
+        tx.renderedMessages.record(
+          handle,
+          plan.accountId,
+          kind = "interaction_reply",
+          subjectType = None,
+          subjectId = None,
+          epoch = None,
+          rendered.choiceMap,
+          clock.now()
+        )
+        outboxId.foreach: id =>
+          tx.outbox.markSent(id, OutboxDispatcher.encodeHandle(handle), clock.now(), possibleDuplicate = false)
+    catch case _: SQLException => () // the safety row redelivers
 
   /** A duplicate delivery replays the stored reply (C3); the handler is not re-run. */
   private def replayStoredReply(event: InboundEvent): Unit =

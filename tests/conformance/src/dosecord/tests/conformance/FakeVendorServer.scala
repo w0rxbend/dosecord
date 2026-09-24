@@ -20,16 +20,24 @@ enum WireEvent:
   case Message(wireId: String, chat: String, text: String, replyToMessageId: Option[String])
   case Command(wireId: String, chat: String, name: String, text: String)
   case Callback(wireId: String, chat: String, callback: String, sourceMessageId: String)
+  /** A select-menu submission: the chosen options' callback tokens arrive as the select's values (ROADMAP M2.2). */
+  case Select(wireId: String, chat: String, callback: String, sourceMessageId: String)
+  /** A modal submission: the modal's custom id (`<form id>:<submit token>`) and its field values (ROADMAP M2.2). */
+  case ModalSubmit(wireId: String, chat: String, callback: String, fields: Map[String, String], sourceMessageId: String)
 
   def wireKey: String = this match
-    case Message(id, _, _, _)  => id
-    case Command(id, _, _, _)  => id
-    case Callback(id, _, _, _) => id
+    case Message(id, _, _, _)            => id
+    case Command(id, _, _, _)            => id
+    case Callback(id, _, _, _)           => id
+    case Select(id, _, _, _)             => id
+    case ModalSubmit(id, _, _, _, _)     => id
 
   def chatKey: String = this match
-    case Message(_, chat, _, _)  => chat
-    case Command(_, chat, _, _)  => chat
-    case Callback(_, chat, _, _) => chat
+    case Message(_, chat, _, _)        => chat
+    case Command(_, chat, _, _)        => chat
+    case Callback(_, chat, _, _)       => chat
+    case Select(_, chat, _, _)         => chat
+    case ModalSubmit(_, chat, _, _, _) => chat
 
 /** Vendor faults the fake wire raises, with the adapter-contract mappings of DESIGN.md section 4.5: NotModified and
   * DuplicateReaction are success; DeleteWindow and EditNotFound are `Permanent(channelFatal = false)`; Blocked is

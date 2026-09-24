@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
   */
 final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends DiscordTransport:
 
-  private val connectLatch = new CountDownLatch(1)
+  @volatile private var connectLatch = new CountDownLatch(1)
   @volatile private var handler: DiscordEvent => Unit = _ => ()
 
   val sent = ListBuffer.empty[SentObservation]
@@ -25,11 +25,16 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
   val interactionReplies = ListBuffer.empty[(String, DiscordMessage, Boolean)]
   val registered = ListBuffer.empty[List[DiscordCommand]]
   val openChannelCalls = ListBuffer.empty[String]
+  /** Every message the wire observed, in order: channel sends, edits, interaction replies and hook edits (the
+    * M2.2 interaction-delivery path edits the deferred hook instead of sending a channel message).
+    */
+  val wireMessages = ListBuffer.empty[DiscordMessage]
 
   private val messageSeq = AtomicLong(0)
   @volatile private var fault = Option.empty[VendorFault]
 
   override def connect(handler: DiscordEvent => Unit): Unit =
+    connectLatch = new CountDownLatch(1) // a restarted adapter gets a fresh gateway lifecycle
     this.handler = handler
 
   override def awaitDisconnect(): Unit = connectLatch.await() // mirrors the real gateway's lifecycle
@@ -44,16 +49,20 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
   override def sendMessage(channelId: String, message: DiscordMessage, nonce: Option[String]): String =
     maybeFail("send")
     val id = nextMessageId()
-    sent += SentObservation(
-      Some(id),
-      message.text,
-      s"channel=$channelId components=${message.components.size} silent=${message.silent} nonce=${nonce.getOrElse("")}"
-    )
+    this.synchronized:
+      wireMessages += message
+      sent += SentObservation(
+        Some(id),
+        message.text,
+        s"channel=$channelId components=${message.components.size} silent=${message.silent} nonce=${nonce.getOrElse("")}"
+      )
     id
 
   override def editMessage(channelId: String, messageId: String, message: DiscordMessage): Unit =
     maybeFail("edit")
-    edits += SentObservation(Some(messageId), message.text, s"edit channel=$channelId")
+    this.synchronized:
+      wireMessages += message
+      edits += SentObservation(Some(messageId), message.text, s"edit channel=$channelId")
 
   override def deleteMessage(channelId: String, messageId: String): Unit =
     maybeFail("delete")
@@ -106,10 +115,24 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
 
   // ---------- Recording (called by the fake interactions) ----------
 
-  def recordAck(kind: String): Unit = acks += AckObservation(kind, server.clock)
+  def recordAck(kind: String): Unit = this.synchronized(acks += AckObservation(kind, server.clock))
 
-  def recordInteractionReply(kind: String, message: DiscordMessage, ephemeral: Boolean): Unit =
+  def recordInteractionReply(kind: String, message: DiscordMessage, ephemeral: Boolean): Unit = this.synchronized:
+    wireMessages += message
     interactionReplies += ((kind, message, ephemeral))
+
+  def recordHookEdit(message: DiscordMessage): Unit = this.synchronized:
+    wireMessages += message
+    edits += SentObservation(Some(nextMessageId()), message.text, "edit channel=interaction-hook")
+
+  // Snapshot reads: the adapter's forks append from other threads (a bare ListBuffer read can throw or spin stale).
+  def wireSnapshot: List[DiscordMessage] = this.synchronized(wireMessages.toList)
+  def sentSnapshot: List[SentObservation] = this.synchronized(sent.toList)
+  def editsSnapshot: List[SentObservation] = this.synchronized(edits.toList)
+  def ackSnapshot: List[AckObservation] = this.synchronized(acks.toList)
+  def modalSnapshot: List[String] = this.synchronized(modalPayloads.toList)
+  def replyModalCount: Int = this.synchronized(acks.count(_.kind == "replyModal"))
+  def recordModal(payload: String): Unit = this.synchronized(modalPayloads += payload)
 
 /** A live fake interaction: acks and replies are recorded on the transport; message ids are minted like sends. */
 final class FakeDiscordInteraction(
@@ -126,12 +149,17 @@ final class FakeDiscordInteraction(
     transport.recordAck("reply")
     transport.recordInteractionReply("reply", message, ephemeral)
     transport.nextMessageId()
-  override def editOriginal(message: DiscordMessage): String = transport.nextMessageId()
-  override def editSourceMessage(message: DiscordMessage): String = transport.nextMessageId()
+  override def editOriginal(message: DiscordMessage): String =
+    transport.recordHookEdit(message)
+    transport.nextMessageId()
+  override def editSourceMessage(message: DiscordMessage): String =
+    transport.recordHookEdit(message)
+    transport.nextMessageId()
   override def replyModal(modal: DiscordModal): Unit =
     transport.recordAck("replyModal")
-    transport.modalPayloads +=
+    transport.recordModal(
       s"custom_id=${modal.customId};title=${modal.title};fields=${modal.fields.map(_.key).mkString(",")}"
+    )
   override def replyChoices(choices: List[String]): Unit =
     transport.recordAck("replyChoices")
     transport.autocompleteReplies += choices

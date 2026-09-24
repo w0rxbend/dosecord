@@ -37,7 +37,11 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
   val uow = InMemoryUnitOfWork()
   val clock = FixedClock(t0)
   private val fake = FakeAdapter(profile.capabilities, vendor = "fake")
-  private val adapter = SyncAdapter(fake)
+  // Every delivered op in delivery order: the adapter's own ops plus the replies the mediator rides through a live
+  // interaction handle (M2.2: the first reply send of an interaction event goes through `respond`, not the adapter).
+  private val recordedOps = scala.collection.mutable.ListBuffer.empty[VendorOp]
+  private def recordOp(op: VendorOp): Unit = recordedOps.synchronized(recordedOps += op)
+  private val adapter = SyncAdapter(fake, recordOp)
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
   private val mediator =
     ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock), clock, CommandRegistry.byName)
@@ -46,7 +50,8 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
   private val handles = scala.collection.mutable.ListBuffer.empty[CapturingInteractionHandle]
 
   private def newHandle(): CapturingInteractionHandle =
-    val handle = CapturingInteractionHandle()
+    val handle = CapturingInteractionHandle: rendered =>
+      recordOp(VendorOp.Send(ChatRef("fake", "dm:user-1"), rendered, "interaction", None))
     handles += handle
     handle
 
@@ -226,7 +231,7 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
 
   // ---------- Inspection ----------
 
-  def ops: List[VendorOp] = fake.synchronized(fake.ops.toList)
+  def ops: List[VendorOp] = recordedOps.synchronized(recordedOps.toList)
 
   def lastOps: List[VendorOp] = ops
 
@@ -397,7 +402,8 @@ private object MedicationWizardRig:
   /** A recording interaction handle that also captures the opened modal (the mediator delivers VendorOp.OpenForm
     * through the live handle, never through the adapter).
     */
-  final class CapturingInteractionHandle extends InteractionHandle:
+  final class CapturingInteractionHandle(onRespond: RenderedMessage => Unit = _ => ())
+      extends InteractionHandle:
     val calls = new java.util.concurrent.ConcurrentLinkedQueue[String]()
     @volatile var openedForm: Option[RenderedForm] = None
     @volatile private var ackedFlag = false
@@ -412,6 +418,7 @@ private object MedicationWizardRig:
       ackedFlag = true
     override def respond(rendered: RenderedMessage): MessageHandle =
       calls.add(s"respond(${rendered.chunks.mkString(" ")})")
+      onRespond(rendered)
       MessageHandle("fake", "dm:user-1", "r1")
     override def editSource(rendered: RenderedMessage): Unit =
       calls.add(s"editSource(${rendered.chunks.mkString(" ")})")
@@ -430,23 +437,29 @@ private object MedicationWizardRig:
         call.startsWith("answer(") || call.startsWith("openForm(") || call.startsWith("editSource(") ||
           call.startsWith("respond(")
 
-  /** Synchronized window over FakeAdapter's unsynchronized recording buffers (same pattern as FirstFlowsSuite). */
-  final class SyncAdapter(val inner: FakeAdapter) extends ChatAdapter:
+  /** Synchronized window over FakeAdapter's unsynchronized recording buffers (same pattern as FirstFlowsSuite); every
+    * op also lands in the rig's ordered buffer so handle-delivered replies keep the transcript order.
+    */
+  final class SyncAdapter(val inner: FakeAdapter, onOp: VendorOp => Unit) extends ChatAdapter:
     private def around[A](f: => A): A = inner.synchronized(f)
     override def vendor: String = inner.vendor
     override def capabilities: CapabilityProfile = inner.capabilities
     override def start(sink: InboundSink, resumeFrom: Option[String]): Unit = around(inner.start(sink, resumeFrom))
     override def stop(): Unit = around(inner.stop())
-    override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle = around(
-      inner.send(chat, rendered, sendKey)
-    )
-    override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle = around(
-      inner.edit(handle, rendered)
-    )
-    override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
+    override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle = around:
+      val handle = inner.send(chat, rendered, sendKey)
+      onOp(VendorOp.Send(chat, rendered, sendKey, None))
+      handle
+    override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle = around:
+      val revised = inner.edit(handle, rendered)
+      onOp(VendorOp.Edit(revised, rendered))
+      revised
+    override def delete(handle: MessageHandle): Unit = around:
+      inner.delete(handle)
+      onOp(VendorOp.Delete(handle))
+    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around:
       inner.react(handle, emoji, on, txnKey)
-    )
+      onOp(VendorOp.React(handle, emoji, on, txnKey))
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))

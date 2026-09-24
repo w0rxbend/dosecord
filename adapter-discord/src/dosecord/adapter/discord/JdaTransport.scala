@@ -136,7 +136,12 @@ final class JdaTransport(token: String) extends DiscordTransport:
 
     override def deferUpdate(): Unit = event match
       case e: IMessageEditCallback =>
-        jdaCall(e.deferEdit().complete())
+        // A modal submit only supports DEFERRED_MESSAGE_UPDATE when the modal was opened from a message component
+        // (the interaction carries that message); a modal opened from a slash command has none, so defer a reply.
+        e match
+          case modal: ModalInteractionEvent if modal.getMessage == null =>
+            jdaCall(modal.deferReply().setEphemeral(false).complete())
+          case _ => jdaCall(e.deferEdit().complete())
       case _ => notEditable("deferUpdate")
 
     override def reply(message: DiscordMessage, ephemeral: Boolean): String = event match

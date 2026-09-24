@@ -1,0 +1,13 @@
+{
+  "name": "modal-submit-routing",
+  "title": "A modal submission routes by the modal custom id (<form id>:<submit token>) and arrives as FormSubmitted with the fields (ROADMAP M2.2)",
+  "requires": ["modal"],
+  "steps": [
+    { "do": "start" },
+    { "do": "deliver", "event": { "kind": "modalSubmit", "wireId": "w1", "chat": "dm:owner", "callback": "f1:dc:conformance-token", "fields": { "name": "Vitamin D" }, "sourceMessageId": "1" } }
+  ],
+  "expect": [
+    { "expect": "inboundCount", "count": 1 },
+    { "expect": "inbound", "wireId": "w1", "kind": "FormSubmitted", "formId": "f1", "callback": "dc:conformance-token", "chatId": "dm:owner" }
+  ]
+}

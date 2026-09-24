@@ -119,7 +119,7 @@ final class WizardEngine(
       case None          => Reply(toast = Some(ReminderCopy.staleControlToast))
       case Some(session) =>
         if ref.value != session.stepSeq then staleTap(session)
-        else if values.nonEmpty then multiChoose(event, principal, session, values, source, tx)
+        else if values.nonEmpty then submittedValues(event, principal, session, values, source, tx)
         else
           tx.slots.loadForUpdate(ref.subject) match
             case Some(slot) if slot.sessionId.contains(session.id) =>
@@ -137,6 +137,42 @@ final class WizardEngine(
                 case key => choose(event, principal, session, key, source, tx)
             case _ => staleTap(session)
 
+  /** A select menu's submission: `values` carries the chosen options' wire tokens. A multi-select picker takes them
+    * all (M1.9's day picker); a single-select takes the head — the same key a button tap would have carried (a
+    * single-select select and its buttons are the same step, ROADMAP M2.2).
+    */
+  private def submittedValues(
+      event: InboundEvent,
+      principal: Principal,
+      session: ConversationSession,
+      values: List[String],
+      source: Option[MessageHandle],
+      tx: Tx
+  ): Reply =
+    stepOf(session) match
+      case None               => Reply(toast = Some(ReminderCopy.failureToast))
+      case Some((_, step)) =>
+        if isMultiSelect(step) then multiChoose(event, principal, session, values, source, tx)
+        else
+          valueKey(session, values.head, tx) match
+            case Some(key) => choose(event, principal, session, key, source, tx)
+            case None      => staleTap(session)
+
+  private def isMultiSelect(step: Step): Boolean = step.kind match
+    case StepKind.Choices(_, _, _, maxSelect) => maxSelect > 1
+    case _                                    => false
+
+  /** The slot payload key a submitted value token points at, when it belongs to this session at its current
+    * `step_seq`.
+    */
+  private def valueKey(session: ConversationSession, wire: String, tx: Tx): Option[String] =
+    codec
+      .decode(wire)
+      .toOption
+      .flatMap(payload => tx.slots.loadForUpdate(payload.subject))
+      .filter(slot => slot.sessionId.contains(session.id) && slot.stepSeq.contains(session.stepSeq))
+      .map(slot => WizardDocument.slotPayloadKey(slot.payload))
+
   /** A multi-select submission (M1.9's day picker): `values` carries the selected options' wire tokens; each must
     * decode to a slot of this session at its current `step_seq`. A single tap on the set (one value) is a one-element
     * selection.
@@ -149,13 +185,7 @@ final class WizardEngine(
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
-    val keys = values.flatMap: wire =>
-      codec
-        .decode(wire)
-        .toOption
-        .flatMap(payload => tx.slots.loadForUpdate(payload.subject))
-        .filter(slot => slot.sessionId.contains(session.id) && slot.stepSeq.contains(session.stepSeq))
-        .map(slot => WizardDocument.slotPayloadKey(slot.payload))
+    val keys = values.flatMap(valueKey(session, _, tx))
     if keys.isEmpty then staleTap(session)
     else
       stepOf(session) match

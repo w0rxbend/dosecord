@@ -1,0 +1,15 @@
+{
+  "name": "component-routing",
+  "title": "Buttons route by the custom id and selects by the chosen option's value; both arrive as InteractionSubmitted carrying the dc: token (ROADMAP M2.2)",
+  "requires": ["buttons", "select"],
+  "steps": [
+    { "do": "start" },
+    { "do": "deliver", "event": { "kind": "callback", "wireId": "w1", "chat": "dm:owner", "callback": "dc:conformance-token", "sourceMessageId": "1" } },
+    { "do": "deliver", "event": { "kind": "select", "wireId": "w2", "chat": "dm:owner", "callback": "dc:conformance-token", "sourceMessageId": "1" } }
+  ],
+  "expect": [
+    { "expect": "inboundCount", "count": 2 },
+    { "expect": "inbound", "wireId": "w1", "kind": "InteractionSubmitted", "callback": "dc:conformance-token", "chatId": "dm:owner" },
+    { "expect": "inbound", "wireId": "w2", "kind": "InteractionSubmitted", "callback": "dc:conformance-token", "chatId": "dm:owner" }
+  ]
+}

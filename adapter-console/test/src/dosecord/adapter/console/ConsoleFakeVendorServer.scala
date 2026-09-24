@@ -38,6 +38,10 @@ final class ConsoleFakeVendorServer(sink: RecordingSink) extends FakeVendorServe
       case WireEvent.Command(_, _, _, text)            => text
       case WireEvent.Callback(_, _, _, _) =>
         throw new IllegalArgumentException("the console transport has no callback wire event (text-only profile)")
+      case WireEvent.Select(_, _, _, _) =>
+        throw new IllegalArgumentException("the console transport has no select wire event (text-only profile)")
+      case WireEvent.ModalSubmit(_, _, _, _, _) =>
+        throw new IllegalArgumentException("the console transport has no modal wire event (text-only profile)")
     val before = sink.all.size
     pipeOut.write((line + "\n").getBytes(StandardCharsets.UTF_8))
     pipeOut.flush()

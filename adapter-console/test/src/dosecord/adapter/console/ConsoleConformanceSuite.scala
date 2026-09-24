@@ -41,7 +41,7 @@ class ConsoleConformanceSuite extends munit.FunSuite:
     val skipped = results.collect { case s: ScenarioResult.Skipped => s }
     skipped.foreach(s => println(s"skipped ${s.name}: ${s.reason}"))
     assert(failures.isEmpty, failures.map(f => s"${f.name}: ${f.errors.mkString("; ")}").mkString("\n"))
-    // 14 scenarios; the text-only console profile applies to 6 of them.
+    // 16 scenarios; the text-only console profile applies to 6 of them.
     assertEquals(results.size - skipped.size, 6)
 
   test("suite B2: mediator resolution for the console profile"):

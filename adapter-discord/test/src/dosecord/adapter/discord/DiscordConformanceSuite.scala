@@ -38,5 +38,5 @@ class DiscordConformanceSuite extends munit.FunSuite:
     val skipped = results.collect { case s: ScenarioResult.Skipped => s }
     skipped.foreach(s => println(s"skipped ${s.name}: ${s.reason}"))
     assert(failures.isEmpty, failures.map(f => s"${f.name}: ${f.errors.mkString("; ")}").mkString("\n"))
-    // The Discord profile is fully native and the fake wire carries every transport trait: all 14 scenarios apply.
-    assertEquals(results.size - skipped.size, 14)
+    // The Discord profile is fully native and the fake wire carries every transport trait: all 16 scenarios apply.
+    assertEquals(results.size - skipped.size, 16)

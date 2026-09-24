@@ -50,7 +50,8 @@ object Adapters:
       codec,
       Application.handler(uow, adapters, codec, Clock.system),
       Clock.system,
-      commands = CommandRegistry.byName
+      commands = CommandRegistry.byName,
+      recordFormDegraded = reason => Metrics.formDegraded(reason)
     )
     adapters.foreach((name, adapter) =>
       adapter.start(mediator, None)

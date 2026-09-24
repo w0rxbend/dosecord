@@ -221,7 +221,7 @@ object SuiteARunner:
     expectation match
       case Expect.InboundCount(count) =>
         check(state, s"expected $count inbound events, got ${aut.sink.all.size}", aut.sink.all.size == count)
-      case Expect.Inbound(wireId, kind, text, name, replyToMessageId, chatId, cursorGreaterThan) =>
+      case Expect.Inbound(wireId, kind, text, name, replyToMessageId, chatId, cursorGreaterThan, callback, formId) =>
         val events = aut.server.deliveries.collect { case (wire, event) if wire.wireKey == wireId => event }
         check(state, s"no inbound event delivered for wireId $wireId", events.nonEmpty)
         events.headOption.foreach: event =>
@@ -233,6 +233,12 @@ object SuiteARunner:
           cursorGreaterThan.foreach(min =>
             val cursor = event.cursor.flatMap(_.toLongOption)
             check(state, s"$wireId: cursor ${event.cursor} is not greater than $min", cursor.exists(_ > min))
+          )
+          callback.foreach(c =>
+            check(state, s"$wireId: callback mismatch: ${bodyCallback(event.body)}", bodyCallback(event.body).contains(c))
+          )
+          formId.foreach(f =>
+            check(state, s"$wireId: formId mismatch: ${bodyFormId(event.body)}", bodyFormId(event.body).contains(f))
           )
       case Expect.CursorMonotonic =>
         val cursors = aut.sink.all.flatMap(_.cursor).flatMap(_.toLongOption)
@@ -321,6 +327,15 @@ object SuiteARunner:
   private def bodyName(body: Inbound): Option[String] = body match
     case Inbound.CommandInvoked(name, _, _) => Some(name)
     case _                                  => None
+
+  private def bodyCallback(body: Inbound): Option[String] = body match
+    case Inbound.InteractionSubmitted(ref, _, _) => Some(ref.raw)
+    case Inbound.FormSubmitted(_, ref, _)        => Some(ref.raw)
+    case _                                       => None
+
+  private def bodyFormId(body: Inbound): Option[String] = body match
+    case Inbound.FormSubmitted(formId, _, _) => Some(formId)
+    case _                                   => None
 
   private def replyToOf(body: Inbound): Option[String] = body match
     case Inbound.MessageReceived(_, replyTo, _) => replyTo.map(_.messageId)
