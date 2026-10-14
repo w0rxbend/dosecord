@@ -31,6 +31,7 @@ EXPOSE 8080
 ENTRYPOINT [ \
   "java", \
   "-XX:+UseSerialGC", \
+  "-Xms32m", \
   "-Xmx256m", \
   "-XX:+AutoCreateSharedArchive", \
   "-XX:SharedArchiveFile=/home/dosecord/dosecord.cds", \
