@@ -525,7 +525,7 @@ CREATE TABLE auth_challenges (id uuid PRIMARY KEY, kind text NOT NULL, user_id u
 
 ## 10. Observability
 
-scribe JSON with `correlation_id`, `vendor_event_id`, `account_id`, `vendor`, `handler`, `occurrence_id`, `send_key` bound per fork via Ox `ForkLocal`; message bodies and medication names never logged above DEBUG (a masking processor). OpenTelemetry Java agent for JDBC/HikariCP/OkHttp/Netty/Ktor plus manual spans for `mediator.handle`, `reminder.tick`, `outbox.dispatch`, `adapter.send`; `traceparent` stored on outbox rows so a reminder's trace spans materialise → tick → send. Prometheus on `/metrics`: `dosecord_reminders_due_total`, `_sent_total`, `_missed_total{reason}`, `_unknown_total{reason}`, `dosecord_outbox_depth{status,vendor}`, `dosecord_outbox_dead_total`, `dosecord_scheduler_tick_age_seconds{instance}`, `dosecord_materialized_lag_seconds`, `dosecord_occurrence_quarantined_total`, `dosecord_interaction_ack_latency_seconds{vendor}` (from creation time), `dosecord_form_degraded_total{reason}`, `dosecord_adapter_connected{vendor}`, `dosecord_adapter_errors_total{vendor,class}`, `dosecord_possible_duplicates_total{vendor}`, `dosecord_tzdb_info{version}`. Alerts: tick age > 60 s, outbox dead > 0, adapter disconnected > 5 min, materialised lag > 0, quarantined > 0, unknown-rate above an SLO. `/healthz` liveness; `/readyz` = DB ping + Flyway at head + tick age < 30 s + at least one enabled adapter connected. Ops alerts are also DMed to the owner through the bot itself.
+scribe JSON with `correlation_id`, `vendor_event_id`, `account_id`, `vendor`, `handler`, `occurrence_id`, `send_key` bound per fork via Ox `ForkLocal`; credentials, message bodies, medication names and notes are never logged at any level, including TRACE/DEBUG, or included in exception/SQL/library logs, spans or metric labels; a masking processor is defence in depth, not permission to emit sensitive content. M2.2g proves the all-level boundary with canaries. OpenTelemetry Java agent for JDBC/HikariCP/OkHttp/Netty/Ktor plus manual spans for `mediator.handle`, `reminder.tick`, `outbox.dispatch`, `adapter.send`; `traceparent` stored on outbox rows so a reminder's trace spans materialise → tick → send. Prometheus on `/metrics`: `dosecord_reminders_due_total`, `_sent_total`, `_missed_total{reason}`, `_unknown_total{reason}`, `dosecord_outbox_depth{status,vendor}`, `dosecord_outbox_dead_total`, `dosecord_scheduler_tick_age_seconds{instance}`, `dosecord_materialized_lag_seconds`, `dosecord_occurrence_quarantined_total`, `dosecord_interaction_ack_latency_seconds{vendor}` (from creation time), `dosecord_form_degraded_total{reason}`, `dosecord_adapter_connected{vendor}`, `dosecord_adapter_errors_total{vendor,class}`, `dosecord_possible_duplicates_total{vendor}`, `dosecord_tzdb_info{version}`. Alerts: tick age > 60 s, outbox dead > 0, adapter disconnected > 5 min, materialised lag > 0, quarantined > 0, unknown-rate above an SLO. `/healthz` liveness; `/readyz` = DB ping + Flyway at head + tick age < 30 s + at least one enabled adapter connected. Ops alerts are also DMed to the owner through the bot itself.
 
 ## 11. Testing
 
@@ -561,3 +561,61 @@ Cut-over in thin, individually shippable slices (each a PR with CI green):
 ## 14. Corrections applied to the source proposals and to revision 1
 
 Language decision re-run with corrected facts (ADR-001); the former adapter's `send(nonce=)` already sets `enforce_nonce` and JDA's `setNonce` does too, so no raw route exists anywhere; matrix-nio's 21-month release gap and 7-week-old vodozemac binding are recorded as the reason it is not a top reason for any stack; TypeScript's Matrix option is matrix-js-sdk 42.3 with WASM crypto, not a pre-release fork, and its Zulip client (zulip-js 2.1.0, 2024-10) is stale; the fabricated brief quotation about the scripting runtime is removed; the Scala column is rebuilt with JDA 6.6 / TelegramBots 10.3 / Trixnity 5.8.1 (de.connect2x) / hand-rolled Zulip / JDBC+Flyway rather than Magnum; reuse is quantified (422 + 201 lines) and dropped as a ranked reason; PostgreSQL 18; Kyiv's spring gap is 03:00-03:59 and folds are recorded via `dst_kind`; `max_reminders` counts the initial reminder; `due_window_end` is derived; `late_log_window` has a consumer; quiet-hours `defer` has decide rows and never yields `unknown`; snooze from pending is anchored at `due_window_start`; undo is a defined transition with reverse CHECK constraints; chains create children on terminal transitions; pause/resume are revisions; the cross-revision live-slot index replaces reliance on the revisioned natural key; `send_key` carries the epoch; the heartbeat is per instance and outside the batch transaction; the tick uses savepoints and holds no network calls; the "user tap wins" sentence is replaced with "the tap waits and applies on the fresh row"; the Discord "duplicates impossible" claim is replaced by "bounded to one per crash on every vendor"; the outbox has `op`/`target`/`vendor`/`ops_done`; the modal/defer contradiction is resolved by the action registry's `opensForm`; slash visibility is declared on `CommandSpec`; Telegram's answer is single-shot in the profile; Telegram delete window is 48 h; `channelFatal` separates dead channels from non-fatal permanent errors; Matrix first-contact invites are accepted for direct rooms; Matrix keys and sync token live in one store; the reaction tier is budgeted at 4 events per message; ack latency is measured from creation time; `fallback_after` is defined; Zulip finalize removes own reactions; the loop-equivalence property is stated so that it is satisfiable.
+
+## 15. Accepted UX-00 amendment — durable reporting and interaction recovery
+
+This amendment adopts ROADMAP's UX allocation and BOT_UX_PLAN sections 3-6/9
+as target contracts, not implemented features. ADR-005/009/012/013 addenda
+record the boundary and lifecycle implications. Scala direct style, blocking
+ports on virtual threads and Ox structured ownership remain unchanged.
+
+M3.4 first delivers one immutable, account-scoped StatsSnapshot: local range,
+zone/as-of/source revision, resolved/open/excluded counts, denominator and
+optional timing samples. Query/text equals the pure adherence oracle;
+unknown/cancelled/manual/open excluded, corrected rows excluded from delay,
+zero denominator is No data. Text, alt and image derive from that same
+snapshot; no composite health score, treatment advice or causal claims.
+
+M3.4a may add serializable default-empty AttachmentRef descriptors with opaque
+asset ID, safe filename, validated MIME/bytes/dimensions/hash and bounded
+redacted alt text, plus explicit capability/fallback. No renderer-library,
+AWT/JDA symbols, streams, file paths, provider URLs or raw media I/O enter
+core/contracts. Pure core lowering retains useful text on unsupported
+profiles. A separate report-renderer Mill module accepts plain snapshots and
+returns bounded PNG bytes; app composes rendering/preparation and injects
+infra asset hydration at the transport boundary. JDA/FileUpload belongs only
+to the adapter; local rendering/storage belongs outside core/contracts.
+
+M3.4b owns durable preparation, immutable PostgreSQL bytea assets and atomic
+asset publication plus outbox enqueue. Rendering occurs after ack and outside
+transactions; no DB lock spans rendering/upload. Stable request/destination/
+page keys pin immutable bytes across retries. Hydration validates ownership,
+privacy revision, deadline and metadata before any vendor upload; no remote
+URL fetches. Bound concurrency to one render, queue to 32, PNG to 2 MB,
+initial range to 30 days and request deadline to 24 hours. Overload/expiry
+returns accurate text, never changes intake state or kills a reminder channel.
+Terminal snapshots/assets purge within one hour, queued refs are pinned only
+to deadline, and GC checks live references transactionally. Account erasure
+cancels queued work and invalidates hydration before purge; backup retention
+and restore-time purge must be tested. Erasure cannot revoke downloaded
+Discord images or pretend database deletion erases backups/WAL.
+
+M3.4c uses fresh uploads per attempt; multipart conformance proves flags,
+nonce, filename, alt/bytes, limits and explicit retain/replace/remove edits.
+Initial reports are persistent DM requests, never a durable ephemeral-hook
+promise. M3.4d alone exposes Infographic after same-snapshot end-to-end and
+independent visual qualification. Unsupported or failed rendering retains
+text. XChart 4.0.4 plus Java2D is a candidate outside core/contracts, not a
+qualified production dependency. Final non-root headless runtime/fonts and
+license, Unicode, no-network/no-display/no-disk-leak, Xmx256m and <=300 MB
+peak/<=200 MB idle, <=20 s SIGTERM, warm p95 <=2 s/100 samples, ack p95 <1.5 s
+and synthetic dispatch p95 <10 s remain future measured go/no-go gates.
+Local synthetic fixture success does not satisfy them; a rendering no-go
+blocks media, not M3.4 text or M3.5 summaries.
+
+Navigation and setup edit their own active cards; reminders stay occurrence-
+scoped. Deferred completion must honor declared visibility and source edits.
+Each durable chunk/page has a stable distinct key and handle. Unknown commits
+reconcile before retry or outcome claims. Menus suspend drafts; only explicit
+discard or documented expiry deletes them. See the product specification for
+late-log, precise recovery, notification and concise-menu requirements.

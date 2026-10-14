@@ -1,0 +1,4138 @@
+{
+  "schema_version": 1,
+  "authority": "Target UX specification; ROADMAP.md owns official slice mapping, dependencies, acceptance and status; no implemented-route claim.",
+  "baseline_commit": "cc14d7b",
+  "entrypoints": [
+    "welcome",
+    "root",
+    "reminder",
+    "dose.missed",
+    "dose.unknown",
+    "catchup"
+  ],
+  "global_commands": {
+    "/start": "welcome or root according to principal",
+    "/menu": "root with draft suspended",
+    "/today": "today",
+    "/history": "history",
+    "/mood": "existing numeric command or proposed picker",
+    "/cancel": "explicit draft discard"
+  },
+  "invariants": {
+    "no_clinical_advice": true,
+    "dm_only": true,
+    "no_sensitive_logs_at_any_level": true,
+    "max_discord_rows": 5,
+    "max_buttons_per_row": 5,
+    "max_text_chunk_chars": 2000,
+    "routine_prompt_fixed_copy_chars": 160,
+    "routine_outcome_chars": 80,
+    "ack_target_ms": 1500,
+    "draft_idle_minutes": 30,
+    "draft_grace_minutes": 30,
+    "unknown_not_missed": true,
+    "manual_log_single_use_intent": true,
+    "one_snapshot_for_text_alt_png": true,
+    "gate_visibility_requires_route": true
+  },
+  "nodes": [
+    {
+      "id": "welcome",
+      "label": "Create account",
+      "kind": "onboarding",
+      "parent": null,
+      "gate": "M0.12d",
+      "baseline": "existing",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "onboarding.zone",
+      "label": "Choose timezone",
+      "kind": "onboarding",
+      "parent": "welcome",
+      "gate": "M0.12d",
+      "baseline": "existing",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "onboarding.custom",
+      "label": "Other timezone",
+      "kind": "onboarding",
+      "parent": "onboarding.zone",
+      "gate": "M0.12d",
+      "baseline": "existing",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "onboarding.confirm",
+      "label": "Confirm local time",
+      "kind": "onboarding",
+      "parent": "onboarding.zone",
+      "gate": "M0.12d",
+      "baseline": "existing",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "root",
+      "label": "Main menu",
+      "kind": "navigation",
+      "parent": null,
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "today",
+      "label": "Today / open records",
+      "kind": "navigation",
+      "parent": "root",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "today.completed",
+      "label": "Completed records",
+      "kind": "navigation",
+      "parent": "today",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.detail",
+      "label": "Selected dose",
+      "kind": "navigation",
+      "parent": "today",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medications",
+      "label": "Medication picker",
+      "kind": "navigation",
+      "parent": "root",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medication.detail",
+      "label": "Selected medication",
+      "kind": "navigation",
+      "parent": "medications",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medication.settings",
+      "label": "Schedule-specific reminder settings",
+      "kind": "navigation",
+      "parent": "medication.detail",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medication.archive",
+      "label": "Archive confirmation",
+      "kind": "confirmation",
+      "parent": "medication.detail",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medication.edit",
+      "label": "Edit medication/schedule",
+      "kind": "wizard",
+      "parent": "medication.detail",
+      "gate": "M3.2",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "add.form",
+      "label": "Medication details modal",
+      "kind": "wizard",
+      "parent": "medications",
+      "gate": "M2.2",
+      "baseline": "existing",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "add.days",
+      "label": "Choose cadence",
+      "kind": "wizard",
+      "parent": "add.form",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "add.custom_days",
+      "label": "Select weekdays",
+      "kind": "wizard",
+      "parent": "add.days",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "add.zone",
+      "label": "Schedule timezone",
+      "kind": "wizard",
+      "parent": "add.review",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "add.review",
+      "label": "Review exact persisted fields",
+      "kind": "wizard",
+      "parent": "add.form",
+      "gate": "UX-05",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "add.saved",
+      "label": "Medication saved",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "UX-05",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "draft.suspended",
+      "label": "Suspended setup",
+      "kind": "system",
+      "parent": null,
+      "gate": "UX-05",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "draft.resume",
+      "label": "Continue exact step",
+      "kind": "system",
+      "parent": null,
+      "gate": "UX-05",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "draft.switch",
+      "label": "Discard or continue draft",
+      "kind": "confirmation",
+      "parent": "root",
+      "gate": "UX-05",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "draft.grace",
+      "label": "Continue or cancel after idle",
+      "kind": "confirmation",
+      "parent": "root",
+      "gate": "M0.12b",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "draft.discarded",
+      "label": "Draft discarded / expired",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "M0.12b",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "log.picker",
+      "label": "Choose medication to log",
+      "kind": "navigation",
+      "parent": "today",
+      "gate": "M1.10",
+      "baseline": "existing",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "log.recorded",
+      "label": "Manual dose recorded",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "UX-06",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "mood.picker",
+      "label": "Mood 1–10",
+      "kind": "navigation",
+      "parent": "today",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "mood.note",
+      "label": "Optional mood note/tags",
+      "kind": "wizard",
+      "parent": "mood.picker",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "mood.recorded",
+      "label": "Mood recorded",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "M0.12d",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "reminder",
+      "label": "Scheduled dose reminder",
+      "kind": "notification",
+      "parent": null,
+      "gate": "M2.3",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.recorded",
+      "label": "Scheduled-dose outcome",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "M1.10",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.snoozed",
+      "label": "Snoozed until local time",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "M1.10",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.correct",
+      "label": "Choose effective time",
+      "kind": "confirmation",
+      "parent": "dose.detail",
+      "gate": "M1.10",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.custom_time",
+      "label": "Custom effective time",
+      "kind": "wizard",
+      "parent": "dose.correct",
+      "gate": "M3.1",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.note",
+      "label": "Add note",
+      "kind": "wizard",
+      "parent": "dose.detail",
+      "gate": "M3.1",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.missed",
+      "label": "No response after confirmed delivery",
+      "kind": "notification",
+      "parent": null,
+      "gate": "M1.10",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "dose.unknown",
+      "label": "Delivery/outage record gap",
+      "kind": "notification",
+      "parent": null,
+      "gate": "M1.8",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "catchup",
+      "label": "Catch-up digest",
+      "kind": "notification",
+      "parent": null,
+      "gate": "M1.8",
+      "baseline": "existing",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "history",
+      "label": "Baseline last-seven-day history",
+      "kind": "navigation",
+      "parent": "medication.detail",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "stats",
+      "label": "7/30-day text overview",
+      "kind": "navigation",
+      "parent": "root",
+      "gate": "UX-11",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "stats.filter",
+      "label": "Medication filter",
+      "kind": "navigation",
+      "parent": "stats",
+      "gate": "UX-11",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "stats.timing",
+      "label": "Timing detail",
+      "kind": "navigation",
+      "parent": "stats",
+      "gate": "UX-11",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "stats.image_pending",
+      "label": "Preparing image",
+      "kind": "system",
+      "parent": null,
+      "gate": "UX-15",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "stats.image",
+      "label": "Infographic + equivalent text",
+      "kind": "navigation",
+      "parent": "stats",
+      "gate": "UX-15",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habits",
+      "label": "Habit picker",
+      "kind": "navigation",
+      "parent": "root",
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habit.detail",
+      "label": "Habit detail",
+      "kind": "navigation",
+      "parent": "habits",
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habit.checkin",
+      "label": "Check-in for selected habit",
+      "kind": "wizard",
+      "parent": "habit.detail",
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habit.add",
+      "label": "Create habit",
+      "kind": "wizard",
+      "parent": "habits",
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habit.settings",
+      "label": "Habit settings",
+      "kind": "navigation",
+      "parent": "habit.detail",
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habit.history",
+      "label": "Habit history",
+      "kind": "navigation",
+      "parent": "habit.detail",
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "habit.recorded",
+      "label": "Habit check-in recorded",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "M7.4",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "reminders",
+      "label": "Generic reminder picker",
+      "kind": "navigation",
+      "parent": "root",
+      "gate": "M7.6",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "generic.detail",
+      "label": "Generic reminder detail",
+      "kind": "navigation",
+      "parent": "reminders",
+      "gate": "M7.6",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "generic.add",
+      "label": "Create generic reminder",
+      "kind": "wizard",
+      "parent": "reminders",
+      "gate": "M7.6",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "generic.settings",
+      "label": "Generic reminder settings",
+      "kind": "navigation",
+      "parent": "generic.detail",
+      "gate": "M7.6",
+      "baseline": "proposed",
+      "owner": "menu",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "generic.recorded",
+      "label": "Done or snoozed",
+      "kind": "outcome",
+      "parent": null,
+      "gate": "M7.6",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account",
+      "label": "Account",
+      "kind": "navigation",
+      "parent": "root",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.zone",
+      "label": "Account timezone flow",
+      "kind": "wizard",
+      "parent": "account",
+      "gate": "M1.9",
+      "baseline": "existing",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.notifications",
+      "label": "Notification preferences",
+      "kind": "navigation",
+      "parent": "account",
+      "gate": "UX-10",
+      "baseline": "proposed",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.quiet",
+      "label": "Quiet hours and mode",
+      "kind": "wizard",
+      "parent": "account.notifications",
+      "gate": "M3.3",
+      "baseline": "proposed",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.privacy",
+      "label": "Privacy/discreet preferences",
+      "kind": "navigation",
+      "parent": "account",
+      "gate": "M3.3",
+      "baseline": "proposed",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.export",
+      "label": "Protected export",
+      "kind": "navigation",
+      "parent": "account",
+      "gate": "M4.4",
+      "baseline": "proposed",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.delete",
+      "label": "Explicit deletion confirmation",
+      "kind": "confirmation",
+      "parent": "account",
+      "gate": "M4.4",
+      "baseline": "proposed",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "account.link",
+      "label": "Protected linking",
+      "kind": "navigation",
+      "parent": "account",
+      "gate": "M4.1",
+      "baseline": "proposed",
+      "owner": "identity",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "recovery",
+      "label": "Failure, stale or wrong-account recovery",
+      "kind": "system",
+      "parent": null,
+      "gate": "UX-01",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "history.expanded",
+      "label": "Expanded history paging/filters/correction",
+      "kind": "navigation",
+      "parent": "history",
+      "gate": "M3.2",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "recovery.stale",
+      "label": "Re-show exact current wizard prompt",
+      "kind": "system",
+      "parent": null,
+      "gate": "M0.12b",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "recovery.uncertain",
+      "label": "Reconcile uncertain commit by intent ID",
+      "kind": "system",
+      "parent": null,
+      "gate": "UX-01",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medication.policy",
+      "label": "Edit timing/snoozes/miss window",
+      "kind": "wizard",
+      "parent": "medication.settings",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "wizard",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    },
+    {
+      "id": "medication.policy_review",
+      "label": "Review exact policy revision",
+      "kind": "confirmation",
+      "parent": "medication.policy",
+      "gate": "UX-04",
+      "baseline": "proposed",
+      "owner": "application",
+      "privacy": "bot-dm-only",
+      "implemented_route_required": true
+    }
+  ],
+  "edges": [
+    {
+      "source": "medication.edit",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "medication.edit",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "add.form",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "add.days",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "add.custom_days",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "add.zone",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "add.zone",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "add.review",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "add.review",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "mood.note",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "mood.note",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "dose.custom_time",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "dose.note",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "dose.note",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "habit.checkin",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "habit.add",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "habit.add",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "generic.add",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "generic.add",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "account.zone",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "account.quiet",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active draft; preserve until explicit choice; no new flow yet"
+    },
+    {
+      "source": "draft.resume",
+      "target": "account.quiet",
+      "action": "Resume exact saved step",
+      "effect": "draft",
+      "guard": "stored flow/step matches target; restore answers and source context"
+    },
+    {
+      "source": "draft.discarded",
+      "target": "welcome",
+      "action": "Return to welcome",
+      "effect": "read",
+      "guard": "unlinked identity; no partial account"
+    },
+    {
+      "source": "dose.detail",
+      "target": "history",
+      "action": "Back to history",
+      "effect": "read",
+      "guard": "return_to is history; restore day/medication filters and cursor"
+    },
+    {
+      "source": "dose.detail",
+      "target": "today.completed",
+      "action": "Back to completed",
+      "effect": "read",
+      "guard": "return_to is completed; restore cursor"
+    },
+    {
+      "source": "log.picker",
+      "target": "medication.detail",
+      "action": "Back to medication",
+      "effect": "read",
+      "guard": "return_to is medication detail; selected scope preserved"
+    },
+    {
+      "source": "welcome",
+      "target": "onboarding.zone",
+      "action": "Create account",
+      "effect": "draft",
+      "guard": "unlinked identity"
+    },
+    {
+      "source": "onboarding.zone",
+      "target": "onboarding.custom",
+      "action": "Other",
+      "effect": "draft",
+      "guard": "unlinked identity"
+    },
+    {
+      "source": "onboarding.custom",
+      "target": "onboarding.confirm",
+      "action": "Submit valid zone",
+      "effect": "draft",
+      "guard": "valid IANA zone"
+    },
+    {
+      "source": "onboarding.custom",
+      "target": "onboarding.zone",
+      "action": "Invalid zone",
+      "effect": "read",
+      "guard": "invalid input; preserve no account mutation"
+    },
+    {
+      "source": "onboarding.zone",
+      "target": "onboarding.confirm",
+      "action": "Select timezone",
+      "effect": "draft",
+      "guard": "curated valid zone"
+    },
+    {
+      "source": "onboarding.confirm",
+      "target": "onboarding.zone",
+      "action": "Change",
+      "effect": "draft",
+      "guard": "unlinked identity"
+    },
+    {
+      "source": "onboarding.confirm",
+      "target": "root",
+      "action": "Yes / Account ready",
+      "effect": "commit",
+      "guard": "create/link exactly once"
+    },
+    {
+      "source": "root",
+      "target": "today",
+      "action": "Today",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "root",
+      "target": "medications",
+      "action": "Medications",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "root",
+      "target": "habits",
+      "action": "Habits",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "root",
+      "target": "reminders",
+      "action": "Reminders",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "root",
+      "target": "stats",
+      "action": "Stats",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "root",
+      "target": "account",
+      "action": "Account",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "root",
+      "target": "draft.resume",
+      "action": "Continue setup",
+      "effect": "draft",
+      "guard": "linked account; active suspended draft"
+    },
+    {
+      "source": "draft.resume",
+      "target": "add.form",
+      "action": "Resume saved form",
+      "effect": "draft",
+      "guard": "saved step is form; preserve answers"
+    },
+    {
+      "source": "draft.resume",
+      "target": "add.days",
+      "action": "Resume saved cadence",
+      "effect": "draft",
+      "guard": "saved step is days; preserve answers"
+    },
+    {
+      "source": "draft.resume",
+      "target": "add.review",
+      "action": "Resume saved review",
+      "effect": "draft",
+      "guard": "saved step is review; preserve answers"
+    },
+    {
+      "source": "draft.resume",
+      "target": "account.zone",
+      "action": "Resume saved timezone flow",
+      "effect": "draft",
+      "guard": "saved flow is account timezone"
+    },
+    {
+      "source": "draft.suspended",
+      "target": "root",
+      "action": "Show navigation",
+      "effect": "read",
+      "guard": "linked account; draft retained"
+    },
+    {
+      "source": "draft.switch",
+      "target": "draft.discarded",
+      "action": "Discard draft",
+      "effect": "draft",
+      "guard": "explicit user choice; no partial record"
+    },
+    {
+      "source": "draft.switch",
+      "target": "draft.resume",
+      "action": "Continue setup",
+      "effect": "draft",
+      "guard": "keep existing draft"
+    },
+    {
+      "source": "draft.grace",
+      "target": "draft.resume",
+      "action": "Continue",
+      "effect": "draft",
+      "guard": "grace not expired"
+    },
+    {
+      "source": "draft.grace",
+      "target": "draft.discarded",
+      "action": "Cancel / expiry",
+      "effect": "draft",
+      "guard": "explicit cancel or +30m after grace"
+    },
+    {
+      "source": "draft.discarded",
+      "target": "root",
+      "action": "Open menu",
+      "effect": "read",
+      "guard": "linked account"
+    },
+    {
+      "source": "today",
+      "target": "today",
+      "action": "Next / Previous",
+      "effect": "read",
+      "guard": "valid cursor; no hidden actionable overflow"
+    },
+    {
+      "source": "today",
+      "target": "today.completed",
+      "action": "View completed",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "today",
+      "target": "dose.detail",
+      "action": "Select dose",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "today.completed",
+      "target": "dose.detail",
+      "action": "Select completed record",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "today",
+      "target": "log.picker",
+      "action": "Log dose",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "today",
+      "target": "mood.picker",
+      "action": "Log mood",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "today",
+      "target": "habit.checkin",
+      "action": "Habit check-in",
+      "effect": "draft",
+      "guard": "selected habit; M7.4 enabled"
+    },
+    {
+      "source": "medications",
+      "target": "medications",
+      "action": "Search / Next / Previous",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "medications",
+      "target": "medication.detail",
+      "action": "Select medication",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "medications",
+      "target": "add.form",
+      "action": "Add medication",
+      "effect": "draft",
+      "guard": "modal budget available; no active conflicting draft"
+    },
+    {
+      "source": "medication.detail",
+      "target": "log.picker",
+      "action": "Log dose",
+      "effect": "read",
+      "guard": "picker preselects medication; fresh intent"
+    },
+    {
+      "source": "medication.detail",
+      "target": "history",
+      "action": "History",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "medication.detail",
+      "target": "medication.settings",
+      "action": "Reminder settings",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "medication.detail",
+      "target": "medication.detail",
+      "action": "Pause / Resume",
+      "effect": "commit",
+      "guard": "selected schedule; explicit recording/notification semantics"
+    },
+    {
+      "source": "medication.detail",
+      "target": "medication.edit",
+      "action": "Edit",
+      "effect": "draft",
+      "guard": "M3.2 enabled; schedule explicitly selected"
+    },
+    {
+      "source": "medication.detail",
+      "target": "medication.archive",
+      "action": "Archive",
+      "effect": "read",
+      "guard": "selected medication; no mutation yet"
+    },
+    {
+      "source": "medication.archive",
+      "target": "medications",
+      "action": "Archive medication",
+      "effect": "commit",
+      "guard": "explicit confirm; history retained"
+    },
+    {
+      "source": "medication.archive",
+      "target": "medication.detail",
+      "action": "Keep medication",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "medication.edit",
+      "target": "medication.detail",
+      "action": "Save exact reviewed changes",
+      "effect": "commit",
+      "guard": "M3.2; validate effective date and zone reconciliation"
+    },
+    {
+      "source": "medication.settings",
+      "target": "account.notifications",
+      "action": "Notification preferences",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "add.form",
+      "target": "add.days",
+      "action": "Submit scheduled times",
+      "effect": "draft",
+      "guard": "valid name/times; no record yet"
+    },
+    {
+      "source": "add.form",
+      "target": "add.review",
+      "action": "Submit as-needed",
+      "effect": "draft",
+      "guard": "valid name; empty times means no automatic reminder"
+    },
+    {
+      "source": "add.days",
+      "target": "add.review",
+      "action": "Every day / Weekdays",
+      "effect": "draft",
+      "guard": "valid cadence"
+    },
+    {
+      "source": "add.days",
+      "target": "add.custom_days",
+      "action": "Choose days",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "add.review",
+      "action": "Select days",
+      "effect": "draft",
+      "guard": "nonempty valid unique weekdays"
+    },
+    {
+      "source": "add.review",
+      "target": "add.days",
+      "action": "Change days",
+      "effect": "draft",
+      "guard": "scheduled medication"
+    },
+    {
+      "source": "add.review",
+      "target": "add.zone",
+      "action": "Change timezone",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "add.zone",
+      "target": "add.review",
+      "action": "Confirm valid zone",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "add.review",
+      "target": "add.saved",
+      "action": "Create / Update schedule",
+      "effect": "commit",
+      "guard": "review exactly equals persisted data; idempotent submit"
+    },
+    {
+      "source": "add.saved",
+      "target": "medication.detail",
+      "action": "Open medication",
+      "effect": "read",
+      "guard": "saved medication scope"
+    },
+    {
+      "source": "add.saved",
+      "target": "today",
+      "action": "Today",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "log.picker",
+      "target": "log.recorded",
+      "action": "Log selected medication",
+      "effect": "commit",
+      "guard": "single-use action instance; same-action double tap returns same record"
+    },
+    {
+      "source": "log.recorded",
+      "target": "log.picker",
+      "action": "Log another",
+      "effect": "draft",
+      "guard": "new explicit action instance, not time-window dedupe"
+    },
+    {
+      "source": "log.recorded",
+      "target": "today",
+      "action": "Today",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "mood.picker",
+      "target": "mood.recorded",
+      "action": "Record selected level",
+      "effect": "commit",
+      "guard": "1..10; quick path without mandatory note"
+    },
+    {
+      "source": "mood.picker",
+      "target": "mood.note",
+      "action": "Add note/tags",
+      "effect": "draft",
+      "guard": "level selected; optional content bounded"
+    },
+    {
+      "source": "mood.note",
+      "target": "mood.recorded",
+      "action": "Save check-in",
+      "effect": "commit",
+      "guard": "exact input, nonclinical"
+    },
+    {
+      "source": "mood.recorded",
+      "target": "today",
+      "action": "Today",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "reminder",
+      "target": "dose.recorded",
+      "action": "Taken",
+      "effect": "commit",
+      "guard": "own original occurrence; status pending/due/snoozed/missed/unknown; now within persisted lateLogWindowMinutes; fresh locked state; idempotent commit",
+      "taps": 1
+    },
+    {
+      "source": "reminder",
+      "target": "dose.recorded",
+      "action": "Skip",
+      "effect": "commit",
+      "guard": "original occurrence; no advice; optional reason after commit",
+      "taps": 1
+    },
+    {
+      "source": "reminder",
+      "target": "dose.snoozed",
+      "action": "Snooze offered duration",
+      "effect": "commit",
+      "guard": "policy-valid duration before next occurrence",
+      "taps": 1
+    },
+    {
+      "source": "dose.detail",
+      "target": "dose.recorded",
+      "action": "Taken",
+      "effect": "commit",
+      "guard": "own original occurrence; status pending/due/snoozed/missed/unknown; now within persisted lateLogWindowMinutes; fresh locked state; idempotent commit",
+      "taps": 1
+    },
+    {
+      "source": "dose.detail",
+      "target": "dose.recorded",
+      "action": "Skip",
+      "effect": "commit",
+      "guard": "original occurrence; no advice; optional reason after commit",
+      "taps": 1
+    },
+    {
+      "source": "dose.detail",
+      "target": "dose.snoozed",
+      "action": "Snooze offered duration",
+      "effect": "commit",
+      "guard": "policy-valid duration before next occurrence",
+      "taps": 1
+    },
+    {
+      "source": "dose.snoozed",
+      "target": "reminder",
+      "action": "Snooze wake",
+      "effect": "system",
+      "guard": "due next_action_at; persisted quiet-hour semantics"
+    },
+    {
+      "source": "reminder",
+      "target": "dose.missed",
+      "action": "Response deadline",
+      "effect": "system",
+      "guard": "confirmed delivery evidence; no response; not quiet deferral"
+    },
+    {
+      "source": "reminder",
+      "target": "dose.unknown",
+      "action": "Outage / undelivered",
+      "effect": "system",
+      "guard": "no confirmed delivery; unknown not counted as missed"
+    },
+    {
+      "source": "dose.recorded",
+      "target": "reminder",
+      "action": "Undo",
+      "effect": "commit",
+      "guard": "within existing15m window; original occurrence",
+      "taps": 1
+    },
+    {
+      "source": "dose.recorded",
+      "target": "dose.correct",
+      "action": "Correct",
+      "effect": "read",
+      "guard": "original resolved occurrence",
+      "taps": 1
+    },
+    {
+      "source": "dose.detail",
+      "target": "dose.correct",
+      "action": "Correct",
+      "effect": "read",
+      "guard": "resolved/correction-eligible record"
+    },
+    {
+      "source": "dose.correct",
+      "target": "dose.recorded",
+      "action": "Now / At scheduled time",
+      "effect": "commit",
+      "guard": "explicit effective_at; original occurrence",
+      "taps": 1
+    },
+    {
+      "source": "dose.correct",
+      "target": "dose.custom_time",
+      "action": "Custom time",
+      "effect": "draft",
+      "guard": "M3.1 enabled"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "dose.recorded",
+      "action": "Save corrected time",
+      "effect": "commit",
+      "guard": "within accepted window; no future time"
+    },
+    {
+      "source": "dose.recorded",
+      "target": "dose.note",
+      "action": "Add note",
+      "effect": "draft",
+      "guard": "M3.1 enabled; original occurrence"
+    },
+    {
+      "source": "dose.note",
+      "target": "dose.recorded",
+      "action": "Save note",
+      "effect": "commit",
+      "guard": "note bounded; own record"
+    },
+    {
+      "source": "dose.missed",
+      "target": "dose.recorded",
+      "action": "I took it",
+      "effect": "commit",
+      "guard": "within late-log window; explicit effective time"
+    },
+    {
+      "source": "dose.missed",
+      "target": "dose.correct",
+      "action": "I took it / older record",
+      "effect": "read",
+      "guard": "past late-log window; correction required"
+    },
+    {
+      "source": "dose.missed",
+      "target": "dose.recorded",
+      "action": "Skip / Keep missed",
+      "effect": "commit",
+      "guard": "selected original record; kept-missed does not invent intake"
+    },
+    {
+      "source": "dose.unknown",
+      "target": "dose.detail",
+      "action": "Review record",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "catchup",
+      "target": "dose.detail",
+      "action": "Review original dose",
+      "effect": "read",
+      "guard": "per-item epoch revalidated"
+    },
+    {
+      "source": "history",
+      "target": "history",
+      "action": "Next / Previous / Day filter",
+      "effect": "read",
+      "guard": "M3.2 enabled for expanded browsing/correction controls; baseline seven-day history is always independently available",
+      "required_gate": "M3.2"
+    },
+    {
+      "source": "history",
+      "target": "dose.detail",
+      "action": "Select historical dose",
+      "effect": "read",
+      "guard": "M3.2 enabled for expanded browsing/correction controls; baseline seven-day history is always independently available",
+      "required_gate": "M3.2"
+    },
+    {
+      "source": "stats",
+      "target": "stats",
+      "action": "7 days / 30 days",
+      "effect": "read",
+      "guard": "same bounded snapshot definition"
+    },
+    {
+      "source": "stats",
+      "target": "stats.filter",
+      "action": "By medication",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "stats.filter",
+      "target": "stats",
+      "action": "Select medication / All",
+      "effect": "read",
+      "guard": "own account scope"
+    },
+    {
+      "source": "stats",
+      "target": "stats.timing",
+      "action": "Timing detail",
+      "effect": "read",
+      "guard": "corrections excluded; samples explicit"
+    },
+    {
+      "source": "stats",
+      "target": "stats.image_pending",
+      "action": "Infographic",
+      "effect": "system",
+      "guard": "UX-15 qualification enabled (includes UX-13 assets and UX-14 transport); ack before own-account durable request",
+      "required_gate": "UX-15"
+    },
+    {
+      "source": "stats.image_pending",
+      "target": "stats.image",
+      "action": "Ready asset + send",
+      "effect": "system",
+      "guard": "UX-15 enabled; ready same-snapshot asset; published hash/privacy/version match; qualified transport"
+    },
+    {
+      "source": "stats.image_pending",
+      "target": "stats",
+      "action": "Text fallback",
+      "effect": "read",
+      "guard": "render/upload/expiry/size failure; preserve accurate snapshot"
+    },
+    {
+      "source": "stats.image",
+      "target": "stats",
+      "action": "Text view",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "habits",
+      "target": "habit.detail",
+      "action": "Select habit",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "habits",
+      "target": "habit.add",
+      "action": "Add habit",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "habit.add",
+      "target": "habit.detail",
+      "action": "Create",
+      "effect": "commit",
+      "guard": "accepted taxonomy/cadence; no partial save"
+    },
+    {
+      "source": "habit.detail",
+      "target": "habit.checkin",
+      "action": "Check in",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "habit.detail",
+      "target": "habit.settings",
+      "action": "Settings",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "habit.detail",
+      "target": "habit.history",
+      "action": "History",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "habit.recorded",
+      "action": "Record value/status",
+      "effect": "commit",
+      "guard": "accepted taxonomy; rest-day neutral; single action instance"
+    },
+    {
+      "source": "habit.recorded",
+      "target": "today",
+      "action": "Today",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "reminders",
+      "target": "generic.detail",
+      "action": "Select reminder",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "reminders",
+      "target": "generic.add",
+      "action": "Add reminder",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "generic.add",
+      "target": "generic.detail",
+      "action": "Create",
+      "effect": "commit",
+      "guard": "explicit first time/recurrence confirmation"
+    },
+    {
+      "source": "generic.detail",
+      "target": "generic.recorded",
+      "action": "Done / Snooze",
+      "effect": "commit",
+      "guard": "original reminder occurrence; idempotent"
+    },
+    {
+      "source": "generic.detail",
+      "target": "generic.settings",
+      "action": "Settings",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "generic.recorded",
+      "target": "reminders",
+      "action": "Open reminders",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account",
+      "target": "account.zone",
+      "action": "Timezone",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account",
+      "target": "account.notifications",
+      "action": "Notifications",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account",
+      "target": "account.privacy",
+      "action": "Privacy",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account",
+      "target": "account.export",
+      "action": "Export",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account",
+      "target": "account.delete",
+      "action": "Delete account",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account",
+      "target": "account.link",
+      "action": "Link identity",
+      "effect": "read",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account.zone",
+      "target": "account",
+      "action": "Confirm timezone change",
+      "effect": "commit",
+      "guard": "following schedules reconciled; local-time echo"
+    },
+    {
+      "source": "account.notifications",
+      "target": "account.quiet",
+      "action": "Quiet hours",
+      "effect": "draft",
+      "guard": "authorized principal; enabled gate"
+    },
+    {
+      "source": "account.quiet",
+      "target": "account.notifications",
+      "action": "Save quiet hours",
+      "effect": "commit",
+      "guard": "valid period/mode; accepted semantic policy"
+    },
+    {
+      "source": "account.notifications",
+      "target": "account.notifications",
+      "action": "Summary opt-out / delivery preferences",
+      "effect": "commit",
+      "guard": "only persist explicitly supported settings"
+    },
+    {
+      "source": "account.privacy",
+      "target": "account.privacy",
+      "action": "Set discreet preference",
+      "effect": "commit",
+      "guard": "redact text/buttons/alt/image/filename consistently"
+    },
+    {
+      "source": "account.export",
+      "target": "account",
+      "action": "Export issued",
+      "effect": "read",
+      "guard": "single-use protected download; account scoped"
+    },
+    {
+      "source": "account.delete",
+      "target": "welcome",
+      "action": "Confirm deletion request",
+      "effect": "commit",
+      "guard": "M4.4 exact typed confirmation+grace; no immediate destructive surprise"
+    },
+    {
+      "source": "account.link",
+      "target": "account",
+      "action": "Link complete",
+      "effect": "commit",
+      "guard": "M4.1 protected challenge; no password in chat"
+    },
+    {
+      "source": "recovery",
+      "target": "root",
+      "action": "Open menu",
+      "effect": "read",
+      "guard": "linked account; no unverified mutation"
+    },
+    {
+      "source": "recovery",
+      "target": "welcome",
+      "action": "Create account",
+      "effect": "read",
+      "guard": "unlinked identity"
+    },
+    {
+      "source": "welcome",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "onboarding.zone",
+      "target": "welcome",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "onboarding.zone",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "onboarding.custom",
+      "target": "onboarding.zone",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "onboarding.custom",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "onboarding.confirm",
+      "target": "onboarding.zone",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "onboarding.confirm",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "root",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "today",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "today",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "today",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "today.completed",
+      "target": "today",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "today.completed",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "today.completed",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "dose.detail",
+      "target": "today",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "dose.detail",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "dose.detail",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "medications",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "medications",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "medications",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "medication.detail",
+      "target": "medications",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "medication.detail",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "medication.detail",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "medication.settings",
+      "target": "medication.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "medication.settings",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "medication.settings",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "medication.archive",
+      "target": "medication.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "medication.archive",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "medication.archive",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "medication.edit",
+      "target": "medication.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "medication.edit",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "medication.edit",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "medication.edit",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "medication.edit",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "add.form",
+      "target": "medications",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "add.form",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "add.form",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "add.form",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "add.form",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "add.days",
+      "target": "add.form",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "add.days",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "add.days",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "add.days",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "add.days",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "add.days",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "add.zone",
+      "target": "add.review",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "add.zone",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "add.zone",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "add.zone",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "add.zone",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "add.review",
+      "target": "add.form",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "add.review",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "add.review",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "add.review",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "add.review",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "add.saved",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "draft.suspended",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "draft.resume",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "draft.switch",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "draft.switch",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "draft.switch",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "draft.grace",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "draft.grace",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "draft.grace",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "draft.discarded",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "log.picker",
+      "target": "today",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "log.picker",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "log.picker",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "log.recorded",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "mood.picker",
+      "target": "today",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "mood.picker",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "mood.picker",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "mood.note",
+      "target": "mood.picker",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "mood.note",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "mood.note",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "mood.note",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "mood.note",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "mood.recorded",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "reminder",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "dose.recorded",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "dose.snoozed",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "dose.correct",
+      "target": "dose.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "dose.correct",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "dose.correct",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "dose.correct",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "dose.note",
+      "target": "dose.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "dose.note",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "dose.note",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "dose.note",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "dose.note",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "dose.missed",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "dose.unknown",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "catchup",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "history",
+      "target": "medication.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "history",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "history",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "stats",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "stats",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "stats",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "stats.filter",
+      "target": "stats",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "stats.filter",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "stats.filter",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "stats.timing",
+      "target": "stats",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "stats.timing",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "stats.timing",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "stats.image_pending",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "stats.image",
+      "target": "stats",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "stats.image",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "stats.image",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "habits",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "habits",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "habits",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "habit.detail",
+      "target": "habits",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "habit.detail",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "habit.detail",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "habit.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "habit.add",
+      "target": "habits",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "habit.add",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "habit.add",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "habit.add",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "habit.add",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "habit.settings",
+      "target": "habit.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "habit.settings",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "habit.settings",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "habit.history",
+      "target": "habit.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "habit.history",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "habit.history",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "habit.recorded",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "reminders",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "reminders",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "reminders",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "generic.detail",
+      "target": "reminders",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "generic.detail",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "generic.detail",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "generic.add",
+      "target": "reminders",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "generic.add",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "generic.add",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "generic.add",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "generic.add",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "generic.settings",
+      "target": "generic.detail",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "generic.settings",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "generic.settings",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "generic.recorded",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "account",
+      "target": "root",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "account",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "account.zone",
+      "target": "account",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.zone",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "account.zone",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "account.zone",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "account.zone",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "account.notifications",
+      "target": "account",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.notifications",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "account.notifications",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "account.quiet",
+      "target": "account.notifications",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.quiet",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted answers"
+    },
+    {
+      "source": "account.quiet",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no partial record"
+    },
+    {
+      "source": "account.quiet",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "accepted expiry policy; one grace prompt"
+    },
+    {
+      "source": "account.quiet",
+      "target": "recovery",
+      "action": "Invalid control / established failure",
+      "effect": "read",
+      "guard": "tampered/foreign control or established noncommit only; no disclosed sensitive context; uncertain commits use reconciliation"
+    },
+    {
+      "source": "account.privacy",
+      "target": "account",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.privacy",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "account.privacy",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "account.export",
+      "target": "account",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.export",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "account.export",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "account.delete",
+      "target": "account",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.delete",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "account.delete",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "account.link",
+      "target": "account",
+      "action": "Back",
+      "effect": "read",
+      "guard": "restore parent/filter/context; no discarded draft"
+    },
+    {
+      "source": "account.link",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; preserve any suspended draft"
+    },
+    {
+      "source": "account.link",
+      "target": "recovery",
+      "action": "Stale / invalid / failure",
+      "effect": "read",
+      "guard": "generic notice; no cross-account data; reconcile uncertain commit"
+    },
+    {
+      "source": "reminder",
+      "target": "dose.correct",
+      "action": "Taken / correction required",
+      "effect": "read",
+      "guard": "own original occurrence; status skipped OR unresolved record beyond persisted late-log window; no mutation until explicit effective time",
+      "taps": 1
+    },
+    {
+      "source": "reminder",
+      "target": "dose.recorded",
+      "action": "Taken / already recorded",
+      "effect": "read",
+      "guard": "own original occurrence; status taken; return recorded time without new action",
+      "taps": 1
+    },
+    {
+      "source": "reminder",
+      "target": "recovery",
+      "action": "Taken / cancelled",
+      "effect": "read",
+      "guard": "original occurrence cancelled; no mutation and no suggestion to take it"
+    },
+    {
+      "source": "dose.detail",
+      "target": "dose.correct",
+      "action": "Taken / correction required",
+      "effect": "read",
+      "guard": "own original occurrence; status skipped OR unresolved record beyond persisted late-log window; no mutation until explicit effective time",
+      "taps": 1
+    },
+    {
+      "source": "dose.detail",
+      "target": "dose.recorded",
+      "action": "Taken / already recorded",
+      "effect": "read",
+      "guard": "own original occurrence; status taken; return recorded time without new action",
+      "taps": 1
+    },
+    {
+      "source": "dose.detail",
+      "target": "recovery",
+      "action": "Taken / cancelled",
+      "effect": "read",
+      "guard": "original occurrence cancelled; no mutation and no suggestion to take it"
+    },
+    {
+      "source": "onboarding.zone",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "onboarding.zone",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "onboarding.custom",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "onboarding.custom",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "onboarding.confirm",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "onboarding.confirm",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "medication.edit",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "medication.edit",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "add.form",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "add.form",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "add.days",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "add.days",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "add.custom_days",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "add.custom_days",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "add.zone",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "add.zone",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "add.review",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "add.review",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "mood.note",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "mood.note",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "dose.custom_time",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "dose.note",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "dose.note",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "habit.checkin",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "habit.add",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "habit.add",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "generic.add",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "generic.add",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "account.zone",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "account.zone",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "account.quiet",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "account.quiet",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "history.expanded",
+      "target": "history",
+      "action": "Back",
+      "effect": "read",
+      "guard": "preserve caller filters/context and drafts"
+    },
+    {
+      "source": "history.expanded",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; suspend draft without discarding"
+    },
+    {
+      "source": "medication.policy",
+      "target": "recovery.stale",
+      "action": "Stale wizard step",
+      "effect": "read",
+      "guard": "own existing session; current step differs; no mutation; retain source/session context"
+    },
+    {
+      "source": "recovery.stale",
+      "target": "medication.policy",
+      "action": "Show current step",
+      "effect": "read",
+      "guard": "stored current flow/step matches target; one notice plus current prompt; preserve accepted answers"
+    },
+    {
+      "source": "medication.policy",
+      "target": "draft.suspended",
+      "action": "Menu / suspend",
+      "effect": "draft",
+      "guard": "linked account; persist accepted policy draft"
+    },
+    {
+      "source": "medication.policy",
+      "target": "draft.discarded",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "explicit discard; no policy revision"
+    },
+    {
+      "source": "medication.policy",
+      "target": "draft.grace",
+      "action": "Idle 30 minutes",
+      "effect": "system",
+      "guard": "one grace prompt under accepted policy"
+    },
+    {
+      "source": "medication.policy",
+      "target": "draft.switch",
+      "action": "Start a different setup",
+      "effect": "read",
+      "guard": "active policy draft; explicit discard/continue choice"
+    },
+    {
+      "source": "draft.resume",
+      "target": "medication.policy",
+      "action": "Resume exact policy step",
+      "effect": "draft",
+      "guard": "stored policy flow/step matches; restore selected schedule and fields"
+    },
+    {
+      "source": "medication.policy",
+      "target": "medication.settings",
+      "action": "Back",
+      "effect": "read",
+      "guard": "preserve caller filters/context and drafts"
+    },
+    {
+      "source": "medication.policy_review",
+      "target": "medication.policy",
+      "action": "Back",
+      "effect": "read",
+      "guard": "preserve caller filters/context and drafts"
+    },
+    {
+      "source": "medication.policy_review",
+      "target": "root",
+      "action": "Menu",
+      "effect": "read",
+      "guard": "linked account; suspend draft without discarding"
+    },
+    {
+      "source": "history",
+      "target": "history.expanded",
+      "action": "Expanded history",
+      "effect": "read",
+      "guard": "M3.2 enabled; baseline history stays available independently"
+    },
+    {
+      "source": "history.expanded",
+      "target": "history.expanded",
+      "action": "Next / Previous / Day / Medication filter",
+      "effect": "read",
+      "guard": "authorized principal; both feature gates enabled"
+    },
+    {
+      "source": "history.expanded",
+      "target": "dose.detail",
+      "action": "Select historical dose",
+      "effect": "read",
+      "guard": "M3.2 enabled; record-scoped correction; preserve return_to"
+    },
+    {
+      "source": "medication.settings",
+      "target": "medication.policy",
+      "action": "Edit reminder policy",
+      "effect": "draft",
+      "guard": "UX-04 enabled; explicit selected schedule; current policy copied"
+    },
+    {
+      "source": "medication.policy",
+      "target": "medication.policy_review",
+      "action": "Review policy changes",
+      "effect": "draft",
+      "guard": "initialOffsetMinutes,snoozeOptionsMinutes,missAfterMinutes valid under existing ReminderPolicy bounds; retain all other fields"
+    },
+    {
+      "source": "medication.policy",
+      "target": "medication.policy",
+      "action": "Invalid field",
+      "effect": "read",
+      "guard": "specific error; preserve valid answers; no persistence"
+    },
+    {
+      "source": "medication.policy_review",
+      "target": "medication.settings",
+      "action": "Save reminder settings",
+      "effect": "commit",
+      "guard": "own selected schedule; version/revision match; persist exact reviewed fields as new revision; no regimen advice"
+    },
+    {
+      "source": "medication.policy_review",
+      "target": "medication.settings",
+      "action": "Cancel",
+      "effect": "draft",
+      "guard": "discard proposed policy fields; no revision"
+    },
+    {
+      "source": "dose.detail",
+      "target": "history.expanded",
+      "action": "Back to expanded history",
+      "effect": "read",
+      "guard": "return_to is expanded history; restore filters/cursor"
+    },
+    {
+      "source": "account.delete",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "account.link",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "account.notifications",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "account.privacy",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "account.quiet",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "account.zone",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "add.review",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "dose.correct",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "dose.custom_time",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "dose.detail",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "dose.missed",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "dose.note",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "dose.recorded",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "generic.add",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "generic.detail",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "habit.add",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "habit.checkin",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "log.picker",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "medication.archive",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "medication.detail",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "medication.edit",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "mood.note",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "mood.picker",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "onboarding.confirm",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "reminder",
+      "target": "recovery.uncertain",
+      "action": "Commit outcome uncertain",
+      "effect": "system",
+      "guard": "same durable intent/vendor-event ID; block new mutation; no failure claim until readback"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "account",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "account.notifications",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "account.privacy",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "add.saved",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "dose.recorded",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "dose.snoozed",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "generic.detail",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "generic.recorded",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "habit.detail",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "habit.recorded",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "log.recorded",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "medication.detail",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "medications",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "mood.recorded",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "reminder",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "root",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "welcome",
+      "action": "Replay reconciled committed outcome",
+      "effect": "read",
+      "guard": "idempotency readback confirms original target/outcome; no new action; retry delivery only"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "recovery",
+      "action": "Confirmed not committed",
+      "effect": "read",
+      "guard": "authoritative reconciliation proves no commit; explicit safe retry keeps intent ID"
+    },
+    {
+      "source": "recovery.uncertain",
+      "target": "recovery.uncertain",
+      "action": "Still unresolved",
+      "effect": "read",
+      "guard": "database unavailable or concurrent processing; remain checking; bounded retry; no success/failure guess"
+    }
+  ],
+  "packets": [
+    {
+      "id": "UX-00",
+      "depends_on": [],
+      "goal": "Governance/spec amendment",
+      "roadmap_slices": [
+        "UX-00"
+      ]
+    },
+    {
+      "id": "UX-01",
+      "depends_on": [
+        "UX-00"
+      ],
+      "goal": "M2.2 interaction completion",
+      "roadmap_slices": [
+        "M2.2",
+        "M2.2a"
+      ]
+    },
+    {
+      "id": "UX-02",
+      "depends_on": [
+        "UX-01"
+      ],
+      "goal": "Executable runtime",
+      "roadmap_slices": [
+        "M2.2b"
+      ]
+    },
+    {
+      "id": "UX-03",
+      "depends_on": [
+        "UX-01"
+      ],
+      "goal": "Row budgets and durable pages",
+      "roadmap_slices": [
+        "M2.2c"
+      ]
+    },
+    {
+      "id": "UX-04",
+      "depends_on": [
+        "UX-03"
+      ],
+      "goal": "Scoped navigation",
+      "roadmap_slices": [
+        "M2.2d"
+      ]
+    },
+    {
+      "id": "UX-05",
+      "depends_on": [
+        "UX-04"
+      ],
+      "goal": "Drafts and truthful setup",
+      "roadmap_slices": [
+        "M2.2e"
+      ]
+    },
+    {
+      "id": "UX-06",
+      "depends_on": [
+        "UX-01"
+      ],
+      "goal": "Manual-log intent/privacy",
+      "roadmap_slices": [
+        "M2.2f",
+        "M2.2g"
+      ]
+    },
+    {
+      "id": "UX-07",
+      "depends_on": [
+        "UX-02",
+        "UX-03",
+        "UX-04",
+        "UX-05",
+        "UX-06"
+      ],
+      "goal": "M2.3 qualification",
+      "roadmap_slices": [
+        "M2.2h",
+        "M2.3"
+      ]
+    },
+    {
+      "id": "UX-08",
+      "depends_on": [
+        "UX-07"
+      ],
+      "goal": "M2.4/M2.5 separate owners",
+      "roadmap_slices": [
+        "M2.4",
+        "M2.5"
+      ]
+    },
+    {
+      "id": "UX-09",
+      "depends_on": [
+        "UX-07"
+      ],
+      "goal": "M3.1/M3.2 separate owners",
+      "roadmap_slices": [
+        "M3.1",
+        "M3.2"
+      ]
+    },
+    {
+      "id": "UX-10",
+      "depends_on": [
+        "UX-07"
+      ],
+      "goal": "M3.3 quiet/discreet",
+      "roadmap_slices": [
+        "M3.3"
+      ]
+    },
+    {
+      "id": "UX-11",
+      "depends_on": [
+        "UX-09"
+      ],
+      "goal": "M3.4 text snapshots",
+      "roadmap_slices": [
+        "M3.4"
+      ]
+    },
+    {
+      "id": "UX-12",
+      "depends_on": [
+        "UX-11"
+      ],
+      "goal": "Media/container spike",
+      "roadmap_slices": [
+        "M3.4a"
+      ]
+    },
+    {
+      "id": "UX-13",
+      "depends_on": [
+        "UX-12",
+        "UX-08"
+      ],
+      "goal": "Durable assets",
+      "roadmap_slices": [
+        "M3.4b"
+      ]
+    },
+    {
+      "id": "UX-14",
+      "depends_on": [
+        "UX-13",
+        "UX-07"
+      ],
+      "goal": "JDA media transport",
+      "roadmap_slices": [
+        "M3.4c"
+      ]
+    },
+    {
+      "id": "UX-15",
+      "depends_on": [
+        "UX-14",
+        "UX-10"
+      ],
+      "goal": "Infographic UX qualification",
+      "roadmap_slices": [
+        "M3.4d"
+      ]
+    },
+    {
+      "id": "UX-16",
+      "depends_on": [
+        "UX-11"
+      ],
+      "goal": "M3.5 summary enhancement",
+      "roadmap_slices": [
+        "M3.5"
+      ]
+    },
+    {
+      "id": "UX-17",
+      "depends_on": [
+        "UX-16"
+      ],
+      "goal": "M7.4/M7.5 separate owners",
+      "roadmap_slices": [
+        "M7.4",
+        "M7.5"
+      ]
+    },
+    {
+      "id": "UX-18",
+      "depends_on": [
+        "UX-16"
+      ],
+      "goal": "M7.6 generic reminders",
+      "roadmap_slices": [
+        "M7.6"
+      ]
+    }
+  ],
+  "implementation_checks": [
+    "Compare emitted callbacks with enabled graph edges and registered handlers.",
+    "Check actual serialized action rows, not only component totals.",
+    "Check shortest-path tap budgets with enabled guards and named starting state.",
+    "Validate preserved draft context; metadata graph alone is not behavior verification.",
+    "No current product status transitions are encoded in this artifact.",
+    "Baseline /history must remain enabled before M3.2; expanded history is a separate gate.",
+    "Infographic is visible only when UX-15 qualification and all transitively required delivery gates are enabled.",
+    "Taken on a three-day-old original reminder must reach correction with no direct mutation.",
+    "Stale wizard state returns to the saved current prompt; uncertain commit returns to a readback-confirmed outcome.",
+    "Schedule-specific policy edit/save must persist the exact reviewed fields and keep other policy values."
+  ],
+  "gate_acceptance": {
+    "UX-12": [
+      "M3.4a: rendering go decision required for downstream media"
+    ],
+    "UX-15": [
+      "M3.4d: all mapped/transitive criteria and independent visual qualification before exposing images"
+    ]
+  }
+}

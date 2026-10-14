@@ -19,7 +19,9 @@ does not prevent repository-governance work requested directly by the owner.
 ## Start a slice
 
 1. Select the first dependency-unblocked slice in the roadmap's Appendix B.
-   The current starting slice is M0.0.
+   UX-00 (issue #2) is the governance adoption entry; after its verified merge,
+   M2.2 is next. ROADMAP allocates M2.2a-h before M2.3; packet IDs are not
+   multi-slice implementation ownership.
 2. Open an issue using the roadmap-slice template. Copy the slice's
    acceptance criteria verbatim and list every dependency with its current
    status.
@@ -59,24 +61,42 @@ criterion has automated or recorded smoke evidence, and documentation is
 updated. `in-use` additionally requires seven days of owner use without a P1
 defect, where the roadmap marks it required.
 
-## Current M0.0 checklist
+## Autonomous execution and evidence boundaries
 
-M0.0 is the process bootstrap for the product rewrite. Its owner should
-complete only these actions from the roadmap:
+The owner authorizes the normal issue/branch/worktree/commit/PR/CI/merge
+lifecycle without routine human approval. Existing repository permissions and
+branch protections still apply; never relax them or grant token scopes.
+Coordinator owns remote transitions and reads back exact issue/PR/main/CI
+state. Delegated owners obey their explicit scope (including no-commit or
+local-only tasks). Serialize shared contracts/migrations after interface
+freeze; every official split has its own issue/branch and owner.
 
-- keep `DESIGN.md`, the ADR set, design tracks, and ROADMAP under version
-  control;
-- delete the retired architecture document;
-- archive the swarm research summary;
-- replace obsolete Kafka guidance in the production plan with a pointer to
-  the design;
-- mark the API document planned; reduce README, QUICKSTART, and DEVELOPMENT
-  to reset stubs; and
-- add `docs/doc-lint.txt`, then prove no forbidden legacy terms appear outside
-  the roadmap's allowlist.
+Before merge, independent UX and security/correctness reviewers inspect the
+actual diff, graph, transcripts and artifacts; independent QA verifies fresh
+command outputs and nonzero executed counts, not the author's assertions.
+Missing reviewer, unavailable required tooling, unresolved must-fix findings,
+failed/absent required CI or unproven acceptance **blocks** merge and status
+promotion. Fix, rerun and re-review findings; bounded repeated failure leaves
+a durable blocked issue/evidence and permits unrelated unblocked work.
+Review must be genuinely independent; self-review is insufficient.
 
-When that checklist and the M0.0 acceptance criteria are proven on `main`, its
-owner marks M0.0 green. M0.1 then becomes eligible.
+For UX graph changes run `python3 scripts/check-bot-ux-plan.py`,
+`python3 scripts/test-check-bot-ux-plan.py`, `scripts/doc-lint.sh` and
+`git diff --check`; required CI enforces the first three in doc-lint. Product
+slices additionally run their full existing acceptance suites: structural
+validation cannot prove route implementation or runtime correctness. Record
+criterion, exact command, executed/ignored counts, environment/revision,
+artifact/hash and pass/fail/blocked. Never substitute zero-tests or synthetic
+vendor responses for real acceptance evidence.
+
+Secret access, live Discord login/sends, deployments, real health records and
+destructive operations require separate explicit authorization and established
+backup/deployment policy. Use synthetic accounts and disposable infrastructure
+for tests. Never use normal-user tokens/self-bots or forge provider events as
+live evidence. Unavailable live/device observations remain blocked; automated
+technical attestations do not waive mobile push, subjective usability or
+seven-day in-use milestone requirements. User Create/Archive/Delete
+confirmations remain data-safety controls, not development approval gates.
 
 ## Handoff format
 
