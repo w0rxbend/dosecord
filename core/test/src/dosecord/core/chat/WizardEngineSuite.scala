@@ -36,6 +36,144 @@ class WizardEngineSuite extends munit.FunSuite:
     assertEquals(h.uow.sessions.all, Nil, "session closes on Complete")
     assertEquals(h.uow.slots.all, Nil, "slots are deleted on Complete")
 
+  private def select(h: WizardHarness, wires: List[String]): Reply =
+    h.handle(h.event(Inbound.InteractionSubmitted(h.refOf(wires.head), wires, None)))
+
+  test("single-select values route to Chosen"):
+    val h = WizardHarness()
+    h.command("example")
+    val prompt = h.message("Widget")
+    select(h, List(h.choiceWire(prompt, "Red")))
+    assertEquals(h.session.step, "confirm")
+    assertEquals(WizardEngine.dataOf(h.session).get("color"), Some("red"))
+
+  for labels <- List(List("Red"), List("Red", "Blue")) do
+    test(s"declared multi-select routes ${labels.size} values to ChosenMany"):
+      val h = WizardHarness()
+      val multiStep = example
+        .steps("color")
+        .copy(
+          kind = StepKind.Choices(_ => List("red" -> "Red", "blue" -> "Blue"), ChoiceLayout.Select, 1, 2),
+          accept = {
+            case (StepInput.ChosenMany(keys), _) =>
+              Right(StepTransition.Next("confirm", Map("color" -> keys.mkString(","))))
+            case _ => Left("Expected multiple-choice input.")
+          }
+        )
+      val multiFlow = example.copy(steps = example.steps.updated("color", multiStep))
+      val engine = WizardEngine(
+        Map("example" -> multiFlow),
+        flowCommands,
+        h.codec,
+        h.clock,
+        h.inner,
+        h.uow,
+        Map(h.adapter.vendor -> h.adapter)
+      )
+      def handle(body: Inbound): Reply = h.uow.transaction(tx => engine.handle(h.event(body), h.principal, tx))
+      handle(Inbound.CommandInvoked("example", Map.empty, "/example"))
+      val prompt = handle(Inbound.MessageReceived("Widget", None, truncated = false))
+      val wires = labels.map(h.choiceWire(prompt, _))
+      handle(Inbound.InteractionSubmitted(h.refOf(wires.head), wires, None))
+      assertEquals(h.session.step, "confirm")
+      assertEquals(WizardEngine.dataOf(h.session).get("color"), Some(labels.map(_.toLowerCase).mkString(",")))
+
+  for invalid <- List(
+      "malformed",
+      "tampered",
+      "foreign",
+      "stale slot",
+      "stale token",
+      "direct",
+      "wrong action",
+      "duplicate",
+      "too many",
+      "too few",
+      "navigation"
+    )
+  do
+    test(s"select values fail closed for $invalid without accepting their valid subset"):
+      val h = WizardHarness()
+      val step = example
+        .steps("color")
+        .copy(
+          kind = StepKind.Choices(
+            _ => List("red" -> "Red", "blue" -> "Blue"),
+            ChoiceLayout.Select,
+            if invalid == "too few" then 2 else 1,
+            if invalid == "too many" then 1 else 2
+          ),
+          accept = {
+            case (StepInput.ChosenMany(keys), _) =>
+              Right(StepTransition.Next("confirm", Map("color" -> keys.mkString(","))))
+            case _ => Left("Expected multiple-choice input.")
+          }
+        )
+      val engine = WizardEngine(
+        Map("example" -> example.copy(steps = example.steps.updated("color", step))),
+        flowCommands,
+        h.codec,
+        h.clock,
+        h.inner,
+        h.uow,
+        Map(h.adapter.vendor -> h.adapter)
+      )
+      def handle(body: Inbound): Reply = h.uow.transaction(tx => engine.handle(h.event(body), h.principal, tx))
+      handle(Inbound.CommandInvoked("example", Map.empty, "/example"))
+      val prompt = handle(Inbound.MessageReceived("Widget", None, truncated = false))
+      val red = h.choiceWire(prompt, "Red")
+      val payload = h.codec.decode(red).toOption.get
+      val bad = invalid match
+        case "malformed" => "dc:invalid"
+        case "tampered"  => red.updated(10, if red(10) == 'A' then 'B' else 'A')
+        case "too few"   => red
+        case "foreign"   =>
+          val other = WizardHarness()
+          other.command("example")
+          val foreignWire = other.choiceWire(other.message("Other"), "Blue")
+          val foreignSlot = other.uow.slots.all.find(_.id == other.refOf(foreignWire).subject).get
+          h.uow.transaction(tx => tx.slots.insert(foreignSlot))
+          foreignWire
+        case "stale slot" =>
+          h.uow.transaction: tx =>
+            val slot = tx.slots.loadForUpdate(payload.subject).get
+            tx.slots.deleteForSession(h.session.id)
+            tx.slots.insert(slot.copy(stepSeq = Some(h.session.stepSeq - 1)))
+          red
+        case "stale token" => h.codec.encode(CallbackMode.Slot, payload.action, payload.subject, payload.value + 1).wire
+        case "direct"      => h.codec.encode(CallbackMode.Direct, payload.action, payload.subject, payload.value).wire
+        case "wrong action" =>
+          h.codec
+            .encode(CallbackMode.Slot, ActionRegistry.byName("dose.taken").get, payload.subject, payload.value)
+            .wire
+        case "duplicate"  => red
+        case "too many"   => h.choiceWire(prompt, "Blue")
+        case "navigation" => h.choiceWire(prompt, Labels.Cancel)
+      val before = h.session
+      val values = if invalid == "too few" then List(red) else List(red, bad)
+      val reply = handle(Inbound.InteractionSubmitted(h.refOf(red), values, None))
+      assertEquals(reply.toast, Some(ReminderCopy.staleControlToast))
+      assertEquals(h.session, before, "invalid selections must not transition or reprompt the session")
+
+  test("selection values cannot answer a text step"):
+    val h = WizardHarness()
+    h.command("example")
+    val token = h.uow.transaction(tx =>
+      h.engine.renderStepPrompt(
+        h.chat,
+        None,
+        h.session.id,
+        example.steps("color"),
+        Map("name" -> "Widget"),
+        h.session.stepSeq,
+        tx
+      )
+    )
+    val wire = h.choiceWire(Reply(replace = Some(token)), "Red")
+    val before = h.session
+    assertEquals(select(h, List(wire)).toast, Some(ReminderCopy.staleControlToast))
+    assertEquals(h.session, before)
+
   // Acceptance 8 half: Back/Cancel behave on every step (rendering is asserted separately below).
   test("Back returns to the previous step with the data kept; Cancel aborts the setup"):
     val h = WizardHarness()

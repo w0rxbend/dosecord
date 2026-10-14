@@ -119,7 +119,7 @@ final class WizardEngine(
       case None          => Reply(toast = Some(ReminderCopy.staleControlToast))
       case Some(session) =>
         if ref.value != session.stepSeq then staleTap(session)
-        else if values.nonEmpty then multiChoose(event, principal, session, values, source, tx)
+        else if values.nonEmpty then selectChoices(event, principal, session, values, source, tx)
         else
           tx.slots.loadForUpdate(ref.subject) match
             case Some(slot) if slot.sessionId.contains(session.id) =>
@@ -137,11 +137,10 @@ final class WizardEngine(
                 case key => choose(event, principal, session, key, source, tx)
             case _ => staleTap(session)
 
-  /** A multi-select submission (M1.9's day picker): `values` carries the selected options' wire tokens; each must
-    * decode to a slot of this session at its current `step_seq`. A single tap on the set (one value) is a one-element
-    * selection.
+  /** Native selects carry signed option tokens even for a single-choice step. Validate the whole selection before
+    * routing by the declared cardinality; one selected item in a multi-select still means `ChosenMany`.
     */
-  private def multiChoose(
+  private def selectChoices(
       event: InboundEvent,
       principal: Principal,
       session: ConversationSession,
@@ -149,21 +148,32 @@ final class WizardEngine(
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
-    val keys = values.flatMap: wire =>
-      codec
-        .decode(wire)
-        .toOption
-        .flatMap(payload => tx.slots.loadForUpdate(payload.subject))
-        .filter(slot => slot.sessionId.contains(session.id) && slot.stepSeq.contains(session.stepSeq))
-        .map(slot => WizardDocument.slotPayloadKey(slot.payload))
-    if keys.isEmpty then staleTap(session)
-    else
-      stepOf(session) match
-        case None               => Reply(toast = Some(ReminderCopy.failureToast))
-        case Some((flow, step)) =>
-          step.accept(StepInput.ChosenMany(keys.distinct), dataOf(session)) match
-            case Left(reason)   => reprompt(event, session, step, reason, source, tx)
-            case Right(through) => transition(event, principal, session, flow, through, source, tx)
+    stepOf(session) match
+      case Some((flow, step)) =>
+        step.kind match
+          case StepKind.Choices(options, _, minSelect, maxSelect)
+              if values.size >= minSelect && values.size <= maxSelect =>
+            val allowed = options(dataOf(session)).map(_._1).toSet
+            val decoded = values.map: wire =>
+              for
+                payload <- codec.decode(wire).toOption
+                if payload.mode == CallbackMode.Slot && payload.action == StepAction && payload.value == session.stepSeq
+                slot <- tx.slots.loadForUpdate(payload.subject)
+                if slot.sessionId.contains(session.id) && slot.stepSeq.contains(session.stepSeq)
+                key = WizardDocument.slotPayloadKey(slot.payload)
+                if allowed.contains(key)
+              yield key
+            if decoded.exists(_.isEmpty) then staleTap(session)
+            else
+              val keys = decoded.flatten
+              if keys.distinct.size != keys.size then staleTap(session)
+              else
+                val input = if maxSelect > 1 then StepInput.ChosenMany(keys) else StepInput.Chosen(keys.head)
+                step.accept(input, dataOf(session)) match
+                  case Left(reason)   => reprompt(event, session, step, reason, source, tx)
+                  case Right(through) => transition(event, principal, session, flow, through, source, tx)
+          case _ => staleTap(session)
+      case None => Reply(toast = Some(ReminderCopy.failureToast))
 
   /** A stale `step_seq` tap: the toast and the current prompt again (DESIGN.md section 4.6). */
   private def staleTap(session: ConversationSession): Reply =

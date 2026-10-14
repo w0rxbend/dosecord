@@ -30,6 +30,100 @@ class DiscordApplicationPgSuite extends PgSuite:
     while !condition && System.nanoTime() < deadline do Thread.sleep(10)
     assert(condition)
 
+  test("real Discord single-select account timezone survives restart and completes account creation"):
+    ox.supervised:
+      var server = DiscordFakeVendorServer(RecordingSink())
+      val clock = new Clock:
+        override def now(): java.time.Instant = server.clock
+      def launch(): DiscordAdapter =
+        val uow = PgUnitOfWork(dataSource, clock)
+        val adapter = DiscordAdapter(server.transport, (_, _) => Nil, _ => (), () => server.clock)
+        val adapters: Map[String, ChatAdapter] = Map("discord" -> adapter)
+        adapter.start(
+          ChatMediator(
+            uow,
+            adapters,
+            codec,
+            Application.handler(uow, adapters, codec, clock),
+            clock,
+            commands = CommandRegistry.byName
+          ),
+          None
+        )
+        adapter.registerCommands(CommandRegistry.all)
+        adapter
+      def interaction(sequence: Int): FakeDiscordInteraction =
+        FakeDiscordInteraction(
+          server.transport,
+          Snowflake.mint(server.clock, sequence),
+          DiscordUser("select-owner", "synthetic"),
+          "select-dm",
+          DiscordContext.BotDm
+        )
+      val before = launch()
+      val (selectId, selected) = try
+        server.transport.deliver(DiscordEvent.SlashCommand(interaction(301), "start", Nil))
+        await(server.transport.interactionReplies.nonEmpty)
+        server.transport.interactionReplies.last._2.components
+          .collectFirst:
+            case DiscordComponent.Select(id, options, _, _) =>
+              (id, options.find(_.label.endsWith("Europe/Kyiv")).get.value)
+          .get
+      finally before.stop()
+      server = DiscordFakeVendorServer(RecordingSink())
+      val restarted = launch()
+      try
+        val usersBefore = count("users")
+        server.transport.deliver(DiscordEvent.Component(interaction(302), selectId, List(selected), "tz-source"))
+        await(server.transport.editedMessages.nonEmpty)
+        val confirmation = server.transport.editedMessages.last
+        assert(buttons(confirmation).exists(_.label == "Yes"), "single selection must reach timezone confirmation")
+        assertEquals(count("users"), usersBefore)
+        val yes = buttons(confirmation).find(_.label == "Yes").get.customId
+        server.transport.deliver(DiscordEvent.Component(interaction(303), yes, Nil, "confirm-source"))
+        await(count("users") == usersBefore + 1)
+        withConnection: conn =>
+          given java.sql.Connection = conn
+          val zone = sql"""SELECT u.timezone FROM users u JOIN platform_identities p ON p.user_id = u.id
+                            WHERE p.vendor = 'discord' AND p.vendor_user_id = 'select-owner'""".query[String]().head
+          assertEquals(zone, "Europe/Kyiv")
+        server.transport.deliver(DiscordEvent.SlashCommand(interaction(304), "menu", Nil))
+        await(server.transport.interactionReplies.exists(r => buttons(r._2).exists(_.label == "Account")))
+        val accountMenu = server.transport.interactionReplies.map(_._2).flatMap(buttons).find(_.label == "Account").get
+        server.transport.deliver(DiscordEvent.Component(interaction(305), accountMenu.customId, Nil, "menu-source"))
+        await(server.transport.editedMessages.exists(m => buttons(m).exists(_.label == "Timezone")))
+        val timezone = server.transport.editedMessages.flatMap(buttons).find(_.label == "Timezone").get
+        server.transport.deliver(DiscordEvent.Component(interaction(306), timezone.customId, Nil, "account-source"))
+        def changePicker: Option[(String, String)] =
+          (server.transport.editedMessages.toList ++ server.transport.interactionReplies.toList.map(_._2))
+            .flatMap(_.components)
+            .collectFirst:
+              case DiscordComponent.Select(id, options, _, _) =>
+                (id, options.find(_.label.endsWith("Europe/London")).get.value)
+        await(changePicker.nonEmpty)
+        val (changeId, london) = changePicker.get
+        val editsBefore = server.transport.editedMessages.size
+        server.transport.deliver(DiscordEvent.Component(interaction(307), changeId, List(london), "change-source"))
+        await(server.transport.editedMessages.size > editsBefore)
+        val changeConfirm = server.transport.editedMessages.last
+        assert(buttons(changeConfirm).exists(_.label == "Yes"), "account timezone selection must reach confirmation")
+        def storedTimezone: String = withConnection: conn =>
+          given java.sql.Connection = conn
+          sql"""SELECT u.timezone FROM users u JOIN platform_identities p ON p.user_id = u.id
+                WHERE p.vendor = 'discord' AND p.vendor_user_id = 'select-owner'""".query[String]().head
+        assertEquals(storedTimezone, "Europe/Kyiv", "selection alone must not change the account")
+        server.transport.deliver(
+          DiscordEvent.Component(
+            interaction(308),
+            buttons(changeConfirm).find(_.label == "Yes").get.customId,
+            Nil,
+            "change-confirm-source"
+          )
+        )
+        await(storedTimezone == "Europe/London")
+        assertEquals(count("users"), usersBefore + 1)
+      finally restarted.stop()
+
   test("real application toast outcomes complete slash hooks and manual log dedupes"):
     ox.supervised:
       val server = DiscordFakeVendorServer(RecordingSink())
