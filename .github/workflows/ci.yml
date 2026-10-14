@@ -91,6 +91,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: scripts/doc-lint.sh
+      - run: python3 scripts/check-bot-ux-plan.py
+      - run: python3 scripts/test-check-bot-ux-plan.py
 
   # M0.5: the Dockerfile is born here — build the image, then a compose smoke
   # (/healthz 200, idle RSS <= 200 MB with the console adapter enabled).

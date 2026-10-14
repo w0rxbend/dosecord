@@ -1,6 +1,6 @@
 # Medication Scheduling And Reminder UX
 
-This document defines the production target for creating medication schedules from the bot, triggering background reminders, and tracking whether each scheduled dose was taken, snoozed, skipped, or missed.
+This document defines the product target, not shipped status. ROADMAP Appendix B owns delivery/status; DESIGN and ADR-012 own architecture and precise lifecycle semantics. BOT_UX_PLAN and its machine-readable graph specify target cards/routes under ROADMAP’s UX adoption mapping. No graph edge proves an implemented handler.
 
 ## Product Principles
 
@@ -51,7 +51,7 @@ quiet_hours
 status
 ```
 
-Scheduled dose occurrence:
+Scheduled dose occurrence (conceptual fields; Scala/Flyway define exact storage):
 
 ```text
 id
@@ -68,6 +68,7 @@ status:
   taken
   skipped
   missed
+  unknown
   cancelled
 last_reminded_at
 reminder_count
@@ -133,7 +134,8 @@ due
   -> taken               user taps Taken
   -> skipped             user taps Skip
   -> snoozed             user taps Snooze
-  -> missed              due_window_end passes
+  -> missed              miss_deadline passes with sent evidence
+  -> unknown             miss_deadline passes without delivery evidence
 
 snoozed
   -> due                 snoozed_until arrives
@@ -141,7 +143,8 @@ snoozed
   -> skipped
   -> missed
 
-taken/skipped/missed/cancelled are terminal for the occurrence.
+taken/skipped/missed/unknown/cancelled end automatic reminders. Undo and explicit
+correction follow ADR-012; terminal does not mean immutable history.
 ```
 
 Required timestamps:
@@ -158,8 +161,8 @@ missed_at
 Adherence categories:
 
 ```text
-taken_on_time       taken_at <= due_window_end
-taken_late          taken_at > due_window_end, if manual correction allowed
+taken_on_time       effective_at <= due_window_end for eligible resolved rows
+taken_late          effective_at > due_window_end within allowed late logging
 skipped             user intentionally skipped
 missed              no response by cutoff
 unknown             data gap, migration, or system outage
@@ -167,308 +170,143 @@ unknown             data gap, migration, or system outage
 
 ## Background Worker
 
-The reminder worker runs in the backend service or a separate backend worker process.
+Use one direct-style Ox reminder loop over next_action_at, revision-aware
+materialization and a vendor-owned transactional outbox (DESIGN section 7).
+The claim/decide/action/outbox transaction holds no vendor call; sent evidence
+is recorded after delivery. No broker or independent missed-dose process.
+Missed requires sent evidence; outage/undelivered yields unknown, excluded
+from adherence. Quiet defer shifts the window and never creates unknown.
+Startup, roles, wake/sweeper and shutdown require M2.2b launch-path evidence.
+UTC storage, per-schedule IANA zone recurrence/display and DST rules remain.
 
-Worker loop:
-
-1. Select due occurrences with `scheduled_for <= now` or `snoozed_until <= now`.
-2. Lock rows with `FOR UPDATE SKIP LOCKED`.
-3. Mark occurrence as `due`.
-4. Insert `dose_action_log(action='reminder_sent')`.
-5. Emit `dosecord.chat.response_send_requested.v1` to Kafka.
-6. Update `last_reminded_at` and `reminder_count`.
-7. Schedule next occurrence where needed.
-
-Missed-dose worker:
-
-1. Select `due` or `snoozed` occurrences whose response window expired.
-2. Mark `missed`.
-3. Insert `dose_action_log(action='auto_marked_missed')`.
-4. Optionally emit a gentle missed-dose message.
-
-Use UTC internally. Convert to the user’s timezone only for display and recurrence calculations.
+Taken is direct only inside the persisted late-log window; too-old/skipped
+records open Correct without mutation, cancelled records refuse and an
+already-recorded tap returns its outcome. A three-day-old reminder opens
+Now / At scheduled time correction; custom time/notes remain M3.1-gated.
+Undo within 15 minutes restores due, extends deadlines and clears action
+fields per ADR-012. Snooze is bounded by next occurrence/maxLate/chain and
+filters invalid options; explicit snooze bypasses quiet defer but is silent
+inside quiet hours. max_reminders includes the first reminder. Corrections
+use explicit effective_at and are excluded from delay samples.
 
 ## Nested Bot Menu
 
-Top-level menu:
+Root keeps six categories: Today, Medications, Habits, Reminders, Stats,
+Account. Hide unimplemented branches; Mood is a Today quick action plus
+`/mood`, not a seventh category. Linked `/start` routes to root.
 
 ```text
-Dosecord
-[Today] [Medications] [Habits]
-[Reminders] [Stats] [Account]
+Today -> Open page -> Dose detail -> Taken | Skip | valid Snooze -> Outcome
+      -> Completed | Log dose -> Picker -> Outcome -> Log another
+      -> Log mood -> 1–10 picker -> optional note/tags -> Outcome
+Medications -> Picker -> Detail -> Log | History | Reminder settings
+                             -> Pause/Resume | Archive confirmation | Edit*
+Add -> Text form -> Cadence/days -> Review -> Create -> Saved
+Stats* -> 7/30 days | By medication | Timing | Text view | Infographic**
+Account -> Timezone | Notifications* | Privacy* | Export/Delete*
+Every nested view -> Back (saved parent/filter) | Menu
 ```
 
-Medication menu:
+`*` means official roadmap gate; `**` requires UX-15 / M3.4d qualification,
+not just a rendered asset. Existing seven-day history stays available before
+M3.2; expanded paging/filter/correction is separately gated. Open dose pages
+remain actionable; do not hide overflow only in read-only history. Use a
+medication-scoped detail before Pause/Archive rather than repeated bare
+buttons. Discord reserves one navigation row and fits actual rendered rows
+(select consumes a row), initially at most four actionable rows plus nav.
 
-```text
-Medications
-[Today's doses] [Add medication]
-[Edit medication] [Pause medication]
-[History] [Settings]
-```
+Routine fixed prompts fit two short paragraphs/160 characters; outcomes fit
+80 characters. User data has validated limits and Details, never silent
+truncation. Navigation edits one card, setup one card, reminders keep their
+own occurrence-scoped cards. Read-only views create no dose actions.
 
-Add medication flow:
-
-```text
-Bot: What medicine or supplement should I track?
-User: Vitamin D
-
-Bot: What dose should I show in reminders?
-[Skip] or text: 1000 IU
-
-Bot: When do you take it?
-[Daily] [Specific days] [Every N hours] [As needed]
-
-Bot: Choose time.
-[09:00] [12:00] [18:00] [Custom]
-
-Bot: Timezone is Europe/Kyiv. Use this?
-[Yes] [Change]
-
-Bot: Reminder options?
-[At dose time] [5 min before] [10 min after if unanswered]
-
-Bot: Confirm:
-Vitamin D, 1000 IU
-Every day at 09:00 Europe/Kyiv
-Actions: Taken, Snooze, Skip
-[Create] [Edit] [Cancel]
-```
-
-Daily schedule with multiple times:
-
-```text
-Bot: Add another time?
-[Add time] [Done]
-```
-
-Specific days:
-
-```text
-Bot: Which days?
-[Mon] [Tue] [Wed] [Thu] [Fri] [Sat] [Sun]
-[Done]
-```
-
-Every N hours:
-
-```text
-Bot: How should the interval start?
-[Fixed first time] [After first taken dose]
-
-Bot: Interval?
-[4h] [6h] [8h] [Custom]
-
-Bot: How many doses per day?
-[2] [3] [4] [No daily limit]
-```
-
-As needed:
-
-```text
-Bot: I will not remind you automatically. You can log it from Today's doses or by saying "I took <name>".
-[Create] [Cancel]
-```
-
-Reminder message:
+Add uses the accepted three-step wizard: text form (name, optional dose,
+HH:MM times, instructions; no times means as-needed), cadence/day selection
+when scheduled, then exact review/Create. Custom days/zone are explicit
+branches. Unsupported kinds stay hidden. As-needed creates no automatic
+reminder. Review must equal persisted fields; until full edit exists,
+Update schedule explicitly retains existing dose/instructions/zone.
+Schedule Reminder settings copies the current policy; edit timing offset,
+snooze options and miss window, review then version-checked Save preserving
+other fields. Invalid input preserves answers and writes nothing.
 
 ```text
 Time for Vitamin D, 1000 IU.
+With breakfast.                 only user-provided instructions
 [Taken] [Snooze 10m] [Skip]
+[Snooze 30m] [Snooze 1h]         only valid options
+
+Recorded at 09:03.
+[Undo] [Correct]                Add note only from M3.1
 ```
 
-Taken flow:
+Taken/Skip/each offered Snooze/Undo take one tap on the visible reminder;
+Correct Now/At scheduled time takes two. Log as-needed from Today or picker
+takes at most two. One displayed manual-log intent commits at most once even
+on distinct rapid taps; Log another explicitly allocates a fresh intent.
 
-```text
-User taps Taken
-Bot: Recorded at 09:03.
-[Undo] [Add note]
-```
-
-Skip flow:
-
-```text
-User taps Skip
-Bot: Marked skipped. Want to add a reason?
-[Forgot] [Ran out] [Side effects] [Doctor told me] [No note]
-```
-
-Snooze flow:
-
-```text
-User taps Snooze 10m
-Bot: Okay, I’ll remind you again at 09:10.
-```
-
-Missed flow:
-
-```text
-Bot: I did not get a response for Vitamin D at 09:00, so I marked it missed.
-[I took it] [Skip] [Keep missed]
-```
-
-Manual correction:
-
-```text
-Bot: When did you take it?
-[Now] [At scheduled time] [Custom time]
-```
+Routine navigation/setup/outcomes/history/requested reports are silent.
+Due/repeat/snooze follow persisted policy, not a UX heuristic. Catch-up sends
+one digest per accepted bucket linking original records, never stale push
+storms. Summaries are silent and opt-out-aware; ops alerts are separate,
+bounded and never interrupt reminder/outcome exchanges. DM-only redirect
+outside BOT_DM reveals no health data. Discreet covers names in labels,
+previews, text, filenames and alt text; spoilers are not encryption.
 
 ## Bot State Machine
 
-The backend stores conversation state so bot restarts and horizontal scaling are safe.
+Persistent wizard/form sessions use signed opaque callbacks, owner/session/
+step/expiry validation and the existing 30-minute idle plus 30-minute grace.
+Menu suspends, root offers Continue setup at the exact saved step; switching
+flows asks Discard draft / Continue setup. Only explicit Cancel/discard or
+expiry deletes the draft. Restart/stale-step recovery retains answers and
+source context, emits one notice and re-renders the current prompt. A stale
+submit cannot recreate an expired/discarded draft. Dose actions do not change
+the setup draft. Back retains filters/context; invalid foreign controls reveal
+no names and mutate nothing.
 
-```text
-medication.add.name
-medication.add.dose
-medication.add.schedule_kind
-medication.add.days
-medication.add.times
-medication.add.interval
-medication.add.timezone
-medication.add.reminder_policy
-medication.add.confirm
-```
+Ack targets p95 <1.5 s from interaction creation, before DB/render/upload;
+modal opening cannot defer, modal submit acknowledges independently. Missed
+modal deadline persists FormRunner and counts degradation. Deferred replies
+must actually complete and respect source/declared visibility.
 
-State row:
+Saved means the core confirmed persistence, not merely that the interaction
+was acknowledged. Failed reply send is not failed commit. On uncertain
+commit show Checking whether this was recorded… and reconcile durable
+idempotency/readback before replay or same-intent retry. Say Nothing was
+recorded only after confirmed noncommit. Missing edit target produces one
+useful replacement with a recorded handle, not duplicate success toasts.
 
-```text
-platform
-platform_user_id
-conversation_id
-state
-data jsonb
-expires_at
-updated_at
-```
+Account ready offers Add medication / Open Today; Medication saved offers
+Open medication / Today. Archive/Delete confirmations name their targets.
+These user data-safety confirmations survive autonomous development.
 
-All button/menu actions should include a compact callback payload:
-
-```text
-action=med_add_time
-conversation_id=...
-value=09:00
-```
-
-## Kafka Messages
-
-Commands from bot to backend:
-
-```text
-dosecord.medication.create_requested.v1
-dosecord.medication.schedule_create_requested.v1
-dosecord.medication.schedule_update_requested.v1
-dosecord.medication.pause_requested.v1
-dosecord.medication.archive_requested.v1
-dosecord.medication.intake_mark_taken_requested.v1
-dosecord.medication.intake_mark_skipped_requested.v1
-dosecord.medication.intake_snooze_requested.v1
-dosecord.medication.intake_correct_requested.v1
-dosecord.medication.today_requested.v1
-dosecord.medication.history_requested.v1
-```
-
-Events from backend:
-
-```text
-dosecord.medication.created.v1
-dosecord.medication.schedule_created.v1
-dosecord.medication.schedule_updated.v1
-dosecord.medication.dose_due.v1
-dosecord.medication.intake_taken.v1
-dosecord.medication.intake_skipped.v1
-dosecord.medication.intake_snoozed.v1
-dosecord.medication.intake_missed.v1
-dosecord.medication.intake_corrected.v1
-```
-
-Responses to platform adapters:
-
-```text
-dosecord.chat.response_send_requested.v1
-dosecord.chat.menu_render_requested.v1
-dosecord.chat.error_display_requested.v1
-```
-
-## Example Command Payload
-
-```json
-{
-  "type": "dosecord.medication.schedule_create_requested.v1",
-  "actor": {
-    "platform": "discord",
-    "platform_user_id": "123",
-    "account_id": "5f7fb597-07de-4d5f-8b1d-0a180a24d401"
-  },
-  "data": {
-    "medication": {
-      "name": "Vitamin D",
-      "dose_amount": "1000",
-      "dose_unit": "IU",
-      "instructions": "with breakfast"
-    },
-    "schedule": {
-      "kind": "fixed_times",
-      "timezone": "Europe/Kyiv",
-      "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-      "times": ["09:00"],
-      "start_date": "2026-05-24",
-      "end_date": null
-    },
-    "reminder_policy": {
-      "initial_offset_minutes": 0,
-      "snooze_options_minutes": [10, 30, 60],
-      "miss_after_minutes": 120,
-      "max_reminders": 3,
-      "discreet": false
-    }
-  }
-}
-```
-
-## Data Model Recommendation
-
-PostgreSQL tables:
-
-```text
-medications
-medication_schedules
-medication_schedule_times
-medication_occurrences
-medication_intake_actions
-reminder_policies
-conversation_sessions
-outbox_messages
-processed_messages
-```
-
-Important constraints:
-
-```text
-unique(idempotency_key) on processed_messages
-index(account_id, scheduled_for, status) on medication_occurrences
-index(schedule_id, scheduled_for) on medication_occurrences
-```
+The retired event/topic payload sketches and worker stack are not executable
+contracts. Current Scala contracts, Flyway schema and DESIGN are authoritative;
+Python product services and the retired broker stack must not return.
 
 ## Adherence Statistics
 
-MVP stats:
+M3.4 ships text first: today/7/30-day and per-medication resolved counts,
+optional adherence/on-time rates and median/p90 delay. One immutable snapshot
+holds account/range/zone/as-of/source revision and all represented values.
+Text, bounded redacted alt text and eventual PNG share that snapshot; query
+results must equal the existing pure Adherence oracle.
 
-```text
-today: due, taken, skipped, missed
-7-day adherence percentage
-30-day adherence percentage
-per-medication taken/skipped/missed counts
-average delay from scheduled_for to taken_at
-```
+Adherence = taken / (taken + skipped + missed) over eligible resolved rows.
+Unknown/cancelled/manual/open rows are excluded; show counts/coverage, never
+convert unknown to missed. Denominator zero is No data, not 0%. Corrected
+records count appropriately but are excluded from delay; effective-time/date
+attribution follows the domain. Mood gaps are gaps, not zeros. Skipped is
+separate, not failure. No composite health score, dose advice, causality or
+shaming streaks; any streak uses recovery copy.
 
-Adherence formula:
-
-```text
-taken / (taken + skipped + missed)
-```
-
-Also show skipped separately. Some skipped doses are medically intentional and should not be shamed.
+Images stay hidden until M3.4d: durable assets, qualified transport,
+final-container/fonts/resource tests and independent phone-width dark/light
+visual review. Empty/all-unknown/single-point/Unicode/discreet cases need
+fixtures. Render/queue/upload failure retains useful truthful text and never
+blocks intake or reminders. Text summaries/breadth do not depend on rendering
+go. See DESIGN section 15 for accepted asset/privacy/retention boundaries.
 
 ## Safety Copy
 
@@ -491,11 +329,7 @@ Double your next dose.
 
 ## Implementation Path
 
-1. Add shared medication command/event contracts.
-2. Add the backend schema and Flyway migration for medication tables.
-3. Add backend medication service for create schedule, generate occurrences, mark taken/skip/snooze/missed.
-4. Add reminder worker with row locking and outbox messages.
-5. Add Discord nested menu handlers for add medication and today's doses.
-6. Add chat response consumer in Discord bot.
-7. Add adherence summary command.
-8. Add interval/cycle schedules and refill tracking after fixed schedules are stable.
+Follow ROADMAP's UX adoption allocation and Appendix B, one official slice
+per issue/branch. M2.2 then M2.2a-h before M2.3; M3.4 text before M3.4a-d media.
+Existing criteria, live/device evidence and in-use milestone gates remain;
+this specification does not promote any product status.
