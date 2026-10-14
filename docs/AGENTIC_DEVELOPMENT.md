@@ -76,7 +76,11 @@ actual diff, graph, transcripts and artifacts; independent QA verifies fresh
 command outputs and nonzero executed counts, not the author's assertions.
 Missing reviewer, unavailable required tooling, unresolved must-fix findings,
 failed/absent required CI or unproven acceptance **blocks** merge and status
-promotion. Fix, rerun and re-review findings; bounded repeated failure leaves
+promotion, except the explicit M2.2 implementation checkpoint in ROADMAP.
+That checkpoint requires all automated acceptance, local canonical checks and
+independent reviews before integration, then required CI on the exact main
+commit; it does not qualify live criteria, promote green/in-use or unblock
+slices that depend on M2.2 green. Fix, rerun and re-review findings; bounded repeated failure leaves
 a durable blocked issue/evidence and permits unrelated unblocked work.
 Review must be genuinely independent; self-review is insufficient.
 
