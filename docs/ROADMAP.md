@@ -74,7 +74,7 @@ Slices (strict order unless noted; M0.6-M0.8 are independent and may interleave 
 
 ### M1 — Reminder engine, test-gated on the console
 
-**Goal.** The whole dose lifecycle as pure, property-tested functions with the complete `decide` table, then real on Postgres — revisions, the loop, the dispatcher grown from M0.10, catch-up, the wizard, an interactive Today, history, and the one-tap and correction flows — all demonstrable on the console before any vendor SDK is linked into the reminder path. M2.1 and M2.2 (Discord gateway and components) may run in parallel with this milestone from M0 exit; they do not touch `core/`.
+**Goal.** The whole dose lifecycle as pure, property-tested functions with the complete `decide` table, then real on Postgres — revisions, the loop, the dispatcher grown from M0.10, catch-up, the wizard, an interactive Today, history, and the one-tap and correction flows — all demonstrable on the console before any vendor SDK is linked into the reminder path. M2.1 and M2.2 (Discord gateway and components) may run in parallel with this milestone from M0 exit. M2.1 remains adapter-only; the UX-00 amendment explicitly permits only M2.2's minimal vendor-neutral contract/mediator repairs required by its retained interaction acceptance, with no vendor symbols in `core/` or `contracts/`.
 
 **User-visible outcome.** On the console: add a medication in three steps, receive "Time for Vitamin D, 1000 IU. 1) Taken 2) Snooze 10m 3) Skip 4) Snooze 30m 5) Snooze 1h" at the right local time, answer "1", see "Recorded at 09:03. 1) Undo 2) Correct", undo, log an as-needed dose, view Today and the last 7 days, pause and resume.
 
