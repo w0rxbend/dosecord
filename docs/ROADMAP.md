@@ -449,7 +449,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 
 | Slice | Name | Size | Deps | In-use | Status |
 |---|---|---|---|---|---|
-| UX-00 | UX governance adoption | S | M2.1 | | in-progress |
+| UX-00 | UX governance adoption | S | M2.1 | | green |
 | M0.0 | Documentation cut 1 | S | — | | green |
 | M0.1 | Mill build and module graph | S | M0.0 | | green |
 | M0.2 | Delete Python, Kafka, old compose | S | M0.1 | | green |
