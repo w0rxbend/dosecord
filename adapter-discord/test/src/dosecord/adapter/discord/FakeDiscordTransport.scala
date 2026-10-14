@@ -18,7 +18,10 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
   @volatile private var handler: DiscordEvent => Unit = _ => ()
 
   val sent = ListBuffer.empty[SentObservation]
+  val sendNonces = ListBuffer.empty[Option[String]]
+  private val nonceIds = scala.collection.mutable.Map.empty[(String, String), String]
   val edits = ListBuffer.empty[SentObservation]
+  val editedMessages = ListBuffer.empty[DiscordMessage]
   val acks = ListBuffer.empty[AckObservation]
   val modalPayloads = ListBuffer.empty[String]
   val autocompleteReplies = ListBuffer.empty[List[String]]
@@ -39,20 +42,36 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
   override def selfUser: DiscordUser = DiscordUser("bot-1", "dosecord")
 
   /** Delivers one normalized event as the gateway would (the adapter forks it). */
-  def deliver(event: DiscordEvent): Unit = handler(event)
+  def deliver(event: DiscordEvent): Unit =
+    event match
+      case DiscordEvent.Component(i: FakeDiscordInteraction, _, _, source) => i.sourceId = Some(source)
+      case _                                                               => ()
+    handler(event)
+
+  def now: Instant = server.clock
+  def interactionOperation(op: String): Unit = maybeFail(op)
 
   override def sendMessage(channelId: String, message: DiscordMessage, nonce: Option[String]): String =
+    validateMessage(message)
     maybeFail("send")
-    val id = nextMessageId()
-    sent += SentObservation(
-      Some(id),
-      message.text,
-      s"channel=$channelId components=${message.components.size} silent=${message.silent} nonce=${nonce.getOrElse("")}"
-    )
-    id
+    this.synchronized:
+      sendNonces += nonce
+      nonce.flatMap(n => nonceIds.get((channelId, n))) match
+        case Some(id) => id
+        case None     =>
+          val id = nextMessageId()
+          nonce.foreach(n => nonceIds.update((channelId, n), id))
+          sent += SentObservation(
+            Some(id),
+            message.text,
+            s"channel=$channelId components=${message.components.size} silent=${message.silent} nonce=${nonce.getOrElse("")}"
+          )
+          id
 
   override def editMessage(channelId: String, messageId: String, message: DiscordMessage): Unit =
+    validateMessage(message)
     maybeFail("edit")
+    editedMessages += message
     edits += SentObservation(Some(messageId), message.text, s"edit channel=$channelId")
 
   override def deleteMessage(channelId: String, messageId: String): Unit =
@@ -92,11 +111,11 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
       // Discord has no "not modified" or "duplicate reaction" errors: both are vendor-side successes (DESIGN.md
       // section 4.5), so those faults never raise.
       val raises = (f, op) match
-        case (VendorFault.RateLimited(_), "send")   => true
-        case (VendorFault.Blocked, "send")          => true
-        case (VendorFault.EditNotFound, "edit")     => true
-        case (VendorFault.DeleteWindow, "delete")   => true
-        case _                                      => false
+        case (VendorFault.RateLimited(_), "send") => true
+        case (VendorFault.Blocked, "send")        => true
+        case (VendorFault.EditNotFound, "edit")   => true
+        case (VendorFault.DeleteWindow, "delete") => true
+        case _                                    => false
       if raises then
         this.fault = None
         throw f match
@@ -108,7 +127,11 @@ final class FakeDiscordTransport(server: DiscordFakeVendorServer) extends Discor
 
   def recordAck(kind: String): Unit = acks += AckObservation(kind, server.clock)
 
+  def validateMessage(message: DiscordMessage): Unit =
+    val _ = new net.dv8tion.jda.api.utils.messages.MessageCreateBuilder().setContent(message.text).build()
+
   def recordInteractionReply(kind: String, message: DiscordMessage, ephemeral: Boolean): Unit =
+    validateMessage(message)
     interactionReplies += ((kind, message, ephemeral))
 
 /** A live fake interaction: acks and replies are recorded on the transport; message ids are minted like sends. */
@@ -120,18 +143,57 @@ final class FakeDiscordInteraction(
     override val context: DiscordContext
 ) extends DiscordInteraction:
   override def createdAt: Instant = Snowflake.createdAt(id)
-  override def deferReply(ephemeral: Boolean): Unit = transport.recordAck("deferReply")
-  override def deferUpdate(): Unit = transport.recordAck("deferUpdate")
+  var sourceId = Option.empty[String]
+  private var acknowledged = false
+  private var completedOriginal = false
+  private var updatingSource = false
+  private def initial(kind: String): Unit =
+    transport.interactionOperation("ack")
+    if acknowledged then throw DiscordApiException(40060, None, "already acknowledged")
+    if !transport.now.isBefore(createdAt.plusSeconds(3)) then throw DiscordApiException(10062, None, "expired")
+    acknowledged = true
+    transport.recordAck(kind)
+  private def hook(): Unit =
+    transport.interactionOperation("hook")
+    if !acknowledged then throw DiscordApiException(40060, None, "not acknowledged")
+    if !transport.now.isBefore(createdAt.plusSeconds(900)) then throw DiscordApiException(10015, None, "expired")
+  private var originalEphemeral = false
+  override def deferReply(ephemeral: Boolean): Unit =
+    initial("deferReply")
+    originalEphemeral = ephemeral
+  override def deferUpdate(): Unit =
+    if sourceId.isEmpty then throw DiscordApiException(40060, None, "source required")
+    initial("deferUpdate")
+    updatingSource = true
   override def reply(message: DiscordMessage, ephemeral: Boolean): String =
-    transport.recordAck("reply")
+    initial("reply")
+    originalEphemeral = ephemeral
+    completedOriginal = true
     transport.recordInteractionReply("reply", message, ephemeral)
-    transport.nextMessageId()
-  override def editOriginal(message: DiscordMessage): String = transport.nextMessageId()
-  override def editSourceMessage(message: DiscordMessage): String = transport.nextMessageId()
+    originalId
+  private lazy val originalId = transport.nextMessageId()
+  override def editOriginal(message: DiscordMessage): String =
+    hook()
+    completedOriginal = true
+    transport.recordInteractionReply("editOriginal", message, originalEphemeral)
+    if updatingSource then sourceId.get else originalId
+  override def editSourceMessage(message: DiscordMessage): String =
+    if !acknowledged then initial("editSource") else hook()
+    val id = sourceId.getOrElse(throw DiscordApiException(40060, None, "source required"))
+    transport.recordInteractionReply("editSource", message, originalEphemeral)
+    id
+  override def followUp(message: DiscordMessage, ephemeral: Boolean): String =
+    transport.interactionOperation("followUp")
+    hook()
+    if !completedOriginal && !updatingSource then editOriginal(message)
+    else
+      transport.recordInteractionReply("followUp", message, ephemeral)
+      transport.nextMessageId()
   override def replyModal(modal: DiscordModal): Unit =
-    transport.recordAck("replyModal")
+    initial("replyModal")
+    completedOriginal = true
     transport.modalPayloads +=
       s"custom_id=${modal.customId};title=${modal.title};fields=${modal.fields.map(_.key).mkString(",")}"
   override def replyChoices(choices: List[String]): Unit =
-    transport.recordAck("replyChoices")
+    initial("replyChoices")
     transport.autocompleteReplies += choices

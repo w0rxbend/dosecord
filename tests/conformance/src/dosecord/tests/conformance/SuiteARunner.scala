@@ -205,7 +205,11 @@ object SuiteARunner:
               if interaction.acked then () else interaction.answer(None)
           if profile.modal then
             attempt("modal"):
-              interaction.openForm(
+              // A modal must be the initial acknowledgement, never the transient-ack probe's second ack.
+              aut.server.deliver(
+                WireEvent.Callback("conformance-modal", wiring.defaultChat.chatId, "dc:conformance", probe.messageId)
+              )
+              aut.sink.all.last.interaction.get.openForm(
                 RenderedForm(
                   "conformance",
                   "Conformance",

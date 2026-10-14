@@ -33,7 +33,8 @@ class DiscordAdapterSuite extends munit.FunSuite:
   test("send lowers buttons to component rows with styles and the callback as custom id"):
     val rig = Rig()
     try
-      val handle = rig.adapter.send(chat, RenderedMessage(chunks = List("Time for Vitamin D"), controls = List(buttons)), "k1")
+      val handle =
+        rig.adapter.send(chat, RenderedMessage(chunks = List("Time for Vitamin D"), controls = List(buttons)), "k1")
       assert(handle.messageId.nonEmpty)
       val raw = rig.server.transport.sent.head.raw
       assert(raw.contains("components=2"), raw)
@@ -60,6 +61,26 @@ class DiscordAdapterSuite extends munit.FunSuite:
       val handle = rig.adapter.send(chat, RenderedMessage(chunks = List("one", "two", "three")), "k1")
       assertEquals(rig.server.transport.sent.map(_.text).toList, List("one", "two", "three"))
       assertEquals(handle.messageId, rig.server.transport.sent.last.messageId.get)
+    finally rig.adapter.stop()
+
+  test("chunk nonces are distinct and stable across retry"):
+    val rig = Rig()
+    try
+      val message = RenderedMessage(chunks = List("one", "two", "three"))
+      rig.adapter.send(chat, message, "chunks")
+      val nonces = rig.server.transport.sent.toList.map(_.raw.split("nonce=").last)
+      assertEquals(nonces.distinct.size, 3)
+      rig.adapter.send(chat, message, "chunks")
+      assertEquals(rig.server.transport.sendNonces.toList.drop(3).flatten, nonces)
+    finally rig.adapter.stop()
+
+  test("retrying a send key deduplicates on the wire"):
+    val rig = Rig()
+    try
+      val message = RenderedMessage(chunks = List("one", "two", "three"))
+      val first = rig.adapter.send(chat, message, "dedupe")
+      assertEquals(rig.adapter.send(chat, message, "dedupe"), first)
+      assertEquals(rig.server.transport.sent.size, 3)
     finally rig.adapter.stop()
 
   test("edit replaces the message and bumps the revision; delete and react pass through"):
@@ -107,6 +128,12 @@ class DiscordAdapterSuite extends munit.FunSuite:
       rig.server.transport.failNextRaw(502, None, "Bad Gateway", "send")
       intercept[ChatError.Retryable](rig.adapter.send(chat, RenderedMessage(chunks = List("hi")), "k1"))
     finally rig.adapter.stop()
+
+  test("expired interaction and webhook codes are terminal nonfatal failures"):
+    List(10062, 10015, 50027).foreach: code =>
+      val error = DiscordErrorMapper.map(DiscordApiException(code, None, "expired"))
+      assert(!error.isInstanceOf[ChatError.Retryable])
+      assert(!error.channelFatal)
 
   test("registerCommands plans the full spec surface for the transport"):
     val rig = Rig()

@@ -50,7 +50,8 @@ object Adapters:
       codec,
       Application.handler(uow, adapters, codec, Clock.system),
       Clock.system,
-      commands = CommandRegistry.byName
+      commands = CommandRegistry.byName,
+      recordFormDegraded = () => formDegradedCounter.increment()
     )
     adapters.foreach((name, adapter) =>
       adapter.start(mediator, None)
@@ -76,6 +77,9 @@ object Adapters:
               tx.medications.searchByNameNormPrefix(account.uuid, prefix, AutocompleteLimit).map(_.name)
 
   private val AutocompleteLimit = 25 // Discord's autocomplete choice cap.
+
+  private[app] val formDegradedCounter: io.micrometer.core.instrument.Counter =
+    io.micrometer.core.instrument.Counter.builder("dosecord_form_degraded_total").register(Metrics.registry)
 
   /** `dosecord_interaction_ack_latency_seconds{vendor="discord"}` (DESIGN.md section 10): measured from the interaction
     * snowflake by the adapter's ack path.

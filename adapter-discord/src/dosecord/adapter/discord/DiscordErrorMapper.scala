@@ -17,8 +17,9 @@ object DiscordErrorMapper:
 
   def map(e: DiscordApiException): ChatError =
     e.code match
-      case 50007               => ChatError.Unreachable(e.meaning)
-      case 429                 => ChatError.RateLimited(Duration.ofSeconds(e.retryAfterSeconds.getOrElse(1L)))
-      case 10008               => ChatError.Permanent(e.meaning, channelFatal = false)
-      case code if code >= 500 => ChatError.Retryable(e.meaning)
-      case _                   => ChatError.Permanent(e.meaning, channelFatal = false)
+      case 50007                 => ChatError.Unreachable(e.meaning)
+      case 429                   => ChatError.RateLimited(Duration.ofSeconds(e.retryAfterSeconds.getOrElse(1L)))
+      case 10008                 => ChatError.Permanent(e.meaning, channelFatal = false)
+      case 10062 | 10015 | 50027 => ChatError.TooOld("interaction expired")
+      case code if code >= 500 && code < 600 => ChatError.Retryable(e.meaning)
+      case _                                 => ChatError.Permanent(e.meaning, channelFatal = false)

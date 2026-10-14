@@ -117,6 +117,9 @@ object InboundEvent:
   * contract test.
   */
 trait InteractionHandle:
+  /** Acknowledgement and reply-hook lifetime are independent. */
+  def replyAvailable: Boolean = false
+  def modalAvailable: Boolean = !acked
   def deferUpdate(): Unit
   def deferReply(ephemeral: Boolean): Unit
   def answer(toast: Option[String]): Unit

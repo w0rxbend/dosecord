@@ -482,7 +482,7 @@ The only status source. Asterisk = `in-use` required before the milestone exits.
 | M1.10 | One-tap flows, correction, Log dose, commands | L | M1.7, M1.9, M1.4b | | green |
 | M1.11 | 30-day simulation | M | M1.8, M1.10 | | green |
 | M2.1 | JDA gateway, slash commands, ack policy | L | M0.13, M0.8, M0.12d (interleaves with M1) | | green |
-| M2.2 | Components, modals, ephemeral, idempotent sends | M | M2.1 | * | todo |
+| M2.2 | Components, modals, ephemeral, idempotent sends | M | M2.1 | * | in-progress |
 | M2.2a | Interaction recovery hardening | S | M2.2 | | todo |
 | M2.2b | Executable runtime integration | S | M2.2a | | todo |
 | M2.2c | Row-safe durable pages | S | M2.2a | | todo |

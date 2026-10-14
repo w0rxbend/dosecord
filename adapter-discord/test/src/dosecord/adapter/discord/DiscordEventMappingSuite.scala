@@ -56,6 +56,43 @@ class DiscordEventMappingSuite extends munit.FunSuite:
   private def tokenFor(action: String, subject: UUID, value: Long): String =
     codec.encode(CallbackMode.Direct, ActionRegistry.byName(action).get, subject, value).wire
 
+  test("visibility mismatch uses a genuine ephemeral hook follow-up"):
+    val rig = Rig()
+    try
+      val before = rig.sink.all.size
+      rig.deliver(DiscordEvent.SlashCommand(rig.interaction(rig.nextId()), "synthetic", Nil))
+      val handle = rig.awaitInbound(before).interaction.get
+      handle.deferReply(ephemeral = false)
+      handle.respond(RenderedMessage(List("private"), ephemeral = true))
+      assert(rig.server.transport.interactionReplies.exists(r => r._2.text == "private" && r._3))
+      assert(!rig.server.transport.interactionReplies.exists(r => r._2.text == "private" && !r._3))
+      assertEquals(rig.server.transport.sent.size, 0)
+    finally rig.adapter.stop()
+
+  test("a failed initial acknowledgement does not spend the handle"):
+    val rig = Rig()
+    try
+      val before = rig.sink.all.size
+      rig.deliver(DiscordEvent.SlashCommand(rig.interaction(rig.nextId()), "synthetic", Nil))
+      val handle = rig.awaitInbound(before).interaction.get
+      rig.server.transport.failNextRaw(10062, None, "expired", "ack")
+      intercept[ChatError.TooOld](handle.deferReply(ephemeral = false))
+      assert(!handle.acked)
+      assertEquals(rig.server.transport.acks.size, 0)
+    finally rig.adapter.stop()
+
+  test("concurrent acknowledgement callers produce exactly one wire acknowledgement"):
+    val rig = Rig()
+    try
+      val before = rig.sink.all.size
+      rig.deliver(DiscordEvent.SlashCommand(rig.interaction(rig.nextId()), "synthetic", Nil))
+      val handle = rig.awaitInbound(before).interaction.get
+      ox.supervised:
+        val callers = (1 to 20).map(_ => ox.fork(handle.deferReply(ephemeral = true)))
+        callers.foreach(_.join())
+      assertEquals(rig.server.transport.acks.size, 1)
+    finally rig.adapter.stop()
+
   test("a slash command maps to CommandInvoked with typed args, the raw line and discord:interaction:{id}"):
     val rig = Rig()
     try
@@ -241,7 +278,7 @@ class DiscordEventMappingSuite extends munit.FunSuite:
       assertEquals(rig.server.transport.acks.head.kind, "deferReply")
     finally rig.adapter.stop()
 
-  test("the watchdog defers an update for modal submits"):
+  test("the watchdog defers a reply for source-less modal submits"):
     val rig = Rig()
     try
       val token = tokenFor("wizard.text_step", UUID.randomUUID(), 3)
@@ -250,7 +287,7 @@ class DiscordEventMappingSuite extends munit.FunSuite:
       rig.awaitInbound(before)
       rig.server.advanceClock(Duration.ofSeconds(2))
       rig.await(rig.server.transport.acks.nonEmpty, "no watchdog ack")
-      assertEquals(rig.server.transport.acks.head.kind, "deferUpdate")
+      assertEquals(rig.server.transport.acks.head.kind, "deferReply")
     finally rig.adapter.stop()
 
   test("ack latency is recorded from the snowflake at the moment of the ack"):
@@ -261,7 +298,7 @@ class DiscordEventMappingSuite extends munit.FunSuite:
       rig.awaitInbound(before)
       rig.server.advanceClock(Duration.ofSeconds(2))
       rig.await(rig.latencies.nonEmpty, "no ack latency sample")
-      assertEquals(rig.latencies.last, Duration.ofMillis(2000))
+      assertEquals(rig.latencies.last, Duration.ofMillis(1500))
     finally rig.adapter.stop()
 
   test("a reconnect emits AdapterLifecycle carrying the last seen cursor"):
@@ -270,7 +307,14 @@ class DiscordEventMappingSuite extends munit.FunSuite:
       val messageId = rig.nextId()
       val before = rig.sink.all.size
       rig.deliver(
-        DiscordEvent.Message(messageId, Snowflake.createdAt(messageId), DiscordUser("user-1", "owner"), "dm-1", "hi", None)
+        DiscordEvent.Message(
+          messageId,
+          Snowflake.createdAt(messageId),
+          DiscordUser("user-1", "owner"),
+          "dm-1",
+          "hi",
+          None
+        )
       )
       rig.awaitInbound(before)
       val size = rig.sink.all.size

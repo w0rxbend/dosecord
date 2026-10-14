@@ -24,6 +24,7 @@ import net.dv8tion.jda.api.events.session.SessionDisconnectEvent
 import net.dv8tion.jda.api.events.session.SessionRecreateEvent
 import net.dv8tion.jda.api.events.session.SessionResumeEvent
 import net.dv8tion.jda.api.exceptions.ErrorResponseException
+import net.dv8tion.jda.api.exceptions.InteractionExpiredException
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.interactions.InteractionContextType
 import net.dv8tion.jda.api.interactions.callbacks.IAutoCompleteCallback
@@ -90,6 +91,7 @@ final class JdaTransport(token: String) extends DiscordTransport:
       // `silent` is a create-only flag: an edit cannot change a message's notification suppression.
       channel(channelId)
         .editMessageById(messageId, message.text)
+        .setSuppressEmbeds(message.suppressPreview)
         .setComponents(JdaTransport.componentsOf(message).asJava)
         .complete()
       ()
@@ -142,23 +144,40 @@ final class JdaTransport(token: String) extends DiscordTransport:
     override def reply(message: DiscordMessage, ephemeral: Boolean): String = event match
       case e: IReplyCallback =>
         jdaCall:
-          val action = e.reply(message.text).setEphemeral(ephemeral)
-          if message.silent then action.setSuppressedNotifications(true)
-          action.setComponents(JdaTransport.componentsOf(message).asJava).complete().getId
+          val action = e.reply(JdaTransport.replyData(message)).setEphemeral(ephemeral)
+          JdaTransport.callbackMessageId(action.complete())
       case _ => notReplyable("reply")
 
     override def editOriginal(message: DiscordMessage): String = event match
       case e: IDeferrableCallback =>
         jdaCall:
-          val action = e.getHook.editOriginal(message.text)
-          action.setComponents(JdaTransport.componentsOf(message).asJava).complete().getId
+          e.getHook
+            .editOriginal(
+              JdaTransport.editData(message)
+            )
+            .complete()
+            .getId
       case _ => notEditable("editOriginal")
 
     override def editSourceMessage(message: DiscordMessage): String = event match
-      case e: IMessageEditCallback =>
+      case e: IMessageEditCallback if e.isAcknowledged => editOriginal(message)
+      case e: IMessageEditCallback                     =>
         jdaCall:
-          e.editMessage(message.text).setComponents(JdaTransport.componentsOf(message).asJava).complete().getId
+          JdaTransport.callbackMessageId(
+            e.editMessage(
+              JdaTransport.editData(message)
+            ).complete()
+          )
       case _ => notEditable("editSourceMessage")
+
+    override def followUp(message: DiscordMessage, ephemeral: Boolean): String = event match
+      case e: IDeferrableCallback =>
+        jdaCall:
+          val action = e.getHook.sendMessage(message.text).setEphemeral(ephemeral)
+          if message.silent then action.setSuppressedNotifications(true)
+          if message.suppressPreview then action.setSuppressEmbeds(true)
+          action.setComponents(JdaTransport.componentsOf(message).asJava).complete().getId
+      case _ => notReplyable("followUp")
 
     override def replyModal(modal: DiscordModal): Unit = event match
       case e: IModalCallback =>
@@ -183,7 +202,8 @@ final class JdaTransport(token: String) extends DiscordTransport:
   private def jdaCall[A](op: => A): A =
     try op
     catch
-      case e: ErrorResponseException =>
+      case _: InteractionExpiredException => throw dosecord.contracts.ChatError.TooOld("interaction expired")
+      case e: ErrorResponseException      =>
         throw DiscordApiException(e.getErrorCode, None, Option(e.getMeaning).getOrElse(e.getErrorResponse.name()))
 
   private val listener = new ListenerAdapter:
@@ -246,6 +266,26 @@ end JdaTransport
   * (ROADMAP M2.1: a guild invocation is impossible by registration) with no gateway.
   */
 object JdaTransport:
+  private[discord] def replyData(message: DiscordMessage): net.dv8tion.jda.api.utils.messages.MessageCreateData =
+    new net.dv8tion.jda.api.utils.messages.MessageCreateBuilder()
+      .setContent(message.text)
+      .setComponents(componentsOf(message).asJava)
+      .setSuppressedNotifications(message.silent)
+      .setSuppressEmbeds(message.suppressPreview)
+      .build()
+
+  private[discord] def editData(message: DiscordMessage): net.dv8tion.jda.api.utils.messages.MessageEditData =
+    new net.dv8tion.jda.api.utils.messages.MessageEditBuilder()
+      .setContent(message.text)
+      .setComponents(componentsOf(message).asJava)
+      .setSuppressEmbeds(message.suppressPreview)
+      .build()
+
+  private[discord] def callbackMessageId(hook: net.dv8tion.jda.api.interactions.InteractionHook): String =
+    Option(hook.getCallbackResponse)
+      .flatMap(response => Option(response.getMessage))
+      .map(_.getId)
+      .getOrElse(throw dosecord.contracts.ChatError.Permanent("callback response has no message", channelFatal = false))
 
   private[discord] def componentsOf(message: DiscordMessage): List[ActionRow] =
     message.components.map:

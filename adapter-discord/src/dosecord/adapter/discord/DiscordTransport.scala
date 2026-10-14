@@ -18,6 +18,7 @@ trait DiscordInteraction:
   def deferUpdate(): Unit
   def reply(message: DiscordMessage, ephemeral: Boolean): String
   def editOriginal(message: DiscordMessage): String
+  def followUp(message: DiscordMessage, ephemeral: Boolean): String
   def editSourceMessage(message: DiscordMessage): String
   def replyModal(modal: DiscordModal): Unit
   def replyChoices(choices: List[String]): Unit

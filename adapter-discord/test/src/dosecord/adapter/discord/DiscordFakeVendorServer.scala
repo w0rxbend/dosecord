@@ -9,9 +9,9 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
-/** The Discord fake vendor wire (suite A): converts the shared wire events into normalized [[DiscordEvent]]s — snowflake
-  * ids minted from the fake clock (stable per `wireId`, so a redelivery maps to the same `vendor_event_id`) — and
-  * awaits the adapter's forked push to the sink. The adapter's clock is this server's clock, so the ack watchdog's
+/** The Discord fake vendor wire (suite A): converts the shared wire events into normalized [[DiscordEvent]]s —
+  * snowflake ids minted from the fake clock (stable per `wireId`, so a redelivery maps to the same `vendor_event_id`) —
+  * and awaits the adapter's forked push to the sink. The adapter's clock is this server's clock, so the ack watchdog's
   * 1.5 s deadline is driven by `advanceClock`.
   */
 final class DiscordFakeVendorServer(sink: RecordingSink) extends FakeVendorServer:
@@ -55,8 +55,13 @@ final class DiscordFakeVendorServer(sink: RecordingSink) extends FakeVendorServe
 
   /** Moves the fake clock and gives the watchdog's poll loop (<= 100 ms) a chance to observe the jump. */
   override def advanceClock(by: Duration): Unit =
-    at = at.plus(by)
-    Thread.sleep(250)
+    var remaining = by.toMillis
+    while remaining > 0 do
+      val step = math.min(remaining, 250L)
+      at = at.plusMillis(step)
+      remaining -= step
+      // Let the real watchdog observe intermediate instants rather than teleport past the hard deadline.
+      Thread.sleep(110)
 
   override def logs: List[String] = logsBuf.toList
 
@@ -75,7 +80,7 @@ final class DiscordFakeVendorServer(sink: RecordingSink) extends FakeVendorServe
   private def optionsOf(name: String, text: String): List[DiscordOption] =
     val tokens = text.trim.drop(1).dropWhile(c => !c.isWhitespace).trim.split("\\s+").toList.filter(_.nonEmpty)
     CommandRegistry.byName.get(name) match
-      case None => tokens.map(token => DiscordOption("text", token))
+      case None       => tokens.map(token => DiscordOption("text", token))
       case Some(spec) =>
         val (required, optional) = spec.args.span(_.required)
         val requiredOpts = required.zip(tokens).map((arg, token) => DiscordOption(arg.name, token))

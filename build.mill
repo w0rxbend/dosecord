@@ -75,7 +75,7 @@ object `adapter-discord` extends DosecordModule:
   def mvnDeps = Seq(mvn"net.dv8tion:JDA:6.6.0")
   object test extends DosecordTests:
     // M0.13: the adapter conformance suite (tests/conformance) runs inside this module's test task.
-    def moduleDeps = super.moduleDeps ++ Seq(tests.conformance)
+    def moduleDeps = super.moduleDeps ++ Seq(tests.conformance, core.test, infra.test)
 
 object app extends DosecordModule:
   def moduleDeps = Seq(`adapter-console`, `adapter-discord`, infra, core, contracts)

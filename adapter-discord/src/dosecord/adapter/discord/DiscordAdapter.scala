@@ -163,7 +163,7 @@ final class DiscordAdapter(
       // for robustness. A modal submit is never form-opening, so the watchdog always applies (ADR-013's opensForm
       // exemption covers the interaction that opened the form, not its submission).
       val (formId, token) = splitModalId(customId)
-      startWatchdog(handle, AckPolicy.Ack.DeferUpdate)
+      startWatchdog(handle, AckPolicy.Ack.DeferReply(ephemeral = false))
       push(interactionEvent(interaction, Inbound.FormSubmitted(formId, peekedRef(token), fields), handle))
 
   /** `<form id>:<submit token>` -> both halves; a bare token yields it twice (the form id is informational). */
@@ -298,13 +298,14 @@ final class DiscordAdapter(
   // ---------- Outbound ----------
 
   override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle =
-    val nonce = DiscordAdapter.nonceOf(sendKey)
-    rendered.chunks.init.foreach: chunk =>
+    def nonce(index: Int): String =
+      DiscordAdapter.nonceOf(if rendered.chunks.size == 1 then sendKey else s"$sendKey:chunk:$index")
+    rendered.chunks.init.zipWithIndex.foreach: (chunk, index) =>
       val _ = DiscordErrorMapper.guard(
         transport.sendMessage(
           chat.chatId,
           DiscordMessage(chunk, silent = rendered.silent, suppressPreview = rendered.suppressPreview),
-          Some(nonce)
+          Some(nonce(index))
         )
       )
     val last = rendered.chunks.last
@@ -312,7 +313,7 @@ final class DiscordAdapter(
       transport.sendMessage(
         chat.chatId,
         DiscordTranslation.toMessage(rendered.copy(chunks = List(last))),
-        Some(nonce)
+        Some(nonce(rendered.chunks.size - 1))
       )
     )
     MessageHandle(vendor, chat.chatId, messageId)
@@ -361,8 +362,12 @@ final class DiscordAdapter(
 
     @volatile private var ackedFlag = false
     private val ackLock = new Object
+    private val deliveryState = new AtomicReference[(Option[Boolean], Boolean)]((None, false))
 
     override def acked: Boolean = ackedFlag
+    override def replyAvailable: Boolean =
+      (acked || modalAvailable) && now().isBefore(createdAt.plus(Duration.ofMinutes(15)))
+    override def modalAvailable: Boolean = !acked && now().isBefore(createdAt.plus(Duration.ofSeconds(3)))
 
     private def ackOnce[A](op: => A): Option[A] = ackLock.synchronized:
       if ackedFlag then None
@@ -374,28 +379,55 @@ final class DiscordAdapter(
 
     override def deferUpdate(): Unit = ackOnce(interaction.deferUpdate())
 
-    override def deferReply(ephemeral: Boolean): Unit = ackOnce(interaction.deferReply(ephemeral))
+    override def deferReply(ephemeral: Boolean): Unit = ackLock.synchronized:
+      ackOnce(interaction.deferReply(ephemeral)).foreach(_ => deliveryState.set((Some(ephemeral), false)))
 
     /** Discord has no single-shot answer: a toast is an ephemeral interaction reply, a bare answer a defer. */
     override def answer(toast: Option[String]): Unit = toast match
       case Some(text) => ackOnce(interaction.reply(DiscordMessage(text), ephemeral = true))
       case None       => ackOnce(interaction.deferUpdate())
 
-    override def respond(rendered: RenderedMessage): MessageHandle =
-      ackLock.synchronized:
-        val messageId =
-          if ackedFlag then DiscordErrorMapper.guard(interaction.editOriginal(DiscordTranslation.toMessage(rendered)))
-          else ackOnce(interaction.reply(DiscordTranslation.toMessage(rendered), rendered.ephemeral)).get
-        MessageHandle(vendor, interaction.channelId, messageId)
+    private def parts(rendered: RenderedMessage): List[RenderedMessage] =
+      rendered.chunks.zipWithIndex.map: (chunk, index) =>
+        val last = index == rendered.chunks.size - 1
+        rendered.copy(
+          chunks = List(chunk),
+          controls = if last then rendered.controls else Nil,
+          choiceMap = if last then rendered.choiceMap else Nil
+        )
+
+    override def respond(rendered: RenderedMessage): MessageHandle = ackLock.synchronized:
+      parts(rendered).map(respondPart).last
+
+    private def respondPart(rendered: RenderedMessage): MessageHandle =
+      val (deferredVisibility, responded) = deliveryState.get()
+      val messageId =
+        if responded || (ackedFlag && deferredVisibility.isEmpty) then
+          DiscordErrorMapper.guard(interaction.followUp(DiscordTranslation.toMessage(rendered), rendered.ephemeral))
+        else if ackedFlag && deferredVisibility.exists(_ != rendered.ephemeral) then
+          // Completing the loading original first prevents the first webhook send inheriting its flags.
+          val _ = DiscordErrorMapper.guard(interaction.editOriginal(DiscordMessage("Response sent separately.")))
+          DiscordErrorMapper.guard(interaction.followUp(DiscordTranslation.toMessage(rendered), rendered.ephemeral))
+        else if ackedFlag then
+          DiscordErrorMapper.guard(interaction.editOriginal(DiscordTranslation.toMessage(rendered)))
+        else ackOnce(interaction.reply(DiscordTranslation.toMessage(rendered), rendered.ephemeral)).get
+      deliveryState.set((deferredVisibility, true))
+      MessageHandle(vendor, interaction.channelId, messageId)
 
     override def editSource(rendered: RenderedMessage): Unit = ackLock.synchronized:
+      val pages = parts(rendered)
       if ackedFlag then
-        val _ = DiscordErrorMapper.guard(interaction.editOriginal(DiscordTranslation.toMessage(rendered)))
-      else ackOnce(interaction.editSourceMessage(DiscordTranslation.toMessage(rendered)))
+        val _ = DiscordErrorMapper.guard(interaction.editOriginal(DiscordTranslation.toMessage(pages.head)))
+      else ackOnce(interaction.editSourceMessage(DiscordTranslation.toMessage(pages.head)))
+      deliveryState.updateAndGet(state => (state._1, true))
+      pages.tail.foreach: page =>
+        val _ = respondPart(page)
       ()
 
     /** The modal IS the ack (M0.8: `replyModal` as the first and only ack on an un-acked interaction). */
-    override def openForm(form: RenderedForm): Unit = ackOnce(interaction.replyModal(DiscordTranslation.toModal(form)))
+    override def openForm(form: RenderedForm): Unit = ackLock.synchronized:
+      if !modalAvailable then throw ChatError.TooOld("initial modal deadline elapsed")
+      ackOnce(interaction.replyModal(DiscordTranslation.toModal(form)))
   end DiscordInteractionHandle
 end DiscordAdapter
 

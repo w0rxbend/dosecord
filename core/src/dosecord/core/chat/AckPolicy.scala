@@ -30,7 +30,8 @@ object AckPolicy:
     * time); single-shot vendors answer instead.
     */
   def forCommand(spec: CommandSpec, profile: CapabilityProfile): Ack =
-    if profile.deferrable then Ack.DeferReply(spec.visibility == Visibility.Ephemeral)
+    if spec.opensForm then Ack.NoAck
+    else if profile.deferrable then Ack.DeferReply(spec.visibility == Visibility.Ephemeral)
     else if profile.transientAck then Ack.Answer(None)
     else Ack.NoAck
 

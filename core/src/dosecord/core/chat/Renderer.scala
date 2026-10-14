@@ -12,7 +12,8 @@ final case class RenderContext(
     liveInteraction: Boolean = false,
     withinEditWindow: Boolean = true,
     withinDeleteWindow: Boolean = true,
-    discreetNames: List[String] = Nil
+    discreetNames: List[String] = Nil,
+    allowModal: Boolean = true
 )
 
 /** The pure renderer (ADR-005): `render`/`renderFinalize` lower an OutboundMessage into serialisable VendorOps through
@@ -270,7 +271,7 @@ object Renderer:
         components = components + result.components
       case Block.FormBlock(f) =>
         // Ladder: modal (native, un-acked interaction only) -> mediator FormRunner.
-        if profile.modal && ctx.liveInteraction then
+        if profile.modal && ctx.liveInteraction && ctx.allowModal then
           formOps = formOps :+ VendorOp.OpenForm(renderForm(f))
           rungs = rungs + (f.id -> Rung.FormModal)
         else
