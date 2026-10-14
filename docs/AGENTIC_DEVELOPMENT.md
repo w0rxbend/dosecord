@@ -102,6 +102,30 @@ technical attestations do not waive mobile push, subjective usability or
 seven-day in-use milestone requirements. User Create/Archive/Delete
 confirmations remain data-safety controls, not development approval gates.
 
+## Technical-checkpoint selection
+
+ROADMAP's **UX/media implementation-order checkpoint amendment** records the
+owner-directed UX/images priority and a bounded alternative to waiting for
+live/use qualification before further technical implementation. The matching
+`AGENTS.md` workflow exception reconciles the implementation prerequisite.
+Do not start nongreen-dependent product edits until independent review and the
+adoption/readback/exact-main CI evidence specified in ROADMAP exists. The
+exception does not change product status, final qualification or release gates.
+
+After activation only, use ROADMAP's allowlist and Appendix B row order to
+select one eligible slice at a time. Copy unchanged criteria, dependency status
+and linked exact-main checkpoint evidence into its issue. Before editing,
+verify each nongreen prerequisite's technical matrix, independent reviews and
+required CI against the integrated revision; missing/stale evidence blocks the
+start. Before integration run all canonical checks and technical criteria,
+independent UX/security review and QA; record live/device/use criteria as
+blocked, never passed synthetically. After integration verify and attest exact
+main/required CI before selecting the next slice. Attestations are evidence,
+not status. ROADMAP owns the exception's scope and gates; this process adds no
+parallel schedule. All other workflow, qualification and release rules below
+remain binding, including independent review, one issue/branch/owner per slice,
+private-data boundaries and separate live/deployment authorization.
+
 ## Handoff format
 
 Use this in every issue, PR, or agent handoff:

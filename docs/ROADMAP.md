@@ -235,6 +235,73 @@ remains blocked evidence. Never report technical qualification as `in-use`,
 subjective usability, or a deployment. Live sends, secret access, real health
 data and deployment require separate explicit authorization.
 
+### UX/media implementation-order checkpoint amendment
+
+**Activation after verified adoption.** The owner requests autonomous UX and
+image implementation without waiting for human live-use qualification.
+The matching `AGENTS.md` workflow amendment explicitly permits this bounded
+implementation-order exception. It supersedes the existing M2.2 checkpoint's
+no-unblocking rule only for technical implementation under this section, not
+final qualification. Activate only after independent review, integration and
+readback, and required CI on the adopting exact `main` commit, all recorded in
+the governance issue. Before that evidence exists, nongreen-dependent product
+edits remain blocked. Appendix B statuses and final dependencies are unchanged.
+
+**Bounded scope after verified adoption.** Extend the existing M2.2 integration pattern
+only to M2.2a-h, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4 and M3.4a-d.
+These are existing mapped UX/media slices and their prerequisites, not new
+slices. M2.2 is the initial checkpoint; its evidence must be verified, not
+assumed. No M3.5+, M4, later vendor or breadth slice gets this exception.
+Appendix B dependencies and packet mappings stay unchanged. UX and images are
+priorities, not permission to skip text statistics, operational ownership,
+asset preparation, privacy or transport/visual qualification.
+
+**Implementation prerequisite, not final green.** For an allowlisted slice,
+every dependency must either be `green` under the unchanged definition or have
+an individually verified technical checkpoint under this amendment (M2.2 uses
+its existing checkpoint). A nongreen dependency outside the allowlist blocks
+editing. Recursively verify all prerequisites; packet gates never become a
+shortcut. Select the first eligible allowlisted slice in Appendix B row order,
+with one issue, branch/worktree and owner for exactly that slice. Serialize
+implementation: qualify the previous integration on exact `main` before
+starting the next. Research/review may run in parallel, not product writes.
+No mass opening of implementation branches or bundled packet PRs.
+
+**Checkpoint evidence and integration gate.** Each issue copies all original
+and mapped acceptance criteria and links every dependency's status or durable
+checkpoint evidence. Partition evidence by criterion, not by deleting criteria:
+all synthetic/automated behavior, integration/container, coverage, privacy,
+fault/load and independent artifact-review requirements must actually pass;
+only separately authorized provider live smoke, actual device observations and
+owner-use qualification may remain explicitly blocked. An unavailable technical
+harness, rendering tool, independent reviewer or automated check is not a
+live-use exception and blocks integration. Independent UX and security/correctness
+review must have zero unresolved must-fix findings; independent QA verifies
+fresh commands and nonzero executed counts. All local canonical CI checks and
+required PR checks must pass; normal branch protections and merge authority
+remain intact. Record commands/counts, environment, artifact hashes, reviews,
+blocked criteria and reasons in the slice issue or linked checked-in evidence.
+After integration, the coordinator reads back the exact `main` commit and all
+required CI results, records the commit/image digest where applicable, and
+checks the inherited evidence still applies to that integrated revision. Failed,
+missing or stale evidence blocks the next slice until rerun/review resolves it.
+No attestation is implied by code existence, local exit zero or another commit's
+CI. This is an evidence record, not a second status table.
+
+**Qualification and release remain unchanged.** No checkpoint promotes a
+slice to `green` or `in-use`; every original criterion, seven-day obligation,
+milestone exit and section 9 release gate remains required. Status updates
+continue through Appendix B only under its existing rules. Technical tests may
+exercise gated routes with synthetic fixtures, but checkpoints do not satisfy
+final UX-* visibility gates or expose Infographic before full UX-15
+qualification. M3.4a must record an actual rendering go before M3.4b-d work;
+a no-go or absent verdict blocks them absent a separately accepted architecture
+alternative. Retain independent image-capable review and immutable
+same-snapshot text/alt/PNG evidence. No deployment, live send, secret access,
+normal-user token/self-bot, real health-data mutation or fabricated live evidence
+is authorized. Once live/use evidence is available, qualify each slice normally;
+do not relabel technical evidence as provider, mobile or owner-use proof.
+
 ## 5. Vendor adapter track
 
 Every adapter is a Mill module depending only on `contracts` and `core`, implements `ChatAdapter`, declares a static `CapabilityProfile`, maps errors into the closed `ChatError` hierarchy, passes suite A against a fake wire, has its profile in suite B1 (renderer goldens, from M0.9) and B2 (mediator resolution, as its tier lands), mints its own `vendor_event_id` scheme, ships with a live smoke transcript and a setup guide, and (from M5.1) passes the zero-core-files CI diff gate. "Supported" means the suites pass — nothing else. Discord is the first adapter to pass, not a special case.

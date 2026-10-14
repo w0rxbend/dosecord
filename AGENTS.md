@@ -43,7 +43,12 @@ For every product slice:
 1. Create or claim one issue and one short-lived branch/worktree for exactly
    one roadmap slice. State its dependencies and acceptance criteria in the
    issue or PR.
-2. Check that all dependencies are `green` in the roadmap before editing.
+2. Check that all dependencies are `green` in the roadmap before editing,
+   except the bounded UX/media technical-checkpoint implementation order in
+   ROADMAP. That exception requires individually verified dependency checkpoints,
+   independent reviews, actual automated acceptance and exact-main CI before
+   sequential follow-up implementation; it does not promote product status,
+   waive live/use or release criteria, or authorize live access/deployment.
 3. Make the smallest vertical change that satisfies the slice. Do not bundle
    adjacent cleanup, later roadmap work, or a design change.
 4. Run the slice's stated verification. Add focused tests when the slice calls

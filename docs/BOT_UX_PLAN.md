@@ -267,6 +267,20 @@ Use XChart 4.0.4 plot primitives with Java2D composition outside core/contracts.
 
 No routine human review or design-selection loop. Use a coordinator, one owner per official slice, independent UX/security review and independent QA/evidence verification. Research/review can run in parallel; code changes sharing contracts/migrations are serialized after interface freeze.
 
+### Technical implementation order
+
+The owner's UX/images priority is recorded in ROADMAP's **UX/media
+implementation-order checkpoint amendment**. That section alone specifies the
+bounded existing-slice allowlist, sequential dependency selection and durable
+exact-main technical attestations. The matching `AGENTS.md` workflow exception
+reconciles technical prerequisites only; activate the order only after its
+independent review, adoption/readback and exact-main CI gates pass.
+Do not change statuses, packet dependencies, feature visibility, release/live/use
+criteria or the asset/transport/visual gates to make the sequence appear eligible.
+The normal slice lifecycle below remains binding until activation; afterward
+only its implementation-order prerequisite and checkpoint integration use the
+ROADMAP exception. Independent reviews, QA and all other gates remain binding.
+
 ### Lifecycle
 
 1. Coordinator reads current Appendix B and dependency statuses, then selects one unblocked official slice. UX-00 first maps the proposed packets into that table and records design/ADR/process amendments.
