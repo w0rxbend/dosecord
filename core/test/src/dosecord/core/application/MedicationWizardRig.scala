@@ -31,16 +31,27 @@ import scala.util.Using
   * real flows over the in-memory ports and a `FakeAdapter` on the console or discord profile. Drives console-grammar
   * lines, raw taps (with a recording interaction handle) and modal submits, and collects the adapter's ops.
   */
-private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(using Ox):
+private final class MedicationWizardRig(
+    profile: MedicationWizardRig.Profile,
+    beforeSend: RenderedMessage => Unit = _ => ()
+)(using Ox):
   import MedicationWizardRig.*
 
   val uow = InMemoryUnitOfWork()
   val clock = FixedClock(t0)
   private val fake = FakeAdapter(profile.capabilities, vendor = "fake")
-  private val adapter = SyncAdapter(fake)
+  private val adapter = SyncAdapter(fake, beforeSend)
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
+  private val barrier = DeliveryBarrier(uow)
   private val mediator =
-    ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock), clock, CommandRegistry.byName)
+    ChatMediator(
+      barrier.uow,
+      adapters,
+      codec,
+      Application.handler(uow, adapters, codec, clock),
+      clock,
+      CommandRegistry.byName
+    )
 
   private var seq = 0
   private val handles = scala.collection.mutable.ListBuffer.empty[CapturingInteractionHandle]
@@ -220,9 +231,9 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
       .collectFirst { case VendorOp.Send(_, m, _, _) if m.chunks.exists(_.contains(containing)) => m.choiceMap }
       .getOrElse(throw new NoSuchElementException(s"no message containing '$containing'"))
 
-  private[application] def push(event: InboundEvent): Unit = mediator.push(event)
-
-  private[application] def awaitOps(before: Int): Unit = await(ops.size > before, "the event produced a reply")
+  private[application] def push(event: InboundEvent): Unit =
+    mediator.push(event)
+    barrier.drain(mediator, event)
 
   // ---------- Inspection ----------
 
@@ -307,11 +318,7 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
       interaction = interaction
     )
     val before = ops.size
-    mediator.push(event)
-    await(
-      ops.size > before || interaction.exists { case h: CapturingInteractionHandle => h.replied; case _ => false },
-      s"$body produced a reply"
-    )
+    push(event)
     ops.drop(before)
 
   private[application] def wireOf(containing: String, label: String): String =
@@ -339,15 +346,7 @@ private final class MedicationWizardRig(profile: MedicationWizardRig.Profile)(us
       s"send: ${message.chunks.mkString(" / ")}" + (if controls.nonEmpty then s" | $controls" else "")
     case VendorOp.OpenForm(form) => s"modal: ${form.id} (${form.fields.map(_.key).mkString(", ")})"
     case VendorOp.Edit(_, message) => s"edit: ${message.chunks.mkString(" / ")}"
-    case other => other.productPrefix
-
-  private def await(cond: => Boolean, clue: String): Unit =
-    val deadline = System.nanoTime() + 15_000_000_000L
-    var ok = cond
-    while !ok && System.nanoTime() < deadline do
-      Thread.sleep(10)
-      ok = cond
-    assert(ok, clue)
+    case other                     => other.productPrefix
 
 private object MedicationWizardRig:
   val t0: Instant = Instant.parse("2026-09-21T00:00:00Z")
@@ -421,25 +420,57 @@ private object MedicationWizardRig:
       ackedFlag = true
     override def acked: Boolean = ackedFlag
 
-    /** True once a post-ack delivery call landed (the ack itself — deferUpdate/deferReply — happens before the
-      * handler runs and must not satisfy the rig's await).
-      */
-    def replied: Boolean =
-      import scala.jdk.CollectionConverters.*
-      calls.asScala.exists: call =>
-        call.startsWith("answer(") || call.startsWith("openForm(") || call.startsWith("editSource(") ||
-          call.startsWith("respond(")
+  /** A fixture-only FIFO fence. The repository recognizes its private event as an already-seen event with no stored
+    * reply, so it reaches the replay lookup only after earlier delivery has finished. It never inserts a row, resolves
+    * an identity, calls the application handler, or emits/records any rendered message.
+    */
+  private final class DeliveryBarrier(inner: UnitOfWork):
+    private val pending = new java.util.concurrent.ConcurrentHashMap[String, java.util.concurrent.CountDownLatch]()
+
+    val uow: UnitOfWork = new UnitOfWork:
+      override def transaction[A](f: Tx => A): A = inner.transaction: tx =>
+        val inbound = tx.inboundEvents
+        val fenced = new Tx:
+          export tx.{inboundEvents as _, *}
+          override val inboundEvents: InboundEventRepository = new InboundEventRepository:
+            export inbound.complete
+            override def insert(event: NewInboundEvent): Boolean =
+              if pending.containsKey(event.vendorEventId) then false else tx.inboundEvents.insert(event)
+            override def find(vendor: String, vendorEventId: String): Option[StoredInboundEvent] =
+              Option(pending.get(vendorEventId)) match
+                case Some(done) =>
+                  done.countDown()
+                  None
+                case None => tx.inboundEvents.find(vendor, vendorEventId)
+        f(fenced)
+
+    def drain(mediator: ChatMediator, previous: InboundEvent): Unit =
+      val id = s"fixture-fence:${UUID.randomUUID()}"
+      val done = new java.util.concurrent.CountDownLatch(1)
+      pending.put(id, done)
+      try
+        mediator.push(
+          previous.copy(
+            eventId = EventId(UUID.randomUUID()),
+            vendorEventId = id,
+            body = Inbound.ConversationStarted,
+            interaction = None
+          )
+        )
+        if !done.await(15, java.util.concurrent.TimeUnit.SECONDS) then
+          throw new java.util.concurrent.TimeoutException("wizard event delivery did not reach its FIFO fence")
+      finally pending.remove(id)
 
   /** Synchronized window over FakeAdapter's unsynchronized recording buffers (same pattern as FirstFlowsSuite). */
-  final class SyncAdapter(val inner: FakeAdapter) extends ChatAdapter:
+  final class SyncAdapter(val inner: FakeAdapter, beforeSend: RenderedMessage => Unit = _ => ()) extends ChatAdapter:
     private def around[A](f: => A): A = inner.synchronized(f)
     override def vendor: String = inner.vendor
     override def capabilities: CapabilityProfile = inner.capabilities
     override def start(sink: InboundSink, resumeFrom: Option[String]): Unit = around(inner.start(sink, resumeFrom))
     override def stop(): Unit = around(inner.stop())
-    override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle = around(
-      inner.send(chat, rendered, sendKey)
-    )
+    override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle =
+      beforeSend(rendered)
+      around(inner.send(chat, rendered, sendKey))
     override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle = around(
       inner.edit(handle, rendered)
     )

@@ -369,9 +369,7 @@ class MedicationWizardSuite extends munit.FunSuite:
           None
         )
       )
-      val before = rig.ops.size
       rig.push(event)
-      rig.awaitOps(before)
       assert(rig.lastChunks.exists(_.contains("on Mon, Wed, Fri")), s"the card: ${rig.lastChunks}")
       rig.tapLabel("on Mon, Wed, Fri", Labels.Create)
       val rule = rig.uow.revisions.all.head.rule.asInstanceOf[Rule.FixedTimes]
