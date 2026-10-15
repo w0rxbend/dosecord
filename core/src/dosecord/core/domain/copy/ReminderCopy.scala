@@ -82,6 +82,9 @@ object ReminderCopy:
   /** The catalogue failure toast when the database is unavailable (R68: visibly fails). */
   def failureToast: String = "Something went wrong on my side — please try again in a moment."
 
+  /** A lost commit acknowledgement cannot establish noncommit. Reconcile before any replay. */
+  val checkingOutcome: String = "Checking whether this was recorded…"
+
   /** Toast for a bad MAC or an expired slot (DESIGN.md section 4.4). */
   def staleControlToast: String = "This button is no longer valid."
 
@@ -120,6 +123,7 @@ object ReminderCopy:
     CopyEntry("reminder.log_empty", logEmpty),
     CopyEntry("reminder.unsure_advice", unsureAdvice),
     CopyEntry("reminder.failure_toast", failureToast),
+    CopyEntry("reminder.checking_outcome", checkingOutcome),
     CopyEntry("reminder.stale_control_toast", staleControlToast)
   )
 end ReminderCopy

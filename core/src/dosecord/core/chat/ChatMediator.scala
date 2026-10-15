@@ -158,7 +158,10 @@ final class ChatMediator(
         try uow.transaction(tx => processInTx(event, tx, correlationId))
         catch
           case _: SQLException =>
-            deliverFailureToast(event)
+            // A failed commit acknowledgement is not proof of rollback. Read the durable
+            // idempotency record before replay; never re-run the handler here.
+            deliverFailureToast(event, ReminderCopy.checkingOutcome)
+            replayStoredReply(event, reportUnknown = false)
             Outcome.Failed
       outcome match
         case Outcome.Duplicate       => replayStoredReply(event)
@@ -198,11 +201,12 @@ final class ChatMediator(
           NewOutboxMessage(
             id = outboxId,
             sendKey = message.dedupeKey,
-            op = OutboxOp.Send,
+            op = if message.replaces.isDefined then OutboxOp.Edit else OutboxOp.Send,
             kind = "interaction_reply",
             vendor = event.vendor,
             accountId = effectivePrincipal.accountId.map(_.uuid),
-            payload = OutboundMessage.toJson(message),
+            payload = InteractionReplyPayload.encode(message, event.chat),
+            target = message.replaces.map(OutboxDispatcher.encodeHandle),
             importance = "interaction_reply",
             nextAttemptAt = now.plus(SyncSafetyDelay)
           )
@@ -309,7 +313,7 @@ final class ChatMediator(
 
   /** Synchronous delivery of the reply after commit (DESIGN.md section 4.6 step 8): every send records
     * `rendered_messages.choice_map` and marks its outbox row sent in a follow-up write; if that write is lost the
-    * 30-second safety row redelivers.
+    * 30-second safety row retries the persisted op and destination (source edits remain edits).
     */
   private def deliverAfterCommit(event: InboundEvent, plan: DeliveryPlan): Unit =
     val adapter = adapters(event.vendor)
@@ -376,7 +380,12 @@ final class ChatMediator(
                     controls = if rendered.chunks.size == 1 then rendered.controls else Nil,
                     choiceMap = if rendered.chunks.size == 1 then rendered.choiceMap else Nil
                   )
-                  val edited = adapter.edit(source, first)
+                  val edited =
+                    try adapter.edit(source, first)
+                    catch
+                      case e: ChatError.Permanent
+                          if !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
+                        adapter.send(ChatRef(source.vendor, source.chatId), first, s"$sendKey:replacement")
                   rendered.chunks.tail.zipWithIndex.foldLeft(edited): (_, part) =>
                     val (chunk, index) = part
                     val last = index == rendered.chunks.size - 2
@@ -404,6 +413,8 @@ final class ChatMediator(
                   rendered.choiceMap,
                   clock.now()
                 )
+                if planned.message.replaces.isDefined then
+                  tx.renderedMessages.recordEdit(handle, rendered.choiceMap, clock.now())
                 planned.outboxId.foreach: id =>
                   tx.outbox.markSent(id, OutboxDispatcher.encodeHandle(handle), clock.now(), possibleDuplicate = false)
             catch case _: SQLException => () // the safety row redelivers
@@ -428,25 +439,42 @@ final class ChatMediator(
           catch case _: ChatError => ()
 
   /** A duplicate delivery replays the stored reply (C3); the handler is not re-run. */
-  private def replayStoredReply(event: InboundEvent): Unit =
-    val stored =
-      try uow.transaction(_.inboundEvents.find(event.vendor, event.vendorEventId))
-      catch case _: SQLException => None
-    stored.flatMap(row => row.reply.map(reply => (row.accountId, reply))) match
-      case Some((accountId, json)) =>
-        val reply = Reply.fromJson(json)
-        val sends = (reply.replace.toList ++ reply.followUps).map(PlannedSend(_, None))
-        // A replay does not re-publish domain events: they were published when the event was first processed.
-        deliverAfterCommit(event, DeliveryPlan(accountId, sends, reply.toast, Nil))
-      case None => () // still in flight elsewhere, or failed before the reply was stored: nothing to replay
+  private def replayStoredReply(event: InboundEvent, reportUnknown: Boolean = true): Unit =
+    val plan =
+      try storedDeliveryPlan(event)
+      catch
+        case _: SQLException =>
+          if reportUnknown then deliverFailureToast(event, ReminderCopy.checkingOutcome)
+          None
+    // Replay never re-publishes domain events or re-runs a handler. A failed read is not
+    // an absent handle: fail closed rather than recreating a missing-source replacement.
+    plan.foreach(deliverAfterCommit(event, _))
+
+  private def storedDeliveryPlan(event: InboundEvent): Option[DeliveryPlan] =
+    uow.transaction: tx =>
+      tx.inboundEvents
+        .find(event.vendor, event.vendorEventId)
+        .flatMap: row =>
+          row.reply.map: json =>
+            val reply = Reply.fromJson(json)
+            val sends = (reply.replace.toList ++ reply.followUps).map: message =>
+              val delivered = tx.outbox.recordedHandle(event.vendor, message.dedupeKey)
+              val replay = if message.replaces.isDefined then
+                message.copy(replaces =
+                  delivered.map(OutboxDispatcher.decodeHandle(event.vendor, _)).orElse(message.replaces)
+                )
+              else message
+              PlannedSend(replay, tx.outbox.replyId(event.vendor, message.dedupeKey))
+            DeliveryPlan(row.accountId, sends, reply.toast, Nil)
 
   /** The catalogue failure toast when the database is unavailable (R68: visibly fails). */
-  private def deliverFailureToast(event: InboundEvent): Unit =
+  private def deliverFailureToast(event: InboundEvent, text: String): Unit =
     event.interaction match
       case Some(interaction) =>
         try
-          if !interaction.acked then interaction.answer(Some(ReminderCopy.failureToast))
-          else interaction.editSource(RenderedMessage(chunks = List(ReminderCopy.failureToast)))
+          if interaction.replyAvailable then
+            val _ = interaction.respond(RenderedMessage(chunks = List(text), ephemeral = true, silent = true))
+          else if !interaction.acked then interaction.answer(Some(text))
         catch case _: ChatError => ()
       case None =>
         adapters
@@ -455,7 +483,7 @@ final class ChatMediator(
             try
               adapter.send(
                 event.chat,
-                RenderedMessage(chunks = List(ReminderCopy.failureToast)),
+                RenderedMessage(chunks = List(text), silent = true),
                 sendKey = s"failure:${event.vendor}:${event.vendorEventId}"
               )
               ()

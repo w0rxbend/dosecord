@@ -86,6 +86,16 @@ final case class NewOutboxMessage(
   * vendor calls happen with no lock held (ADR-009).
   */
 trait OutboxRepository:
+  /** A recorded delivery handle for stored-reply replay, including a partially completed edit. Recovery must reuse it
+    * instead of recreating a missing-source replacement.
+    */
+  def recordedHandle(vendor: String, sendKey: String): Option[String]
+
+  /** Existing interaction safety row only; replay must retain its durable bookkeeping identity. Never enqueue a new row
+    * for expired/private stored replies.
+    */
+  def replyId(vendor: String, sendKey: String): Option[UUID]
+
   /** Insert; false when a row with the same `send_key` already exists (ON CONFLICT DO NOTHING). */
   def enqueue(msg: NewOutboxMessage): Boolean
 

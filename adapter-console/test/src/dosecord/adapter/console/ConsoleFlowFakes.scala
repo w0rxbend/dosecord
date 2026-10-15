@@ -126,6 +126,9 @@ private object ConsoleFlowFakes:
       rows.toList.collect { case (h, _, _, Some(st), Some(sid)) if st == subjectType && sid == subjectId => h }
 
   final class InMemoryOutbox extends OutboxRepository:
+    override def replyId(vendor: String, sendKey: String): Option[UUID] = this.synchronized:
+      enqueued.find(msg => msg.vendor == vendor && msg.sendKey == sendKey && msg.kind == "interaction_reply").map(_.id)
+    override def recordedHandle(vendor: String, sendKey: String): Option[String] = None
     private val enqueued = ListBuffer.empty[NewOutboxMessage]
     private val sent = ListBuffer.empty[UUID]
     private final case class State(

@@ -18,8 +18,14 @@ object ChatError:
   final case class TooOld(msg: String) extends ChatError(msg) derives ReadWriter
   // A conformance failure if the profile claimed support for the op.
   final case class Unsupported(op: String) extends ChatError(op) derives ReadWriter
-  final case class Permanent(msg: String, override val channelFatal: Boolean) extends ChatError(msg, channelFatal)
-      derives ReadWriter
+  enum PermanentReason derives ReadWriter:
+    case General, MissingTarget
+
+  final case class Permanent(
+      msg: String,
+      override val channelFatal: Boolean,
+      reason: PermanentReason = PermanentReason.General
+  ) extends ChatError(msg, channelFatal) derives ReadWriter
 
   given ReadWriter[ChatError] = upickle.default.ReadWriter.merge(
     summon[ReadWriter[Retryable]],

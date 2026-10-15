@@ -183,6 +183,10 @@ object MediatorFakes:
     private val states = scala.collection.mutable.Map.empty[UUID, State].withDefaultValue(State())
     def allEnqueued: List[NewOutboxMessage] = this.synchronized(enqueued.toList)
     def allSent: List[UUID] = this.synchronized(sent.toList)
+    override def replyId(vendor: String, sendKey: String): Option[UUID] = this.synchronized:
+      enqueued.find(msg => msg.vendor == vendor && msg.sendKey == sendKey && msg.kind == "interaction_reply").map(_.id)
+    override def recordedHandle(vendor: String, sendKey: String): Option[String] = this.synchronized:
+      enqueued.find(msg => msg.vendor == vendor && msg.sendKey == sendKey).flatMap(msg => states(msg.id).platformMessageId)
     override def enqueue(msg: NewOutboxMessage): Boolean = this.synchronized:
       if enqueued.exists(_.sendKey == msg.sendKey) then false
       else
@@ -614,6 +618,7 @@ object MediatorFakes:
     override def answer(toast: Option[String]): Unit =
       calls.add(s"answer(${toast.getOrElse("")})")
       ackedFlag = true
+    override def replyAvailable: Boolean = true
     override def respond(rendered: RenderedMessage): MessageHandle =
       calls.add(s"respond(${rendered.chunks.mkString(" ")})")
       MessageHandle("fake", "chat-1", "r1")

@@ -138,33 +138,7 @@ final class OutboxDispatcher(
       row.op match
         case OutboxOp.Send                     => dispatchSend(row, adapter, now)
         case OutboxOp.Edit | OutboxOp.Finalize =>
-          val target = decodeHandle(row.vendor, requiredTarget(row))
-          val (_, rendered) = renderer.render(row, adapter.capabilities)
-          throttle(row, target.chatId)
-          if adapter.capabilities.editOwn == EditCapability.NoEdit then
-            // The finalize ladder's last rung (DESIGN.md section 4.3): on a profile that cannot edit (the console),
-            // the outcome goes out as a replacement message; the target's stale choice_map keeps resolving, and the
-            // FSM answers a late tap with the semantic no-op ("Already recorded").
-            val handle = adapter.send(ChatRef(row.vendor, target.chatId), rendered, row.sendKey)
-            uow.transaction: tx =>
-              tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
-              tx.renderedMessages.record(
-                handle,
-                row.accountId,
-                row.kind,
-                subjectType = row.occurrenceId.map(_ => "occurrence"),
-                subjectId = row.occurrenceId,
-                epoch = row.epoch,
-                rendered.choiceMap,
-                now
-              )
-          else
-            val handle = adapter.edit(target, rendered) // idempotent by content
-            // M1.10: an edit carrying a new choice_map (the post-Taken finalize keeps [Undo][Correct]) supersedes the
-            // recorded one so the kept controls stay resolvable on the numbered tiers; an empty map leaves the record.
-            uow.transaction: tx =>
-              tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
-              tx.renderedMessages.recordEdit(handle, rendered.choiceMap, now)
+          dispatchEdit(row, adapter, now)
         case OutboxOp.Delete =>
           val target = decodeHandle(row.vendor, requiredTarget(row))
           throttle(row, target.chatId)
@@ -203,6 +177,41 @@ final class OutboxDispatcher(
       case e: ChatError =>
         // Permanent(channelFatal = false): no channel action (DESIGN.md section 7.6).
         uow.transaction(_.outbox.failPermanently(row.id, e.getMessage))
+
+  /** Interaction edits retain a replacement handle before terminal bookkeeping so a lease retry edits that handle
+    * instead of creating another replacement. Only a typed missing target permits fallback; permissions and private
+    * hooks must never trigger a named channel send.
+    */
+  private def dispatchEdit(row: OutboxMessage, adapter: ChatAdapter, now: Instant): Unit =
+    val target = decodeHandle(row.vendor, row.platformMessageId.getOrElse(requiredTarget(row)))
+    val (_, rendered) = renderer.render(row, adapter.capabilities)
+    throttle(row, target.chatId)
+    val handle =
+      if adapter.capabilities.editOwn == EditCapability.NoEdit then
+        adapter.send(ChatRef(row.vendor, target.chatId), rendered, row.sendKey)
+      else
+        try adapter.edit(target, rendered)
+        catch
+          case e: ChatError.Permanent
+              if row.kind == "interaction_reply" && !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
+            adapter.send(ChatRef(row.vendor, target.chatId), rendered, s"${row.sendKey}:replacement")
+    uow.transaction: tx =>
+      if row.kind == "interaction_reply" || adapter.capabilities.editOwn == EditCapability.NoEdit then
+        tx.renderedMessages.record(
+          handle,
+          row.accountId,
+          row.kind,
+          row.occurrenceId.map(_ => "occurrence"),
+          row.occurrenceId,
+          row.epoch,
+          rendered.choiceMap,
+          now
+        )
+      tx.renderedMessages.recordEdit(handle, rendered.choiceMap, now)
+      if row.kind == "interaction_reply" then tx.outbox.recordHandle(row.id, encodeHandle(handle))
+      else tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
+    if row.kind == "interaction_reply" then
+      uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false))
 
   /** Enqueues the next healthy channel's dispatch with a new `send_key` (idempotent per channel through the UNIQUE
     * constraint). Only sends fall back: an edit/delete/react target is a vendor-specific handle.

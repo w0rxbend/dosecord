@@ -45,6 +45,8 @@ final class InMemoryUnitOfWork extends UnitOfWork:
       override def maxLastTick(): Option[Instant] = None
 
   private val outbox = new OutboxRepository:
+    override def replyId(vendor: String, sendKey: String): Option[UUID] = None
+    override def recordedHandle(vendor: String, sendKey: String): Option[String] = None
     override def enqueue(msg: NewOutboxMessage): Boolean = true
     override def enqueueDigest(msg: NewOutboxMessage): Boolean = true
     override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] = Nil

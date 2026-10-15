@@ -415,7 +415,8 @@ object Gens:
       genText.map(ChatError.Unreachable.apply),
       genText.map(ChatError.TooOld.apply),
       genText.map(ChatError.Unsupported.apply),
-      Gen.zip(genText, Gen.oneOf(true, false)).map(ChatError.Permanent.apply)
+      Gen.zip(genText, Gen.oneOf(true, false), Gen.oneOf(ChatError.PermanentReason.values.toSeq))
+        .map((msg, fatal, reason) => ChatError.Permanent(msg, fatal, reason))
     )
   )
 

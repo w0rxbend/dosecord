@@ -95,6 +95,7 @@ class ChatMediatorPgSuite extends PgSuite:
     override def answer(toast: Option[String]): Unit =
       calls.add(s"answer(${toast.getOrElse("")})")
       ackedFlag = true
+    override def replyAvailable: Boolean = true
     override def respond(rendered: RenderedMessage): MessageHandle =
       calls.add(s"respond(${rendered.chunks.mkString(" ")})")
       MessageHandle("fake", "chat-1", "r1")
@@ -321,7 +322,7 @@ class ChatMediatorPgSuite extends PgSuite:
 
   // Acceptance 7: a tap with the connection pool paused yields the catalogue failure toast and leaves no
   // inbound_events row without processed_at (R68: visibly fails).
-  test("a tap with the pool paused yields the catalogue failure toast and no unprocessed inbound row"):
+  test("a tap with the pool paused reports an unconfirmed outcome and no unprocessed inbound row"):
     ox.supervised:
       seedLinkedAccount()
       val pausable = PausableDataSource(dataSource)
@@ -341,7 +342,7 @@ class ChatMediatorPgSuite extends PgSuite:
           )
         )
         await(
-          handle.calls.asScala.exists(_.contains(ReminderCopy.failureToast)),
+          handle.calls.asScala.exists(_.contains(ReminderCopy.checkingOutcome)),
           s"the failure toast was delivered: ${handle.calls.asScala.mkString}"
         )
         assertEquals(handle.calls.peek, "deferUpdate", "the ack landed before the failed database work")

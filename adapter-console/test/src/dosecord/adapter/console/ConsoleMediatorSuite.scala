@@ -214,6 +214,8 @@ private object ConsoleMediatorFakes:
       rows.toList.collect { case (h, _, _, Some(st), Some(sid)) if st == subjectType && sid == subjectId => h }
 
   final class InMemoryOutbox extends OutboxRepository:
+    override def replyId(vendor: String, sendKey: String): Option[UUID] = None
+    override def recordedHandle(vendor: String, sendKey: String): Option[String] = None
     override def enqueue(msg: NewOutboxMessage): Boolean = true
     override def enqueueDigest(msg: NewOutboxMessage): Boolean = true
     override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] = Nil

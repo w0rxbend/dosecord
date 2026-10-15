@@ -17,6 +17,7 @@ import dosecord.core.chat.ActionRegistry
 import dosecord.core.chat.CallbackCodec
 import dosecord.core.chat.CallbackMode
 import dosecord.core.chat.Controls
+import dosecord.core.chat.InteractionReplyPayload
 import dosecord.core.chat.Renderer
 import dosecord.core.domain.Decide
 import dosecord.core.domain.DoseSnapshot
@@ -58,7 +59,12 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
 
   private def renderInteractionReply(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     val message = OutboundMessage.fromJson(row.payload)
-    val chat = chatForAccount(row)
+    val chat = InteractionReplyPayload
+      .chat(row.payload)
+      .getOrElse:
+        row.target.map(OutboxDispatcher.decodeHandle(row.vendor, _)) match
+          case Some(target) => ChatRef(row.vendor, target.chatId)
+          case None         => chatForAccount(row) // legacy rows retain their old account-channel resolution
     lower(row, chat, capabilities, message)
 
   /** The vendor's DM chat of the account's primary channel; a safety row whose account has no such chat cannot be

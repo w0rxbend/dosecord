@@ -41,7 +41,7 @@ class DiscordDeliverySuite extends munit.FunSuite:
             )
           )
           val deadline = System.nanoTime() + 3000000000L
-          while server.transport.interactionReplies.isEmpty && server.transport.sent.isEmpty && System
+          while !server.transport.interactionReplies.exists(_._2.text == toast) && server.transport.sent.isEmpty && System
               .nanoTime() < deadline
           do Thread.sleep(10)
           assertEquals(server.transport.sent.size, 0)

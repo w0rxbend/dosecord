@@ -302,7 +302,7 @@ class ChatMediatorSuite extends munit.FunSuite:
       )
 
   // Acceptance 7 (unit half): with the pool paused the tap yields the catalogue failure toast.
-  test("a tap with the pool paused yields the catalogue failure toast"):
+  test("a tap with the pool paused reports an unconfirmed outcome"):
     ox.supervised:
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
       val handler = RecordingHandler(_ => Reply.empty)
@@ -316,7 +316,7 @@ class ChatMediatorSuite extends munit.FunSuite:
 
       m.push(tap)
       await(
-        handle.calls.asScala.exists(_.contains(ReminderCopy.failureToast)),
+        handle.calls.asScala.exists(_.contains(ReminderCopy.checkingOutcome)),
         s"the failure toast was delivered: ${handle.calls.asScala.mkString}"
       )
       assertEquals(handle.calls.peek, "deferUpdate", "the ack still lands before the database work")

@@ -111,6 +111,7 @@ class DiscordAdapterSuite extends munit.FunSuite:
       val error = intercept[ChatError.Permanent]:
         rig.adapter.edit(MessageHandle("discord", "dm-1", "999"), RenderedMessage(chunks = List("v2")))
       assert(!error.channelFatal)
+      assertEquals(error.reason, ChatError.PermanentReason.MissingTarget)
     finally rig.adapter.stop()
 
   test("an unknown message on delete is a non-fatal Permanent"):

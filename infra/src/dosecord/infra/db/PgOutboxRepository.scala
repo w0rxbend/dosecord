@@ -18,6 +18,14 @@ final class PgOutboxRepository(conn: Connection) extends OutboxRepository:
   private given Connection = conn
   import PgOutboxRepository.given
 
+  override def recordedHandle(vendor: String, sendKey: String): Option[String] =
+    sql"""SELECT platform_message_id FROM outbox_messages
+          WHERE vendor = $vendor AND send_key = $sendKey AND platform_message_id IS NOT NULL""".queryOne[String]()
+
+  override def replyId(vendor: String, sendKey: String): Option[java.util.UUID] =
+    sql"""SELECT id FROM outbox_messages
+          WHERE vendor = $vendor AND send_key = $sendKey AND kind = 'interaction_reply'""".queryOne[java.util.UUID]()
+
   override def enqueue(msg: NewOutboxMessage): Boolean =
     sql"""INSERT INTO outbox_messages
             (id, send_key, op, kind, vendor, account_id, occurrence_id, channel_id, epoch,

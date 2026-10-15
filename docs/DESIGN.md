@@ -203,7 +203,10 @@ final case class RateLimited(retryAfter: Duration) extends ChatError("rate limit
 final case class Unreachable(msg: String) extends ChatError(msg, channelFatal = true)   // DM closed, blocked, never /start-ed, no shared guild, M_FORBIDDEN on the DM room, Discord 50007
 final case class TooOld(msg: String) extends ChatError(msg)
 final case class Unsupported(op: String) extends ChatError(op)                          // conformance failure if the profile claimed support
-final case class Permanent(msg: String, override val channelFatal: Boolean) extends ChatError(msg, channelFatal)
+enum PermanentReason:
+  case General, MissingTarget
+final case class Permanent(msg: String, override val channelFatal: Boolean,
+    reason: PermanentReason = PermanentReason.General) extends ChatError(msg, channelFatal)
 
 trait ChatAdapter:
   def vendor: String
@@ -233,6 +236,16 @@ Acknowledgement happens before any database work and outside the per-chat orderi
 6. Dispatch to exactly one of: active wizard step, command handler, action handler, NLU router, help.
 7. The handler returns `Reply(replace: Option[OutboundMessage], followUps, toast, sessionPatch, domainEvents)`.
 8. One transaction commits the state change, action rows, `domain_events`, outbox rows and the processed reply. If a `replace` can be delivered synchronously through a live interaction handle, the mediator delivers it after commit and records `sent` plus the handle in a follow-up write; the outbox row for it is created with `next_attempt_at = now + 30 s` so the dispatcher only claims it if that follow-up write is lost, and it is an `edit` op targeting the source handle (idempotent by content), never a new send. On Telegram, a toast produced after the single-shot answer is degraded to a short message with `deleteAfter = 30 s` or folded into the edited reminder text. If a handler returns a visibility different from the command's declared one, the reply goes as a follow-up message (which carries its own flag) instead of editing the deferred response.
+
+M2.2a persists the originating ChatRef as `deliveryChat` in interaction-reply
+payloads (legacy rows retain account-channel resolution). Nonfatal missing
+source targets alone permit a stable-key replacement; its recorded handle is
+reused by dispatcher lease retry and stored-reply replay. A lost SQL commit
+acknowledgement yields neutral Checking whether this was recorded… plus one
+inbound/handle readback, never blind domain retry or a noncommit claim. Native
+private-hook payloads have no ordinary outbox safety row; expiry permits neutral
+recovery copy only. ADR-005/013 M2.2a addenda specify these refinements and the
+bounded create-message duplicate caveat; durable multi-page work remains M2.2c.
 
 Conversation state (`conversation_sessions`) is owned by the core; wizards are declarative `Flow(steps: Map[String, Step(prompt, accepts, validate, next)])` run by one engine that loads the row `FOR UPDATE`, applies the input, bumps `step_seq` and `version`, finalizes the old prompt and sends the next. Tokens inside flows carry `step_seq`; a stale tap gets a toast and the current prompt again. Sessions expire after 30 minutes idle with one "Still there?" grace prompt. Direct-mode dose tokens bypass sessions, so a reminder tap mid-wizard works.
 
