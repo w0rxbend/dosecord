@@ -2,13 +2,13 @@
 <rect width="1080" height="1350" fill="#eef5f8"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">By medication</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">2 to 8 Nov</text>
-<text x="96" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
-<text x="172" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
-<text x="248" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
-<text x="324" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
-<text x="400" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
-<text x="476" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
-<text x="552" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
-<text x="64" y="284" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">No medication records for these days.</text>
+<text x="96" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
+<text x="172" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="248" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
+<text x="324" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="400" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
+<text x="476" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="552" y="648" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="64" y="720" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">No medication records for these days.</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
 </svg>

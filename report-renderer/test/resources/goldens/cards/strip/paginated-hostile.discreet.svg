@@ -146,28 +146,28 @@
 </g>
 <text x="120" y="1134" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
 <g>
-  <path d="M280.68 1098 L299.16 1098 L312.36 1111.2 L312.36 1129.68 A12.32 12.32 0 0 1 300.04 1142 L280.68 1142 A12.32 12.32 0 0 1 268.36 1129.68 L268.36 1110.32 A12.32 12.32 0 0 1 280.68 1098 Z" fill="#038265"/>
+  <path d="M272.68 1098 L291.16 1098 L304.36 1111.2 L304.36 1129.68 A12.32 12.32 0 0 1 292.04 1142 L272.68 1142 A12.32 12.32 0 0 1 260.36 1129.68 L260.36 1110.32 A12.32 12.32 0 0 1 272.68 1098 Z" fill="#038265"/>
 </g>
-<text x="324.36" y="1134" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
+<text x="316.36" y="1134" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
 <g>
-  <rect x="555.36" y="1101" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
+  <rect x="539.36" y="1101" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
 </g>
-<text x="608.36" y="1134" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
+<text x="592.36" y="1134" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
 <g>
   <rect x="66" y="1156" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
   <line x1="77.2" y1="1176" x2="94.8" y2="1176" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="120" y="1190" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Not confirmed</text>
 <g>
-  <line x1="423.32" y1="1170.59" x2="434.63" y2="1159.28" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="423.82" y1="1192.72" x2="456.76" y2="1159.78" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="446.45" y1="1192.72" x2="456.76" y2="1182.41" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="415.32" y1="1170.59" x2="426.63" y2="1159.28" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="415.82" y1="1192.72" x2="448.76" y2="1159.78" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="438.45" y1="1192.72" x2="448.76" y2="1182.41" stroke="#8b9ba3" stroke-width="4"/>
 </g>
-<text x="474.04" y="1190" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">No record</text>
+<text x="466.04" y="1190" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">No record</text>
 <g>
-  <circle cx="712.12" cy="1176" r="22" fill="#2cab88"/>
+  <circle cx="696.12" cy="1176" r="22" fill="#2cab88"/>
 </g>
-<text x="746.12" y="1190" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">As needed</text>
-<text x="1016" y="166" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">page 1 of 3</text>
+<text x="730.12" y="1190" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">As needed</text>
+<text x="1016" y="166" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">Page 1 of 3</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
 </svg>

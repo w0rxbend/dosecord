@@ -7,9 +7,9 @@
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Thu 12 Nov</text>
 <g>
   <path d="M574.87 112.03 A300 300 0 0 1 837.97 375.13" fill="none" stroke="#cdd6db" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M752.13 197.87 A300 300 0 0 1 810.01 279.25" fill="none" stroke="#435561" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M752.13 197.87 A300 300 0 0 1 810.01 279.25" fill="none" stroke="#eef5f8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M574.87 112.03 A300 300 0 0 1 752.13 197.87" fill="none" stroke="#0d9675" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M776.01 224.8 A300 300 0 0 1 810.01 279.25" fill="none" stroke="#435561" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M776.01 224.8 A300 300 0 0 1 810.01 279.25" fill="none" stroke="#eef5f8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
   <path d="M837.97 444.87 A300 300 0 0 1 574.87 707.97" fill="none" stroke="#cdd6db" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>

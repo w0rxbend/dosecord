@@ -148,6 +148,8 @@ object EnglishImageCopy extends ImageCopy:
       case DayClass.NoRecord     => "No record"
       case DayClass.StillOpen    => "Still open"
 
+  def blankDayNote: String = "Blank: none scheduled"
+
   def resolvedDosesTaken(taken: Int, resolved: Int): String = s"$taken of $resolved resolved doses taken."
 
   def unknownDosesNotCounted(count: Int): String =
@@ -173,7 +175,7 @@ object EnglishImageCopy extends ImageCopy:
   def calendarDiscreet: String = "Medication by day."
 
   def stripTitle: String = "By medication"
-  def pageOf(page: Int, pageCount: Int): String = s"page $page of $pageCount"
+  def pageOf(page: Int, pageCount: Int): String = s"Page $page of $pageCount"
 
   def statusName(status: DoseStatus): String =
     status match

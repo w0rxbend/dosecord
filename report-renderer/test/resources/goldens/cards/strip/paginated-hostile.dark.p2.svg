@@ -2,155 +2,155 @@
 <rect width="1080" height="1350" fill="#0f222b"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">By medication</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">2 to 8 Nov</text>
-<text x="96" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
-<text x="172" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
-<text x="248" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
-<text x="324" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
-<text x="400" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
-<text x="476" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
-<text x="552" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
-<text x="64" y="280" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 3</text>
-<text x="1016" y="280" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
+<text x="96" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
+<text x="172" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="248" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
+<text x="324" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="400" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
+<text x="476" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="552" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="64" y="288" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 3</text>
+<text x="1016" y="288" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
 <g>
-  <rect x="64" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="64" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="140" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="140" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="216" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="216" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="292" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="292" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="368" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="368" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="444" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="444" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="520" y="308" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="520" y="316" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
-<text x="64" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 4</text>
-<text x="1016" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
+<text x="64" y="448" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 4</text>
+<text x="1016" y="448" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
 <g>
-  <rect x="64" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
-</g>
-<g>
-  <rect x="140" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="64" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="216" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="140" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="292" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="216" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="368" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="292" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="444" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="368" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="520" y="468" width="64" height="64" rx="17.92" fill="#2cab88"/>
-</g>
-<text x="64" y="600" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 5</text>
-<text x="1016" y="600" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
-<g>
-  <rect x="64" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="444" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="140" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="520" y="476" width="64" height="64" rx="17.92" fill="#2cab88"/>
+</g>
+<text x="64" y="608" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 5</text>
+<text x="1016" y="608" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
+<g>
+  <rect x="64" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="216" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="140" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="292" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="216" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="368" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="292" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="444" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="368" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="520" y="628" width="64" height="64" rx="17.92" fill="#2cab88"/>
-</g>
-<text x="64" y="760" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 6</text>
-<text x="1016" y="760" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
-<g>
-  <rect x="64" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="444" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="140" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="520" y="636" width="64" height="64" rx="17.92" fill="#2cab88"/>
+</g>
+<text x="64" y="768" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 6</text>
+<text x="1016" y="768" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
+<g>
+  <rect x="64" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="216" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="140" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="292" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="216" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="368" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="292" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="444" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="368" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="520" y="788" width="64" height="64" rx="17.92" fill="#2cab88"/>
-</g>
-<text x="64" y="920" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 7</text>
-<text x="1016" y="920" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
-<g>
-  <rect x="64" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="444" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="140" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="520" y="796" width="64" height="64" rx="17.92" fill="#2cab88"/>
+</g>
+<text x="64" y="928" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication number 7</text>
+<text x="1016" y="928" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">7 of 7 taken</text>
+<g>
+  <rect x="64" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="216" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="140" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="292" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="216" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="368" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="292" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="444" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="368" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="520" y="948" width="64" height="64" rx="17.92" fill="#2cab88"/>
+  <rect x="444" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="64" y="1068" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="520" y="956" width="64" height="64" rx="17.92" fill="#2cab88"/>
 </g>
-<text x="120" y="1104" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
 <g>
-  <path d="M280.68 1068 L299.16 1068 L312.36 1081.2 L312.36 1099.68 A12.32 12.32 0 0 1 300.04 1112 L280.68 1112 A12.32 12.32 0 0 1 268.36 1099.68 L268.36 1080.32 A12.32 12.32 0 0 1 280.68 1068 Z" fill="#038265"/>
+  <rect x="64" y="1076" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
-<text x="324.36" y="1104" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
+<text x="120" y="1112" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
 <g>
-  <rect x="555.36" y="1071" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
+  <path d="M272.68 1076 L291.16 1076 L304.36 1089.2 L304.36 1107.68 A12.32 12.32 0 0 1 292.04 1120 L272.68 1120 A12.32 12.32 0 0 1 260.36 1107.68 L260.36 1088.32 A12.32 12.32 0 0 1 272.68 1076 Z" fill="#038265"/>
 </g>
-<text x="608.36" y="1104" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
+<text x="316.36" y="1112" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
 <g>
-  <rect x="66" y="1126" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
-  <line x1="77.2" y1="1146" x2="94.8" y2="1146" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="539.36" y="1079" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
 </g>
-<text x="120" y="1160" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Not confirmed</text>
+<text x="592.36" y="1112" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
 <g>
-  <line x1="423.32" y1="1140.59" x2="434.63" y2="1129.28" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="423.82" y1="1162.72" x2="456.76" y2="1129.78" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="446.45" y1="1162.72" x2="456.76" y2="1152.41" stroke="#8b9ba3" stroke-width="4"/>
+  <rect x="66" y="1134" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <line x1="77.2" y1="1154" x2="94.8" y2="1154" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="474.04" y="1160" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">No record</text>
+<text x="120" y="1168" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Not confirmed</text>
 <g>
-  <circle cx="712.12" cy="1146" r="22" fill="#2cab88"/>
+  <line x1="415.32" y1="1148.59" x2="426.63" y2="1137.28" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="415.82" y1="1170.72" x2="448.76" y2="1137.78" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="438.45" y1="1170.72" x2="448.76" y2="1160.41" stroke="#8b9ba3" stroke-width="4"/>
 </g>
-<text x="746.12" y="1160" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">As needed</text>
-<text x="1016" y="166" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">page 2 of 3</text>
+<text x="466.04" y="1168" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">No record</text>
+<g>
+  <circle cx="696.12" cy="1154" r="22" fill="#2cab88"/>
+</g>
+<text x="730.12" y="1168" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">As needed</text>
+<text x="1016" y="166" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">Page 2 of 3</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
 </svg>

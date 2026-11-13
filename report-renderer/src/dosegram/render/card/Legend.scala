@@ -6,8 +6,14 @@ import dosegram.render.scene.Point
 import dosegram.render.text.TextFitter
 import dosegram.render.tokens.TextStyle
 
-/** One legend entry: how to draw its glyph in a given square, and its name. */
-final case class LegendItem(glyph: Box => Node, name: String)
+/** One legend entry: how to draw its glyph in a given square, and its name. An entry without a glyph explains what an
+  * empty place means, which no glyph can show.
+  */
+final case class LegendItem(glyph: Option[Box => Node], name: String)
+
+object LegendItem:
+  def of(glyph: Box => Node, name: String): LegendItem = LegendItem(Some(glyph), name)
+  def note(text: String): LegendItem = LegendItem(None, text)
 
 /** A legend laid out, ready to be placed: its rows and its height. */
 final case class Legend(rows: Vector[Vector[LegendItem]]):
@@ -19,15 +25,13 @@ final case class Legend(rows: Vector[Vector[LegendItem]]):
       val top = origin.y + rowIndex * Legend.RowPx
       val starts = row.scanLeft(origin.x)((x, item) => x + Legend.itemWidth(item, fitter) + Legend.ItemGapPx)
       row.zip(starts).flatMap { (item, x) =>
-        Vector(
-          item.glyph(Box(x, top, Legend.GlyphPx, Legend.GlyphPx)),
-          frame.text(
-            item.name,
-            Point(x + Legend.GlyphPx + Legend.GlyphGapPx, top + 36),
-            frame.look(TextStyle.Label, frame.tokens.ink2),
-            frame.width
-          )
+        val name = frame.text(
+          item.name,
+          Point(x + Legend.glyphWidth(item), top + Legend.BaselinePx),
+          frame.look(TextStyle.Label, frame.tokens.ink2),
+          frame.width
         )
+        item.glyph.map(draw => draw(Box(x, top, Legend.GlyphPx, Legend.GlyphPx))).toVector :+ name
       }
     }
 
@@ -36,7 +40,8 @@ object Legend:
   val RowPx: Double = 56
   private val GlyphPx = 44.0
   private val GlyphGapPx = 12.0
-  private val ItemGapPx = 36.0
+  private val ItemGapPx = 28.0
+  private val BaselinePx = 36.0
 
   def flow(items: Vector[LegendItem], maxWidth: Double, fitter: TextFitter): Legend =
     val rows = items.foldLeft(Vector.empty[Vector[LegendItem]]) { (rows, item) =>
@@ -46,8 +51,10 @@ object Legend:
     }
     Legend(rows)
 
+  private def glyphWidth(item: LegendItem): Double = if item.glyph.isDefined then GlyphPx + GlyphGapPx else 0.0
+
   private def itemWidth(item: LegendItem, fitter: TextFitter): Double =
-    GlyphPx + GlyphGapPx + fitter.width(TextFitter.drawable(item.name, TextStyle.Label), TextStyle.Label)
+    glyphWidth(item) + fitter.width(TextFitter.drawable(item.name, TextStyle.Label), TextStyle.Label)
 
   private def rowWidth(row: Vector[LegendItem], fitter: TextFitter): Double =
     row.map(itemWidth(_, fitter)).sum + (row.size - 1) * ItemGapPx
