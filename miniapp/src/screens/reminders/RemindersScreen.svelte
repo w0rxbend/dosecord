@@ -91,10 +91,10 @@
         </h2>
         <div class="section-body pad row">
           {#if data.view.pausedUntil}
-            <button class="button secondary" type="button" disabled={busy} onclick={() => pause(0)}>{en.reminders.resume}</button>
+            <button class="btn btn-tinted" type="button" disabled={busy} onclick={() => pause(0)}>{en.reminders.resume}</button>
           {:else}
             {#each PAUSES as hours (hours)}
-              <button class="button secondary" type="button" disabled={busy} onclick={() => pause(hours)}>{en.reminders.pause(hours)}</button>
+              <button class="btn btn-tinted" type="button" disabled={busy} onclick={() => pause(hours)}>{en.reminders.pause(hours)}</button>
             {/each}
           {/if}
           <p class="muted">{en.reminders.pauseNote}</p>

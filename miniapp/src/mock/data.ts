@@ -1,5 +1,12 @@
 // Synthetic seed data. Names are placeholders on purpose: no real medicine appears anywhere.
-import type { Medication, MedicationOptions, MedicationSummary, ScheduleOptions } from '../api/types';
+import type {
+  LocalDate,
+  Medication,
+  MedicationOptions,
+  MedicationSummary,
+  Schedule,
+  ScheduleOptions,
+} from '../api/types';
 
 const choices = (values: readonly string[]) =>
   values.map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
@@ -94,6 +101,41 @@ export function seedMedications(): MedicationRecord[] {
     ),
     record('med-d', 'Medication D', { status: 'paused', colourTag: 'blue', shapeTag: 'oval' }, { scheduleSummary: 'Paused. Every day at 08:00' }),
     record('med-e', 'Medication E', { status: 'archived' }, { scheduleSummary: 'Archived' }),
+  ];
+}
+
+/** One schedule per seeded medication, matching its schedule line; the archived one has ended. */
+export function seedSchedules(today: LocalDate): Schedule[] {
+  const schedule = (id: string, medicationId: string, fields: Partial<Schedule>): Schedule => ({
+    id,
+    medicationId,
+    status: 'active',
+    revision: 1,
+    pattern: 'fixed_times',
+    rows: [],
+    weekdays: [],
+    startDate: today,
+    endDate: null,
+    summary: '',
+    ...fields,
+  });
+  return [
+    schedule('sch-a', 'med-a', {
+      rows: [
+        { time: '08:00', dose: '1' },
+        { time: '21:00', dose: '1' },
+      ],
+      summary: 'Every day at 08:00 and 21:00',
+    }),
+    schedule('sch-b', 'med-b', {
+      pattern: 'weekly',
+      weekdays: [1, 3, 5],
+      rows: [{ time: '13:00', dose: '2' }],
+      summary: 'Mon, Wed and Fri at 13:00',
+    }),
+    schedule('sch-c', 'med-c', { pattern: 'as_needed', summary: 'As needed' }),
+    schedule('sch-d', 'med-d', { status: 'paused', rows: [{ time: '08:00', dose: '1' }], summary: 'Every day at 08:00' }),
+    schedule('sch-e', 'med-e', { status: 'ended', rows: [{ time: '08:00', dose: '1' }], summary: 'Every day at 08:00' }),
   ];
 }
 

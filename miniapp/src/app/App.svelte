@@ -28,6 +28,7 @@
   const medList = () => import('../screens/meds/MedListScreen.svelte');
   const medEditor = () => import('../screens/editor/MedEditorScreen.svelte');
   const schedule = () => import('../screens/schedule/ScheduleScreen.svelte');
+  const scheduleEdit = () => import('../screens/schedule/ScheduleEditScreen.svelte');
   const insights = () => import('../screens/insights/InsightsScreen.svelte');
   const log = () => import('../screens/log/LogScreen.svelte');
   const water = () => import('../screens/water/WaterScreen.svelte');
@@ -64,6 +65,8 @@
         <Lazy load={medEditor} props={{ id: route.id }} />
       {:else if route.screen === 'schedule-new'}
         <Lazy load={schedule} props={{ medicationId: route.medicationId }} />
+      {:else if route.screen === 'schedule-edit'}
+        <Lazy load={scheduleEdit} props={{ id: route.id }} />
       {:else if route.screen === 'log'}
         <Lazy load={log} props={{}} />
       {:else if route.screen === 'water'}

@@ -218,6 +218,27 @@ describe('Medication editor saving', () => {
     expect(await harness.api.medication('med-a')).toMatchObject({ doseAmount: '2', version: 2 });
   });
 
+  it('links an existing medication to its schedule, and one without a schedule to a new one', async () => {
+    const harness = createHarness();
+    const { user, unmount } = await open(harness, 'med-a');
+
+    await user.click(await screen.findByRole('link', { name: 'Change times' }));
+    expect(harness.router.route).toEqual({ screen: 'schedule-edit', id: 'sch-a' });
+
+    unmount();
+    const created = await harness.api.createMedication({ ...(await harness.api.medication('med-a')), name: 'New one' });
+    const again = await open(harness, created.id);
+    await again.user.click(await screen.findByRole('link', { name: 'Add times' }));
+    expect(harness.router.route).toEqual({ screen: 'schedule-new', medicationId: created.id });
+  });
+
+  it('offers no schedule link while a new medication is entered', async () => {
+    await open(createHarness());
+
+    expect(screen.queryByRole('link', { name: 'Change times' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Add times' })).toBeNull();
+  });
+
   it('always shows the non-clinical notice', async () => {
     await open(createHarness());
 

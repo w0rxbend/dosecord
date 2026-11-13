@@ -47,7 +47,8 @@
           {/each}
         </div>
       {/if}
-      {#if !isToday && water.entries.length > 0}
+      <!-- Without the summary (a day opened by its date, today included) the entries are the record. -->
+      {#if !water.day && water.entries.length > 0}
         <ul class="entries">
           {#each water.entries as entry (entry.id)}
             <li><span class="time numeric">{entry.time}</span> {en.day.water(entry.text)}</li>

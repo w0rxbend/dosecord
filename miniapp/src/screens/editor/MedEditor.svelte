@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { toApiError, type ApiError, type FieldError } from '../../api/client';
+  import type { Snippet } from 'svelte';
   import type { Medication, MedicationOptions } from '../../api/types';
   import { useApp } from '../../app/context';
   import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
@@ -17,7 +18,14 @@
   import MedFields from './MedFields.svelte';
   import MedLooks from './MedLooks.svelte';
 
-  let { options, medication }: { options: MedicationOptions; medication: Medication | null } = $props();
+  interface Props {
+    options: MedicationOptions;
+    medication: Medication | null;
+    /** Shown after the form, before the notice: the times of an existing medication. */
+    after?: Snippet;
+  }
+
+  let { options, medication, after }: Props = $props();
 
   const { api, tg, router, toasts } = useApp();
   const LABELS: Partial<Record<MedicationField, string>> = {
@@ -135,6 +143,8 @@
     <MedLooks bind:form {options} errors={messages} />
   </fieldset>
 </form>
+
+{@render after?.()}
 
 <!-- Always present on the editor (MA-EDIT-6). -->
 <p class="note">{en.editor.disclaimer}</p>

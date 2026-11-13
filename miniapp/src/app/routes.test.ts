@@ -75,3 +75,13 @@ describe('navigation structure', () => {
     expect(dayPath('2026-11-12')).toBe('/day/20261112');
   });
 });
+
+describe('schedule edit route', () => {
+  it('maps sched_<id> to the schedule path and the path to the edit screen under Meds', () => {
+    expect(pathFromStartParam('sched_sch-a')).toBe('/schedules/sch-a');
+    const route = parsePath('/schedules/sch-a');
+    expect(route).toEqual({ screen: 'schedule-edit', id: 'sch-a' });
+    expect(route && tabOf(route)).toBe('meds');
+    expect(route && parentPath(route)).toBe('/meds');
+  });
+});

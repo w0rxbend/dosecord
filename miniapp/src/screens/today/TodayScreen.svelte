@@ -125,7 +125,7 @@
             <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} />
           </div>
         {:else}
-          {#if view.answerInChat}<p class="note">{en.today.answerInChat}</p>{/if}
+          {#if view.answerInChat}<p class="note answer">{en.today.answerInChat}</p>{/if}
           <TodayDoses occurrences={view.occurrences} readOnly={view.readOnly} planned={!view.answerInChat} onAction={act} />
         {/if}
       {:else if everythingOff(view)}
@@ -141,6 +141,11 @@
 </Screen>
 
 <style>
+  /* Apart from the first group title below it, which has the same colour. */
+  .answer {
+    margin-block-end: var(--dg-space-4);
+  }
+
   svg {
     fill: none;
     stroke: currentColor;

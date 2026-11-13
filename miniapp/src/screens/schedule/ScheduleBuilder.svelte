@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toApiError } from '../../api/client';
-  import type { Medication, ScheduleOptions, SchedulePreview } from '../../api/types';
+  import type { Medication, Schedule, ScheduleOptions, SchedulePreview } from '../../api/types';
   import { useApp } from '../../app/context';
   import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
   import { toScheduleDraft, validateSchedule, type ScheduleForm } from '../../forms/schedule-rules';
@@ -8,19 +8,36 @@
   import PreviewList from './PreviewList.svelte';
   import ScheduleFields from './ScheduleFields.svelte';
 
-  let { options, medication }: { options: ScheduleOptions; medication: Medication } = $props();
+  interface Props {
+    options: ScheduleOptions;
+    medication: Medication;
+    /** The schedule to change; absent for a new one. */
+    schedule?: Schedule;
+  }
+
+  let { options, medication, schedule }: Props = $props();
 
   const PREVIEW_DELAY_MS = 400;
   const { api, tg, router, toasts } = useApp();
 
   // The dose is carried over from the medication; the time is the person's to enter (MA-A11Y-16).
-  const startingForm = (): ScheduleForm => ({
-    pattern: options.patterns[0]?.value ?? 'fixed_times',
-    rows: [{ key: 0, time: '', dose: medication.doseAmount }],
-    weekdays: [],
-    startDate: options.today,
-    endDate: '',
-  });
+  // An edit starts from the schedule as it is.
+  const startingForm = (): ScheduleForm =>
+    schedule
+      ? {
+          pattern: schedule.pattern,
+          rows: schedule.rows.map((row, key) => ({ key, time: row.time, dose: row.dose || medication.doseAmount })),
+          weekdays: [...schedule.weekdays],
+          startDate: schedule.startDate,
+          endDate: schedule.endDate ?? '',
+        }
+      : {
+          pattern: options.patterns[0]?.value ?? 'fixed_times',
+          rows: [{ key: 0, time: '', dose: medication.doseAmount }],
+          weekdays: [],
+          startDate: options.today,
+          endDate: '',
+        };
 
   let form = $state(startingForm());
   const initial = JSON.stringify(startingForm());
@@ -59,8 +76,12 @@
     return () => clearTimeout(timer);
   });
 
-  useMainButton(tg, { text: en.schedule.save, enabled: () => current, busy: () => saving, onPress: () => void save() });
-  useLeaveGuard(tg, (guard) => router.setGuard(guard), () => !saving && JSON.stringify(form) !== initial, en.common.leave);
+  const dirty = $derived(JSON.stringify(form) !== initial);
+  // An unchanged schedule has nothing to save.
+  const savable = $derived(current && (schedule === undefined || dirty));
+
+  useMainButton(tg, { text: en.schedule.save, enabled: () => savable, busy: () => saving, onPress: () => void save() });
+  useLeaveGuard(tg, (guard) => router.setGuard(guard), () => !saving && dirty, en.common.leave);
 
   // A field shows its errors once it was left or its value was committed; a checkbox commits
   // on every tap, so an emptied weekday group says so at once.
@@ -76,7 +97,10 @@
     if (draftKey === null) return tg.haptic('error');
     saving = true;
     try {
-      await api.createSchedule(medication.id, JSON.parse(draftKey));
+      const draft = JSON.parse(draftKey);
+      await (schedule
+        ? api.reviseSchedule(schedule.id, draft, schedule.revision)
+        : api.createSchedule(medication.id, draft));
       tg.haptic('success');
       toasts.show(en.schedule.saved);
       await router.replace('/meds');

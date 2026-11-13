@@ -301,6 +301,17 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
           headers: command(newIdempotencyKey()),
         }),
       ),
+    schedules: async (medicationId) =>
+      ((await request<Wire['ScheduleList']>(`medications/${id(medicationId)}/schedules`)).items ?? []).map(toSchedule),
+    schedule: async (scheduleId) => toSchedule(await request<Wire['Schedule']>(`schedules/${id(scheduleId)}`)),
+    reviseSchedule: async (scheduleId, draft, revision) =>
+      toSchedule(
+        await request<Wire['Schedule']>(`schedules/${id(scheduleId)}/revisions`, {
+          method: 'POST',
+          body: toScheduleDraft(draft),
+          headers: versionTag(revision),
+        }),
+      ),
 
     insightsOverview: async (rangeDays) =>
       toInsightsOverview(await request<Wire['InsightsOverview']>(`insights/overview?range=${rangeDays}`), rangeDays),

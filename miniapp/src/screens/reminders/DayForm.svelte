@@ -57,7 +57,7 @@
       {/each}
     </fieldset>
     <p class="muted">{en.reminders.dayHelp}</p>
-    <button class="button" type="submit" disabled={busy || order || draft.workDays.length === 0}>{en.reminders.saveDay}</button>
+    <button class="btn btn-filled" type="submit" disabled={busy || order || draft.workDays.length === 0}>{en.reminders.saveDay}</button>
   </div>
 </form>
 
