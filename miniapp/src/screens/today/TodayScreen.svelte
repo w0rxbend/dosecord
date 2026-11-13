@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { newIdempotencyKey } from '../../api/client';
-  import type { Occurrence, OccurrenceAction, OccurrenceActionResult, TodayView } from '../../api/types';
+  import { newIdempotencyKey, unlessOff } from '../../api/client';
+  import { OFF, type Occurrence, type OccurrenceAction, type OccurrenceActionResult, type Off, type TodayView } from '../../api/types';
   import { useApp } from '../../app/context';
   import { dayPath } from '../../app/routes';
   import { en } from '../../i18n/en';
@@ -9,21 +9,30 @@
   import EmptyState from '../../ui/EmptyState.svelte';
   import Screen from '../../ui/Screen.svelte';
   import DayLine from './DayLine.svelte';
+  import DayTrackers from './DayTrackers.svelte';
   import { optimistic, replaceOccurrence } from './group';
   import TodayDoses from './TodayDoses.svelte';
-  import WaterRow from './WaterRow.svelte';
+  import { readTracking, trackingMarks, type DayTracking } from './tracking';
 
-  let { date }: { date?: string } = $props();
+  /** `title` is set when the day is opened from the history calendar (S-13). */
+  let { date, title }: { date?: string; title?: string } = $props();
 
   const { api, tg, router, toasts } = useApp();
-  const day = new Resource<TodayView>(() => api.today(date));
+  const day = new Resource<TodayView | Off>(() => unlessOff(api.today(date)));
+  const tracking = new Resource<DayTracking>(() => readTracking(api, date));
+  const isToday = $derived(date === undefined || (day.data !== undefined && day.data !== OFF && day.data.isToday));
 
   // Without a change feed, the visible screen is fetched again when the app returns (8.7).
-  $effect(() => tg.onActivated(() => void day.load()));
+  $effect(() =>
+    tg.onActivated(() => {
+      void day.load();
+      void tracking.load();
+    }),
+  );
 
   function show(occurrence: Occurrence): void {
     const view = day.data;
-    if (view) day.set({ ...view, occurrences: replaceOccurrence(view.occurrences, occurrence) });
+    if (view && view !== OFF) day.set({ ...view, occurrences: replaceOccurrence(view.occurrences, occurrence) });
   }
 
   function announce(result: OccurrenceActionResult, action: OccurrenceAction): void {
@@ -59,28 +68,33 @@
     }
   }
 
+  // One tap adds water; the figures follow at once and are rolled back if the request fails.
   async function addWater(amountMl: number): Promise<void> {
-    const view = day.data;
-    if (!view?.hydration) return;
-    const key = newIdempotencyKey();
-    const before = view.hydration;
-    day.set({ ...view, hydration: { ...before, totalMl: before.totalMl + amountMl } });
+    const current = tracking.data;
+    if (!current || current.water === OFF || !current.water.day) return;
+    const before = current;
+    const water = current.water;
+    const day = water.day!;
+    tracking.set({ ...current, water: { ...water, day: { ...day, totalMl: day.totalMl + amountMl, entries: day.entries + 1 } } });
     try {
-      await api.addHydration(amountMl, key);
-      tg.haptic('impact-light');
+      const logged = await api.addWater(amountMl, newIdempotencyKey());
+      tg.haptic(logged.goalReachedNow ? 'success' : 'impact-light');
       toasts.show(en.today.waterAdded(amountMl));
-      void day.load();
+      void tracking.load();
     } catch {
-      if (day.data) day.set({ ...day.data, hydration: before });
+      tracking.set(before);
       tg.haptic('error');
       toasts.show(en.errors.notSaved);
     }
   }
+
+  const everythingOff = (view: TodayView | Off) =>
+    view === OFF && tracking.data !== undefined && tracking.data.water === OFF && tracking.data.mood === OFF;
 </script>
 
-<Screen title={en.today.title} subtitle={day.data?.dateLabel}>
+<Screen title={title ?? en.today.title} subtitle={day.data && day.data !== OFF ? day.data.dateLabel : undefined}>
   {#snippet actions()}
-    {#if day.data}
+    {#if day.data && day.data !== OFF}
       {@const view = day.data}
       <button type="button" class="btn" aria-label={en.today.previousDay} onclick={() => router.replace(dayPath(view.previousDate))}>
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
@@ -89,24 +103,38 @@
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
       </button>
     {/if}
+    {#if date === undefined}
+      <!-- The native settings item sits in a context menu; Today carries a visible control (MA-NAV-3). -->
+      <button type="button" class="btn" aria-label={en.settings.open} onclick={() => router.navigate('/settings')}>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+          <path d="M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM19 12l2-1-1-3-2 .2-1.3-1.3.2-2-3-1-1 2h-1.8l-1-2-3 1 .2 2L6 7.2 4 7l-1 3 2 1v1.8l-2 1 1 3 2-.2 1.3 1.3-.2 2 3 1 1-2h1.8l1 2 3-1-.2-2 1.3-1.3 2 .2 1-3-2-1z" />
+        </svg>
+      </button>
+    {/if}
   {/snippet}
 
   <AsyncView resource={day} loadingLabel={en.today.loading} skeletonRows={4}>
     {#snippet children(view)}
-      {#if !view.isToday}
-        <p class="section"><button type="button" class="btn btn-tinted" onclick={() => router.replace('/')}>{en.today.backToToday}</button></p>
-      {/if}
-      <div class="section section-body pad"><DayLine marks={view.dayLine} nowMinute={view.nowMinute} /></div>
-      {#if view.occurrences.length === 0}
+      {#if view !== OFF}
+        {#if !view.isToday && title === undefined}
+          <p class="section"><button type="button" class="btn btn-tinted" onclick={() => router.replace('/')}>{en.today.backToToday}</button></p>
+        {/if}
+        <div class="section section-body pad"><DayLine marks={[...view.dayLine, ...trackingMarks(tracking.data)]} nowMinute={view.nowMinute} /></div>
+        {#if view.occurrences.length === 0}
+          <div class="section">
+            <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} />
+          </div>
+        {:else}
+          {#if view.answerInChat}<p class="note">{en.today.answerInChat}</p>{/if}
+          <TodayDoses occurrences={view.occurrences} readOnly={view.readOnly} planned={!view.answerInChat} onAction={act} />
+        {/if}
+      {:else if everythingOff(view)}
         <div class="section">
-          <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} />
+          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} />
         </div>
-      {:else}
-        {#if view.answerInChat}<p class="note">{en.today.answerInChat}</p>{/if}
-        <TodayDoses occurrences={view.occurrences} readOnly={view.readOnly} planned={!view.answerInChat} onAction={act} />
       {/if}
-      {#if view.hydration}
-        <WaterRow hydration={view.hydration} canAdd={view.isToday} onAdd={addWater} />
+      {#if tracking.data}
+        <DayTrackers tracking={tracking.data} {isToday} onAddWater={addWater} />
       {/if}
     {/snippet}
   </AsyncView>

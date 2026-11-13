@@ -6,6 +6,7 @@
   import { en } from '../../i18n/en';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
+  import LinkRow from '../../ui/LinkRow.svelte';
   import Screen from '../../ui/Screen.svelte';
 
   /** Offered until the first answer names the periods the backend computes. */
@@ -59,13 +60,16 @@
                     {#if block.vessel}<p class="numeric">{block.vessel.label}</p>{/if}
                   </div>
                 </div>
-                {#each block.charts as chart, index (chart.title)}
+                {#each block.charts as chart, index (chart.id)}
                   <ChartFigure {chart} id="chart-{block.id}-{index}" />
                 {/each}
               {/if}
             </div>
           </section>
         {/each}
+      </div>
+      <div class="section section-body">
+        <LinkRow path="/insights/history" label={en.insights.history} hint={en.insights.historyHint} />
       </div>
     {/snippet}
   </AsyncView>

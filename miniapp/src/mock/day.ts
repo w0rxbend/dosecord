@@ -2,21 +2,13 @@
 // (ADR-012); this is just enough of it for the Today screen to be exercised.
 import type {
   DayLineMark,
-  HydrationDay,
   LocalDate,
   Occurrence,
   OccurrenceAction,
   OccurrenceActionResult,
   TodayView,
 } from '../api/types';
-import {
-  HYDRATION_GOAL_ML,
-  HYDRATION_PRESETS_ML,
-  OCCURRENCE_SEEDS,
-  SNOOZE_CHOICES_MINUTES,
-  WATER_SEED,
-  type OccurrenceSeed,
-} from './data';
+import { OCCURRENCE_SEEDS, SNOOZE_CHOICES_MINUTES, type OccurrenceSeed } from './data';
 import { addDays, formatDate, toTime } from './dates';
 
 const LATE_AFTER_MINUTES = 60;
@@ -56,7 +48,6 @@ function toOccurrence(record: OccurrenceRecord, now: number): Occurrence {
 
 export class MockDay {
   private readonly records: OccurrenceRecord[];
-  private readonly water = [...WATER_SEED];
 
   constructor(withOccurrences: boolean) {
     const seeds = withOccurrences ? OCCURRENCE_SEEDS : [];
@@ -68,19 +59,6 @@ export class MockDay {
 
   private find(id: string): OccurrenceRecord | undefined {
     return this.records.find((record) => record.seed.id === id);
-  }
-
-  hydration(): HydrationDay {
-    return {
-      totalMl: this.water.reduce((total, entry) => total + entry.ml, 0),
-      goalMl: HYDRATION_GOAL_ML,
-      presetsMl: HYDRATION_PRESETS_ML,
-    };
-  }
-
-  addWater(ml: number, now: number): HydrationDay {
-    this.water.push({ minute: now, ml });
-    return this.hydration();
   }
 
   dueMedicationIds(now: number): Set<string> {
@@ -117,13 +95,11 @@ export class MockDay {
       kind: 'dose',
       state: stateOf(record, now).state,
     }));
-    const waterMarks = this.water.map((entry): DayLineMark => ({ minute: entry.minute, kind: 'water' }));
     return {
       ...frame(today, today),
       nowMinute: now,
       occurrences: this.records.map((record) => toOccurrence(record, now)),
-      hydration: this.hydration(),
-      dayLine: [...doseMarks, ...waterMarks],
+      dayLine: doseMarks,
     };
   }
 }

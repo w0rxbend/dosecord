@@ -5,8 +5,20 @@ import { en } from '../i18n/en';
 import type { FieldError } from './client';
 import type { components } from './schema';
 import type {
+  AccountSettings,
+  BlobAsset,
+  CalendarSwatch,
+  Chart,
+  Consents,
+  InsightCalendar,
   InsightRange,
   InsightsOverview,
+  MoodScale,
+  MoodSummary,
+  NotificationSettings,
+  SceneNode,
+  WaterSettings,
+  WaterSummary,
   Medication,
   MedicationDraft,
   MedicationOptions,
@@ -204,7 +216,7 @@ export function toSchedule(wire: Wire['Schedule']): Schedule {
 const RANGES: readonly InsightRange[] = [7, 30, 90];
 const isRange = (days: number): days is InsightRange => (RANGES as readonly number[]).includes(days);
 
-/** The server sends sentences and today's vessel; it has no chart scenes yet, so a block has none. */
+/** Sentences, today's vessel and the charts of the period, each a scene the server laid out. */
 export function toInsightsOverview(wire: Wire['InsightsOverview'], asked: InsightRange): InsightsOverview {
   return {
     rangeDays: isRange(wire.rangeDays) ? wire.rangeDays : asked,
@@ -215,9 +227,148 @@ export function toInsightsOverview(wire: Wire['InsightsOverview'], asked: Insigh
       title: block.title,
       lines: block.lines ?? [],
       noDataText: block.noDataText,
-      charts: [],
+      charts: (block.charts ?? []).map(toChart),
       vessel: block.vessel,
     })),
     notice: wire.notice,
+  };
+}
+
+// ---------- charts: the server's scene nodes as the painter's primitives ----------
+
+function toSceneNode(wire: Wire['SceneNode']): SceneNode | null {
+  const { x, y, tone: fill } = wire;
+  switch (wire.shape) {
+    case 'rect':
+      return {
+        kind: 'rect',
+        x,
+        y,
+        width: wire.width ?? 0,
+        height: wire.height ?? 0,
+        radius: wire.radius,
+        fill,
+        opacity: wire.opacity,
+        outlined: wire.style === 'outlined',
+        dashed: wire.style === 'dashed',
+        mark: wire.mark,
+      };
+    case 'line':
+      return { kind: 'line', x1: x, y1: y, x2: wire.x2 ?? x, y2: wire.y2 ?? y, stroke: fill, dashed: wire.style === 'dashed' };
+    case 'circle':
+      return { kind: 'circle', x, y, r: wire.radius ?? 3, fill, mark: wire.mark };
+    case 'hit':
+      return wire.mark === undefined
+        ? null
+        : { kind: 'hit', x, y, width: wire.width ?? 0, height: wire.height ?? 0, mark: wire.mark };
+    case 'text':
+      return { kind: 'text', x, y, text: wire.text ?? '', fill, anchor: wire.anchor };
+  }
+}
+
+export function toChart(wire: Wire['Chart']): Chart {
+  return {
+    id: wire.id,
+    title: wire.title,
+    summary: wire.summary,
+    scene: {
+      width: wire.scene.width,
+      height: wire.scene.height,
+      nodes: (wire.scene.nodes ?? []).map(toSceneNode).filter((node) => node !== null),
+    },
+    table: { caption: wire.table.caption, columns: wire.table.columns ?? [], rows: wire.table.rows ?? [] },
+    marks: wire.marks ?? [],
+  };
+}
+
+// ---------- hydration and mood ----------
+
+export function toWaterSummary(wire: Wire['HydrationSummary']): WaterSummary {
+  return {
+    today: wire.today,
+    presetsMl: wire.presetsMl ?? [],
+    chart: wire.chart && toChart(wire.chart),
+    noDataText: wire.noDataText,
+  };
+}
+
+export function toWaterSettings(wire: Wire['HydrationSettings']): WaterSettings {
+  return { presetsMl: wire.presetsMl ?? [], goalMl: wire.goalMl, limits: wire.limits, version: wire.version };
+}
+
+export function toMoodScale(wire: Wire['MoodScale']): MoodScale {
+  return {
+    valence: wire.valence ?? [],
+    energy: wire.energy ?? [],
+    blobRevision: wire.blobRevision,
+    statement: wire.statement,
+  };
+}
+
+export function toBlobAsset(wire: Wire['MoodBlobStates']): BlobAsset {
+  return {
+    revision: wire.revision,
+    states: (wire.states ?? []).map((state) => ({
+      ...state,
+      outline: state.outline ?? [],
+      gradient: state.gradient ?? [],
+      ground: state.ground ?? [],
+      face: state.face && {
+        ...state.face,
+        eyes: state.face.eyes ?? [],
+        mouth: state.face.mouth ?? [],
+        brows: state.face.brows ?? [],
+      },
+    })),
+  };
+}
+
+export function toMoodSummary(wire: Wire['MoodSummary']): MoodSummary {
+  return { today: wire.today, days: wire.days ?? [] };
+}
+
+// ---------- calendar ----------
+
+/** `hasNoRecord` is left out of the document when it is false. */
+function toSwatch(wire: Wire['CalendarSwatch']): CalendarSwatch {
+  return { state: wire.state, step: wire.step, blobState: wire.blobState, hasNoRecord: Boolean(wire.hasNoRecord) };
+}
+
+export function toCalendar(wire: Wire['InsightCalendar']): InsightCalendar {
+  return {
+    domain: wire.domain,
+    month: wire.month,
+    monthLabel: wire.monthLabel,
+    previousMonth: wire.previousMonth,
+    nextMonth: wire.nextMonth,
+    steps: wire.steps,
+    weekStart: wire.weekStart,
+    days: (wire.days ?? []).map((day) => ({ date: day.date, name: day.name, value: day.value, swatch: toSwatch(day.swatch) })),
+    legend: (wire.legend ?? []).map((entry) => ({ label: entry.label, swatch: toSwatch(entry.swatch) })),
+    summary: wire.summary,
+    domains: wire.domains ?? [],
+  };
+}
+
+// ---------- settings and consent ----------
+
+export function toAccountSettings(wire: Wire['SettingsView']): AccountSettings {
+  return {
+    language: wire.language,
+    languages: (wire.languages ?? []).map((choice) => ({ value: choice.code, label: choice.label })),
+    timeZone: wire.timeZone,
+    imageTheme: wire.imageTheme,
+    version: wire.version,
+  };
+}
+
+export function toNotificationSettings(wire: Wire['NotificationSettingsView']): NotificationSettings {
+  return { discreet: wire.discreet, quietHours: wire.quietHours, notes: wire.notes ?? [], version: wire.version };
+}
+
+export function toConsents(wire: Wire['ConsentList']): Consents {
+  return {
+    items: (wire.items ?? []).map(({ purpose, title, granted, text }) => ({ purpose, title, granted, text })),
+    notes: wire.notes ?? [],
   };
 }

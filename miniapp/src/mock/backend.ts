@@ -5,8 +5,9 @@ import { parseDecimal, isPositive } from '../forms/decimal';
 import { MEDICATION_OPTIONS, SCHEDULE_PATTERNS, WEEKDAYS, seedMedications, toSummary, type MedicationRecord } from './data';
 import { toLocalDate } from './dates';
 import { MockDay, otherDay } from './day';
-import { buildOverview } from './insights';
+import { buildOverview, doseHistory } from './insights';
 import { buildPreview } from './preview';
+import { MockTracking } from './tracking';
 
 export const MOCK_BACKEND_MARKER = 'dosegram-mock-backend';
 const ZONE_LABEL = 'Europe/Kyiv';
@@ -42,8 +43,11 @@ export class MockBackend implements ApiClient {
   private readonly latencyMs: number;
   private records: MedicationRecord[] = [];
   private day = new MockDay(true);
+  /** Water, mood, calendar, settings and consents. Tests reach in, for example to withdraw a consent. */
+  tracking!: MockTracking;
   private readonly schedules: Schedule[] = [];
   private readonly answered = new Map<string, OccurrenceActionResult>();
+  private readonly replies = new Map<string, unknown>();
   private nextId = 1;
 
   constructor(options: MockBackendOptions = {}) {
@@ -58,6 +62,7 @@ export class MockBackend implements ApiClient {
     const empty = this.scenario === 'empty';
     this.records = empty ? [] : seedMedications();
     this.day = new MockDay(!empty);
+    this.tracking = new MockTracking(() => this.localToday(), () => this.minute(), !empty);
   }
 
   resolveInChat(occurrenceId: string): void {
@@ -94,6 +99,7 @@ export class MockBackend implements ApiClient {
 
   today: ApiClient['today'] = (date) =>
     this.respond('today', () => {
+      if (!this.tracking.isOn('medication')) throw new ApiError('consent_required', 'MOCK-0403');
       const today = this.localToday();
       const withOccurrences = this.scenario !== 'empty';
       return date === undefined || date === today
@@ -111,8 +117,71 @@ export class MockBackend implements ApiClient {
       return result;
     });
 
-  addHydration: ApiClient['addHydration'] = (amountMl) =>
-    this.respond('hydration/entries', () => this.day.addWater(amountMl, this.minute()));
+  waterSummary: ApiClient['waterSummary'] = () => this.respond('hydration/summary', () => this.tracking.waterSummary());
+
+  waterEntries: ApiClient['waterEntries'] = (from, to) =>
+    this.respond('hydration/entries', () => this.tracking.waterEntries(from, to));
+
+  addWater: ApiClient['addWater'] = (amountMl, key) =>
+    this.respond('hydration/entries:create', () => this.once(key, () => this.tracking.addWater(amountMl)));
+
+  removeWater: ApiClient['removeWater'] = (id) =>
+    this.respond('hydration/entries/{id}:delete', () => this.tracking.removeWater(id));
+
+  waterSettings: ApiClient['waterSettings'] = () => this.respond('hydration/settings', () => this.tracking.waterSettings());
+
+  saveWaterSettings: ApiClient['saveWaterSettings'] = (input, version) =>
+    this.respond('hydration/settings:update', () => this.tracking.saveWaterSettings(input, version));
+
+  moodScale: ApiClient['moodScale'] = () => this.respond('mood/scale', () => this.tracking.moodScale());
+
+  blobStates: ApiClient['blobStates'] = () => this.respond('mood/blob-states', () => this.tracking.blobStates());
+
+  moodSummary: ApiClient['moodSummary'] = () => this.respond('mood/summary', () => this.tracking.moodSummary());
+
+  moodCheckins: ApiClient['moodCheckins'] = (from, to) =>
+    this.respond('mood/checkins', () => this.tracking.moodCheckins(from, to));
+
+  checkIn: ApiClient['checkIn'] = (input, key) =>
+    this.respond('mood/checkins:create', () => this.once(key, () => this.tracking.checkIn(input)));
+
+  removeCheckin: ApiClient['removeCheckin'] = (id) =>
+    this.respond('mood/checkins/{id}:delete', () => this.tracking.removeCheckin(id));
+
+  calendar: ApiClient['calendar'] = (domain, month) =>
+    this.respond('insights/calendar', () =>
+      this.tracking.calendar(domain, month, (date) => {
+        const [day] = doseHistory([date]);
+        return this.scenario === 'empty' || !day ? [0, 0] : [day.taken, day.scheduled];
+      }),
+    );
+
+  settings: ApiClient['settings'] = () => this.respond('settings', () => this.tracking.settings());
+
+  saveSettings: ApiClient['saveSettings'] = (input, version) =>
+    this.respond('settings:update', () => this.tracking.saveSettings(input, version));
+
+  notificationSettings: ApiClient['notificationSettings'] = () =>
+    this.respond('notification-settings', () => this.tracking.notificationSettings());
+
+  saveNotificationSettings: ApiClient['saveNotificationSettings'] = (input, version) =>
+    this.respond('notification-settings:update', () => this.tracking.saveNotificationSettings(input, version));
+
+  timeZones: ApiClient['timeZones'] = () => this.respond('time-zones', () => this.tracking.timeZones());
+
+  previewTimeZone: ApiClient['previewTimeZone'] = (timeZone) =>
+    this.respond('time-zone-previews', () => this.tracking.previewTimeZone(timeZone));
+
+  consents: ApiClient['consents'] = () => this.respond('consents', () => this.tracking.consents());
+
+  /** A repeated idempotency key answers the first result (MA-HYD-1). */
+  private once<T>(key: string, run: () => T): T {
+    const replay = this.replies.get(key);
+    if (replay !== undefined) return replay as T;
+    const result = run();
+    this.replies.set(key, result);
+    return result;
+  }
 
   medications: ApiClient['medications'] = () =>
     this.respond('medications', () => {
@@ -164,7 +233,7 @@ export class MockBackend implements ApiClient {
 
   insightsOverview: ApiClient['insightsOverview'] = (rangeDays) =>
     this.respond('insights/overview', () =>
-      buildOverview(rangeDays, this.localToday(), this.day.hydration(), this.scenario !== 'empty'),
+      buildOverview(rangeDays, this.localToday(), this.tracking, this.scenario !== 'empty'),
     );
 
   private preview(medicationId: string, draft: ScheduleDraft) {

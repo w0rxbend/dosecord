@@ -19,7 +19,7 @@ describe('Application shell', () => {
     open(harness);
 
     expect(await heading('Today')).toBeTruthy();
-    expect(within(tabs()).getAllByRole('link').map((link) => link.textContent?.trim())).toEqual(['Today', 'Meds', 'Insights']);
+    expect(within(tabs()).getAllByRole('link').map((link) => link.textContent?.trim())).toEqual(['Today', 'Meds', 'Log', 'Insights']);
     expect(within(tabs()).getByRole('link', { name: 'Today' }).getAttribute('aria-current')).toBe('page');
     expect(harness.tg.backButton.visible).toBe(false);
     expect(screen.getAllByRole('main')).toHaveLength(1);

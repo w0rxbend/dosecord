@@ -137,4 +137,29 @@ describe('Insights', () => {
 
     expect(await block('Medication')).toBeTruthy();
   });
+
+  it('shows the exact value of a picked day in a caption under the chart, by tap or by arrow key', async () => {
+    const user = open(createHarness());
+
+    const mood = await block('Mood');
+    const values = within(mood).getByRole('slider', { name: 'Mood per day: values' });
+    expect(within(mood).getByText(/^12 Nov: /)).toBeTruthy();
+
+    values.focus();
+    await user.keyboard('{ArrowLeft}');
+    expect(values.getAttribute('aria-valuetext')).toMatch(/^11 Nov: /);
+    expect(within(mood).getByText(values.getAttribute('aria-valuetext')!)).toBeTruthy();
+
+    await user.click(values.querySelector('.hit[data-mark="0"]')!);
+    expect(values.getAttribute('aria-valuetext')).toMatch(/^14 Oct: /);
+  });
+
+  it('leaves a domain whose consent is withdrawn out of the overview', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('mood');
+    open(harness);
+
+    expect(await block('Water')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Mood' })).toBeNull();
+  });
 });

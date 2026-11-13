@@ -2,8 +2,17 @@
 // OpenAPI document (./schema.d.ts); ./wire.ts maps them to the types the screens use.
 import { ApiError, newIdempotencyKey, type ApiClient, type ApiErrorCode } from './client';
 import {
+  toAccountSettings,
+  toBlobAsset,
+  toCalendar,
+  toConsents,
   toFieldError,
   toInsightsOverview,
+  toMoodScale,
+  toMoodSummary,
+  toNotificationSettings,
+  toWaterSettings,
+  toWaterSummary,
   toMedication,
   toMedicationInput,
   toMedicationOptions,
@@ -21,7 +30,7 @@ const TIMEOUT_MS = 10_000;
 const FRESHNESS_MS = 300_000;
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   headers?: Record<string, string>;
 }
@@ -37,6 +46,8 @@ const CODES: Readonly<Record<string, ApiErrorCode>> = {
   precondition_required: 'version_conflict',
   validation_failed: 'validation',
   idempotency_key_reuse: 'validation',
+  quota_exceeded: 'quota_exceeded',
+  stepup_required: 'stepup_required',
 };
 
 /** A problem document becomes a typed error; its code is mapped, its title is never shown (8.3). */
@@ -134,6 +145,7 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
   }
 
   const command = (key: string) => ({ 'Idempotency-Key': key });
+  const range = (from: string, to: string) => `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
   const versionTag = (version: number) => ({ 'If-Match': `"v${version}"` });
   const id = encodeURIComponent;
   /** A resource of MINI_APP 15.2 that the server does not have yet. */
@@ -142,7 +154,68 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
   const client: ApiClient = {
     today: async (date) => toTodayView(await request<Wire['DayView']>(date ? `days/${id(date)}` : 'today')),
     actOnOccurrence: unavailable,
-    addHydration: unavailable,
+
+    waterSummary: async () => toWaterSummary(await request<Wire['HydrationSummary']>('hydration/summary')),
+    waterEntries: async (from, to) =>
+      (await request<Wire['HydrationEntries']>(`hydration/entries?${range(from, to)}`)).items ?? [],
+    addWater: async (amountMl, key) => {
+      const body: Wire['HydrationEntryInput'] = { amountMl };
+      return request<Wire['HydrationLogged']>('hydration/entries', { method: 'POST', body, headers: command(key) });
+    },
+    removeWater: (entryId) => request<Wire['HydrationDayView']>(`hydration/entries/${id(entryId)}`, { method: 'DELETE' }),
+    waterSettings: async () => toWaterSettings(await request<Wire['HydrationSettings']>('hydration/settings')),
+    saveWaterSettings: async (input, version) => {
+      const body: Wire['HydrationSettingsInput'] = { presetsMl: [...input.presetsMl], goalMl: input.goalMl };
+      const saved = await request<Wire['HydrationSettings']>('hydration/settings', {
+        method: 'PATCH',
+        body,
+        headers: versionTag(version),
+      });
+      return toWaterSettings(saved);
+    },
+
+    moodScale: async () => toMoodScale(await request<Wire['MoodScale']>('mood/scale')),
+    blobStates: async (revision) =>
+      toBlobAsset(await request<Wire['MoodBlobStates']>(`mood/blob-states?revision=${id(revision)}`)),
+    moodSummary: async () => toMoodSummary(await request<Wire['MoodSummary']>('mood/summary')),
+    moodCheckins: async (from, to) =>
+      (await request<Wire['MoodCheckins']>(`mood/checkins?${range(from, to)}`)).items ?? [],
+    checkIn: (input, key) => {
+      const body: Wire['MoodCheckinInput'] = { valence: input.valence, energy: input.energy };
+      return request<Wire['MoodRecordedView']>('mood/checkins', { method: 'POST', body, headers: command(key) });
+    },
+    removeCheckin: (checkinId) => request<Wire['MoodDayView']>(`mood/checkins/${id(checkinId)}`, { method: 'DELETE' }),
+
+    calendar: async (domain, month) => {
+      const query = month === undefined ? '' : `&month=${id(month)}`;
+      return toCalendar(await request<Wire['InsightCalendar']>(`insights/calendar?domain=${domain}${query}`));
+    },
+
+    settings: async () => toAccountSettings(await request<Wire['SettingsView']>('settings')),
+    saveSettings: async (input, version) => {
+      const body: Wire['SettingsInput'] = { ...input };
+      return toAccountSettings(
+        await request<Wire['SettingsView']>('settings', { method: 'PATCH', body, headers: versionTag(version) }),
+      );
+    },
+    notificationSettings: async () =>
+      toNotificationSettings(await request<Wire['NotificationSettingsView']>('notification-settings')),
+    saveNotificationSettings: async (input, version) => {
+      const body: Wire['NotificationSettingsInput'] = { ...input };
+      const saved = await request<Wire['NotificationSettingsView']>('notification-settings', {
+        method: 'PATCH',
+        body,
+        headers: versionTag(version),
+      });
+      return toNotificationSettings(saved);
+    },
+    timeZones: async () => (await request<Wire['TimeZoneList']>('time-zones')).items ?? [],
+    previewTimeZone: async (timeZone) => {
+      const body: Wire['TimeZonePreviewRequest'] = { timeZone };
+      const preview = await request<Wire['TimeZonePreview']>('time-zone-previews', { method: 'POST', body });
+      return { ...preview, lines: preview.lines ?? [] };
+    },
+    consents: async () => toConsents(await request<Wire['ConsentList']>('consents')),
 
     medications: async () => ((await request<Wire['MedicationList']>('medications')).items ?? []).map(toMedicationSummary),
     medication: async (medicationId) => toMedication(await request<Wire['Medication']>(`medications/${id(medicationId)}`)),

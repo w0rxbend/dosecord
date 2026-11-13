@@ -29,6 +29,16 @@
   const medEditor = () => import('../screens/editor/MedEditorScreen.svelte');
   const schedule = () => import('../screens/schedule/ScheduleScreen.svelte');
   const insights = () => import('../screens/insights/InsightsScreen.svelte');
+  const log = () => import('../screens/log/LogScreen.svelte');
+  const water = () => import('../screens/water/WaterScreen.svelte');
+  const waterSettings = () => import('../screens/water/WaterSettingsScreen.svelte');
+  const mood = () => import('../screens/mood/MoodScreen.svelte');
+  const moodNew = () => import('../screens/mood/MoodCheckInScreen.svelte');
+  const history = () => import('../screens/history/HistoryScreen.svelte');
+  const settings = () => import('../screens/settings/SettingsScreen.svelte');
+  const timeZone = () => import('../screens/settings/TimeZoneScreen.svelte');
+  const quietHours = () => import('../screens/settings/QuietHoursScreen.svelte');
+  const privacy = () => import('../screens/settings/PrivacyScreen.svelte');
 </script>
 
 <div class="app" class:with-tabs={atRoot}>
@@ -52,6 +62,28 @@
         <Lazy load={medEditor} props={{ id: route.id }} />
       {:else if route.screen === 'schedule-new'}
         <Lazy load={schedule} props={{ medicationId: route.medicationId }} />
+      {:else if route.screen === 'log'}
+        <Lazy load={log} props={{}} />
+      {:else if route.screen === 'water'}
+        <Lazy load={water} props={{}} />
+      {:else if route.screen === 'water-settings'}
+        <Lazy load={waterSettings} props={{}} />
+      {:else if route.screen === 'mood'}
+        <Lazy load={mood} props={{}} />
+      {:else if route.screen === 'mood-new'}
+        <Lazy load={moodNew} props={{}} />
+      {:else if route.screen === 'history'}
+        <Lazy load={history} props={{}} />
+      {:else if route.screen === 'day'}
+        <TodayScreen date={route.date} title={en.day.title} />
+      {:else if route.screen === 'settings'}
+        <Lazy load={settings} props={{}} />
+      {:else if route.screen === 'settings-tz'}
+        <Lazy load={timeZone} props={{}} />
+      {:else if route.screen === 'settings-notif'}
+        <Lazy load={quietHours} props={{}} />
+      {:else if route.screen === 'settings-privacy'}
+        <Lazy load={privacy} props={{}} />
       {:else}
         <Lazy load={insights} props={{}} />
       {/if}

@@ -59,6 +59,7 @@ export function outcomeBar(outcomes: DoseOutcomes): Chart {
   });
   const summary = labels.map(([label, count]) => `${count} ${label}`).join(', ');
   return {
+    id: 'dose-outcomes',
     title: 'Dose outcomes',
     summary: `Of ${total} scheduled doses: ${summary}.`,
     scene: { width: WIDTH, height: 20, nodes },
@@ -67,6 +68,7 @@ export function outcomeBar(outcomes: DoseOutcomes): Chart {
       columns: ['Outcome', 'Doses'],
       rows: labels.map(([label, count]) => [label, String(count)]),
     },
+    marks: labels.filter(([, count]) => count > 0).map(([label, count]) => `${count} ${label}`),
   };
 }
 
@@ -90,6 +92,7 @@ export function doseCalendar(days: readonly DoseDay[]): Chart {
       fill: share === null ? 'separator' : 'domain-medication',
       opacity: share === null ? 1 : 0.2 + 0.8 * share,
       outlined: share !== null && share < 1,
+      mark: index,
     };
   });
   const labels = (['Mon', 'Wed', 'Fri', 'Sun'] as const).map(
@@ -104,6 +107,7 @@ export function doseCalendar(days: readonly DoseDay[]): Chart {
   const complete = days.filter((day) => day.scheduled > 0 && day.taken === day.scheduled).length;
   const withDoses = days.filter((day) => day.scheduled > 0).length;
   return {
+    id: 'doses-by-day',
     title: 'Doses recorded by day',
     summary: `All scheduled doses were recorded as taken on ${complete} of ${withDoses} days with doses.`,
     scene: { width: WIDTH, height: 7 * pitch, nodes: [...labels, ...cells] },
@@ -112,46 +116,125 @@ export function doseCalendar(days: readonly DoseDay[]): Chart {
       columns: ['Day', 'Taken', 'Scheduled'],
       rows: days.map((day) => [shortDate(day.date), String(day.taken), String(day.scheduled)]),
     },
+    marks: days.map((day) => `${shortDate(day.date)}: ${day.taken} of ${day.scheduled} taken`),
   };
 }
 
-/** Bars from zero with a dashed goal line (MINI_APP 7.11). */
-export function waterBars(days: readonly WaterDay[], goalMl: number): Chart {
+/** Bars from zero with a dashed goal line (MINI_APP 7.11); a day without water is a gap. */
+export function waterBars(days: readonly WaterDay[], goalMl: number | undefined): Chart {
   const plotHeight = 96;
   const axisWidth = 44;
-  const top = Math.max(goalMl, ...days.map((day) => day.totalMl)) * 1.1;
+  const top = Math.max(goalMl ?? 0, ...days.map((day) => day.totalMl)) * 1.1;
   const pitch = (WIDTH - axisWidth) / days.length;
   const scale = (ml: number): number => plotHeight - (ml / top) * plotHeight;
-  const bars = days.map(
-    (day, index): SceneNode => ({
-      kind: 'rect',
-      x: axisWidth + index * pitch + pitch * 0.15,
-      y: scale(day.totalMl),
-      width: pitch * 0.7,
-      height: plotHeight - scale(day.totalMl),
-      radius: Math.min(2, pitch * 0.2),
-      fill: 'domain-hydration',
-    }),
+  const bars = days.flatMap((day, index): SceneNode[] =>
+    day.totalMl === 0
+      ? []
+      : [
+          {
+            kind: 'rect',
+            x: axisWidth + index * pitch + pitch * 0.15,
+            y: scale(day.totalMl),
+            width: pitch * 0.7,
+            height: plotHeight - scale(day.totalMl),
+            radius: Math.min(2, pitch * 0.2),
+            fill: 'domain-hydration',
+            mark: index,
+          },
+        ],
   );
-  const reached = days.filter((day) => day.totalMl >= goalMl).length;
+  const goal: SceneNode[] =
+    goalMl === undefined
+      ? []
+      : [
+          { kind: 'line', x1: axisWidth, y1: scale(goalMl), x2: WIDTH, y2: scale(goalMl), stroke: 'text-muted', dashed: true },
+          { kind: 'text', x: 0, y: scale(goalMl) + LABEL_SIZE / 3, text: litres(goalMl), fill: 'text-muted' },
+        ];
+  const hits = days.map(
+    (_, index): SceneNode => ({ kind: 'hit', x: axisWidth + index * pitch, y: 0, width: pitch, height: plotHeight, mark: index }),
+  );
   const nodes: SceneNode[] = [
     ...bars,
     { kind: 'line', x1: axisWidth, y1: plotHeight, x2: WIDTH, y2: plotHeight, stroke: 'separator' },
-    { kind: 'line', x1: axisWidth, y1: scale(goalMl), x2: WIDTH, y2: scale(goalMl), stroke: 'text-muted', dashed: true },
-    { kind: 'text', x: 0, y: scale(goalMl) + LABEL_SIZE / 3, text: litres(goalMl), fill: 'text-muted' },
-    { kind: 'text', x: 0, y: plotHeight, text: '0 L', fill: 'text-muted' },
+    ...goal,
     { kind: 'text', x: axisWidth, y: plotHeight + 18, text: shortDate(days[0]!.date), fill: 'text-muted' },
     { kind: 'text', x: WIDTH, y: plotHeight + 18, text: shortDate(days.at(-1)!.date), fill: 'text-muted', anchor: 'end' },
+    ...hits,
   ];
+  const recorded = days.filter((day) => day.totalMl > 0);
+  const reached = goalMl === undefined ? '' : ` The goal was reached on ${recorded.filter((day) => day.totalMl >= goalMl).length} of ${recorded.length} recorded days.`;
+  const valueOf = (day: WaterDay): string => (day.totalMl === 0 ? 'no entry' : litres(day.totalMl));
   return {
+    id: 'water-by-day',
     title: 'Water per day',
-    summary: `Water per day against a goal of ${litres(goalMl)}. The goal was reached on ${reached} of ${days.length} days.`,
+    summary: `Water per day, ${shortDate(days[0]!.date)} to ${shortDate(days.at(-1)!.date)}. Entries on ${recorded.length} of ${days.length} days.${reached}`,
     scene: { width: WIDTH, height: plotHeight + 24, nodes },
     table: {
       caption: 'Water per day',
       columns: ['Day', 'Water'],
-      rows: days.map((day) => [shortDate(day.date), litres(day.totalMl)]),
+      rows: days.map((day) => [shortDate(day.date), day.totalMl === 0 ? 'No entry' : litres(day.totalMl)]),
     },
+    marks: days.map((day) => `${shortDate(day.date)}: ${valueOf(day)}`),
+  };
+}
+
+export interface MoodPoint {
+  readonly date: LocalDate;
+  readonly mean: number | null;
+  readonly checkIns: number;
+}
+
+/** The line of the daily mean with a dot per day that has one; a day without one is a gap. */
+export function moodLine(days: readonly MoodPoint[]): Chart {
+  const plotHeight = 96;
+  const plotTop = 16;
+  const gutter = 96;
+  const pitch = (WIDTH - gutter) / days.length;
+  const xOf = (index: number): number => gutter + index * pitch + pitch / 2;
+  const yOf = (mean: number): number => plotTop + ((5 - mean) / 4) * (plotHeight - plotTop);
+  const levels = ([[5, 'Very pleasant'], [3, 'Neutral'], [1, 'Very unpleasant']] as const).flatMap(
+    ([step, name]): SceneNode[] => [
+      { kind: 'line', x1: gutter, y1: yOf(step), x2: WIDTH, y2: yOf(step), stroke: 'separator' },
+      { kind: 'text', x: 0, y: yOf(step) + 4, text: name, fill: 'text-muted' },
+    ],
+  );
+  const joins = days.slice(1).flatMap((day, index): SceneNode[] => {
+    const before = days[index]!;
+    return day.mean === null || before.mean === null
+      ? []
+      : [{ kind: 'line', x1: xOf(index), y1: yOf(before.mean), x2: xOf(index + 1), y2: yOf(day.mean), stroke: 'domain-mood' }];
+  });
+  const dots = days.flatMap((day, index): SceneNode[] =>
+    day.mean === null ? [] : [{ kind: 'circle', x: xOf(index), y: yOf(day.mean), r: 3.5, fill: 'domain-mood', mark: index }],
+  );
+  const hits = days.map(
+    (_, index): SceneNode => ({ kind: 'hit', x: gutter + index * pitch, y: 0, width: pitch, height: plotHeight, mark: index }),
+  );
+  const recorded = days.filter((day) => day.mean !== null).length;
+  const valueOf = (day: MoodPoint): string =>
+    day.mean === null ? 'no check-in' : `${day.mean.toFixed(1)}, ${day.checkIns === 1 ? '1 check-in' : `${day.checkIns} check-ins`}`;
+  return {
+    id: 'mood-by-day',
+    title: 'Mood per day',
+    summary: `Daily mood, ${shortDate(days[0]!.date)} to ${shortDate(days.at(-1)!.date)}. Check-ins on ${recorded} of ${days.length} days. A day without a check-in is a gap.`,
+    scene: {
+      width: WIDTH,
+      height: plotHeight + 24,
+      nodes: [
+        ...levels,
+        ...joins,
+        ...dots,
+        { kind: 'text', x: gutter, y: plotHeight + 18, text: shortDate(days[0]!.date), fill: 'text-muted' },
+        { kind: 'text', x: WIDTH, y: plotHeight + 18, text: shortDate(days.at(-1)!.date), fill: 'text-muted', anchor: 'end' },
+        ...hits,
+      ],
+    },
+    table: {
+      caption: 'Mood per day',
+      columns: ['Day', 'Daily mood', 'Check-ins'],
+      rows: days.map((day) => [shortDate(day.date), day.mean === null ? 'No check-in' : day.mean.toFixed(1), String(day.checkIns)]),
+    },
+    marks: days.map((day) => `${shortDate(day.date)}: ${valueOf(day)}`),
   };
 }
 

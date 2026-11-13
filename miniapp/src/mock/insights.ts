@@ -1,35 +1,19 @@
-// Stands in for insights/overview: synthetic history, descriptive sentences, laid-out scenes.
-// Counts and durations only: no score, no rating word, no comparison with other people (MA-INS-2).
-import type { HydrationDay, InsightBlock, InsightRange, InsightsOverview, LocalDate } from '../api/types';
+// Stands in for insights/overview: synthetic dose history, the mock's water and mood records,
+// descriptive sentences, laid-out scenes. Counts and durations only: no score, no rating word,
+// no comparison with other people (MA-INS-2).
+import type { InsightBlock, InsightRange, InsightsOverview, LocalDate } from '../api/types';
 import { formatDate } from './dates';
-import {
-  doseCalendar,
-  lastDays,
-  outcomeBar,
-  outcomeLabels,
-  seeded,
-  waterBars,
-  type DoseDay,
-  type DoseOutcomes,
-  type WaterDay,
-} from './scenes';
+import { doseCalendar, lastDays, outcomeBar, outcomeLabels, seeded, waterBars, type DoseDay, type DoseOutcomes } from './scenes';
+import type { MockTracking } from './tracking';
 
 const litres = (ml: number): string => `${(ml / 1000).toFixed(1)} L`;
 
-function doseHistory(dates: readonly LocalDate[]): DoseDay[] {
-  const random = seeded(7);
+export function doseHistory(dates: readonly LocalDate[]): DoseDay[] {
   return dates.map((date) => {
-    const roll = random();
+    // Seeded by the date, so a day has the same record in every view.
+    const roll = seeded(Number(date.replaceAll('-', '')))();
     return { date, scheduled: 4, taken: roll < 0.7 ? 4 : roll < 0.92 ? 3 : 2 };
   });
-}
-
-function waterHistory(dates: readonly LocalDate[], todayMl: number): WaterDay[] {
-  const random = seeded(11);
-  return dates.map((date, index) => ({
-    date,
-    totalMl: index === dates.length - 1 ? todayMl : 900 + Math.round(random() * 16) * 100,
-  }));
 }
 
 function outcomesOf(days: readonly DoseDay[]): DoseOutcomes {
@@ -58,31 +42,46 @@ function medicationBlock(days: readonly DoseDay[], rangeDays: InsightRange): Ins
   };
 }
 
-/** How many days up to and including today have at least one entry. */
-function daysInARow(days: readonly WaterDay[]): number {
+function hydrationBlock(tracking: MockTracking, dates: readonly LocalDate[], rangeDays: InsightRange): InsightBlock {
+  const days = dates.map((date) => ({ date, totalMl: tracking.waterDay(date).totalMl }));
+  const recorded = days.filter((day) => day.totalMl > 0);
+  const today = tracking.waterDay(dates.at(-1)!);
+  const average = recorded.reduce((sum, day) => sum + day.totalMl, 0) / Math.max(1, recorded.length);
+  const goal = today.goalMl;
   const firstGap = [...days].reverse().findIndex((day) => day.totalMl === 0);
-  return firstGap === -1 ? days.length : firstGap;
-}
-
-function hydrationBlock(days: readonly WaterDay[], today: HydrationDay, rangeDays: InsightRange): InsightBlock {
-  const average = days.reduce((sum, day) => sum + day.totalMl, 0) / days.length;
-  const reached = days.filter((day) => day.totalMl >= today.goalMl).length;
   return {
     id: 'hydration',
     title: 'Water',
     lines: [
       `${litres(average)} a day on average`,
-      `Goal reached on ${reached} of ${days.length} days.`,
-      `Water logged ${daysInARow(days)} days in a row.`,
+      ...(goal === undefined ? [] : [`Goal reached on ${recorded.filter((day) => day.totalMl >= goal).length} of ${days.length} days.`]),
+      `Water logged ${firstGap === -1 ? days.length : firstGap} days in a row.`,
       `Previous ${rangeDays} days: ${litres(average - 100)} a day on average.`,
     ],
-    charts: [waterBars(days, today.goalMl)],
-    vessel: {
-      valueMl: today.totalMl,
-      goalMl: today.goalMl,
-      label: `Today: ${litres(today.totalMl)} of ${litres(today.goalMl)}, ${Math.round((today.totalMl / today.goalMl) * 100)} percent of your goal.`,
-    },
+    charts: [waterBars(days, goal)],
+    vessel:
+      goal === undefined
+        ? undefined
+        : {
+            valueMl: today.totalMl,
+            goalMl: goal,
+            label: `Today: ${litres(today.totalMl)} of ${litres(goal)}, ${Math.round((today.totalMl / goal) * 100)} percent of your goal.`,
+          },
   };
+}
+
+function moodBlock(tracking: MockTracking, dates: readonly LocalDate[]): InsightBlock {
+  const chart = tracking.moodChart(dates);
+  const checkins = tracking.moodCheckins(dates[0]!, dates.at(-1)!);
+  const days = new Set(checkins.map((checkin) => checkin.date)).size;
+  return chart
+    ? {
+        id: 'mood',
+        title: 'Mood',
+        lines: [`${checkins.length} check-ins on ${days} of ${dates.length} days`, `${days} of ${dates.length} days have data`],
+        charts: [chart],
+      }
+    : emptyBlock('mood', 'Mood');
 }
 
 function emptyBlock(id: InsightBlock['id'], title: string): InsightBlock {
@@ -92,20 +91,24 @@ function emptyBlock(id: InsightBlock['id'], title: string): InsightBlock {
 export function buildOverview(
   rangeDays: InsightRange,
   today: LocalDate,
-  hydration: HydrationDay,
+  tracking: MockTracking,
   hasHistory: boolean,
 ): InsightsOverview {
   const dates = lastDays(today, rangeDays);
   const short = { day: 'numeric', month: 'short' } as const;
+  const blocks: InsightBlock[] = [];
+  if (tracking.isOn('medication')) {
+    blocks.push(hasHistory ? medicationBlock(doseHistory(dates), rangeDays) : emptyBlock('medication', 'Medication'));
+  }
+  if (tracking.isOn('hydration')) {
+    blocks.push(hasHistory ? hydrationBlock(tracking, dates, rangeDays) : emptyBlock('hydration', 'Water'));
+  }
+  if (tracking.isOn('mood')) blocks.push(moodBlock(tracking, dates));
   return {
     rangeDays,
     rangeLabel: `${formatDate(dates[0]!, short)} to ${formatDate(today, short)}`,
     ranges: [7, 30, 90],
-    blocks: hasHistory
-      ? [
-          medicationBlock(doseHistory(dates), rangeDays),
-          hydrationBlock(waterHistory(dates, hydration.totalMl), hydration, rangeDays),
-        ]
-      : [emptyBlock('medication', 'Medication'), emptyBlock('hydration', 'Water')],
+    blocks,
+    notice: blocks.length === 0 ? 'Statistics appear here for the records you turned on in the chat.' : undefined,
   };
 }
