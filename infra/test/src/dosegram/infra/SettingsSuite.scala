@@ -26,6 +26,7 @@ class SettingsSuite extends munit.FunSuite:
     assertEquals(settings.logLevel, LogLevel.Info)
     assertEquals(settings.logFormat, LogFormat.Json)
     assertEquals(settings.consoleUserId, Some("owner"))
+    assertEquals(settings.healthPort, 8080)
     assert(settings.instanceId.nonEmpty)
 
   test("required fields are reported together, without values"):
@@ -70,6 +71,16 @@ class SettingsSuite extends munit.FunSuite:
     assertEquals(settings.logFormat, LogFormat.Plain)
     assertEquals(settings.telegramToken, Some("t"))
     assertEquals(settings.publicBaseUrl, Some("https://dosegram.example.com"))
+
+  test("HEALTH_PORT overrides the /healthz port"):
+    val Right(settings) = parse(base ++ Map("HEALTH_PORT" -> "18080")): @unchecked
+    assertEquals(settings.healthPort, 18080)
+
+  test("HEALTH_PORT rejects a value that is not a TCP port"):
+    List("http", "0", "65536", "-1").foreach { raw =>
+      val Left(errors) = parse(base ++ Map("HEALTH_PORT" -> raw)): @unchecked
+      assert(errors.exists(_.startsWith("HEALTH_PORT must be")), s"HEALTH_PORT=$raw was accepted")
+    }
 
   test("console adapter requires CONSOLE_USER_ID"):
     val Left(errors) = parse(base - "CONSOLE_USER_ID"): @unchecked

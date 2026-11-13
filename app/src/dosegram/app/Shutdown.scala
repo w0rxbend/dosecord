@@ -5,6 +5,7 @@ import ox.supervised
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
@@ -28,6 +29,21 @@ final class InFlightRegistry:
         if remainingMs > 0 then wait(remainingMs)
       active == 0
     }
+
+/** The gate between the drain and the worker forks that call a vendor. A fork runs each unit of claimed work through
+  * [[whileClaiming]]: the unit is registered as in-flight before the gate is read, so a drain that stops claiming and
+  * then waits for the registry cannot miss a unit that is about to start.
+  */
+final class ClaimGate(inFlight: InFlightRegistry):
+  private val claiming = AtomicBoolean(true)
+
+  def stop(): Unit = claiming.set(false)
+
+  /** Runs `unit` as one in-flight unit of work; `None`, without running it, once claiming has stopped. */
+  def whileClaiming[A](unit: => A): Option[A] =
+    inFlight.begin()
+    try if claiming.get() then Some(unit) else None
+    finally inFlight.end()
 
 /** Orderly SIGTERM shutdown (DESIGN.md section 12): stop accepting inbound, stop claiming new work, finish in-flight
   * within the drain budget.
@@ -55,8 +71,9 @@ object Shutdown:
 
   /** Runs `body` inside the single Ox `supervised` root scope of the process and parks until SIGTERM. On the signal the
     * drain runs (stop inbound, stop claiming, finish in-flight within [[DrainBudget]]), the scope then cancels the
-    * remaining forks, and the process halts 0 on a clean drain or 1 when the drain or the scope overruns
-    * `hardDeadline`.
+    * remaining forks and releases its resources, and the process halts 0 on a clean drain or 1 when the drain or the
+    * scope overruns `hardDeadline`. A failed fork ends the scope with its exception; the hook then halts 1 at once
+    * instead of waiting out `hardDeadline` (supervision is the recovery model, DESIGN.md section 3).
     */
   def serve(body: Ox ?=> Drain, log: String => Unit, hardDeadline: FiniteDuration = 25.seconds): Int =
     val stop = CountDownLatch(1)
@@ -69,10 +86,11 @@ object Shutdown:
       Runtime.getRuntime.halt(if finished then exitCode else 1)
     })
     Runtime.getRuntime.addShutdownHook(hook)
-    supervised {
-      val drain = body
-      stop.await()
-      exitCode = if drain.execute() then 0 else 1
-    }
-    done.countDown()
+    try
+      supervised {
+        val drain = body
+        stop.await()
+        exitCode = if drain.execute() then 0 else 1
+      }
+    finally done.countDown()
     exitCode

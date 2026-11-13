@@ -6,7 +6,6 @@ import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatMediator
-import dosegram.core.ports.Clock
 import dosegram.infra.Adapter
 import dosegram.infra.Metrics
 import dosegram.infra.Settings
@@ -22,10 +21,11 @@ import javax.sql.DataSource
   */
 object Adapters:
 
-  /** Starts every configured adapter; returns `(name, stop)` pairs for the drain. */
-  def start(settings: Settings, dataSource: DataSource, log: String => Unit)(using Ox): List[(String, () => Unit)] =
-    val uow = PgUnitOfWork(dataSource, Clock.system)
-    val adapters: Map[String, ChatAdapter] = settings.enabledAdapters.map {
+  /** The adapters named by `ENABLED_ADAPTERS`, by vendor. Building one opens no connection: the gateway half starts it,
+    * the worker half only sends through it.
+    */
+  def build(settings: Settings): Map[String, ChatAdapter] =
+    settings.enabledAdapters.map {
       case Adapter.Console =>
         val userId = settings.consoleUserId.getOrElse(
           throw IllegalArgumentException("CONSOLE_USER_ID is required when the console adapter is enabled")
@@ -34,13 +34,20 @@ object Adapters:
       case other =>
         throw IllegalArgumentException(s"adapter '${other.envName}' is not implemented in this build")
     }.toMap
+
+  /** Starts every adapter as a gateway; returns `(name, stop)` pairs for the drain. */
+  def start(settings: Settings, dataSource: DataSource, parts: Launch.Parts, log: String => Unit)(using
+      Ox
+  ): List[(String, () => Unit)] =
+    val adapters = parts.adapters
+    val uow = PgUnitOfWork(dataSource, parts.clock)
     val codec = CallbackCodec(settings.callbackKeys)
     val mediator = ChatMediator(
       uow,
       adapters,
       codec,
-      Application.handler(uow, adapters, codec, Clock.system),
-      Clock.system,
+      Application.handler(uow, adapters, codec, parts.clock),
+      parts.clock,
       commands = CommandRegistry.byName,
       recordFormDegraded = () => formDegradedCounter.increment()
     )

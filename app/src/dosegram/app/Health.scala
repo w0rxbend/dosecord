@@ -9,9 +9,7 @@ import sttp.tapir.server.netty.sync.NettySyncServerBinding
   * M2.4.
   */
 object Health:
-  val DefaultPort = 8080
-
   val healthz = endpoint.get.in("healthz").out(stringBody)
 
-  def start(port: Int = DefaultPort)(using Ox): NettySyncServerBinding =
+  def start(port: Int)(using Ox): NettySyncServerBinding =
     NettySyncServer().host("0.0.0.0").port(port).addEndpoint(healthz.handleSuccess(_ => "ok")).start()

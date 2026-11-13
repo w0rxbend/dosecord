@@ -20,3 +20,16 @@ import ox.fork
     },
     log = println(_)
   )
+
+/** Failure smoke process for [[ShutdownSuite]]: one fork of the root scope fails at once. Supervision ends the scope,
+  * and the process must exit 1 without waiting out the hard deadline.
+  */
+@main def failedForkSmokeMain(): Unit =
+  Shutdown.serve(
+    body = {
+      fork(throw IllegalStateException("smoke: fork failed"))
+      Drain(Nil, Nil, InFlightRegistry(), Shutdown.DrainBudget, println(_))
+    },
+    log = println(_)
+  )
+  ()

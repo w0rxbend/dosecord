@@ -1,0 +1,51 @@
+package dosegram.app
+
+import dosegram.contracts.ChatAdapter
+import dosegram.core.ports.Clock
+import dosegram.infra.Role
+import dosegram.infra.Settings
+import ox.Ox
+
+import javax.sql.DataSource
+
+/** The assembled application (docs/dosegram/ROADMAP.md G0.5): what `dosegram run` starts inside the root scope. The
+  * launch-path tests start it through the same call, so no worker is started by a test.
+  */
+object Launch:
+
+  /** What the process is assembled from besides its settings and its pool. Production takes all three from
+    * [[Parts.production]]; a launch-path test passes its own clock, its own console streams and a shorter cadence.
+    */
+  final class Parts(val clock: Clock, val adapters: Map[String, ChatAdapter], val cadence: Workers.Cadence)
+
+  object Parts:
+    def production(settings: Settings): Parts =
+      Parts(Clock.system, Adapters.build(settings), Workers.Cadence.Production)
+
+  /** Starts, in the order of DESIGN.md section 12, the workers, then the adapters, then the HTTP edge, each only when
+    * the role hosts it, and returns the drain that stops them on SIGTERM.
+    */
+  def start(settings: Settings, dataSource: DataSource, parts: Parts, log: String => Unit)(using Ox): Drain =
+    val inFlight = InFlightRegistry()
+    val gate = ClaimGate(inFlight)
+    if hostsWorkers(settings.role) then Workers(settings, dataSource, parts).start(gate, log)
+    val adapters = if hostsGateway(settings.role) then Adapters.start(settings, dataSource, parts, log) else Nil
+    val health = Health.start(settings.healthPort)
+    log(s"/healthz listening on :${settings.healthPort}")
+    Drain(
+      inbound = ("health" -> (() => health.stop())) :: adapters,
+      claiming = List("workers" -> (() => gate.stop())),
+      inFlight = inFlight,
+      budget = Shutdown.DrainBudget,
+      log = log
+    )
+
+  // The role policy of docs/dosegram/ARCHITECTURE.md section 4.1. `/healthz` is served under every role: it is the
+  // liveness probe of the container, whichever half the process hosts.
+  private def hostsWorkers(role: Role): Boolean = role match
+    case Role.Worker | Role.All => true
+    case Role.Gateway           => false
+
+  private def hostsGateway(role: Role): Boolean = role match
+    case Role.Gateway | Role.All => true
+    case Role.Worker             => false

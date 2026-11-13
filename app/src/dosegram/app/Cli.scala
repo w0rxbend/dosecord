@@ -2,7 +2,7 @@ package dosegram.app
 
 import dosegram.infra.Role
 
-/** `dosegram run [--role gateway|worker|all]` | `dosegram migrate` (ROADMAP M0.5; roles wired in M4.3). */
+/** `dosegram run [--role gateway|worker|all]` | `dosegram migrate` (ROADMAP M0.5; [[Launch]] holds the role policy). */
 object Cli:
 
   enum Command:

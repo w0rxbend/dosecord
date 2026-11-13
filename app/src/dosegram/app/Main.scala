@@ -6,9 +6,11 @@ import dosegram.infra.Telemetry
 import dosegram.infra.TzdbGuard
 import dosegram.infra.db.Database
 import dosegram.infra.db.Migrator
+import ox.releaseAfterScope
 
 /** Composition root (DESIGN.md section 3): settings, scribe telemetry (M0.11), tzdb startup assertion (M0.7 remedy),
-  * Flyway under `pg_advisory_lock`, then one Ox `supervised` root scope serving `/healthz` until SIGTERM.
+  * Flyway under `pg_advisory_lock`, then one Ox `supervised` root scope that runs the [[Launch]] assembly until
+  * SIGTERM.
   */
 object Main:
   def main(args: Array[String]): Unit =
@@ -48,19 +50,10 @@ object Main:
         case Cli.Command.Run(_)  =>
           Shutdown.serve(
             body = {
-              // HEALTH_PORT is a local-override read here (not in Settings, which is infra-owned): a dev
-              // machine may already have 8080 bound. Settings should adopt it properly at the M2.4 cut.
-              val port = sys.env.get("HEALTH_PORT").flatMap(_.toIntOption).getOrElse(Health.DefaultPort)
-              val binding = Health.start(port)
-              info(s"/healthz listening on :$port")
-              val adapters = Adapters.start(settings, dataSource, info)
-              Drain(
-                inbound = ("health" -> (() => binding.stop())) :: adapters,
-                claiming = Nil,
-                inFlight = InFlightRegistry(),
-                budget = Shutdown.DrainBudget,
-                log = info
-              )
+              // The SIGTERM hook halts the JVM as soon as the scope has ended, which can outrun the `finally` below.
+              // The scope therefore closes the pool itself, after every fork that uses it has finished.
+              releaseAfterScope { dataSource.close(); info("shutdown: pool closed") }
+              Launch.start(settings, dataSource, Launch.Parts.production(settings), info)
             },
             log = info
           )

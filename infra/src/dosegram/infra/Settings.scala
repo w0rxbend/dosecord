@@ -18,8 +18,8 @@ enum Adapter(val envName: String):
 object Adapter:
   def parse(value: String): Option[Adapter] = values.find(_.envName == value)
 
-/** Process role (DESIGN.md section 3). Roles are accepted and stored in M0.5; the gateway/worker split is wired in
-  * M4.3.
+/** Process role (DESIGN.md section 3): `gateway` connects the chat adapters, `worker` runs the reminder loop, the
+  * materialiser, the outbox dispatchers and the session sweeper, `all` runs both in one process.
   */
 enum Role(val envName: String):
   case Gateway extends Role("gateway")
@@ -59,10 +59,13 @@ final case class Settings(
     logFormat: LogFormat,
     consoleUserId: Option[String],
     telegramToken: Option[String],
-    publicBaseUrl: Option[String]
+    publicBaseUrl: Option[String],
+    healthPort: Int
 )
 
 object Settings:
+
+  val DefaultHealthPort: Int = 8080
 
   /** Declarative description of one env var: the single source for parsing, validation and `.env.example` generation,
     * so the committed example cannot drift from the case class (DESIGN.md section 12).
@@ -102,7 +105,7 @@ object Settings:
       "ROLE",
       required = false,
       secret = false,
-      "Process role: gateway | worker | all (wired in M4.3).",
+      "Process role: gateway (chat adapters) | worker (reminder loop, materialiser, outbox, sweeper) | all.",
       "all",
       Some("all")
     ),
@@ -135,6 +138,14 @@ object Settings:
       secret = false,
       "External base URL of the auth-link page (M4.1); unused until then.",
       "https://dosegram.example.com"
+    ),
+    EnvSpec(
+      "HEALTH_PORT",
+      required = false,
+      secret = false,
+      "TCP port of the /healthz listener.",
+      DefaultHealthPort.toString,
+      Some(DefaultHealthPort.toString)
     )
   )
 
@@ -194,6 +205,10 @@ object Settings:
       case Some(f) => f
       case None    => { errors = errors :+ "LOG_FORMAT must be json or plain"; LogFormat.Json })
 
+    val healthPort = lookup("HEALTH_PORT").map(_.toIntOption.filter(port => port >= 1 && port <= 65535) match
+      case Some(port) => port
+      case None       => { errors = errors :+ "HEALTH_PORT must be a TCP port from 1 to 65535"; DefaultHealthPort })
+
     val databaseUrl = required("DATABASE_URL")
 
     val keys = required("CALLBACK_KEYS").flatMap(parseCallbackKeys(_) match
@@ -223,7 +238,8 @@ object Settings:
           logFormat = logFormat.getOrElse(LogFormat.Json),
           consoleUserId = consoleUserId,
           telegramToken = telegramToken,
-          publicBaseUrl = lookup("PUBLIC_BASE_URL")
+          publicBaseUrl = lookup("PUBLIC_BASE_URL"),
+          healthPort = healthPort.getOrElse(DefaultHealthPort)
         )
       )
 

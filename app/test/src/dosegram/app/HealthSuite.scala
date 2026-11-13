@@ -3,15 +3,9 @@ package dosegram.app
 import ox.supervised
 
 import java.net.HttpURLConnection
-import java.net.ServerSocket
 import java.net.URI
 
 class HealthSuite extends munit.FunSuite:
-
-  private def freePort(): Int =
-    val socket = ServerSocket(0)
-    try socket.getLocalPort
-    finally socket.close()
 
   test("/healthz answers 200 ok"):
     supervised {

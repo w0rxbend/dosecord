@@ -3,6 +3,7 @@ package dosegram.infra.db
 import dosegram.core.ports.Wake
 import org.postgresql.PGConnection
 
+import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
 import java.time.Duration
@@ -12,15 +13,12 @@ import java.time.Duration
   * `awaitOrTimeout` blocks until a NOTIFY arrives or the timeout (the loop's fallback poll) elapses. There is no
   * reconnect logic yet: a broken connection fails the loop's fork and supervision restarts it.
   */
-final class PgNotifyWake(jdbcUrl: String, user: String, password: String, channel: String = "dosegram_wake")
-    extends Wake,
-      AutoCloseable:
+final class PgNotifyWake private (conn: Connection) extends Wake, AutoCloseable:
 
-  private val conn = DriverManager.getConnection(jdbcUrl, user, password)
   conn.setAutoCommit(true)
   private val pg = conn.unwrap(classOf[PGConnection])
   private val listen = conn.createStatement()
-  try listen.execute(s"LISTEN $channel") // a fixed internal identifier, never user input
+  try listen.execute(s"LISTEN ${PgNotifyWake.Channel}") // a fixed internal identifier, never user input
   finally listen.close()
 
   override def awaitOrTimeout(timeout: Duration): Unit =
@@ -35,3 +33,12 @@ final class PgNotifyWake(jdbcUrl: String, user: String, password: String, channe
           else throw e
 
   override def close(): Unit = conn.close()
+
+object PgNotifyWake:
+  private val Channel = "dosegram_wake"
+
+  def apply(jdbcUrl: String, user: String, password: String): PgNotifyWake =
+    new PgNotifyWake(DriverManager.getConnection(jdbcUrl, user, password))
+
+  /** Over a `DATABASE_URL` that carries its own credentials as pgjdbc query parameters (DESIGN.md section 12). */
+  def apply(jdbcUrl: String): PgNotifyWake = new PgNotifyWake(DriverManager.getConnection(jdbcUrl))

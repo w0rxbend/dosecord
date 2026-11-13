@@ -67,3 +67,10 @@ class ShutdownSuite extends munit.FunSuite:
     assert(output().contains("in-flight work completed"), s"in-flight fork did not complete; output:\n${output()}")
     assert(output().contains("in-flight work drained"), s"drain did not finish; output:\n${output()}")
     println(f"SIGTERM-to-exit: $elapsed%.1f s (limit 20 s)")
+
+  test("a failed fork ends the process with exit 1 long before the hard deadline"):
+    val child = ChildJvm.start("dosegram.app.failedForkSmokeMain", Nil, Map.empty)
+    val started = System.nanoTime()
+    val exitCode = child.exitCode(within = 15.seconds)
+    val elapsed = (System.nanoTime() - started) / 1_000_000_000.0
+    assertEquals(exitCode, Some(1), s"after ${elapsed}s; output:\n${child.output}")
