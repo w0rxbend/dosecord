@@ -1,6 +1,6 @@
 # Dosegram Mini App specification
 
-Status: proposal for owner review. Nothing in this document is accepted until the owner approves it.
+Status: In force since 2026-11-13: the owner approved the plan and roadmap slice G0.2 promoted this document from `docs/dosegram/` to `docs/` ([ADR-014](adr/ADR-014.md)). Where the text below says "proposal" or "proposed", read it as the adopted specification; an open question keeps the status its own section gives it. Dosecord documents named as inputs (`docs/DESIGN.md`, the old `docs/ROADMAP.md`, `docs/BOT_UX_PLAN.md`) are now under `docs/archive/`.
 Date: 2026-11-12.
 Scope: the Telegram Mini App of Dosegram: its role, entry points, navigation, every screen, native controls, design tokens, interface states, accessibility, performance, frontend technology, build, tests, and the list of backend resources it needs.
 Out of scope: product rules and acceptance criteria per module (PRODUCT_SPEC.md), chat flows and chat copy (BOT_UX.md), backend design, authentication internals and the detailed API (ARCHITECTURE.md), card designs, chart grammar and metric formulas (VISUALS_AND_ANALYTICS.md), delivery order (ROADMAP.md in this directory).

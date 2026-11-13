@@ -1,8 +1,11 @@
-# Dosecord documentation lint configuration
+# Dosegram documentation lint configuration (scripts/doc-lint.sh, CI job
+# doc-lint).
 #
-# M0.4 turns this manifest into a CI check. The scope is documentation and
-# repository guidance; executable legacy code is removed by M0.2. A section
-# allowlist means the heading whose number is given, including its content.
+# The scope is documentation and repository guidance. The forbidden terms are
+# retired operational names: no guidance document may teach a retired command,
+# setting or module. Documents may still name Discord and Dosecord where they
+# describe history. A section allowlist means the heading whose number is
+# given, including its content; a file may list several sections.
 
 [scope]
 AGENTS.md
@@ -20,16 +23,24 @@ KAFKA_
 postgresql+asyncpg
 dosecord run
 dosecord_app
+DISCORD_TOKEN
+adapter-discord
+ENABLED_ADAPTERS=discord
 
 [allowlist]
 docs/doc-lint.txt
+# Historical records keep the names of their time (ROADMAP section 1.4 row 28).
 docs/archive/**
 docs/adr/**
 docs/design-tracks/**
-# Until G0.2 moves them (docs/dosegram/ROADMAP.md section 1.8): the Dosecord
-# design and roadmap go to docs/archive/, the research briefs to docs/research/.
-docs/DESIGN.md
-docs/ROADMAP.md
-docs/dosegram/research/**
-# Sections 1 and 8 name the retired terms where they describe the migration.
-docs/dosegram/ROADMAP.md
+docs/research/**
+docs/spikes/**
+docs/verification/**
+# The plan names the retired terms only where it describes the migration: the
+# migration section, the G0 slices and their detailed steps.
+docs/ROADMAP.md#section-1
+docs/ROADMAP.md#section-3.2
+docs/ROADMAP.md#section-8
+# The layout after the rename and the record of the pivot decision.
+docs/ARCHITECTURE.md#section-5
+docs/ARCHITECTURE.md#section-21

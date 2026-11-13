@@ -1,3 +1,5 @@
+> Archived on 2026-11-13 by roadmap slice G0.2 ([ADR-014](../adr/ADR-014.md)). This is the Dosecord design, formerly `docs/DESIGN.md`; [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) replaces it. Sections 7 to 9 and 11 (engine, time, persistence, tests) remain the detailed reference for the kept engine. Paths and relative links are those of its former location and may no longer resolve.
+
 # Dosecord Design
 Status: Accepted 2026-09-11
 Plan and decisions: the ordered delivery plan is docs/ROADMAP.md and the thirteen decision records this design rests on are in docs/adr/.

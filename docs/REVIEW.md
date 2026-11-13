@@ -1,6 +1,6 @@
 # Dosegram document set: cross-document review and dispositions
 
-Status: record of a review, prepared 2026-11-12 and finalised 2026-11-13. It is part of the proposal in this directory and is not in force until the owner approves the plan ([`README.md`](README.md)).
+Status: record of a review, prepared 2026-11-12 and finalised 2026-11-13. The plan it reviews is in force since 2026-11-13 ([`README.md`](README.md)); this record is kept unchanged below. "This directory" was `docs/dosegram/` and is now `docs/`.
 
 ## 1. What was reviewed and how
 

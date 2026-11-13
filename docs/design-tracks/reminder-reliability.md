@@ -1,380 +1,385 @@
-Note: this is the language-agnostic input (Track B, scheduling, reminder delivery and intake recording) to docs/DESIGN.md; the Scala 3 realisation lives in DESIGN.md sections 7-9 and ADR-004, ADR-009, ADR-011 and ADR-012.
-Note: reference material, not a normative spec on its own; where this file and DESIGN.md differ, DESIGN.md wins.
+Note: this is the language-agnostic input (Track B, scheduling, reminder delivery and intake recording) to the Dosecord design (docs/archive/DESIGN-dosecord.md); the Scala 3 realisation lives in its sections 7-9 and ADR-004, ADR-009, ADR-011 and ADR-012.
+Note: reference material, not a normative spec on its own; where this file and docs/ARCHITECTURE.md section 8 differ, ARCHITECTURE.md wins. Until 2026-11-13 this content was stored under the file name of the chat track; Track A is archived as docs/archive/unified-chat-api.md.
 
-# Track A: Unified Chat API and Mediator
+# Dosecord Track B: Scheduling, Reminder Delivery and Intake Recording
 
-## 0. Scope and positioning
+Language-agnostic. Assumes a relational store with row locks (PostgreSQL semantics are used for concreteness), a worker process, and a vendor-neutral `Dispatcher` interface owned by the bot core (Track A). Nothing here depends on Kafka; the "outbox" is a table, and whatever publishes it is pluggable.
 
-This document specifies the boundary between vendor adapters (Discord, Telegram, Zulip, Matrix) and the Dosecord bot core. It is language-agnostic: every type is given as a shape, every operation as a contract with pre/post-conditions. It assumes the core (domain: accounts, medications, occurrences, reminders, stats) already exists behind a small set of ports; it does not choose the core's storage or transport. Everything below can be implemented as in-process interfaces in a modular monolith (recommended first, per the gap map's criticism of Kafka for a single-user bot) or serialized onto a queue later without changing the contracts, because all types are plain data and every operation is idempotent by key.
+## 0. What is kept from docs/MEDICATION_REMINDER_UX.md and what changed
 
-Three layers, strict dependency direction (adapter -> mediator -> core; never reversed):
+Kept verbatim in spirit: backend is the source of truth; every dose is a first-class occurrence with `scheduled_for` separate from `taken_at`; the pending/due/snoozed/taken/skipped/missed/cancelled vocabulary; adherence = taken/(taken+skipped+missed) with skipped shown separately; `unknown` as a category; the reminder policy fields and defaults (offset 0, snooze [10,30,60], miss_after 120, max_reminders 3, discreet); FOR UPDATE SKIP LOCKED; the safety copy; the menu/callback shape.
 
-1. **Adapter** (one per vendor): speaks the vendor protocol, converts vendor updates into `InboundEvent`s, executes `OutboundOp`s. Stateless apart from a resume cursor and rate-limit buckets.
-2. **Mediator** (the "chat gateway", one process-level component): owns identity resolution, callback tokens, presentation memory for degraded UIs, rendering/degradation, delivery routing, delivery log, message handles, per-chat serialization, and rate limiting. It is the only component that knows both the vendor capability profile and the core's abstract UI model.
-3. **Core**: receives normalized events already stamped with a resolved principal, runs domain logic and the wizard state machine, and emits abstract UI (`OutboundMessage`) and delivery requests. It never sees a vendor name except as an opaque `ChatRef` it stores and hands back.
+Changed, with reasons:
 
-Constraint check against the brief: adding a vendor means writing one adapter class plus a capability profile and running the conformance suite; core code is untouched (constraint 1). Degradation is deterministic and spec'd (constraint 2). Delivery is at-least-once with idempotent keys and handles for later edits (constraint 3). Every inbound is recorded with vendor event id (constraint 4). Rich-where-possible rendering is the renderer's job (constraint 5).
+1. **One loop, one column.** The doc has a reminder worker and a missed-dose worker selecting on different predicates. Replaced by a single `next_action_at` column and one claim query; the action to perform is derived from state. Two loops racing over the same rows is the classic source of "reminded after being marked missed".
+2. **Occurrence natural key.** `(schedule_id, revision, local_date, slot_key)` is UNIQUE. Materialization becomes `INSERT ... ON CONFLICT DO NOTHING`, so any worker, any number of times, produces the same rows. The doc had no dedupe key, which is where duplicate reminders come from.
+3. **Schedule kinds normalized.** `weekly` and `fixed_times` merged (weekly is fixed_times with a day set); weekend times are just per-day slot groups; the two interval variants become one `chain` kind with an anchor mode; taper wraps any rule in dated phases. Fewer kinds, one evaluator.
+4. **`unknown` is a real status, not a footnote.** Occurrences whose whole window elapsed while the system was down and no reminder was ever sent become `unknown`, not `missed`. Missed means "we asked and got no answer". This is both fairer and keeps outage days out of the adherence denominator.
+5. **Action log is the truth; status is a projection.** Terminal states are correctable (undo, late log, correction) by appending actions; the occurrence row is rebuilt from the log. The doc's lifecycle had no undo edge.
+6. **Snooze rules defined**: bounded by the next occurrence of the same schedule, capped by `max_snoozes`, extends the miss deadline, does not consume `max_reminders`.
+7. **Quiet hours semantics defined** (the doc listed the field but no behavior).
+8. **Schedule edits create revisions** (append-only) instead of mutating the rule in place; pending occurrences of the superseded revision are cancelled with a reason.
+9. **Dispatch layer with `send_key`** and per-channel delivery attempts, supporting several linked platforms with primary/fallback.
+10. **Reminder policy grew** `repeat_every_minutes`, `max_snoozes`, `late_log_window_minutes`, `quiet_hours_mode`, `tz_follows_user`.
+11. **As-needed logs create manual-origin occurrences** so history and stats have one query path.
 
-## 1. Inbound event model
+## 1. Schedule representation and evaluation
 
-Every adapter produces one `InboundEvent` per vendor update it decides is relevant. The envelope is uniform; the `kind` payload varies.
+### 1.1 Rule model
 
-**Envelope fields**: `event_id` (mediator-assigned UUID), `vendor` (string, not a closed enum), `vendor_event_id` (the vendor's own id: Discord interaction id or message id, Telegram `update_id`, Zulip event `id` within queue, Matrix `event_id`), `received_at`, `actor: PlatformIdentity{vendor, vendor_user_id, display_name?}`, `chat: ChatRef{vendor, chat_id, thread_id?}`, `cursor` (opaque resume token; see 7), `kind`.
+A schedule is `(medication_id, tz, start_date, end_date?, rule, reminder_policy, revision)`. `rule` is a tagged union (see key types). All wall-clock values are local to `tz` (IANA). Two families:
 
-`vendor_event_id` is the idempotency basis for the whole pipeline: `inbound_events` table has unique `(vendor, vendor_event_id)`; a duplicate is acknowledged to the vendor and dropped before reaching core. This closes the "every command runs twice" gap and Telegram's retried callback queries.
+**Slot rules** (calendar-driven; occurrences are known in advance):
 
-**Kinds** (closed set, versioned):
+| kind | parameters | active-day predicate | local times |
+|---|---|---|---|
+| `fixed_times` | `slot_groups: [{days: {mon..sun}, times: [HH:MM]}]` | day in any group's `days` | union of matching groups' `times` |
+| `every_n_days` | `period_days`, `times` | `(local_date - start_date) mod period_days == 0` | `times` |
+| `every_n_weeks` | `period_weeks`, `days`, `times` | `weeks_between(start_week, local_week) mod period_weeks == 0 AND weekday in days` | `times` |
+| `cycle` | `on_days`, `off_days`, `times`, `phase_offset` | `((local_date - start_date) + phase_offset) mod (on+off) < on_days` | `times` |
+| `interval_fixed_start` | `anchor_time`, `interval_minutes`, `max_per_day?`, `active_days` | day in active_days | anchor, anchor+N, ... (see 1.3) |
+| `taper` | `phases: [{from_date, to_date, dose, rule}]` | delegate to the phase whose range contains local_date | delegate; occurrence stores the phase dose snapshot |
 
-- `MessageReceived{text, entities?: [mention|link], reply_to?: MessageHandle}` – plain text a human typed. Attachments are ignored in v1 (recorded as `has_attachments`).
-- `CommandInvoked{name, args: map, raw}` – a vendor-native command (Discord slash, Telegram `/cmd`, Zulip/Matrix `/cmd` text parsed by the mediator, not the adapter). Adapters only emit this for vendor-native command surfaces; for text-only vendors the mediator's `CommandParser` promotes `MessageReceived` beginning with `/` into `CommandInvoked`, so the core sees one shape.
-- `InteractionSubmitted{callback: CallbackRef, values?: [string], source: MessageHandle?, ack: InteractionAck?}` – a button/select press. `callback` is already decoded and verified by the mediator (see 3). `ack` is an opaque handle the mediator uses to satisfy vendor acknowledgement deadlines; core never touches it.
-- `FormSubmitted{form_id, callback: CallbackRef, fields: map}` – a modal submit, or the synthesized result of the mediator's sequential-question fallback.
-- `ReactionChanged{emoji, target: MessageHandle, added: bool}` – raw reaction. The mediator consumes reactions that map to a presented choice set (turning them into `InteractionSubmitted`) and forwards the rest to core only if core subscribed (used for "👍 = taken" quick actions on Zulip/Matrix).
-- `ConversationStarted{}` – Telegram `/start`, Discord first DM or app install, Zulip first PM to bot, Matrix DM room joined. Core answers with the welcome/identity menu.
-- `AccountLinkCompleted{link_id, account_id}` – synthetic, injected by the identity module after a web-side link succeeds; delivered through the same sink so the core has one entry path and the mediator can refresh its identity cache.
-- `AdapterLifecycle{state: connected|disconnected|resumed, from_cursor?}` – lets core trigger catch-up delivery.
+"Daily", "multiple daily", "selected weekdays" and "different weekend times" are all `fixed_times` with one or more slot groups. Slot keys are `"HH:MM"` (slot kinds) or `"i:<n>"` (interval index within the day).
 
-**Principal stamping.** Before dispatch, the mediator calls `IdentityResolver.resolve(actor)` and attaches `principal: Principal{account_id?, identity_id, linked: bool}`. Core rejects any event without a mediator-stamped principal; adapters have no field to supply an account id (fixes R8: account id never trusted from the wire).
+**Chain rules** (event-driven; later occurrences depend on user behavior):
 
-**Normalization rules**: text is NFC-normalized, trimmed, max 4 000 chars (longer is truncated with `truncated=true`). Vendor markup in inbound text is stripped to plain text; only the original is stored in the audit row.
+| kind | parameters | behavior |
+|---|---|---|
+| `chain` with `anchor=first_taken` | `interval_minutes`, `doses_per_day`, `day_start`, `day_cutoff`, `first_dose_prompt_time?` | No occurrence exists until the user logs the first dose of the local day (optional gentle prompt at `first_dose_prompt_time`). On that intake, occurrences 2..N are materialized at `first_taken_at + k*interval`, truncated at `day_cutoff`. Slot keys `c:1..N`. |
+| `chain` with `anchor=each_taken` | same | Same, but only the *next* occurrence is materialized, at `taken_at + interval`; when it is taken, the next is created, until `doses_per_day` or `day_cutoff`. If a chain dose is skipped or missed, the next is anchored at that occurrence's `scheduled_for` (so the chain does not stall). |
+| `as_needed` | `max_per_day?`, `min_gap_minutes?` | Never materialized. Manual log creates an occurrence with `origin=manual`, `status=taken`, `scheduled_for=taken_at`. Limits, if set, are shown as information ("last logged 2h ago"), never as advice. |
 
-## 2. Outbound message model
+### 1.2 Evaluation
 
-Core produces `OutboundMessage`, an abstract description; the mediator renders it against a `CapabilityProfile`.
+One pure function: `occurrences(rule, tz, revision, from_utc, to_utc) -> [(local_date, slot_key, scheduled_for_utc, dose_snapshot)]`. Algorithm for slot kinds: iterate local dates from `local_date(from_utc - 1 day)` to `local_date(to_utc + 1 day)` (the padding handles UTC/local day misalignment), apply the active-day predicate, expand times, resolve each `(local_date, HH:MM)` to an instant with the disambiguation policy below, keep those within `[from_utc, to_utc)`. Deterministic: same inputs, same output, regardless of when it runs. That determinism is what makes reconciliation and tests cheap.
 
-**Content**: `body: RichText` is an AST, not a string, so the renderer can target Discord markdown, Telegram MarkdownV2/HTML, Zulip markdown and Matrix HTML without escaping bugs. Portable subset (anything else is a design error caught at type level): `Paragraph`, `Text`, `Bold`, `Italic`, `Code` (inline), `CodeBlock`, `Link{url,label}`, `BulletList`, `LineBreak`, `Emoji{shortcode}`, `Time{instant, tz, style: time|datetime|relative}` (renders as `09:03`, or Discord's `<t:…>`). No headings, tables, images, or colors.
+### 1.3 DST and timezone edge cases
 
-**Blocks** (0..n per message, ordered):
+- **Nonexistent local time (spring-forward gap)**: add the gap length, i.e. 02:30 on a 02:00->03:00 day becomes 03:30 local. This matches the default of Java `ZonedDateTime.of`, Python `zoneinfo` (fold=0) and JS `Temporal` `disambiguation:'compatible'`, so any implementation language agrees with the stored value.
+- **Ambiguous local time (fall-back fold)**: pick the *earlier* instant (first occurrence, pre-transition offset), again the common default. Exactly one occurrence per `(local_date, slot_key)` by construction; the UNIQUE key makes it impossible to double-materialize the repeated hour.
+- **Interval and chain kinds** compute in absolute time from a resolved anchor: "every 8 h" across a 25-hour day yields the extra dose; across a 23-hour day one fewer. Their `slot_key` is the index, so keys stay unique even if wall-clock times collide.
+- **Windows and snoozes** are absolute durations added to instants; they never touch wall clocks.
+- **User changes timezone**: `users.timezone` updates; every schedule with `tz_follows_user=true` gets a new revision with the new tz (same rule), which triggers the reconciliation in section 2. Occurrences already `due`/`snoozed` are left alone. Schedules with an explicit tz (e.g. a clinic-time regimen) are untouched, and the bot asks which behavior the user wants at the moment of change.
+- **tzdata updates** (2026c is current; governments change rules with weeks of notice): the rolling horizon is short (48 h), and a nightly verify pass recomputes `scheduled_for` for every pending occurrence from its natural key and rewrites it if different (logged as `system:tz_rules_changed`). Deploy tzdata as an explicitly pinned, upgradable dependency, not whatever the base image has.
+- **Local date column**: every occurrence stores `local_date` and `tz` at generation so stats and "Today" never re-derive dates in SQL.
 
-- `ChoiceSet{id, prompt?, choices: [Choice{label, callback: CallbackToken, style: primary|secondary|danger|success, emoji?, disabled?}], layout: buttons|select, min_select=1, max_select=1}`. Max 25 choices (Discord select limit; larger sets must be paged by core).
-- `Form{id, title, fields: [Field{key, label, type: text|number|time|date|choice, required, placeholder?, options?}], submit: CallbackToken}`. Max 5 fields (Discord modal limit).
-- `Notice{level: info|success|warning}` – a short banner rendered as an italic line or emoji prefix.
+## 2. Materialization and reconciliation
 
-**Message-level attributes**: `visibility: persistent|ephemeral`, `importance: interaction_reply|reminder|info|bulk` (drives rate-limit priority and discreet-mode rendering), `replaces?: MessageHandle` (edit-in-place intent), `delete_after?: duration`, `discreet: bool` (medication names replaced by "your 09:00 dose" in the body already by core; the flag tells the renderer to suppress previews/emoji), `dedupe_key`, `correlation_id`.
+**Strategy: rolling horizon for slot rules, reactive for chains, on-demand for previews.** Rows exist for `now .. now + 48h` (config `HORIZON`). Anything further ("show next week") is computed by the same pure function without persistence. Rationale: the reminder loop needs an indexed table of instants; previews do not; a long horizon only multiplies the rows to cancel on every edit.
 
-**Operations the core may request** (`ChatPort`, section 6 for reminders):
+Materializer (runs every 15 min and on demand): for each `active` schedule with `materialized_through < now + HORIZON`, compute occurrences in `[materialized_through, now + HORIZON)`, insert with `ON CONFLICT DO NOTHING`, set `materialized_through`. Each inserted row gets `status=pending`, `due_window_start = scheduled_for + initial_offset`, `miss_deadline = scheduled_for + miss_after`, `next_action_at = due_window_start`. If `miss_deadline` is already in the past at insert time (see section 5), the row is created as `unknown`.
 
-- `send(target, message) -> SendResult{handle: MessageHandle, rendered_as: RenderReport}`
-- `edit(handle, message)` – full replacement of body and blocks.
-- `finalize(handle, summary: RichText)` – "disable controls and show outcome" (buttons removed, body replaced by e.g. "Recorded at 09:03 · Undo · Add note"). This is the common post-action op, given its own name so degraded vendors can implement it as "edit text, remove reaction shortcuts".
-- `delete(handle)`
-- `ack(interaction, toast?: string)` – transient feedback; mediator picks Discord deferred update / Telegram `answerCallbackQuery` / no-op.
-- `react(handle, emoji)` / `unreact`.
-- `typing(chat)` (best effort).
+Triggers for immediate materialization: schedule create/resume/revision, tz change, chain intake.
 
-All operations are idempotent by `(dedupe_key)` for send and `(handle, revision)` for edit/finalize; the mediator's `delivery_log` records outcome per key.
+**Reconciliation on revision** (edit, tz change): in one transaction, insert the new `schedule_revisions` row, cancel (`status=cancelled, cancel_reason=superseded`) all `pending` occurrences of the old revision with `scheduled_for >= revision.effective_from`, reset `materialized_through = effective_from`, materialize. `due`/`snoozed` occurrences keep living under the old revision until resolved; the reminder message already exists and its buttons must keep working. Nothing is deleted.
 
-### 2.1 Degradation ladders (deterministic)
+**Pause**: cancel `pending` with reason `paused`; `due`/`snoozed` stay (user may still answer); chain days stop. **Archive**: additionally cancel `due`/`snoozed` with reason `archived` and edit their messages to remove buttons. **Resume**: new revision (`effective_from=now`), materialize. Cancelled occurrences are excluded from all statistics.
 
-The renderer is a pure function `render(message, profile) -> [VendorOp]` plus `RenderReport` (which ladder rung was used). Ladders are evaluated top-down; the first rung the profile supports wins. Rungs are fixed and part of the conformance golden files.
+## 3. Reminder loop
 
-**ChoiceSet, layout=buttons**
-1. Native buttons (Discord components: up to 5 per row, rows packed in label order; Telegram inline keyboard: up to 4 per row).
-2. Native single-select menu (Discord only, when >10 choices).
-3. Reply keyboard (Telegram only, when inline is unavailable in context – practically never; kept for completeness).
-4. Numbered list + reaction shortcuts: body gets "1) Taken 2) Snooze 10m 3) Skip"; the mediator posts the message and then adds reactions 1️⃣ 2️⃣ 3️⃣ (up to 9, then 🔟 is not used; >9 falls to rung 5) to its own message so the user taps an existing reaction (one tap on Zulip/Matrix). The mediator persists a `presentation` row mapping `(handle, index) -> CallbackToken`; a reply "2", "2)", the choice label (case-insensitive), or a reaction with that digit resolves to the token. The presentation expires with the message's `choice_ttl` (reminder messages: none; menus: 24 h).
-5. Numbered list only (reaction posting failed or disallowed).
+**Polling with a claim query, not a timer wheel.** Tick every `TICK` (5 s default). The DB is the only state; there is no in-memory schedule to rebuild after a crash, no leader election, and horizontal scale is free via SKIP LOCKED. A timer wheel only buys sub-second precision, which a chat reminder does not need. Optional wake-up on `LISTEN/NOTIFY` when a snooze or immediate action lands, to shorten latency without shrinking `TICK`.
 
-**ChoiceSet, layout=select**: native select -> native buttons paged 5 per row -> rung 4 -> rung 5.
-
-**Form**: native modal (Discord) -> sequential questions run by the mediator's `FormRunner` (one `send` per field; free-text answer or numbered choice; `Cancel` always accepted; the runner stores partial answers in `mediator_form_runs` keyed by chat and emits one `FormSubmitted` when done). Core never learns which happened. Telegram Mini Apps are deliberately not used in v1.
-
-**Ephemeral**: native ephemeral (Discord, only as an interaction response; the mediator downgrades automatically if the message is not a response to a live interaction) -> persistent with `delete_after = 60 s` where delete is supported (Telegram <48 h, Matrix redaction, Zulip if realm allows) -> persistent with a trailing Notice "This message will not be kept".
-
-**Edit / finalize**: native edit -> if the vendor refuses (Zulip realm edit window elapsed, Matrix edit of a redacted event) -> send a new message quoting/replying to the old one and, if allowed, delete the old -> send new message only. The `MessageHandle` returned from a fallback becomes the new canonical handle and the mediator records `superseded_by` so the core's stored handle still resolves.
-
-**Delete**: native delete -> edit to "(cleared)" with controls removed -> leave and mark handle `unreachable`.
-
-**Text length**: bodies exceeding the profile's `max_text` are split at paragraph boundaries; blocks always attach to the last chunk.
-
-**Commands**: native command registration (Discord slash, Telegram `setMyCommands`) -> text `/command` parsing in the mediator. Core declares its command list once (`CommandSpec[]`), the mediator registers it where possible.
-
-Discreet mode never changes ladders; it only changes what core puts in the body.
-
-## 3. Interaction identity: CallbackToken
-
-Every tappable thing carries a `CallbackToken` that must (a) fit Telegram's 64-byte `callback_data` and Discord's 100-char `custom_id`; (b) be unforgeable; (c) keep working on a message that is days old or after a restart; (d) map back to server-side state.
-
-**Binary layout (34 bytes raw, 46 chars base64url, no padding)**:
+Claim (one statement per batch):
 
 ```
-byte 0     : version(4 bits) | key_id(4 bits)
-byte 1     : mode  0=direct 1=indirect
-byte 2-3   : action (uint16, registry: 1=dose.taken 2=dose.snooze 3=dose.skip ... 200+=wizard.*)
-byte 4-11  : subject (int64 public short id: occurrence id, session id, or slot id)
-byte 12-25 : value (14 bytes, zero-padded: snooze minutes, choice index, step seq, enum)
-byte 26-33 : MAC = HMAC-SHA256(server_key[key_id], bytes 0..25)[0:8]
+SELECT ... FROM dose_occurrences
+WHERE next_action_at <= $now AND status IN ('pending','due','snoozed')
+ORDER BY next_action_at LIMIT 100 FOR UPDATE SKIP LOCKED
 ```
 
-*Direct mode* is stateless: the token itself names a durable domain entity (dose occurrence) and a value. A reminder from last week still works because occurrence ids never expire and the core's transition is idempotent (taken twice = one record + "already recorded" ack).
+`$now` is passed from the injected clock, never `now()` in SQL, so tests can time-travel. For each row the action is derived:
 
-*Indirect mode* points at an `interaction_slots` row `{slot_id, account_id, chat, payload json, session_id?, step_seq?, expires_at}`. Used by wizards and menus, where the payload is bigger than 14 bytes or ties to a step. Slots for reminder-related follow-ups (Undo, Add note) have no expiry; menu/wizard slots expire with the session.
+| status | condition | transition | new next_action_at |
+|---|---|---|---|
+| pending | now >= due_window_start | -> due, reminder_seq=1, dispatch reminder | min(now+repeat_every, miss_deadline) if seq < max_reminders else miss_deadline |
+| snoozed | now >= snoozed_until | -> due, dispatch snooze reminder (not counted in max_reminders) | as above |
+| due | now < miss_deadline and reminder_seq < max_reminders | dispatch repeat, reminder_seq+1 | as above |
+| due / snoozed | now >= miss_deadline | -> missed, dispatch missed notice (subject to quiet hours) | NULL |
 
-**Verification** in the mediator: check MAC and key_id (keys rotate; two active keys), decode, then attach `CallbackRef{action, subject, value, slot?}` to the event. A bad MAC produces an `ack(toast="This button is no longer valid")` and an audit entry; nothing reaches core. Because Telegram may deliver a callback whose original message is inaccessible (too old), nothing in the token depends on the message being readable.
+Transition, action-log row, dispatch row and `next_action_at` are written in the same transaction, so a crash either did everything or nothing; the row is re-claimed on the next tick. `reminder_seq` counts reminder messages for this occurrence (initial + repeats). Quiet hours (below) may replace "dispatch" with "defer": the state still changes, `next_action_at` moves to the quiet-hours end.
 
-**Staleness**: wizard tokens carry `step_seq`; core compares with the session's current `step_seq` and, on mismatch, re-sends the current prompt with `ack(toast="That step is done")`. Direct tokens are never stale; the entity state decides.
+**Exactly-once effect, at-least-once send.** State transitions are exactly-once by construction (row lock + single transaction). Sends go through `reminder_dispatches` with `send_key = "occ:{occurrence_id}:s{reminder_seq}:k{kind}:c{channel_id}"` (kind in reminder|snooze|missed|digest|update), UNIQUE. A dispatch worker claims `queued` dispatches, marks `sending` with `attempt_id`, calls the vendor, stores `platform_message_id` and marks `sent`. If the vendor call succeeds but the process dies before the commit, the retry may send twice: this residual window is accepted and made harmless: callbacks carry `occurrence_id` and are idempotent, and after any resolution the worker enqueues an `update` dispatch that edits every sent message for that occurrence to remove buttons (where the vendor allows editing). Retries use exponential backoff with `max_attempts`; permanent vendor errors (DM closed, user blocked bot) mark the dispatch `failed_permanent` and trigger channel fallback (section 6).
 
-**Idempotency of the resulting command**: `command_key = hash(vendor, vendor_event_id)`; retried vendor deliveries collapse. The token is deliberately reusable (not single-use) so a duplicate press is a no-op rather than an error.
+**Snooze.** Allowed transitions: `due -> snoozed`. `snoozed_until = now + m`, where `m` must be in `snooze_options`; the renderer only offers options for which `snoozed_until < min(next_occurrence_of_schedule.scheduled_for - 1 min, scheduled_for + max_late_minutes)` and `snooze_count < max_snoozes` (default 3). `miss_deadline := max(miss_deadline, snoozed_until + repeat_every)`. The snooze reminder does not consume `max_reminders`. Snoozing a `pending` occurrence (early snooze from Today view) is allowed and equals a shifted due time.
 
-For vendors without callback data (Zulip, Matrix) tokens are never sent to the vendor; they live in the `presentation` rows and are resolved from `(handle, choice index)`.
+**Quiet hours.** Stored per user (`[start, end)` local, may cross midnight), overridable per schedule. Modes: `deliver` (default for medication: the first reminder of a dose explicitly scheduled inside quiet hours is delivered, because the user chose that time), `defer` (first reminder moves to quiet end if that is before `miss_deadline`, otherwise delivered), `silent`. In every mode, repeat reminders and missed notices inside quiet hours are deferred to quiet end, and the state transition happens on time. `nextDeliverableAt(t, quiet)` is the single pure helper.
 
-## 4. Conversation and session state
+**Discreet mode.** A rendering flag, not a delivery flag. The dispatch payload carries `discreet=true` and `display_alias` (user-chosen, e.g. "morning pills"); the renderer omits name, dose and instructions and adds a [Details] control whose reply is ephemeral where the vendor supports it, otherwise a normal DM. Buttons and callbacks are unchanged.
 
-**Ownership**: the core owns `ConversationSession`; the mediator owns only ephemeral presentation memory and form runs. Nothing conversational lives in adapter memory, so any process can handle any event.
+## 4. Missed detection, late log, corrections, undo, action log
 
-`ConversationSession{id, principal_key (account_id or unlinked identity id), chat: ChatRef, flow, step, step_seq, data json, version, expires_at, last_prompt: MessageHandle?, created_at, updated_at}` with unique `(principal_key, chat)` for active sessions.
+**Missed** = `miss_deadline` passed while `due` or `snoozed` (so at least one reminder was sent or deliberately deferred by quiet hours). The notice offers [I took it] [Skip] [Keep missed], with the clinician/pharmacist safety line.
 
-**Wizard definition** is declarative: `Flow{name, steps: map[step -> Step{prompt(data) -> OutboundMessage, accept(input) -> Validation, next(data, input) -> step | Done | Abort, back?: step}]}`. The engine is generic: `Engine.handle(session, input)` loads the session (`SELECT ... FOR UPDATE`), validates, mutates data, increments `step_seq`, persists (version check), then asks the mediator to `finalize(last_prompt)` (removing old buttons) and `send` the next prompt, then stores the new handle. Persist-then-send ordering means a crash after the DB commit but before the send is recovered by the sweeper: sessions whose `last_prompt` is null re-send their current prompt.
+**Action log** (`dose_actions`) is append-only (DB role has INSERT only; a trigger rejects UPDATE/DELETE). Every user or system change is one row: `seq` (per-occurrence monotonic), `action`, `actor_type`, `platform`, `platform_identity_id`, `platform_message_id`, `interaction_id`, `idempotency_key` (UNIQUE), `occurred_at` (when the user acted), `recorded_at`, `prior_status`, `new_status`, `effective_at` (the taken_at/skipped_at this action asserts), `reason_code`, `note`, `metadata`, `correlation_id`, `catch_up` flag. The occurrence row's `status`, `taken_at`, `skipped_at`, `missed_at`, `snooze_count`, `reminder_seq` are a projection and can always be rebuilt by folding the log.
 
-**Inputs a step accepts**: `InteractionSubmitted` (button), `MessageReceived` (typed text for name/dose/custom time), `FormSubmitted`. Each step declares which; anything else gets the current prompt again plus a Notice.
+**Command idempotency.** Two layers. Transport layer: `idempotency_key` from the vendor interaction id (`discord:interaction:{id}`, `telegram:callback:{id}`, `zulip:message:{id}`, `matrix:event:{id}`); a duplicate key returns the stored result. Semantic layer: applying `taken` to an already-taken occurrence is a no-op that returns the current state ("Already recorded at 09:03") without a new log row. Both are needed: the same human can press the button on two duplicate messages.
 
-**Global interrupts**: direct-mode tokens (reminder Taken/Snooze/Skip) bypass the session entirely and are handled even mid-wizard. Commands `/cancel`, `/menu` abort the session. Starting a new flow while one is active asks "Cancel the current add-medication setup?" (ChoiceSet).
+**Late log** (`missed -> taken`): allowed always, tagged `taken_late` if `taken_at > due_window_end`. Within `late_log_window_minutes` (default 24 h) the flow is one tap; beyond it the user goes through Correct with an explicit time. The user supplies `effective_at` via [Now] [At scheduled time] [Custom]; custom must satisfy `scheduled_for - 12h <= t <= now`.
 
-**Timeouts**: `expires_at = now + 30 min` refreshed on every input. A sweeper (core scheduler) runs every minute: sessions past expiry get one "Still there? [Continue] [Cancel]" prompt with a 30-minute grace; then abort, `finalize` the prompt with "Setup cancelled – nothing saved", and delete slots.
+**Correction** (`correct(occurrence, new_status in {taken, skipped, missed}, effective_at, note)`) is allowed from any resolved status and logs `manually_corrected` with prior/new. Corrections of `unknown` are how a user repairs an outage gap.
 
-**Resume after restart**: because state is in the DB and every token resolves through the DB, resumption is automatic. The engine's only in-memory state is the compiled `Flow` table.
+**Undo** applies only to the latest action of an occurrence and within `undo_window_minutes` (15). It appends `undone` with `undoes_seq = prior.seq` and restores `prior_status` and the prior projection fields captured in that row. Undoing a `taken` that had been logged after the deadline returns the occurrence to `missed`; undoing before the deadline returns it to `due` with `next_action_at = min(now + repeat_every, miss_deadline)`. Chains: undoing a `taken` that spawned chain occurrences cancels those with reason `undone_anchor`.
 
-**Concurrency**: the mediator serializes all events for a `(vendor, chat_id)` key (section 7), so a session is never mutated by two workers at once; the version column is belt-and-braces for multi-process deployments.
+**Skip reasons** are `reason_code` values (forgot, ran_out, side_effects, clinician_advised, other) plus free `note`; adding a note later appends `note_added` and does not change status.
 
-## 5. Identity mapping and account linking
+## 5. Catch-up after downtime
 
-`PlatformIdentity(vendor, vendor_user_id)` -> `platform_identities` row -> `account_id`. Resolution is a core port (`IdentityResolver`) called by the mediator, with a short-TTL cache invalidated by `AccountLinkCompleted` and `IdentityUnlinked` events.
+Nothing special is needed for correctness because the loop is state-driven: on restart, every row with `next_action_at <= now` is claimed in order. The problem is *behavior*: replaying 6 hours of ticks naively would send three stale reminders and a missed notice per dose. Rules:
 
-**Unlinked principals** exist (first contact). The mediator stamps `Principal{linked=false, identity_id}`; the core's router allows only the identity flows (create account, link, restore) and help. Sessions for unlinked users are keyed by `identity_id`; on link, the core rekeys the session to the account (this replaces the partition-key flip risk from the Kafka design: ordering is per chat, not per account).
+1. **Materializer first.** Run materialization before the reminder loop starts claiming. Occurrences created whose `miss_deadline < now` are inserted as `unknown` (never reminded). Occurrences whose `due_window_start < now <= miss_deadline` are inserted `pending` and handled by rule 2.
+2. **Collapse, do not replay.** For a claimed row, compute the target state as of `now` directly: if `now >= miss_deadline` and `reminder_seq == 0` -> `unknown`; if `now >= miss_deadline` and `reminder_seq > 0` -> `missed`; else -> `due` with a single reminder (set `reminder_seq` to what it would be, but send one message marked "late reminder"). All such transitions are logged with `catch_up=true`.
+3. **Digest per account.** Sends produced during catch-up (`now - next_action_at > CATCHUP_THRESHOLD`, 10 min) are not sent individually. They are folded into one `digest` dispatch per account: "I was offline for 6 h. 2 doses passed without a reminder (marked unknown): Vitamin D 09:00, Iron 12:00. 1 dose is due now: ..." with a [Review] control that opens the correction flow. Digest dispatches share the send_key scheme, so retries are idempotent.
+4. **Rate limit** catch-up dispatching (per vendor, per account) so a long outage does not hit Discord/Telegram limits.
+5. **Observability.** Emit `reminder.catch_up.duration`, counts of `unknown` created, and a warning if `now - min(next_action_at)` exceeds 2 x TICK during normal operation (loop is lagging).
 
-**Where linking lives**: in the core's identity module, never in adapters or the mediator. Flows:
+## 6. Multi-channel delivery
 
-1. *Create account* from a chat: core creates account + links the current identity in one transaction.
-2. *Link existing* (from a new vendor chat): core issues `link_challenge{code (8 chars), url (HTTPS, 10 min TTL), identity_id}`; the mediator sends the URL (Link block) and the code. The user either opens the URL while authenticated in the web session or types the code into an already-linked chat on another vendor. The web/API layer calls `Identity.completeLink(code)`, which inserts the `platform_identities` row, writes the audit row, and injects `AccountLinkCompleted` for both chats.
-3. *Restore* uses recovery codes through the same challenge shape.
+An account owns N `delivery_channels` (one per linked platform identity) with `role in {primary, fallback, off}`, `priority`, `state in {healthy, degraded, dead}`, and `last_ack_at`. Policy per account: `primary_then_fallback` (default) or `broadcast`.
 
-Passwords are never accepted in chat; the mediator's `secret_guard` refuses to store bodies for steps flagged `sensitive` (kept for the future MVP DM fallback R7, off by default).
+- The reminder loop creates one dispatch for the primary channel. If it ends `failed_permanent`, or has not reached `sent` within `fallback_after` (2 min, vendor ack, not user response), the dispatcher creates the next channel's dispatch (new send_key, different `channel_id`). The occurrence is not touched.
+- **Dedupe of user responses**: the first action wins, subsequent ones are semantic no-ops (section 4). The action row records which platform answered.
+- **Post-resolution fan-out**: on any resolution the worker enqueues `update` dispatches for every `sent` reminder of that occurrence on other channels: edit to "Recorded via Telegram at 09:03" and remove controls where editing exists; on Zulip/Matrix send a one-line follow-up in the same thread/reply chain; cancel any `queued` fallback dispatches.
+- Channel health: permanent failures move a channel to `dead` and notify the user on a healthy channel; success resets to `healthy`.
+- Stale messages always work: callbacks resolve by `occurrence_id`, never by message age, and the reply is the current state.
 
-**Per-identity delivery preferences** live in the identity module: `reminder_channel: bool`, `discreet: bool`, and an ordered `channel_priority` on the account.
+## 7. Adherence statistics
 
-## 6. Reminder delivery API
+All windows are ranges of `local_date` in the user's timezone, using the stored `local_date` column. Only `origin in (scheduled, chain)` occurrences count toward adherence; `origin=manual` (as-needed) is reported as counts.
 
-Core does not choose vendors. It calls:
+Definitions per window and optionally per medication:
+- `taken_on_time`: status taken and `taken_at <= due_window_end`.
+- `taken_late`: status taken and `taken_at > due_window_end`.
+- `skipped`, `missed` as stored; `unknown`, `cancelled`, `pending/due/snoozed` are excluded from the denominator.
+- `adherence = (taken_on_time + taken_late) / (taken_on_time + taken_late + skipped + missed)`, undefined (shown as "no data") when the denominator is 0.
+- `on_time_rate = taken_on_time / (taken_on_time + taken_late)`.
+- `median_delay_minutes` and p90 of `taken_at - scheduled_for` over taken occurrences (median, not mean: one 9-hour late log should not dominate).
+- `today`: counts by status including due/snoozed, plus the next occurrence.
+- `streak_days`: consecutive local days up to yesterday (today counts only when all of today's doses are resolved) on which every scheduled occurrence is taken; days with no scheduled occurrences are neutral. Shown as "recovery" friendly copy per the product principles.
 
-`Delivery.deliver(DeliveryRequest{dedupe_key, account_id, message: OutboundMessage, policy: DeliveryPolicy{mode: primary|all|first_available, expires_at, requires_ack?: bool}, correlation_id}) -> DeliveryTicket{delivery_id}`
+Query design: index `(account_id, local_date, status)` and `(account_id, medication_id, local_date)`. For 7/30-day windows a direct aggregate over these indexes is fine for years of single-user data. For heavier use, `adherence_daily(account_id, medication_id, local_date, taken_on_time, taken_late, skipped, missed, unknown, cancelled)` is a rollup recomputed for the single affected `(account, medication, local_date)` inside the same transaction as every action; it is idempotent (full recompute of one row), so corrections and undo keep it exact. Stats are read-only queries; no event stream is required.
 
-The mediator: (1) inserts a `deliveries` row `{delivery_id, dedupe_key unique, account_id, status=pending, request json}` – when called inside the core's transaction (same DB, modular monolith) this is the transactional outbox; (2) a `DeliverySender` worker claims pending rows (`FOR UPDATE SKIP LOCKED`, lease 60 s), resolves channels from account preferences (`primary` = the identity flagged `reminder_channel`, else most recently active), calls `send`, and records `delivery_attempts{delivery_id, channel, status, handle, error}`; (3) emits `DeliveryStateChanged{delivery_id, channel, status: sent|failed|suppressed|expired, handle}` to the core, which stores handles on the occurrence (`occurrence_messages` table) for later `finalize`/`edit`.
+## 8. Data model
 
-**At-least-once with bounded duplicates**: the send is executed with the row in `sending` state; success records `handle` and `sent_at`. If the process dies between vendor success and the DB write, the lease expires and the row is retried; the duplicate is possible but detectable afterwards (the second message replaces the first via `finalize` because both handles are recorded against the same `dedupe_key`), and the sender first asks the adapter `findRecentByMarker(chat, marker)` where supported (Discord/Zulip/Matrix can search the bot's last N messages for the hidden marker `delivery_id` embedded as a zero-width sequence or Matrix `content["io.dosecord.delivery_id"]`; Telegram cannot, so it accepts the rare duplicate).
+Types: `id` = UUID, instants = `timestamptz` (UTC), local dates = `date`, local times = `time` or `"HH:MM"` text, JSON = `jsonb`.
 
-**Expiry**: reminders carry `expires_at` (e.g. miss window). The sender never sends past expiry; it marks `expired` so catch-up after downtime does not flood the user with stale reminders; the core's catch-up logic then sends one "While I was away…" summary instead.
+**users** (existing) + `timezone` (IANA, NOT NULL), `quiet_hours jsonb null`, `discreet_default bool`, `delivery_policy text`.
 
-**Later actions on old messages**: `finalize(handle, ...)` and `edit(handle, ...)` accept any stored handle; the mediator handles superseded handles and vendor refusals via the edit ladder. Undo after Taken edits the same message back to its button state (or sends a fresh one on degraded vendors).
+**medications**: id, account_id FK, name, display_alias, dose_amount, dose_unit, instructions, discreet bool, status (active|paused|archived), created_at, updated_at. UNIQUE `(account_id, lower(name)) WHERE status <> 'archived'`.
 
-**Receipts**: `DeliveryStateChanged` is the only feedback path; `deliver` itself never blocks on the vendor.
+**medication_schedules**: id, medication_id FK, account_id, kind, status (active|paused|archived), current_revision int, tz, tz_follows_user bool, start_date, end_date null, materialized_through timestamptz, created_at, updated_at. Index `(status, materialized_through)`.
 
-## 7. Adapter contract
+**schedule_revisions** (append-only): id, schedule_id FK, revision int, effective_from timestamptz, tz, rule jsonb, reminder_policy jsonb, dose_snapshot jsonb, created_by (user|system), reason, created_at. UNIQUE `(schedule_id, revision)`. CHECK rule kind is in the enum; CHECK policy invariants (`miss_after_minutes > 0`, `max_reminders >= 1`, snooze options positive, `repeat_every_minutes > 0`).
 
-An adapter is a small, dumb, replaceable component. It **must**:
+**dose_occurrences**: id, account_id, medication_id, schedule_id null (manual), revision null, origin (scheduled|chain|manual), local_date, slot_key, tz, scheduled_for, due_window_start, due_window_end (= miss_deadline at creation; miss_deadline is the mutable copy), miss_deadline, status (pending|due|snoozed|taken|skipped|missed|unknown|cancelled), cancel_reason null, reminder_seq int default 0, snooze_count int default 0, snoozed_until null, last_reminded_at null, taken_at null, skipped_at null, missed_at null, next_action_at null, dose_snapshot jsonb, anchor_occurrence_id null (chains), created_at, updated_at, version int (optimistic lock).
+Constraints: UNIQUE `(schedule_id, revision, local_date, slot_key)`; CHECK `status = 'taken' -> taken_at IS NOT NULL`; CHECK `status = 'snoozed' -> snoozed_until IS NOT NULL`; CHECK `status IN ('pending','due','snoozed') = (next_action_at IS NOT NULL)`; CHECK `due_window_start <= miss_deadline`.
+Indexes: partial `(next_action_at) WHERE status IN ('pending','due','snoozed')` (the loop's only hot index); `(account_id, local_date, status)`; `(account_id, medication_id, local_date)`; `(schedule_id, scheduled_for)`.
 
-- Implement `ChatAdapter` (key_types): `capabilities()` returning a static `CapabilityProfile`; `start(sink, cursor?)`, `stop()`; `execute(op: VendorOp) -> VendorResult` for send/edit/delete/react/ack/typing/registerCommands/openChat; `resolveChat(identity) -> ChatRef` (open a DM: Discord `create DM`, Telegram chat id = user id, Zulip = PM to email/id, Matrix = find or create DM room and invite).
-- Convert every relevant vendor update into exactly one `InboundEvent` with a stable `vendor_event_id` and a `cursor` (Telegram `update_id`+1; Zulip `queue_id:last_event_id`; Matrix `next_batch`; Discord none – gateway is push and the adapter reports `resumed` on reconnect so the core can run catch-up).
-- Acknowledge vendor deadlines itself when the mediator has not done so in time (Discord: deferred update at 2.5 s; Telegram: `answerCallbackQuery` at 5 s) – via the `InteractionAck` handle, so the mediator can still send the real response later.
-- Translate `RichText` using the profile's escaping rules; split at `max_text`.
-- Map vendor errors to the closed `VendorError` set: `rate_limited{retry_after}`, `not_found`, `forbidden`, `too_old`, `unsupported`, `transient`, `permanent`.
-- Redact message bodies from logs; emit metrics `adapter_events_in`, `adapter_ops_out`, `adapter_errors`, `adapter_rate_limit_waits` with `vendor` label.
+**dose_actions** (append-only): id, occurrence_id FK, account_id, seq int, action (reminder_sent|reminder_deferred|taken|skipped|snoozed|auto_marked_missed|marked_unknown|manually_corrected|undone|note_added|cancelled|catch_up_collapsed), actor_type (user|system), platform null, platform_identity_id null, platform_message_id null, interaction_id null, idempotency_key UNIQUE null, occurred_at, recorded_at default now, prior_status, new_status, effective_at null, reason_code null, note null, undoes_seq null, catch_up bool, correlation_id, metadata jsonb. UNIQUE `(occurrence_id, seq)`. Trigger: reject UPDATE/DELETE.
 
-It **must not**: parse user text into intents; hold conversation or user state; decide identity or account; retry beyond a single `Retry-After`-guided retry (the mediator owns retry policy); invent fallbacks (the mediator renders; an adapter receiving an op it cannot perform returns `unsupported`, which is a conformance failure if the profile claimed support); reorder events for a chat; call core.
+**reminder_dispatches**: id, send_key UNIQUE, occurrence_id null (digest), account_id, channel_id FK, kind (reminder|snooze|missed|digest|update), payload jsonb (vendor-neutral render model), status (queued|sending|sent|failed_retry|failed_permanent|cancelled), attempts int, next_attempt_at, attempt_id null, platform_message_id null, last_error null, created_at, sent_at. Partial index `(next_attempt_at) WHERE status IN ('queued','failed_retry')`. Index `(occurrence_id)`.
 
-**Threading and ordering**: adapters may be fully async; they deliver events to `InboundSink.push(event)` which is non-blocking with a bounded per-adapter queue (default 1 000). The mediator dispatches events through a keyed executor: key = `(vendor, chat_id)`, so per-chat order is preserved while chats run in parallel (worker pool sized to CPU; handlers are I/O bound). Discord's 3-second rule is met by the sink immediately scheduling `ack(defer)` when the event is an interaction and the queue depth for that key exceeds 0.
+**delivery_channels**: id, account_id, platform_identity_id FK UNIQUE, role, priority, state, last_ack_at, last_error, updated_at.
 
-**Backpressure**: pull-based adapters (Telegram long-poll, Zulip event queue, Matrix `/sync`) simply stop polling when `push` returns `full`. Push-based (Discord gateway) cannot; the adapter drops non-interaction events beyond the queue, records a `dropped_events` metric, and answers interactions with `ack(toast="I'm busy, try again in a moment")`. The core's catch-up (on `AdapterLifecycle{resumed}`) re-derives state from the DB, so dropped events are recoverable by the user re-tapping.
+**adherence_daily** (optional rollup) as in section 7, PK `(account_id, medication_id, local_date)`.
 
-**Rate limits** are enforced in the mediator's `OutboundScheduler`, not adapters: a global token bucket per vendor (Discord 50 req/s global; Telegram ~30 msg/s), a per-chat bucket (Telegram ~1 msg/s; Discord 5 msg/5 s per channel; Zulip 200 req/min per bot), and a priority queue `ack > interaction_reply > reminder > info > bulk`. On `rate_limited{retry_after}` the scheduler pauses that bucket for `retry_after` and re-enqueues; on repeated 429 it halves the bucket rate for 10 minutes. Limits are configuration, not code, since Telegram publishes no official numbers.
+Invariants (enforced by code and, where possible, constraints): exactly one active revision per schedule; an occurrence's projection equals the fold of its actions; `reminder_seq <= max_reminders`; `snooze_count <= max_snoozes`; no two occurrences of the same schedule/revision share `(local_date, slot_key)`; every status change has exactly one action row; `next_action_at` is NULL iff status is resolved; dispatches are never created outside a transaction that also wrote the action row that justifies them.
 
-## 8. Conformance suite and fake vendor
+## 9. Failure modes
 
-Two harness levels, both language-neutral in intent (a fixture format of JSON scenario files so every implementation runs the same cases):
+| Failure | Effect without mitigation | Mitigation |
+|---|---|---|
+| Worker crash mid-tick | Half-applied transition | Single transaction per row; re-claim next tick |
+| Two workers | Double reminder | SKIP LOCKED claim; UNIQUE send_key; UNIQUE occurrence key |
+| Vendor send ok, ack lost | Duplicate message | Idempotent callbacks; post-resolution message edit; bounded retries |
+| Vendor down | Reminders silently lost | Dispatch retries with backoff; fallback channel; digest on recovery |
+| DM closed / bot blocked | Permanent failure | `failed_permanent` -> channel dead -> notify via other channel |
+| 6 h downtime | Burst of stale reminders | Collapse rules + digest + `unknown` status |
+| DST gap/fold | Skipped or doubled dose | Deterministic disambiguation; natural key; golden tests |
+| User changes tz | Reminders at wrong time | Revision + reconcile; explicit prompt for non-following schedules |
+| tzdata rule change | Stale UTC instants in horizon | 48 h horizon + nightly verify pass |
+| Schedule edit while due | Buttons on old message break | Old revision's due rows keep living; callbacks resolve by occurrence_id |
+| Duplicate button press | Double log rows | Transport idempotency key + semantic no-op |
+| Stale message tapped days later | Wrong occurrence changed | Callback carries occurrence_id; reply shows current state; late-log rules apply |
+| Snooze past next dose | Overlapping reminders | Snooze options bounded by next occurrence |
+| Clock skew between workers/DB | Early/late firing | All loop logic uses one injected clock; DB is not queried with `now()`; alert on lag |
+| Loop lag (large batch) | Reminders late | `ORDER BY next_action_at`, batch size, lag metric, more workers |
+| Vendor rate limit | Dropped sends | Per-vendor token bucket in dispatcher; retry on 429 with Retry-After |
+| Chain intake undone | Orphan chain doses | Cancel with `undone_anchor` |
+| Log table tampering | Audit gap | INSERT-only role, trigger, periodic fold-vs-projection check |
+| Materializer never runs | No reminders at all | Reminder loop also materializes for schedules with `materialized_through < now + TICK*4`; alert on `min(materialized_through) < now` |
 
-**A. Adapter conformance** – runs any adapter against a `FakeVendorServer` implementing the vendor's *wire* (an in-memory HTTP/WS stub per vendor, or the vendor SDK's test transport) and a scripted `Scenario{given: [vendor updates], when: [ops], expect: [vendor calls, events]}`. Mandatory scenarios:
-1. Event mapping: each vendor update type -> the expected `InboundEvent` kind, `vendor_event_id`, cursor monotonicity.
-2. Duplicate delivery of the same vendor update produces the same `vendor_event_id`.
-3. Deadline ack: an interaction unanswered by the mediator is deferred before the vendor deadline (fake clock).
-4. Capability honesty: for every capability the profile claims, an op succeeds against the fake; for every one it denies, the adapter returns `unsupported` without calling the vendor.
-5. Rate limit: fake returns 429 with `Retry-After`; adapter returns `rate_limited` and performs no further calls.
-6. Long text split, markup escaping golden files (`RichText` fixtures -> expected vendor payload).
-7. Resume: stop, restart with the last cursor, no replays or gaps.
-8. Log hygiene: no message body appears in captured logs.
+## 10. Test plan
 
-**B. Mediator conformance** – runs the mediator with a `FakeAdapter` parameterized by a `CapabilityProfile` (all four real profiles plus a minimal "text-only" profile) and an in-memory core stub. Scenarios: every degradation ladder rung produces the golden `RenderReport`; numbered reply "2" and reaction 2️⃣ both resolve to the second token; token round-trip (encode -> decode) and tamper rejection; stale step rejection; delivery outbox retry with a crash injected after vendor success; edit ladder when the fake refuses edits; ephemeral downgrade when no live interaction; per-chat ordering under concurrency (interleaved chats keep order); priority scheduling under a saturated bucket.
+**Clock injection.** Every component takes a `Clock` (`now()`), and every query takes `now` as a parameter. Tests use a `VirtualClock` with `advance(d)` and `set(t)`. The dispatcher is replaced by a `RecordingDispatcher` that captures `(send_key, channel, payload)`.
 
-Any new adapter ships with suite A green and its profile included in suite B's parameter list. The suite is the definition of "supports vendor X".
+**Unit (pure evaluator).** Golden tables per kind over fixed date ranges in Europe/Kyiv (2026-03-29 gap, 2026-10-25 fold), America/New_York, Australia/Sydney (southern hemisphere, opposite months), Asia/Kolkata (+05:30, no DST), Pacific/Apia (far east of the date line), America/Sao_Paulo (no DST since 2019). Explicit cases: slot at 03:30 on the gap day resolves to 04:30 local; slot at 03:30 on the fold day yields one occurrence at the earlier instant; every-8h across both days yields 4 and 3 doses respectively.
 
-## 9. Storage owned by the mediator
+**Property tests** (generate random rules, tz, revisions, ranges, and for chains random intake sequences):
+1. Determinism: `occurrences(r, tz, a, b)` is a pure function; two calls are equal.
+2. Composability: `occ(a,c) == occ(a,b) ++ occ(b,c)` for a<b<c (no boundary loss/duplication).
+3. Uniqueness of `(local_date, slot_key)` and strictly increasing `scheduled_for` within a day.
+4. For slot kinds outside DST transition days, `local_time(scheduled_for) == slot`.
+5. For interval kinds, consecutive gaps equal `interval_minutes` exactly.
+6. Materialize twice (or concurrently) -> identical row set.
+7. Loop equivalence: running ticks every 5 s from t0 to t1 versus a single jump to t1 yields the same final occurrence statuses (sends differ only by digest collapsing); this is the catch-up contract.
+8. Idempotency: any action applied twice with the same key equals once; any sequence of actions followed by their undos within the window restores the projection.
+9. Projection = fold(actions) after any random action sequence.
+10. Snooze options offered never exceed the next occurrence of the schedule.
+11. Adherence invariants: 0 <= adherence <= 1; counts sum to total resolved; `unknown`/`cancelled` never change adherence.
 
-`inbound_events` (audit and dedupe), `interaction_slots`, `presentations`, `form_runs`, `deliveries`, `delivery_attempts`, `message_handles` (with `superseded_by`), `identity_cache` (optional). All keyed to survive restarts; nothing else is in memory except rate buckets, which are safe to lose.
+**Integration (real database, Testcontainers or equivalent).** UNIQUE and CHECK constraints reject duplicates; append-only trigger; two worker processes claiming the same backlog produce exactly one dispatch per send_key; crash injection (kill after vendor call, before commit) yields at most one extra message and no extra state change; revision reconciliation cancels exactly the expected rows; tz change flow.
 
-## 10. Migration notes for the existing repo
+**Scenario/simulation.** A deterministic harness drives the virtual clock through 30 days for a set of personas (daily at 09:00, twice daily, Mon/Wed/Fri, every 8 h fixed, chain after first dose, 21/7 cycle, taper, as-needed) with scripted user behavior (answer late, snooze twice, ignore, undo, travel across zones, 6 h outage on day 12) and asserts the full dispatch transcript and final stats against snapshots. Snapshot diffs are the review artifact for any change to the loop.
 
-Keep: envelope/actor shape (as the serialized form of `InboundEvent` if a queue is introduced), UX copy and menu trees, callback shape (`action, conversation_id, value`) which maps directly onto the token's `(action, subject, value)`. Replace: the text-only chat contract with `OutboundMessage`; the closed `Platform` enum with a vendor string plus a profile registry; per-vendor idempotency keys with `(vendor, vendor_event_id)`.
+**Vendor adapter contract tests** (shared with Track A): every adapter must map a reminder render model to a message, return a stable message id, report permanent vs transient failures, and route a callback to `(occurrence_id, action, interaction_id)`.
+
+## Libraries (verification status as of September 2026)
+
+The design needs only: IANA tz resolution with explicit gap/fold policy, and row locking. Verified: JS `Temporal` is Stage 4 and unflagged in Node 26 (`ZonedDateTime` with `disambiguation`); Rust `jiff` 0.2.x is active and TZ-aware, 1.0 still pending; Java `java.time` (built in) and Python `zoneinfo` (stdlib) need no third party; tzdata 2026c is the current release; PostgreSQL SKIP LOCKED remains the standard queue primitive. Recurrence libraries (rrule ports) were deliberately not chosen: the rule set here is small and the DST policy must be explicit, which rrule implementations handle inconsistently.
 
 ## Capability matrix
-| Capability | Discord | Telegram | Zulip | Matrix | Mediator fallback (deterministic ladder) |
+| Capability needed by reminder delivery | Discord | Telegram | Zulip | Matrix | Fallback strategy in the core |
 |---|---|---|---|---|---|
-| Native commands | Slash commands, registered; work in bot DM incl. user-installed apps | `/cmd` + `setMyCommands` menu | None (text `/cmd` parsed by mediator) | None (text `/cmd` parsed by mediator) | Text `/command` parsing in mediator; core declares `CommandSpec[]` once |
-| Buttons | Yes (components; 5/row, 40 components/message with V2) | Yes (inline keyboard, `callback_data` 1-64 bytes) | No | No | Numbered list + bot-added digit reactions (1️⃣-9️⃣) with `presentation` map -> numbered list only |
-| Select / dropdown | Yes (string select, max 25 options) | No | No | No | Buttons paged 5/row -> numbered list + reactions -> numbered list |
-| Forms / modals | Yes (modal, 1-5 components, selects/checkbox allowed) | No (Mini Apps out of scope) | No | No | Mediator `FormRunner` sequential questions, emits one `FormSubmitted` |
-| Ephemeral messages | Yes, only as interaction responses (flag 64) | No (transient toast via `answerCallbackQuery` only) | No | No | Persistent + `delete_after` -> persistent + Notice "not kept" |
-| Edit own message | Yes, indefinitely | Yes for bot's own messages (delete limited to 48 h; edit limit not documented, treat as unlimited but verify) | Yes if realm edit-window allows (author-only; realm setting) | Yes (`m.replace`) | Send replacement (reply to old) + delete old if allowed -> send replacement only; handle `superseded_by` |
-| Delete own message | Yes | Yes within 48 h | Realm-permission dependent | Yes (redaction of own event) | Edit to "(cleared)" with controls removed -> leave, mark `unreachable` |
-| Finalize (remove controls, show outcome) | Edit components | `editMessageReplyMarkup`/text | Edit text, remove bot reactions | Edit text, redact bot reactions | Falls to edit ladder |
-| Bot adds reactions | Yes | Yes (`setMessageReaction`, limited emoji set) | Yes (`add-reaction`) | Yes (`m.reaction`) | Skip reaction shortcuts (rung 5) |
-| Bot receives reactions | Yes (gateway event, DMs included) | Yes (`message_reaction` update, must be in `allowed_updates`) | Yes (event queue `reaction` with `user_id`) | Yes (`m.reaction` events) | Not needed if buttons exist; without both, numbered text replies only |
-| Transient ack / toast | Deferred update, ephemeral follow-up | `answerCallbackQuery` (text / alert) | None | None | No-op; outcome shown via finalize |
-| Portable markup | Markdown subset | MarkdownV2 or HTML | Zulip markdown | `org.matrix.custom.html` | `RichText` AST rendered per vendor; unsupported nodes rendered as plain text |
-| Text limit | 2 000 chars content (V2 text display larger; treat 2 000) | 4 096 chars | ~10 000 chars (realm setting) | 65 KB event size | Split at paragraph boundaries; blocks attach to last chunk |
-| Callback payload budget | `custom_id` 1-100 chars | 64 bytes | None (server-side presentation map) | None (server-side presentation map) | 46-char signed token fits all; text vendors use presentation map |
-| Ack deadline | Initial response within 3 s; token valid 15 min | Answer callback promptly (spinner) | None | None | Adapter auto-defers at 2.5 s (Discord) / 5 s (Telegram) |
-| Proactive DM (reminder push) | Needs DM channel (shared guild or user-install context) | Only after user sent `/start` | Yes, any realm user | Create/reuse DM room; user must have joined | `resolveChat` at link time; store `ChatRef`; on failure mark channel unavailable and try next channel |
-| Threads | Yes (not used) | Topics in forums (not used) | Topics (not used for DMs) | `m.thread` (not used) | `thread_id` carried opaquely, never required |
-| Polls | Yes (native) | Yes (native, no callback) | `/poll` widget | MSC3381 unstable (`org.matrix.msc3381.*`), Element only | Not part of the unified model in v1 |
-| Rate limits | 50 req/s global, ~5 msg/5 s per channel, 429 with `Retry-After` | ~30 msg/s global, ~1 msg/s per chat (unofficial), 429 `retry_after` | 200 req/min per user default | Homeserver-configured, `M_LIMIT_EXCEEDED` + `Retry-After` | Mediator `OutboundScheduler`: per-vendor + per-chat token buckets, priority queue, single `Retry-After` retry in adapter, backoff in mediator |
-| Resume cursor | None (gateway push; report `resumed`) | `update_id` offset | `queue_id` + `last_event_id` (re-register on expiry) | `/sync` `next_batch` | Core catch-up on `AdapterLifecycle{resumed}` from DB state |
-| E2E encryption | No | No (secret chats unavailable to bots) | No | Yes in DMs by default in many clients | Adapter must use a crypto-capable SDK or create unencrypted DM; flagged as risk |
+| Push a DM without prior user message | Yes (DM channel; user must share a server or have DMs open) | Yes (user must have /start-ed the bot) | Yes (private message to user) | Yes (DM room, bot must be joined/invited) | Channel marked `dead` on permanent failure; user told on another channel; setup flow verifies a test DM |
+| One-tap actions (Taken/Snooze/Skip) | Buttons (components, custom_id <= 100 chars) | Inline keyboard, callback_data <= 64 bytes | None native | None native (MSC3381 polls in some clients) | Render model `Actions[]`; Zulip/Matrix render numbered choices + short text commands (`t`, `s10`, `k`) and emoji reactions mapped to actions; the core accepts reactions/replies as callbacks |
+| Callback carries occurrence id | custom_id (opaque, fits `a:occ:<uuid>:taken`) | callback_data too small for uuid+action: use a short dispatch token (base62 id of dispatch row, 8 chars) | Message id of reminder resolves occurrence via dispatch table | Reply-to event id or reaction target event id resolves via dispatch table | All vendors resolve `(platform_message_id) -> dispatch -> occurrence`; custom_id/callback_data is an optimization, never the only path |
+| Stable message id returned on send | Yes | Yes | Yes | Yes (event_id) | Required by contract; stored on dispatch for edits and callback resolution |
+| Edit message / remove buttons after resolution | Yes | Yes (editMessageReplyMarkup/editMessageText) | Yes (edit own message, config-dependent) | Yes (m.replace edit) | If edit fails or unsupported: send one-line follow-up "Recorded at 09:03"; stale taps remain idempotent |
+| Ephemeral reply (discreet Details) | Yes (interaction ephemeral) | No (but chat is a DM); answerCallbackQuery alert popup works for short text | No | No | Details sent as normal DM; discreet mode still hides name in the reminder itself and in notification previews |
+| Interaction idempotency key | interaction.id | callback_query.id / update_id | message id of the user's command | event_id | All map to `platform:kind:id`; unique in dose_actions |
+| Permanent vs transient failure signal | 403 Cannot send messages to this user vs 5xx/429 | 403 bot was blocked / chat not found vs 5xx/429 | 400 user not found vs 5xx | M_FORBIDDEN vs M_LIMIT_EXCEEDED/5xx | Adapter classifies; core retries transient with backoff, marks channel dead on permanent |
+| Rate limiting | Per-route buckets, 429 with Retry-After | ~30 msg/s global, 1 msg/s per chat, 429 retry_after | Server-configured | 429 M_LIMIT_EXCEEDED with retry_after_ms | Dispatcher token bucket per vendor; catch-up digests reduce volume |
+| Delivery/read receipts | No read receipts | No | Yes (read flags, limited) | Yes (m.receipt) | Not relied on; "ack" means vendor accepted the send |
+| Reactions as input | Yes (reaction add events) | Yes (message_reaction updates, bot must be admin in groups; fine in DM) | Yes (emoji reactions events) | Yes (m.reaction) | Core maps configured emoji to actions on Zulip/Matrix as the primary one-tap path; optional elsewhere |
+| Threads / reply chains for follow-ups | Reply reference | reply_to_message_id | Topic per medication or DM | m.relates_to in_reply_to | Post-resolution note references the reminder message where possible |
+| Slash / command menu | Slash commands | Bot commands menu | Text commands only | Text commands only | Text commands `today`, `took <name>`, `skip <name>` exist on every vendor |
 
 ## Key types
-// ---------- Shared value types ----------
-type Vendor = string                          // "discord" | "telegram" | "zulip" | "matrix" | future
-type PlatformIdentity = { vendor: Vendor, vendor_user_id: string, display_name?: string }
-type ChatRef        = { vendor: Vendor, chat_id: string, thread_id?: string }
-type MessageHandle  = { vendor: Vendor, chat_id: string, message_id: string, revision: int }
-type Principal      = { identity_id: UUID, account_id?: UUID, linked: bool }  // stamped by mediator only
-type Cursor         = opaque string
+// ---------- Clock and time primitives ----------
+interface Clock { now(): Instant }                 // injected everywhere; tests use VirtualClock
+type Instant   = UTC timestamp (ms precision)
+type LocalDate = ISO date in a named zone
+type LocalTime = "HH:MM"
+type Tz        = IANA zone id, e.g. "Europe/Kyiv"
+enum GapPolicy  { ADD_GAP_LENGTH }                 // 02:30 -> 03:30 on spring-forward
+enum FoldPolicy { EARLIER }                        // first occurrence on fall-back
+fun resolveLocal(date: LocalDate, time: LocalTime, tz: Tz): Instant   // applies both policies
 
-// ---------- Inbound (adapter -> mediator -> core) ----------
-type InboundEvent = {
-  event_id: UUID, vendor: Vendor, vendor_event_id: string, received_at: Instant,
-  actor: PlatformIdentity, chat: ChatRef, cursor?: Cursor,
-  principal?: Principal,                 // absent from adapters, present when core sees it
-  kind: InboundKind
-}
-type InboundKind =
-  | MessageReceived   { text: string, reply_to?: MessageHandle, truncated: bool }
-  | CommandInvoked    { name: string, args: map<string,string>, raw: string }
-  | InteractionSubmitted { callback: CallbackRef, values: [string], source?: MessageHandle, ack?: InteractionAck }
-  | FormSubmitted     { form_id: string, callback: CallbackRef, fields: map<string,string> }
-  | ReactionChanged   { emoji: string, target: MessageHandle, added: bool }
-  | ConversationStarted {}
-  | AccountLinkCompleted { link_id: UUID, account_id: UUID }
-  | AdapterLifecycle  { state: "connected"|"disconnected"|"resumed", from_cursor?: Cursor }
+// ---------- Schedule rules (tagged union stored as JSON) ----------
+type Weekday = mon|tue|wed|thu|fri|sat|sun
 
-type InteractionAck = opaque                    // vendor handle for deferring/answering; core never inspects
-type CallbackRef = { action: uint16, subject: int64, value: bytes14, slot?: InteractionSlot }
-type InteractionSlot = { slot_id: int64, account_id?: UUID, payload: json, session_id?: UUID, step_seq?: int, expires_at?: Instant }
+type Rule =
+  | FixedTimes      { kind:"fixed_times", slot_groups: [{days:Set<Weekday>, times:[LocalTime]}] }
+  | EveryNDays      { kind:"every_n_days", period_days:int>=1, times:[LocalTime] }
+  | EveryNWeeks     { kind:"every_n_weeks", period_weeks:int>=1, days:Set<Weekday>, times:[LocalTime] }
+  | Cycle           { kind:"cycle", on_days:int>=1, off_days:int>=0, times:[LocalTime], phase_offset:int=0 }
+  | IntervalFixed   { kind:"interval_fixed_start", anchor_time:LocalTime, interval_minutes:int>=30,
+                      max_per_day?:int, active_days:Set<Weekday> }
+  | Chain           { kind:"chain", anchor:"first_taken"|"each_taken", interval_minutes:int,
+                      doses_per_day:int, day_start:LocalTime, day_cutoff:LocalTime,
+                      first_dose_prompt_time?:LocalTime }
+  | Taper           { kind:"taper", phases:[{from_date:LocalDate, to_date:LocalDate,
+                      dose:DoseSnapshot, rule:Rule /* non-taper, non-chain */}] }
+  | AsNeeded        { kind:"as_needed", max_per_day?:int, min_gap_minutes?:int }
 
-// ---------- Outbound (core -> mediator -> adapter) ----------
-type RichText = [Node]
-type Node = Paragraph([Inline]) | BulletList([[Inline]]) | CodeBlock(string)
-type Inline = Text(s) | Bold([Inline]) | Italic([Inline]) | Code(s) | Link(url,label) | LineBreak
-            | Emoji(shortcode) | Time(instant, tz, style: "time"|"datetime"|"relative")
+type DoseSnapshot = { name, display_alias?, dose_amount?, dose_unit?, instructions? }
 
-type Choice    = { label: string(<=80), callback: CallbackToken, style: "primary"|"secondary"|"danger"|"success", emoji?: string, disabled: bool }
-type ChoiceSet = { id: string, prompt?: RichText, choices: [Choice](<=25), layout: "buttons"|"select", min_select: int, max_select: int, choice_ttl?: Duration }
-type Field     = { key, label, type: "text"|"number"|"time"|"date"|"choice", required: bool, placeholder?: string, options?: [Choice] }
-type Form      = { id: string, title: string(<=45), fields: [Field](<=5), submit: CallbackToken }
-type Block     = ChoiceSet | Form | Notice{ level: "info"|"success"|"warning", text: RichText }
-
-type OutboundMessage = {
-  body: RichText, blocks: [Block],
-  visibility: "persistent"|"ephemeral", importance: "interaction_reply"|"reminder"|"info"|"bulk",
-  replaces?: MessageHandle, delete_after?: Duration, discreet: bool,
-  dedupe_key: string, correlation_id: string
-}
-type Target = { account: UUID } | { chat: ChatRef } | { reply_to_interaction: InteractionAck }
-
-type RenderReport = { rung_used: map<block_id, string>, split_into: int, warnings: [string] }
-type SendResult   = { handle: MessageHandle, report: RenderReport }
-
-// Port the CORE calls (implemented by the mediator)
-interface ChatPort {
-  send(target: Target, msg: OutboundMessage): SendResult            // idempotent on msg.dedupe_key
-  edit(handle: MessageHandle, msg: OutboundMessage): SendResult     // may return a new handle (superseded)
-  finalize(handle: MessageHandle, summary: RichText, keep?: ChoiceSet): SendResult
-  delete(handle: MessageHandle): void
-  ack(interaction: InteractionAck, toast?: string): void
-  react(handle: MessageHandle, emoji: string, on: bool): void
-  typing(chat: ChatRef): void
-  registerCommands(specs: [CommandSpec]): void
-}
-type CommandSpec = { name: string, description: string, args: [{name, type, required}] }
-
-// Port the MEDIATOR calls (implemented by the core)
-interface CoreHandler {
-  handle(event: InboundEvent /* principal stamped */): void          // must be idempotent on (vendor, vendor_event_id)
-  subscribedReactions(chat: ChatRef): bool                          // whether raw reactions are wanted
-}
-interface IdentityResolver { resolve(id: PlatformIdentity): Principal }   // core-owned
-
-// ---------- Callback tokens ----------
-type CallbackToken = string   // base64url(34 bytes) = 46 chars; <=64 bytes Telegram, <=100 chars Discord
-interface TokenCodec {
-  encodeDirect(action: uint16, subject: int64, value: bytes14): CallbackToken
-  encodeIndirect(slot: InteractionSlot): CallbackToken            // subject = slot_id
-  decode(token: CallbackToken): CallbackRef | InvalidToken         // verifies HMAC[key_id]; loads slot if indirect
-  rotateKeys(active: [key_id -> key], primary: key_id): void
+type ReminderPolicy = {
+  initial_offset_minutes: int = 0,        // negative = before scheduled_for
+  repeat_every_minutes:   int = 10,
+  max_reminders:          int = 3,        // initial + repeats
+  miss_after_minutes:     int = 120,
+  snooze_options_minutes: [int] = [10,30,60],
+  max_snoozes:            int = 3,
+  max_late_minutes:       int = 360,      // hard cap for snoozed_until relative to scheduled_for
+  late_log_window_minutes:int = 1440,
+  undo_window_minutes:    int = 15,
+  quiet_hours_mode:       "deliver"|"defer"|"silent" = "deliver",
+  discreet:               bool = false
 }
 
-// ---------- Conversation state (core-owned) ----------
-type ConversationSession = { id: UUID, principal_key: string, chat: ChatRef, flow: string, step: string,
-  step_seq: int, data: json, version: int, expires_at: Instant, last_prompt?: MessageHandle }
-type Step = { prompt: (data) -> OutboundMessage, accepts: set<"interaction"|"text"|"form">,
-  validate: (data, input) -> Ok(value) | Err(message), next: (data, value) -> string | Done | Abort, back?: string }
-type Flow = { name: string, entry: string, steps: map<string, Step>, on_done: (data) -> Command, ttl: Duration }
-interface WizardEngine {
-  start(principal, chat, flow): ConversationSession
-  handle(session_id, input: InboundEvent): void      // load FOR UPDATE, validate, persist (version++), finalize old prompt, send next
-  sweep(now): void                                    // "Still there?" then abort after grace
+type QuietHours = { start: LocalTime, end: LocalTime }   // may cross midnight
+
+type Schedule = {
+  id, medication_id, account_id, kind, status: active|paused|archived,
+  current_revision: int, tz: Tz, tz_follows_user: bool,
+  start_date: LocalDate, end_date?: LocalDate, materialized_through: Instant
+}
+type ScheduleRevision = { schedule_id, revision, effective_from: Instant, tz, rule: Rule,
+                          reminder_policy: ReminderPolicy, dose_snapshot: DoseSnapshot, reason }
+
+// ---------- Pure evaluator ----------
+type Candidate = { local_date: LocalDate, slot_key: string, scheduled_for: Instant, dose: DoseSnapshot }
+fun occurrences(rev: ScheduleRevision, from: Instant, to: Instant): [Candidate]   // pure, deterministic
+fun nextDeliverableAt(t: Instant, tz: Tz, quiet?: QuietHours): Instant             // pure
+
+// ---------- Occurrence (projection) ----------
+enum OccStatus { pending, due, snoozed, taken, skipped, missed, unknown, cancelled }
+enum Origin    { scheduled, chain, manual }
+type Occurrence = {
+  id, account_id, medication_id, schedule_id?, revision?, origin: Origin,
+  local_date: LocalDate, slot_key: string, tz: Tz,
+  scheduled_for: Instant, due_window_start: Instant, due_window_end: Instant, miss_deadline: Instant,
+  status: OccStatus, cancel_reason?: string,
+  reminder_seq: int, snooze_count: int, snoozed_until?: Instant, last_reminded_at?: Instant,
+  taken_at?: Instant, skipped_at?: Instant, missed_at?: Instant,
+  next_action_at?: Instant,                     // NULL iff status is resolved
+  dose_snapshot: DoseSnapshot, anchor_occurrence_id?: id, version: int
 }
 
-// ---------- Delivery (core -> mediator) ----------
-type DeliveryPolicy  = { mode: "primary"|"all"|"first_available", expires_at?: Instant }
-type DeliveryRequest = { dedupe_key: string, account_id: UUID, message: OutboundMessage, policy: DeliveryPolicy, correlation_id: string }
-type DeliveryTicket  = { delivery_id: UUID }
-type DeliveryStateChanged = { delivery_id, dedupe_key, channel: ChatRef, status: "sent"|"failed"|"suppressed"|"expired", handle?: MessageHandle, error?: VendorError }
-interface DeliveryPort {
-  deliver(req: DeliveryRequest, tx?: Transaction): DeliveryTicket   // outbox row in caller's tx when available
-  onStateChanged(listener: (DeliveryStateChanged) -> void): void
+// ---------- Append-only action log ----------
+enum ActionKind { reminder_sent, reminder_deferred, taken, skipped, snoozed, auto_marked_missed,
+                  marked_unknown, manually_corrected, undone, note_added, cancelled, catch_up_collapsed }
+type DoseAction = {
+  id, occurrence_id, account_id, seq: int, action: ActionKind, actor_type: user|system,
+  platform?, platform_identity_id?, platform_message_id?, interaction_id?,
+  idempotency_key?: string /*UNIQUE*/, occurred_at: Instant, recorded_at: Instant,
+  prior_status: OccStatus, new_status: OccStatus, effective_at?: Instant,
+  reason_code?: forgot|ran_out|side_effects|clinician_advised|other, note?, undoes_seq?: int,
+  catch_up: bool, correlation_id, metadata: json
 }
+fun fold(actions: [DoseAction], seed: Occurrence): Occurrence   // projection = fold(log)
 
-// ---------- Adapter contract ----------
-type CapabilityProfile = {
-  native_commands, buttons, select, modal, ephemeral, edit, delete, bot_reactions, reaction_events,
-  transient_ack, reply_keyboard: bool,
-  max_text: int, max_choices_per_row: int, callback_budget_bytes?: int, ack_deadline_ms?: int,
-  markup: "discord_md"|"telegram_html"|"zulip_md"|"matrix_html"|"plain"
+// ---------- Commands (from bot core, idempotent) ----------
+type IntakeCommand =
+  | MarkTaken   { occurrence_id, effective_at: Instant|"now"|"scheduled", note?, actor: ActorRef }
+  | MarkSkipped { occurrence_id, reason_code?, note?, actor }
+  | Snooze      { occurrence_id, minutes: int, actor }
+  | Correct     { occurrence_id, new_status: taken|skipped|missed, effective_at: Instant, note?, actor }
+  | Undo        { occurrence_id, actor }
+  | AddNote     { occurrence_id, note, actor }
+  | LogAsNeeded { medication_id, taken_at: Instant, note?, actor }
+type ActorRef = { account_id, platform, platform_identity_id, interaction_id /* -> idempotency_key */ }
+type CommandResult = { occurrence: Occurrence, applied: bool /*false = semantic no-op*/, message: RenderModel }
+
+// ---------- Reminder loop ----------
+interface OccurrenceRepo {
+  claimDue(now: Instant, limit: int): [Occurrence]          // FOR UPDATE SKIP LOCKED
+  materialize(candidates: [Candidate], rev, now): int        // INSERT ... ON CONFLICT DO NOTHING
+  cancelPending(schedule_id, revision, from: Instant, reason): int
 }
-type VendorOp = Send{chat, text: string /*rendered*/, controls?: NativeControls, ephemeral: bool, marker: string}
-              | Edit{handle, text, controls?} | Delete{handle} | React{handle, emoji, on}
-              | Ack{ack: InteractionAck, toast?, defer: bool} | Typing{chat} | RegisterCommands{specs}
-type VendorError = RateLimited{retry_after: Duration} | NotFound | Forbidden | TooOld | Unsupported | Transient | Permanent
-type VendorResult = Ok{handle?: MessageHandle} | Err{error: VendorError}
+fun tick(now: Instant, repo, dispatcher, policyOf: (Occurrence)->ReminderPolicy, quietOf: (account)->QuietHours)
+  // for each claimed row: decide(row, now) -> {new_status, next_action_at, action_row, dispatch?}; commit per row
 
-interface InboundSink { push(event: InboundEvent): "accepted" | "full" }   // non-blocking, bounded per adapter
-
-interface ChatAdapter {
-  vendor(): Vendor
-  capabilities(): CapabilityProfile
-  start(sink: InboundSink, resume_from?: Cursor): void
-  stop(): void
-  execute(op: VendorOp): VendorResult              // one Retry-After retry max; never invents fallbacks
-  resolveChat(identity: PlatformIdentity): ChatRef | Err(VendorError)
-  findRecentByMarker?(chat: ChatRef, marker: string): MessageHandle?   // optional, for duplicate detection
-  render(text: RichText): [string]                  // vendor escaping + splitting at max_text
+// ---------- Dispatch (vendor-neutral) ----------
+type SendKey = "occ:{occurrence_id}:s{seq}:k{kind}:c{channel_id}" | "digest:{account_id}:{bucket}"
+type Dispatch = { id, send_key: SendKey /*UNIQUE*/, occurrence_id?, account_id, channel_id,
+                  kind: reminder|snooze|missed|digest|update, payload: RenderModel,
+                  status: queued|sending|sent|failed_retry|failed_permanent|cancelled,
+                  attempts: int, next_attempt_at?, attempt_id?, platform_message_id?, last_error? }
+type RenderModel = { text_plain: string, discreet: bool, actions: [{id, label, style}],
+                     ref: {occurrence_id, dispatch_id}, edit_of?: platform_message_id }
+interface Dispatcher {                                    // implemented by Track A adapters
+  send(channel: DeliveryChannel, model: RenderModel): SendOutcome
+  edit(channel, platform_message_id, model): SendOutcome
 }
+type SendOutcome = Sent{platform_message_id} | Transient{retry_after?} | Permanent{reason}
+type DeliveryChannel = { id, account_id, platform_identity_id, role: primary|fallback|off,
+                         priority: int, state: healthy|degraded|dead }
 
-// ---------- Mediator internals (for implementers) ----------
-interface Renderer  { render(msg: OutboundMessage, profile: CapabilityProfile): ([VendorOp], RenderReport) }  // pure
-interface Presentations { remember(handle, [index -> CallbackToken], ttl?): void; resolve(handle, index|label|emoji): CallbackToken? }
-interface KeyedExecutor { submit(key: string /* vendor:chat_id */, task): void }   // per-key FIFO, cross-key parallel
-interface OutboundScheduler { enqueue(vendor, chat_id, priority, op): Future<VendorResult> }  // token buckets + priorities
-
-// ---------- Conformance ----------
-type Scenario = { name, profile?: CapabilityProfile, given: [VendorUpdate|InboundEvent], when: [VendorOp|OutboundMessage], expect: [Assertion] }
-interface FakeVendorServer { script(responses): void; inject(update: VendorUpdate): void; calls(): [VendorCall]; clock: FakeClock }
-interface FakeAdapter extends ChatAdapter { constructor(profile: CapabilityProfile); sent(): [VendorOp]; failNext(error: VendorError): void }
+// ---------- Stats ----------
+type AdherenceSummary = { window: {from: LocalDate, to: LocalDate}, taken_on_time, taken_late, skipped,
+  missed, unknown, adherence?: float, on_time_rate?: float, median_delay_min?, p90_delay_min?,
+  streak_days: int, per_medication: [{medication_id, ...same counts}], as_needed_logs: int }
+fun adherence(account_id, from: LocalDate, to: LocalDate, medication_id?): AdherenceSummary

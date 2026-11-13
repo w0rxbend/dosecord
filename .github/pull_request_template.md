@@ -4,7 +4,7 @@
 
 ## Dependencies
 
-<!-- List every dependency and confirm it is green in Appendix B. -->
+<!-- List every dependency and the milestone gate, with their Appendix B status. -->
 
 ## Acceptance evidence
 
@@ -12,7 +12,7 @@
 
 ## Scope and design records
 
-<!-- State the files/behavior changed and the DESIGN/ADR sections read or amended. -->
+<!-- State the files/behavior changed, the requirement ids covered, and the ADRs read or amended. -->
 
 ## Handoff
 

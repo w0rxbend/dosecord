@@ -1,6 +1,6 @@
 # Dosegram bot UX specification
 
-Status: proposed specification for owner review. It defines the target chat experience; it does not claim that anything is implemented and it does not change any roadmap status.
+Status: In force since 2026-11-13: the owner approved the plan and roadmap slice G0.2 promoted this document from `docs/dosegram/` to `docs/` ([ADR-014](adr/ADR-014.md)). Where the text below says "proposal" or "proposed", read it as the adopted specification; an open question keeps the status its own section gives it. Dosecord documents named as inputs (`docs/DESIGN.md`, the old `docs/ROADMAP.md`, `docs/BOT_UX_PLAN.md`) are now under `docs/archive/`. It defines the target chat experience; it does not claim that anything is implemented and it does not change any roadmap status.
 Date: 2026-11-12.
 Scope: every interaction that happens inside the private Telegram chat between one user and the Dosegram bot. The Mini App screens are specified in `MINI_APP.md`. Rendered images are specified in `VISUALS_AND_ANALYTICS.md`. Domain rules are specified in `PRODUCT_SPEC.md`. Transport, storage and security are specified in `ARCHITECTURE.md`. Delivery order is specified in `ROADMAP.md`.
 

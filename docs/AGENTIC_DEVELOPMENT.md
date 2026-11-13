@@ -6,8 +6,13 @@ not replace the roadmap or its status table.
 
 ## Operating model
 
-One agent owns one roadmap slice at a time. The agent uses a short-lived
-branch and, when work runs concurrently, an isolated Git worktree. A slice is
+One agent owns one roadmap slice at a time. By the owner's standing
+instruction of 2026-11-13 the agent commits directly to `main`, in small
+conventional commits, each after a green standard gate (ROADMAP section 0.6);
+when work runs concurrently it uses an isolated Git worktree and a short-lived
+branch that is merged the same way. An issue and a pull request per slice are
+optional while the owner is the only reviewer of record; the evidence they
+would carry goes into the commit message and the handoff. A slice is
 never split between agents unless the roadmap explicitly allows its parts to
 interleave. Agents may research or review in parallel, but only the owning
 agent changes the slice's implementation and status evidence.
@@ -18,17 +23,19 @@ does not prevent repository-governance work requested directly by the owner.
 
 ## Start a slice
 
-1. Select the first dependency-unblocked slice in the roadmap's Appendix B.
-   UX-00 (issue #2) is the governance adoption entry; after its verified merge,
-   M2.2 is next. ROADMAP allocates M2.2a-h before M2.3; packet IDs are not
-   multi-slice implementation ownership.
-2. Open an issue using the roadmap-slice template. Copy the slice's
-   acceptance criteria verbatim and list every dependency with its current
-   status.
-3. Create `feature/m0-0-documentation-cut`-style branch naming and an
-   isolated worktree if another slice is active.
-4. Read `AGENTS.md`, the slice, the relevant design section, named ADRs, and
-   the source/tests in scope. State any unresolved conflict before editing.
+1. Select a dependency-unblocked slice in the roadmap's Appendix B: every
+   dependency is `green` (or `inherited` and re-verified) and the milestone
+   gate named in the "Depends on" column is closed, unless the slice is a
+   pull-forward of ROADMAP section 0.5. `AGENTS.md` names the current entry
+   point.
+2. Copy the slice's acceptance criteria verbatim into the issue, when one is
+   opened with the roadmap-slice template, or into the working notes, and list
+   every dependency with its current status.
+3. When a branch is used, name it after the slice (`feat/g1-4-telegram-client`)
+   and use an isolated worktree if another slice is active.
+4. Read `AGENTS.md`, the slice, the requirement ids it names in the document
+   that owns them, named ADRs, and the source/tests in scope. State any
+   unresolved conflict before editing.
 5. Define the smallest reviewable increment. A large slice must name the
    roadmap's required intermediate green state in its PR description.
 
@@ -46,13 +53,14 @@ observable result in the PR rather than marking it implied.
 
 ## Review and merge gate
 
-Before requesting review, the PR must show:
+Before a commit lands on `main`, the commit message or the pull request must
+show:
 
 - one roadmap slice and no unapproved scope expansion;
 - each dependency is green;
 - every acceptance criterion, with a link to the test, command output, or
   smoke transcript that proves it;
-- relevant design/ADR/roadmap documentation updated; and
+- relevant specification/ADR/roadmap documentation updated; and
 - no secrets or sensitive health data in the diff.
 
 After merge, update Appendix B only when the roadmap's definition of `green`
@@ -75,25 +83,25 @@ Before merge, independent UX and security/correctness reviewers inspect the
 actual diff, graph, transcripts and artifacts; independent QA verifies fresh
 command outputs and nonzero executed counts, not the author's assertions.
 Missing reviewer, unavailable required tooling, unresolved must-fix findings,
-failed/absent required CI or unproven acceptance **blocks** merge and status
-promotion, except the explicit M2.2 implementation checkpoint in ROADMAP.
-That checkpoint requires all automated acceptance, local canonical checks and
-independent reviews before integration, then required CI on the exact main
-commit; it does not qualify live criteria, promote green/in-use or unblock
-slices that depend on M2.2 green. Fix, rerun and re-review findings; bounded repeated failure leaves
-a durable blocked issue/evidence and permits unrelated unblocked work.
-Review must be genuinely independent; self-review is insufficient.
+failed/absent required CI or unproven acceptance **blocks** status promotion.
+Fix, rerun and re-review findings; bounded repeated failure leaves a durable
+blocked issue/evidence and permits unrelated unblocked work. Review must be
+genuinely independent; self-review is insufficient.
 
-For UX graph changes run `python3 scripts/check-bot-ux-plan.py`,
-`python3 scripts/test-check-bot-ux-plan.py`, `scripts/doc-lint.sh` and
-`git diff --check`; required CI enforces the first three in doc-lint. Product
-slices additionally run their full existing acceptance suites: structural
-validation cannot prove route implementation or runtime correctness. Record
+Checkpoints follow ROADMAP section 4.1. A checkpoint of type "gate" blocks
+every slice that depends on the slices before it and carries a decision only
+the owner can make; a checkpoint of type "review" does not block. A checkpoint
+does not replace the independent review.
+
+Documentation changes run `scripts/doc-lint.sh`, `scripts/test-doc-lint.sh`
+and `git diff --check`; required CI enforces the first two in the `doc-lint`
+job. Product slices run the standard gate of ROADMAP section 0.6 and their
+full acceptance suites, and changes under `miniapp/` the frontend gate. Record
 criterion, exact command, executed/ignored counts, environment/revision,
 artifact/hash and pass/fail/blocked. Never substitute zero-tests or synthetic
 vendor responses for real acceptance evidence.
 
-Secret access, live Discord login/sends, deployments, real health records and
+Secret access, live Telegram login/sends, deployments, real health records and
 destructive operations require separate explicit authorization and established
 backup/deployment policy. Use synthetic accounts and disposable infrastructure
 for tests. Never use normal-user tokens/self-bots or forge provider events as
@@ -102,40 +110,16 @@ technical attestations do not waive mobile push, subjective usability or
 seven-day in-use milestone requirements. User Create/Archive/Delete
 confirmations remain data-safety controls, not development approval gates.
 
-## Technical-checkpoint selection
-
-ROADMAP's **UX/media implementation-order checkpoint amendment** records the
-owner-directed UX/images priority and a bounded alternative to waiting for
-live/use qualification before further technical implementation. The matching
-`AGENTS.md` workflow exception reconciles the implementation prerequisite.
-Do not start nongreen-dependent product edits until independent review and the
-adoption/readback/exact-main CI evidence specified in ROADMAP exists. The
-exception does not change product status, final qualification or release gates.
-
-After activation only, use ROADMAP's allowlist and Appendix B row order to
-select one eligible slice at a time. Copy unchanged criteria, dependency status
-and linked exact-main checkpoint evidence into its issue. Before editing,
-verify each nongreen prerequisite's technical matrix, independent reviews and
-required CI against the integrated revision; missing/stale evidence blocks the
-start. Before integration run all canonical checks and technical criteria,
-independent UX/security review and QA; record live/device/use criteria as
-blocked, never passed synthetically. After integration verify and attest exact
-main/required CI before selecting the next slice. Attestations are evidence,
-not status. ROADMAP owns the exception's scope and gates; this process adds no
-parallel schedule. All other workflow, qualification and release rules below
-remain binding, including independent review, one issue/branch/owner per slice,
-private-data boundaries and separate live/deployment authorization.
-
 ## Handoff format
 
 Use this in every issue, PR, or agent handoff:
 
 ```text
-Slice: Mx.y — name
-Dependencies: Mx.y green; ...
+Slice: Gx.y name
+Dependencies: Gx.y green; gate CPx-y closed; ...
 Scope: files and behavior changed
 Evidence: commands/tests/smokes and their results
 Decision records: ADRs read or amended
-Next eligible slice: Mx.y
+Next eligible slice: Gx.y
 Open risks: none | specific unresolved risk
 ```

@@ -1,6 +1,6 @@
 # Dosegram product specification and capability map
 
-Status: proposal for owner review. Nothing in this document is accepted until the owner approves it.
+Status: In force since 2026-11-13: the owner approved the plan and roadmap slice G0.2 promoted this document from `docs/dosegram/` to `docs/` ([ADR-014](adr/ADR-014.md)). Where the text below says "proposal" or "proposed", read it as the adopted specification; an open question keeps the status its own section gives it. Dosecord documents named as inputs (`docs/DESIGN.md`, the old `docs/ROADMAP.md`, `docs/BOT_UX_PLAN.md`) are now under `docs/archive/`.
 Date: 2026-11-12.
 Scope: what Dosegram does for its users, module by module, with testable acceptance criteria.
 Out of scope for this document: architecture and technology choices (ARCHITECTURE.md), the exact chat flows and copy (BOT_UX.md), Mini App screens (MINI_APP.md), card designs and metric formulas (VISUALS_AND_ANALYTICS.md), and delivery order (ROADMAP.md in this directory). Where this document names a release wave, it is a recommendation that the roadmap may refine without changing the requirement.
@@ -11,7 +11,7 @@ This document writes no product code and renames nothing. The repository is stil
 
 ### 0.1 Evidence base
 
-The specification is built on six research briefs in `docs/dosegram/research/`. They are cited by number.
+The specification is built on six research briefs in `docs/research/`. They are cited by number.
 
 | Ref | File | Subject |
 |---|---|---|

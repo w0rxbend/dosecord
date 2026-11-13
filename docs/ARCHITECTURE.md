@@ -1,8 +1,8 @@
 # Dosegram target architecture
 
-Status: proposal for owner review. Prepared 2026-11-12. No product code was written for this document.
+Status: In force since 2026-11-13: the owner approved the plan and roadmap slice G0.2 promoted this document from `docs/dosegram/` to `docs/` ([ADR-014](adr/ADR-014.md)). Where the text below says "proposal" or "proposed", read it as the adopted specification; an open question keeps the status its own section gives it. Dosecord documents named as inputs (`docs/DESIGN.md`, the old `docs/ROADMAP.md`, `docs/BOT_UX_PLAN.md`) are now under `docs/archive/`. Prepared 2026-11-12; no product code was written for this document.
 Scope: the target architecture of the repository after the pivot from `dosecord` (Discord) to `dosegram` (Telegram bot plus Telegram Mini App).
-Inputs: `docs/DESIGN.md`, `docs/adr/ADR-001` to `ADR-013`, and the six research briefs in `docs/dosegram/research/`.
+Inputs: `docs/DESIGN.md`, `docs/adr/ADR-001` to `ADR-013`, and the six research briefs in `docs/research/`.
 Sibling documents: `PRODUCT_SPEC.md` (what the product does), `BOT_UX.md` (chat surface), `MINI_APP.md` (web surface), `VISUALS_AND_ANALYTICS.md` (cards, charts, metric definitions), `ROADMAP.md` (delivery order and status). Where this document and a sibling disagree, the sibling wins on product behaviour and screen design, and this document wins on module boundaries, data model, protocols and operational properties.
 
 ## 0. How to read this document
@@ -499,6 +499,8 @@ TG-43. Reachability state machine on `platform_identities.reachability`: `reacha
 ## 8. Reminder engine
 
 ### 8.1 What is kept
+
+The Dosecord design is archived as [`docs/archive/DESIGN-dosecord.md`](archive/DESIGN-dosecord.md). Its sections 7 to 9 and 11 (engine, time, persistence, tests) remain the detailed reference for the kept engine; "DESIGN section N" in this document refers to that file.
 
 Everything in DESIGN section 7 stays: schedule rules as a compiler-exhaustive `enum Rule`, append-only schedule revisions, materialised `dose_occurrences` with one `next_action_at` column, `FOR UPDATE SKIP LOCKED` claims, per-row savepoints, epoch fencing, the pure `decide` function, catch-up by collapse, and the digest. ADR-003, ADR-004, ADR-011 and ADR-012 stand unchanged.
 

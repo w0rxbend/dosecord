@@ -1,6 +1,6 @@
-# Dosegram: plan and specification for the owner's review
+# Dosegram: plan and specification
 
-Status: proposal, prepared 2026-11-12 and finalised 2026-11-13. Nothing in this directory is in force. Until the owner approves the plan and ROADMAP slice G0.2 merges, [`AGENTS.md`](../../AGENTS.md) and [`docs/ROADMAP.md`](../ROADMAP.md) remain the sources of truth for the repository, which is still named `dosecord`. No product code was written, nothing was renamed, and no file outside this directory was changed.
+Status: in force since 2026-11-13. This file was prepared on 2026-11-12 as the entry point of the proposal for the owner's review; the owner approved the plan and treats every recommendation in it as adopted, and roadmap slice G0.2 promoted the document set from `docs/dosegram/` to `docs/` ([ADR-014](adr/ADR-014.md)). [`AGENTS.md`](../AGENTS.md) and [`ROADMAP.md`](ROADMAP.md) are the sources of truth for the repository; the Dosecord roadmap and design are under [`archive/`](archive/). The text below is kept as written for the review: where it says "proposal", "nothing is in force" or "no code was written", read it as the state before approval. The current state of `main` is in `AGENTS.md` and in ROADMAP Appendix B.
 
 This file is the entry point. It summarises the change of direction, says in which order to read the documents, lists the decisions that matter most, states plainly where the owner's request could not be met as asked, collects every open question of the set with a recommended answer, and lists what the owner must do before work can start.
 

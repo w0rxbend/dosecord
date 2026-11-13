@@ -1,6 +1,6 @@
 # Dosegram: visuals and analytics specification
 
-Status: proposed specification for owner review. No product code exists for anything in this document.
+Status: In force since 2026-11-13: the owner approved the plan and roadmap slice G0.2 promoted this document from `docs/dosegram/` to `docs/` ([ADR-014](adr/ADR-014.md)). Where the text below says "proposal" or "proposed", read it as the adopted specification; an open question keeps the status its own section gives it. Dosecord documents named as inputs (`docs/DESIGN.md`, the old `docs/ROADMAP.md`, `docs/BOT_UX_PLAN.md`) are now under `docs/archive/`. It does not claim that anything is implemented.
 Date: 2026-11-12.
 Scope: the product's visual status language. That covers the visual identity, the mood blob system, the catalogue of generated images and the PDF report, the metric definitions behind every number, the insight engine, the Mini App dashboard that mirrors the same metrics, and the schedule of proactive reports.
 
@@ -1987,12 +1987,12 @@ All checked on 2026-11-12.
 
 | Source | URL or path | Used for |
 |---|---|---|
-| Research brief 01, repository inventory | `docs/dosegram/research/01-repo-inventory.md` | Existing adherence code, module names, inherited rules |
-| Research brief 02, Telegram platform | `docs/dosegram/research/02-telegram-platform.md` | P11, P14 to P18, P22 to P24, Mini App theme and events, rate limits |
-| Research brief 03, health application teardown | `docs/dosegram/research/03-health-app-teardown.md` | Feature patterns, dark patterns to refuse, regulatory lines |
-| Research brief 04, image rendering | `docs/dosegram/research/04-image-rendering.md` | Pipeline, canvases, blob parameters, fonts, spikes, P1 to P10, P19, P20 |
-| Research brief 05, sleep and presence | `docs/dosegram/research/05-sleep-and-presence.md` | Tiers, quiet window, sleep metrics |
-| Research brief 06, privacy, security and compliance | `docs/dosegram/research/06-privacy-security-compliance.md` | P13, P21, consent purposes, data classes, discreet mode, export delivery |
+| Research brief 01, repository inventory | `docs/research/01-repo-inventory.md` | Existing adherence code, module names, inherited rules |
+| Research brief 02, Telegram platform | `docs/research/02-telegram-platform.md` | P11, P14 to P18, P22 to P24, Mini App theme and events, rate limits |
+| Research brief 03, health application teardown | `docs/research/03-health-app-teardown.md` | Feature patterns, dark patterns to refuse, regulatory lines |
+| Research brief 04, image rendering | `docs/research/04-image-rendering.md` | Pipeline, canvases, blob parameters, fonts, spikes, P1 to P10, P19, P20 |
+| Research brief 05, sleep and presence | `docs/research/05-sleep-and-presence.md` | Tiers, quiet window, sleep metrics |
+| Research brief 06, privacy, security and compliance | `docs/research/06-privacy-security-compliance.md` | P13, P21, consent purposes, data classes, discreet mode, export delivery |
 | Existing design | `docs/BOT_UX_PLAN.md` section 6, `docs/DESIGN.md` section 7.3, `core/src/dosecord/core/domain/Adherence.scala` | Adherence definitions and infographic rules that are inherited |
 | Telegram Bot API 10.4 | https://core.telegram.org/bots/api | P1 to P6, P8, P9, P12, P20, P22 (through the research briefs) |
 | Telegram stickers | https://core.telegram.org/stickers | P10 |

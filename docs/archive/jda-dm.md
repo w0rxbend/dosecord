@@ -1,3 +1,5 @@
+> Archived on 2026-11-13 by roadmap slice G0.2 ([ADR-014](../adr/ADR-014.md)). This spike note, formerly `docs/spikes/jda-dm.md`, describes a Discord application that no longer exists. Paths and relative links are those of its former location and may no longer resolve.
+
 # Spike note: JDA DM delivery and user-install context (M0.8)
 
 Status: complete — **verdict: GO** (live autocomplete round trip not observed; deferred to M2.1, see below)

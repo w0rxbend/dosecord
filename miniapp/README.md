@@ -1,7 +1,7 @@
 # Dosegram Mini App
 
 The Telegram Mini App of Dosegram: Svelte 5, TypeScript, Vite, pnpm. The specification is
-[`docs/dosegram/MINI_APP.md`](../docs/dosegram/MINI_APP.md); requirement ids in the source
+[`docs/MINI_APP.md`](../docs/MINI_APP.md); requirement ids in the source
 (`MA-...`) refer to it. This directory has its own Node toolchain and is not a Mill module.
 
 ## Commands

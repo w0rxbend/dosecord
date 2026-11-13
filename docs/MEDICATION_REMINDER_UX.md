@@ -212,8 +212,8 @@ not just a rendered asset. Existing seven-day history stays available before
 M3.2; expanded paging/filter/correction is separately gated. Open dose pages
 remain actionable; do not hide overflow only in read-only history. Use a
 medication-scoped detail before Pause/Archive rather than repeated bare
-buttons. Discord reserves one navigation row and fits actual rendered rows
-(select consumes a row), initially at most four actionable rows plus nav.
+buttons. Reserve one navigation row and fit actual rendered rows (a select
+consumes a row), initially at most four actionable rows plus nav.
 
 Routine fixed prompts fit two short paragraphs/160 characters; outcomes fit
 80 characters. User data has validated limits and Details, never silent

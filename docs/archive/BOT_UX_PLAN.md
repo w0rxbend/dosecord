@@ -1,3 +1,5 @@
+> Archived on 2026-11-13 by roadmap slice G0.2 ([ADR-014](../adr/ADR-014.md)). This is the Discord-era bot UX plan, formerly `docs/BOT_UX_PLAN.md`; [`docs/BOT_UX.md`](../BOT_UX.md) replaces it. Its graph (`bot-ux-graph.json`) and validator (`check-bot-ux-plan.py`, `test-check-bot-ux-plan.py`) are archived beside it and no longer run in CI. Paths and relative links are those of its former location and may no longer resolve.
+
 # Dosecord: agent-driven bot UX and reporting plan
 
 Status: UX specification under ROADMAP UX-00 adoption; no shipped-functionality claim.

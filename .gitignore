@@ -3,9 +3,6 @@ out/
 .bsp/
 .mill-jvm-opts*
 
-# Python validator scripts (scripts/*.py)
-__pycache__/
-
 # IDE
 .vscode/
 .idea/

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# vendor-symbol gate (ROADMAP M0.4, DESIGN.md section 3): core/ and
+# vendor-symbol gate (docs/ARCHITECTURE.md section 5): core/ and
 # contracts/ must stay vendor-neutral. Greps both trees for the forbidden
 # vendor/library symbols and exits 1 on any hit. Matching is fixed-string and
 # case-sensitive: these are JVM package prefixes, so case variants are not
@@ -27,7 +27,7 @@ if [ "$hits" -gt 0 ]; then
   exit 1
 fi
 
-# Retired names (docs/dosegram/ROADMAP.md section 1.4): outside the documents,
+# Retired names (docs/ROADMAP.md section 1.4): outside the documents,
 # no tracked file names a retired vendor or the old product name. This script
 # holds the patterns, so it is excluded from its own search.
 retired_files() {
@@ -40,9 +40,8 @@ retired_files() {
   [ "$status" -le 1 ] || { echo "vendor-symbols: git grep failed ($status)" >&2; return 2; }
 }
 
-# scripts/check-bot-ux-plan.py keeps `max_discord_rows` until G0.2 archives it.
 retired=$(
-  retired_files -l 'net\.dv8tion\|[Dd]iscord\|[Zz]ulip\|Trixnity' ':!scripts/check-bot-ux-plan.py' &&
+  retired_files -l 'net\.dv8tion\|[Dd]iscord\|[Zz]ulip\|Trixnity' &&
     retired_files -il 'dosecord'
 ) || exit 2
 if [ -n "$retired" ]; then
