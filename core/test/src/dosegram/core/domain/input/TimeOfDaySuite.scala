@@ -91,6 +91,18 @@ class TimeOfDaySuite extends munit.ScalaCheckSuite:
     assertEquals(rejected("breakfast"), "breakfast")
     assertEquals(rejected("9,30"), "30")
 
+  test("a rejected part is quoted whole: every word of the time it was typed as, made safe to echo"):
+    def rejected(text: String): String =
+      TimeOfDay.parseList(text) match
+        case Left(TimeOfDay.Rejection.NotATime(part)) => part
+        case other                                    => fail(s"'$text' gave $other")
+    assertEquals(rejected("after lunch"), "after lunch")
+    assertEquals(rejected("8, After  Lunch!"), "after lunch")
+    assertEquals(rejected("at 9 sharp"), "at 9 sharp")
+    val long = "sometime after the long meeting with the whole team ends"
+    assertEquals(rejected(long), long.take(InputText.MaxQuoted - 1) + "…")
+    assertEquals(rejected("tea\u0007 time"), "tea time")
+
   test("empty input and too many times are their own rejections"):
     assertEquals(TimeOfDay.parseList("   "), Left(TimeOfDay.Rejection.Empty))
     assertEquals(TimeOfDay.parseList("at"), Left(TimeOfDay.Rejection.Empty))

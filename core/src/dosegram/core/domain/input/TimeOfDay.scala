@@ -5,7 +5,8 @@ import dosegram.contracts.HhMm
 import scala.util.matching.Regex
 
 /** The one typed time-of-day grammar every chat step uses (BOT_UX section 15.6). It is lenient about spelling and
-  * strict about meaning: a value it cannot read without guessing is refused with the part it did not understand.
+  * strict about meaning: a value it cannot read without guessing is refused with the part it did not understand, quoted
+  * whole: the text between two separators, so "after lunch" is named as "after lunch", not "after".
   *
   * Readings, decided once:
   *   - a number without am or pm is on the 24-hour clock: "7" is 07:00, never 19:00;
@@ -25,7 +26,7 @@ object TimeOfDay:
     /** Nothing that could be a time was typed. */
     case Empty
 
-    /** `part` (normalised, as the user wrote it) is not a time. */
+    /** `part` (normalised, and bounded by [[InputText.quoted]]) is the list item that is not a time. */
     case NotATime(part: String)
 
     /** More than `max` distinct times. */
@@ -54,14 +55,19 @@ object TimeOfDay:
       .replace("oclock", " ")
       .replaceAll("([ap])\\.m\\.?", "$1m")
       .replace('@', ' ')
-    val chunks = ListSeparator.split(normalised).toList.map(chunkTokens).filter(_.nonEmpty)
+    val chunks = ListSeparator.split(normalised).toList.filter(chunk => chunkTokens(chunk).nonEmpty)
     if chunks.isEmpty then Left(Rejection.Empty)
     else
-      val read = chunks.foldLeft[Either[Rejection, List[HhMm]]](Right(Nil)): (acc, tokens) =>
-        acc.flatMap(found => readTokens(tokens).map(found ++ _))
+      val read = chunks.foldLeft[Either[Rejection, List[HhMm]]](Right(Nil)): (acc, chunk) =>
+        acc.flatMap(found => readChunk(chunk).map(found ++ _))
       read.flatMap: found =>
         val distinct = found.distinct.sortBy(_.value)
         if distinct.size > MaxTimes then Left(Rejection.TooMany(MaxTimes)) else Right(distinct)
+
+  /** One list item: every time in it, or the item itself, quoted, when any part of it is not a time. */
+  private def readChunk(chunk: String): Either[Rejection, List[HhMm]] =
+    readTokens(chunkTokens(chunk))
+      .toRight(Rejection.NotATime(InputText.quoted(InputText.withoutTrailingPunctuation(chunk.trim))))
 
   private def chunkTokens(chunk: String): List[String] =
     InputText
@@ -72,13 +78,13 @@ object TimeOfDay:
       .filter(token => token.nonEmpty && !Fillers.contains(token))
 
   /** A chunk's tokens left to right; "am"/"pm" on its own applies to the time before it. */
-  private def readTokens(tokens: List[String]): Either[Rejection, List[HhMm]] =
+  private def readTokens(tokens: List[String]): Option[List[HhMm]] =
     tokens match
-      case Nil                                                                 => Right(Nil)
+      case Nil                                                                 => Some(Nil)
       case hour :: minute :: rest if isBareHour(hour) && isMinuteToken(minute) =>
         val (meridiem, after) = takeMeridiem(rest)
         for
-          time <- clock(hour.toInt, minute.toInt, meridiem, s"$hour $minute")
+          time <- clock(hour.toInt, minute.toInt, meridiem)
           more <- readTokens(after)
         yield time :: more
       case token :: rest =>
@@ -100,29 +106,26 @@ object TimeOfDay:
     token.length == 2 && token.forall(_.isDigit) &&
       (token.startsWith("0") || QuarterMinutes.contains(token) || (token.toInt >= 24 && token.toInt <= 59))
 
-  private def readToken(token: String, trailing: Option[String]): Either[Rejection, HhMm] =
+  private def readToken(token: String, trailing: Option[String]): Option[HhMm] =
     def withMeridiem(own: String | Null): Option[String] = Option(own).orElse(trailing)
     token match
-      case "noon" | "midday" if trailing.isEmpty => Right(HhMm.unsafe("12:00"))
-      case "midnight" if trailing.isEmpty        => Right(HhMm.unsafe("00:00"))
-      case Clock(h, m, own)                      => clock(h.toInt, m.toInt, withMeridiem(own), token)
-      case HourH(h, own)                         => clock(h.toInt, 0, withMeridiem(own), token)
+      case "noon" | "midday" if trailing.isEmpty => Some(HhMm.unsafe("12:00"))
+      case "midnight" if trailing.isEmpty        => Some(HhMm.unsafe("00:00"))
+      case Clock(h, m, own)                      => clock(h.toInt, m.toInt, withMeridiem(own))
+      case HourH(h, own)                         => clock(h.toInt, 0, withMeridiem(own))
       case Digits(digits, own)                   =>
         val (h, m) = digits.length match
           case 1 | 2 => (digits.toInt, 0)
           case 3     => (digits.take(1).toInt, digits.drop(1).toInt)
           case _     => (digits.take(2).toInt, digits.drop(2).toInt)
-        clock(h, m, withMeridiem(own), token)
-      case other => Left(Rejection.NotATime(InputText.quoted(other)))
+        clock(h, m, withMeridiem(own))
+      case _ => None
 
-  private def clock(hour: Int, minute: Int, meridiem: Option[String], shown: String): Either[Rejection, HhMm] =
-    val reject = Left(Rejection.NotATime(InputText.quoted(meridiem.filterNot(shown.endsWith).fold(shown)(shown + _))))
+  private def clock(hour: Int, minute: Int, meridiem: Option[String]): Option[HhMm] =
     val hour24 = meridiem match
       case None if hour == 24 && minute == 0     => Some(0)
       case None if hour <= 23                    => Some(hour)
       case Some("am") if hour >= 1 && hour <= 12 => Some(hour % 12)
       case Some("pm") if hour >= 1 && hour <= 12 => Some(hour % 12 + 12)
       case _                                     => None
-    hour24 match
-      case Some(h) if minute <= 59 => Right(HhMm.unsafe(f"$h%02d:$minute%02d"))
-      case _                       => reject
+    hour24.filter(_ => minute <= 59).map(h => HhMm.unsafe(f"$h%02d:$minute%02d"))
