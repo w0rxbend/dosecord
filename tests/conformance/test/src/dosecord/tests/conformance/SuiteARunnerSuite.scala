@@ -9,9 +9,9 @@ import dosecord.core.chat.FakeAdapter
   */
 class SuiteARunnerSuite extends munit.FunSuite:
 
-  test("the scenario catalog loads: 14 scenarios with unique names"):
+  test("the scenario catalog loads: 13 scenarios with unique names"):
     val scenarios = Scenario.loadAll()
-    assertEquals(scenarios.size, 14)
+    assertEquals(scenarios.size, 13)
     assertEquals(scenarios.map(_.name).distinct.size, scenarios.size)
 
   test("an honest text-only adapter passes every applicable scenario"):
@@ -30,8 +30,7 @@ class SuiteARunnerSuite extends munit.FunSuite:
         "not-modified-success",
         "duplicate-reaction-success",
         "delete-window-permanent",
-        "edit-not-found-permanent",
-        "raw-modal-payload"
+        "edit-not-found-permanent"
       )
     )
 

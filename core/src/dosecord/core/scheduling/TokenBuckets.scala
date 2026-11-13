@@ -24,15 +24,9 @@ object TokenBuckets:
   /** The limits of a vendor without documented defaults. */
   val Default: Limits = Limits(Bucket(20, 10), Bucket(5, 1))
 
-  /** The documented vendor limits (DESIGN.md section 7.6): Discord 50 req/s global and 5 msg/5 s per channel; Telegram
-    * ~30 msg/s and ~1 msg/s per chat; Zulip 200 req/min; Matrix `retry_after_ms` plus 0.2 events/s with a burst of 10
-    * per account.
-    */
+  /** The documented vendor limits (DESIGN.md section 7.6): Telegram ~30 msg/s and ~1 msg/s per chat. */
   val defaults: Map[String, Limits] = Map(
-    "discord" -> Limits(Bucket(50, 50), Bucket(5, 1)),
-    "telegram" -> Limits(Bucket(30, 30), Bucket(1, 1)),
-    "zulip" -> Limits(Bucket(200, 200.0 / 60.0), Bucket(200, 200.0 / 60.0)),
-    "matrix" -> Limits(Bucket(10, 0.2), Bucket(10, 0.2))
+    "telegram" -> Limits(Bucket(30, 30), Bucket(1, 1))
   )
 
 /** Token buckets over the process clock: `acquire` blocks (through the injected `sleep`, real time in production) until

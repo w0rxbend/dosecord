@@ -160,7 +160,7 @@ class ChatMediatorSuite extends munit.FunSuite:
   test("a tampered token yields the toast and an audit row; nothing reaches the core"):
     ox.supervised:
       val uow = InMemoryUnitOfWork()
-      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val adapter = SyncAdapter(FakeAdapter(TestProfiles.Native))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
       val handle = RecordingInteractionHandle()
@@ -183,7 +183,7 @@ class ChatMediatorSuite extends munit.FunSuite:
   test("a verified component tap is acked with deferUpdate before any database work"):
     ox.supervised:
       val uow = InMemoryUnitOfWork()
-      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val adapter = SyncAdapter(FakeAdapter(TestProfiles.Native))
       val latch = CountDownLatch(1)
       val handler = RecordingHandler { _ =>
         latch.await()
@@ -304,7 +304,7 @@ class ChatMediatorSuite extends munit.FunSuite:
   // Acceptance 7 (unit half): with the pool paused the tap yields the catalogue failure toast.
   test("a tap with the pool paused reports an unconfirmed outcome"):
     ox.supervised:
-      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val adapter = SyncAdapter(FakeAdapter(TestProfiles.Native))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = ChatMediator(PoolPausedUow(), Map("fake" -> adapter), codec, handler, FixedClock(t0))
       val handle = RecordingInteractionHandle()

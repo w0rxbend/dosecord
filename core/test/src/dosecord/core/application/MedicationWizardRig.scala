@@ -28,7 +28,7 @@ import scala.io.Source
 import scala.util.Using
 
 /** The transcript rig of [[MedicationWizardSuite]]: the real mediator, the M1.9 [[Application]] composition and the
-  * real flows over the in-memory ports and a `FakeAdapter` on the console or discord profile. Drives console-grammar
+  * real flows over the in-memory ports and a `FakeAdapter` on the console or native profile. Drives console-grammar
   * lines, raw taps (with a recording interaction handle) and modal submits, and collects the adapter's ops.
   */
 private final class MedicationWizardRig(
@@ -142,14 +142,14 @@ private final class MedicationWizardRig(
     line("09:00")
     line("with breakfast")
 
-  // ---------- Discord-profile helpers ----------
+  // ---------- Native-profile helpers ----------
 
-  def bootstrapDiscord(): Unit =
+  def bootstrapNative(): Unit =
     command("start")
     tapLabel("Pick your timezone", "UTC+03:00 — Europe/Kyiv")
     tapLabel("It is", Labels.Yes)
 
-  def startWizardDiscord(times: String = "09:00", instructions: String = "with breakfast"): Unit =
+  def startWizardNative(times: String = "09:00", instructions: String = "with breakfast"): Unit =
     command("menu")
     tapLabel(MenuCopy.mainPrompt, "Medications")
     tapLabel("Medications", "Add medication")
@@ -277,7 +277,7 @@ private final class MedicationWizardRig(
       createdAt = t0,
       sentAt = None
     )
-    val (_, rendered) = CatalogueOutboxRenderer(uow, codec, clock).render(row, CapabilityProfiles.Discord)
+    val (_, rendered) = CatalogueOutboxRenderer(uow, codec, clock).render(row, CapabilityProfiles.Telegram)
     rendered.chunks.flatMap(_.split("\n").toList.filter(_.nonEmpty))
 
   // ---------- Transcript formatting ----------
@@ -355,7 +355,7 @@ private object MedicationWizardRig:
 
   enum Profile(val capabilities: CapabilityProfile):
     case Console extends Profile(CapabilityProfiles.Console)
-    case Discord extends Profile(CapabilityProfiles.Discord)
+    case Native extends Profile(TestProfiles.Native)
 
   val ConsoleScript: List[MedicationWizardRig => List[String]] = List(
     _.lineT("/start"),
@@ -372,7 +372,7 @@ private object MedicationWizardRig:
     _.lineT("1")  // Create
   )
 
-  val DiscordScript: List[MedicationWizardRig => List[String]] = List(
+  val NativeScript: List[MedicationWizardRig => List[String]] = List(
     _.commandT("start"),
     _.tapT("Pick your timezone", "UTC+03:00 — Europe/Kyiv"),
     _.tapT("It is", Labels.Yes),

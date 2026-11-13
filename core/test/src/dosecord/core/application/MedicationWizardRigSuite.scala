@@ -15,13 +15,13 @@ class MedicationWizardRigSuite extends munit.FunSuite:
       val entered = CountDownLatch(1)
       val release = CountDownLatch(1)
       val rig = MedicationWizardRig(
-        Profile.Discord,
+        Profile.Native,
         message =>
           if message.chunks.exists(_.contains("Let's add a medication")) then
             entered.countDown()
             if !release.await(10, TimeUnit.SECONDS) then throw TimeoutException("final send was not released")
       )
-      rig.bootstrapDiscord()
+      rig.bootstrapNative()
       rig.command("menu")
       rig.tapLabel(MenuCopy.mainPrompt, "Medications")
       val worker = Executors.newSingleThreadExecutor()

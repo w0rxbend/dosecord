@@ -13,10 +13,7 @@ import java.util.UUID
   */
 enum Adapter(val envName: String):
   case Console extends Adapter("console")
-  case Discord extends Adapter("discord")
   case Telegram extends Adapter("telegram")
-  case Zulip extends Adapter("zulip")
-  case Matrix extends Adapter("matrix")
 
 object Adapter:
   def parse(value: String): Option[Adapter] = values.find(_.envName == value)
@@ -48,9 +45,6 @@ enum LogFormat(val envName: String):
 object LogFormat:
   def parse(value: String): Option[LogFormat] = values.find(_.envName == value.toLowerCase)
 
-final case class ZulipCredentials(site: String, email: String, apiKey: String)
-final case class MatrixCredentials(homeserver: String, user: String, token: String)
-
 /** Runtime configuration parsed from environment variables and Docker secrets (DESIGN.md section 12). Every field maps
   * to exactly one env var in [[Settings.spec]]; any of them may instead be supplied as `<NAME>_FILE` pointing at a
   * Docker secret whose content becomes the value.
@@ -64,10 +58,7 @@ final case class Settings(
     logLevel: LogLevel,
     logFormat: LogFormat,
     consoleUserId: Option[String],
-    discordToken: Option[String],
     telegramToken: Option[String],
-    zulip: Option[ZulipCredentials],
-    matrix: Option[MatrixCredentials],
     publicBaseUrl: Option[String]
 )
 
@@ -132,37 +123,12 @@ object Settings:
       "owner"
     ),
     EnvSpec(
-      "DISCORD_TOKEN",
-      required = false,
-      secret = true,
-      "Discord bot token; required when the discord adapter is enabled.",
-      "change-me"
-    ),
-    EnvSpec(
       "TELEGRAM_TOKEN",
       required = false,
       secret = true,
       "Telegram bot token; required when the telegram adapter is enabled.",
       "change-me"
     ),
-    EnvSpec(
-      "ZULIP_SITE",
-      required = false,
-      secret = false,
-      "Zulip realm base URL; required (with ZULIP_EMAIL/ZULIP_API_KEY) when the zulip adapter is enabled.",
-      "https://zulip.example.com"
-    ),
-    EnvSpec("ZULIP_EMAIL", required = false, secret = false, "Zulip bot email.", "bot@zulip.example.com"),
-    EnvSpec("ZULIP_API_KEY", required = false, secret = true, "Zulip bot API key.", "change-me"),
-    EnvSpec(
-      "MATRIX_HOMESERVER",
-      required = false,
-      secret = false,
-      "Matrix homeserver URL; required (with MATRIX_USER/MATRIX_TOKEN) when the matrix adapter is enabled.",
-      "https://matrix.example.com"
-    ),
-    EnvSpec("MATRIX_USER", required = false, secret = false, "Matrix bot user id.", "@dosecord:matrix.example.com"),
-    EnvSpec("MATRIX_TOKEN", required = false, secret = true, "Matrix access token.", "change-me"),
     EnvSpec(
       "PUBLIC_BASE_URL",
       required = false,
@@ -235,31 +201,13 @@ object Settings:
       case Left(err) => { errors = errors :+ err; None })
 
     val consoleUserId = lookup("CONSOLE_USER_ID")
-    val discordToken = lookup("DISCORD_TOKEN")
     val telegramToken = lookup("TELEGRAM_TOKEN")
-    val zulip =
-      (lookup("ZULIP_SITE"), lookup("ZULIP_EMAIL"), lookup("ZULIP_API_KEY")) match
-        case (Some(site), Some(email), Some(key)) => Some(ZulipCredentials(site, email, key))
-        case (None, None, None)                   => None
-        case _ => { errors = errors :+ "ZULIP_SITE, ZULIP_EMAIL and ZULIP_API_KEY must be set together"; None }
-    val matrix =
-      (lookup("MATRIX_HOMESERVER"), lookup("MATRIX_USER"), lookup("MATRIX_TOKEN")) match
-        case (Some(hs), Some(user), Some(token)) => Some(MatrixCredentials(hs, user, token))
-        case (None, None, None)                  => None
-        case _ => { errors = errors :+ "MATRIX_HOMESERVER, MATRIX_USER and MATRIX_TOKEN must be set together"; None }
 
     adapters.foreach { list =>
       if list.contains(Adapter.Console) && consoleUserId.isEmpty then
         errors = errors :+ "CONSOLE_USER_ID is required when the console adapter is enabled"
-      if list.contains(Adapter.Discord) && discordToken.isEmpty then
-        errors = errors :+ "DISCORD_TOKEN is required when the discord adapter is enabled"
       if list.contains(Adapter.Telegram) && telegramToken.isEmpty then
         errors = errors :+ "TELEGRAM_TOKEN is required when the telegram adapter is enabled"
-      if list.contains(Adapter.Zulip) && zulip.isEmpty then
-        errors = errors :+ "ZULIP_SITE, ZULIP_EMAIL and ZULIP_API_KEY are required when the zulip adapter is enabled"
-      if list.contains(Adapter.Matrix) && matrix.isEmpty then
-        errors =
-          errors :+ "MATRIX_HOMESERVER, MATRIX_USER and MATRIX_TOKEN are required when the matrix adapter is enabled"
     }
 
     if errors.nonEmpty then Left(errors)
@@ -274,10 +222,7 @@ object Settings:
           logLevel = logLevel.getOrElse(LogLevel.Info),
           logFormat = logFormat.getOrElse(LogFormat.Json),
           consoleUserId = consoleUserId,
-          discordToken = discordToken,
           telegramToken = telegramToken,
-          zulip = zulip,
-          matrix = matrix,
           publicBaseUrl = lookup("PUBLIC_BASE_URL")
         )
       )

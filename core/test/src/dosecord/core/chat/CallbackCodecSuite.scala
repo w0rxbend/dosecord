@@ -86,10 +86,10 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
       rawOf(token).length == CallbackCodec.RawLength
     }
 
-  property("every valid token fits Telegram's 64 bytes and Discord's 100 chars"):
+  property("every valid token fits Telegram's 64 bytes"):
     forAll(genKeys, genPayload) { (keys, p) =>
       val wire = encodeWith(codec(keys), p).wire
-      wire.getBytes(StandardCharsets.UTF_8).length <= 64 && wire.length <= 100
+      wire.getBytes(StandardCharsets.UTF_8).length <= 64
     }
 
   property("tokens round-trip through encode/decode"):

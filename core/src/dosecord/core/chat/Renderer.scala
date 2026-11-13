@@ -38,8 +38,8 @@ object Renderer:
     val FinalizeReplaceAndDelete = "finalize.replaceAndDelete"
     val FinalizeReplaceOnly = "finalize.replaceOnly"
 
-  /** More than this many native buttons is worse UX than a select menu (DESIGN.md section 4.3: "native select (Discord,
-    * > 10 choices)").
+  /** More than this many native buttons is worse UX than a select menu (DESIGN.md section 4.3: native select above 10
+    * choices).
     */
   val MaxNativeButtons = 10
 
@@ -297,8 +297,7 @@ object Renderer:
         choiceMap = map
       )
 
-    // Digest paging: one message carries at most maxChoicesPerRow * maxRows native components
-    // (Discord's 25-component cap bounds digests at 8 doses x 3 buttons); longer sets are paged.
+    // Digest paging: one message carries at most maxChoicesPerRow * maxRows native components; longer sets are paged.
     val budget = componentBudget(profile)
     if components > budget && budget > 0 then
       val (noControls, withControls) = entries.partition(_._1.isEmpty)

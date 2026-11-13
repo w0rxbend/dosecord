@@ -13,7 +13,7 @@ sealed abstract class ChatError(msg: String, val channelFatal: Boolean = false) 
 object ChatError:
   final case class Retryable(msg: String) extends ChatError(msg) derives ReadWriter
   final case class RateLimited(retryAfter: Duration) extends ChatError("rate limited") derives ReadWriter
-  // DM closed, blocked, never /start-ed, no shared guild, M_FORBIDDEN on the DM room, Discord 50007.
+  // DM closed, blocked, or never /start-ed.
   final case class Unreachable(msg: String) extends ChatError(msg, channelFatal = true) derives ReadWriter
   final case class TooOld(msg: String) extends ChatError(msg) derives ReadWriter
   // A conformance failure if the profile claimed support for the op.
@@ -107,7 +107,7 @@ enum VendorOp derives ReadWriter:
   case Edit(handle: MessageHandle, message: RenderedMessage)
   case Delete(handle: MessageHandle)
   case React(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String)
-  // Remove the bot's own reactions (reaction-tier finalize; always permitted on Zulip/Matrix).
+  // Remove the bot's own reactions (reaction-tier finalize).
   case UnreactAll(handle: MessageHandle)
   // Open a native modal through a live interaction (rung 1 of the form ladder).
   case OpenForm(form: RenderedForm)
@@ -126,8 +126,8 @@ final case class CommandArg(
 ) derives ReadWriter:
   require(name.nonEmpty, "arg name must not be empty")
 
-/** Static per command (DESIGN.md section 4.2): Discord fixes the ephemeral flag at defer time, so visibility and
-  * opensForm are declared here, not chosen per reply (ADR-013).
+/** Static per command (DESIGN.md section 4.2): a deferring vendor fixes the ephemeral flag at defer time, so visibility
+  * and opensForm are declared here, not chosen per reply (ADR-013).
   */
 final case class CommandSpec(
     name: String,

@@ -7,7 +7,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-symbols=("net.dv8tion" "org.telegram" "de.connect2x" "kotlinx" "sttp")
+symbols=("org.telegram" "sttp")
 dirs=("core" "contracts")
 
 grep_args=()

@@ -49,42 +49,27 @@ class SettingsSuite extends munit.FunSuite:
 
   test("enabled vendors require their credential sets"):
     val Left(errors) = parse(base ++ Map(
-      "ENABLED_ADAPTERS" -> "console,discord,telegram,zulip,matrix"
+      "ENABLED_ADAPTERS" -> "console,telegram"
     )): @unchecked
-    assert(errors.exists(_.startsWith("DISCORD_TOKEN is required")))
     assert(errors.exists(_.startsWith("TELEGRAM_TOKEN is required")))
-    assert(errors.exists(_.startsWith("ZULIP_SITE")))
-    assert(errors.exists(_.startsWith("MATRIX_HOMESERVER")))
 
   test("full vendor credential sets parse"):
     val Right(settings) = parse(base ++ Map(
-      "ENABLED_ADAPTERS"  -> "console,discord,telegram,zulip,matrix",
-      "DISCORD_TOKEN"     -> "d",
-      "TELEGRAM_TOKEN"    -> "t",
-      "ZULIP_SITE"        -> "https://zulip.example.com",
-      "ZULIP_EMAIL"       -> "bot@zulip.example.com",
-      "ZULIP_API_KEY"     -> "z",
-      "MATRIX_HOMESERVER" -> "https://matrix.example.com",
-      "MATRIX_USER"       -> "@bot:matrix.example.com",
-      "MATRIX_TOKEN"      -> "m",
-      "ROLE"              -> "worker",
-      "INSTANCE_ID"       -> "worker-1",
-      "LOG_LEVEL"         -> "warn",
-      "LOG_FORMAT"        -> "PLAIN",
-      "PUBLIC_BASE_URL"   -> "https://dosecord.example.com"
+      "ENABLED_ADAPTERS" -> "console,telegram",
+      "TELEGRAM_TOKEN"   -> "t",
+      "ROLE"             -> "worker",
+      "INSTANCE_ID"      -> "worker-1",
+      "LOG_LEVEL"        -> "warn",
+      "LOG_FORMAT"       -> "PLAIN",
+      "PUBLIC_BASE_URL"  -> "https://dosecord.example.com"
     )): @unchecked
     assertEquals(settings.enabledAdapters, Adapter.values.toList)
     assertEquals(settings.role, Role.Worker)
     assertEquals(settings.instanceId, "worker-1")
     assertEquals(settings.logLevel, LogLevel.Warn)
     assertEquals(settings.logFormat, LogFormat.Plain)
-    assertEquals(settings.zulip.map(_.email), Some("bot@zulip.example.com"))
-    assertEquals(settings.matrix.map(_.user), Some("@bot:matrix.example.com"))
+    assertEquals(settings.telegramToken, Some("t"))
     assertEquals(settings.publicBaseUrl, Some("https://dosecord.example.com"))
-
-  test("partial zulip/matrix credential sets are rejected"):
-    val Left(errors) = parse(base ++ Map("ZULIP_SITE" -> "https://zulip.example.com")): @unchecked
-    assert(errors.exists(_.contains("must be set together")))
 
   test("console adapter requires CONSOLE_USER_ID"):
     val Left(errors) = parse(base - "CONSOLE_USER_ID"): @unchecked

@@ -24,8 +24,8 @@ import java.time.Instant
   *   - message bodies, medication names, notes and credential-shaped values are only ever logged through the [[data]]
   *     helpers, which place them under [[SensitiveKeys]]; [[Masking]] replaces those values with `[redacted]` on every
   *     record above DEBUG (AGENTS.md: never log credentials, message bodies, medication names or notes);
-  *   - `scribe-slf4j2` on the classpath routes library logs (HikariCP, Flyway, pgjdbc, later JDA) through the same root
-  *     logger, so they get the same level filter and masking.
+  *   - `scribe-slf4j2` on the classpath routes library logs (HikariCP, Flyway, pgjdbc) through the same root logger, so
+  *     they get the same level filter and masking.
   */
 object Telemetry:
 

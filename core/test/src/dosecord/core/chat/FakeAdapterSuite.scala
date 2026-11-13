@@ -19,7 +19,7 @@ class FakeAdapterSuite extends munit.FunSuite:
     assertEquals(adapter.sent.size, 2)
 
   test("edit bumps the revision; delete removes the message"):
-    val adapter = FakeAdapter(CapabilityProfiles.Discord, "discord")
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram, "telegram")
     val handle = adapter.send(chat, rendered, "k1")
     val edited = adapter.edit(handle, rendered)
     assertEquals(edited.revision, 1)
@@ -33,7 +33,7 @@ class FakeAdapterSuite extends munit.FunSuite:
     intercept[ChatError.Unsupported](console.delete(MessageHandle("console", "dm:u1", "m1")))
 
   test("failNext throws the injected error once, then recovers"):
-    val adapter = FakeAdapter(CapabilityProfiles.Discord, "discord")
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram, "telegram")
     adapter.failNext(ChatError.Retryable("boom"))
     intercept[ChatError.Retryable](adapter.send(chat, rendered, "k1"))
     adapter.send(chat, rendered, "k2")

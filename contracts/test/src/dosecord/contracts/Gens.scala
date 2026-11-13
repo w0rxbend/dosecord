@@ -63,7 +63,7 @@ object Gens:
 
   given Arbitrary[Actor] = Arbitrary(
     for
-      vendor <- Gen.oneOf("discord", "telegram", "zulip", "matrix", "console")
+      vendor <- Gen.oneOf("telegram", "console")
       userId <- genText
       username <- genOptText
       account <- Gen.option(genUuid.map(AccountId(_)))
@@ -121,7 +121,7 @@ object Gens:
   given Arbitrary[Event] = Arbitrary(
     Gen.oneOf(
       Gen
-        .zip(genUuid, genUuid, Gen.const("discord"))
+        .zip(genUuid, genUuid, Gen.const("telegram"))
         .map((a, i, v) => Event.AccountCreated(AccountId(a), IdentityId(i), v)),
       Gen
         .zip(genUuid, genUuid, genUuid, Gen.const("telegram"))
@@ -175,11 +175,11 @@ object Gens:
   // ---------- Chat model ----------
 
   given Arbitrary[PlatformIdentity] = Arbitrary(
-    Gen.zip(Gen.const("discord"), genText, genOptText).map(PlatformIdentity.apply)
+    Gen.zip(Gen.const("telegram"), genText, genOptText).map(PlatformIdentity.apply)
   )
-  given Arbitrary[ChatRef] = Arbitrary(Gen.zip(Gen.const("discord"), genText, genOptText).map(ChatRef.apply))
+  given Arbitrary[ChatRef] = Arbitrary(Gen.zip(Gen.const("telegram"), genText, genOptText).map(ChatRef.apply))
   given Arbitrary[MessageHandle] = Arbitrary(
-    Gen.zip(Gen.const("discord"), genText, genText, Gen.choose(0, 5)).map(MessageHandle.apply)
+    Gen.zip(Gen.const("telegram"), genText, genText, Gen.choose(0, 5)).map(MessageHandle.apply)
   )
   given Arbitrary[Principal] = Arbitrary(
     Gen
@@ -229,7 +229,7 @@ object Gens:
   given Arbitrary[InboundEvent] = Arbitrary(
     for
       id <- genUuid
-      vendor <- Gen.oneOf("discord", "telegram", "console")
+      vendor <- Gen.oneOf("telegram", "console")
       vendorEventId <- genText
       receivedAt <- genInstant
       createdAt <- Gen.option(genInstant)

@@ -65,7 +65,7 @@ class CatchUpDigestPgSuite extends PgSuite:
       metrics = MicrometerLoopMetrics()
     )
 
-  private def newAdapter(): FakeAdapter = FakeAdapter(CapabilityProfiles.Discord, vendor = "fake")
+  private def newAdapter(): FakeAdapter = FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake")
 
   private def dispatcher(clock: MutableClock, adapter: FakeAdapter): OutboxDispatcher =
     val codec = CallbackCodec(CallbackKeys(CallbackKey(1, Array.fill[Byte](32)(7)), None))

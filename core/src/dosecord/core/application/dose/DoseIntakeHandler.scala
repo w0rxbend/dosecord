@@ -317,7 +317,7 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       case _ => Reply.empty
 
   /** The optional medication argument: structured args where the vendor supplies them, else the raw line after the
-    * command name (the console grammar; M2.1 fills args on Discord).
+    * command name (the console grammar).
     */
   private def medicationArg(event: InboundEvent): Option[String] =
     event.body match

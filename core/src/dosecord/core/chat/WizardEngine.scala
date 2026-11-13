@@ -566,8 +566,8 @@ final class WizardEngine(
 
   /** Renders one step's prompt: body from the flow, controls from the step kind, `[Back]`/`[Cancel]` on every step — as
     * a nav row on choice steps and as a typed hint on text/form steps (so bare digits stay wizard input). When going
-    * back would land on a Form step, `[Back]` is minted `opensForm` so an un-acked vendor interaction (Discord) answers
-    * with the re-opened pre-filled modal instead of the FormRunner degrade (M1.9).
+    * back would land on a Form step, `[Back]` is minted `opensForm` so an un-acked vendor interaction answers with the
+    * re-opened pre-filled modal instead of the FormRunner degrade (M1.9).
     */
   private[chat] def renderStepPrompt(
       chat: ChatRef,

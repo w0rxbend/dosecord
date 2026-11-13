@@ -3,7 +3,7 @@ package dosecord.core.application.mood
 import dosecord.core.domain.copy.MoodCopy
 
 /** `/mood` parsing (ROADMAP M0.12d). The keyword and range fixtures below are transcribed verbatim from the retired
-  * prototype's `_parse_mood` (git history, `services/discord-bot/.../command_handler.py`) per ROADMAP section 2 —
+  * prototype's `_parse_mood` (git history, the bot service's `command_handler.py`) per ROADMAP section 2 —
   * "salvage the parsing RULES as test fixtures, write fresh Scala".
   */
 class MoodParsingSuite extends munit.FunSuite:

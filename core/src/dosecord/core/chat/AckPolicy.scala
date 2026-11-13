@@ -26,8 +26,8 @@ object AckPolicy:
     else if profile.transientAck then Ack.Answer(None)
     else Ack.NoAck
 
-  /** Commands defer a reply with the visibility declared on the CommandSpec (Discord fixes the ephemeral flag at defer
-    * time); single-shot vendors answer instead.
+  /** Commands defer a reply with the visibility declared on the CommandSpec (a deferring vendor fixes the ephemeral
+    * flag at defer time); single-shot vendors answer instead.
     */
   def forCommand(spec: CommandSpec, profile: CapabilityProfile): Ack =
     if spec.opensForm then Ack.NoAck

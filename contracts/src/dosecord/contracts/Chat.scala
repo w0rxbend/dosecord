@@ -179,7 +179,7 @@ final case class ChoiceSet(
     ttl: Option[Duration] = None
 ) derives ReadWriter:
   require(id.nonEmpty, "choice set id must not be empty")
-  require(choices.nonEmpty && choices.length <= 25, "1-25 choices (Discord select limit)")
+  require(choices.nonEmpty && choices.length <= 25, "1-25 choices (native select limit)")
   require(minSelect >= 0 && maxSelect >= 1 && minSelect <= maxSelect, "invalid select bounds")
   require(maxSelect <= choices.length, "maxSelect exceeds the choice count")
 
@@ -200,8 +200,8 @@ final case class Field(
 
 final case class Form(id: String, title: String, fields: List[Field], submit: String) derives ReadWriter:
   require(id.nonEmpty, "form id must not be empty")
-  require(title.nonEmpty && title.length <= 45, "form title must be 1-45 chars (Discord modal cap)")
-  require(fields.nonEmpty && fields.length <= 5, "1-5 fields (Discord modal cap)")
+  require(title.nonEmpty && title.length <= 45, "form title must be 1-45 chars (native modal cap)")
+  require(fields.nonEmpty && fields.length <= 5, "1-5 fields (native modal cap)")
 
 enum NoticeLevel derives ReadWriter:
   case Info, Success, Warning
@@ -252,10 +252,10 @@ enum DeleteCapability derives ReadWriter:
   case NoDelete
 
 enum DmInitiation derives ReadWriter:
-  case Always, AfterUserStart, SharedGuildOrInstall, Invite
+  case Always, AfterUserStart
 
 enum Markup derives ReadWriter:
-  case DiscordMd, TelegramHtml, ZulipMd, MatrixHtml, Plain
+  case TelegramHtml, Plain
 
 final case class CapabilityProfile(
     nativeCommands: Boolean,

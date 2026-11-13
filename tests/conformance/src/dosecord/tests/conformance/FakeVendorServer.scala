@@ -13,8 +13,8 @@ import scala.jdk.CollectionConverters.*
   */
 
 /** A raw vendor event as the fake wire delivers it. `wireId` is the vendor-native identity where one exists (a Telegram
-  * update id, a Discord interaction id); a transport without server-side event identity (the console's stdin) ignores
-  * it and declares no `redelivery` trait, so the duplicate scenario does not apply to it.
+  * update id); a transport without server-side event identity (the console's stdin) ignores it and declares no
+  * `redelivery` trait, so the duplicate scenario does not apply to it.
   */
 enum WireEvent:
   case Message(wireId: String, chat: String, text: String, replyToMessageId: Option[String])

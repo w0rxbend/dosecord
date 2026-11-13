@@ -75,7 +75,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
   test("vendor-accepted source edit survives lost bookkeeping and dispatcher restart without creating a message"):
     val pgUow = PgUnitOfWork(dataSource, clock)
     val fault = FaultUow(pgUow, failAt = 2, afterCommit = false)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
@@ -111,7 +111,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
 
   test("a missing source creates one recorded replacement on synchronous recovery"):
     val pgUow = PgUnitOfWork(dataSource, clock)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val missing = upickle.default.writeJs(ChatError.Permanent("missing source", channelFatal = false))
     missing("reason") = ujson.Str("MissingTarget")
     adapter.failNext(upickle.default.read[ChatError.Permanent](missing))
@@ -153,7 +153,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
 
   test("lost commit acknowledgement with missing source records replacement for dispatcher and repeated replay"):
     val pgUow = PgUnitOfWork(dataSource, clock)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
     val calls = AtomicInteger(0)
     val fault = new UnitOfWork:
@@ -196,7 +196,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
   List(false, true).foreach: dispatcherFailure =>
     test(s"fatal MissingTarget never creates a persistent replacement (dispatcher=$dispatcherFailure)"):
       val pgUow = PgUnitOfWork(dataSource, clock)
-      val adapter = FakeAdapter(CapabilityProfiles.Discord)
+      val adapter = FakeAdapter(CapabilityProfiles.Telegram)
       adapter.failNext(
         if dispatcherFailure then ChatError.Retryable("synthetic outage")
         else ChatError.Permanent("fatal missing source", true, ChatError.PermanentReason.MissingTarget)
@@ -237,7 +237,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
 
   test("dispatcher missing-source replacement resumes its recorded handle after terminal bookkeeping crash"):
     val pgUow = PgUnitOfWork(dataSource, clock)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     adapter.failNext(ChatError.Retryable("synthetic edit outage"))
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
@@ -272,7 +272,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
 
   test("synchronous source edit replaces the stored callback map"):
     val pgUow = PgUnitOfWork(dataSource, clock)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val callback = codec.encode(CallbackMode.Direct, ActionRegistry.byName("menu.open").get, UUID.randomUUID(), 0).wire
     pgUow.transaction(
       _.renderedMessages.record(
@@ -303,7 +303,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
   test("unlinked reply destination survives restart without a primary delivery channel"):
     val pgUow = PgUnitOfWork(dataSource, clock)
     val fault = FaultUow(pgUow, failAt = 2, afterCommit = false)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
         Reply(followUps = List(message("unlinked-reply").copy(replaces = None)))
@@ -328,7 +328,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       override def transaction[A](f: Tx => A): A =
         calls.incrementAndGet()
         throw SQLException("synthetic database unavailable")
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
@@ -362,7 +362,8 @@ class InteractionRecoveryPgSuite extends PgSuite:
     test(s"private hook fail-closed recovery after restart (hook failure=$failHook)"):
       val pgUow = PgUnitOfWork(dataSource, clock)
       val fault = FaultUow(pgUow, failAt = 2, afterCommit = false)
-      val adapter = FakeAdapter(CapabilityProfiles.Discord)
+      // The private-hook path needs a vendor that declares ephemeral replies; no shipped profile does.
+      val adapter = FakeAdapter(CapabilityProfiles.Telegram.copy(ephemeral = true))
       val hook = PrivateHook(failHook)
       val privateMessage = message("private-outcome").copy(
         visibility = Visibility.Ephemeral,
@@ -393,7 +394,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
 
   test("source edit retries exhaust the existing attempt budget without named fallback"):
     val pgUow = PgUnitOfWork(dataSource, clock)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     adapter.failNext(ChatError.Retryable("synthetic outage"))
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
@@ -435,7 +436,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
   test("lost commit acknowledgement reconciles stored reply without asking to repeat a committed action"):
     val pgUow = PgUnitOfWork(dataSource, clock)
     val fault = FaultUow(pgUow, failAt = 1, afterCommit = true)
-    val adapter = FakeAdapter(CapabilityProfiles.Discord)
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =

@@ -53,7 +53,6 @@ class TokenBucketsSuite extends munit.FunSuite:
     h.buckets.acquire("fake", "chat-1", 2)
     assertEquals(h.sleeps.toList, List(Duration.ofSeconds(1)), "one token short: a one-second refill wait")
 
-  test("the documented vendor defaults are configured for the four vendors"):
-    assertEquals(TokenBuckets.defaults.keySet, Set("discord", "telegram", "zulip", "matrix"))
-    assertEquals(TokenBuckets.defaults("discord").chat, TokenBuckets.Bucket(5, 1.0))
-    assertEquals(TokenBuckets.defaults("matrix").vendor, TokenBuckets.Bucket(10, 0.2))
+  test("the documented vendor defaults are configured for telegram"):
+    assertEquals(TokenBuckets.defaults.keySet, Set("telegram"))
+    assertEquals(TokenBuckets.defaults("telegram"), TokenBuckets.Limits(TokenBuckets.Bucket(30, 30), TokenBuckets.Bucket(1, 1)))

@@ -138,7 +138,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
   test("a reminder renders the catalogue body and the two control rows with decodable tokens"):
     val s = seed(dueState)
     val dispatch = LoopDispatch.Reminder(s.occurrenceId, Some("dm:owner"), "initial", 1, silent = false)
-    val (chat, rendered) = renderer(s.uow).render(row(s, "reminder", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Discord)
+    val (chat, rendered) = renderer(s.uow).render(row(s, "reminder", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Telegram)
 
     assertEquals(chat, ChatRef("fake", "dm:owner"))
     val text = rendered.chunks.mkString("\n")
@@ -162,7 +162,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val spent = dueState.copy(snoozeCount = ReminderPolicy.Default.maxSnoozes)
     val s = seed(spent)
     val dispatch = LoopDispatch.Reminder(s.occurrenceId, Some("dm:owner"), "initial", 1, silent = false)
-    val (_, rendered) = renderer(s.uow).render(row(s, "reminder", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Discord)
+    val (_, rendered) = renderer(s.uow).render(row(s, "reminder", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Telegram)
 
     rendered.controls match
       case List(RenderedControls.Buttons(rows)) =>
@@ -173,7 +173,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val missed = dueState.copy(status = OccurrenceStatus.Missed, missedAt = Some(t0.plusSeconds(600)))
     val s = seed(missed)
     val dispatch = LoopDispatch.MissedNotice(s.occurrenceId, Some("dm:owner"), silent = false)
-    val (_, rendered) = renderer(s.uow).render(row(s, "missed_notice", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Discord)
+    val (_, rendered) = renderer(s.uow).render(row(s, "missed_notice", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Telegram)
 
     assert(rendered.chunks.mkString("\n").contains("I did not get a response for Vitamin D at 09:00"))
     val labels = rendered.controls.collect { case RenderedControls.Buttons(rows) => rows.flatten.map(_.label) }
@@ -191,7 +191,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val dispatch = LoopDispatch.FinalizeControls(s.occurrenceId, "resolved")
     val finalizeRow = row(s, "reminder_finalize", LoopDispatch.toJson(dispatch), op = OutboxOp.Finalize)
       .copy(target = Some("dm:owner:m1"))
-    val (chat, rendered) = renderer(s.uow).render(finalizeRow, CapabilityProfiles.Discord)
+    val (chat, rendered) = renderer(s.uow).render(finalizeRow, CapabilityProfiles.Telegram)
 
     assertEquals(chat, ChatRef("fake", "dm:owner"))
     assertEquals(rendered.chunks, List("Recorded at 09:03."))
@@ -207,7 +207,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val dispatch = LoopDispatch.FinalizeControls(s.occurrenceId, "superseded")
     val finalizeRow = row(s, "reminder_finalize", LoopDispatch.toJson(dispatch), op = OutboxOp.Finalize)
       .copy(target = Some("dm:owner:m1"))
-    val (_, rendered) = renderer(s.uow).render(finalizeRow, CapabilityProfiles.Discord)
+    val (_, rendered) = renderer(s.uow).render(finalizeRow, CapabilityProfiles.Telegram)
 
     assertEquals(rendered.controls, Nil)
     assert(rendered.chunks.exists(_.contains("Time for Vitamin D")), s"the reminder text stays: ${rendered.chunks}")
@@ -220,7 +220,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
       correlationId = "corr-1"
     )
     val safetyRow = row(s, "interaction_reply", OutboundMessage.toJson(message)).copy(occurrenceId = None, epoch = None)
-    val (chat, rendered) = renderer(s.uow).render(safetyRow, CapabilityProfiles.Discord)
+    val (chat, rendered) = renderer(s.uow).render(safetyRow, CapabilityProfiles.Telegram)
 
     assertEquals(chat, ChatRef("fake", "dm:owner"))
     assertEquals(rendered.chunks, List("Something went wrong on my side — please try again in a moment."))
@@ -232,7 +232,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val dispatch = LoopDispatch.Reminder(s.occurrenceId, Some("dm:owner"), "initial", 1, silent = false)
     val fallbackRow = row(s, "reminder", LoopDispatch.toJson(dispatch)).copy(channelId = Some(fallbackChannelId))
 
-    val (chat, _) = renderer(s.uow).render(fallbackRow, CapabilityProfiles.Discord)
+    val (chat, _) = renderer(s.uow).render(fallbackRow, CapabilityProfiles.Telegram)
     assertEquals(chat, ChatRef("fake", "dm:other"))
 
   // ---------- catch-up digest (M1.8) ----------
@@ -348,7 +348,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
       dosecord.contracts.DigestItem(s.occurrenceIds(1), 2),
       dosecord.contracts.DigestItem(s.occurrenceIds(2), 1)
     )
-    val (chat, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+    val (chat, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Telegram)
 
     assertEquals(chat, ChatRef("fake", "dm:owner"))
     val text = rendered.chunks.mkString("\n")
@@ -379,7 +379,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
       dosecord.contracts.DigestItem(s.occurrenceIds(0), 1), // stale epoch: the occurrence moved to epoch 2
       dosecord.contracts.DigestItem(s.occurrenceIds(1), 1)
     )
-    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Telegram)
 
     val text = rendered.chunks.mkString("\n")
     assert(text.contains(dosecord.core.domain.copy.DigestCopy.header(1)), s"header was: $text")
@@ -388,7 +388,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
   test("a digest whose items all resolved is skipped with DigestEmpty"):
     val s = digestSeed(List(takenState(1)))
     val items = List(dosecord.contracts.DigestItem(s.occurrenceIds(0), 1))
-    intercept[DigestEmpty](renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord))
+    intercept[DigestEmpty](renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Telegram))
 
   test("a merged bucket repeating an occurrence renders it once"):
     val s = digestSeed(List(unknownState(1)))
@@ -396,13 +396,13 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
       dosecord.contracts.DigestItem(s.occurrenceIds(0), 1),
       dosecord.contracts.DigestItem(s.occurrenceIds(0), 1)
     )
-    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Telegram)
     assertEquals(rendered.chunks.mkString("\n").linesIterator.count(_.startsWith("• ")), 1)
 
   test("more items than the 8-dose cap: eight control rows and a closing count line"):
     val s = digestSeed(List.fill(9)(unknownState(1)))
     val items = s.occurrenceIds.map(id => dosecord.contracts.DigestItem(id, 1))
-    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Discord)
+    val (_, rendered) = renderer(s.uow).render(digestRow(s, items), CapabilityProfiles.Telegram)
 
     val text = rendered.chunks.mkString("\n")
     assert(text.contains(dosecord.core.domain.copy.DigestCopy.header(9)), s"header was: $text")

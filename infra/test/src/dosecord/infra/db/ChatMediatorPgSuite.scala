@@ -296,7 +296,7 @@ class ChatMediatorPgSuite extends PgSuite:
     ox.supervised:
       seedLinkedAccount()
       val uow = PgUnitOfWork(dataSource, Clock.system)
-      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
       val handle = RecordingInteractionHandle()
@@ -327,7 +327,8 @@ class ChatMediatorPgSuite extends PgSuite:
       seedLinkedAccount()
       val pausable = PausableDataSource(dataSource)
       val uow = PgUnitOfWork(pausable, Clock.system)
-      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Discord))
+      // The asserted deferUpdate ack needs a deferrable vendor; no shipped profile is one.
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram.copy(deferrable = true)))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
       val handle = RecordingInteractionHandle()

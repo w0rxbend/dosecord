@@ -344,7 +344,4 @@ object SuiteARunner:
 
   private def markupKey(markup: Markup): String = markup match
     case Markup.Plain        => "plain"
-    case Markup.DiscordMd    => "discordMd"
     case Markup.TelegramHtml => "telegramHtml"
-    case Markup.ZulipMd      => "zulipMd"
-    case Markup.MatrixHtml   => "matrixHtml"

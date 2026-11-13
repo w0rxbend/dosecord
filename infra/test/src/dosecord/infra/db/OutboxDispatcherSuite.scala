@@ -115,7 +115,7 @@ class OutboxDispatcherSuite extends PgSuite:
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
 
   private def newAdapter(sendDelayMillis: Long = 0): TestAdapter =
-    TestAdapter(FakeAdapter(CapabilityProfiles.Discord, vendor = "fake"), sendDelayMillis)
+    TestAdapter(FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake"), sendDelayMillis)
 
   private val reactions = List("✅", "⏰")
 
@@ -590,7 +590,7 @@ class OutboxDispatcherSuite extends PgSuite:
     val channels = twoChannels(fixtures, fixtures.account())
     val uow = PgUnitOfWork(dataSource, clock)
     val adapterA = newAdapter()
-    val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Discord, vendor = "fake2"))
+    val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake2"))
     val sendKey = s"reminder-fatal:c${channels.primaryChannelId}"
     uow.transaction(
       _.outbox.enqueue(
@@ -634,7 +634,7 @@ class OutboxDispatcherSuite extends PgSuite:
     val channels = twoChannels(fixtures, accountId)
     val uow = PgUnitOfWork(dataSource, clock)
     val adapterA = newAdapter()
-    val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Discord, vendor = "fake2"))
+    val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake2"))
     val sendKey = s"occ:$occurrenceId:e0:s1:kinitial:c${channels.primaryChannelId}"
     uow.transaction(
       _.outbox.enqueue(
