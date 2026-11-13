@@ -1,0 +1,34 @@
+{
+  "get-me": {
+    "ok": true,
+    "result": { "id": 555000111, "is_bot": true, "first_name": "Dosegram", "username": "dosegram_dev_bot",
+      "can_join_groups": false, "can_read_all_group_messages": false, "supports_inline_queries": false, "has_main_web_app": true }
+  },
+  "send-message": {
+    "ok": true,
+    "result": { "message_id": 60, "from": { "id": 555000111, "is_bot": true, "first_name": "Dosegram" },
+      "chat": { "id": 7001, "type": "private" }, "date": 1794000200, "text": "Time for Sample, 1 unit." }
+  },
+  "send-photo": {
+    "ok": true,
+    "result": { "message_id": 61, "from": { "id": 555000111, "is_bot": true, "first_name": "Dosegram" },
+      "chat": { "id": 7001, "type": "private" }, "date": 1794000210, "caption": "Your week",
+      "photo": [
+        { "file_id": "AgACuploaded-90", "file_unique_id": "p90", "width": 90, "height": 60 },
+        { "file_id": "AgACuploaded-1280", "file_unique_id": "p1280", "width": 1280, "height": 853 }
+      ] }
+  },
+  "send-document": {
+    "ok": true,
+    "result": { "message_id": 62, "chat": { "id": 7001, "type": "private" }, "date": 1794000220,
+      "document": { "file_id": "BQACuploaded-doc", "file_unique_id": "d1", "file_name": "export.csv", "mime_type": "text/csv" } }
+  },
+  "true": { "ok": true, "result": true },
+  "get-my-commands": {
+    "ok": true,
+    "result": [
+      { "command": "today", "description": "Show today's doses and record them." },
+      { "command": "help", "description": "Show this help." }
+    ]
+  }
+}

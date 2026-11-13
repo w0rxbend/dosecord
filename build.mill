@@ -69,8 +69,15 @@ object `adapter-console` extends DosegramModule:
     // M0.13: the adapter conformance suite (tests/conformance) runs inside this module's test task.
     def moduleDeps = super.moduleDeps ++ Seq(tests.conformance)
 
+// G1.4: the Telegram adapter. No dependency of its own: the Bot API client is the JDK HttpClient plus the uPickle
+// that contracts brings; the fake wire lives in the main sources so that app's launch-path tests can use it.
+object `adapter-telegram` extends DosegramModule:
+  def moduleDeps = Seq(core, contracts)
+  object test extends DosegramTests:
+    def moduleDeps = super.moduleDeps ++ Seq(tests.conformance)
+
 object app extends DosegramModule:
-  def moduleDeps = Seq(`adapter-console`, infra, core, contracts)
+  def moduleDeps = Seq(`adapter-console`, `adapter-telegram`, infra, core, contracts)
   def mainClass = Some("dosegram.app.Main")
   // Tapir 1.13.31 pinned per docs/DESIGN.md section 2: netty-sync serves
   // /healthz (M0.5), later /readyz, /metrics and the auth-link pages.

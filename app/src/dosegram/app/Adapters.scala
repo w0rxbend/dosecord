@@ -1,11 +1,13 @@
 package dosegram.app
 
 import dosegram.adapter.console.ConsoleAdapter
+import dosegram.adapter.telegram.TelegramAdapter
 import dosegram.contracts.ChatAdapter
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatMediator
+import dosegram.core.ports.Clock
 import dosegram.infra.Adapter
 import dosegram.infra.Settings
 import dosegram.infra.db.PgUnitOfWork
@@ -23,15 +25,18 @@ object Adapters:
   /** The adapters named by `ENABLED_ADAPTERS`, by vendor. Building one opens no connection: the gateway half starts it,
     * the worker half only sends through it.
     */
-  def build(settings: Settings): Map[String, ChatAdapter] =
+  def build(settings: Settings, clock: Clock)(using Ox): Map[String, ChatAdapter] =
     settings.enabledAdapters.map {
       case Adapter.Console =>
         val userId = settings.consoleUserId.getOrElse(
           throw IllegalArgumentException("CONSOLE_USER_ID is required when the console adapter is enabled")
         )
         "console" -> ConsoleAdapter.stdio(userId)
-      case other =>
-        throw IllegalArgumentException(s"adapter '${other.envName}' is not implemented in this build")
+      case Adapter.Telegram =>
+        val telegram = settings.telegram.getOrElse(
+          throw IllegalArgumentException("TELEGRAM_TOKEN is required when the telegram adapter is enabled")
+        )
+        TelegramAdapter.Vendor -> TelegramAssembly.production(settings, telegram, clock)
     }.toMap
 
   /** Starts every adapter as a gateway; returns `(name, stop)` pairs for the drain. */

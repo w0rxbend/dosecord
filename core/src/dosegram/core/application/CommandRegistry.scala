@@ -4,8 +4,8 @@ import dosegram.contracts.CommandArg
 import dosegram.contracts.CommandSpec
 
 /** The registered commands (ROADMAP M0.12d, R51, K9; `/today` and `/history` from M1.9; `/taken`, `/snooze`, `/skip`,
-  * `/log` from M1.10). `/help` renders from this registry, so it cannot omit a command — including itself; the
-  * mediator's ack policy reads the same specs.
+  * `/log` from M1.10; `/meds` and `/app` from BOT_UX section 6.1). `/help` renders from this registry, so it cannot
+  * omit a command — including itself; the mediator's ack policy reads the same specs.
   */
 object CommandRegistry:
 
@@ -17,6 +17,11 @@ object CommandRegistry:
   val Today: CommandSpec = CommandSpec(
     name = "today",
     description = "Show today's doses and record them."
+  )
+
+  val Meds: CommandSpec = CommandSpec(
+    name = "meds",
+    description = "Show your medications."
   )
 
   val History: CommandSpec = CommandSpec(
@@ -73,6 +78,11 @@ object CommandRegistry:
     description = "Open the main menu."
   )
 
+  val App: CommandSpec = CommandSpec(
+    name = "app",
+    description = "Open the app."
+  )
+
   val Cancel: CommandSpec = CommandSpec(
     name = "cancel",
     description = "Cancel the current setup."
@@ -86,7 +96,7 @@ object CommandRegistry:
   /** Display order is the registration order. A domain has no command here before it has a consent purpose and its
     * capture slice has shipped (BOT_UX BUX-CMD-08).
     */
-  val all: List[CommandSpec] = List(Start, Today, History, Taken, Snooze, Skip, Log, Menu, Cancel, Help)
+  val all: List[CommandSpec] = List(Start, Today, Meds, History, Taken, Snooze, Skip, Log, Menu, App, Cancel, Help)
 
   val byName: Map[String, CommandSpec] = all.map(spec => spec.name -> spec).toMap
 

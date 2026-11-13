@@ -187,7 +187,9 @@ object SuiteARunner:
           text.foreach(t => check(state, s"$wireId: text mismatch: ${bodyText(event.body)}", bodyText(event.body) == t))
           name.foreach(n => check(state, s"$wireId: name mismatch", bodyName(event.body).contains(n)))
           replyToMessageId.foreach(id => check(state, s"$wireId: replyTo mismatch", replyToOf(event.body).contains(id)))
-          chatId.foreach(id => check(state, s"$wireId: chat mismatch: ${event.chat.chatId}", event.chat.chatId == id))
+          chatId.foreach(id =>
+            check(state, s"$wireId: chat mismatch: ${event.chat.chatId}", event.chat.chatId == aut.server.chatId(id))
+          )
           cursorGreaterThan.foreach(min =>
             val cursor = event.cursor.flatMap(_.toLongOption)
             check(state, s"$wireId: cursor ${event.cursor} is not greater than $min", cursor.exists(_ > min))

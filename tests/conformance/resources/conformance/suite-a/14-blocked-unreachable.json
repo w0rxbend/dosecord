@@ -1,0 +1,13 @@
+{
+  "name": "blocked-unreachable",
+  "title": "A send the vendor refuses because the user blocked the bot is ChatError.Unreachable with channelFatal = true (ARCHITECTURE TG-43)",
+  "requires": ["httpStatus"],
+  "steps": [
+    { "do": "start" },
+    { "do": "injectFault", "fault": "blocked" },
+    { "do": "send", "text": "hello", "sendKey": "k1" }
+  ],
+  "expect": [
+    { "expect": "error", "kind": "unreachable", "channelFatal": true }
+  ]
+}
