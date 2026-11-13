@@ -5,8 +5,11 @@ import dosegram.core.domain.DstKind
 import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.MoodDay
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.ScheduleStatus
 import dosegram.core.ports.StoredMedication
@@ -15,8 +18,10 @@ import dosegram.core.ports.StoredSchedule
 import dosegram.core.ports.StoredScheduleRevision
 import dosegram.core.ports.Tx
 
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -29,6 +34,10 @@ object ApiCopy:
   private val DayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
   private val DayMonth = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
   private val Clock = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
+  private val FullDay = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH)
+  private val Weekday3 = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
+  private val MonthYear = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)
+  private val MonthOnly = DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)
   private val Workdays = List(Weekday.Mon, Weekday.Tue, Weekday.Wed, Weekday.Thu, Weekday.Fri)
 
   val noSchedule = "No schedule"
@@ -37,6 +46,12 @@ object ApiCopy:
   def ended(summary: String): String = s"ended: $summary"
 
   def dayLabel(date: LocalDate): String = date.format(DayLabel)
+
+  /** `13 Nov`: a date under a chart. */
+  def dayMonth(date: LocalDate): String = date.format(DayMonth)
+
+  /** `1 check-in`, `3 check-ins`. */
+  def count(n: Int, noun: String): String = if n == 1 then s"1 $noun" else s"$n ${noun}s"
 
   /** `7 Nov to 13 Nov`: the days a statistics period covers. */
   def rangeLabel(window: DateRange): String = s"${window.start.format(DayMonth)} to ${window.end.format(DayMonth)}"
@@ -49,6 +64,58 @@ object ApiCopy:
     case InsightDomain.Hydration  => "Water"
     case InsightDomain.Mood       => "Mood"
   def clock(at: Instant, zone: ZoneId): String = Clock.format(at.atZone(zone))
+
+  // ---------- tracking ----------
+
+  val nothingLogged = "Nothing logged yet"
+  val noCheckIn = "No check-in yet"
+
+  /** MINI_APP MA-MOOD-7: shown on every mood screen, for every value. */
+  val moodStatement = "Dosegram records how you feel. It does not assess it."
+
+  def millilitres(amount: Int): String = s"$amount ml"
+
+  /** `Thursday 12 November`: the date in the accessible name of a calendar cell (MINI_APP MA-HIST-1). */
+  def fullDay(date: LocalDate): String = date.format(FullDay)
+
+  /** `Thu`: a day of the mood strip. */
+  def weekday(date: LocalDate): String = date.format(Weekday3)
+
+  def monthLabel(month: YearMonth): String = month.format(MonthYear)
+  def monthName(month: YearMonth): String = month.format(MonthOnly)
+
+  /** The daily mean with the name of its level: `3.5 (slightly pleasant)`. No surface shows a bare mood number. */
+  def moodMean(day: MoodDay): String =
+    val mean = java.math.BigDecimal.valueOf(day.mean).setScale(1, RoundingMode.HALF_UP).toPlainString
+    s"$mean (${MoodLabels.level(day.level).toLowerCase(Locale.ROOT)})"
+
+  // ---------- consents and settings ----------
+
+  /** Research brief 06 fact F2, shown with the consents (MINI_APP section 7.15). */
+  val chatIsNotEncrypted =
+    "Telegram can read the messages and images in your chat with Dosegram. Bot chats are not end-to-end encrypted."
+  val withdrawInChat = "To withdraw a consent, send /privacy in the chat. The app records no consent of its own."
+
+  /** How a purpose is turned on: in the chat only (ARCHITECTURE API-19). */
+  def consentOff(purpose: ConsentPurpose): String = purpose match
+    case ConsentPurpose.Medication          => "Off. Send /meds in the chat to turn it on."
+    case ConsentPurpose.Hydration           => "Off. Send /water in the chat to turn it on."
+    case ConsentPurpose.Mood                => "Off. Send /mood in the chat to turn it on."
+    case ConsentPurpose.Sleep               => "Off. The chat cannot turn sleep records on yet."
+    case ConsentPurpose.CrossDomainPatterns => "Off. The chat asks for it when a comparison is first requested."
+    case ConsentPurpose.ImagesInChat        => "Off. The chat asks for it when an image is first requested."
+
+  val quietHoursNote =
+    "A medication reminder that falls inside quiet hours follows the quiet-hours rule of its schedule."
+  val discreetNote =
+    "This choice is saved with your account. Reminders in the chat do not use it yet: they still show the name."
+
+  def timeThere(time: String): String = s"It is $time there now."
+  val noSchedulesMove = "No schedule is changed by this."
+  def schedulesFollow(count: Int): String =
+    s"${ApiCopy.count(count, "schedule")} ${if count == 1 then "follows" else "follow"} your time zone and " +
+      s"${if count == 1 then "keeps its" else "keep their"} clock times."
+  def scheduleStays(medicationName: String, zone: ZoneId): String = s"$medicationName stays on ${zone.getId} time."
 
   /** `every day 09:00, 21:00`, in the words of the chat wizard. */
   def ruleSummary(rule: Rule): String = rule match

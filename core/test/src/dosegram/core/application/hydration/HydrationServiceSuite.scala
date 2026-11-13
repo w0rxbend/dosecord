@@ -168,6 +168,18 @@ class HydrationServiceSuite extends munit.ScalaCheckSuite:
     assertEquals(rig.service.setPresets(rig.tx, account, List(250, 6000)), Left(HydrationRefusal.PresetsInvalid))
     assertEquals(rig.service.setPresets(rig.tx, account, Nil), Left(HydrationRefusal.PresetsInvalid))
 
+  test("any local day is read by its date, with the goal in force on it, and not without the consent"):
+    val rig = Rig()
+    rig.log(400, "k1", EntryDay.Yesterday)
+    assert(rig.service.setGoal(rig.tx, account, Some(2000)).isRight)
+    val yesterday = rig.service.dayOn(rig.tx, account, today.minusDays(1)).toOption.get
+    assertEquals((yesterday.recorded.map(_.totalMl), yesterday.goalMl), (Some(400), None))
+    val empty = rig.service.dayOn(rig.tx, account, today.minusDays(9)).toOption.get
+    assertEquals((empty.date, empty.recorded), (today.minusDays(9), None))
+    assertEquals(rig.service.dayOn(rig.tx, account, today).map(_.goalMl), Right(Some(2000)))
+    val off = Rig(FakeConsent(Set(account -> ConsentPurpose.Mood)))
+    assertEquals(off.service.dayOn(off.tx, account, today), Left(HydrationRefusal.ConsentMissing))
+
   test("an unknown account is refused"):
     val unknown = UUID.fromString("00000000-0000-7000-8000-0000000000a9")
     val rig = Rig(FakeConsent.all(unknown))

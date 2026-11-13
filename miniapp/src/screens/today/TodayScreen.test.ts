@@ -117,12 +117,14 @@ describe('Today screen', () => {
   it('adds water with one tap and shows the new total', async () => {
     const harness = createHarness();
     const user = open(harness);
-    expect(await screen.findByText('1.2 L of 2.0 L (60%)')).toBeTruthy();
+    // The figures are the server's words for the day (MINI_APP 15.1).
+    expect(await screen.findByText('1.2 of 2.0 l (60%)')).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Add 500 ml' }));
 
-    expect(await screen.findByText('1.7 L of 2.0 L (85%)')).toBeTruthy();
+    expect(await screen.findByText('1.7 of 2.0 l (85%)')).toBeTruthy();
     expect(harness.toasts.current?.message).toBe('Added 500 ml');
+    expect(harness.api.calls.filter((call) => call === 'hydration/entries:create')).toHaveLength(1);
   });
 
   it('offers to add a medication when nothing is scheduled', async () => {
@@ -165,5 +167,25 @@ describe('Today screen', () => {
     harness.tg.activate();
 
     expect(await screen.findByText('Taken 08:12')).toBeTruthy();
+  });
+
+  it('shows water and mood without the medication consent, and no dose', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('medication');
+    open(harness);
+
+    expect(await screen.findByText('1.2 of 2.0 l (60%)')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Mood' }).textContent).toContain('Pleasant. Energy: medium.');
+    expect(screen.queryByRole('region', { name: 'Due now' })).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('carries a visible settings control', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+
+    await user.click(await screen.findByRole('button', { name: 'Settings' }));
+
+    expect(harness.router.route).toEqual({ screen: 'settings' });
   });
 });

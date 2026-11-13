@@ -88,7 +88,9 @@ final case class Limits(medicationNameMax: Int, instructionsMax: Int, doseUnitMa
     derives ReadWriter,
       Schema
 
-final case class Bootstrap(timeZone: String, limits: Limits) derives ReadWriter, Schema
+/** `consents` are the purposes the account has granted now, so the first screen asks only for the domains it may show.
+  */
+final case class Bootstrap(timeZone: String, limits: Limits, consents: List[String] = Nil) derives ReadWriter, Schema
 
 /** The token is returned once and is never stored by the server in this form (API-05). */
 final case class SessionCreated(token: String, expiresAt: Instant, idleTimeoutSeconds: Long, bootstrap: Bootstrap)
@@ -237,14 +239,16 @@ object InsightDomain:
 final case class InsightVessel(valueMl: Int, goalMl: Int, label: String) derives ReadWriter, Schema
 
 /** The statistics of one domain in the server's words. `noDataText` is set when the period has no record of the domain;
-  * then there are no lines.
+  * then there are no lines and no chart. `charts` are the series of the period, each shown only when a day of the
+  * period has a record (the gate of [[dosegram.core.domain.insights.DaySeries]]).
   */
 final case class InsightBlock(
     id: InsightDomain,
     title: String,
     lines: List[String],
     noDataText: Option[String] = None,
-    vessel: Option[InsightVessel] = None
+    vessel: Option[InsightVessel] = None,
+    charts: List[Chart] = Nil
 ) derives ReadWriter,
       Schema
 

@@ -1,7 +1,7 @@
 package dosegram.app
 
 import dosegram.api.ApiModule
-import dosegram.api.TrackingReads
+import dosegram.api.TrackingUseCases
 import dosegram.api.auth.Ed25519InitDataCheck
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataVerifier
@@ -86,7 +86,8 @@ object MiniAppEdge:
       verifier(settings, miniApp),
       PgSessionStore(PgMiniAppSessions(dataSource)),
       PgIdempotencyStore(PgIdempotencyKeys(dataSource), parts.clock),
-      TrackingReads(tracking.stats, tracking.hydration),
+      TrackingUseCases(tracking.stats, tracking.hydration, tracking.mood),
+      MoodBlobAsset.states,
       log
     )
     fork:

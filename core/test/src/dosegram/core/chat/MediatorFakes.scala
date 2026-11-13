@@ -111,6 +111,11 @@ object MediatorFakes:
       this.synchronized(rows.find(_.accountId == accountId).map(_.tz))
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
+    // No suite on this double reads or writes the settings of an account.
+    override def settingsOf(accountId: UUID): Option[AccountSettings] =
+      throw UnsupportedOperationException("this double keeps no account settings")
+    override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
+      throw UnsupportedOperationException("this double keeps no account settings")
 
   final class InMemoryAudit extends AuditRepository:
     private val entries = ListBuffer.empty[AuditEntry]

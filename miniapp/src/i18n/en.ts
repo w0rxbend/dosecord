@@ -8,7 +8,7 @@ const litres = (ml: number): string => `${(ml / 1000).toFixed(1)} L`;
 export const en = {
   app: { name: 'Dosegram' },
 
-  tabs: { label: 'Main sections', today: 'Today', meds: 'Meds', insights: 'Insights' },
+  tabs: { label: 'Main sections', today: 'Today', meds: 'Meds', log: 'Log', insights: 'Insights' },
 
   gate: {
     outside: {
@@ -69,6 +69,8 @@ export const en = {
     consent_required:
       'Medication tracking is off. Dosegram records medications only with your consent. Send /meds in the chat to turn it on.',
     notSaved: 'Not saved. Try again.',
+    quota_exceeded: 'The limit for today is reached. Nothing more can be added today.',
+    stepup_required: 'Confirm this in the chat with Dosegram.',
   },
 
   today: {
@@ -217,6 +219,180 @@ export const en = {
     range: 'Period',
     days: (count: number) => `${count} days`,
     vessel: 'Water today',
+    more: 'More',
+    history: 'History calendar',
+    historyHint: 'Every day of a month at a glance',
+    selected: 'Selected',
+    pickHint: 'Tap a bar or a dot, or use the arrow keys, to see its value.',
+    marksOf: (title: string) => `${title}: values`,
+  },
+
+  // MINI_APP 8.2 "Consent needed": consent is given in chat only (ARCHITECTURE API-19).
+  off: {
+    medication: 'Medication tracking is off. Dosegram records medications only with your consent.',
+    hydration: 'Water tracking is off. Dosegram records water only with your consent.',
+    mood: 'Mood tracking is off. Dosegram records mood only with your consent.',
+    howTo: { medication: 'Send /meds in the chat to turn it on.', hydration: 'Send /water in the chat to turn it on.', mood: 'Send /mood in the chat to turn it on.' },
+  },
+
+  log: {
+    title: 'Log',
+    loading: 'Loading your trackers',
+    water: 'Water',
+    mood: 'Mood',
+    notOn: 'Not turned on',
+    choose: 'Choose what to track',
+    empty: 'Track water or mood. Each one is turned on separately, with your consent.',
+    open: (name: string, state: string) => `${name}, ${state}`,
+  },
+
+  water: {
+    title: 'Water',
+    loading: 'Loading water',
+    add: (ml: number) => `+${ml} ml`,
+    addLabel: (ml: number) => `Add ${ml} ml`,
+    added: (ml: number) => `Added ${ml} ml`,
+    removed: (ml: number) => `Removed ${ml} ml`,
+    other: 'Other amount',
+    amount: 'Amount in ml',
+    amountHelp: (min: number, max: number) => `From ${min} to ${max} ml.`,
+    amountInvalid: (min: number, max: number) => `Enter a whole number from ${min} to ${max}`,
+    addOther: 'Add water',
+    today: 'Today',
+    nothing: 'Nothing logged today',
+    remove: (text: string, time: string) => `Remove ${text} at ${time}`,
+    removeShort: 'Remove',
+    week: 'Last 7 days',
+    noGoal: 'No daily goal. The total is shown without one.',
+    setGoal: 'Set a goal',
+    settings: 'Goal and amounts',
+    goalReached: 'Goal reached',
+  },
+
+  waterSettings: {
+    title: 'Goal and amounts',
+    loading: 'Loading water settings',
+    goal: 'Daily goal in ml',
+    goalHelp: 'This is your own goal. Dosegram does not recommend an amount.',
+    goalOff: 'No daily goal',
+    useGoal: 'Use a daily goal',
+    presets: 'Quick-add amounts in ml',
+    preset: (index: number) => `Amount ${index}`,
+    presetsHelp: (max: number) => `Up to ${max} amounts.`,
+    save: 'Save goal and amounts',
+    saved: 'Goal and amounts saved',
+    invalid: 'Some values were not accepted. Check the marked fields.',
+    goalInvalid: (min: number, max: number) => `Enter a whole number from ${min} to ${max}`,
+    presetInvalid: (min: number, max: number) => `Enter whole numbers from ${min} to ${max}, each once`,
+  },
+
+  mood: {
+    title: 'Mood',
+    loading: 'Loading mood',
+    checkIn: 'Check in',
+    latest: (time: string) => `Latest check-in, ${time}`,
+    earlier: 'Earlier today',
+    week: 'Last 7 days',
+    empty: 'No check-ins yet. The first one takes a few seconds.',
+    help: 'Help and contacts',
+    helpText:
+      'Dosegram is not a medical service. If you need support, talk to a professional you trust. In an emergency, call your local emergency number.',
+    remove: (label: string, time: string) => `Remove the check-in of ${time}, ${label}`,
+    removed: 'Check-in removed',
+  },
+
+  checkIn: {
+    title: 'How are you right now?',
+    loading: 'Loading the check-in',
+    untouched: 'Move the slider',
+    valence: 'How you feel',
+    less: 'Less pleasant',
+    more: 'More pleasant',
+    energy: 'Energy',
+    noEnergy: 'Not set',
+    save: 'Save check-in',
+    saved: 'Check-in saved',
+    done: 'Done',
+    another: 'Add another',
+    blobName: (valence: string, energy: string | undefined) =>
+      energy === undefined ? valence : `${valence}, ${energy.toLowerCase()} energy`,
+  },
+
+  history: {
+    title: 'History',
+    loading: 'Loading the calendar',
+    domain: 'Area',
+    domains: { medication: 'Meds', hydration: 'Water', mood: 'Mood' },
+    previous: 'Previous month',
+    next: 'Next month',
+    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    showValues: 'Show values in cells',
+    legend: 'Legend',
+  },
+
+  day: {
+    title: 'Day',
+    loading: 'Loading the day',
+    recorded: 'Recorded this day',
+    nothing: 'Nothing recorded on this day.',
+    noWater: 'No water logged on this day.',
+    noMood: 'No check-in on this day.',
+    water: (text: string) => `Water, ${text}`,
+    mood: (label: string) => `Mood, ${label}`,
+  },
+
+  settings: {
+    title: 'Settings',
+    open: 'Settings',
+    loading: 'Loading settings',
+    saved: 'Saved',
+    notSaved: 'Not saved. The previous value is back.',
+    language: 'Language',
+    timeZone: 'Time zone',
+    notifications: 'Notifications',
+    quietHours: 'Quiet hours',
+    quietOff: 'Off',
+    quietRange: (start: string, end: string) => `${start} to ${end}`,
+    discreet: 'Discreet reminders',
+    discreetHelp: 'Reminders say "your 08:00 item" instead of the name.',
+    appearance: 'Appearance',
+    imageTheme: 'Images in chat',
+    themes: { auto: 'Auto', light: 'Light', dark: 'Dark' },
+    imageThemeHelp: 'The colours of the images the bot sends. This app follows your Telegram theme.',
+    privacy: 'Privacy and consent',
+    privacyHint: 'What you turned on, and how to change it',
+  },
+
+  timeZone: {
+    title: 'Time zone',
+    loading: 'Loading time zones',
+    current: (zone: string) => `Dosegram uses ${zone}.`,
+    device: (zone: string) => `This device is on ${zone}.`,
+    useDevice: "Use this device's time zone",
+    search: 'Search time zones',
+    noMatch: 'No time zone matches.',
+    preview: 'What changes',
+    save: 'Change time zone',
+    saved: 'Time zone changed',
+  },
+
+  quietHours: {
+    title: 'Quiet hours',
+    loading: 'Loading quiet hours',
+    enabled: 'Use quiet hours',
+    start: 'Start',
+    end: 'End',
+    empty: 'Start and end are the same',
+    help: 'The range may cross midnight, for example 22:30 to 07:00.',
+    save: 'Save quiet hours',
+    saved: 'Quiet hours saved',
+  },
+
+  privacy: {
+    title: 'Privacy and consent',
+    loading: 'Loading your consents',
+    on: 'On',
+    off: 'Off',
   },
 };
 

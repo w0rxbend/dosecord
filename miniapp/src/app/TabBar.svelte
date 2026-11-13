@@ -7,10 +7,11 @@
 
   const { router, tg } = useApp();
 
-  // Log joins when its screens exist; a tab is listed only for an enabled screen.
+  // Four destinations; the tracking domains sit behind Log (MINI_APP 4.1).
   const TABS: readonly { id: TabId; path: string; label: string; icon: string }[] = [
     { id: 'today', path: '/', label: en.tabs.today, icon: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16zM12 8v4l3 2' },
     { id: 'meds', path: '/meds', label: en.tabs.meds, icon: 'M7 17a4.2 4.2 0 0 1 0-6l4-4a4.2 4.2 0 0 1 6 6l-4 4a4.2 4.2 0 0 1-6 0zM9 9l6 6' },
+    { id: 'log', path: '/log', label: en.tabs.log, icon: 'M5 5h14M5 12h14M5 19h9M17 16v6M14 19h6' },
     { id: 'insights', path: '/insights', label: en.tabs.insights, icon: 'M5 20V11M12 20V4M19 20v-6' },
   ];
 

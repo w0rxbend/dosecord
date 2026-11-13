@@ -5,13 +5,51 @@
 
   let { chart, id }: { chart: Chart; id: string } = $props();
   let tableOpen = $state(false);
+  // The last mark is the most recent day: it is the one shown until the person picks another.
+  let selected = $state<number | undefined>(undefined);
+  const current = $derived(selected ?? chart.marks.length - 1);
+  const caption = $derived(chart.marks[current]);
+
+  function pick(event: MouseEvent): void {
+    const mark = (event.target as Element | null)?.getAttribute('data-mark');
+    if (mark !== null && mark !== undefined && mark !== '') selected = Number(mark);
+  }
+
+  // The values are reachable by keyboard: the arrow keys move between marks (MA-INS-6).
+  function step(event: KeyboardEvent): void {
+    const last = chart.marks.length - 1;
+    const moves: Record<string, number> = { ArrowLeft: current - 1, ArrowRight: current + 1, Home: 0, End: last };
+    const next = moves[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    selected = Math.max(0, Math.min(last, next));
+  }
 </script>
 
-<!-- Every chart has a title, a one-sentence summary that is also its accessible name, and the
-     same data as a table (MA-INS-5, MA-A11Y-7). -->
+<!-- Every chart has a title, a one-sentence summary that is also its accessible name, the same
+     data as a table (MA-INS-5, MA-A11Y-7), and the exact value of a picked mark in a caption that
+     stays under the chart instead of a hover tooltip (MA-INS-6). -->
 <figure>
   <figcaption>{chart.title}</figcaption>
-  <ScenePainter scene={chart.scene} label={chart.summary} />
+  {#if chart.marks.length > 0}
+    <div
+      class="plot"
+      role="slider"
+      tabindex="0"
+      aria-label={en.insights.marksOf(chart.title)}
+      aria-valuemin={0}
+      aria-valuemax={chart.marks.length - 1}
+      aria-valuenow={current}
+      aria-valuetext={caption}
+      onclick={pick}
+      onkeydown={step}
+    >
+      <ScenePainter scene={chart.scene} label={chart.summary} selected={current} />
+    </div>
+    <p class="caption numeric" aria-live="polite">{caption}</p>
+  {:else}
+    <ScenePainter scene={chart.scene} label={chart.summary} />
+  {/if}
   <p class="muted numeric">{chart.summary}</p>
   <button
     type="button"
@@ -32,7 +70,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each chart.table.rows as row (row[0])}
+          {#each chart.table.rows as row, rowIndex (rowIndex)}
             <tr>
               {#each row as cell, index (index)}
                 {#if index === 0}<th scope="row">{cell}</th>{:else}<td>{cell}</td>{/if}
@@ -53,6 +91,16 @@
   }
 
   figcaption {
+    font-weight: 600;
+  }
+
+  .plot {
+    border-radius: var(--dg-radius-control);
+    touch-action: manipulation;
+  }
+
+  .caption {
+    min-block-size: 1.4em;
     font-weight: 600;
   }
 

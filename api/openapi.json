@@ -120,6 +120,311 @@
         ]
       }
     },
+    "/api/v1/settings" : {
+      "get" : {
+        "operationId" : "getSettings",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettingsView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "patch" : {
+        "description" : "Replaces the editable set; a new time zone moves the schedules that follow the account.",
+        "operationId" : "updateSettings",
+        "parameters" : [
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SettingsInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettingsView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/time-zones" : {
+      "get" : {
+        "operationId" : "listTimeZones",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimeZoneList"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/time-zone-previews" : {
+      "post" : {
+        "description" : "A pure evaluation of a zone change; nothing is written.",
+        "operationId" : "previewTimeZone",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TimeZonePreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimeZonePreview"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/consents" : {
+      "get" : {
+        "operationId" : "listConsents",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsentList"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/consents/{purpose}/withdrawals" : {
+      "post" : {
+        "description" : "Needs a confirmation in the chat (step-up). Until the step-up exists it answers stepup_required.",
+        "operationId" : "withdrawConsent",
+        "parameters" : [
+          {
+            "name" : "purpose",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "204" : {
+            "description" : ""
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
     "/api/v1/today" : {
       "get" : {
         "operationId" : "getToday",
@@ -1066,6 +1371,890 @@
         ]
       }
     },
+    "/api/v1/notification-settings" : {
+      "get" : {
+        "operationId" : "getNotificationSettings",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationSettingsView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "patch" : {
+        "operationId" : "updateNotificationSettings",
+        "parameters" : [
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NotificationSettingsInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationSettingsView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/hydration/entries" : {
+      "get" : {
+        "operationId" : "listHydrationEntries",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "description" : "First local day; with `to`, at most 366 days",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "description" : "Last local day",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HydrationEntries"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "post" : {
+        "operationId" : "createHydrationEntry",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HydrationEntryInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HydrationLogged"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/hydration/entries/{id}" : {
+      "delete" : {
+        "description" : "Voids the entry and answers with its day; a second delete answers the same.",
+        "operationId" : "deleteHydrationEntry",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HydrationDayView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/hydration/settings" : {
+      "get" : {
+        "operationId" : "getHydrationSettings",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HydrationSettings"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "patch" : {
+        "operationId" : "updateHydrationSettings",
+        "parameters" : [
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HydrationSettingsInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HydrationSettings"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/hydration/summary" : {
+      "get" : {
+        "operationId" : "getHydrationSummary",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "description" : "First local day; with `to`, at most 366 days",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "description" : "Last local day",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HydrationSummary"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/mood/scale" : {
+      "get" : {
+        "operationId" : "getMoodScale",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoodScale"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/mood/blob-states" : {
+      "get" : {
+        "description" : "The global geometry of the mood blob; it holds no user data.",
+        "operationId" : "getMoodBlobStates",
+        "parameters" : [
+          {
+            "name" : "revision",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoodBlobStates"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/mood/checkins" : {
+      "get" : {
+        "operationId" : "listMoodCheckins",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "description" : "First local day; with `to`, at most 366 days",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "description" : "Last local day",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoodCheckins"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "post" : {
+        "operationId" : "createMoodCheckin",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MoodCheckinInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoodRecordedView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/mood/checkins/{id}" : {
+      "delete" : {
+        "description" : "Voids the check-in and answers with its day; a second delete answers the same.",
+        "operationId" : "deleteMoodCheckin",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoodDayView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/mood/summary" : {
+      "get" : {
+        "operationId" : "getMoodSummary",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "description" : "First local day; with `to`, at most 366 days",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "description" : "Last local day",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MoodSummary"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/insights/calendar" : {
+      "get" : {
+        "operationId" : "getInsightCalendar",
+        "parameters" : [
+          {
+            "name" : "domain",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "$ref" : "#/components/schemas/InsightDomain"
+            }
+          },
+          {
+            "name" : "month",
+            "in" : "query",
+            "description" : "YYYY-MM; absent is the current month",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightCalendar"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
     "/api/v1/insights/overview" : {
       "get" : {
         "description" : "The statistics of a period, one block per domain whose consent is active.",
@@ -1124,6 +2313,131 @@
   },
   "components" : {
     "schemas" : {
+      "BlobColours" : {
+        "title" : "BlobColours",
+        "type" : "object",
+        "required" : [
+          "fillInner",
+          "fillOuter",
+          "outline",
+          "ground",
+          "background"
+        ],
+        "properties" : {
+          "fillInner" : {
+            "type" : "string"
+          },
+          "fillOuter" : {
+            "type" : "string"
+          },
+          "outline" : {
+            "type" : "string"
+          },
+          "ground" : {
+            "type" : "string"
+          },
+          "background" : {
+            "type" : "string"
+          }
+        }
+      },
+      "BlobFace" : {
+        "title" : "BlobFace",
+        "type" : "object",
+        "required" : [
+          "ink",
+          "strokeWidth"
+        ],
+        "properties" : {
+          "ink" : {
+            "type" : "string"
+          },
+          "eyes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          },
+          "mouth" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          },
+          "strokeWidth" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "brows" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          }
+        }
+      },
+      "BlobState" : {
+        "title" : "BlobState",
+        "type" : "object",
+        "required" : [
+          "id",
+          "outlineWidth",
+          "isDotted",
+          "light",
+          "dark"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "outline" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          },
+          "outlineWidth" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "isDotted" : {
+            "type" : "boolean"
+          },
+          "gradient" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          },
+          "ground" : {
+            "type" : "array",
+            "items" : {
+              "type" : "number",
+              "format" : "double"
+            }
+          },
+          "light" : {
+            "$ref" : "#/components/schemas/BlobColours"
+          },
+          "dark" : {
+            "$ref" : "#/components/schemas/BlobColours"
+          },
+          "face" : {
+            "$ref" : "#/components/schemas/BlobFace"
+          }
+        }
+      },
       "Bootstrap" : {
         "title" : "Bootstrap",
         "type" : "object",
@@ -1137,6 +2451,191 @@
           },
           "limits" : {
             "$ref" : "#/components/schemas/Limits"
+          },
+          "consents" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "CalendarCellState" : {
+        "title" : "CalendarCellState",
+        "type" : "string",
+        "enum" : [
+          "empty",
+          "future",
+          "value"
+        ]
+      },
+      "CalendarDay" : {
+        "title" : "CalendarDay",
+        "type" : "object",
+        "required" : [
+          "date",
+          "swatch",
+          "name"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "swatch" : {
+            "$ref" : "#/components/schemas/CalendarSwatch"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CalendarLegendEntry" : {
+        "title" : "CalendarLegendEntry",
+        "type" : "object",
+        "required" : [
+          "label",
+          "swatch"
+        ],
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "swatch" : {
+            "$ref" : "#/components/schemas/CalendarSwatch"
+          }
+        }
+      },
+      "CalendarSwatch" : {
+        "title" : "CalendarSwatch",
+        "type" : "object",
+        "required" : [
+          "state",
+          "hasNoRecord"
+        ],
+        "properties" : {
+          "state" : {
+            "$ref" : "#/components/schemas/CalendarCellState"
+          },
+          "step" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "hasNoRecord" : {
+            "type" : "boolean"
+          },
+          "blobState" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Chart" : {
+        "title" : "Chart",
+        "type" : "object",
+        "required" : [
+          "id",
+          "title",
+          "summary",
+          "scene",
+          "table"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "scene" : {
+            "$ref" : "#/components/schemas/Scene"
+          },
+          "table" : {
+            "$ref" : "#/components/schemas/ChartTable"
+          },
+          "marks" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ChartTable" : {
+        "title" : "ChartTable",
+        "type" : "object",
+        "required" : [
+          "caption"
+        ],
+        "properties" : {
+          "caption" : {
+            "type" : "string"
+          },
+          "columns" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      },
+      "ConsentList" : {
+        "title" : "ConsentList",
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConsentView"
+            }
+          },
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ConsentView" : {
+        "title" : "ConsentView",
+        "type" : "object",
+        "required" : [
+          "purpose",
+          "title",
+          "granted",
+          "text"
+        ],
+        "properties" : {
+          "purpose" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "granted" : {
+            "type" : "boolean"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "noticeVersion" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
@@ -1284,6 +2783,264 @@
           }
         }
       },
+      "HydrationDayView" : {
+        "title" : "HydrationDayView",
+        "type" : "object",
+        "required" : [
+          "date",
+          "totalMl",
+          "entries",
+          "text"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "totalMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "entries" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "goalMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "vesselLabel" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HydrationEntries" : {
+        "title" : "HydrationEntries",
+        "type" : "object",
+        "required" : [
+          "from",
+          "to"
+        ],
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HydrationEntryView"
+            }
+          }
+        }
+      },
+      "HydrationEntryInput" : {
+        "title" : "HydrationEntryInput",
+        "type" : "object",
+        "required" : [
+          "amountMl"
+        ],
+        "properties" : {
+          "amountMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "HydrationEntryView" : {
+        "title" : "HydrationEntryView",
+        "type" : "object",
+        "required" : [
+          "id",
+          "date",
+          "time",
+          "occurredAt",
+          "amountMl",
+          "text"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "time" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "amountMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HydrationLimits" : {
+        "title" : "HydrationLimits",
+        "type" : "object",
+        "required" : [
+          "entryMinMl",
+          "entryMaxMl",
+          "goalMinMl",
+          "goalMaxMl",
+          "presetsMax",
+          "entriesPerDayMax"
+        ],
+        "properties" : {
+          "entryMinMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "entryMaxMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "goalMinMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "goalMaxMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "presetsMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "entriesPerDayMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "HydrationLogged" : {
+        "title" : "HydrationLogged",
+        "type" : "object",
+        "required" : [
+          "entry",
+          "day",
+          "goalReachedNow"
+        ],
+        "properties" : {
+          "entry" : {
+            "$ref" : "#/components/schemas/HydrationEntryView"
+          },
+          "day" : {
+            "$ref" : "#/components/schemas/HydrationDayView"
+          },
+          "goalReachedNow" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "HydrationSettings" : {
+        "title" : "HydrationSettings",
+        "type" : "object",
+        "required" : [
+          "limits",
+          "version"
+        ],
+        "properties" : {
+          "presetsMl" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "limits" : {
+            "$ref" : "#/components/schemas/HydrationLimits"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "goalMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "HydrationSettingsInput" : {
+        "title" : "HydrationSettingsInput",
+        "type" : "object",
+        "properties" : {
+          "presetsMl" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "goalMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "HydrationSummary" : {
+        "title" : "HydrationSummary",
+        "type" : "object",
+        "required" : [
+          "from",
+          "to",
+          "today"
+        ],
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "today" : {
+            "$ref" : "#/components/schemas/HydrationDayView"
+          },
+          "presetsMl" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "chart" : {
+            "$ref" : "#/components/schemas/Chart"
+          },
+          "noDataText" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ImageThemeChoice" : {
+        "title" : "ImageThemeChoice",
+        "type" : "string",
+        "enum" : [
+          "auto",
+          "dark",
+          "light"
+        ]
+      },
       "InsightBlock" : {
         "title" : "InsightBlock",
         "type" : "object",
@@ -1309,6 +3066,71 @@
           },
           "vessel" : {
             "$ref" : "#/components/schemas/InsightVessel"
+          },
+          "charts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Chart"
+            }
+          }
+        }
+      },
+      "InsightCalendar" : {
+        "title" : "InsightCalendar",
+        "type" : "object",
+        "required" : [
+          "domain",
+          "month",
+          "monthLabel",
+          "previousMonth",
+          "steps",
+          "weekStart",
+          "summary"
+        ],
+        "properties" : {
+          "domain" : {
+            "$ref" : "#/components/schemas/InsightDomain"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "monthLabel" : {
+            "type" : "string"
+          },
+          "previousMonth" : {
+            "type" : "string"
+          },
+          "steps" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "weekStart" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "days" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CalendarDay"
+            }
+          },
+          "legend" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CalendarLegendEntry"
+            }
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "domains" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsightDomain"
+            }
+          },
+          "nextMonth" : {
+            "type" : "string"
           }
         }
       },
@@ -1376,6 +3198,22 @@
             }
           },
           "notice" : {
+            "type" : "string"
+          }
+        }
+      },
+      "LanguageChoice" : {
+        "title" : "LanguageChoice",
+        "type" : "object",
+        "required" : [
+          "code",
+          "label"
+        ],
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "label" : {
             "type" : "string"
           }
         }
@@ -1568,6 +3406,298 @@
           }
         }
       },
+      "MoodBlobStates" : {
+        "title" : "MoodBlobStates",
+        "type" : "object",
+        "required" : [
+          "revision"
+        ],
+        "properties" : {
+          "revision" : {
+            "type" : "string"
+          },
+          "states" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BlobState"
+            }
+          }
+        }
+      },
+      "MoodCheckinInput" : {
+        "title" : "MoodCheckinInput",
+        "type" : "object",
+        "required" : [
+          "valence"
+        ],
+        "properties" : {
+          "valence" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "energy" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "MoodCheckinView" : {
+        "title" : "MoodCheckinView",
+        "type" : "object",
+        "required" : [
+          "id",
+          "date",
+          "time",
+          "occurredAt",
+          "valence",
+          "label",
+          "blobState"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "time" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "valence" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "blobState" : {
+            "type" : "string"
+          },
+          "energy" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "MoodCheckins" : {
+        "title" : "MoodCheckins",
+        "type" : "object",
+        "required" : [
+          "from",
+          "to"
+        ],
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MoodCheckinView"
+            }
+          }
+        }
+      },
+      "MoodDayView" : {
+        "title" : "MoodDayView",
+        "type" : "object",
+        "required" : [
+          "date",
+          "checkIns",
+          "text",
+          "blobState"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "checkIns" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "blobState" : {
+            "type" : "string"
+          },
+          "latest" : {
+            "$ref" : "#/components/schemas/MoodCheckinView"
+          }
+        }
+      },
+      "MoodRecordedView" : {
+        "title" : "MoodRecordedView",
+        "type" : "object",
+        "required" : [
+          "checkin",
+          "day"
+        ],
+        "properties" : {
+          "checkin" : {
+            "$ref" : "#/components/schemas/MoodCheckinView"
+          },
+          "day" : {
+            "$ref" : "#/components/schemas/MoodDayView"
+          }
+        }
+      },
+      "MoodScale" : {
+        "title" : "MoodScale",
+        "type" : "object",
+        "required" : [
+          "blobRevision",
+          "statement"
+        ],
+        "properties" : {
+          "valence" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MoodStop"
+            }
+          },
+          "energy" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MoodStop"
+            }
+          },
+          "blobRevision" : {
+            "type" : "string"
+          },
+          "statement" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MoodStop" : {
+        "title" : "MoodStop",
+        "type" : "object",
+        "required" : [
+          "step",
+          "label"
+        ],
+        "properties" : {
+          "step" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MoodSummary" : {
+        "title" : "MoodSummary",
+        "type" : "object",
+        "required" : [
+          "from",
+          "to",
+          "today"
+        ],
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "today" : {
+            "$ref" : "#/components/schemas/MoodDayView"
+          },
+          "days" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MoodSummaryDay"
+            }
+          }
+        }
+      },
+      "MoodSummaryDay" : {
+        "title" : "MoodSummaryDay",
+        "type" : "object",
+        "required" : [
+          "date",
+          "label",
+          "name",
+          "blobState",
+          "checkIns"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "blobState" : {
+            "type" : "string"
+          },
+          "checkIns" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "NotificationSettingsInput" : {
+        "title" : "NotificationSettingsInput",
+        "type" : "object",
+        "required" : [
+          "discreet"
+        ],
+        "properties" : {
+          "discreet" : {
+            "type" : "boolean"
+          },
+          "quietHours" : {
+            "$ref" : "#/components/schemas/QuietHoursView"
+          }
+        }
+      },
+      "NotificationSettingsView" : {
+        "title" : "NotificationSettingsView",
+        "type" : "object",
+        "required" : [
+          "discreet",
+          "version"
+        ],
+        "properties" : {
+          "discreet" : {
+            "type" : "boolean"
+          },
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "quietHours" : {
+            "$ref" : "#/components/schemas/QuietHoursView"
+          }
+        }
+      },
       "PreviewDay" : {
         "title" : "PreviewDay",
         "type" : "object",
@@ -1654,6 +3784,150 @@
             "type" : "string"
           }
         }
+      },
+      "QuietHoursView" : {
+        "title" : "QuietHoursView",
+        "type" : "object",
+        "required" : [
+          "start",
+          "end"
+        ],
+        "properties" : {
+          "start" : {
+            "type" : "string"
+          },
+          "end" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Scene" : {
+        "title" : "Scene",
+        "type" : "object",
+        "required" : [
+          "width",
+          "height"
+        ],
+        "properties" : {
+          "width" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "height" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SceneNode"
+            }
+          }
+        }
+      },
+      "SceneAnchor" : {
+        "title" : "SceneAnchor",
+        "type" : "string",
+        "enum" : [
+          "end",
+          "middle",
+          "start"
+        ]
+      },
+      "SceneNode" : {
+        "title" : "SceneNode",
+        "type" : "object",
+        "required" : [
+          "shape",
+          "x",
+          "y",
+          "tone"
+        ],
+        "properties" : {
+          "shape" : {
+            "$ref" : "#/components/schemas/SceneShape"
+          },
+          "x" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "y" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "tone" : {
+            "$ref" : "#/components/schemas/SceneTone"
+          },
+          "width" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "height" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "x2" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "y2" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "radius" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "anchor" : {
+            "$ref" : "#/components/schemas/SceneAnchor"
+          },
+          "opacity" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "style" : {
+            "$ref" : "#/components/schemas/SceneStyle"
+          },
+          "mark" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "SceneShape" : {
+        "title" : "SceneShape",
+        "type" : "string",
+        "enum" : [
+          "circle",
+          "hit",
+          "line",
+          "rect",
+          "text"
+        ]
+      },
+      "SceneStyle" : {
+        "title" : "SceneStyle",
+        "type" : "string",
+        "enum" : [
+          "dashed",
+          "outlined"
+        ]
+      },
+      "SceneTone" : {
+        "title" : "SceneTone",
+        "type" : "string",
+        "enum" : [
+          "domain-hydration",
+          "text",
+          "domain-medication",
+          "domain-mood",
+          "text-muted",
+          "recorded",
+          "separator"
+        ]
       },
       "Schedule" : {
         "title" : "Schedule",
@@ -1931,6 +4205,119 @@
             "type" : "string"
           },
           "colorScheme" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SettingsInput" : {
+        "title" : "SettingsInput",
+        "type" : "object",
+        "required" : [
+          "language",
+          "timeZone",
+          "imageTheme"
+        ],
+        "properties" : {
+          "language" : {
+            "type" : "string"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "imageTheme" : {
+            "$ref" : "#/components/schemas/ImageThemeChoice"
+          }
+        }
+      },
+      "SettingsView" : {
+        "title" : "SettingsView",
+        "type" : "object",
+        "required" : [
+          "language",
+          "timeZone",
+          "imageTheme",
+          "version"
+        ],
+        "properties" : {
+          "language" : {
+            "type" : "string"
+          },
+          "languages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LanguageChoice"
+            }
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "imageTheme" : {
+            "$ref" : "#/components/schemas/ImageThemeChoice"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "TimeZoneChoice" : {
+        "title" : "TimeZoneChoice",
+        "type" : "object",
+        "required" : [
+          "id",
+          "offset"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "offset" : {
+            "type" : "string"
+          }
+        }
+      },
+      "TimeZoneList" : {
+        "title" : "TimeZoneList",
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TimeZoneChoice"
+            }
+          }
+        }
+      },
+      "TimeZonePreview" : {
+        "title" : "TimeZonePreview",
+        "type" : "object",
+        "required" : [
+          "timeZone",
+          "localTime"
+        ],
+        "properties" : {
+          "timeZone" : {
+            "type" : "string"
+          },
+          "localTime" : {
+            "type" : "string"
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "TimeZonePreviewRequest" : {
+        "title" : "TimeZonePreviewRequest",
+        "type" : "object",
+        "required" : [
+          "timeZone"
+        ],
+        "properties" : {
+          "timeZone" : {
             "type" : "string"
           }
         }

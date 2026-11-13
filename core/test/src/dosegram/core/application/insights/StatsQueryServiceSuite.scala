@@ -180,6 +180,28 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     val lines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
     assertEquals(lines, List("Today · Europe/Kyiv", "Water today: 0.5 l"))
 
+  test("the calendar reads answer the recorded days of any range, and nothing without the consent"):
+    val rig = Rig()
+    rig.on(40)(rig.drink(700, "w-old"))
+    rig.on(1)(rig.drink(500, "w1"))
+    rig.on(1)(rig.feel(4, "m1"))
+    rig.dose(2, OccurrenceStatus.Taken)
+    val range = DateRange.endingOn(today, 45)
+    val water = rig.stats.hydrationCalendar(rig.tx, account, range).toOption.get
+    assertEquals(water.view.mapValues(_.totalMl).toMap, Map(today.minusDays(40) -> 700, today.minusDays(1) -> 500))
+    assertEquals(rig.stats.moodCalendar(rig.tx, account, range).map(_.keySet), Right(Set(today.minusDays(1))))
+    assertEquals(rig.stats.medicationCalendar(rig.tx, account, range).map(_.keySet), Right(Set(today.minusDays(2))))
+
+    val waterOnly = Rig(FakeConsent(Set(account -> ConsentPurpose.Hydration)))
+    assertEquals(
+      waterOnly.stats.moodCalendar(waterOnly.tx, account, range),
+      Left(StatsRefusal.ConsentMissing(ConsentPurpose.Mood))
+    )
+    assertEquals(
+      waterOnly.stats.medicationCalendar(waterOnly.tx, account, range),
+      Left(StatsRefusal.ConsentMissing(ConsentPurpose.Medication))
+    )
+
   test("an unknown account is refused"):
     val unknown = UUID.fromString("00000000-0000-7000-8000-0000000000c9")
     val rig = Rig(FakeConsent.all(unknown))

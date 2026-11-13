@@ -2,7 +2,12 @@ package dosegram.infra.db
 
 import dosegram.contracts.AccountId
 import dosegram.contracts.IdentityId
+import dosegram.core.domain.QuietHours
 import dosegram.core.ports.AccountRepository
+import dosegram.core.ports.AccountSettings
+import dosegram.core.ports.ImageTheme
+import upickle.default.read
+import upickle.default.write
 
 import java.sql.Connection
 import java.time.Instant
@@ -15,6 +20,7 @@ import scala.language.implicitConversions
   */
 final class PgAccountRepository(conn: Connection) extends AccountRepository:
   private given Connection = conn
+  import PgAccountRepository.given
 
   override def createAccount(identityId: IdentityId, timezone: String, now: Instant): AccountId =
     val userId = UUID.randomUUID()
@@ -34,3 +40,24 @@ final class PgAccountRepository(conn: Connection) extends AccountRepository:
   override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
     val updated = sql"UPDATE users SET timezone = $timezone, updated_at = $now WHERE id = $accountId".execute()
     require(updated == 1, s"account $accountId vanished before setTimezone")
+
+  override def settingsOf(accountId: UUID): Option[AccountSettings] =
+    sql"SELECT locale, quiet_hours, discreet_default, image_theme FROM users WHERE id = $accountId"
+      .queryOne[AccountSettings]()
+
+  override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
+    val quietHours = settings.quietHours.map(hours => Jsonb(write(hours)))
+    val updated =
+      sql"""UPDATE users SET locale = ${settings.locale}, quiet_hours = $quietHours,
+              discreet_default = ${settings.isDiscreet}, image_theme = ${settings.imageTheme.dbValue}, updated_at = $now
+            WHERE id = $accountId""".execute()
+    require(updated == 1, s"account $accountId vanished before saveSettings")
+
+object PgAccountRepository:
+  private given RowMapper[AccountSettings] = rs =>
+    AccountSettings(
+      locale = rs.optString("locale"),
+      quietHours = rs.optJsonb("quiet_hours").map(json => read[QuietHours](json.value)),
+      isDiscreet = rs.getBoolean("discreet_default"),
+      imageTheme = ImageTheme.fromDbValue(rs.getString("image_theme"))
+    )

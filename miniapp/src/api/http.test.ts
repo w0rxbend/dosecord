@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from './client';
+import { ApiError, unlessOff } from './client';
 import { createHttpApi, type HttpApiConfig } from './http';
 import { errorText } from '../i18n/en';
 import type { MedicationDraft, ScheduleDraft } from './types';
@@ -324,12 +324,9 @@ describe('HTTP API client', () => {
     const api = createHttpApi(config());
     await api.open();
 
-    const failures = await Promise.all([
-      api.client.addHydration(250, 'key').catch((cause: unknown) => cause),
-      api.client.actOnOccurrence('o1', { kind: 'taken' }, 'key').catch((cause: unknown) => cause),
-    ]);
+    const failure = await api.client.actOnOccurrence('o1', { kind: 'taken' }, 'key').catch((cause: unknown) => cause);
 
-    expect(failures.map((failure) => (failure as ApiError).code)).toEqual(['unavailable', 'unavailable']);
+    expect((failure as ApiError).code).toBe('unavailable');
     expect(calls).toHaveLength(1);
   });
 
@@ -384,5 +381,113 @@ describe('HTTP API client', () => {
 
     expect(read.blocks).toEqual([]);
     expect(read.notice).toBe(notice);
+  });
+
+  it('adds water with the idempotency key made at the tap and removes an entry with DELETE', async () => {
+    const waterDay = { date: '2026-11-13', totalMl: 250, entries: 1, text: '0.25 of 2.0 l (12%)', goalMl: 2000, percent: 12 };
+    const entry = { id: 'w1', date: '2026-11-13', time: '12:00', occurredAt: '2026-11-13T12:00:00Z', amountMl: 250, text: '250 ml' };
+    const calls = serve({
+      'POST /api/v1/session': [session('t')],
+      'POST /api/v1/hydration/entries': [{ status: 201, body: { entry, day: waterDay, goalReachedNow: false } }],
+      'DELETE /api/v1/hydration/entries/w1': [{ status: 200, body: { ...waterDay, totalMl: 0, entries: 0, text: 'Nothing logged yet' } }],
+      'GET /api/v1/hydration/entries?from=2026-11-13&to=2026-11-13': [{ status: 200, body: { from: '2026-11-13', to: '2026-11-13' } }],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const logged = await api.client.addWater(250, 'tap-key');
+    const removed = await api.client.removeWater('w1');
+    const entries = await api.client.waterEntries('2026-11-13', '2026-11-13');
+
+    expect(calls[1]?.headers['Idempotency-Key']).toBe('tap-key');
+    expect(calls[1]?.body).toEqual({ amountMl: 250 });
+    expect(logged.day.percent).toBe(12);
+    expect(calls[2]?.method).toBe('DELETE');
+    expect(removed.text).toBe('Nothing logged yet');
+    expect(entries).toEqual([]);
+  });
+
+  it('edits the goal on the version read and maps a missing consent to off, not to an error', async () => {
+    const settings = { presetsMl: [200, 300], limits: { entryMinMl: 1, entryMaxMl: 5000, goalMinMl: 100, goalMaxMl: 10000, presetsMax: 4, entriesPerDayMax: 100 }, version: 7 };
+    const calls = serve({
+      'POST /api/v1/session': [session('t')],
+      'PATCH /api/v1/hydration/settings': [{ status: 200, body: { ...settings, goalMl: 1800, version: 8 } }],
+      'GET /api/v1/mood/summary': [problem(403, 'consent_required')],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const saved = await api.client.saveWaterSettings({ presetsMl: [200, 300], goalMl: 1800 }, 7);
+    const mood = await unlessOff(api.client.moodSummary());
+
+    expect(calls[1]?.headers['If-Match']).toBe('"v7"');
+    expect(calls[1]?.body).toEqual({ presetsMl: [200, 300], goalMl: 1800 });
+    expect(saved.goalMl).toBe(1800);
+    expect(mood).toBe('off');
+  });
+
+  it('turns the scene nodes of a chart into the painter primitives, with the marks and the tap areas', async () => {
+    const chart = {
+      id: 'mood-by-day',
+      title: 'Mood per day',
+      summary: 'Daily mood.',
+      scene: {
+        width: 320,
+        height: 116,
+        nodes: [
+          { shape: 'circle', x: 22.9, y: 40, tone: 'domain-mood', radius: 3.5, mark: 0 },
+          { shape: 'line', x: 0, y: 16, x2: 320, y2: 16, tone: 'separator' },
+          { shape: 'hit', x: 0, y: 0, width: 45.7, height: 96, tone: 'separator', mark: 0 },
+          { shape: 'rect', x: 50, y: 10, width: 20, height: 86, tone: 'domain-hydration', style: 'dashed' },
+        ],
+      },
+      table: { caption: 'Mood per day', columns: ['Day', 'Daily mood'], rows: [['Fri 13 Nov', '4.0 (pleasant)']] },
+      marks: ['Fri 13 Nov: 4.0 (pleasant), 1 check-in'],
+    };
+    serve({
+      'POST /api/v1/session': [session('t')],
+      'GET /api/v1/insights/overview?range=7': [
+        { status: 200, body: { rangeDays: 7, rangeLabel: '7 Nov to 13 Nov', timeZone: 'UTC', ranges: [7], blocks: [{ id: 'mood', title: 'Mood', lines: ['1 check-in'], charts: [chart] }] } },
+      ],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const [mapped] = (await api.client.insightsOverview(7)).blocks[0]?.charts ?? [];
+
+    expect(mapped?.marks).toEqual(chart.marks);
+    expect(mapped?.scene.nodes).toEqual([
+      { kind: 'circle', x: 22.9, y: 40, r: 3.5, fill: 'domain-mood', mark: 0 },
+      { kind: 'line', x1: 0, y1: 16, x2: 320, y2: 16, stroke: 'separator', dashed: false },
+      { kind: 'hit', x: 0, y: 0, width: 45.7, height: 96, mark: 0 },
+      expect.objectContaining({ kind: 'rect', fill: 'domain-hydration', dashed: true, outlined: false }),
+    ]);
+  });
+
+  it('reads a month of the calendar, with absent members as empty lists', async () => {
+    const calendar = {
+      domain: 'hydration',
+      month: '2026-10',
+      monthLabel: 'October 2026',
+      previousMonth: '2026-09',
+      nextMonth: '2026-11',
+      steps: 4,
+      weekStart: 1,
+      days: [{ date: '2026-10-01', swatch: { state: 'empty' }, name: 'Thursday 1 October, no entry' }],
+      summary: 'October: no entry.',
+    };
+    const calls = serve({
+      'POST /api/v1/session': [session('t')],
+      'GET /api/v1/insights/calendar?domain=hydration&month=2026-10': [{ status: 200, body: calendar }],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const read = await api.client.calendar('hydration', '2026-10');
+
+    expect(calls).toHaveLength(2);
+    expect(read.days[0]?.swatch).toEqual({ state: 'empty', step: undefined, blobState: undefined, hasNoRecord: false });
+    expect(read.legend).toEqual([]);
+    expect(read.domains).toEqual([]);
   });
 });

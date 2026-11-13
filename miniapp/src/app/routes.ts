@@ -7,21 +7,45 @@ export type Route =
   | { readonly screen: 'med-new' }
   | { readonly screen: 'med-edit'; readonly id: string }
   | { readonly screen: 'schedule-new'; readonly medicationId: string }
-  | { readonly screen: 'insights' };
+  | { readonly screen: 'log' }
+  | { readonly screen: 'water' }
+  | { readonly screen: 'water-settings' }
+  | { readonly screen: 'mood' }
+  | { readonly screen: 'mood-new' }
+  | { readonly screen: 'insights' }
+  | { readonly screen: 'history' }
+  | { readonly screen: 'day'; readonly date: string }
+  | { readonly screen: 'settings' }
+  | { readonly screen: 'settings-tz' }
+  | { readonly screen: 'settings-notif' }
+  | { readonly screen: 'settings-privacy' };
 
-export type TabId = 'today' | 'meds' | 'insights';
+export type TabId = 'today' | 'meds' | 'log' | 'insights';
 
 const ID = '[A-Za-z0-9_-]{1,64}';
 const DATE = '(\\d{4})(\\d{2})(\\d{2})';
 
+const isoDate = (m: RegExpExecArray): string => `${m[1]}-${m[2]}-${m[3]}`;
+
 const PATHS: readonly (readonly [RegExp, (match: RegExpExecArray) => Route])[] = [
   [/^\/$/, () => ({ screen: 'today' })],
-  [new RegExp(`^/day/${DATE}$`), (m) => ({ screen: 'today', date: `${m[1]}-${m[2]}-${m[3]}` })],
+  [new RegExp(`^/day/${DATE}$`), (m) => ({ screen: 'today', date: isoDate(m) })],
   [/^\/meds$/, () => ({ screen: 'meds' })],
   [/^\/meds\/new$/, () => ({ screen: 'med-new' })],
   [new RegExp(`^/meds/(${ID})/edit$`), (m) => ({ screen: 'med-edit', id: m[1]! })],
   [new RegExp(`^/meds/(${ID})/schedules/new$`), (m) => ({ screen: 'schedule-new', medicationId: m[1]! })],
+  [/^\/log$/, () => ({ screen: 'log' })],
+  [/^\/log\/water$/, () => ({ screen: 'water' })],
+  [/^\/log\/water\/settings$/, () => ({ screen: 'water-settings' })],
+  [/^\/log\/mood$/, () => ({ screen: 'mood' })],
+  [/^\/log\/mood\/new$/, () => ({ screen: 'mood-new' })],
   [/^\/insights$/, () => ({ screen: 'insights' })],
+  [/^\/insights\/history$/, () => ({ screen: 'history' })],
+  [new RegExp(`^/insights/history/${DATE}$`), (m) => ({ screen: 'day', date: isoDate(m) })],
+  [/^\/settings$/, () => ({ screen: 'settings' })],
+  [/^\/settings\/tz$/, () => ({ screen: 'settings-tz' })],
+  [/^\/settings\/notif$/, () => ({ screen: 'settings-notif' })],
+  [/^\/settings\/privacy$/, () => ({ screen: 'settings-privacy' })],
 ];
 
 export function parsePath(path: string): Route | null {
@@ -39,7 +63,17 @@ const START_PARAMS: readonly (readonly [RegExp, (match: RegExpExecArray) => stri
   [/^mednew$/, () => '/meds/new'],
   [new RegExp(`^medit_(${ID})$`), (m) => `/meds/${m[1]}/edit`],
   [new RegExp(`^schednew_(${ID})$`), (m) => `/meds/${m[1]}/schedules/new`],
+  [/^log$/, () => '/log'],
+  [/^water$/, () => '/log/water'],
+  [/^mood$/, () => '/log/mood'],
+  [/^moodnew$/, () => '/log/mood/new'],
   [/^insights$/, () => '/insights'],
+  [/^hist$/, () => '/insights/history'],
+  [new RegExp(`^hist_(${DATE})$`), (m) => `/insights/history/${m[1]}`],
+  [/^settings$/, () => '/settings'],
+  [/^set_tz$/, () => '/settings/tz'],
+  [/^set_notif$/, () => '/settings/notif'],
+  [/^set_privacy$/, () => '/settings/privacy'],
 ];
 
 /** Maps a startapp parameter to an internal path; null when it matches no enabled screen. */
@@ -51,21 +85,62 @@ export function pathFromStartParam(param: string): string | null {
   return null;
 }
 
+const TABS: Readonly<Record<Route['screen'], TabId | null>> = {
+  today: 'today',
+  meds: 'meds',
+  'med-new': 'meds',
+  'med-edit': 'meds',
+  'schedule-new': 'meds',
+  log: 'log',
+  water: 'log',
+  'water-settings': 'log',
+  mood: 'log',
+  'mood-new': 'log',
+  insights: 'insights',
+  history: 'insights',
+  day: 'insights',
+  settings: null,
+  'settings-tz': null,
+  'settings-notif': null,
+  'settings-privacy': null,
+};
+
+/** The tab a screen belongs to; settings sit outside the tabs (MINI_APP 4.1). */
 export function tabOf(route: Route): TabId {
-  if (route.screen === 'today' || route.screen === 'insights') return route.screen;
-  return 'meds';
+  return TABS[route.screen] ?? 'today';
 }
 
 /** The tab bar is shown on tab roots and nowhere else (MA-NAV-1). */
 export function isTabRoot(route: Route): boolean {
-  return route.screen === 'today' || route.screen === 'meds' || route.screen === 'insights';
+  return route.screen === 'today' || route.screen === 'meds' || route.screen === 'log' || route.screen === 'insights';
 }
+
+const PARENTS: Readonly<Partial<Record<Route['screen'], string>>> = {
+  'med-new': '/meds',
+  'med-edit': '/meds',
+  'schedule-new': '/meds',
+  water: '/log',
+  'water-settings': '/log/water',
+  mood: '/log',
+  'mood-new': '/log/mood',
+  history: '/insights',
+  day: '/insights/history',
+  settings: '/',
+  'settings-tz': '/settings',
+  'settings-notif': '/settings',
+  'settings-privacy': '/settings',
+};
 
 /** Where BackButton leads when the screen was opened by a route (MA-ROUTE-4). */
 export function parentPath(route: Route): string {
-  return isTabRoot(route) ? '/' : '/meds';
+  return PARENTS[route.screen] ?? '/';
 }
 
 export function dayPath(date: string): string {
   return `/day/${date.replaceAll('-', '')}`;
+}
+
+/** Day detail opened from the history calendar (S-13). */
+export function historyDayPath(date: string): string {
+  return `/insights/history/${date.replaceAll('-', '')}`;
 }

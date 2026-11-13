@@ -121,22 +121,39 @@ final class MoodService(clock: Clock, ids: IdSource):
 
   /** Undo on the outcome message: voids the check-in while it is younger than 15 minutes (R-MOO-10). */
   def undo(tx: Tx, accountId: UUID, checkinId: UUID): Either[MoodRefusal, MoodRemoved] =
+    remove(tx, CheckinRef(accountId, checkinId), VoidReason.Undone, Some(MoodBounds.UndoWindow))
+
+  /** Deletes a check-in of any age (the check-in list of the Mini App). A second delete changes nothing. */
+  def delete(tx: Tx, accountId: UUID, checkinId: UUID): Either[MoodRefusal, MoodRemoved] =
+    remove(tx, CheckinRef(accountId, checkinId), VoidReason.Deleted, None)
+
+  private def remove(
+      tx: Tx,
+      ref: CheckinRef,
+      reason: VoidReason,
+      window: Option[Duration]
+  ): Either[MoodRefusal, MoodRemoved] =
+    val CheckinRef(accountId, checkinId) = ref
     consented(tx, accountId): _ =>
       val now = clock.now()
       tx.tracking.mood.get(accountId, checkinId) match
         case None                             => Left(MoodRefusal.UnknownCheckin)
         case Some(checkin) if !checkin.isLive =>
           Right(MoodRemoved(dayView(tx, accountId, checkin.localDate, checkin.zone), changed = false))
-        case Some(checkin) if Duration.between(checkin.createdAt, now).compareTo(MoodBounds.UndoWindow) > 0 =>
+        case Some(checkin) if window.exists(limit => Duration.between(checkin.createdAt, now).compareTo(limit) > 0) =>
           Left(MoodRefusal.UndoWindowPassed)
         case Some(checkin) =>
-          val changed = tx.tracking.mood.void(accountId, checkinId, VoidReason.Undone, now)
+          val changed = tx.tracking.mood.void(accountId, checkinId, reason, now)
           Right(MoodRemoved(dayView(tx, accountId, checkin.localDate, checkin.zone), changed))
 
   def day(tx: Tx, accountId: UUID, day: EntryDay): Either[MoodRefusal, MoodDayView] =
     consented(tx, accountId): zone =>
       val (date, _) = day.resolve(clock.now(), zone)
       Right(dayView(tx, accountId, date, zone))
+
+  /** Any local day of the account's calendar, for the day views and the history of the Mini App. */
+  def dayOn(tx: Tx, accountId: UUID, date: LocalDate): Either[MoodRefusal, MoodDayView] =
+    consented(tx, accountId)(zone => Right(dayView(tx, accountId, date, zone)))
 
   private def consented[A](tx: Tx, accountId: UUID)(f: ZoneId => Either[MoodRefusal, A]): Either[MoodRefusal, A] =
     if !tx.consents.isGranted(accountId, ConsentPurpose.Mood) then Left(MoodRefusal.ConsentMissing)
@@ -160,4 +177,7 @@ final class MoodService(clock: Clock, ids: IdSource):
   private def dayView(tx: Tx, accountId: UUID, date: LocalDate, zone: ZoneId): MoodDayView =
     val checkins = tx.tracking.mood.listLive(accountId, DateRange.single(date))
     MoodDayView(date, zone, MoodStats.byDay(checkins).get(date), checkins.maxByOption(_.occurredAt.toEpochMilli))
+
+  /** A check-in and the account it must belong to. */
+  private final case class CheckinRef(accountId: UUID, checkinId: UUID)
 end MoodService

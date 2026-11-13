@@ -10,11 +10,12 @@
   const x = (minute: number): number => minute / 5;
   const doses = $derived(marks.filter((mark) => mark.kind === 'dose'));
   const water = $derived(marks.filter((mark) => mark.kind === 'water'));
+  const moods = $derived(marks.filter((mark) => mark.kind === 'mood'));
   const isRecorded = (mark: DayLineMark): boolean => mark.state === 'taken' || mark.state === 'taken_late';
 </script>
 
-<!-- The day line: doses are marks on a 24-hour line, water entries are ticks below it, the
-     present moment is a hairline. A decorative duplicate of the lists below it (MA-TODAY-7). -->
+<!-- The day line: doses are marks on a 24-hour line, water entries are ticks below it, check-ins
+     are small diamonds above it, the present moment is a hairline. A decorative duplicate of the lists below it (MA-TODAY-7). -->
 <svg class="day-line" viewBox="-8 0 {WIDTH + 16} 56" aria-hidden="true">
   <line x1="0" y1={LINE_Y} x2={WIDTH} y2={LINE_Y} class="axis" />
   {#each HOURS as hour (hour)}
@@ -23,6 +24,9 @@
   {/each}
   {#each water as mark, index (index)}
     <line x1={x(mark.minute)} y1={LINE_Y + 8} x2={x(mark.minute)} y2={LINE_Y + 16} class="water" />
+  {/each}
+  {#each moods as mark, index (index)}
+    <rect x={x(mark.minute) - 3} y={LINE_Y - 14} width="6" height="6" rx="1" class="mood" transform="rotate(45 {x(mark.minute)} {LINE_Y - 11})" />
   {/each}
   {#each doses as mark, index (index)}
     <circle
@@ -61,6 +65,10 @@
     stroke: var(--dg-domain-hydration);
     stroke-width: 2;
     stroke-linecap: round;
+  }
+
+  .mood {
+    fill: var(--dg-domain-mood);
   }
 
   .dose {

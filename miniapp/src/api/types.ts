@@ -30,15 +30,9 @@ export interface Occurrence {
   readonly snoozeChoicesMinutes: readonly number[];
 }
 
-export interface HydrationDay {
-  readonly totalMl: number;
-  readonly goalMl: number;
-  readonly presetsMl: readonly number[];
-}
-
 export interface DayLineMark {
   readonly minute: number;
-  readonly kind: 'dose' | 'water';
+  readonly kind: 'dose' | 'water' | 'mood';
   readonly state?: DoseState;
 }
 
@@ -54,7 +48,6 @@ export interface TodayView {
   readonly nextDate: LocalDate;
   readonly nowMinute?: number;
   readonly occurrences: readonly Occurrence[];
-  readonly hydration?: HydrationDay;
   readonly dayLine: readonly DayLineMark[];
 }
 
@@ -171,10 +164,12 @@ export interface Schedule extends ScheduleDraft {
 }
 
 // Charts are scenes laid out by the server and painted by one client painter (MINI_APP 5.6).
-// Colours are token names, never literal values.
+// Colours are token names, never literal values. `mark` ties a node to the chart's mark of the
+// same index, whose exact value is in `Chart.marks` (MA-INS-6).
 export type SceneColour =
   | 'domain-medication'
   | 'domain-hydration'
+  | 'domain-mood'
   | 'recorded'
   | 'text'
   | 'text-muted'
@@ -191,6 +186,8 @@ export type SceneNode =
       readonly fill: SceneColour;
       readonly opacity?: number;
       readonly outlined?: boolean;
+      readonly dashed?: boolean;
+      readonly mark?: number;
     }
   | {
       readonly kind: 'line';
@@ -200,6 +197,23 @@ export type SceneNode =
       readonly y2: number;
       readonly stroke: SceneColour;
       readonly dashed?: boolean;
+    }
+  | {
+      readonly kind: 'circle';
+      readonly x: number;
+      readonly y: number;
+      readonly r: number;
+      readonly fill: SceneColour;
+      readonly mark?: number;
+    }
+  | {
+      /** An invisible area over one mark: what a tap selects. */
+      readonly kind: 'hit';
+      readonly x: number;
+      readonly y: number;
+      readonly width: number;
+      readonly height: number;
+      readonly mark: number;
     }
   | {
       readonly kind: 'text';
@@ -223,11 +237,14 @@ export interface ChartTable {
 }
 
 export interface Chart {
+  readonly id: string;
   readonly title: string;
   /** One sentence generated from the same data; the chart's accessible name (MA-INS-5). */
   readonly summary: string;
   readonly scene: Scene;
   readonly table: ChartTable;
+  /** The exact value of each selectable mark, in reading order (MA-INS-6). */
+  readonly marks: readonly string[];
 }
 
 export interface InsightBlock {
@@ -252,4 +269,244 @@ export interface InsightsOverview {
   readonly blocks: readonly InsightBlock[];
   /** The server's sentence for an account with no block at all. */
   readonly notice?: string;
+}
+
+// ---------- tracking domains (MINI_APP 7.7, 7.9, 7.12) ----------
+// Amounts are whole millilitres, the stored unit (MA-HYD-3). Every sentence is the server's.
+
+export type Domain = 'medication' | 'hydration' | 'mood';
+
+/** A read of a domain whose consent is missing: the screen shows "turned off", not an error. */
+export const OFF = 'off';
+export type Off = typeof OFF;
+
+export interface WaterDay {
+  readonly date: LocalDate;
+  readonly totalMl: number;
+  readonly entries: number;
+  readonly text: string;
+  readonly goalMl?: number;
+  readonly percent?: number;
+  /** The vessel's accessible name: value, goal and percent (MA-HYD-2). */
+  readonly vesselLabel?: string;
+}
+
+export interface WaterEntry {
+  readonly id: string;
+  readonly date: LocalDate;
+  readonly time: LocalTime;
+  readonly amountMl: number;
+  readonly text: string;
+}
+
+export interface WaterLogged {
+  readonly entry: WaterEntry;
+  readonly day: WaterDay;
+  /** True only for the entry that first takes the day to the goal (MA-HYD-5). */
+  readonly goalReachedNow: boolean;
+}
+
+export interface WaterLimits {
+  readonly entryMinMl: number;
+  readonly entryMaxMl: number;
+  readonly goalMinMl: number;
+  readonly goalMaxMl: number;
+  readonly presetsMax: number;
+}
+
+export interface WaterSettings {
+  readonly presetsMl: readonly number[];
+  readonly goalMl?: number;
+  readonly limits: WaterLimits;
+  readonly version: number;
+}
+
+export interface WaterSettingsInput {
+  readonly presetsMl: readonly number[];
+  readonly goalMl?: number;
+}
+
+export interface WaterSummary {
+  readonly today: WaterDay;
+  readonly presetsMl: readonly number[];
+  readonly chart?: Chart;
+  readonly noDataText?: string;
+}
+
+export interface MoodStop {
+  readonly step: number;
+  readonly label: string;
+}
+
+export interface MoodScale {
+  readonly valence: readonly MoodStop[];
+  readonly energy: readonly MoodStop[];
+  readonly blobRevision: string;
+  /** "Dosegram records how you feel. It does not assess it." (MA-MOOD-7) */
+  readonly statement: string;
+}
+
+export interface BlobColours {
+  readonly fillInner: string;
+  readonly fillOuter: string;
+  readonly outline: string;
+  readonly ground: string;
+  readonly background: string;
+}
+
+export interface BlobFace {
+  readonly ink: string;
+  readonly eyes: readonly (readonly number[])[];
+  readonly mouth: readonly number[];
+  readonly strokeWidth: number;
+  readonly brows: readonly (readonly number[])[];
+}
+
+/** One drawn state in units of the blob radius; the geometry is the server's (MINI_APP 7.9). */
+export interface BlobState {
+  readonly id: string;
+  readonly outline: readonly number[];
+  readonly outlineWidth: number;
+  readonly isDotted: boolean;
+  readonly gradient: readonly number[];
+  readonly ground: readonly number[];
+  readonly light: BlobColours;
+  readonly dark: BlobColours;
+  readonly face?: BlobFace;
+}
+
+export interface BlobAsset {
+  readonly revision: string;
+  readonly states: readonly BlobState[];
+}
+
+export interface MoodCheckin {
+  readonly id: string;
+  readonly date: LocalDate;
+  readonly time: LocalTime;
+  readonly valence: number;
+  readonly energy?: number;
+  readonly label: string;
+  readonly blobState: string;
+}
+
+export interface MoodCheckinInput {
+  readonly valence: number;
+  readonly energy?: number;
+}
+
+export interface MoodDay {
+  readonly date: LocalDate;
+  readonly checkIns: number;
+  readonly text: string;
+  readonly blobState: string;
+  readonly latest?: MoodCheckin;
+}
+
+export interface MoodRecorded {
+  readonly checkin: MoodCheckin;
+  readonly day: MoodDay;
+}
+
+export interface MoodSummaryDay {
+  readonly date: LocalDate;
+  readonly label: string;
+  /** The day in words, for the accessible name of its small blob. */
+  readonly name: string;
+  readonly blobState: string;
+  readonly checkIns: number;
+}
+
+export interface MoodSummary {
+  readonly today: MoodDay;
+  readonly days: readonly MoodSummaryDay[];
+}
+
+export interface CalendarSwatch {
+  readonly state: 'value' | 'empty' | 'future';
+  readonly step?: number;
+  readonly hasNoRecord: boolean;
+  readonly blobState?: string;
+}
+
+export interface CalendarDay {
+  readonly date: LocalDate;
+  readonly swatch: CalendarSwatch;
+  /** The date and the value in words (MA-HIST-1). */
+  readonly name: string;
+  /** The short value printed in the cell on request (MA-HIST-3). */
+  readonly value?: string;
+}
+
+export interface InsightCalendar {
+  readonly domain: Domain;
+  readonly month: string;
+  readonly monthLabel: string;
+  readonly previousMonth: string;
+  readonly nextMonth?: string;
+  readonly steps: number;
+  readonly weekStart: number;
+  readonly days: readonly CalendarDay[];
+  readonly legend: readonly { readonly label: string; readonly swatch: CalendarSwatch }[];
+  readonly summary: string;
+  readonly domains: readonly Domain[];
+}
+
+// ---------- settings and consent (MINI_APP 7.15) ----------
+
+export type ImageTheme = 'auto' | 'light' | 'dark';
+
+export interface AccountSettings {
+  readonly language: string;
+  readonly languages: readonly Choice[];
+  readonly timeZone: string;
+  readonly imageTheme: ImageTheme;
+  readonly version: number;
+}
+
+export interface AccountSettingsInput {
+  readonly language: string;
+  readonly timeZone: string;
+  readonly imageTheme: ImageTheme;
+}
+
+export interface QuietHours {
+  readonly start: LocalTime;
+  readonly end: LocalTime;
+}
+
+export interface NotificationSettings {
+  readonly discreet: boolean;
+  readonly quietHours?: QuietHours;
+  /** What each setting does today, in the server's words. */
+  readonly notes: readonly string[];
+  readonly version: number;
+}
+
+export interface NotificationSettingsInput {
+  readonly discreet: boolean;
+  readonly quietHours?: QuietHours;
+}
+
+export interface TimeZoneChoice {
+  readonly id: string;
+  readonly offset: string;
+}
+
+export interface TimeZonePreview {
+  readonly timeZone: string;
+  readonly localTime: string;
+  readonly lines: readonly string[];
+}
+
+export interface ConsentItem {
+  readonly purpose: string;
+  readonly title: string;
+  readonly granted: boolean;
+  readonly text: string;
+}
+
+export interface Consents {
+  readonly items: readonly ConsentItem[];
+  readonly notes: readonly string[];
 }

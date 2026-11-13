@@ -24,6 +24,8 @@ import scala.util.control.NonFatal
 /** The Mini App API as server endpoints (ARCHITECTURE section 9). The composition root mounts [[endpoints]] and
   * installs [[ApiModule.decodeFailureHandler]]; the module never sees the bot token (DEP-05).
   *
+  * @param blobStates
+  *   the drawn mood states: the renderer's geometry, which the composition root converts (MINI_APP section 7.9).
   * @param log
   *   receives one line per unexpected failure: the request id and the exception class, never a message, a body or a
   *   path.
@@ -34,7 +36,8 @@ final class ApiModule(
     verifier: InitDataVerifier,
     sessionStore: SessionStore,
     idempotencyStore: IdempotencyStore,
-    tracking: TrackingReads,
+    tracking: TrackingUseCases,
+    blobStates: MoodBlobStates,
     log: String => Unit
 ):
   import ApiModule.*
@@ -44,6 +47,10 @@ final class ApiModule(
   private val registry = Registry(uow, clock)
   private val days = DayViews(uow, clock)
   private val insights = Insights(uow, tracking, clock)
+  private val history = History(uow, tracking, clock)
+  private val hydration = Hydration(uow, tracking)
+  private val mood = Mood(uow, tracking, blobStates)
+  private val accountSettings = AccountSettingsApi(uow, clock)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
   def sweep(): Int = sessions.sweep() + idempotency.sweep()
@@ -78,7 +85,7 @@ final class ApiModule(
               issued.token,
               issued.expiresAt,
               sessions.idleTimeout.toSeconds,
-              Bootstrap(issued.timeZone, RegistryLimits.published)
+              Bootstrap(issued.timeZone, RegistryLimits.published, grantedPurposes(issued.session.accountId))
             )
     ,
     Endpoints.deleteSession.handleSecurity(authenticate).handle(session => _ => guarded(Right(sessions.end(session)))),
@@ -178,9 +185,128 @@ final class ApiModule(
       .handle(session => rangeDays => guarded(insights.overview(session.accountId, rangeDays)))
   )
 
+  private def grantedPurposes(accountId: UUID): List[String] =
+    uow.transaction(_.consents.granted(accountId)).map(_.purpose.id)
+
+  private val settingsEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.getSettings
+      .handleSecurity(authenticate)
+      .handle(session =>
+        _ => guarded(accountSettings.settings(session.accountId).map(view => (Rendering.etag(view.version), view)))
+      ),
+    Endpoints.updateSettings
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (ifMatch, input) =>
+          guarded:
+            versionOf(ifMatch)
+              .flatMap(accountSettings.saveSettings(session.accountId, _, input))
+              .map(view => (Rendering.etag(view.version), view))
+    ,
+    Endpoints.listTimeZones.handleSecurity(authenticate).handle(_ => _ => guarded(Right(accountSettings.timeZones))),
+    Endpoints.previewTimeZone
+      .handleSecurity(authenticate)
+      .handle(session => request => guarded(accountSettings.preview(session.accountId, request))),
+    Endpoints.listConsents
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(accountSettings.consents(session.accountId))),
+    // A withdrawal needs the confirmation in the chat (ARCHITECTURE section 9.3), which no route can give (MA-STEP-1).
+    Endpoints.withdrawConsent
+      .handleSecurity(authenticate)
+      .handle: _ =>
+        purpose =>
+          if ConsentPurpose.ofId(purpose).isEmpty then Left(ApiFailure.notFound())
+          else Left(ApiFailure.stepupRequired()),
+    Endpoints.getNotificationSettings
+      .handleSecurity(authenticate)
+      .handle(session =>
+        _ => guarded(accountSettings.notifications(session.accountId).map(view => (Rendering.etag(view.version), view)))
+      ),
+    Endpoints.updateNotificationSettings
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (ifMatch, input) =>
+          guarded:
+            versionOf(ifMatch)
+              .flatMap(accountSettings.saveNotifications(session.accountId, _, input))
+              .map(view => (Rendering.etag(view.version), view))
+  )
+
+  // The tracking routes check the consent of their domain in the use case, inside the same transaction (API-19).
+  private val hydrationEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.listHydrationEntries
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(hydration.entries(session.accountId, from, to))),
+    Endpoints.createHydrationEntry
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              logged <- idempotency.once(session.accountId, parsedKey, hashOf("hydration/entries", input)):
+                hydration.log(session.accountId, parsedKey, input)
+            yield logged
+    ,
+    Endpoints.deleteHydrationEntry
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(hydration.remove(session.accountId, id))),
+    Endpoints.getHydrationSettings
+      .handleSecurity(authenticate)
+      .handle(session =>
+        _ => guarded(hydration.settings(session.accountId).map(view => (Rendering.etag(view.version), view)))
+      ),
+    Endpoints.updateHydrationSettings
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (ifMatch, input) =>
+          guarded:
+            versionOf(ifMatch)
+              .flatMap(hydration.saveSettings(session.accountId, _, input))
+              .map(view => (Rendering.etag(view.version), view))
+    ,
+    Endpoints.getHydrationSummary
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(hydration.summary(session.accountId, from, to)))
+  )
+
+  private val moodEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.getMoodScale.handleSecurity(authenticate).handle(session => _ => guarded(mood.scale(session.accountId))),
+    Endpoints.getMoodBlobStates
+      .handleSecurity(authenticate)
+      .handle(session => revision => guarded(mood.blobStates(session.accountId, revision))),
+    Endpoints.listMoodCheckins
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(mood.checkins(session.accountId, from, to))),
+    Endpoints.createMoodCheckin
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              recorded <- idempotency.once(session.accountId, parsedKey, hashOf("mood/checkins", input)):
+                mood.checkIn(session.accountId, parsedKey, input)
+            yield recorded
+    ,
+    Endpoints.deleteMoodCheckin
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(mood.remove(session.accountId, id))),
+    Endpoints.getMoodSummary
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(mood.summary(session.accountId, from, to)))
+  )
+
+  private val calendarEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.getInsightCalendar
+      .handleSecurity(authenticate)
+      .handle(session => (domain, month) => guarded(history.calendar(session.accountId, domain, month)))
+  )
+
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
-    sessionEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++ insightEndpoints :+
+    sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
+      hydrationEndpoints ++ moodEndpoints ++ calendarEndpoints ++ insightEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

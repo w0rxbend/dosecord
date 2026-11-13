@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayPath, isTabRoot, parentPath, parsePath, pathFromStartParam } from './routes';
+import { dayPath, isTabRoot, parentPath, parsePath, pathFromStartParam, tabOf } from './routes';
 
 describe('parsePath', () => {
   it.each([
@@ -31,11 +31,21 @@ describe('pathFromStartParam', () => {
     ['medit_med-a', '/meds/med-a/edit'],
     ['schednew_med-a', '/meds/med-a/schedules/new'],
     ['insights', '/insights'],
+    ['log', '/log'],
+    ['water', '/log/water'],
+    ['mood', '/log/mood'],
+    ['moodnew', '/log/mood/new'],
+    ['hist', '/insights/history'],
+    ['hist_20261112', '/insights/history/20261112'],
+    ['settings', '/settings'],
+    ['set_tz', '/settings/tz'],
+    ['set_privacy', '/settings/privacy'],
   ])('maps %s to %s', (param, path) => {
     expect(pathFromStartParam(param)).toBe(path);
   });
 
-  it.each(['', 'water', 'medit_', 'medit_a/b', 'today_2026', '../meds'])('rejects %j', (param) => {
+  // `food` and `sleep` name screens that are not enabled (MA-ROUTE-2).
+  it.each(['', 'food', 'sleep', 'water_1', 'medit_', 'medit_a/b', 'today_2026', 'hist_2026', '../meds'])('rejects %j', (param) => {
     expect(pathFromStartParam(param)).toBeNull();
   });
 });
@@ -45,6 +55,17 @@ describe('navigation structure', () => {
     expect(isTabRoot({ screen: 'meds' })).toBe(true);
     expect(isTabRoot({ screen: 'med-new' })).toBe(false);
     expect(parentPath({ screen: 'schedule-new', medicationId: 'med-a' })).toBe('/meds');
+  });
+
+  it('puts the tracking screens under Log and the calendar and day detail under Insights', () => {
+    expect(isTabRoot({ screen: 'log' })).toBe(true);
+    expect(tabOf({ screen: 'mood-new' })).toBe('log');
+    expect(parentPath({ screen: 'mood-new' })).toBe('/log/mood');
+    expect(parentPath({ screen: 'water-settings' })).toBe('/log/water');
+    expect(tabOf({ screen: 'day', date: '2026-11-12' })).toBe('insights');
+    expect(parentPath({ screen: 'day', date: '2026-11-12' })).toBe('/insights/history');
+    expect(isTabRoot({ screen: 'settings' })).toBe(false);
+    expect(parentPath({ screen: 'settings-tz' })).toBe('/settings');
   });
 
   it('writes a day path without separators', () => {

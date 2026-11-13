@@ -91,6 +91,23 @@ final class ConsentApiSuite extends ApiSuite:
 
 object ConsentApiSuite:
 
-  /** The routes that are not of the medication domain: the session, and the overview, which leaves a domain out. */
+  /** The routes that are not of the medication domain: the session, the overview, which leaves a domain out, the
+    * settings and consents of the account, and the water, mood and calendar routes, which check their own domain
+    * (TrackingConsentSuite).
+    */
   private val outsideMedication: Set[String] =
-    Set("createSession", "deleteSession", "keepSessionAlive", "getInsightsOverview")
+    Set(
+      "createSession",
+      "deleteSession",
+      "keepSessionAlive",
+      "getInsightsOverview",
+      "getSettings",
+      "updateSettings",
+      "listTimeZones",
+      "previewTimeZone",
+      "listConsents",
+      "withdrawConsent",
+      "getNotificationSettings",
+      "updateNotificationSettings",
+      "getInsightCalendar"
+    ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood"))

@@ -107,8 +107,19 @@ object ApiFailure:
     val failure = conflict()
     failure.copy(problem = failure.problem.copy(schedule = Some(current)))
 
+  /** A stale `If-Match` on a resource that the client reads again as a whole (settings). */
+  def versionConflict(): ApiFailure = conflict()
+
   private def conflict(): ApiFailure =
     of(StatusCode.PreconditionFailed, ErrorCode.VersionConflict, "The record changed elsewhere.")
+
+  /** A quota of ARCHITECTURE section 10.1 is used up, for example the entries of one day (PRODUCT_SPEC R-HYD-12). */
+  def quotaExceeded(): ApiFailure =
+    of(StatusCode.Conflict, ErrorCode.QuotaExceeded, "The limit for this kind of record is reached.")
+
+  /** ARCHITECTURE section 9.3: the action needs a confirmation in the chat, which only the bot can give (MA-STEP-1). */
+  def stepupRequired(): ApiFailure =
+    of(StatusCode.Forbidden, ErrorCode.StepupRequired, "Confirm this in the chat.")
 
   def idempotencyKeyReuse(): ApiFailure =
     of(StatusCode.UnprocessableEntity, ErrorCode.IdempotencyKeyReuse, "The idempotency key was used with another body.")

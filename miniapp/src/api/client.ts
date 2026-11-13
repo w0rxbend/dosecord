@@ -1,6 +1,29 @@
+import { OFF } from './types';
 import type {
-  HydrationDay,
+  AccountSettings,
+  AccountSettingsInput,
+  BlobAsset,
+  Consents,
+  Domain,
+  InsightCalendar,
   InsightRange,
+  MoodCheckin,
+  MoodCheckinInput,
+  MoodDay,
+  MoodRecorded,
+  MoodScale,
+  MoodSummary,
+  NotificationSettings,
+  NotificationSettingsInput,
+  Off,
+  TimeZoneChoice,
+  TimeZonePreview,
+  WaterDay,
+  WaterEntry,
+  WaterLogged,
+  WaterSettings,
+  WaterSettingsInput,
+  WaterSummary,
   InsightsOverview,
   LocalDate,
   Medication,
@@ -32,6 +55,8 @@ export type ApiErrorCode =
   | 'not_found'
   | 'validation'
   | 'version_conflict'
+  | 'quota_exceeded'
+  | 'stepup_required'
   | 'server';
 
 /** A problem document mapped to a typed error; screens map codes, never message texts (8.3). */
@@ -58,7 +83,34 @@ export interface ApiClient {
   today(date?: LocalDate): Promise<TodayView>;
   /** Command on occurrences/{id}/actions; the key is generated when the user acts (MA-CONC-1). */
   actOnOccurrence(id: string, action: OccurrenceAction, idempotencyKey: string): Promise<OccurrenceActionResult>;
-  addHydration(amountMl: number, idempotencyKey: string): Promise<HydrationDay>;
+
+  // hydration (MINI_APP 7.7): a write carries the key made when the person tapped (MA-HYD-1).
+  waterSummary(): Promise<WaterSummary>;
+  waterEntries(from: LocalDate, to: LocalDate): Promise<readonly WaterEntry[]>;
+  addWater(amountMl: number, idempotencyKey: string): Promise<WaterLogged>;
+  removeWater(id: string): Promise<WaterDay>;
+  waterSettings(): Promise<WaterSettings>;
+  saveWaterSettings(input: WaterSettingsInput, version: number): Promise<WaterSettings>;
+
+  // mood (MINI_APP 7.9)
+  moodScale(): Promise<MoodScale>;
+  blobStates(revision: string): Promise<BlobAsset>;
+  moodSummary(): Promise<MoodSummary>;
+  moodCheckins(from: LocalDate, to: LocalDate): Promise<readonly MoodCheckin[]>;
+  checkIn(input: MoodCheckinInput, idempotencyKey: string): Promise<MoodRecorded>;
+  removeCheckin(id: string): Promise<MoodDay>;
+
+  // history calendar (MINI_APP 7.12): one month of one domain; `month` is YYYY-MM.
+  calendar(domain: Domain, month?: string): Promise<InsightCalendar>;
+
+  // settings and consent (MINI_APP 7.15)
+  settings(): Promise<AccountSettings>;
+  saveSettings(input: AccountSettingsInput, version: number): Promise<AccountSettings>;
+  notificationSettings(): Promise<NotificationSettings>;
+  saveNotificationSettings(input: NotificationSettingsInput, version: number): Promise<NotificationSettings>;
+  timeZones(): Promise<readonly TimeZoneChoice[]>;
+  previewTimeZone(timeZone: string): Promise<TimeZonePreview>;
+  consents(): Promise<Consents>;
 
   medications(): Promise<readonly MedicationSummary[]>;
   medication(id: string): Promise<Medication>;
@@ -71,6 +123,19 @@ export interface ApiClient {
   createSchedule(medicationId: string, draft: ScheduleDraft): Promise<Schedule>;
 
   insightsOverview(rangeDays: InsightRange): Promise<InsightsOverview>;
+}
+
+/**
+ * A read of one domain: its answer, or OFF when the domain's consent is missing. The server is
+ * the authority on consent (ARCHITECTURE API-19); the screen shows "turned off", not an error.
+ */
+export async function unlessOff<T>(read: Promise<T>): Promise<T | Off> {
+  try {
+    return await read;
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.code === 'consent_required') return OFF;
+    throw cause;
+  }
 }
 
 export function newIdempotencyKey(): string {

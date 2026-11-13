@@ -224,6 +224,8 @@ final class TrackingTxDouble(tables: InMemoryTracking, ledger: ConsentLedger) ex
     override def createAccount(identityId: IdentityId, timezone: String, now: Instant): AccountId = absent("accounts")
     override def timezoneOf(accountId: UUID): Option[String] = tables.zoneIdOf(accountId)
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit = absent("accounts")
+    override def settingsOf(accountId: UUID): Option[AccountSettings] = absent("accounts")
+    override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit = absent("accounts")
   override def sessions: SessionRepository = absent("sessions")
   override def outbox: OutboxRepository = absent("outbox")
   override def renderedMessages: RenderedMessageRepository = absent("renderedMessages")

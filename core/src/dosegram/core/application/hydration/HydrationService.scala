@@ -94,6 +94,10 @@ final class HydrationService(clock: Clock, ids: IdSource):
       val (date, _) = day.resolve(clock.now(), zone)
       Right(dayView(tx, accountId, date, zone))
 
+  /** Any local day of the account's calendar, for the day views and the history of the Mini App. */
+  def dayOn(tx: Tx, accountId: UUID, date: LocalDate): Either[HydrationRefusal, WaterDayView] =
+    consented(tx, accountId)(zone => Right(dayView(tx, accountId, date, zone)))
+
   /** The quick-add amounts: the user's own, or the defaults until the user sets them (R-HYD-3). */
   def presets(tx: Tx, accountId: UUID): Either[HydrationRefusal, List[Int]] =
     consented(tx, accountId): _ =>
