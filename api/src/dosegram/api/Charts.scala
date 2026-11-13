@@ -22,6 +22,8 @@ object Charts:
   private val BarShare = 0.7
   private val OutcomeBarHeight = 20
   private val MoodSteps = 5
+  // Room for the level names, so that no dot is drawn over a word.
+  private val MoodLabelWidth = 96
   private val MoodPlotTop = 16.0
 
   private final case class Point(x: Double, y: Double)
@@ -84,7 +86,7 @@ object Charts:
       case _                => None
 
   def moodByDay(points: List[DayPoint[MoodDay]], window: DateRange): Chart =
-    val columns = Columns(0, points.size)
+    val columns = Columns(MoodLabelWidth, points.size)
     def yOf(mean: Double): Double = MoodPlotTop + (MoodSteps - mean) / (MoodSteps - 1) * (PlotHeight - MoodPlotTop)
     val indexed = points.zipWithIndex
     // A line joins two consecutive days only: a gap in the records is a gap in the line.
@@ -100,8 +102,8 @@ object Charts:
     }
     val levels = List(5 -> "Very pleasant", 3 -> "Neutral", 1 -> "Very unpleasant").flatMap: (step, name) =>
       List(
-        line(Point(0, yOf(step.toDouble)), Point(Width, yOf(step.toDouble)), SceneTone.Separator),
-        label(Point(0, yOf(step.toDouble) - 4), name, SceneAnchor.Start)
+        line(Point(MoodLabelWidth, yOf(step.toDouble)), Point(Width, yOf(step.toDouble)), SceneTone.Separator),
+        label(Point(0, yOf(step.toDouble) + 4), name, SceneAnchor.Start)
       )
     val recorded = points.flatMap(_.value)
     Chart(
@@ -112,7 +114,7 @@ object Charts:
       scene = Scene(
         Width,
         PlotHeight + LabelRoom,
-        levels ++ joins ++ dots ++ dateLabels(points, 0) ++ points.indices.map(columns.hit)
+        levels ++ joins ++ dots ++ dateLabels(points, MoodLabelWidth) ++ points.indices.map(columns.hit)
       ),
       table = ChartTable(
         "Mood per day",

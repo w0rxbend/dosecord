@@ -48,3 +48,10 @@ class MoodBlobAssetSuite extends munit.FunSuite:
     val bytes = ApiJson.write(asset).getBytes(UTF_8).length
     assert(bytes < 40 * 1024, s"$bytes bytes")
 end MoodBlobAssetSuite
+
+/** Writes the asset that the Mini App's mock backend serves, so development and the component tests draw the real
+  * geometry: `./mill app.test.runMain dosegram.app.moodBlobFixture miniapp/src/mock/blob-states.json`.
+  */
+@main def moodBlobFixture(path: String): Unit =
+  java.nio.file.Files.writeString(java.nio.file.Path.of(path), ApiJson.write(MoodBlobAsset.states) + "\n")
+  println(s"wrote the mood blob asset to $path")
