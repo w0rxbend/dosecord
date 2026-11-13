@@ -11,15 +11,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 image=flyway/flyway:13.6.0-alpine
-url="jdbc:postgresql://${PGHOST:-localhost}:${PGPORT:-5432}/${PGDATABASE:-dosecord}"
+url="jdbc:postgresql://${PGHOST:-localhost}:${PGPORT:-5432}/${PGDATABASE:-dosegram}"
 
 run_flyway() {
   docker run --rm --network host \
     -v "$PWD/infra/src/main/resources/db/migration:/flyway/sql:ro" \
     "$image" \
     -url="$url" \
-    -user="${PGUSER:-dosecord}" \
-    -password="${PGPASSWORD:-dosecord}" \
+    -user="${PGUSER:-dosegram}" \
+    -password="${PGPASSWORD:-dosegram}" \
     -connectRetries=60 \
     "$@"
 }

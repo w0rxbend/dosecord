@@ -1,4 +1,4 @@
--- Dosecord baseline schema (docs/DESIGN.md section 8, ADR-002/003/004/011).
+-- Dosegram baseline schema (docs/DESIGN.md section 8, ADR-002/003/004/011).
 -- Rule: V1 is edited in place until the 0.1.0 tag (the dev volume is dropped on
 -- every change); no V2 exists before M2 exit. All instants are timestamptz, all
 -- ids uuid. The application never calls SQL now() outside DEFAULT clauses;
@@ -6,16 +6,16 @@
 
 CREATE EXTENSION IF NOT EXISTS citext;
 
--- Roles. The application connects as dosecord_app; the erasure path of M4.4
--- connects as dosecord_erasure, the only role the append-only triggers accept
--- DELETEs from (and only while the session GUC dosecord.erasure = 'on' is set).
+-- Roles. The application connects as dosegram_app; the erasure path of M4.4
+-- connects as dosegram_erasure, the only role the append-only triggers accept
+-- DELETEs from (and only while the session GUC dosegram.erasure = 'on' is set).
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dosecord_app') THEN
-    CREATE ROLE dosecord_app NOLOGIN;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dosegram_app') THEN
+    CREATE ROLE dosegram_app NOLOGIN;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dosecord_erasure') THEN
-    CREATE ROLE dosecord_erasure NOLOGIN;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dosegram_erasure') THEN
+    CREATE ROLE dosegram_erasure NOLOGIN;
   END IF;
 END
 $$;
@@ -185,41 +185,41 @@ FROM dose_occurrences;
 
 -- ---------------------------------------------------------------------------
 -- Append-only guards. One exception: DELETE while the session GUC
--- dosecord.erasure = 'on' is set AND the current role is an explicit member of
--- dosecord_erasure. A custom GUC is settable by any role (GRANT SET ON
+-- dosegram.erasure = 'on' is set AND the current role is an explicit member of
+-- dosegram_erasure. A custom GUC is settable by any role (GRANT SET ON
 -- PARAMETER does not restrict placeholder parameters), and pg_has_role treats
 -- superusers as members of every role, so membership is checked in
 -- pg_auth_members directly: the app role cannot erase even with the GUC set
 -- (the M4.4 erasure path connects under the erasure role).
 -- ---------------------------------------------------------------------------
 
-CREATE FUNCTION dosecord_guard_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION dosegram_guard_append_only() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'UPDATE' THEN
-    RAISE EXCEPTION 'dosecord: % is append-only; UPDATE is not allowed', TG_TABLE_NAME;
+    RAISE EXCEPTION 'dosegram: % is append-only; UPDATE is not allowed', TG_TABLE_NAME;
   ELSIF TG_OP = 'DELETE'
-        AND (current_setting('dosecord.erasure', true) IS DISTINCT FROM 'on'
-             OR NOT (current_user = 'dosecord_erasure' OR EXISTS (
+        AND (current_setting('dosegram.erasure', true) IS DISTINCT FROM 'on'
+             OR NOT (current_user = 'dosegram_erasure' OR EXISTS (
                SELECT 1 FROM pg_auth_members m
                JOIN pg_roles r ON r.oid = m.roleid
-               WHERE r.rolname = 'dosecord_erasure'
+               WHERE r.rolname = 'dosegram_erasure'
                  AND m.member = (SELECT oid FROM pg_roles WHERE rolname = current_user)))) THEN
-    RAISE EXCEPTION 'dosecord: % is append-only; DELETE requires the erasure role with SET LOCAL dosecord.erasure = ''on''', TG_TABLE_NAME;
+    RAISE EXCEPTION 'dosegram: % is append-only; DELETE requires the erasure role with SET LOCAL dosegram.erasure = ''on''', TG_TABLE_NAME;
   END IF;
   IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END
 $$;
 
 CREATE TRIGGER dose_actions_append_only BEFORE UPDATE OR DELETE ON dose_actions
-  FOR EACH ROW EXECUTE FUNCTION dosecord_guard_append_only();
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
 CREATE TRIGGER auth_audit_log_append_only BEFORE UPDATE OR DELETE ON auth_audit_log
-  FOR EACH ROW EXECUTE FUNCTION dosecord_guard_append_only();
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
 
 -- ---------------------------------------------------------------------------
 -- Grants
 -- ---------------------------------------------------------------------------
 
-GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO dosecord_app;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO dosecord_app;
-REVOKE UPDATE ON dose_actions, auth_audit_log FROM dosecord_app;
-GRANT SELECT, DELETE ON dose_actions, auth_audit_log TO dosecord_erasure;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO dosegram_app;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO dosegram_app;
+REVOKE UPDATE ON dose_actions, auth_audit_log FROM dosegram_app;
+GRANT SELECT, DELETE ON dose_actions, auth_audit_log TO dosegram_erasure;

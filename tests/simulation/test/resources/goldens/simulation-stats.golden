@@ -1,5 +1,5 @@
 # M1.11 30-day scenario simulation — final stats (golden; regenerate with
-# ./mill tests.simulation.test.runMain dosecord.simulation.simulationGoldenGenerate)
+# ./mill tests.simulation.test.runMain dosegram.simulation.simulationGoldenGenerate)
 window: 2026-10-05T00:00:00Z .. 2026-11-04T00:00:00Z (30 days, virtual clock)
 outage: 2026-10-16T08:00:00Z .. 2026-10-16T14:00:00Z (6 h, day 12)
 personas: p1 daily 09:00 (travels UTC->Africa/Lagos->America/Phoenix, pause/resume, same-day edit), p2 twice daily 09:07/21:07, p3 Mon/Wed/Fri 09:23, p4 as-needed via /log
@@ -37,9 +37,9 @@ dose_actions by action and actor:
   undone/user=1
   cancelled/system=3
 domain_events by type:
-  dosecord.medication.dose_due.v1=98
-  dosecord.medication.intake_taken.v1=103
-  dosecord.medication.schedule_created.v1=4
+  dosegram.medication.dose_due.v1=98
+  dosegram.medication.intake_taken.v1=103
+  dosegram.medication.schedule_created.v1=4
 manual occurrences:
   manual=4
 dead-letters: 0

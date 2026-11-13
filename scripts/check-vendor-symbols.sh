@@ -26,4 +26,29 @@ if [ "$hits" -gt 0 ]; then
   echo "vendor-symbols: $hits forbidden symbol reference(s) under core/ or contracts/" >&2
   exit 1
 fi
-echo "vendor-symbols: clean (core/, contracts/ free of: ${symbols[*]})"
+
+# Retired names (docs/dosegram/ROADMAP.md section 1.4): outside the documents,
+# no tracked file names a retired vendor or the old product name. This script
+# holds the patterns, so it is excluded from its own search.
+retired_files() {
+  local flags=$1 pattern=$2 status
+  shift 2
+  git grep "$flags" "$pattern" -- . ':!docs' ':!AGENTS.md' ':!README.md' ':!QUICKSTART.md' \
+    ':!CHANGELOG.md' ':!scripts/check-vendor-symbols.sh' "$@"
+  status=$?
+  # git grep exits 1 for "no match"; anything higher is a git error.
+  [ "$status" -le 1 ] || { echo "vendor-symbols: git grep failed ($status)" >&2; return 2; }
+}
+
+# scripts/check-bot-ux-plan.py keeps `max_discord_rows` until G0.2 archives it.
+retired=$(
+  retired_files -l 'net\.dv8tion\|[Dd]iscord\|[Zz]ulip\|Trixnity' ':!scripts/check-bot-ux-plan.py' &&
+    retired_files -il 'dosecord'
+) || exit 2
+if [ -n "$retired" ]; then
+  printf '%s\n' "$retired"
+  echo "vendor-symbols: retired vendor or product name in tracked file(s) outside the documents" >&2
+  exit 1
+fi
+
+echo "vendor-symbols: clean (core/, contracts/ free of: ${symbols[*]}; no retired name outside the documents)"

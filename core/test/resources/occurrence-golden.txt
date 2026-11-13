@@ -1,6 +1,6 @@
 # Evaluator.occurrences golden rows over the seven M0.7 zones; do not hand-edit
 # tzdb=2025b zones=Europe/Kyiv,Europe/London,America/New_York,Australia/Lord_Howe,Asia/Kolkata,Pacific/Apia,America/Sao_Paulo
-# regenerate: ./mill core.test.runMain dosecord.core.domain.occurrenceGoldenGenerate core/test/resources/occurrence-golden.txt
+# regenerate: ./mill core.test.runMain dosegram.core.domain.occurrenceGoldenGenerate core/test/resources/occurrence-golden.txt
 Europe/Kyiv|week|2026-06-15|t0800|none|2026-06-15T05:00:00Z
 Europe/Kyiv|week|2026-06-15|t2130|none|2026-06-15T18:30:00Z
 Europe/Kyiv|week|2026-06-16|t0800|none|2026-06-16T05:00:00Z

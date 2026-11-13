@@ -18,10 +18,18 @@ users.id BIGINT
 Alembic
 KAFKA_
 postgresql+asyncpg
+dosecord run
+dosecord_app
 
 [allowlist]
 docs/doc-lint.txt
 docs/archive/**
 docs/adr/**
 docs/design-tracks/**
-docs/ROADMAP.md#section-2
+# Until G0.2 moves them (docs/dosegram/ROADMAP.md section 1.8): the Dosecord
+# design and roadmap go to docs/archive/, the research briefs to docs/research/.
+docs/DESIGN.md
+docs/ROADMAP.md
+docs/dosegram/research/**
+# Sections 1 and 8 name the retired terms where they describe the migration.
+docs/dosegram/ROADMAP.md

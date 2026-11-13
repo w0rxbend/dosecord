@@ -1,5 +1,5 @@
 > /start
-[#1] Welcome to Dosecord! Let's get you set up.
+[#1] Welcome to Dosegram! Let's get you set up.
 
 Pick your timezone:
 
@@ -13,7 +13,7 @@ Reply Back to go back or Cancel to stop.
 > Mars/Olympus_Mons
 [#3] I don't recognise that timezone — pick one from the list.
 
-Welcome to Dosecord! Let's get you set up.
+Welcome to Dosegram! Let's get you set up.
 
 Pick your timezone:
 
@@ -33,7 +33,7 @@ Pick your timezone:
 > /mood 8
 [#7] Mood recorded: 8/10.
 > /help
-[#8] Dosecord keeps track of your medications, reminders and mood.
+[#8] Dosegram keeps track of your medications, reminders and mood.
 
 /start — Create your account and pick a timezone.
 

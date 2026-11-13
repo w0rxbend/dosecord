@@ -2,8 +2,8 @@
 # coverage-gate — SCAFFOLD, not enforced until M1 exit (ROADMAP M0.4).
 #
 # Reads the scoverage XML report for the `core` module and computes statement
-# coverage of the packages the gate will cover: dosecord.core.domain and
-# dosecord.core.chat. The threshold is 85% (ROADMAP section 6, Quality gates).
+# coverage of the packages the gate will cover: dosegram.core.domain and
+# dosegram.core.chat. The threshold is 85% (ROADMAP section 6, Quality gates).
 #
 # The gate is armed by setting COVERAGE_GATE_ARMED=true. Unarmed (the default
 # until M1 exit) it only reports the measured rates and always exits 0.
@@ -44,7 +44,7 @@ rate_of() {
 }
 
 failed=0
-for pkg in dosecord.core.domain dosecord.core.chat; do
+for pkg in dosegram.core.domain dosegram.core.chat; do
   rate=$(rate_of "$pkg")
   if [ "$rate" = "NA" ]; then
     echo "coverage-gate: $pkg: no statements measured"

@@ -1,6 +1,6 @@
 # resolveLocal golden rows generated from java.time ZoneRules transitions; do not hand-edit
 # tzdb=2025b zones=Europe/Kyiv,Europe/London,America/New_York,Australia/Lord_Howe,Asia/Kolkata,Pacific/Apia,America/Sao_Paulo
-# regenerate: ./mill core.test.runMain dosecord.core.domain.dstGoldenGenerate core/test/resources/dst-golden.txt
+# regenerate: ./mill core.test.runMain dosegram.core.domain.dstGoldenGenerate core/test/resources/dst-golden.txt
 Europe/Kyiv|2026-01-15T08:00|none|2026-01-15T06:00:00Z
 Europe/Kyiv|2026-06-15T20:30|none|2026-06-15T17:30:00Z
 Europe/Kyiv|2026-12-15T23:45|none|2026-12-15T21:45:00Z

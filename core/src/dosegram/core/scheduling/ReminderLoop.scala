@@ -1,0 +1,335 @@
+package dosegram.core.scheduling
+
+import dosegram.contracts.AccountId
+import dosegram.contracts.Actor as ContractsActor
+import dosegram.contracts.DigestItem
+import dosegram.contracts.Event
+import dosegram.contracts.LoopDispatch
+import dosegram.core.domain.Decide
+import dosegram.core.domain.DecideContext
+import dosegram.core.domain.DispatchIntent
+import dosegram.core.domain.OccurrenceEvent
+import dosegram.core.domain.OccurrenceStatus
+import dosegram.core.domain.ReminderKind
+import dosegram.core.domain.UnknownReason
+import dosegram.core.ports.Clock
+import dosegram.core.ports.DeliveryTarget
+import dosegram.core.ports.DomainEventBus
+import dosegram.core.ports.LoopMetrics
+import dosegram.core.ports.NewDomainEvent
+import dosegram.core.ports.NewDoseAction
+import dosegram.core.ports.NewOutboxMessage
+import dosegram.core.ports.OutboxOp
+import dosegram.core.ports.StoredOccurrence
+import dosegram.core.ports.Tx
+import dosegram.core.ports.UnitOfWork
+import dosegram.core.ports.Wake
+
+import java.time.Duration
+import java.time.Instant
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
+import scala.collection.mutable
+
+object ReminderLoop:
+
+  /** ADR-004 / DESIGN.md section 7.4: one claim batch is at most 50 rows. */
+  val BatchSize = 50
+
+  /** The fallback poll interval; LISTEN `dosegram_wake` shortens it (DESIGN.md section 7.4). */
+  val PollInterval: Duration = Duration.ofSeconds(10)
+
+  /** A row that fails its decide/persist unit is postponed by this much and its `error_count` incremented (ROADMAP
+    * M1.6: quarantined with `next_action_at = now + 5 min`).
+    */
+  val QuarantineRetryDelay: Duration = Duration.ofMinutes(5)
+
+  /** The safety net of DESIGN.md section 7.2: the loop materialises any schedule with
+    * `materialized_through < now + SafetyNetLagTicks * pollInterval`.
+    */
+  val SafetyNetLagTicks = 4
+
+  /** The digest bucket of DESIGN.md section 7.5: `bucket = floor(first next_action_at / 15 min)`. */
+  val DigestBucketSeconds = 900L
+
+  /** The catch-up rate limit (ROADMAP M1.8): at most this many claimed rows per tick are processed as catch-up (`now -
+    * next_action_at > 10 min`); the rest stay due for the next tick, so a long outage drains in bounded steps instead
+    * of one flood. Per-vendor send rate limiting stays with the dispatcher's token buckets.
+    */
+  val CatchUpBatchSize = 10
+
+  /** Thrown inside a row's savepoint when the guarded write finds the row changed underneath the tick (a user action
+    * bumped the epoch mid-tick). The savepoint rolls the tick's writes for that row back; the row is skipped, not
+    * quarantined (epoch fencing, DESIGN.md sections 7.3/7.4).
+    */
+  final case class StaleWrite(occurrenceId: UUID)
+      extends RuntimeException(s"occurrence $occurrenceId changed while the tick was in flight")
+
+/** The one reminder loop (ADR-004: "the database is the schedule, one loop, one column"). `tick` claims due rows `FOR
+  * UPDATE SKIP LOCKED`, runs the pure `Decide.decide` per row under a savepoint, and writes the state change, the
+  * `dose_actions` row, the `domain_events` row and the outbox rows in one transaction with no network calls; a failing
+  * row is quarantined instead of stalling the batch, and epoch fencing skips a row a user action changed mid-tick.
+  * `run` adds the materialiser safety net, the per-instance heartbeat (its own short transaction, outside the batch),
+  * the fallback poll and the LISTEN wake-up. Appended `domain_events` rows are published to the in-process bus after
+  * the transaction commits (ADR-003).
+  *
+  * ROADMAP M1.8 (DESIGN.md section 7.5): a dispatch whose row is in catch-up (`now - next_action_at > 10 min`) is not
+  * sent individually — it is folded into one digest per account per 15-minute bucket (`digest:$account:$bucket`,
+  * per-item epochs, the dispatcher re-reads before rendering), and an occurrence the outage marked `unknown` in
+  * catch-up contributes a digest item too, so the user hears about the downtime exactly once. Catch-up work is bounded
+  * per tick ([[ReminderLoop.CatchUpBatchSize]]); occurrences marked `unknown` increment
+  * `dosegram_unknown_total{reason}`.
+  */
+final class ReminderLoop(
+    uow: UnitOfWork,
+    materialiser: Materialiser,
+    wake: Wake,
+    clock: Clock,
+    instance: String,
+    role: String = "worker",
+    batchSize: Int = ReminderLoop.BatchSize,
+    pollInterval: Duration = ReminderLoop.PollInterval,
+    events: DomainEventBus = DomainEventBus.noop,
+    catchUpBatchSize: Int = ReminderLoop.CatchUpBatchSize,
+    metrics: LoopMetrics = LoopMetrics.noop
+):
+  import ReminderLoop.*
+
+  /** The instant of the last completed tick (set after the heartbeat commits); the
+    * `dosegram_scheduler_tick_age_seconds` gauge (DESIGN.md section 10) reads it.
+    */
+  val lastTickCompletedAt = new AtomicReference[Instant]()
+
+  /** The process loop (DESIGN.md section 7.4): tick (with the safety net), heartbeat, then wait for a wake or the poll
+    * interval. Runs until the calling fork is cancelled (interruption propagates out of `wake.awaitOrTimeout`); callers
+    * place it in an Ox fork, so the method itself needs no scope.
+    */
+  def run(): Unit =
+    while true do
+      val claimed = tickOnce(clock.now())
+      wake.awaitOrTimeout(if claimed >= batchSize then Duration.ZERO else pollInterval)
+
+  /** One iteration of the process loop: the safety net (the materialiser-first startup of M1.8 — it runs before the
+    * loop resumes ticking), one `tick`, then the per-instance heartbeat in its own short transaction (DESIGN.md section
+    * 7.4: written after the batch, so a long batch cannot hold the heartbeat row).
+    */
+  def tickOnce(now: Instant): Int =
+    materialiseLagging(now)
+    val claimed = tick(now)
+    uow.transaction(tx => tx.heartbeat.touch(instance, role, clock.now()))
+    lastTickCompletedAt.set(clock.now())
+    claimed
+
+  /** The materialiser safety net: extend every schedule whose materialised window ends before
+    * `now + SafetyNetLagTicks * pollInterval` (DESIGN.md section 7.2). Cheap when nothing lags (the claim returns
+    * empty).
+    */
+  def materialiseLagging(now: Instant): Int =
+    materialiser.safetyNet(now.plus(pollInterval.multipliedBy(SafetyNetLagTicks.toLong)))
+
+  /** One batch; returns the number of rows claimed (a full batch tells `run` to re-tick immediately). The `dose_due.v1`
+    * rows appended by the batch are published to the in-process bus only after the transaction commits (ADR-003).
+    */
+  def tick(now: Instant): Int =
+    val dueEvents = List.newBuilder[NewDomainEvent]
+    val claimed = uow.transaction { tx =>
+      // Read once per tick (DESIGN.md section 7.3): the unknown(outage | undelivered) evidence.
+      val lastHealthyTick = tx.heartbeat.maxLastTick().getOrElse(Instant.EPOCH)
+      val claimed = tx.occurrences.claimDue(now, batchSize)
+      val digest = new TickDigest
+      var catchUpLeft = catchUpBatchSize
+      claimed.foreach { occ =>
+        if isCatchUp(occ, now) && catchUpLeft <= 0 then
+          () // catch-up rate limit (M1.8): the row stays due and is claimed by the next tick
+        else
+          if isCatchUp(occ, now) then catchUpLeft -= 1
+          try dueEvents ++= tx.savepoint(processRow(tx, occ, now, lastHealthyTick, digest))
+          catch
+            case _: StaleWrite => () // fenced: a user action landed mid-tick and wins; skip the row
+            case _: Exception  =>
+              tx.occurrences.quarantine(occ.id, now.plus(QuarantineRetryDelay), now)
+              ()
+      }
+      claimed.size
+    }
+    dueEvents.result().foreach(events.publish)
+    claimed
+
+  /** DESIGN.md section 7.5's catch-up predicate: the row's `next_action_at` is more than 10 minutes stale. */
+  private def isCatchUp(occ: StoredOccurrence, now: Instant): Boolean =
+    occ.state.nextActionAt.exists(na => Duration.between(na, now).compareTo(Decide.CatchUpThreshold) > 0)
+
+  /** The per-row unit of ADR-004: decide, guarded write, action rows, cancel stale queued rows, enqueue the dispatches
+    * (folded into the account digest in catch-up) with the new epoch in the `send_key`, and append `dose_due.v1` on the
+    * pending -> due transition — all inside the row's savepoint. Returns the appended domain event (empty unless the
+    * transition was pending -> due) so the caller can publish it after the batch transaction commits.
+    */
+  private def processRow(
+      tx: Tx,
+      occ: StoredOccurrence,
+      now: Instant,
+      lastHealthyTick: Instant,
+      digest: TickDigest
+  ): List[NewDomainEvent] =
+    val (policy, quiet) = tx.policies.forOccurrence(occ)
+    val nextOccurrence =
+      occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor))
+    val ctx = DecideContext(
+      event = OccurrenceEvent.Tick,
+      delivered = tx.outbox.deliveredFor(occ.id),
+      lastHealthyTick = lastHealthyTick,
+      nextOccurrenceScheduledFor = nextOccurrence
+    )
+    val transition = Decide.decide(occ.state, policy, quiet, now, ctx)
+    if transition.row != occ.state then
+      val applied =
+        tx.occurrences.applyTransition(occ.id, occ.version, occ.state.epoch, transition.row, now)
+      if !applied then throw StaleWrite(occ.id)
+      val correlationId = UUID.randomUUID().toString
+      (transition.action.toList ++ transition.additionalActions).foreach { intent =>
+        tx.doseActions.append(NewDoseAction.from(intent, occ.id, occ.accountId, correlationId))
+      }
+      val newEpoch = transition.row.epoch
+      tx.outbox.cancelOlderQueued(occ.id, newEpoch)
+      if transition.row.status == OccurrenceStatus.Unknown then
+        metrics.unknownMarked(transition.row.unknownReason.map(_.dbValue).getOrElse(UnknownReason.Undelivered.dbValue))
+      val catchUp = isCatchUp(occ, now)
+      transition.dispatches.foreach(enqueueDispatch(tx, occ, _, newEpoch, now, catchUp, digest))
+      // An outage-marked unknown has no dispatch of its own; in catch-up it still belongs in the digest, once.
+      if catchUp && transition.row.status == OccurrenceStatus.Unknown then digest.add(tx, occ, newEpoch, now, None)
+      if occ.status == OccurrenceStatus.Pending && transition.row.status == OccurrenceStatus.Due then
+        List(appendDoseDue(tx, occ, transition.row.reminderSeq, now, correlationId))
+      else Nil
+    else Nil
+
+  /** One outbox row per dispatch intent per healthy primary channel; `send_key` carries the new epoch so a restart or a
+    * second worker cannot double-enqueue (UNIQUE `send_key` + `ON CONFLICT DO NOTHING`), and `cancelOlderQueued` above
+    * has retired the stale-epoch rows (ADR-004). In catch-up (M1.8) the sends are not enqueued individually: they fold
+    * into the account's digest bucket, so a restart after downtime cannot flood stale reminders.
+    */
+  private def enqueueDispatch(
+      tx: Tx,
+      occ: StoredOccurrence,
+      intent: DispatchIntent,
+      epoch: Int,
+      now: Instant,
+      catchUp: Boolean,
+      digest: TickDigest
+  ): Unit =
+    intent match
+      case DispatchIntent.Reminder(kind, silent, seq) =>
+        if catchUp then digest.add(tx, occ, epoch, now, notBefore = None)
+        else
+          perChannel(tx, occ): channel =>
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = sendKey(occ, epoch, s"s$seq", kindTag(kind), channel),
+              op = OutboxOp.Send,
+              kind = "reminder",
+              vendor = channel.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = Some(occ.id),
+              channelId = Some(channel.channelId),
+              epoch = Some(epoch),
+              payload = LoopDispatch.toJson(LoopDispatch.Reminder(occ.id, channel.chatId, kindTag(kind), seq, silent)),
+              importance = "reminder",
+              nextAttemptAt = now
+            )
+      case DispatchIntent.FinalizeControls(reason) =>
+        FinalizeDispatch.enqueue(tx, occ.id, occ.accountId, epoch, reason, now)
+      case DispatchIntent.MissedNotice(notBefore, silent) =>
+        if catchUp then digest.add(tx, occ, epoch, now, notBefore)
+        else
+          perChannel(tx, occ): channel =>
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = sendKey(occ, epoch, "s0", "missed", channel),
+              op = OutboxOp.Send,
+              kind = "missed_notice",
+              vendor = channel.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = Some(occ.id),
+              channelId = Some(channel.channelId),
+              epoch = Some(epoch),
+              payload = LoopDispatch.toJson(LoopDispatch.MissedNotice(occ.id, channel.chatId, silent)),
+              importance = "reminder",
+              nextAttemptAt = notBefore.getOrElse(now)
+            )
+
+  /** The per-tick digest folder (DESIGN.md section 7.5): one digest per account per 15-minute bucket. The bucket is
+    * anchored on the account's first folded row of the tick (`floor(first next_action_at / 15 min)`; rows are claimed
+    * oldest-first, so that is the earliest `next_action_at` in the batch); later rows merge their item into the same
+    * `send_key` through `enqueueDigest`'s upsert, inside the same row savepoint.
+    */
+  private final class TickDigest:
+    private val buckets = mutable.HashMap[UUID, Long]()
+
+    def add(tx: Tx, occ: StoredOccurrence, epoch: Int, now: Instant, notBefore: Option[Instant]): Unit =
+      val bucket = buckets.getOrElseUpdate(occ.accountId, anchor(occ, now))
+      tx.channels
+        .activePrimaryChannels(occ.accountId)
+        .headOption
+        .foreach: channel =>
+          tx.outbox.enqueueDigest(
+            NewOutboxMessage(
+              id = UUID.randomUUID(),
+              sendKey = s"digest:${occ.accountId}:$bucket",
+              op = OutboxOp.Send,
+              kind = "digest",
+              vendor = channel.vendor,
+              accountId = Some(occ.accountId),
+              occurrenceId = None,
+              channelId = Some(channel.channelId),
+              epoch = None,
+              payload =
+                LoopDispatch.toJson(LoopDispatch.Digest(occ.accountId, bucket, List(DigestItem(occ.id, epoch)))),
+              importance = "reminder",
+              nextAttemptAt = notBefore.filter(_.isAfter(now)).getOrElse(now)
+            )
+          )
+
+    private def anchor(occ: StoredOccurrence, now: Instant): Long =
+      occ.state.nextActionAt
+        .map(_.getEpochSecond / DigestBucketSeconds)
+        .getOrElse(now.getEpochSecond / DigestBucketSeconds)
+
+  private def perChannel(tx: Tx, occ: StoredOccurrence)(msg: DeliveryTarget => NewOutboxMessage): Unit =
+    tx.channels.activePrimaryChannels(occ.accountId).foreach(channel => tx.outbox.enqueue(msg(channel)))
+
+  /** `occ:$occurrenceId:e$epoch:s$reminderSeq:k$kind:c$channelId` (DESIGN.md section 7.4). */
+  private def sendKey(occ: StoredOccurrence, epoch: Int, seq: String, kind: String, channel: DeliveryTarget): String =
+    s"occ:${occ.id}:e$epoch:$seq:k$kind:c${channel.channelId}"
+
+  private def kindTag(kind: ReminderKind): String = kind match
+    case ReminderKind.Initial    => "initial"
+    case ReminderKind.Repeat     => "repeat"
+    case ReminderKind.SnoozeWake => "snooze_wake"
+
+  /** `dosegram.medication.dose_due.v1` (R30): appended exactly once, on the pending -> due transition only (repeats and
+    * snooze wakes are due -> due and produce none).
+    */
+  private def appendDoseDue(
+      tx: Tx,
+      occ: StoredOccurrence,
+      reminderSeq: Int,
+      now: Instant,
+      correlationId: String
+  ): NewDomainEvent =
+    val account = AccountId(occ.accountId)
+    val event = Event.DoseDue(account, occ.id, reminderSeq)
+    val actor = ContractsActor("dosegram", occ.accountId.toString, None, Some(account))
+    val envelope = Event.toEnvelopeJson(event, actor, now, Some(correlationId), None)
+    val row = NewDomainEvent(
+      id = envelope.id.uuid,
+      eventType = Event.DoseDueType,
+      source = Event.sourceOf(event).value,
+      subject = Some(actor.subject),
+      accountId = Some(occ.accountId),
+      correlationId = Some(correlationId),
+      causationId = None,
+      actorJson = envelope.actorJson,
+      occurredAt = now,
+      dataJson = envelope.envelopeJson
+    )
+    tx.domainEvents.append(row)
+    row

@@ -44,13 +44,13 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
-          POSTGRES_USER: dosecord
-          POSTGRES_PASSWORD: dosecord
-          POSTGRES_DB: dosecord
+          POSTGRES_USER: dosegram
+          POSTGRES_PASSWORD: dosegram
+          POSTGRES_DB: dosegram
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U dosecord -d dosecord"
+          --health-cmd "pg_isready -U dosegram -d dosegram"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -69,7 +69,7 @@ jobs:
       # Infra tests use Testcontainers (Docker is available on the runner).
       - run: ./mill __.test
       # M0.5: the committed .env.example must equal the generated one.
-      - run: ./mill app.test.runMain dosecord.app.envExampleCheck .env.example
+      - run: ./mill app.test.runMain dosegram.app.envExampleCheck .env.example
       - name: flyway validate
         run: scripts/flyway-validate.sh
 
@@ -101,7 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: docker build
-        run: docker build -f docker/Dockerfile -t dosecord:ci .
+        run: docker build -f docker/Dockerfile -t dosegram:ci .
       - name: compose smoke
         run: |
           docker compose -f docker/compose.yml up -d --build --wait
