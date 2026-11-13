@@ -74,7 +74,9 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
       .sortBy(_.ordinal)
       .map: kind =>
         val plan = plans.get(kind)
-        HubLine(kind, plan, plan.flatMap(p => nextSlot(p, profile, zone, now)))
+        // Without the domain's consent every slot is suppressed: no next time is promised.
+        val next = plan.filter(p => consented(tx, accountId, p.kind)).flatMap(p => nextSlot(p, profile, zone, now))
+        HubLine(kind, plan, next)
     HubView(zone, profile, lines, medicationSchedules(tx, accountId), activePause(tx, accountId, now))
 
   /** The next `limit` times a preset would fall due with the user's current day: shown before the preset is saved. */
@@ -140,14 +142,16 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
     tx.reminders.prompts.pause(scheduleId, Some(until), clock.now())
 
   /** The start of the next local day: the end of "Pause for today". */
-  /** Every reminder a local day holds with the plans as they are: the prompt slots outside quiet hours, and the dose
-    * reminders of the materialised schedules when the medication consent is given. In time order.
+  /** Every reminder a local day holds with the plans as they are: the prompt slots outside quiet hours of the plans
+    * whose domain has its consent, and the dose reminders of the materialised schedules when the medication consent is
+    * given. In time order.
     */
   def timeline(tx: Tx, accountId: UUID, date: LocalDate): List[TimelineItem] =
     val zone = this.zone(tx, accountId)
     val profile = this.profile(tx, accountId)
     val prompts = for
-      plan <- tx.reminders.prompts.schedules(accountId) if plan.enabled && PromptPresets.wired(plan.kind)
+      plan <- tx.reminders.prompts.schedules(accountId)
+      if plan.enabled && PromptPresets.wired(plan.kind) && consented(tx, accountId, plan.kind)
       slot <- NudgeSlots.on(plan.plan, profile, date, zone, seedOf(accountId))
       if !profile.quiet.contains(slot.local.toLocalTime)
     yield TimelineItem(slot.at, Some(plan.kind), Some(plan.presetId))

@@ -100,6 +100,16 @@ class RemindersHubPgSuite extends PgSuite:
     assertEquals(refused.toast, Some("Turn the domain on first: use its command once, for example /water or /mood."))
     assertEquals(rig.uow.transaction(_.reminders.prompts.schedules(rig.account)), Nil)
 
+  test("after the domain's consent is withdrawn the hub names no next time and the timeline lists no prompt"):
+    val rig = Rig(ConsentPurpose.Hydration)
+    rig.tap("reminders.apply", PromptPresets.indexOf(PromptPresets.WaterWorkHours))
+    rig.uow.transaction(tx => assert(tx.consents.withdraw(rig.account, ConsentPurpose.Hydration, rig.clock.now())))
+    val shown = text(rig.command("/reminders"))
+    assert(shown.contains("Water: Work hours, every 30 min"), shown)
+    assert(!shown.contains("next Mon"), s"no prompt is sent without the consent: $shown")
+    val monday = start.atZone(java.time.ZoneId.of("Europe/Kyiv")).toLocalDate
+    assertEquals(rig.uow.transaction(rig.settings.timeline(_, rig.account, monday)), Nil)
+
   test("changing the work hours moves the preset that uses them"):
     val rig = Rig(ConsentPurpose.Hydration)
     rig.tap("reminders.apply", PromptPresets.indexOf(PromptPresets.WaterWorkHours))
