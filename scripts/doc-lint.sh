@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# doc-lint — documentation lint driven by docs/doc-lint.txt (ROADMAP M0.4).
+# doc-lint — documentation lint driven by docs/doc-lint.txt.
 #
 # Reads the manifest's [scope], [forbidden] and [allowlist] sections, scans
 # every in-scope file for the forbidden terms, and exits 1 when a term appears
@@ -10,8 +10,10 @@
 # Allowlist entries:
 #   path/**                the whole subtree
 #   path                   exactly this file
-#   path#section-N         the `## N. ...` section of the file (from its
-#                          heading line up to the next `## ` heading)
+#   path#section-N         the section numbered N of the file, at any heading
+#                          level (`## 1. ...`, `### 3.2 ...`), from its heading
+#                          line up to the next heading of the same or a higher
+#                          level. A file may list several sections.
 #
 # Usage: scripts/doc-lint.sh [manifest]   (default docs/doc-lint.txt)
 set -euo pipefail
@@ -38,7 +40,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     forbidden) forbidden+=("$line") ;;
     allowlist)
       if [[ $line == *#section-* ]]; then
-        allow_sections[${line%%#section-*}]=${line##*#section-}
+        allow_sections[${line%%#section-*}]+="${line##*#section-} "
       elif [[ $line == *"/**" ]]; then
         allow_prefixes+=("${line%/**}/")
       elif [[ $line == */ ]]; then
@@ -67,15 +69,24 @@ is_allowlisted_file() {
   return 1
 }
 
-# Print the line numbers of the `## N.` section of file $2 (heading line
-# included, up to the next `## ` heading).
+# Print the line numbers of the sections of file $2 whose numbers are listed,
+# space separated, in $1 (heading line included, up to the next heading of the
+# same or a higher level). A `#` line inside a code fence is not a heading.
 section_lines() {
-  awk -v n="$1" '
-    /^## / {
-      if (insec) insec = 0
-      if ($0 ~ "^## " n "\\. ") insec = 1
+  awk -v numbers="$1" '
+    BEGIN {
+      count = split(numbers, wanted, " ")
+      for (i = 1; i <= count; i++) gsub(/\./, "\\.", wanted[i])
     }
-    insec { print NR }
+    /^```/ { fenced = !fenced }
+    !fenced && /^#+ / {
+      level = length($1)
+      if (inside && level <= inside) inside = 0
+      if (!inside)
+        for (i = 1; i <= count; i++)
+          if ($0 ~ "^#+ " wanted[i] "\\.? ") inside = level
+    }
+    inside { print NR }
   ' "$2"
 }
 

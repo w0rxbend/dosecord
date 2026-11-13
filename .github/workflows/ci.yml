@@ -91,6 +91,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: scripts/doc-lint.sh
+      - run: scripts/test-doc-lint.sh
       - run: python3 scripts/check-bot-ux-plan.py
       - run: python3 scripts/test-check-bot-ux-plan.py
 
