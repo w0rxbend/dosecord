@@ -9,9 +9,9 @@ import dosegram.core.chat.FakeAdapter
   */
 class SuiteARunnerSuite extends munit.FunSuite:
 
-  test("the scenario catalog loads: 12 scenarios with unique names"):
+  test("the scenario catalog loads: 13 scenarios with unique names"):
     val scenarios = Scenario.loadAll()
-    assertEquals(scenarios.size, 12)
+    assertEquals(scenarios.size, 13)
     assertEquals(scenarios.map(_.name).distinct.size, scenarios.size)
 
   test("an honest text-only adapter passes every applicable scenario"):

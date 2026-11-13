@@ -11,7 +11,11 @@ object AdapterCopy:
     */
   val dmOnlyRedirect = "Dosegram works in direct messages only — please open Dosegram's DM."
 
+  /** The one fixed reply to a sender who is not on the allowlist (ROADMAP G1.6): nothing is stored for them. */
+  val notAvailable = "Dosegram is not open to new users yet."
+
   val entries: List[CopyEntry] = List(
-    CopyEntry("adapter.dm_only_redirect", dmOnlyRedirect)
+    CopyEntry("adapter.dm_only_redirect", dmOnlyRedirect),
+    CopyEntry("adapter.not_available", notAvailable)
   )
 end AdapterCopy

@@ -21,7 +21,8 @@
   ],
   "expect": [
     { "expect": "renderTextGolden", "goldens": {
-      "plain": ["Time for Vitamin D, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\na < b"]
+      "plain": ["Time for Vitamin D, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\na < b"],
+      "telegramHtml": ["Time for <b>Vitamin D</b>, 1000 IU.\nAfter food.\n\n- Taken\n- Skipped\n\n<pre><code>a &lt; b</code></pre>"]
     } }
   ]
 }

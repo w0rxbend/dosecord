@@ -68,6 +68,11 @@ trait FakeVendorServer:
     */
   def onStart(resumeFrom: Option[String]): Unit = ()
 
+  /** The vendor's chat id for a chat key of the scenarios. A vendor whose chat ids have a form of their own (Telegram:
+    * a number) maps the key; the default is the key itself.
+    */
+  def chatId(wireChat: String): String = wireChat
+
 /** Records every event the adapter pushes to its sink. */
 final class RecordingSink extends InboundSink:
   private val events = ConcurrentLinkedQueue[InboundEvent]()

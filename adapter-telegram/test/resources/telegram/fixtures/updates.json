@@ -1,0 +1,233 @@
+{
+  "message-text": {
+    "update_id": 900000001,
+    "message": {
+      "message_id": 41,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic", "language_code": "en" },
+      "chat": { "id": 7001, "first_name": "Synthetic", "type": "private" },
+      "date": 1794000000,
+      "text": "hello there"
+    }
+  },
+  "message-reply": {
+    "update_id": 900000002,
+    "message": {
+      "message_id": 42,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000010,
+      "text": "2",
+      "reply_to_message": {
+        "message_id": 40,
+        "from": { "id": 555000111, "is_bot": true, "first_name": "Dosegram" },
+        "chat": { "id": 7001, "type": "private" },
+        "date": 1793999990,
+        "text": "Pick one"
+      }
+    }
+  },
+  "command-start": {
+    "update_id": 900000003,
+    "message": {
+      "message_id": 43,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000020,
+      "text": "/start",
+      "entities": [{ "offset": 0, "length": 6, "type": "bot_command" }]
+    }
+  },
+  "command-start-payload": {
+    "update_id": 900000004,
+    "message": {
+      "message_id": 44,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000030,
+      "text": "/start r_today",
+      "entities": [{ "offset": 0, "length": 6, "type": "bot_command" }]
+    }
+  },
+  "command-start-bad-payload": {
+    "update_id": 900000005,
+    "message": {
+      "message_id": 45,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000040,
+      "text": "/start <script>alert(1)</script>"
+    }
+  },
+  "command-with-bot-suffix": {
+    "update_id": 900000006,
+    "message": {
+      "message_id": 46,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000050,
+      "text": "/Today@dosegram_dev_bot",
+      "entities": [{ "offset": 0, "length": 23, "type": "bot_command" }]
+    }
+  },
+  "command-with-argument": {
+    "update_id": 900000007,
+    "message": {
+      "message_id": 47,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000060,
+      "text": "/snooze 10"
+    }
+  },
+  "callback-query": {
+    "update_id": 900000008,
+    "callback_query": {
+      "id": "4382bfdwdsb323b2d9",
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "message": {
+        "message_id": 50,
+        "from": { "id": 555000111, "is_bot": true, "first_name": "Dosegram" },
+        "chat": { "id": 7001, "type": "private" },
+        "date": 1794000070,
+        "text": "Time for Sample, 1 unit.",
+        "reply_markup": { "inline_keyboard": [[{ "text": "Taken", "callback_data": "dc:placeholder" }]] }
+      },
+      "chat_instance": "-112233445566",
+      "data": "dc:placeholder"
+    }
+  },
+  "callback-query-inaccessible-message": {
+    "update_id": 900000009,
+    "callback_query": {
+      "id": "4382bfdwdsb323b2da",
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "message": { "message_id": 51, "chat": { "id": 7001, "type": "private" }, "date": 0 },
+      "chat_instance": "-112233445566",
+      "data": "dc:placeholder"
+    }
+  },
+  "callback-query-on-photo": {
+    "update_id": 900000010,
+    "callback_query": {
+      "id": "4382bfdwdsb323b2db",
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "message": {
+        "message_id": 52,
+        "chat": { "id": 7001, "type": "private" },
+        "date": 1794000080,
+        "photo": [{ "file_id": "AgACsynthetic-small", "file_unique_id": "u1", "width": 90, "height": 60 }],
+        "caption": "Your week"
+      },
+      "chat_instance": "-112233445566",
+      "data": "dc:placeholder"
+    }
+  },
+  "callback-query-without-data": {
+    "update_id": 900000021,
+    "callback_query": {
+      "id": "4382bfdwdsb323b2dc",
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "message": { "message_id": 50, "chat": { "id": 7001, "type": "private" }, "date": 1794000070, "text": "x" },
+      "chat_instance": "-112233445566",
+      "game_short_name": "none"
+    }
+  },
+  "photo": {
+    "update_id": 900000011,
+    "message": {
+      "message_id": 53,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000090,
+      "photo": [
+        { "file_id": "AgACsynthetic-90", "file_unique_id": "u90", "width": 90, "height": 60, "file_size": 1200 },
+        { "file_id": "AgACsynthetic-320", "file_unique_id": "u320", "width": 320, "height": 213, "file_size": 14000 },
+        { "file_id": "AgACsynthetic-1280", "file_unique_id": "u1280", "width": 1280, "height": 853, "file_size": 150000 },
+        { "file_id": "AgACsynthetic-2560", "file_unique_id": "u2560", "width": 2560, "height": 1706, "file_size": 480000 }
+      ],
+      "caption": "lunch"
+    }
+  },
+  "document": {
+    "update_id": 900000012,
+    "message": {
+      "message_id": 54,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000100,
+      "document": { "file_id": "BQACsynthetic-doc", "file_unique_id": "ud", "file_name": "export.csv", "mime_type": "text/csv", "file_size": 2048 }
+    }
+  },
+  "group-message": {
+    "update_id": 900000013,
+    "message": {
+      "message_id": 55,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": -1001234567890, "title": "Synthetic group", "type": "supergroup" },
+      "date": 1794000110,
+      "text": "/today"
+    }
+  },
+  "edited-message": {
+    "update_id": 900000014,
+    "edited_message": {
+      "message_id": 41,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000000,
+      "edit_date": 1794000120,
+      "text": "hello there, edited"
+    }
+  },
+  "my-chat-member-blocked": {
+    "update_id": 900000015,
+    "my_chat_member": {
+      "chat": { "id": 7001, "type": "private" },
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "date": 1794000130,
+      "old_chat_member": { "user": { "id": 555000111, "is_bot": true, "first_name": "Dosegram" }, "status": "member" },
+      "new_chat_member": { "user": { "id": 555000111, "is_bot": true, "first_name": "Dosegram" }, "status": "kicked", "until_date": 0 }
+    }
+  },
+  "web-app-data": {
+    "update_id": 900000016,
+    "message": {
+      "message_id": 56,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 7001, "type": "private" },
+      "date": 1794000140,
+      "web_app_data": { "data": "{\"unauthenticated\":true}", "button_text": "Open" }
+    }
+  },
+  "unknown-kind": {
+    "update_id": 900000017,
+    "kind_from_a_later_api_version": { "anything": [1, 2, { "nested": true }], "text": "CANARY-UNKNOWN-BODY" }
+  },
+  "unknown-fields": {
+    "update_id": 900000018,
+    "field_added_later": 7,
+    "message": {
+      "message_id": 57,
+      "from": { "id": 7001, "is_bot": false, "first_name": "Synthetic", "added_later": { "x": 1 } },
+      "chat": { "id": 7001, "type": "private", "accent_color_id": 3 },
+      "date": 1794000150,
+      "text": "still decodes",
+      "effect_id": "5104841245755180586",
+      "added_later": [true]
+    }
+  },
+  "malformed-message": {
+    "update_id": 900000019,
+    "message": { "message_id": "not-a-number", "chat": "nope" }
+  },
+  "large-ids": {
+    "update_id": 900000020,
+    "message": {
+      "message_id": 58,
+      "from": { "id": 4503599627370495, "is_bot": false, "first_name": "Synthetic" },
+      "chat": { "id": 4503599627370495, "type": "private" },
+      "date": 1794000160,
+      "text": "52 significant bits"
+    }
+  }
+}
