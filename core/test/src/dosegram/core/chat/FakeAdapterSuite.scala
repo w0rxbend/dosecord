@@ -62,4 +62,25 @@ class FakeAdapterSuite extends munit.FunSuite:
     assertEquals(adapter.resumeFrom, Some("cursor:7"))
     adapter.stop()
     assert(!adapter.isRunning)
+
+  test("concurrent calls from many threads: every op is recorded once and every handle is distinct"):
+    val adapter = FakeAdapter(CapabilityProfiles.Telegram, "telegram")
+    val threads = 8
+    val perThread = 2000
+    val start = java.util.concurrent.CountDownLatch(1)
+    val workers = (1 to threads).map: t =>
+      Thread.ofVirtual().start: () =>
+        start.await()
+        (1 to perThread).foreach: i =>
+          val handle = adapter.send(ChatRef("telegram", s"dm:u$t"), rendered, s"k$t-$i")
+          if i % 2 == 0 then adapter.edit(handle, rendered)
+          if i % 4 == 0 then adapter.delete(handle)
+    start.countDown()
+    workers.foreach(_.join(java.time.Duration.ofSeconds(20)))
+    assert(workers.forall(!_.isAlive), "a worker hung inside the adapter")
+    val sends = adapter.ops.collect { case op: VendorOp.Send => op }
+    assertEquals(sends.size, threads * perThread)
+    assertEquals(adapter.ops.size, threads * perThread * 7 / 4)
+    assertEquals(adapter.sent.size, threads * perThread * 3 / 4)
+    assertEquals(adapter.sent.map(_._1.messageId).distinct.size, threads * perThread * 3 / 4)
 end FakeAdapterSuite

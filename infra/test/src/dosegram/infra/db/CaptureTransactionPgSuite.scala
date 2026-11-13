@@ -18,10 +18,10 @@ import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewInboundEvent
 import dosegram.core.ports.StatusCards
 
+import java.security.SecureRandom
 import java.sql.Connection
 import java.time.Instant
 import java.util.UUID
-import java.util.random.RandomGenerator
 import scala.language.implicitConversions
 
 /** ROADMAP G2.1 on Testcontainers Postgres 18: the tracking repositories and the consent ledger are groups of the one
@@ -32,7 +32,9 @@ class CaptureTransactionPgSuite extends PgSuite:
 
   private val t0 = Instant.parse("2026-11-13T09:00:00Z")
   private val clock: Clock = () => t0
-  private val ids = IdSource.uuidV7(RandomGenerator.getDefault)
+  // The capture events of one test run in parallel on a fixed clock: the generator must be thread-safe, as in production,
+  // or two of them draw the same bits and one entry fails on a duplicate key.
+  private val ids = IdSource.uuidV7(SecureRandom())
   private val hydration = HydrationService(clock, ids)
   private val codec =
     CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))

@@ -12,7 +12,9 @@ trait IdSource:
 
 object IdSource:
 
-  /** UUID version 7 (RFC 9562): 48 bits of Unix milliseconds, the version and variant bits, 74 random bits. */
+  /** UUID version 7 (RFC 9562): 48 bits of Unix milliseconds, the version and variant bits, 74 random bits. The source
+    * is shared by parallel events, so `random` must be thread-safe (`SecureRandom` is).
+    */
   def uuidV7(random: RandomGenerator): IdSource = at =>
     val timeAndVersion = (at.toEpochMilli << 16) | 0x7000L | (random.nextLong() & 0x0fffL)
     val variantAndRandom = (random.nextLong() & 0x3fffffffffffffffL) | 0x8000000000000000L
