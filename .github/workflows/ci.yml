@@ -93,6 +93,23 @@ jobs:
       - run: scripts/doc-lint.sh
       - run: scripts/test-doc-lint.sh
 
+  # Frontend gate (docs/ROADMAP.md section 0.6, FG). miniapp/ has its own Node
+  # toolchain and is not a Mill module. `api:check` and `e2e` join this job
+  # with the slices that create them (G3.1, G3.12).
+  miniapp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      # The version that wrote and last verified miniapp/pnpm-lock.yaml.
+      - run: npm install --global pnpm@12.18.0
+      - run: pnpm --dir miniapp install --frozen-lockfile
+      - run: pnpm --dir miniapp run check
+      - run: pnpm --dir miniapp run test
+      - run: pnpm --dir miniapp run build
+
   # M0.5: the Dockerfile is born here — build the image, then a compose smoke
   # (/healthz 200, idle RSS <= 200 MB with the console adapter enabled).
   docker:
