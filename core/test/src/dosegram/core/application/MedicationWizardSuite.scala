@@ -323,6 +323,47 @@ class MedicationWizardSuite extends munit.FunSuite:
       val rule = rig.uow.revisions.all.head.rule.asInstanceOf[Rule.FixedTimes]
       assertEquals(rule.slotGroups.head.days, dosegram.contracts.Weekday.values.toList.take(5))
 
+  // ADR-015 addendum 1: on a profile with buttons a multi-select is a keyboard that is toggled in place.
+  test("the day picker on Telegram is a toggle keyboard: taps toggle days and Done submits them"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      rig.bootstrapTelegram()
+      rig.startWizardTelegram(instructions = "")
+      rig.tapLabel(WizardCopy.daysPrompt, WizardCopy.chooseDays)
+      rig.tapLabel(WizardCopy.daysPrompt, "Mon")
+      rig.tapLabel(WizardCopy.daysPrompt, "Wed")
+      rig.tapLabel(WizardCopy.daysPrompt, "Fri")
+      assertEquals(
+        rig.lastChoiceMap(WizardCopy.daysPrompt).map(_.label).filter(_.startsWith("✓")),
+        List("✓ Mon", "✓ Wed", "✓ Fri")
+      )
+      rig.tapLabel(WizardCopy.daysPrompt, "✓ Wed")
+      rig.tapLabel(WizardCopy.daysPrompt, Labels.Done)
+      assert(rig.lastChunks.exists(_.contains("on Mon, Fri")), s"the card: ${rig.lastChunks}")
+
+  test("a tap on an earlier copy of the toggle keyboard still counts"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      rig.bootstrapTelegram()
+      rig.startWizardTelegram(instructions = "")
+      rig.tapLabel(WizardCopy.daysPrompt, WizardCopy.chooseDays)
+      // Two fast taps: the second one is made on the keyboard as it was before the first edit arrived.
+      val mon = rig.wireOf(WizardCopy.daysPrompt, "Mon")
+      val wed = rig.wireOf(WizardCopy.daysPrompt, "Wed")
+      rig.tap(mon)
+      rig.tap(wed)
+      rig.tapLabel(WizardCopy.daysPrompt, Labels.Done)
+      assert(rig.lastChunks.exists(_.contains("on Mon, Wed")), s"the card: ${rig.lastChunks}")
+
+  test("Done with no day selected asks again"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      rig.bootstrapTelegram()
+      rig.startWizardTelegram(instructions = "")
+      rig.tapLabel(WizardCopy.daysPrompt, WizardCopy.chooseDays)
+      val out = rig.tapLabel(WizardCopy.daysPrompt, Labels.Done)
+      assert(out.exists(_.contains(WizardCopy.invalidDays)), s"re-prompt: $out")
+
   test("the day picker rejects junk and accepts names"):
     ox.supervised:
       val rig = MedicationWizardRig(Profile.Console)

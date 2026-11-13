@@ -276,7 +276,7 @@ ADR-015 is written and holds the exact surface; this section is the index that o
 | C8 | Done, without `CopyText` | `Choice` with `ChoiceAction.Callback`, `OpenApp(AppRoute)`, `OpenUrl` |
 | C9 | Start payload and media done; `ReachabilityChanged` waits for G2.15 | `Inbound.ConversationStarted(payload)`, `Inbound.MediaReceived(kind, media, caption)` |
 | C10 | Reactions removed; media travels in `send`; `setMenu` waits for G1.13, an edit with an attachment for G6.2, `fetchMedia` for G12.6 | `ChatAdapter.send`, `edit`, `delete` |
-| C11 | Select, reaction and modal rungs removed; `media` rung done; `toggleKeyboard` open | Rungs `attachment.media` and `attachment.text` |
+| C11 | Done: select, reaction and modal rungs removed; `media` and `toggleKeyboard` rungs added | Rungs `attachment.media`, `attachment.text`, `choices.toggleKeyboard` (ADR-015 addendum 1) |
 | C12 | `media` done; no other flag has a reader | `CapabilityProfile.media` |
 
 The idempotency key of every send, with or without an attachment, is `OutboundMessage.dedupeKey` in the core and `sendKey` at the adapter. A message with an attachment is always a new message, never an edit. Each difference from the table of section 6 is listed with its reason in ADR-015, section "Deviations from ARCHITECTURE section 6".

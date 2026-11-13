@@ -115,6 +115,13 @@ class RendererSuite extends munit.FunSuite:
     assert(text.contains("1) Mon 2) Tue 3) Wed 4) Thu 5) Fri 6) Sat 7) Sun"), text)
     assert(text.contains(Renderer.MultiSelectInstruction), text)
 
+  test("multi-select on telegram: a toggle keyboard, with no typed-reply instruction"):
+    val (ops, report) = Renderer.render(daysMessage, chat, CapabilityProfiles.Telegram, "k1")
+    assertEquals(report.rungs("wizard.days"), Renderer.Rung.ToggleKeyboard)
+    val message = sends(ops).head.message
+    assertEquals(buttonCount(message), 7)
+    assert(!message.chunks.mkString.contains(Renderer.MultiSelectInstruction), message.chunks.mkString)
+
   test("a form is asked one field per message: the first question is in the text on every profile"):
     val form = Form(
       id = "medication.add",

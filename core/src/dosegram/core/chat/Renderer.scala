@@ -19,6 +19,7 @@ object Renderer:
 
   object Rung:
     val Buttons = "choices.buttons"
+    val ToggleKeyboard = "choices.toggleKeyboard"
     val Numbered = "choices.numbered"
     val FormRunner = "form.formRunner"
     val AttachmentMedia = "attachment.media"
@@ -97,16 +98,18 @@ object Renderer:
       if cs.maxSelect > 1 then List(Node.Paragraph(List(Inline.Text(MultiSelectInstruction)))) else Nil
     legend +: instruction
 
-  /** Ladder: buttons (single-shot sets that fit the budget) -> numbered legend answered by a typed number. */
+  /** Ladder: buttons when the set fits the budget (a multi-select is then a keyboard its producer toggles in place by
+    * editing the message) -> numbered legend answered by a typed number.
+    */
   private def renderChoices(cs: ChoiceSet, profile: CapabilityProfile, startIndex: Int): LadderResult =
     val rendered = numbered(cs, startIndex)
     val promptNodes = cs.prompt.toList.flatten
     val choiceMap = choiceMapEntries(cs.id, rendered)
-    val buttonsFit = profile.buttons && cs.maxSelect == 1 && rendered.size <= buttonBudget(profile)
+    val buttonsFit = profile.buttons && rendered.size <= buttonBudget(profile)
     if buttonsFit then
       LadderResult(
         RenderedControls.Buttons(rendered.grouped(profile.maxChoicesPerRow).toList),
-        Rung.Buttons,
+        if cs.maxSelect == 1 then Rung.Buttons else Rung.ToggleKeyboard,
         promptNodes,
         choiceMap,
         rendered.size

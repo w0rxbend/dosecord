@@ -21,6 +21,9 @@ object WizardEngine:
   private[chat] val HistoryKey = "_history"
   private[chat] val GraceKey = "_grace"
 
+  /** The option keys currently on in a toggle keyboard, comma-joined; reset whenever the step changes. */
+  private[chat] val SelectedKey = "_selected"
+
   // Slot payload keys the engine dispatch matches on; everything else is a step choice key.
   private[chat] val BackKey = "engine.back"
   private[chat] val CancelKey = "engine.cancel"
@@ -29,6 +32,9 @@ object WizardEngine:
   private[chat] val GraceCancelKey = "engine.grace.cancel"
   private[chat] val ConfirmCancelPrefix = "engine.confirmcancel:"
   private[chat] val ConfirmKeepKey = "engine.confirmcancel.keep"
+  private[chat] val DoneKey = "engine.done"
+
+  private[chat] val SelectedMark = "✓ "
 
   private[chat] val StepAction: ActionEntry = ActionRegistry.byName("wizard.step").get
   private[chat] val ConfirmAction: ActionEntry = ActionRegistry.byName("wizard.confirm").get
@@ -43,6 +49,13 @@ object WizardEngine:
     WizardDocument
       .dataFromJson(session.data)
       .get(HistoryKey)
+      .toList
+      .flatMap(_.split(",").toList.filter(_.nonEmpty))
+
+  private[chat] def selectedOf(session: ConversationSession): List[String] =
+    WizardDocument
+      .dataFromJson(session.data)
+      .get(SelectedKey)
       .toList
       .flatMap(_.split(",").toList.filter(_.nonEmpty))
 
@@ -121,10 +134,11 @@ final class WizardEngine(
           tx.slots.loadForUpdate(ref.subject) match
             case Some(slot) if slot.sessionId.contains(session.id) =>
               WizardDocument.slotPayloadKey(slot.payload) match
-                case BackKey                                    => goBack(event, session, source, tx)
-                case CancelKey | GraceCancelKey                 => abort(session, source, tx)
-                case GraceContinueKey                           => rerender(event, session, source, tx)
-                case ConfirmKeepKey                             => rerender(event, session, source, tx)
+                case BackKey                    => goBack(event, session, source, tx)
+                case CancelKey | GraceCancelKey => abort(session, source, tx)
+                case GraceContinueKey           => rerender(event, session, source, tx)
+                case ConfirmKeepKey             => rerender(event, session, source, tx)
+                case DoneKey                    => submitSelection(event, principal, session, source, tx)
                 case key if key.startsWith(ConfirmCancelPrefix) =>
                   val flowId = key.drop(ConfirmCancelPrefix.length)
                   cleanup(session, tx)
@@ -150,11 +164,74 @@ final class WizardEngine(
       tx: Tx
   ): Reply =
     stepOf(session) match
-      case None               => Reply(toast = Some(ReminderCopy.failureToast))
-      case Some((flow, step)) =>
+      case None                                           => Reply(toast = Some(ReminderCopy.failureToast))
+      case Some((_, step)) if togglesInPlace(event, step) => toggle(event, session, step, key, source, tx)
+      case Some((flow, step))                             =>
         step.accept(StepInput.Chosen(key), dataOf(session)) match
           case Left(reason)   => reprompt(event, session, step, reason, source, tx)
           case Right(through) => transition(event, principal, session, flow, through, source, tx)
+
+  // ---------- Toggle keyboard (ADR-015 addendum 1) ----------
+
+  /** A multi-select step on a vendor with buttons is one message whose keyboard is edited on each tap. */
+  private def togglesInPlace(event: InboundEvent, step: Step): Boolean =
+    step.kind match
+      case StepKind.Choices(_, _, maxSelect) => maxSelect > 1 && hasButtons(event.vendor)
+      case _                                 => false
+
+  private def hasButtons(vendor: String): Boolean =
+    adapters.get(vendor).exists(_.capabilities.buttons)
+
+  /** Flips one option and edits the prompt in place. `step_seq` stays, so a tap made on the keyboard as it was before
+    * this edit arrived still counts.
+    */
+  private def toggle(
+      event: InboundEvent,
+      session: ConversationSession,
+      step: Step,
+      key: String,
+      source: Option[MessageHandle],
+      tx: Tx
+  ): Reply =
+    val before = selectedOf(session)
+    val selected = if before.contains(key) then before.filterNot(_ == key) else before :+ key
+    val data = dataOf(session)
+    val prompt = renderStepPrompt(
+      event.chat,
+      event.principal.flatMap(_.accountId).map(_.uuid),
+      session.id,
+      step,
+      data,
+      session.stepSeq,
+      tx,
+      selected
+    ).copy(dedupeKey = s"wizard:${session.id}:${session.stepSeq}:toggle:${event.eventId.uuid}")
+    tx.sessions.save(
+      session.copy(
+        data = sessionJson(data + (SelectedKey -> selected.mkString(",")), historyOf(session), isGrace(session)),
+        lastPrompt = Some(OutboundMessage.toJson(prompt)),
+        expiresAt = clock.now().plus(idleAfter)
+      )
+    )
+    Reply(replace = Some(prompt.copy(replaces = source)))
+
+  /** `[Done]`: the selection, in option order, goes to the step as one [[StepInput.ChosenMany]]. */
+  private def submitSelection(
+      event: InboundEvent,
+      principal: Principal,
+      session: ConversationSession,
+      source: Option[MessageHandle],
+      tx: Tx
+  ): Reply =
+    stepOf(session) match
+      case Some((flow, step @ Step(_, StepKind.Choices(options, _, _), _, _, _))) =>
+        val data = dataOf(session)
+        val selected = selectedOf(session)
+        val keys = options(data).map(_._1).filter(selected.contains)
+        step.accept(StepInput.ChosenMany(keys), data) match
+          case Left(reason)   => reprompt(event, session, step, reason, source, tx)
+          case Right(through) => transition(event, principal, session, flow, through, source, tx)
+      case _ => staleTap(session)
   private def onFormSubmit(
       event: InboundEvent,
       principal: Principal,
@@ -514,16 +591,24 @@ final class WizardEngine(
       step: Step,
       data: Map[String, String],
       stepSeq: Int,
-      tx: Tx
+      tx: Tx,
+      selected: List[String] = Nil
   ): OutboundMessage =
     val (blocks, extraBody) =
       step.kind match
         case StepKind.Choices(options, minSelect, maxSelect) =>
+          def slot(key: String): String = mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire
+          // A toggle keyboard marks the options that are on and ends with the choice that submits them.
+          val toggled = maxSelect > 1 && hasButtons(chat.vendor)
+          val picks = options(data).map: (key, label) =>
+            Choice.callback(
+              if selected.contains(key) then ControlLimits.fitLabel(SelectedMark + label) else label,
+              slot(key)
+            )
+          val done = Option.when(toggled)(Choice.callback(Labels.Done, slot(DoneKey), ChoiceStyle.Primary))
           val choices = ChoiceSet(
             id = s"wizard.${step.id}",
-            choices = options(data).map((key, label) =>
-              Choice.callback(label, mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire)
-            ),
+            choices = picks ++ done,
             minSelect = minSelect,
             maxSelect = maxSelect
           )
