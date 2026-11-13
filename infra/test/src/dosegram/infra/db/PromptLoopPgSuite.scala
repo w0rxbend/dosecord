@@ -29,6 +29,7 @@ import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.core.scheduling.PromptLoop
 import dosegram.core.scheduling.PromptOutboxRenderer
 
+import java.security.SecureRandom
 import java.sql.Connection
 import java.time.Duration
 import java.time.Instant
@@ -37,7 +38,6 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
-import java.util.random.RandomGenerator
 import scala.language.implicitConversions
 
 /** ADR-023 on Testcontainers Postgres 18: water prompts from the plan through the outbox to the fake wire. The owner's
@@ -47,7 +47,9 @@ class PromptLoopPgSuite extends PgSuite:
 
   private val monday = "2026-11-16"
   private lazy val fixtures = Fixtures(dataSource)
-  private val ids = IdSource.uuidV7(RandomGenerator.getDefault)
+  // Four prompt loops tick from parallel threads: the generator must be thread-safe, as in production, or two of them
+  // draw the same bits and one row fails on a duplicate key.
+  private val ids = IdSource.uuidV7(SecureRandom())
   private val codec =
     CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))
 
