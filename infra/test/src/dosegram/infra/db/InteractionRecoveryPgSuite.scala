@@ -156,10 +156,12 @@ class InteractionRecoveryPgSuite extends PgSuite:
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
     val calls = AtomicInteger(0)
+    val committed = AtomicInteger(0)
     val fault = new UnitOfWork:
       override def transaction[A](f: Tx => A): A =
         val index = calls.incrementAndGet()
         val result = pgUow.transaction(f)
+        committed.incrementAndGet()
         if index == 1 then throw SQLException("synthetic commit acknowledgement lost")
         if index == 2 then
           adapter.failNext(ChatError.Permanent("missing source", false, ChatError.PermanentReason.MissingTarget))
@@ -170,7 +172,9 @@ class InteractionRecoveryPgSuite extends PgSuite:
         Reply(replace = Some(message("uncertain-missing")))
     ox.supervised:
       ChatMediator(fault, Map("fake" -> adapter), codec, handler, clock).push(inbound("uncertain-missing-event"))
-      await(calls.get() >= 3)
+      // The end of the scope cancels the mediator's fork, so wait until the third transaction, which records the
+      // replacement handle, has committed, not until it has started.
+      await(committed.get() >= 3)
     val replacement = adapter.ops.collectFirst:
       case VendorOp.Send(_, _, "uncertain-missing:replacement", _) => adapter.sent.last._1
     assert(replacement.isDefined)
