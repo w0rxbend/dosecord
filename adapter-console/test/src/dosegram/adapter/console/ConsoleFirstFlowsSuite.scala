@@ -53,8 +53,17 @@ private final class ConsoleFlowRig(using ox.Ox):
   private val out = ByteArrayOutputStream()
   private val adapter = ConsoleAdapter("owner", BufferedReader(StringReader("")), PrintStream(out), "s1", () => t0)
   private val adapters: Map[String, ChatAdapter] = Map("console" -> adapter)
-  private val mediator =
-    ChatMediator(uow, adapters, codec, FirstFlows.handler(uow, adapters, codec, clock), clock, CommandRegistry.byName)
+  // One event can print several messages (the consent receipt, then the welcome): a reply is complete only when the
+  // mediator's FIFO for the chat has reached the fence behind it, not when the first output appears.
+  private val barrier = ConsoleFlowFakes.DeliveryBarrier(uow)
+  private val mediator = ChatMediator(
+    barrier.uow,
+    adapters,
+    codec,
+    FirstFlows.handler(uow, adapters, codec, clock),
+    clock,
+    CommandRegistry.byName
+  )
 
   private def printed: String = out.toString("UTF-8")
 
@@ -63,19 +72,12 @@ private final class ConsoleFlowRig(using ox.Ox):
     val before = printed.length
     val event = adapter.eventFor(input)
     mediator.push(event)
-    await(printed.length > before, s"'$input' produced output")
+    barrier.drain(mediator, event)
+    assert(printed.length > before, s"'$input' produced output")
     printed.substring(before)
 
   def drive(script: List[String]): String =
     script.map(input => s"> $input\n" + line(input)).mkString("")
-
-  private def await(cond: => Boolean, clue: String): Unit =
-    val deadline = System.nanoTime() + 15_000_000_000L
-    var ok = cond
-    while !ok && System.nanoTime() < deadline do
-      Thread.sleep(10)
-      ok = cond
-    assert(ok, clue)
 
 private object ConsoleFlowRig:
   val t0: Instant = Instant.parse("2026-09-21T00:00:00Z")

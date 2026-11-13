@@ -96,8 +96,17 @@ private final class FirstFlowsRig(using Ox):
   private val fake = FakeAdapter(CapabilityProfiles.Console, vendor = "fake")
   private val adapter = SyncAdapter(fake)
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
-  private val mediator =
-    ChatMediator(uow, adapters, codec, FirstFlows.handler(uow, adapters, codec, clock), clock, CommandRegistry.byName)
+  // One event can send several messages (the consent receipt, then the welcome): a reply is complete only when the
+  // mediator's FIFO for the chat has reached the fence behind it, not when the first message arrives.
+  private val barrier = MedicationWizardRig.DeliveryBarrier(uow)
+  private val mediator = ChatMediator(
+    barrier.uow,
+    adapters,
+    codec,
+    FirstFlows.handler(uow, adapters, codec, clock),
+    clock,
+    CommandRegistry.byName
+  )
 
   private var seq = 0
 
@@ -119,7 +128,8 @@ private final class FirstFlowsRig(using Ox):
     )
     val before = sendsOf().size
     mediator.push(event)
-    await(sendsOf().size > before, s"'$input' produced a reply")
+    barrier.drain(mediator, event)
+    assert(sendsOf().size > before, s"'$input' produced a reply")
     sendsOf().drop(before).flatMap(_.message.chunks)
 
   /** Pushes a raw inbound body (not console-grammar text) and returns the newly printed chunks. */
@@ -136,7 +146,8 @@ private final class FirstFlowsRig(using Ox):
     )
     val before = sendsOf().size
     mediator.push(event)
-    await(sendsOf().size > before, s"$body produced a reply")
+    barrier.drain(mediator, event)
+    assert(sendsOf().size > before, s"$body produced a reply")
     sendsOf().drop(before).flatMap(_.message.chunks)
 
   def drive(script: List[String]): String =
@@ -144,14 +155,6 @@ private final class FirstFlowsRig(using Ox):
 
   private def sendsOf(): List[VendorOp.Send] =
     fake.synchronized(fake.ops.collect { case s: VendorOp.Send => s })
-
-  private def await(cond: => Boolean, clue: String): Unit =
-    val deadline = System.nanoTime() + 15_000_000_000L
-    var ok = cond
-    while !ok && System.nanoTime() < deadline do
-      Thread.sleep(10)
-      ok = cond
-    assert(ok, clue)
 
 private object FirstFlowsRig:
   val t0: Instant = Instant.parse("2026-09-21T00:00:00Z")

@@ -6,10 +6,19 @@ import dosegram.core.application.FirstFlows
 import dosegram.core.chat.*
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.ports.Clock
+import dosegram.core.ports.InboundEventRepository
+import dosegram.core.ports.NewInboundEvent
+import dosegram.core.ports.StoredInboundEvent
+import dosegram.core.ports.Tx
+import dosegram.core.ports.UnitOfWork
 
 import java.sql.Connection
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import scala.language.implicitConversions
 
 /** M0.12d acceptance on Testcontainers Postgres 18 (the core in-memory half is `FirstFlowsSuite`): the `/start` create
@@ -57,12 +66,49 @@ class FirstFlowsPgSuite extends PgSuite:
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
 
+  /** A fixture-only FIFO fence, as in core's `MedicationWizardRig`: its private event is reported as already seen
+    * with no stored reply, so the mediator reaches its replay lookup only after every earlier delivery of the chat has
+    * finished. It inserts no row and calls no handler.
+    */
+  private final class DeliveryBarrier(inner: UnitOfWork):
+    private val pending = ConcurrentHashMap[String, CountDownLatch]()
+
+    val uow: UnitOfWork = new UnitOfWork:
+      override def transaction[A](f: Tx => A): A = inner.transaction: tx =>
+        val inbound = tx.inboundEvents
+        val fenced = new Tx:
+          export tx.{inboundEvents as _, *}
+          override val inboundEvents: InboundEventRepository = new InboundEventRepository:
+            export inbound.complete
+            override def insert(event: NewInboundEvent): Boolean =
+              !pending.containsKey(event.vendorEventId) && inbound.insert(event)
+            override def find(vendor: String, vendorEventId: String): Option[StoredInboundEvent] =
+              Option(pending.get(vendorEventId)) match
+                case Some(done) =>
+                  done.countDown()
+                  None
+                case None => inbound.find(vendor, vendorEventId)
+        f(fenced)
+
+    def drain(mediator: ChatMediator, previous: InboundEvent): Unit =
+      val id = s"fixture-fence:${UUID.randomUUID()}"
+      val done = CountDownLatch(1)
+      pending.put(id, done)
+      try
+        val fence = previous.copy(eventId = EventId(UUID.randomUUID()), vendorEventId = id, interaction = None)
+        mediator.push(fence.copy(body = Inbound.ConversationStarted(None)))
+        if !done.await(15, TimeUnit.SECONDS) then throw TimeoutException("event delivery did not reach its FIFO fence")
+      finally pending.remove(id)
+
   private final class Rig(using ox.Ox):
     val uow = PgUnitOfWork(dataSource, FixedClock(t0))
     val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
     val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
+    // One event can send several messages (the consent receipt, then the welcome): a reply is complete only when the
+    // mediator's FIFO for the chat has reached the fence behind it, not when the first message arrives.
+    private val barrier = DeliveryBarrier(uow)
     val mediator = ChatMediator(
-      uow,
+      barrier.uow,
       adapters,
       codec,
       FirstFlows.handler(uow, adapters, codec, FixedClock(t0)),
@@ -89,19 +135,12 @@ class FirstFlowsPgSuite extends PgSuite:
       )
       val before = sends.size
       mediator.push(event)
-      await(sends.size > before, s"'$input' produced a reply")
+      barrier.drain(mediator, event)
+      assert(sends.size > before, s"'$input' produced a reply")
       sends.drop(before).flatMap(_.message.chunks)
 
     def sends: List[VendorOp.Send] =
       adapter.inner.synchronized(adapter.inner.ops.collect { case s: VendorOp.Send => s })
-
-  private def await(cond: => Boolean, clue: String): Unit =
-    val deadline = System.nanoTime() + 15_000_000_000L
-    var ok = cond
-    while !ok && System.nanoTime() < deadline do
-      Thread.sleep(20)
-      ok = cond
-    assert(ok, clue)
 
   private def countSql(query: String): Long = withConnection { conn =>
     val st = conn.createStatement()

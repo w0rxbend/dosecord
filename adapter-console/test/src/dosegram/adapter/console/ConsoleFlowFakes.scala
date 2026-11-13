@@ -580,3 +580,38 @@ private object ConsoleFlowFakes:
         throw UnsupportedOperationException("this double has no repository group 'tracking'")
 
     override def transaction[A](f: Tx => A): A = f(tx)
+
+  /** A fixture-only FIFO fence, as in core's `MedicationWizardRig`: its private event is reported as already seen with
+    * no stored reply, so the mediator reaches its replay lookup only after every earlier delivery of the chat has
+    * finished. It inserts no row and calls no handler.
+    */
+  final class DeliveryBarrier(inner: UnitOfWork):
+    private val pending = java.util.concurrent.ConcurrentHashMap[String, java.util.concurrent.CountDownLatch]()
+
+    val uow: UnitOfWork = new UnitOfWork:
+      override def transaction[A](f: Tx => A): A = inner.transaction: tx =>
+        val inbound = tx.inboundEvents
+        val fenced = new Tx:
+          export tx.{inboundEvents as _, *}
+          override val inboundEvents: InboundEventRepository = new InboundEventRepository:
+            export inbound.complete
+            override def insert(event: NewInboundEvent): Boolean =
+              !pending.containsKey(event.vendorEventId) && inbound.insert(event)
+            override def find(vendor: String, vendorEventId: String): Option[StoredInboundEvent] =
+              Option(pending.get(vendorEventId)) match
+                case Some(done) =>
+                  done.countDown()
+                  None
+                case None => inbound.find(vendor, vendorEventId)
+        f(fenced)
+
+    def drain(mediator: dosegram.core.chat.ChatMediator, previous: InboundEvent): Unit =
+      val id = s"fixture-fence:${UUID.randomUUID()}"
+      val done = java.util.concurrent.CountDownLatch(1)
+      pending.put(id, done)
+      try
+        val fence = previous.copy(eventId = EventId(UUID.randomUUID()), vendorEventId = id, interaction = None)
+        mediator.push(fence.copy(body = Inbound.ConversationStarted(None)))
+        if !done.await(15, java.util.concurrent.TimeUnit.SECONDS) then
+          throw java.util.concurrent.TimeoutException("event delivery did not reach its FIFO fence")
+      finally pending.remove(id)

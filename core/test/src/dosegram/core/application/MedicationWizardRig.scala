@@ -419,7 +419,7 @@ private object MedicationWizardRig:
     * reply, so it reaches the replay lookup only after earlier delivery has finished. It never inserts a row, resolves
     * an identity, calls the application handler, or emits/records any rendered message.
     */
-  private final class DeliveryBarrier(inner: UnitOfWork):
+  private[application] final class DeliveryBarrier(inner: UnitOfWork):
     private val pending = new java.util.concurrent.ConcurrentHashMap[String, java.util.concurrent.CountDownLatch]()
 
     val uow: UnitOfWork = new UnitOfWork:
@@ -453,7 +453,7 @@ private object MedicationWizardRig:
           )
         )
         if !done.await(15, java.util.concurrent.TimeUnit.SECONDS) then
-          throw new java.util.concurrent.TimeoutException("wizard event delivery did not reach its FIFO fence")
+          throw new java.util.concurrent.TimeoutException("event delivery did not reach its FIFO fence")
       finally pending.remove(id)
 
   /** Synchronized window over FakeAdapter's unsynchronized recording buffers (same pattern as FirstFlowsSuite). */
