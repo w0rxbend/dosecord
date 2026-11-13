@@ -114,8 +114,7 @@ jobs:
       - run: scripts/test-doc-lint.sh
 
   # Frontend gate (docs/ROADMAP.md section 0.6, FG). miniapp/ has its own Node
-  # toolchain and is not a Mill module. `e2e` joins this job with the slice
-  # that creates it (G3.12).
+  # toolchain and is not a Mill module. The browser suite is the job below.
   miniapp:
     runs-on: ubuntu-latest
     steps:
@@ -131,6 +130,30 @@ jobs:
       - run: pnpm --dir miniapp run build
       # G3.1: the committed client types must equal the ones generated from api/openapi.json.
       - run: pnpm --dir miniapp run api:check
+
+  # G3.12: the browser suite on the production build against the real
+  # application on a throwaway PostgreSQL (Testcontainers on the runner's
+  # Docker). Playwright retries nothing, so a content security policy
+  # violation that shows once fails the run.
+  miniapp-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/coursier
+          key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - run: npm install --global pnpm@12.18.0
+      - run: pnpm --dir miniapp install --frozen-lockfile
+      - run: pnpm --dir miniapp exec playwright install --with-deps chromium
+      - run: pnpm --dir miniapp run e2e
 
   # M0.5: the Dockerfile is born here — build the image, then a compose smoke
   # (/healthz 200, idle RSS <= 200 MB with the console adapter enabled).

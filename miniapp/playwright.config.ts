@@ -16,9 +16,9 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   forbidOnly: true,
-  // Chromium aborts requests with ERR_NETWORK_CHANGED when Docker adds or removes an interface on the host; a test
-  // that fails that way runs once more and is reported as flaky.
-  retries: 1,
+  // No retries: every test fails on a content security policy violation, and a violation that shows once must fail
+  // the run, not pass on a second attempt (stability review of 2026-11-14).
+  retries: 0,
   timeout: 60_000,
   expect: { timeout: 15_000 },
   reporter: [['list']],
