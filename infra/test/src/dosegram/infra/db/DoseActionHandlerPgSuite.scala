@@ -269,6 +269,42 @@ class DoseActionHandlerPgSuite extends PgSuite:
         1L
       )
 
+  test("two racing taps on one log picker, from two processes, and a tap after a restart record one dose"):
+    ox.supervised:
+      val account = seedLinkedAccount("chat-1")
+      val clock = MutableClock(t0)
+      val medication = fixtures.medication(account, "Vitamin D", t0)
+      clock.advance(Duration.ofMinutes(365))
+      val picker = MessageHandle("fake", "chat-1", "m7")
+      val tap = Inbound.InteractionSubmitted(callbackRef(token("dose.log", medication)), Some(picker))
+      val adapters = List.fill(3)(SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram)))
+      val mediators = adapters.map(mediator(clock, _))
+      def toasts = adapters.flatMap(sendsOf).filter(_.message.deleteAfter.isDefined).flatMap(_.message.chunks)
+
+      // Two processes take two updates of the same picker at once; the picker's primary key admits one occurrence.
+      val start = CountDownLatch(1)
+      val racers = List("evt-log-a", "evt-log-b").zip(mediators).map: (id, m) =>
+        Thread.ofVirtual().start(() =>
+          start.await()
+          m.push(event(tap, id))
+        )
+      start.countDown()
+      racers.foreach(_.join(15_000))
+      await(toasts.size == 2, s"both taps answered: $toasts")
+      assertEquals(toasts.sorted, List("Already logged at 09:05.", "Recorded at 09:05."))
+
+      // A third process, after a restart, takes a late tap on the same stale keyboard.
+      mediators(2).push(event(tap, "evt-log-c"))
+      await(toasts.size == 3, s"the late tap answered: $toasts")
+      assertEquals(toasts.last, "Already logged at 09:05.")
+
+      assertEquals(countSql(s"SELECT count(*) FROM dose_occurrences WHERE account_id = '$account'"), 1L)
+      assertEquals(countSql("SELECT count(*) FROM dose_actions WHERE action = 'taken'"), 1L)
+      assertEquals(
+        countSql("SELECT count(*) FROM domain_events WHERE type = 'dosegram.medication.intake_taken.v1'"),
+        1L
+      )
+
   private def countSql(query: String): Long = withConnection { conn =>
     val st = conn.createStatement()
     try

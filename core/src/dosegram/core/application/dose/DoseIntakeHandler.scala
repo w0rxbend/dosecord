@@ -35,6 +35,7 @@ import dosegram.core.ports.StoredOccurrence
 import dosegram.core.ports.Tx
 import dosegram.core.scheduling.FinalizeDispatch
 
+import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -406,11 +407,38 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
+    val account = principal.accountId.get.uuid
+    val occurrenceId = source.fold(UUID.randomUUID())(pickerIntent(account, _))
+    tx.occurrences.lockById(occurrenceId) match
+      case Some(logged) => alreadyLogged(logged)
+      case None         => recordLog(event, principal, medication, source, occurrenceId, tx)
+
+  /** One displayed picker is one intent (BUX-TAKE-02, C20): the occurrence id is derived from the picker message, so
+    * every tap on it, however fast and after any restart, names the same row and the primary key admits one.
+    */
+  private def pickerIntent(account: UUID, picker: MessageHandle): UUID =
+    UUID.nameUUIDFromBytes(
+      s"dose.log:$account:${picker.vendor}:${picker.chatId}:${picker.messageId}".getBytes(StandardCharsets.UTF_8)
+    )
+
+  /** A later tap on a picker that already logged: nothing changes. The first tap's edit, or its outbox retry, shows the
+    * confirmation (BUX-STALE-01).
+    */
+  private def alreadyLogged(logged: StoredOccurrence): Reply =
+    Reply(toast = Some(ReminderCopy.alreadyLogged(formatTime(logged.state.scheduledFor, logged.tz))))
+
+  private def recordLog(
+      event: InboundEvent,
+      principal: Principal,
+      medication: StoredMedication,
+      source: Option[MessageHandle],
+      occurrenceId: UUID,
+      tx: Tx
+  ): Reply =
     val now = clock.now()
     val account = principal.accountId.get.uuid
     val zone = ZoneId.of(tx.accounts.timezoneOf(account).getOrElse("UTC"))
     val local = now.atZone(zone)
-    val occurrenceId = UUID.randomUUID()
     val state = Occurrence(
       status = OccurrenceStatus.Taken,
       scheduledFor = now,
@@ -437,12 +465,25 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       doseSnapshot = DoseSnapshot(medication.name, medication.doseAmount, medication.doseUnit, medication.instructions),
       state = state
     )
-    require(tx.occurrences.insertAll(List(row)) == 1, s"manual occurrence $occurrenceId conflicted")
+    // A concurrent tap on the same picker waits on the key and inserts nothing: it is the same intent, already logged.
+    if tx.occurrences.insertAll(List(row)) == 1 then recorded(event, principal, source, row, now, tx)
+    else tx.occurrences.lockById(occurrenceId).fold(Reply(toast = Some(ReminderCopy.staleControlToast)))(alreadyLogged)
+  end recordLog
+
+  /** The `taken` action row of a new manual occurrence, the picker's confirmation and the intake event. */
+  private def recorded(
+      event: InboundEvent,
+      principal: Principal,
+      source: Option[MessageHandle],
+      row: NewOccurrence,
+      now: Instant,
+      tx: Tx
+  ): Reply =
     tx.doseActions.append(
       NewDoseAction(
         id = UUID.randomUUID(),
-        occurrenceId = occurrenceId,
-        accountId = account,
+        occurrenceId = row.id,
+        accountId = row.accountId,
         action = DoseActionKind.Taken,
         actor = dosegram.core.domain.Actor.User,
         occurredAt = now,
@@ -456,11 +497,27 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
         platformMessageId = source.map(_.messageId)
       )
     )
+    val time = formatTime(now, row.tz)
     Reply(
-      toast = Some(ReminderCopy.takenConfirmation(formatTime(now, zone))),
-      domainEvents = List(Event.IntakeTaken(AccountId(account), occurrenceId, now, takenLate = false))
+      replace = source.map(confirmation(event, row.doseSnapshot.medicationName, time, row.id, _)),
+      toast = Some(ReminderCopy.takenConfirmation(time)),
+      domainEvents = List(Event.IntakeTaken(AccountId(row.accountId), row.id, now, takenLate = false))
     )
-  end logDose
+
+  /** The picker edited in place into the confirmation, its keyboard removed so it cannot be tapped again. */
+  private def confirmation(
+      event: InboundEvent,
+      name: String,
+      time: String,
+      occurrenceId: UUID,
+      picker: MessageHandle
+  ): OutboundMessage =
+    OutboundMessage(
+      body = List(Node.Paragraph(List(Inline.Text(ReminderCopy.logged(name, time))))),
+      replaces = Some(picker),
+      dedupeKey = s"dose:logged:$occurrenceId",
+      correlationId = s"${event.vendor}:${event.vendorEventId}"
+    )
 
   // ---------- Loaders ----------
 

@@ -47,12 +47,17 @@ private final class MedicationWizardRig(
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
   private val barrier = DeliveryBarrier(uow)
   // The product composition; a suite that looks at the cards hands in its own parts.
-  private val mediator =
+  private def newMediator(): ChatMediator =
     val parts = captureParts
       .map(_(uow)(clock))
       .getOrElse(CaptureParts.over(uow, clock, SequentialIds(), StatusCards.textOnly))
     val handler = Application.handler(uow, adapters, codec, clock)(parts)
     ChatMediator(barrier.uow, adapters, codec, handler, clock, CommandRegistry.withCaptureByName)
+
+  private var mediator = newMediator()
+
+  /** A fresh mediator and handler composition over the same stores: the process "restarts" with no state in memory. */
+  def restartMediator(): Unit = mediator = newMediator()
 
   private var seq = 0
   private val handles = scala.collection.mutable.ListBuffer.empty[CapturingInteractionHandle]
@@ -102,6 +107,27 @@ private final class MedicationWizardRig(
       .getOrElse(throw new NoSuchElementException(s"no message containing '$containing' with choice '$label'"))
     val wire = rendered.choiceMap.find(_.label == label).get.callback
     pushAndCollect(Inbound.InteractionSubmitted(refOf(wire), Some(source)), Some(newHandle()))
+
+  /** The handle and the wire of `label` on the message whose current text contains `containing`. */
+  def controlOn(containing: String, label: String): (MessageHandle, String) =
+    fake.synchronized(fake.sent).reverse
+      .collectFirst {
+        case (handle, message) if message.chunks.exists(_.contains(containing)) =>
+          message.choiceMap.find(_.label == label).map(entry => (handle, entry.callback))
+      }
+      .flatten
+      .getOrElse(throw new NoSuchElementException(s"no message containing '$containing' with choice '$label'"))
+
+  /** Taps `wire` as if pressed on message `source`, which may already show other controls (a stale keyboard). */
+  def tapFrom(source: MessageHandle, wire: String): (CapturingInteractionHandle, List[VendorOp]) =
+    val handle = newHandle()
+    (handle, pushAndCollect(Inbound.InteractionSubmitted(refOf(wire), Some(source)), Some(handle)))
+
+  /** What message `handle` shows now. */
+  def messageAt(handle: MessageHandle): RenderedMessage =
+    fake.synchronized(fake.sent)
+      .collectFirst { case (h, message) if h.messageId == handle.messageId => message }
+      .getOrElse(throw new NoSuchElementException(s"no message ${handle.messageId}"))
 
   // ---------- The M1.6/M1.7 machinery over the same stores (intake-flow tests) ----------
 
