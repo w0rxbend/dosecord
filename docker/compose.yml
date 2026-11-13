@@ -31,6 +31,8 @@ services:
       ROLE: all
       LOG_LEVEL: INFO
       LOG_FORMAT: plain
+      # The health port is published below, so it must listen beyond the container's loopback.
+      HEALTH_ADDRESS: 0.0.0.0
     ports:
       - "28080:8080"
     healthcheck:

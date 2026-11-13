@@ -19,12 +19,16 @@ export class Router {
     private readonly host: Window = window,
   ) {}
 
-  /** Picks the first screen: the startapp parameter first, then the URL path (MINI_APP 3.4). */
+  /**
+   * Picks the first screen (MINI_APP 3.4): the startapp parameter, then the `route` query parameter of an
+   * inline web_app button, then the URL path. The address keeps the path only.
+   */
   start(startParam: string | undefined): () => void {
-    const fromParam = startParam === undefined ? null : pathFromStartParam(startParam);
+    const launchParam = startParam ?? this.routeQuery();
+    const fromParam = launchParam === undefined ? null : pathFromStartParam(launchParam);
     const path = fromParam ?? this.currentPath();
     const route = parsePath(path);
-    this.unmatched = route === null || (startParam !== undefined && fromParam === null);
+    this.unmatched = route === null || (launchParam !== undefined && fromParam === null);
     this.route = route ?? HOME;
     this.host.history.replaceState(null, '', this.hrefFor(route ? path : '/'));
 
@@ -71,6 +75,10 @@ export class Router {
     if (this.guard && !(await this.guard())) return false;
     this.guard = null;
     return true;
+  }
+
+  private routeQuery(): string | undefined {
+    return new URLSearchParams(this.host.location.search).get('route') ?? undefined;
   }
 
   private currentPath(): string {

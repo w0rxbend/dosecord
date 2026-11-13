@@ -83,7 +83,7 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   override def start(sink: InboundSink, resumeFrom: Option[String]): Unit =
     val identity = verifiedIdentity()
     botUsername.set(identity.username)
-    required(api.setChatMenuButton(None, MenuButton.Commands), "setChatMenuButton")
+    required(api.setChatMenuButton(None, defaultMenuButton), "setChatMenuButton")
     this.sink.set(Some(sink))
     config.updates match
       case UpdatesMode.Webhook => ()
@@ -97,6 +97,12 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   override def stop(): Unit =
     reader.getAndSet(None).foreach(_.stop())
     sink.set(None)
+
+  /** The Mini App for every private chat when one is configured, the command list otherwise (ADR-016 addendum of
+    * 2026-11-13, which takes the default-level variant of BOT_UX BUX-MENU-01 and 02). Commands stay reachable by `/`.
+    */
+  private def defaultMenuButton: MenuButton =
+    config.miniAppUrl.fold(MenuButton.Commands)(url => MenuButton.WebApp(AdapterCopy.menuButton, url))
 
   private def verifiedIdentity(): BotIdentity =
     val identity = required(api.getMe(), "getMe")

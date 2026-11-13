@@ -44,8 +44,8 @@ object Launch:
     if hostsWorkers(settings.role) then Workers(settings, dataSource, parts).start(gate, log)
     val adapters = if hostsGateway(settings.role) then Adapters.start(settings, dataSource, parts, log) else Nil
     val miniApp = startMiniApp(settings, dataSource, parts, log)
-    val health = Health.start(settings.healthPort)
-    log(s"/healthz listening on :${settings.healthPort}")
+    val health = Health.start(settings.healthAddress, settings.healthPort)
+    log(s"/healthz listening on ${settings.healthAddress}:${settings.healthPort}")
     Drain(
       inbound = ("health" -> (() => health.stop())) :: miniApp ::: adapters,
       claiming = List("workers" -> (() => gate.stop())),
@@ -65,7 +65,7 @@ object Launch:
       .toList
       .map: miniApp =>
         val edge = MiniAppEdge.start(settings, miniApp, dataSource, parts, log)
-        log(s"Mini App and API listening on :${settings.httpPort}")
+        log(s"Mini App and API listening on ${settings.httpAddress}:${settings.httpPort}")
         "miniapp" -> (() => edge.stop())
 
   // The role policy of docs/dosegram/ARCHITECTURE.md section 4.1. `/healthz` is served under every role: it is the

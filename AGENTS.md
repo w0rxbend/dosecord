@@ -78,7 +78,8 @@ Appendix B and its status notes are the record; this is the short form.
 - API and Mini App (`api`, `miniapp`, ADR-016, ADR-020): session exchange,
   Today read, the medication and schedule registry, water, mood and sleep
   routes, the history calendar, settings, consents and
-  `GET /insights/overview` behind `MINIAPP_ENABLED`, which production refuses.
+  `GET /insights/overview` behind `MINIAPP_ENABLED`, which production accepts only with an https
+  `MINI_APP_URL` and an explicit `HTTP_PORT` (ADR-016 addendum).
   Sessions and idempotency records are rows of `miniapp_sessions` and
   `idempotency_keys`. Screens: Today, medications, Log, water, mood, sleep,
   Insights, history and day detail, settings. The app records and withdraws

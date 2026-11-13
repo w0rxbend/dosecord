@@ -280,8 +280,7 @@ final class MenuHandler(
       List(
         OutboundMessage(
           body = List(paragraph(MenuCopy.appPrompt)),
-          blocks =
-            List(Block.Choices(ChoiceSet(id = "menu.app", choices = List(Choice.openApp(MenuCopy.openApp, AppHome))))),
+          blocks = List(Block.Choices(ChoiceSet(id = "menu.app", choices = List(openAppChoice)))),
           dedupeKey = s"menu:app:${event.vendor}:${event.vendorEventId}",
           correlationId = s"${event.vendor}:${event.vendorEventId}"
         )
@@ -455,7 +454,7 @@ final class MenuHandler(
       Some(
         OutboundMessage(
           body = body,
-          blocks = doseBlocks ++ logBlocks :+ navBlock(event, principal, tx),
+          blocks = doseBlocks ++ logBlocks :+ navBlock(event, principal, tx, List(openAppChoice)),
           dedupeKey = s"menu:today:${event.vendor}:${event.vendorEventId}",
           correlationId = s"${event.vendor}:${event.vendorEventId}",
           replaces = source
@@ -513,7 +512,7 @@ final class MenuHandler(
       Some(
         OutboundMessage(
           body = body,
-          blocks = List(navBlock(event, principal, tx)),
+          blocks = List(navBlock(event, principal, tx, Nil)),
           dedupeKey = s"menu:history:${event.vendor}:${event.vendorEventId}",
           correlationId = s"${event.vendor}:${event.vendorEventId}",
           replaces = source
@@ -549,7 +548,7 @@ final class MenuHandler(
       Some(
         OutboundMessage(
           body = List(paragraph(MenuCopy.settingsTitle), paragraph(MenuCopy.settingsIntro)) ++ lines,
-          blocks = List(navBlock(event, principal, tx)),
+          blocks = List(navBlock(event, principal, tx, Nil)),
           dedupeKey = s"menu:settings:${event.vendor}:${event.vendorEventId}",
           correlationId = s"${event.vendor}:${event.vendorEventId}",
           replaces = source
@@ -559,16 +558,15 @@ final class MenuHandler(
 
   // ---------- Helpers ----------
 
-  private def navBlock(event: InboundEvent, principal: Principal, tx: Tx): Block =
+  /** The row under a card: Menu, then the card's own links (`extra`). */
+  private def navBlock(event: InboundEvent, principal: Principal, tx: Tx, extra: List[Choice]): Block =
     Block.Choices(
       ChoiceSet(
         id = "menu.nav",
-        choices = List(
-          Choice.callback(
-            MenuCopy.menuLabel,
-            mint(event.chat, principal.accountId.map(_.uuid), MenuOpenAction, KeyRoot, tx).wire
-          )
-        )
+        choices = Choice.callback(
+          MenuCopy.menuLabel,
+          mint(event.chat, principal.accountId.map(_.uuid), MenuOpenAction, KeyRoot, tx).wire
+        ) :: extra
       )
     )
 
@@ -653,6 +651,9 @@ private object MenuHandler:
 
   /** The Mini App route of its Today screen (MINI_APP section 3.4). */
   val AppHome: AppRoute = AppRoute("today")
+
+  /** Opens the Mini App on Today; an adapter without a Mini App leaves it out (BOT_UX BUX-KB-05). */
+  private val openAppChoice: Choice = Choice.openApp(MenuCopy.openApp, AppHome)
 
   val MenuOpenAction: ActionEntry = ActionRegistry.byName("menu.open").get
   val MenuOpenFormAction: ActionEntry = ActionRegistry.byName("menu.open_form").get

@@ -556,6 +556,8 @@ Naming decisions: `/take` is the listed name and `/log` its alias; `/food` is th
 
 Rationale for BUX-MENU-01 and 02: before consent the Mini App has nothing to show, and a new user needs the command list more than the app. This is the single menu-button model of the document set (ROADMAP conflict X-28); MINI_APP section 3.1 and ARCHITECTURE section 7.9 follow it, and the one label is "App". Rejected alternative: a default-level `MenuButtonWebApp` for every private chat from the first second. It needs one call instead of one per account and is fully covered by drift detection, but it makes the Mini App gate screen the first thing a new user can open. The owner may reverse this (open question OQ-16).
 
+As built on 2026-11-13 ([ADR-016](adr/ADR-016.md), addendum "production from checkpoint CP3-a"): the owner's direction for the Mini App production track took the default-level variant. When `MINI_APP_URL` is set, start-up sets `MenuButtonWebApp` with the label "App" as the default for every private chat; without it the default is the command list. BUX-MENU-02 and BUX-MENU-03 (per-chat button, `accounts.menu_button_version`, reset on deletion) are not built. BUX-MENU-04 and spike SP-9 still apply.
+
 ### 6.4 Bot profile texts
 
 Registered per shipped language with `setMyName`, `setMyDescription` (at most 512 characters, shown in the empty chat) and `setMyShortDescription` (at most 120 characters) `V[02 §8]`. Profile text counts as a product claim (research 03 section 8.3), so it uses "reminds" and "records" only.

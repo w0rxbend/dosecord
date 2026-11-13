@@ -23,7 +23,8 @@ object Endpoints:
       .map((_, retryAfter, problem) => ApiFailure(problem, retryAfter))(f => (f.status, f.retryAfterSeconds, f.problem))
 
   private val v1 = endpoint.in("api" / "v1").errorOut(failure).maxRequestBodyLength(MaxBodyBytes)
-  private val secured = v1.securityIn(auth.bearer[String]())
+  // The method is read for the request limits of API-18; it is not part of the documented interface.
+  private val secured = v1.securityIn(auth.bearer[String]()).securityIn(extractFromRequest(_.method))
 
   private val created = statusCode(StatusCode.Created)
   private val noContent = statusCode(StatusCode.NoContent)

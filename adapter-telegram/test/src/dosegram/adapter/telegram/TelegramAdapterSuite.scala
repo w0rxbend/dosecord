@@ -22,8 +22,22 @@ class TelegramAdapterSuite extends munit.FunSuite:
 
   // ---------- Start ----------
 
-  test("start checks the bot's identity and sets the command list as the default menu button"):
+  test("start checks the bot's identity and, with a Mini App, makes the app the default menu button"):
     val rig = TelegramRig().started()
+    assertEquals(rig.wire.calls.map(_.method), List("getMe", "setChatMenuButton"))
+    assertEquals(
+      rig.wire.calls.last.request.params,
+      ujson.Obj(
+        "menu_button" -> ujson.Obj(
+          "type" -> "web_app",
+          "text" -> AdapterCopy.menuButton,
+          "web_app" -> ujson.Obj("url" -> TelegramRig.MiniAppUrl)
+        )
+      )
+    )
+
+  test("start without a Mini App sets the command list as the default menu button"):
+    val rig = TelegramRig(TelegramRig.webhook.copy(miniAppUrl = None)).started()
     assertEquals(rig.wire.calls.map(_.method), List("getMe", "setChatMenuButton"))
     assertEquals(
       rig.wire.calls.last.request.params,

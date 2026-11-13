@@ -276,6 +276,14 @@ class MenuSuite extends munit.FunSuite:
       rig.seedAccount()
       assertEquals(rig.line("/app"), List(s"${MenuCopy.appPrompt}\n\n[app: today] ${MenuCopy.openApp}"))
 
+  test("/today carries an Open app button on Today next to Menu; History has none"):
+    withRig: rig =>
+      val account = rig.seedAccount()
+      rig.seedSchedule(account, "Vitamin D", dailyAt("09:00"), kyiv)
+      val today = rig.line("/today").mkString("\n")
+      assert(today.contains(s"[app: today] ${MenuCopy.openApp}"), today)
+      assert(!rig.line("/history").mkString("\n").contains("[app:"), "the app button is on the Today card only")
+
   test("/help lists every command including /today, /history and itself"):
     withRig: rig =>
       rig.bootstrapConsole()

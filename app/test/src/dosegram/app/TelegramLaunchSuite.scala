@@ -386,7 +386,7 @@ class TelegramLaunchSuite extends PgSuite:
       answer("the owner's input")(bot.text(owner, "9:00"))(WizardCopy.timesEcho(List("09:00")))
       assert(written.last.contains(WizardCopy.instructionsPrompt), s"the next step: ${written.last}")
 
-  test("start-up registers the command list and leaves the command list as the default menu button"):
+  test("start-up registers the command list and makes the Mini App of MINI_APP_URL the default menu button"):
     val clock = SteppedClock(monday)
     launched(clock): bot =>
       eventually("the commands are registered")(bot.wire.calls("setMyCommands").nonEmpty)
@@ -394,6 +394,14 @@ class TelegramLaunchSuite extends PgSuite:
       assertEquals(registered, dosegram.core.application.CommandRegistry.withCapture.map(_.name))
       assertEquals(
         bot.wire.calls("setChatMenuButton").map(_.request.params),
-        List(ujson.Obj("menu_button" -> ujson.Obj("type" -> "commands")))
+        List(
+          ujson.Obj(
+            "menu_button" -> ujson.Obj(
+              "type" -> "web_app",
+              "text" -> AdapterCopy.menuButton,
+              "web_app" -> ujson.Obj("url" -> "https://app.example/")
+            )
+          )
+        )
       )
       assertEquals(bot.wire.calls("deleteWebhook").size, 1, "a development bot polls, so its webhook is removed")
