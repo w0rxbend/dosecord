@@ -110,4 +110,16 @@ object ConsentApiSuite:
       "getNotificationSettings",
       "updateNotificationSettings",
       "getInsightCalendar"
-    ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))
+    ) ++
+      // The reminders routes check the consent of the plan's own domain, and the timeline shows doses only with the
+      // medication consent (ReminderApiSuite).
+      Set(
+        "getReminders",
+        "listReminderPresets",
+        "createReminderPlan",
+        "deleteReminderPlan",
+        "createReminderPause",
+        "getDayProfile",
+        "updateDayProfile",
+        "getReminderTimeline"
+      ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

@@ -592,6 +592,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getReminders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every preset with its next times for the user's current day; reading saves nothing. */
+        get: operations["listReminderPresets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Turns a preset on, replacing the plan of its kind. */
+        post: operations["createReminderPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/plans/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Turns the plan of a kind off; a second delete answers the same. */
+        delete: operations["deleteReminderPlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Pauses every prompt for 1 to 24 hours; 0 resumes. Medication reminders are not affected. */
+        post: operations["createReminderPause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDayProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateDayProfile"];
+        trace?: never;
+    };
+    "/api/v1/reminders/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getReminderTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -686,6 +802,34 @@ export interface components {
             text: string;
             /** Format: int32 */
             noticeVersion?: number;
+        };
+        /** DayProfileInput */
+        DayProfileInput: {
+            wake: string;
+            breakfast: string;
+            lunch: string;
+            dinner: string;
+            bedtime: string;
+            workDays?: number[];
+            workStart: string;
+            workEnd: string;
+            quietStart: string;
+            quietEnd: string;
+        };
+        /** DayProfileView */
+        DayProfileView: {
+            /** Format: int64 */
+            version: number;
+            wake: string;
+            breakfast: string;
+            lunch: string;
+            dinner: string;
+            bedtime: string;
+            workDays?: number[];
+            workStart: string;
+            workEnd: string;
+            quietStart: string;
+            quietEnd: string;
         };
         /** DayView */
         DayView: {
@@ -925,6 +1069,14 @@ export interface components {
             doseUnits?: string[];
             limits: components["schemas"]["Limits"];
         };
+        /** MedicationPresetView */
+        MedicationPresetView: {
+            id: string;
+            name: string;
+            available: boolean;
+            preview?: string[];
+            draft?: components["schemas"]["ScheduleDraft"];
+        };
         /**
          * MedicationState
          * @enum {string}
@@ -1068,10 +1220,70 @@ export interface components {
             schedule?: components["schemas"]["Schedule"];
             purpose?: string;
         };
+        /** PromptPresetView */
+        PromptPresetView: {
+            id: string;
+            kind: string;
+            name: string;
+            available: boolean;
+            preview?: string[];
+        };
         /** QuietHoursView */
         QuietHoursView: {
             start: string;
             end: string;
+        };
+        /** ReminderKindView */
+        ReminderKindView: {
+            kind: string;
+            name: string;
+            available: boolean;
+            presetId?: string;
+            presetName?: string;
+            /** Format: date-time */
+            nextAt?: string;
+        };
+        /** ReminderPauseInput */
+        ReminderPauseInput: {
+            /** Format: int32 */
+            hours: number;
+        };
+        /** ReminderPlanInput */
+        ReminderPlanInput: {
+            presetId: string;
+            /** Format: int32 */
+            everyMinutes?: number;
+            from?: string;
+            until?: string;
+            weekdays?: number[];
+        };
+        /** ReminderPresets */
+        ReminderPresets: {
+            prompts?: components["schemas"]["PromptPresetView"][];
+            medication?: components["schemas"]["MedicationPresetView"][];
+        };
+        /** ReminderTimeline */
+        ReminderTimeline: {
+            /** Format: date */
+            date: string;
+            entries?: components["schemas"]["ReminderTimelineEntry"][];
+        };
+        /** ReminderTimelineEntry */
+        ReminderTimelineEntry: {
+            /** Format: date-time */
+            at: string;
+            kind: string;
+            name: string;
+        };
+        /** RemindersView */
+        RemindersView: {
+            timeZone: string;
+            kinds?: components["schemas"]["ReminderKindView"][];
+            /** Format: int32 */
+            medicationSchedules: number;
+            day: components["schemas"]["DayProfileView"];
+            /** Format: date-time */
+            pausedUntil?: string;
         };
         /** Scene */
         Scene: {
@@ -2879,6 +3091,260 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightsOverview"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getReminders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemindersView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listReminderPresets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReminderPresets"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createReminderPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReminderPlanInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemindersView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteReminderPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemindersView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createReminderPause: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReminderPauseInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemindersView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDayProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayProfileView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateDayProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; required */
+                "If-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayProfileInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayProfileView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getReminderTimeline: {
+        parameters: {
+            query?: {
+                /** @description A local day; absent is tomorrow */
+                date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReminderTimeline"];
                 };
             };
             default: {

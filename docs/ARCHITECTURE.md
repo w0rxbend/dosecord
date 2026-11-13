@@ -977,6 +977,7 @@ State of `V1__baseline.sql` on 2026-11-13. The baseline is one file that is edit
 | Daily rollups | `daily_rollups`, `rollup_dirty` and the triggers that fill the queue | insights-and-correlations; drained by the rollup worker of `app` | `Tx.tracking.rollups`, `Tx.tracking.doseHistory` |
 | Consent ledger | `consent_events`, `consent_state` | identity-and-consent; `PgConsentLedger` | `Tx.consents` |
 | Stores of the edges | `render_assets`, `telegram_file_cache`, `miniapp_sessions`, `idempotency_keys` | visual-reports, the Telegram adapter, the API; `PgRenderAssets`, `PgTelegramFileCache`, `PgMiniAppSessions`, `PgIdempotencyKeys` | their own short statements on the pool, never the transaction of a chat event |
+| Day profile, nudge plans and prompts | `day_profiles`, `prompt_schedules`, `prompt_occurrences` | schedule-and-reminders (ADR-023); `PgReminderRepositories`; written by the `PromptLoop` of `app` and the `/reminders` handler | `Tx.reminders.dayProfiles`, `Tx.reminders.prompts` |
 | Grants | the role grants of every table above | the track that owns the table | n/a |
 
 Differences from the tables of sections 10.2 and 10.11 that this state has, each to be closed by the named slice:

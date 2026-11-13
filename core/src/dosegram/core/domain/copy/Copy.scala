@@ -31,5 +31,6 @@ object Copy:
       CheckInCopy.entries ++
       StatsCardCopy.entries ++
       SleepCopy.entries ++
-      InputCopy.entries
+      InputCopy.entries ++
+      PromptCopy.entries
 end Copy

@@ -7,6 +7,7 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
@@ -254,9 +255,10 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(stageTwo.method, "editMessageText")
       assertEquals(strings("SELECT 1 FROM consent_events"), Nil, "the first tap records no consent")
 
-      val List(receipt, goalAsk) = bot.tap(stageTwo, ConsentCopy.Confirm, expected = 2): @unchecked
+      val List(receipt, goalAsk, offer) = bot.tap(stageTwo, ConsentCopy.Confirm, expected = 3): @unchecked
       assertEquals(bot.body(receipt), ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"))
       assertEquals(bot.body(goalAsk), WaterCopy.goalAsk)
+      assertEquals(bot.body(offer), PromptCopy.offerWater, "the water prompts are offered after the consent (ADR-023)")
       assertEquals(strings("SELECT purpose || ':' || action FROM consent_events"), List("hydration:granted"))
       assertEquals(strings("SELECT octet_length(notice_hash)::text FROM consent_events"), List("32"))
 

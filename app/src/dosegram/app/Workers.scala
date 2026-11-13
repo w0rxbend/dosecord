@@ -1,14 +1,20 @@
 package dosegram.app
 
 import dosegram.contracts.ChatAdapter
+import dosegram.core.application.Application
+import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.insights.RollupService
+import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.SessionSweeper
+import dosegram.core.ports.IdSource
 import dosegram.core.ports.LoopMetrics
 import dosegram.core.ports.Wake
 import dosegram.core.scheduling.CatalogueOutboxRenderer
 import dosegram.core.scheduling.Materialiser
 import dosegram.core.scheduling.OutboxDispatcher
+import dosegram.core.scheduling.PromptLoop
+import dosegram.core.scheduling.PromptOutboxRenderer
 import dosegram.core.scheduling.ReminderLoop
 import dosegram.core.scheduling.TokenBuckets
 import dosegram.infra.Metrics
@@ -56,6 +62,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startSessionSweeper(gate)
     startRollupWorker()
     startImagePurge()
+    startPromptLoop(log)
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
@@ -88,7 +95,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     val dispatcher = OutboxDispatcher(
       uow,
       Map(vendor -> adapter),
-      CatalogueOutboxRenderer(uow, codec, clock),
+      PromptOutboxRenderer(uow, CatalogueOutboxRenderer(uow, codec, clock)),
       clock,
       metrics = MicrometerOutboxMetrics(),
       buckets = Some(TokenBuckets(clock, TokenBuckets.defaults))
@@ -129,6 +136,25 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
         assets.purge(now)
         fileIds.forgetUnusedSince(now.minus(Workers.FileIdUnusedFor))
         Thread.sleep(parts.cadence.imagePurgePeriod.toMillis)
+    ()
+
+  /** The prompt loop (ADR-023): water, mood and sleep prompts through the outbox, at the reminder poll. A plan that
+    * fails is logged by id and error class only, and the others go on.
+    */
+  private def startPromptLoop(log: String => Unit)(using Ox): Unit =
+    val loop = PromptLoop(
+      uow,
+      clock,
+      IdSource.uuidV7(java.security.SecureRandom()),
+      PromptMessages(codec),
+      HydrationService(clock, IdSource.uuidV7(java.security.SecureRandom())),
+      Application.reminderSettings(clock),
+      (plan, error) => log(s"prompt plan $plan failed: ${error.getClass.getSimpleName}")
+    )
+    fork:
+      while true do
+        loop.tick()
+        Thread.sleep(parts.cadence.reminderPoll.toMillis)
     ()
 
 object Workers:

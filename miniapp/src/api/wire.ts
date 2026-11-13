@@ -19,6 +19,10 @@ import type {
   SceneNode,
   SleepStatus,
   SleepSummary,
+  DayProfile,
+  ReminderPresets,
+  Reminders,
+  ReminderTimeline,
   WaterSettings,
   WaterSummary,
   Medication,
@@ -389,4 +393,22 @@ export function toConsents(wire: Wire['ConsentList']): Consents {
     items: (wire.items ?? []).map(({ purpose, title, granted, text }) => ({ purpose, title, granted, text })),
     notes: wire.notes ?? [],
   };
+}
+
+// ---------- reminders (ADR-023) ----------
+
+export function toDayProfile(wire: Wire['DayProfileView']): DayProfile {
+  return { ...wire, workDays: wire.workDays ?? [] };
+}
+
+export function toReminders(wire: Wire['RemindersView']): Reminders {
+  return { ...wire, kinds: wire.kinds ?? [], day: toDayProfile(wire.day) };
+}
+
+export function toReminderPresets(wire: Wire['ReminderPresets']): ReminderPresets {
+  return { prompts: (wire.prompts ?? []).map((preset) => ({ ...preset, preview: preset.preview ?? [] })) };
+}
+
+export function toReminderTimeline(wire: Wire['ReminderTimeline']): ReminderTimeline {
+  return { date: wire.date, entries: wire.entries ?? [] };
 }

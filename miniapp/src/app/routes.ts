@@ -19,7 +19,8 @@ export type Route =
   | { readonly screen: 'settings' }
   | { readonly screen: 'settings-tz' }
   | { readonly screen: 'settings-notif' }
-  | { readonly screen: 'settings-privacy' };
+  | { readonly screen: 'settings-privacy' }
+  | { readonly screen: 'reminders' };
 
 export type TabId = 'today' | 'meds' | 'log' | 'insights';
 
@@ -48,6 +49,7 @@ const PATHS: readonly (readonly [RegExp, (match: RegExpExecArray) => Route])[] =
   [/^\/settings\/tz$/, () => ({ screen: 'settings-tz' })],
   [/^\/settings\/notif$/, () => ({ screen: 'settings-notif' })],
   [/^\/settings\/privacy$/, () => ({ screen: 'settings-privacy' })],
+  [/^\/settings\/reminders$/, () => ({ screen: 'reminders' })],
 ];
 
 export function parsePath(path: string): Route | null {
@@ -77,6 +79,7 @@ const START_PARAMS: readonly (readonly [RegExp, (match: RegExpExecArray) => stri
   [/^set_tz$/, () => '/settings/tz'],
   [/^set_notif$/, () => '/settings/notif'],
   [/^set_privacy$/, () => '/settings/privacy'],
+  [/^reminders$/, () => '/settings/reminders'],
 ];
 
 /** Maps a startapp parameter to an internal path; null when it matches no enabled screen. */
@@ -107,6 +110,7 @@ const TABS: Readonly<Record<Route['screen'], TabId | null>> = {
   'settings-tz': null,
   'settings-notif': null,
   'settings-privacy': null,
+  reminders: null,
 };
 
 /** The tab a screen belongs to; settings sit outside the tabs (MINI_APP 4.1). */
@@ -134,6 +138,7 @@ const PARENTS: Readonly<Partial<Record<Route['screen'], string>>> = {
   'settings-tz': '/settings',
   'settings-notif': '/settings',
   'settings-privacy': '/settings',
+  reminders: '/settings',
 };
 
 /** Where BackButton leads when the screen was opened by a route (MA-ROUTE-4). */

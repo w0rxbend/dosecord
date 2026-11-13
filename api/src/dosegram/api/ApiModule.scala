@@ -4,6 +4,7 @@ import dosegram.api.auth.InitDataVerifier
 import dosegram.api.auth.Session
 import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
+import dosegram.core.application.Application
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.UnitOfWork
@@ -51,6 +52,7 @@ final class ApiModule(
   private val hydration = Hydration(uow, tracking)
   private val mood = Mood(uow, tracking, blobStates)
   private val sleep = Sleep(uow, tracking, clock)
+  private val reminders = Reminders(uow, clock, Application.reminderSettings(clock))
   private val accountSettings = AccountSettingsApi(uow, clock)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
@@ -346,6 +348,57 @@ final class ApiModule(
       .handle(session => (from, to) => guarded(sleep.summary(session.accountId, from, to)))
   )
 
+  private val reminderEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.getReminders
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(Right(reminders.view(session.accountId)))),
+    Endpoints.listReminderPresets
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(Right(reminders.presets(session.accountId)))),
+    Endpoints.createReminderPlan
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              view <- idempotency.once(session.accountId, parsedKey, hashOf("reminders/plans", input)):
+                reminders.apply(session.accountId, input)
+            yield view
+    ,
+    Endpoints.deleteReminderPlan
+      .handleSecurity(authenticate)
+      .handle(session => kind => guarded(reminders.turnOff(session.accountId, kind))),
+    Endpoints.createReminderPause
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              view <- idempotency.once(session.accountId, parsedKey, hashOf("reminders/pause", input)):
+                reminders.pause(session.accountId, input)
+            yield view
+    ,
+    Endpoints.getDayProfile
+      .handleSecurity(authenticate)
+      .handle(session =>
+        _ => guarded(Right(reminders.day(session.accountId)).map(view => (Rendering.etag(view.version), view)))
+      ),
+    Endpoints.updateDayProfile
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (ifMatch, input) =>
+          guarded:
+            versionOf(ifMatch)
+              .flatMap(reminders.saveDay(session.accountId, _, input))
+              .map(view => (Rendering.etag(view.version), view))
+    ,
+    Endpoints.getReminderTimeline
+      .handleSecurity(authenticate)
+      .handle(session => date => guarded(Right(reminders.timeline(session.accountId, date))))
+  )
+
   private val calendarEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.getInsightCalendar
       .handleSecurity(authenticate)
@@ -355,7 +408,7 @@ final class ApiModule(
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
-      hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ calendarEndpoints ++ insightEndpoints :+
+      hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

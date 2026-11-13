@@ -17,7 +17,10 @@ import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
+import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.WaterCopy
+import dosegram.core.domain.reminders.PromptKind
+import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.AccountSettings
@@ -132,9 +135,14 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(chat.world.consents.events.toList, List("hydration:granted"))
       assertEquals(
         texts(confirmed),
-        List(ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"), WaterCopy.goalAsk)
+        List(ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"), WaterCopy.goalAsk, PromptCopy.offerWater)
       )
-      assertEquals(labels(confirmed), List("1.5 l", "2.0 l", "2.5 l", WaterCopy.NoGoal))
+      // The goal card, then the offer of water prompts (ADR-023): a forced choice with nothing preselected.
+      assertEquals(
+        labels(confirmed),
+        List("1.5 l", "2.0 l", "2.5 l", WaterCopy.NoGoal) ++
+          PromptPresets.forKind(PromptKind.Water).map(p => PromptCopy.presetName(p.id)) :+ PromptCopy.NotNow
+      )
       assertEquals(chat.liveWater, Nil, "the amount waits for the goal choice")
 
       val recorded = chat.rig.tapOn(WaterCopy.goalAsk, "2.0 l")

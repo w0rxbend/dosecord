@@ -10,6 +10,7 @@ describe('parsePath', () => {
     ['/meds/med-a/edit', { screen: 'med-edit', id: 'med-a' }],
     ['/meds/med-a/schedules/new', { screen: 'schedule-new', medicationId: 'med-a' }],
     ['/insights', { screen: 'insights' }],
+    ['/settings/reminders', { screen: 'reminders' }],
   ])('maps %s to its screen', (path, route) => {
     expect(parsePath(path)).toEqual(route);
   });
@@ -41,6 +42,7 @@ describe('pathFromStartParam', () => {
     ['settings', '/settings'],
     ['set_tz', '/settings/tz'],
     ['set_privacy', '/settings/privacy'],
+    ['reminders', '/settings/reminders'],
   ])('maps %s to %s', (param, path) => {
     expect(pathFromStartParam(param)).toBe(path);
   });

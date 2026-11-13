@@ -8,11 +8,14 @@ import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
 import dosegram.core.application.menu.MenuHandler
+import dosegram.core.application.reminders.ReminderSettings
+import dosegram.core.application.reminders.RemindersHandler
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.Flow
 import dosegram.core.chat.WizardEngine
 import dosegram.core.ports.Clock
+import dosegram.core.ports.IdSource
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.scheduling.ScheduleLifecycle
 
@@ -45,7 +48,8 @@ object Application:
     val lifecycle = ScheduleLifecycle(uow, clock)
     val help = FirstFlows.innerHandlers(CommandRegistry.withCapture)
     val menu = new MenuHandler(codec, clock, lifecycle, inner = help)
-    val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = menu))
+    val reminders = new RemindersHandler(codec, clock, Application.reminderSettings(clock), capture, inner = menu)
+    val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = reminders))
     val engine = WizardEngine(
       flows = flows(clock, lifecycle),
       flowCommands = Map.empty,
@@ -57,4 +61,8 @@ object Application:
     )
     menu.wireEngine(engine)
     FirstFlows.identityGate(engine)
+
+  /** The settings use cases of the prompts, as the handler and the prompt loop share them (ADR-023). */
+  def reminderSettings(clock: Clock): ReminderSettings =
+    ReminderSettings(clock, IdSource.uuidV7(java.security.SecureRandom()))
 end Application

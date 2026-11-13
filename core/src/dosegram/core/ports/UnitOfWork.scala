@@ -33,6 +33,12 @@ trait Tx:
     */
   def tracking: TrackingRepositories
 
+  /** The day profile and the prompts (ADR-023). A transaction double that does not use the group keeps this default,
+    * which fails naming the group (ARCHITECTURE section 10.17 rule 5).
+    */
+  def reminders: ReminderRepositories =
+    throw UnsupportedOperationException("the reminders repository group is not on this transaction")
+
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
     * the reminder loop).

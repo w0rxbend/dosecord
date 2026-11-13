@@ -2738,6 +2738,447 @@
           }
         ]
       }
+    },
+    "/api/v1/reminders" : {
+      "get" : {
+        "operationId" : "getReminders",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RemindersView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/reminders/presets" : {
+      "get" : {
+        "description" : "Every preset with its next times for the user's current day; reading saves nothing.",
+        "operationId" : "listReminderPresets",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReminderPresets"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/reminders/plans" : {
+      "post" : {
+        "description" : "Turns a preset on, replacing the plan of its kind.",
+        "operationId" : "createReminderPlan",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReminderPlanInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RemindersView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/reminders/plans/{kind}" : {
+      "delete" : {
+        "description" : "Turns the plan of a kind off; a second delete answers the same.",
+        "operationId" : "deleteReminderPlan",
+        "parameters" : [
+          {
+            "name" : "kind",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RemindersView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/reminders/pause" : {
+      "post" : {
+        "description" : "Pauses every prompt for 1 to 24 hours; 0 resumes. Medication reminders are not affected.",
+        "operationId" : "createReminderPause",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReminderPauseInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RemindersView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/reminders/day" : {
+      "get" : {
+        "operationId" : "getDayProfile",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DayProfileView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "patch" : {
+        "operationId" : "updateDayProfile",
+        "parameters" : [
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DayProfileInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DayProfileView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/reminders/timeline" : {
+      "get" : {
+        "operationId" : "getReminderTimeline",
+        "parameters" : [
+          {
+            "name" : "date",
+            "in" : "query",
+            "description" : "A local day; absent is tomorrow",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReminderTimeline"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
     }
   },
   "components" : {
@@ -3065,6 +3506,113 @@
           "noticeVersion" : {
             "type" : "integer",
             "format" : "int32"
+          }
+        }
+      },
+      "DayProfileInput" : {
+        "title" : "DayProfileInput",
+        "type" : "object",
+        "required" : [
+          "wake",
+          "breakfast",
+          "lunch",
+          "dinner",
+          "bedtime",
+          "workStart",
+          "workEnd",
+          "quietStart",
+          "quietEnd"
+        ],
+        "properties" : {
+          "wake" : {
+            "type" : "string"
+          },
+          "breakfast" : {
+            "type" : "string"
+          },
+          "lunch" : {
+            "type" : "string"
+          },
+          "dinner" : {
+            "type" : "string"
+          },
+          "bedtime" : {
+            "type" : "string"
+          },
+          "workDays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "workStart" : {
+            "type" : "string"
+          },
+          "workEnd" : {
+            "type" : "string"
+          },
+          "quietStart" : {
+            "type" : "string"
+          },
+          "quietEnd" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DayProfileView" : {
+        "title" : "DayProfileView",
+        "type" : "object",
+        "required" : [
+          "version",
+          "wake",
+          "breakfast",
+          "lunch",
+          "dinner",
+          "bedtime",
+          "workStart",
+          "workEnd",
+          "quietStart",
+          "quietEnd"
+        ],
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "wake" : {
+            "type" : "string"
+          },
+          "breakfast" : {
+            "type" : "string"
+          },
+          "lunch" : {
+            "type" : "string"
+          },
+          "dinner" : {
+            "type" : "string"
+          },
+          "bedtime" : {
+            "type" : "string"
+          },
+          "workDays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "workStart" : {
+            "type" : "string"
+          },
+          "workEnd" : {
+            "type" : "string"
+          },
+          "quietStart" : {
+            "type" : "string"
+          },
+          "quietEnd" : {
+            "type" : "string"
           }
         }
       },
@@ -3782,6 +4330,36 @@
           }
         }
       },
+      "MedicationPresetView" : {
+        "title" : "MedicationPresetView",
+        "type" : "object",
+        "required" : [
+          "id",
+          "name",
+          "available"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "preview" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          "draft" : {
+            "$ref" : "#/components/schemas/ScheduleDraft"
+          }
+        }
+      },
       "MedicationState" : {
         "title" : "MedicationState",
         "type" : "string",
@@ -4215,6 +4793,37 @@
           }
         }
       },
+      "PromptPresetView" : {
+        "title" : "PromptPresetView",
+        "type" : "object",
+        "required" : [
+          "id",
+          "kind",
+          "name",
+          "available"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "preview" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        }
+      },
       "QuietHoursView" : {
         "title" : "QuietHoursView",
         "type" : "object",
@@ -4228,6 +4837,167 @@
           },
           "end" : {
             "type" : "string"
+          }
+        }
+      },
+      "ReminderKindView" : {
+        "title" : "ReminderKindView",
+        "type" : "object",
+        "required" : [
+          "kind",
+          "name",
+          "available"
+        ],
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "presetId" : {
+            "type" : "string"
+          },
+          "presetName" : {
+            "type" : "string"
+          },
+          "nextAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ReminderPauseInput" : {
+        "title" : "ReminderPauseInput",
+        "type" : "object",
+        "required" : [
+          "hours"
+        ],
+        "properties" : {
+          "hours" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "ReminderPlanInput" : {
+        "title" : "ReminderPlanInput",
+        "type" : "object",
+        "required" : [
+          "presetId"
+        ],
+        "properties" : {
+          "presetId" : {
+            "type" : "string"
+          },
+          "everyMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "from" : {
+            "type" : "string"
+          },
+          "until" : {
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          }
+        }
+      },
+      "ReminderPresets" : {
+        "title" : "ReminderPresets",
+        "type" : "object",
+        "properties" : {
+          "prompts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PromptPresetView"
+            }
+          },
+          "medication" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MedicationPresetView"
+            }
+          }
+        }
+      },
+      "ReminderTimeline" : {
+        "title" : "ReminderTimeline",
+        "type" : "object",
+        "required" : [
+          "date"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "entries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReminderTimelineEntry"
+            }
+          }
+        }
+      },
+      "ReminderTimelineEntry" : {
+        "title" : "ReminderTimelineEntry",
+        "type" : "object",
+        "required" : [
+          "at",
+          "kind",
+          "name"
+        ],
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RemindersView" : {
+        "title" : "RemindersView",
+        "type" : "object",
+        "required" : [
+          "timeZone",
+          "medicationSchedules",
+          "day"
+        ],
+        "properties" : {
+          "timeZone" : {
+            "type" : "string"
+          },
+          "kinds" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReminderKindView"
+            }
+          },
+          "medicationSchedules" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "day" : {
+            "$ref" : "#/components/schemas/DayProfileView"
+          },
+          "pausedUntil" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },

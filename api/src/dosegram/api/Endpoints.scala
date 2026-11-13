@@ -363,6 +363,61 @@ object Endpoints:
       .out(jsonBody[InsightCalendar])
       .name("getInsightCalendar")
 
+  // ---------- reminders (ADR-023) ----------
+
+  val getReminders = secured.get.in("reminders").out(jsonBody[RemindersView]).name("getReminders")
+
+  val listReminderPresets =
+    secured.get
+      .in("reminders" / "presets")
+      .out(jsonBody[ReminderPresets])
+      .name("listReminderPresets")
+      .description("Every preset with its next times for the user's current day; reading saves nothing.")
+
+  val createReminderPlan =
+    secured.post
+      .in("reminders" / "plans")
+      .in(idempotencyKey)
+      .in(jsonBody[ReminderPlanInput])
+      .out(jsonBody[RemindersView])
+      .name("createReminderPlan")
+      .description("Turns a preset on, replacing the plan of its kind.")
+
+  val deleteReminderPlan =
+    secured.delete
+      .in("reminders" / "plans" / path[String]("kind"))
+      .out(jsonBody[RemindersView])
+      .name("deleteReminderPlan")
+      .description("Turns the plan of a kind off; a second delete answers the same.")
+
+  val createReminderPause =
+    secured.post
+      .in("reminders" / "pause")
+      .in(idempotencyKey)
+      .in(jsonBody[ReminderPauseInput])
+      .out(jsonBody[RemindersView])
+      .name("createReminderPause")
+      .description("Pauses every prompt for 1 to 24 hours; 0 resumes. Medication reminders are not affected.")
+
+  val getDayProfile =
+    secured.get.in("reminders" / "day").out(etag).out(jsonBody[DayProfileView]).name("getDayProfile")
+
+  val updateDayProfile =
+    secured.patch
+      .in("reminders" / "day")
+      .in(ifMatch)
+      .in(jsonBody[DayProfileInput])
+      .out(etag)
+      .out(jsonBody[DayProfileView])
+      .name("updateDayProfile")
+
+  val getReminderTimeline =
+    secured.get
+      .in("reminders" / "timeline")
+      .in(query[Option[LocalDate]]("date").description("A local day; absent is tomorrow"))
+      .out(jsonBody[ReminderTimeline])
+      .name("getReminderTimeline")
+
   /** Any other path under `/api` answers with the problem document for not-found, never with a bare status. */
   val unknown = endpoint.in("api" / paths).errorOut(failure)
 
@@ -414,5 +469,13 @@ object Endpoints:
     updateSleepSettings,
     getSleepSummary,
     getInsightCalendar,
-    insightsOverview
+    insightsOverview,
+    getReminders,
+    listReminderPresets,
+    createReminderPlan,
+    deleteReminderPlan,
+    createReminderPause,
+    getDayProfile,
+    updateDayProfile,
+    getReminderTimeline
   )

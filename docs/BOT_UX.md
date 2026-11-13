@@ -1000,6 +1000,7 @@ number    = digits [ ( "." / "," ) digits ]
 | BUX-WATER-05 | Drink types and per-drink factors are a later stage and are edited in the Mini App. Until then every entry is water. |
 | BUX-WATER-06 | "Show as image" on the water card sends the hydration vessel card (IMG-08; section 13). Hydration is drawn as a vessel, not a ring, on every surface (ROADMAP conflict X-12). |
 | BUX-WATER-07 | Presets, entry bounds and goal bounds are those of PRODUCT_SPEC R-HYD-1 to R-HYD-3: up to four presets, defaults 200, 300 and 500 ml (or 8, 12 and 16 fl oz), entries of 1 to 5000 ml, a goal of 100 to 10,000 ml. The cards in this document that show "+ 250 ml" and "+ 500 ml" illustrate presets a user has edited. |
+| BUX-WATER-08 | A water nudge (ADR-023) reads "Water reminder. Water today: ..." and carries the quick-add amounts, "Snooze 1 h" and "Pause for today". A tap records, closes the nudge and edits it to "Logged 250 ml. Water today: ..." with no buttons. A new nudge deletes the previous unanswered one. The water consent is followed by the offer of the water presets, each opening a preview of its next times, and "Not now". |
 
 ### 11.3 Meals
 
@@ -1261,6 +1262,7 @@ Consequences of the mapping, which differ from the first draft of this section: 
 | BUX-NOTIF-07 | `/quiet` offers "Pause prompts until tomorrow", which holds classes N2 to N5 until the next morning time, and states that medication reminders are not affected. |
 | BUX-NOTIF-08 | Every proactive message kind names, in its card or in `/settings`, the one tap that turns it off. Turning a kind off never needs the Mini App. |
 | BUX-NOTIF-09 | A simulation over 30 days with every default asserts the counts of BUX-NOTIF-01 and 02 for each local day. |
+| BUX-NOTIF-10 | Owner decision of 2026-11-13 (ADR-023, PRODUCT_SPEC R-SCH-25a): the budget of BUX-NOTIF-01 is a default. A plan chosen from a preset with its own cap is capped by its slot count; BUX-NOTIF-03, BUX-NOTIF-04 (between kinds), BUX-QUIET-01, BUX-NOTIF-07 and BUX-NOTIF-08 still apply. Adaptive quieting for such a plan is per day (widen after three, pause after six, each said once) instead of the 7 days of BUX-NOTIF-05. `/reminders` (hidden) lists every prompt kind with its preset and next time, previews a preset before saving it, edits the day profile and pauses every prompt for 1 or 3 hours; medication reminders are not affected. |
 
 ### 14.3 Quiet hours
 

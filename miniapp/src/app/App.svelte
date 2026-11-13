@@ -35,6 +35,7 @@
   const mood = () => import('../screens/mood/MoodScreen.svelte');
   const moodNew = () => import('../screens/mood/MoodCheckInScreen.svelte');
   const sleep = () => import('../screens/sleep/SleepScreen.svelte');
+  const reminders = () => import('../screens/reminders/RemindersScreen.svelte');
   const history = () => import('../screens/history/HistoryScreen.svelte');
   const settings = () => import('../screens/settings/SettingsScreen.svelte');
   const timeZone = () => import('../screens/settings/TimeZoneScreen.svelte');
@@ -87,6 +88,8 @@
         <Lazy load={quietHours} props={{}} />
       {:else if route.screen === 'settings-privacy'}
         <Lazy load={privacy} props={{}} />
+      {:else if route.screen === 'reminders'}
+        <Lazy load={reminders} props={{}} />
       {:else}
         <Lazy load={insights} props={{}} />
       {/if}
