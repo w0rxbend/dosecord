@@ -45,6 +45,7 @@ interface NativeWebApp {
   offEvent(event: string, callback: Callback): void;
   ready(): void;
   expand(): void;
+  close(): void;
   disableVerticalSwipes?(): void;
   enableClosingConfirmation(): void;
   disableClosingConfirmation(): void;
@@ -137,6 +138,7 @@ export function createRealTelegramPort(host: Window = window): TelegramPort | nu
     disableVerticalSwipes: () => app.disableVerticalSwipes?.(),
     setClosingConfirmation: (enabled) =>
       enabled ? app.enableClosingConfirmation() : app.disableClosingConfirmation(),
+    close: () => app.close(),
 
     mainButton: bottomButton(app.MainButton),
     backButton,

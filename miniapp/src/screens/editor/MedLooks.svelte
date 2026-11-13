@@ -18,6 +18,7 @@
   const notesLength = $derived([...form.notes].length);
 </script>
 
+{#if options.colourTags.length > 0}
 <section class="section" aria-labelledby="looks-title">
   <h2 class="section-title" id="looks-title">{en.editor.looks} ({en.common.optional})</h2>
   <div class="section-body pad fields">
@@ -47,6 +48,7 @@
     {/if}
   </div>
 </section>
+{/if}
 
 <div class="section section-body pad fields">
   <Field
@@ -61,6 +63,7 @@
     {/snippet}
   </Field>
 
+  {#if options.reminderNameToggle}
   <label class="toggle">
     <input type="checkbox" role="switch" aria-describedby="med-showName-help" bind:checked={form.showNameInReminders} />
     <span>
@@ -68,6 +71,7 @@
       <span class="muted" id="med-showName-help">{en.editor.showNameHelp}</span>
     </span>
   </label>
+  {/if}
 </div>
 
 <style>

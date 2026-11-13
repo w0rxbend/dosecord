@@ -40,16 +40,20 @@
     {/snippet}
   </Field>
 
-  <Field id="med-form" label={en.editor.form}>
-    {#snippet children(attributes)}
-      <select {...attributes} class="input" bind:value={form.form}>
-        {#each options.forms as option (option.value)}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
-    {/snippet}
-  </Field>
+  <!-- A field is offered only when the server lists choices for it. -->
+  {#if options.forms.length > 0}
+    <Field id="med-form" label={en.editor.form}>
+      {#snippet children(attributes)}
+        <select {...attributes} class="input" bind:value={form.form}>
+          {#each options.forms as option (option.value)}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      {/snippet}
+    </Field>
+  {/if}
 
+  {#if options.strengthUnits.length > 0}
   <div class="pair">
     <Field id="med-strengthValue" label={en.editor.strength} optional error={errors.strengthValue}>
       {#snippet children(attributes)}
@@ -67,6 +71,7 @@
       {/snippet}
     </Field>
   </div>
+  {/if}
 
   <Field id="med-doseAmount" label={en.editor.dose} required error={errors.doseAmount}>
     {#snippet children(attributes)}

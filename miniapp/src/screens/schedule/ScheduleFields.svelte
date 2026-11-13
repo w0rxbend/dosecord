@@ -61,7 +61,7 @@
   <section class="section" aria-labelledby="times-title">
     <h2 class="section-title" id="times-title">{en.schedule.times}</h2>
     <div class="section-body pad stack">
-      <TimeRows bind:rows={form.rows} {doseUnit} maxRows={options.maxRows} {errors} onAdd={addRow} onRemove={removeRow} />
+      <TimeRows bind:rows={form.rows} {doseUnit} perTimeDose={options.perTimeDose} maxRows={options.maxRows} {errors} onAdd={addRow} onRemove={removeRow} />
     </div>
   </section>
 

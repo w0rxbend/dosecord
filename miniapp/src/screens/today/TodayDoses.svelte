@@ -8,10 +8,12 @@
   interface Props {
     occurrences: readonly Occurrence[];
     readOnly: boolean;
+    /** Read-only because the day has not come; false when doses are answered elsewhere. */
+    planned: boolean;
     onAction: (occurrence: Occurrence, action: OccurrenceAction) => void;
   }
 
-  let { occurrences, readOnly, onAction }: Props = $props();
+  let { occurrences, readOnly, planned, onAction }: Props = $props();
   let earlierOpen = $state(false);
 
   const groups = $derived(groupOccurrences(occurrences));
@@ -41,7 +43,7 @@
         <DoseRow {occurrence} />
       {/each}
     </ul>
-    {#if readOnly}<p class="note">{en.today.planned}</p>{/if}
+    {#if readOnly && planned}<p class="note">{en.today.planned}</p>{/if}
   </section>
 {/if}
 

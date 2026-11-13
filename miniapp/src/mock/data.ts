@@ -18,6 +18,7 @@ export const MEDICATION_OPTIONS: MedicationOptions = {
   colourTags: choices(['none', 'white', 'yellow', 'orange', 'pink', 'red', 'brown', 'green', 'blue', 'purple', 'grey']),
   shapeTags: choices(['none', 'round', 'oval', 'capsule', 'oblong', 'other']),
   limits: { nameMax: 80, notesMax: 500 },
+  reminderNameToggle: true,
 };
 
 export const SCHEDULE_PATTERNS: ScheduleOptions['patterns'] = [

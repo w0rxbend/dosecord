@@ -114,6 +114,7 @@ export class FakeTelegramPort implements TelegramPort {
   expanded = false;
   verticalSwipesDisabled = false;
   closingConfirmation = false;
+  closed = false;
 
   private scheme: ColorScheme;
   private params: ThemeParams;
@@ -155,6 +156,9 @@ export class FakeTelegramPort implements TelegramPort {
   };
   setClosingConfirmation = (enabled: boolean): void => {
     this.closingConfirmation = enabled;
+  };
+  close = (): void => {
+    this.closed = true;
   };
 
   haptic = (event: HapticEvent): void => {

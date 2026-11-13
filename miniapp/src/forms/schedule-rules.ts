@@ -33,7 +33,7 @@ export function normaliseTime(text: string): string | null {
 
 export const rowField = (index: number, part: 'time' | 'dose'): string => `rows.${index}.${part}`;
 
-function rowErrors(rows: readonly ScheduleRowForm[]): FieldError[] {
+function rowErrors(rows: readonly ScheduleRowForm[], perTimeDose: boolean): FieldError[] {
   if (rows.length === 0) return [{ field: 'rows', code: 'times_required' }];
   const seen = new Set<string>();
   return rows.flatMap((row, index) => {
@@ -44,7 +44,7 @@ function rowErrors(rows: readonly ScheduleRowForm[]): FieldError[] {
     else seen.add(time);
 
     const dose = parseDecimal(row.dose, DOSE);
-    if (dose === null || !isPositive(dose)) errors.push({ field: rowField(index, 'dose'), code: 'dose_invalid' });
+    if (perTimeDose && (dose === null || !isPositive(dose))) errors.push({ field: rowField(index, 'dose'), code: 'dose_invalid' });
     return errors;
   });
 }
@@ -57,13 +57,14 @@ function dateErrors(form: ScheduleForm): FieldError[] {
   return form.endDate < form.startDate ? [{ field: 'endDate', code: 'end_before_start' }] : [];
 }
 
-export function validateSchedule(form: ScheduleForm): FieldError[] {
+/** `perTimeDose` is false when the server keeps one dose per schedule: the row dose is then not asked. */
+export function validateSchedule(form: ScheduleForm, perTimeDose = true): FieldError[] {
   if (form.pattern === 'as_needed') return [];
   const weekdayErrors =
     form.pattern === 'weekly' && form.weekdays.length === 0
       ? [{ field: 'weekdays', code: 'weekday_required' }]
       : [];
-  return [...weekdayErrors, ...rowErrors(form.rows), ...dateErrors(form)];
+  return [...weekdayErrors, ...rowErrors(form.rows, perTimeDose), ...dateErrors(form)];
 }
 
 /** Call only for a form that validateSchedule accepts. */
