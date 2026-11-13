@@ -2669,12 +2669,12 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G4.6 | Image consent, protected content and discreet rendering | S | G1.10, G2.8, G2.14; gate CP2-h | MVP | building |
 | G4.7 | Pixel golden job and contact sheet | S | G4.5; gate CP2-h | MVP | todo |
 | G4.8 | The same scene in the Mini App | M | G4.5, G3.2; gate CP2-h | MVP | todo |
-| G5.1 | Prompt occurrences, the prompt loop and the remaining sender classes | M | G0.5, G2.3, G2.7; gate CP2-h (pull-forward) | MVP | todo |
-| G5.2 | Nudge budget, spacing and adaptive quieting | M | G5.1, G2.14; gate CP3-d, CP4-b | MVP | todo |
+| G5.1 | Prompt occurrences, the prompt loop and the remaining sender classes | M | G0.5, G2.3, G2.7; gate CP2-h (pull-forward) | MVP | building |
+| G5.2 | Nudge budget, spacing and adaptive quieting | M | G5.1, G2.14; gate CP3-d, CP4-b | MVP | building |
 | G5.3* | Water: consent and one-tap entry | M | G2.8, G2.13, G2.4b; gate CP3-d, CP4-b | MVP | building |
 | G5.3b | Water: typed amounts and Undo | S | G5.3; gate CP3-d, CP4-b | MVP | building |
 | G5.3c* | Water: own goal, yesterday and the Today card | S | G5.3b; gate CP3-d, CP4-b | MVP | building |
-| G5.4 | Hydration nudges | S | G5.2, G5.3c; gate CP3-d, CP4-b | MVP | todo |
+| G5.4 | Hydration nudges | S | G5.2, G5.3c; gate CP3-d, CP4-b | MVP | building |
 | G5.5 | Hydration in the Mini App (S-07) | M | G5.3c, G3.7; gate CP3-d, CP4-b | MVP | todo |
 | G5.6 | Hydration rollup and vessel card (IMG-08) | M | G5.3c, G4.5, G4.6; gate CP3-d, CP4-b | MVP | building |
 | G5.7 | Consent withdrawal and per-domain deletion | M | G5.3, G2.17, G3.8, G3.9; gate CP3-d, CP4-b | MVP | building |
@@ -2761,6 +2761,7 @@ Status notes. They record evidence and deviations; they are not a second status 
 | G4.5 | The adherence calendar and the per-medication strip are drawn from synthetic view models only; no builder fills them from records and nothing sends them |
 | G2.1 (part) | The tracking repositories and the consent ledger are repository groups of `Tx` (`Tx.tracking`, `Tx.consents`; ADR-024 addendum): a capture event uses one connection and an entry is atomic with its inbound event (`CaptureTransactionPgSuite`), and a double that is called on a group it does not implement names the group. Not done, so the slice stays `todo`: the `StorageError` port in place of `java.sql.SQLException` in `ChatMediator` and `WizardEngine`, `java.sql` on the forbidden list of `core/` and `contracts/`, and a group per module id for the repositories that were on `Tx` before |
 | G5.3, G5.3b, G5.3c, G5.6 | `/water`, the quick-add buttons, typed amounts, Undo, the user's own goal and the vessel card on request work in chat on the fake wire. Missing: "Other amount" and editable presets, add for yesterday, the Today card line, nudges (G5.4), the Mini App screen (G5.5), fluid ounces, the domain checklist of section 6.2 |
+| G5.1, G5.2, G5.4 | Branch `feat/reminder-presets` (ADR-023, owner request of 2026-11-13): the day profile, nudge plans from a preset catalogue, `prompt_occurrences` decided once at due time with a recorded reason, the `PromptLoop` through the outbox, water, mood and sleep prompts, replace-not-pile-up, catch-up without a burst, per-day adaptive quieting, `/reminders` and the water offer after the consent, on the fake wire and a 30-day simulation. Missing: the remaining sender classes, the global reserve and the slow-down rule of G5.1; the budget as an account setting, report holding and the image limit of G5.2; meal and report prompts; the Mini App screen; a live smoke |
 | G6.1, G6.2, G6.7 | `/mood`, the five-step tap, the energy step, Undo and the mood image as the answer work in chat on the fake wire; the daily summary card is sent from `/stats today`. Missing: notes and tags, the picture is not replaced when energy is added (`editMessageMedia`), the independent review of the 35 blob states, the scheduled evening image, the domain checklist of section 6.2 |
 
 Totals for G0 to G11: 132 scheduled slices, of which 48 are S and 84 are M; G0.7 is dissolved, and G10.2, G10.3 and G11.11 are deferred. Of the 132, the slices of part B of G11 (G11.8 to G11.18) are not scheduled until the owner decides on a public beta.
