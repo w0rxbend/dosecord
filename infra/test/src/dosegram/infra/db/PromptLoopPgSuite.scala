@@ -1,6 +1,7 @@
 package dosegram.infra.db
 
 import dosegram.contracts.*
+import dosegram.core.application.capture.CaptureHandler
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
@@ -53,7 +54,11 @@ class PromptLoopPgSuite extends PgSuite:
   /** A local time of the Monday in Kyiv. */
   private def kyiv(hhmm: String): Instant = Instant.parse(s"${monday}T$hhmm:00+02:00")
 
-  private final class Rig(start: Instant = kyiv("09:00"), preset: PromptPreset = PromptPresets.WaterWorkHours):
+  private final class Rig(
+      start: Instant = kyiv("09:00"),
+      preset: PromptPreset = PromptPresets.WaterWorkHours,
+      consent: ConsentPurpose = ConsentPurpose.Hydration
+  ):
     val clock = MutableClock(start)
     // One rig at a time: the plans and queued rows of the earlier tests stay out of this one's loop and wire.
     withConnection: conn =>
@@ -61,7 +66,7 @@ class PromptLoopPgSuite extends PgSuite:
       sql"UPDATE prompt_schedules SET enabled = false".execute()
       sql"UPDATE outbox_messages SET status = 'cancelled' WHERE status = 'queued'".execute()
     val account: UUID = fixtures.account("Europe/Kyiv")
-    fixtures.grant(account, ConsentPurpose.Hydration)
+    fixtures.grant(account, consent)
     fixtures.deliveryChannel(account, "fake", s"chat-$account", start)
     val uow = PgUnitOfWork(dataSource, clock)
     val hydration = HydrationService(clock, ids)
@@ -103,6 +108,23 @@ class PromptLoopPgSuite extends PgSuite:
       uow.transaction(tx => assert(hydration.log(tx, LogWater(account, amount, EntryDay.Today, EntrySource.Bot, key)).isRight))
 
     def open: List[(MessageHandle, RenderedMessage)] = adapter.sent
+
+    /** A tap on the prompt `handle` of the button that carries `wire`, handled on its own transaction. */
+    def tap(handler: ChatHandler, handle: MessageHandle, wire: String, eventId: String): Reply =
+      val payload = codec.decode(wire).toOption.get
+      val ref = CallbackRef(payload.action.id, payload.subject, payload.value, slot = false, raw = wire)
+      val event = InboundEvent(
+        EventId(UUID.randomUUID()),
+        "fake",
+        eventId,
+        clock.now(),
+        actor = PlatformIdentity("fake", "owner", None),
+        chat = ChatRef("fake", handle.chatId),
+        principal = None,
+        body = Inbound.InteractionSubmitted(ref, Some(handle))
+      )
+      val principal = Principal(IdentityId(UUID.randomUUID()), Some(AccountId(account)), linked = true)
+      uow.transaction(handler.handle(event, principal, _))
 
     def labels(message: RenderedMessage): List[String] = message.controls.flatMap:
       case RenderedControls.Buttons(rows)       => rows.flatten.map(_.label)
@@ -172,21 +194,7 @@ class PromptLoopPgSuite extends PgSuite:
     val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
     val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
     val token = codec.encode(CallbackMode.Direct, ActionRegistry.byName("prompt.water_add").get, prompt.id, 300)
-    def tap(eventId: String): Reply =
-      val payload = codec.decode(token.wire).toOption.get
-      val ref = CallbackRef(payload.action.id, payload.subject, payload.value, slot = false, raw = token.wire)
-      val event = InboundEvent(
-        EventId(UUID.randomUUID()),
-        "fake",
-        eventId,
-        rig.clock.now(),
-        actor = PlatformIdentity("fake", "owner", None),
-        chat = ChatRef("fake", handle.chatId),
-        principal = None,
-        body = Inbound.InteractionSubmitted(ref, Some(handle))
-      )
-      val principal = Principal(IdentityId(UUID.randomUUID()), Some(AccountId(rig.account)), linked = true)
-      rig.uow.transaction(handler.handle(event, principal, _))
+    def tap(eventId: String): Reply = rig.tap(handler, handle, token.wire, eventId)
     rig.at("09:33")
     val reply = tap("tap-1")
     val outcome = reply.replace.getOrElse(fail(s"expected an edit of the prompt, got $reply"))
@@ -197,6 +205,25 @@ class PromptLoopPgSuite extends PgSuite:
     assertEquals(tap("tap-2").toast, Some("This reminder is already closed."))
     val total = rig.uow.transaction(tx => rig.hydration.day(tx, rig.account, EntryDay.Today)).toOption.get
     assertEquals(total.recorded.map(_.totalMl), Some(300))
+
+  test("a mood prompt answered by a tap is closed, so the next prompt leaves its recorded check-in in the chat"):
+    val rig = Rig(preset = PromptPresets.MoodMiddayEvening, consent = ConsentPurpose.Mood)
+    rig.at("13:30")
+    rig.tickAndSend()
+    val List((handle, _)) = rig.open: @unchecked
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    val handler = new CaptureHandler(codec, rig.clock, parts, inner = (_, _, _) => Reply.empty)
+    val step = codec.encode(CallbackMode.Direct, ActionRegistry.byName("mood.checkin").get, rig.account, 4)
+    rig.at("13:33")
+    val reply = rig.tap(handler, handle, step.wire, "mood-tap-1")
+    val recorded = reply.replace.getOrElse(fail(s"expected an edit of the prompt, got $reply"))
+    assertEquals(recorded.replaces, Some(handle))
+    assertEquals(rig.prompts.map(_.status), List(PromptStatus.Answered))
+    rig.at("20:00")
+    rig.tickAndSend()
+    assert(!rig.adapter.ops.contains(VendorOp.Delete(handle)), rig.adapter.ops)
+    assertEquals(rig.prompts.map(_.status), List(PromptStatus.Answered, PromptStatus.Sent))
+    assertEquals(rig.open.size, 2, "the recorded check-in and the new prompt")
 
   test("catch-up after downtime sends at most the newest prompt, and nothing once it is stale"):
     val rig = Rig()

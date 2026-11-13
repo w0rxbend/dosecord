@@ -18,9 +18,13 @@ import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.reminders.PromptKind
+import dosegram.core.domain.reminders.PromptStatus
+import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.scheduling.OutboxDispatcher
 
 import java.util.UUID
 
@@ -29,7 +33,7 @@ import java.util.UUID
   * image needs the `images_in_chat` consent like every personal image (owner decision 2026-11-13, BUX-MOOD-03); without
   * it the answer is the text alone, and the consent is not asked here.
   */
-private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tokens: Tokens):
+private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, clock: Clock, tokens: Tokens):
 
   def prompt(turn: Turn): Reply =
     val steps = Valence.steps.map: step =>
@@ -49,13 +53,15 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
   /** A tap on a prompt (owner decision 2026-11-13: one prompt, one check-in). The check-in's key is the prompt message,
     * so a later, racing or post-restart tap on it replays the first check-in: it records nothing and answers "Already
     * recorded at 21:04", or that the check-in was undone. The first tap edits the prompt into the recorded level with
-    * its 1 to 5 buttons gone; with an image, the image follows as its own message and carries Add energy and Undo.
+    * its 1 to 5 buttons gone; with an image, the image follows as its own message and carries Add energy and Undo. A
+    * prompt of the prompt loop is closed as answered, so the next prompt leaves that message in the chat.
     */
   def checkInFromPrompt(turn: Turn, valence: Valence): Reply =
     turn.source match
       case None         => checkIn(turn, valence)
       case Some(prompt) =>
         record(turn, valence, MoodChat.promptKey(prompt)): recorded =>
+          closeLoopPrompt(turn, prompt)
           val caption = captionOf(turn, recorded.checkin)
           image(turn, valence) match
             case None             => turn.show(turn.message("mood.recorded", List(caption), followUpRows(recorded)))
@@ -64,6 +70,17 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
               turn
                 .show(turn.message("mood.prompt.recorded", List(caption), Nil))
                 .copy(followUps = List(photo.copy(attachment = Some(attachment))))
+
+  /** Closes the open mood prompt of the prompt loop when `prompt` is its message; a `/mood` prompt has no occurrence.
+    */
+  private def closeLoopPrompt(turn: Turn, prompt: MessageHandle): Unit =
+    val prompts = turn.tx.reminders.prompts
+    for
+      plan <- prompts.schedule(turn.accountId, PromptKind.Mood)
+      open <- prompts.lastSent(plan.id) if open.status == PromptStatus.Sent
+      key <- open.sendKey
+      if turn.tx.outbox.recordedHandle(prompt.vendor, key).contains(OutboxDispatcher.encodeHandle(prompt))
+    do prompts.close(open.id, PromptStatus.Answered, clock.now())
 
   private def image(turn: Turn, valence: Valence): Option[AttachmentRef] =
     if turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.ImagesInChat) then

@@ -453,6 +453,8 @@ private object MedicationWizardRig:
         val inbound = tx.inboundEvents
         val fenced = new Tx:
           export tx.{inboundEvents as _, *}
+          // An export skips a member the trait already defines, so the group with a default is forwarded by hand.
+          override def reminders: ReminderRepositories = tx.reminders
           override val inboundEvents: InboundEventRepository = new InboundEventRepository:
             export inbound.complete
             override def insert(event: NewInboundEvent): Boolean =

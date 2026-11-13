@@ -3,11 +3,16 @@ package dosegram.core.chat
 import dosegram.contracts.*
 import dosegram.core.domain.CancelReason
 import dosegram.core.domain.OccurrenceStatus
+import dosegram.core.domain.reminders.DayAnchors
+import dosegram.core.domain.reminders.PromptKind
+import dosegram.core.domain.reminders.PromptNotice
+import dosegram.core.domain.reminders.PromptStatus
 import dosegram.core.ports.*
 
 import java.sql.SQLTransientConnectionException
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -621,9 +626,40 @@ object MediatorFakes:
       override def heartbeat: WorkerHeartbeatRepository = InMemoryUnitOfWork.this.heartbeat
       override def consents: ConsentLedger = InMemoryUnitOfWork.this.consents
       override def tracking: TrackingRepositories = InMemoryUnitOfWork.this.tracking
+      override def reminders: ReminderRepositories = NoPromptPlans
       override def savepoint[A](f: => A): A = f
 
     override def transaction[A](f: Tx => A): A = f(tx)
+
+  /** The reminders group of an account world with no prompt plan: every read finds nothing, and a write fails, because
+    * no flow on this double sets a plan up (the prompt loop runs on Postgres, ADR-023).
+    */
+  object NoPromptPlans extends ReminderRepositories:
+    private def unsupported(what: String): Nothing =
+      throw UnsupportedOperationException(s"$what: this double holds no prompt plan")
+
+    override val prompts: PromptRepository = new PromptRepository:
+      override def schedules(accountId: UUID): List[PromptSchedule] = Nil
+      override def schedule(accountId: UUID, kind: PromptKind): Option[PromptSchedule] = None
+      override def save(schedule: PromptSchedule, now: Instant): PromptSchedule = unsupported("save")
+      override def setEnabled(accountId: UUID, kind: PromptKind, enabled: Boolean, now: Instant): Boolean = false
+      override def pause(scheduleId: UUID, until: Option[Instant], now: Instant): Unit = unsupported("pause")
+      override def enabledIds(): List[UUID] = Nil
+      override def lockEnabled(scheduleId: UUID): Option[PromptSchedule] = None
+      override def decided(scheduleId: UUID, dates: List[LocalDate]): List[PromptOccurrence] = Nil
+      override def decidedOn(accountId: UUID, date: LocalDate): List[PromptOccurrence] = Nil
+      override def insert(occurrence: PromptOccurrence): Boolean = unsupported("insert")
+      override def occurrence(id: UUID): Option[PromptOccurrence] = None
+      override def close(id: UUID, status: PromptStatus, at: Instant): Boolean = false
+      override def lastSent(scheduleId: UUID): Option[PromptOccurrence] = None
+      override def markNotice(id: UUID, notice: PromptNotice): Unit = unsupported("markNotice")
+
+    override val dayProfiles: DayProfileRepository = new DayProfileRepository:
+      override def anchors(accountId: UUID): Option[DayAnchors] = None
+      override def save(accountId: UUID, anchors: DayAnchors, now: Instant): Unit = unsupported("save anchors")
+      override def pausedUntil(accountId: UUID): Option[Instant] = None
+      override def pauseAll(accountId: UUID, until: Option[Instant], default: DayAnchors, now: Instant): Unit =
+        unsupported("pauseAll")
 
   /** Every transaction fails as it would with the connection pool paused (R68). */
   final class PoolPausedUow extends UnitOfWork:
