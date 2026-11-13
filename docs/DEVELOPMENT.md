@@ -125,6 +125,22 @@ of [QUICKSTART.md](../QUICKSTART.md):
 the app shows the gate "Dosegram runs inside Telegram"; `miniapp/README.md`
 describes how the development server signs its own launch data instead.
 
+## Status images on a developer machine
+
+The chat sends the mood, water and daily summary cards as photos only when the
+application can draw them (ADR-022). It needs the resvg binary, version 0.49.0,
+and the pinned font pack of this repository:
+
+| Variable | Value |
+|---|---|
+| `RESVG_PATH` | The resvg binary, for example the output of `command -v resvg` |
+| `RENDER_FONTS_DIR` | `report-renderer/fonts` |
+
+Without the two variables every image is sent as its text equivalent, which is
+also what the container image does today: it has neither resvg nor the fonts.
+`./mill report-renderer.resvg.test.contactSheet` writes every card as a PNG to
+`out/report-renderer/preview`.
+
 ## Rules that hold everywhere
 
 - `core` and `contracts` stay vendor-neutral (`scripts/check-vendor-symbols.sh`).

@@ -39,29 +39,52 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-13:
+State of `main` on 2026-11-13, after four parallel tracks were merged and
+wired together. Appendix B and its status notes are the record; this is the
+short form.
 
-- G0.3 (`d6a033d`): Discord, Zulip and Matrix are deleted. The only adapter
-  is `console`. `telegram` exists as a capability profile and a setting; its
-  adapter is not built (G1.4, G1.5).
-- G0.4 (`b6530a3`): one product name, `dosegram`, in packages, build,
-  container, CI, scripts and the Flyway baseline.
-- G0.5 (`fb6b317`): `dosegram run` starts the wake listener, the materialiser,
-  the reminder loop, the outbox dispatcher and the session sweeper.
-- Mini App scaffold (`00bbb31`, towards G3.2): `miniapp/` holds a Svelte 5
-  shell and first screens against a fake `TelegramPort` and an in-memory mock
-  backend. No API exists behind it yet.
-- G0.2: this governance cut-over. ROADMAP Appendix B holds its status.
+- Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
+  `green`. G0.2 is `building`. G0.1 is not performed: `docs/traceability.csv`
+  and `scripts/traceability-check.sh` do not exist.
+- Telegram (`adapter-telegram`, ADR-019): a hand-written Bot API client behind
+  a transport seam, a fake wire, long polling, flood control. `app` selects it
+  from the settings. No webhook endpoint and no durable inbox (G1.7).
+- Images (`report-renderer`, `report-renderer.resvg`, ADR-022): cards are drawn
+  from a scene tree through SVG and a resvg child process, each with a text
+  equivalent. `app` draws the mood, water and daily summary cards and keeps
+  them in an in-memory asset store; it needs `RESVG_PATH` and
+  `RENDER_FONTS_DIR`, and without them every image is sent as its text. The
+  container image has no resvg and no fonts yet.
+- Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, daily
+  rollups, the `Stat` type, text statistics, one comparison rule, and the
+  consent ledger (`consent_events`, `consent_state`).
+- Chat: besides the medication flows, `/water`, `/mood`, `/stats` and
+  `/privacy` with the two-stage consent at first use, quick-capture text
+  ("250 ml", "mood 4"), the mood image as the answer to a check-in, and the
+  vessel and daily summary images on request (`core/application/capture`).
+- API and Mini App (`api`, `miniapp`, ADR-016, ADR-020): session exchange,
+  Today read, the medication and schedule registry and
+  `GET /insights/overview` behind `MINIAPP_ENABLED`, which production refuses.
+  The Insights screen reads the overview; dose actions over HTTP do not exist.
 
-Not done: G0.1 (the traceability matrix and `scripts/traceability-check.sh`
-do not exist) and every owner action from OA-2 on. No Telegram bot token
-exists. Everything is built and tested against a fake wire and recorded
-fixtures; there are no live sends.
+Every slice these touch is `building`, none is `green`. No Telegram bot token
+exists: everything is built and tested against the fake wire and hand-written
+fixtures, and there are no live sends. The spikes G1.1 to G1.3, every live
+smoke and every owner action from OA-2 on are open.
 
-Eligible next, by dependency: G0.8 (secret scanning and pinned CI actions),
-G2.6 (English catalogue, a pull-forward) and the spike G1.2 (render pipeline
-in the production container). G1.4 and the rest of G1 wait for G0.8, the
-fixtures of G1.1 and gate CP0-b; G1.1 and G1.3 need a staging bot (OA-4).
+Useful next, in this order:
+
+1. Owner: a staging bot (OA-4). Then G1.1 (replace the hand-written fixtures
+   and error strings with recordings), live smoke LS-1 for G1.6, and G1.3.
+2. `docker/Dockerfile`: the resvg build stage, the font pack and the built
+   Mini App, then the image gate with rendering on (G1.2, G1.9).
+3. G1.7: the durable inbox and the webhook endpoint. It also closes the window
+   in which a polled update is lost when the process dies.
+4. Durable stores where the process still holds state in memory: the asset
+   store and `file_id` cache (G1.10), Mini App sessions and idempotency
+   records (G3.1).
+5. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
+   are eligible by dependency and untouched.
 
 ## Agent workflow
 

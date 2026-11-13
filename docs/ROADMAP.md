@@ -2610,18 +2610,18 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G0.7 | Contract revision B (dissolved into G1.10, G1.13, G2.8, G2.15, G4.6, G6.2, G12.6) | none | not a slice | Foundation | dissolved |
 | G0.8 | Secret scanning and pinned CI actions | S | G0.4 | Foundation | todo |
 | G1.1 | Spike: live Bot API behaviour | S | G0.2, OA-4, OA-10; pull-forward | Foundation | todo |
-| G1.2 | Spike: render pipeline in the production container | S | G0.2; pull-forward | Foundation | todo |
+| G1.2 | Spike: render pipeline in the production container | S | G0.2; pull-forward | Foundation | building |
 | G1.3 | Spike: Mini App launch, signature and policy on real clients | S | G0.2, OA-4, OA-6, OA-10; pull-forward | Foundation | todo |
-| G1.4 | Thin Telegram client and transport seam | M | G0.4, G0.8; the fixtures of G1.1 before merge; gate CP0-b | Foundation | todo |
-| G1.5 | Telegram adapter on the fake wire | M | G1.4; gate CP0-b | Foundation | todo |
-| G1.6 | Long polling and the first live reminder | M | G1.5, G0.5, OA-4, OA-13; gate CP0-b | Foundation | todo |
+| G1.4 | Thin Telegram client and transport seam | M | G0.4, G0.8; the fixtures of G1.1 before merge; gate CP0-b | Foundation | building |
+| G1.5 | Telegram adapter on the fake wire | M | G1.4; gate CP0-b | Foundation | building |
+| G1.6 | Long polling and the first live reminder | M | G1.5, G0.5, OA-4, OA-13; gate CP0-b | Foundation | building |
 | G1.7 | Webhook endpoint and durable inbox | M | G1.5; gate CP0-b | Foundation | todo |
 | G1.8 | Staging deployment: proxy, TLS and bot configuration sync | M | G1.7, OA-6, OA-7; gate CP0-b | Foundation | todo |
-| G1.9 | Render module and resvg process adapter | M | G1.2 with a go verdict, G0.4; gate CP0-b | Foundation | todo |
-| G1.10 | Media transport and short-lived asset store | M | G1.5, G0.6; gate CP0-b | Foundation | todo |
-| G1.11 | First card in chat | S | G1.9, G1.10, G1.6; gate CP0-b | Foundation | todo |
-| G1.12 | API skeleton: session and Today read | M | G1.3 with a go verdict, G1.4, G0.5; gate CP0-b | Foundation | todo |
-| G1.13 | Mini App launch stub and app buttons | S | G1.12, G1.8, G0.6, OA-8; gate CP0-b | Foundation | todo |
+| G1.9 | Render module and resvg process adapter | M | G1.2 with a go verdict, G0.4; gate CP0-b | Foundation | building |
+| G1.10 | Media transport and short-lived asset store | M | G1.5, G0.6; gate CP0-b | Foundation | building |
+| G1.11 | First card in chat | S | G1.9, G1.10, G1.6; gate CP0-b | Foundation | building |
+| G1.12 | API skeleton: session and Today read | M | G1.3 with a go verdict, G1.4, G0.5; gate CP0-b | Foundation | building |
+| G1.13 | Mini App launch stub and app buttons | S | G1.12, G1.8, G0.6, OA-8; gate CP0-b | Foundation | building |
 | G1.14 | Walking-skeleton demonstration | S | G1.8, G1.11, G1.13; gate CP0-b | Foundation | todo |
 | G2.1 | Storage error port and repository groups | M | G0.6; gate CP1-e | MVP | todo |
 | G2.2 | Schema reshape A: accounts and removals | M | G2.1, the answer to RQ-2 and RQ-8; gate CP1-e | MVP | todo |
@@ -2631,7 +2631,7 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G2.5 | Log allowlist and canary gate | S | G1.5; pull-forward | MVP | todo |
 | G2.6 | Localisation catalogue, English | M | G0.4; pull-forward | MVP | todo |
 | G2.7 | Single sender with per-chat pacing and wrong-recipient guard | M | G1.6; gate CP1-e | MVP | todo |
-| G2.8 | Onboarding with consent ledger and discreet choice | M | G2.4b, G2.6; gate CP1-e | MVP | todo |
+| G2.8 | Onboarding with consent ledger and discreet choice | M | G2.4b, G2.6; gate CP1-e | MVP | building |
 | G2.9 | Time zone capture in chat | S | G2.8; gate CP1-e | MVP | todo |
 | G2.10* | Reminder card as message operations | M | G2.7, G2.6, G2.8, the answer to RQ-9; gate CP1-e | MVP | todo |
 | G2.11* | Undo, correction and "Taken earlier?" | S | G2.10; gate CP1-e | MVP | todo |
@@ -2643,48 +2643,48 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G2.17 | Hard delete from `/privacy` | M | G2.4, G2.8, G2.16; gate CP1-e | MVP | todo |
 | G2.18 | Readiness, metrics and owner alerts | M | G1.8; gate CP1-e | MVP | todo |
 | G2.19 | Encrypted nightly backup and restore drill | S | G1.8, G2.4b, G2.16, G2.17, OA-7; gate CP1-e | MVP | todo |
-| G2.20 | Adherence text statistics | S | G2.13; gate CP1-e | MVP | todo |
+| G2.20 | Adherence text statistics | S | G2.13; gate CP1-e | MVP | building |
 | G2.21 | Telegram conformance gate, simulation and tap budget | M | G2.10 to G2.15; gate CP1-e | MVP | todo |
 | G2.22 | Ukrainian catalogue | M | G2.6; gate CP1-e | MVP | todo |
 | G2.23* | Owner-use gate and tag `0.1.0` | S | every G2 slice except G2.22; OA-4, OA-5; gate CP1-e | MVP | todo |
-| G3.1 | API foundation | S | G1.12, G2.3; gate CP2-h | MVP | todo |
-| G3.2* | Mini App shell with the medication list (S-02) | M | G3.1, G1.3, G2.4b; gate CP2-h | MVP | todo |
-| G3.2b | Gate screens, tabs and the bundle-budget measurement | S | G3.2; gate CP2-h | MVP | todo |
-| G3.3 | Same-origin serving, security headers and content security policy | S | G3.2; gate CP2-h | MVP | todo |
-| G3.4* | Medication detail (S-03) | S | G3.2; gate CP2-h | MVP | todo |
-| G3.5* | Medication editor with drafts and conflict handling (S-04) | M | G3.4; gate CP2-h | MVP | todo |
-| G3.6* | Schedule builder for the MVP patterns (S-05) | M | G3.5; gate CP2-h | MVP | todo |
-| G3.7* | Today and day detail (S-01, S-13) | M | G3.4, G3.5, G2.13; gate CP2-h | MVP | todo |
+| G3.1 | API foundation | S | G1.12, G2.3; gate CP2-h | MVP | building |
+| G3.2* | Mini App shell with the medication list (S-02) | M | G3.1, G1.3, G2.4b; gate CP2-h | MVP | building |
+| G3.2b | Gate screens, tabs and the bundle-budget measurement | S | G3.2; gate CP2-h | MVP | building |
+| G3.3 | Same-origin serving, security headers and content security policy | S | G3.2; gate CP2-h | MVP | building |
+| G3.4* | Medication detail (S-03) | S | G3.2; gate CP2-h | MVP | building |
+| G3.5* | Medication editor with drafts and conflict handling (S-04) | M | G3.4; gate CP2-h | MVP | building |
+| G3.6* | Schedule builder for the MVP patterns (S-05) | M | G3.5; gate CP2-h | MVP | building |
+| G3.7* | Today and day detail (S-01, S-13) | M | G3.4, G3.5, G2.13; gate CP2-h | MVP | building |
 | G3.8 | Step-up confirmation through the chat | S | G3.1, G2.10; gate CP2-h | MVP | todo |
 | G3.9 | Settings and consent view (S-15) | M | G3.8, G2.14, G2.17; gate CP2-h | MVP | todo |
 | G3.10 | Full export with a download ticket | M | G3.8, G1.10, G2.4b, G2.17; gate CP2-h | MVP | todo |
 | G3.11 | Time-zone probe in onboarding | S | G3.2, G2.9; gate CP2-h | MVP | todo |
 | G3.12 | Browser end-to-end suite and per-client live smoke | M | G3.4 to G3.10; gate CP2-h | MVP | todo |
-| G4.1 | Design tokens and scene primitives | M | G1.9; gate CP2-h | MVP | todo |
-| G4.2 | Font pack and text measurement | S | G1.9; gate CP2-h | MVP | todo |
+| G4.1 | Design tokens and scene primitives | M | G1.9; gate CP2-h | MVP | building |
+| G4.2 | Font pack and text measurement | S | G1.9; gate CP2-h | MVP | building |
 | G4.3 | Report preparation queue, limits and `file_id` cache | M | G1.10, G2.7; gate CP2-h | MVP | todo |
-| G4.4 | Rollups and the `Stat` type for medication | M | G2.3; gate CP2-h | MVP | todo |
-| G4.5 | Adherence calendar and per-medication strip (IMG-06, IMG-07) | M | G4.1 to G4.4, G4.6; gate CP2-h | MVP | todo |
-| G4.6 | Image consent, protected content and discreet rendering | S | G1.10, G2.8, G2.14; gate CP2-h | MVP | todo |
+| G4.4 | Rollups and the `Stat` type for medication | M | G2.3; gate CP2-h | MVP | building |
+| G4.5 | Adherence calendar and per-medication strip (IMG-06, IMG-07) | M | G4.1 to G4.4, G4.6; gate CP2-h | MVP | building |
+| G4.6 | Image consent, protected content and discreet rendering | S | G1.10, G2.8, G2.14; gate CP2-h | MVP | building |
 | G4.7 | Pixel golden job and contact sheet | S | G4.5; gate CP2-h | MVP | todo |
 | G4.8 | The same scene in the Mini App | M | G4.5, G3.2; gate CP2-h | MVP | todo |
 | G5.1 | Prompt occurrences, the prompt loop and the remaining sender classes | M | G0.5, G2.3, G2.7; gate CP2-h (pull-forward) | MVP | todo |
 | G5.2 | Nudge budget, spacing and adaptive quieting | M | G5.1, G2.14; gate CP3-d, CP4-b | MVP | todo |
-| G5.3* | Water: consent and one-tap entry | M | G2.8, G2.13, G2.4b; gate CP3-d, CP4-b | MVP | todo |
-| G5.3b | Water: typed amounts and Undo | S | G5.3; gate CP3-d, CP4-b | MVP | todo |
-| G5.3c* | Water: own goal, yesterday and the Today card | S | G5.3b; gate CP3-d, CP4-b | MVP | todo |
+| G5.3* | Water: consent and one-tap entry | M | G2.8, G2.13, G2.4b; gate CP3-d, CP4-b | MVP | building |
+| G5.3b | Water: typed amounts and Undo | S | G5.3; gate CP3-d, CP4-b | MVP | building |
+| G5.3c* | Water: own goal, yesterday and the Today card | S | G5.3b; gate CP3-d, CP4-b | MVP | building |
 | G5.4 | Hydration nudges | S | G5.2, G5.3c; gate CP3-d, CP4-b | MVP | todo |
 | G5.5 | Hydration in the Mini App (S-07) | M | G5.3c, G3.7; gate CP3-d, CP4-b | MVP | todo |
-| G5.6 | Hydration rollup and vessel card (IMG-08) | M | G5.3c, G4.5, G4.6; gate CP3-d, CP4-b | MVP | todo |
-| G5.7 | Consent withdrawal and per-domain deletion | M | G5.3, G2.17, G3.8, G3.9; gate CP3-d, CP4-b | MVP | todo |
-| G6.1* | Mood check-in in chat | M | G5.3, G2.8; gate CP5-a | MVP | todo |
-| G6.2 | Mood blob geometry and mood card (IMG-02) | M | G4.1, G4.3, G4.6, G6.1, the SP-11 verdict of G1.1; gate CP5-a | MVP | todo |
+| G5.6 | Hydration rollup and vessel card (IMG-08) | M | G5.3c, G4.5, G4.6; gate CP3-d, CP4-b | MVP | building |
+| G5.7 | Consent withdrawal and per-domain deletion | M | G5.3, G2.17, G3.8, G3.9; gate CP3-d, CP4-b | MVP | building |
+| G6.1* | Mood check-in in chat | M | G5.3, G2.8; gate CP5-a | MVP | building |
+| G6.2 | Mood blob geometry and mood card (IMG-02) | M | G4.1, G4.3, G4.6, G6.1, the SP-11 verdict of G1.1; gate CP5-a | MVP | building |
 | G6.3 | Mood prompt at a touchpoint | S | G5.2, G6.1; gate CP5-a | MVP | todo |
 | G6.4 | Mood in the Mini App (S-09) | M | G6.1, G3.7, G4.8; gate CP5-a | MVP | todo |
 | G6.5 | Log hub and history calendar (S-06, S-12) | M | G5.5, G6.4; gate CP5-a | MVP | todo |
 | G6.6* | Evening wrap-up and the Today card for all MVP domains | M | G5.4, G6.3; gate CP5-a | MVP | todo |
-| G6.7 | Daily summary card (IMG-03) | M | G6.2, G5.6, G4.6; gate CP5-a | MVP | todo |
-| G6.8 | Period text summaries for hydration and mood | S | G5.6, G6.1; gate CP5-a | MVP | todo |
+| G6.7 | Daily summary card (IMG-03) | M | G6.2, G5.6, G4.6; gate CP5-a | MVP | building |
+| G6.8 | Period text summaries for hydration and mood | S | G5.6, G6.1; gate CP5-a | MVP | building |
 | G7.1* | Sleep check-ins and episodes in chat | M | G6.1, G5.1; gate CP6-c | V1 | todo |
 | G7.2 | Bedtime nudge and morning touchpoint | S | G7.1, G5.2; gate CP6-c | V1 | todo |
 | G7.3 | Sleep in the Mini App with a goal (S-10) | M | G7.1, G6.5; gate CP6-c | V1 | todo |
@@ -2749,7 +2749,18 @@ Status notes. They record evidence and deviations; they are not a second status 
 | G0.4 | Merged as `b6530a3`. Both searches of section 1.4 are empty and run in `scripts/check-vendor-symbols.sh`; executed tests unchanged at 986. OA-3 (the GitHub repository rename) is open, so gate CP0-b is not closed |
 | G0.5 | Merged as `fb6b317`. Executed tests 986 to 997; the launch-path suite covers the dispatched reminder, retry, catch-up, session expiry and the SIGTERM drain |
 | G0.3 to G0.5 | CI is green on `main` at `00bbb31`, which contains the three commits (run 43402754417, 2026-11-13) |
-| G3.2 | A scaffold is merged as `00bbb31`: shell and first screens on a fake `TelegramPort` and a mock backend. The slice stays `todo` because its dependencies (G3.1, G1.3, G2.4b) are not met and no acceptance criterion has been claimed |
+| G3.2 | A scaffold is merged as `00bbb31`: shell and first screens on a fake `TelegramPort` and a mock backend; since `789b7dd` it also has the generated API types, the HTTP client with the session exchange and the gate screens. `building`: its dependencies (G3.1, G1.3, G2.4b) are not `green` and no acceptance criterion has been claimed |
+| Integration of 2026-11-13 | Four tracks were built in parallel against a fake wire and merged to `main` (`f46c1f8` analytics, `174026e` render, `c3c3012` Telegram, `cce362e` API), then wired together (`57ebbed` consent ledger, `96ba1e7` chat flows, `63e3985` cards through the adapter, `417da69` insights API, and the Mini App Insights screen on it). Every slice touched is `building`, none is `green`: the work ran ahead of the milestone gates, of G0.1 and of the spikes G1.1 to G1.3, under the owner's instruction to implement. No Telegram bot token exists, so no acceptance that needs a live send, a real client or the production container is met. The rows below say what exists and what is missing |
+| G1.2, G1.9, G4.1, G4.2 | `report-renderer` and `report-renderer.resvg` exist (ADR-022, `docs/spikes/render-pipeline.md`): scene tree, SVG profile, resvg child process, pinned fonts, tokens. Missing: the resvg build stage and the fonts in `docker/Dockerfile`, the measurement inside the production image, pixel goldens in CI, a second locale |
+| G1.4, G1.5, G1.6 | `adapter-telegram` exists (ADR-019): client, transport seam, fake wire, closed error mapping, long polling, flood gate; suite A passes 13 of 13 for the Telegram profile on the fake wire, and the launch-path suites drive the assembled application through it. Missing: the recorded fixtures of G1.1, live smoke LS-1 and every live observation. G1.7 stays `todo`: the webhook handler is a pure function that nothing mounts, and the durable inbox is not started |
+| G1.10, G1.11 | A card is drawn, kept in an in-memory asset store and sent with `sendPhoto` with its text equivalent as the caption; a mood state is uploaded once and then sent by `file_id` (`CaptureLaunchSuite`). Missing: a durable asset store and `file_id` cache (both are per process and lost on restart), `protect_content`, `editMessageMedia`, and the live send |
+| G1.12, G1.13, G3.1, G3.3 to G3.7 | The `api` module exists (ADR-016, ADR-020): session exchange, Today read, the medication and schedule registry, `GET /insights/overview`, the committed OpenAPI document with its diff check, one origin with the header set behind `MINIAPP_ENABLED`. Missing: spike G1.3, durable session and idempotency stores, the consent check and the policy function of the API, dose actions (G3.7 is read-only over HTTP), per-chat menu button, the browser suite, `docs/API.md` |
+| G2.8, G4.6, G5.7 | The consent ledger exists (`consent_events`, `consent_state`, `PgConsentLedger`) and the chat asks the two-stage consent at first use of water, mood, statistics and personal images, with the receipt and `/privacy` withdrawal. Missing: consent in onboarding, the discreet choice, both tap times and the locale in the ledger row, re-prompt on a new notice version, deletion of a domain's data, `protect_content` and discreet rendering of images |
+| G2.20, G4.4, G6.8 | `/stats` shows the text of `StatsQueryService` for today, 7 and 30 days over rollups and the `Stat` type (ADR-024). Missing: "By medication", the loop that drains the rollup queue (reads refresh the days they need), the Ukrainian text |
+| G4.5 | The adherence calendar and the per-medication strip are drawn from synthetic view models only; no builder fills them from records and nothing sends them |
+| G2.1 (not started) | The capture flows make its absence a limit of the running system: a chat handler runs inside the mediator's transaction and the tracking use cases open a second pooled connection (`TrackingUnitOfWork`, ADR-024). An entry is therefore not atomic with its inbound event (the client key makes a redelivery harmless), and ten simultaneous capture events hold the whole pool of ten while each waits for a second connection. The repository groups of DEP-10 remove both |
+| G5.3, G5.3b, G5.3c, G5.6 | `/water`, the quick-add buttons, typed amounts, Undo, the user's own goal and the vessel card on request work in chat on the fake wire. Missing: "Other amount" and editable presets, add for yesterday, the Today card line, nudges (G5.4), the Mini App screen (G5.5), fluid ounces, the domain checklist of section 6.2 |
+| G6.1, G6.2, G6.7 | `/mood`, the five-step tap, the energy step, Undo and the mood image as the answer work in chat on the fake wire; the daily summary card is sent from `/stats today`. Missing: notes and tags, the picture is not replaced when energy is added (`editMessageMedia`), the independent review of the 35 blob states, the scheduled evening image, the domain checklist of section 6.2 |
 
 Totals for G0 to G11: 132 scheduled slices, of which 48 are S and 84 are M; G0.7 is dissolved, and G10.2, G10.3 and G11.11 are deferred. Of the 132, the slices of part B of G11 (G11.8 to G11.18) are not scheduled until the owner decides on a public beta.
 
