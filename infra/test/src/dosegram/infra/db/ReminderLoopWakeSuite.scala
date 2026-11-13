@@ -75,6 +75,26 @@ class ReminderLoopWakeSuite extends PgSuite:
       assert(elapsed.get() >= 0 && elapsed.get() < 10000, s"prompt wake, took ${elapsed.get()} ms")
     finally wake.close()
 
+  test("an interrupt of a fork blocked in the wait ends the wait as a cancellation, not as a database error"):
+    val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
+    try
+      val outcome = java.util.concurrent.atomic.AtomicReference[String]("still waiting")
+      val listener = Thread
+        .ofVirtual()
+        .start: () =>
+          try
+            wake.awaitOrTimeout(Duration.ofSeconds(30))
+            outcome.set("returned")
+          catch
+            case _: InterruptedException => outcome.set("cancelled")
+            case e: Throwable            => outcome.set(s"${e.getClass.getSimpleName}")
+      Thread.sleep(400) // let the listener block on the socket
+      listener.interrupt()
+      listener.join(10000)
+      assert(!listener.isAlive, "the interrupt ended the wait")
+      assertEquals(outcome.get(), "cancelled")
+    finally wake.close()
+
   test("a LISTEN connection the database ends fails one wait, and the next wait listens on a new one"):
     val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
     try
