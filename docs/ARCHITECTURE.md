@@ -263,6 +263,24 @@ Decision: TypeScript in strict mode, a small component library with a virtual DO
 
 CON-01. Every type that crosses `ChatAdapter` remains serialisable; the existing round-trip property test covers the new types. CON-02. Every new `Outbound` shape has a console rendering, so the simulation and transcripts keep working: an attachment renders as `[image: <alternative text>]`, an `OpenApp` choice as `[app: <route>]`.
 
+### 6.1 Contract as frozen on 2026-11-13
+
+ADR-015 is written and holds the exact surface; this section is the index that other slices cite. The removals of rows C3 to C6, C10 and C11 are made. The additions that the transport, rendering, media and Mini App tracks consume were made together, ahead of the per-slice plan above, because those tracks run in parallel and need one contract.
+
+| Row | State in `contracts` | Element to cite |
+|---|---|---|
+| C3 | Done | `ControlLimits`: label at most 32 characters, row at most 8 buttons, message at most 24 buttons |
+| C4 | Done, without the alert | `InteractionHandle.answer(toast)`, `editSource`, `acked` |
+| C5, C6 | Done | No visibility, no typed command options |
+| C7 | Attachment done; `protectContent` and `spoiler` wait for G4.6 | `AttachmentRef` on `OutboundMessage` and `RenderedMessage`; the text may be empty beside an attachment |
+| C8 | Done, without `CopyText` | `Choice` with `ChoiceAction.Callback`, `OpenApp(AppRoute)`, `OpenUrl` |
+| C9 | Start payload and media done; `ReachabilityChanged` waits for G2.15 | `Inbound.ConversationStarted(payload)`, `Inbound.MediaReceived(kind, media, caption)` |
+| C10 | Reactions removed; media travels in `send`; `setMenu` waits for G1.13, an edit with an attachment for G6.2, `fetchMedia` for G12.6 | `ChatAdapter.send`, `edit`, `delete` |
+| C11 | Select, reaction and modal rungs removed; `media` rung done; `toggleKeyboard` open | Rungs `attachment.media` and `attachment.text` |
+| C12 | `media` done; no other flag has a reader | `CapabilityProfile.media` |
+
+The idempotency key of every send, with or without an attachment, is `OutboundMessage.dedupeKey` in the core and `sendKey` at the adapter. A message with an attachment is always a new message, never an edit. Each difference from the table of section 6 is listed with its reason in ADR-015, section "Deviations from ARCHITECTURE section 6".
+
 ## 7. Telegram adapter
 
 ### 7.1 Structure

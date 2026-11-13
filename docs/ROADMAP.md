@@ -665,6 +665,8 @@ G0.7 is not a slice any more; the identifier is kept so that it is not reused. T
 | C8 `Choice.OpenUrl`, `Choice.CopyText` | The first slice that emits one (G11.2 for the notice link) | No consumer earlier |
 | C9 `MediaReceived`; C10 `fetchMedia` | G12.6 | No consumer before meal photos; not added until then |
 
+State on 2026-11-13: the owner started the transport, rendering, media and Mini App tracks in parallel, so the additions that those tracks consume were made together and are frozen in ADR-015 (index in ARCHITECTURE section 6.1). Already in `contracts`: the C7 attachment, the C8 choices `OpenApp` and `OpenUrl`, the C9 start payload and `MediaReceived`, the C11 `media` rung and the C12 `media` flag, each with its console rendering. The slices above consume them and add only what remains: `setMenu` (G1.13), `ReachabilityChanged` (G2.15), `protectContent` and `spoiler` (G4.6), an edit with an attachment (G6.2), `CopyText`, and `fetchMedia` (G12.6).
+
 #### G0.8 Secret scanning and pinned CI actions
 Size S. Depends on: G0.4. Parallel: yes, with G0.5. Pulled forward from the first draft's G11.5, because real bot tokens, the webhook secret and the key-encryption key enter the owner's environment at OA-4, before G1.1.
 - Does: the secret-scanning half of LB-24: a secret scanner in CI on every pull request with rules for the Telegram bot token pattern, the webhook secret and key material; the same rules as a pre-commit hook; CI actions pinned by digest.
