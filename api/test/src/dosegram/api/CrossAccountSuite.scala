@@ -97,7 +97,7 @@ final class CrossAccountSuite extends ApiSuite:
       val before = ownerView()
       val reply = request(world)
       assertProblem(reply, 404, "not_found")
-      assert(!reply.body.contains("Private") && !reply.body.contains("321"), reply.body)
+      assert(!reply.body.contains("Private") && !reply.bodyWithoutRequestId.contains("321"), reply.body)
       assertEquals(ownerView(), before)
 
   test("the answer for a foreign identifier equals the answer for an unknown one, apart from the request id"):

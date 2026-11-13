@@ -40,6 +40,11 @@ final case class Reply(status: Int, headers: Map[String, List[String]], body: St
   def code: String = json("code").str
   def fieldErrors: List[(String, String)] = json("errors").arr.toList.map(e => e("field").str -> e("code").str)
 
+  /** The body without the random request id of a problem document, for a check that a value is absent: a request id
+    * can contain any digits.
+    */
+  def bodyWithoutRequestId: String = body.replaceAll("\"requestId\":\"[^\"]*\"", "")
+
 /** The route suites: the real Netty interpreter with the module's endpoints and decode-failure handler, on
   * Testcontainers Postgres, behind a clock the test steps. Launch data is signed with the HMAC scheme and a token that
   * exists only here.

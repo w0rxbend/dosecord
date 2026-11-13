@@ -90,7 +90,7 @@ final class TrackingConsentSuite extends ApiSuite:
     assert(tracking.consents.withdraw(account.accountId, ConsentPurpose.Hydration, clock.now()))
     assert(tracking.consents.withdraw(account.accountId, ConsentPurpose.Mood, clock.now()))
     val replies = (hydrationRoutes ++ moodRoutes).map((route, call) => route -> call(token))
-    replies.foreach((route, reply) => assert(!reply.body.contains("333"), s"$route shows the entry"))
+    replies.foreach((route, reply) => assert(!reply.bodyWithoutRequestId.contains("333"), s"$route shows the entry"))
     assertRefused(replies.take(hydrationRoutes.size), "hydration")
     assertRefused(replies.drop(hydrationRoutes.size), "mood")
 
