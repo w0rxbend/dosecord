@@ -1,0 +1,219 @@
+/* Shared element and layout rules. Grouped sections on the secondary background, in the idiom
+   of Telegram's own settings screens: no cards, no shadows, no gradients (MINI_APP 5.1). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--dg-font);
+  font-size: 100%;
+  line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--dg-bg);
+  color: var(--dg-text);
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+fieldset,
+legend {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+fieldset {
+  border: 0;
+  min-inline-size: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--dg-focus);
+  outline-offset: 2px;
+}
+
+h1:focus {
+  outline: none;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--dg-text-muted);
+  font-size: var(--dg-text-secondary);
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A group of rows with its heading above it. */
+.section {
+  margin-block-end: var(--dg-space-5);
+}
+
+.section-title {
+  padding: 0 var(--dg-space-4) var(--dg-space-2);
+  color: var(--dg-text-section);
+  font-size: var(--dg-text-secondary);
+  font-weight: 400;
+}
+
+.section-body {
+  background: var(--dg-surface);
+  border-radius: var(--dg-radius-section);
+  overflow: hidden;
+}
+
+/* Rows are separated by a hairline; a padded body is one block of content and is not. */
+.section-body:not(.pad) > * + * {
+  border-block-start: 1px solid var(--dg-separator);
+}
+
+.pad {
+  padding: var(--dg-space-3) var(--dg-space-4);
+}
+
+.note {
+  padding: 0 var(--dg-space-4);
+  color: var(--dg-text-section);
+  font-size: var(--dg-text-secondary);
+  max-inline-size: 70ch;
+}
+
+/* Buttons: every target is at least 48 by 48 px (MA-A11Y-5). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dg-space-2);
+  min-block-size: var(--dg-target);
+  min-inline-size: var(--dg-target);
+  padding: var(--dg-space-2) var(--dg-space-4);
+  border: 0;
+  border-radius: var(--dg-radius-control);
+  background: transparent;
+  color: var(--dg-accent-text);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--dg-motion-press);
+}
+
+.btn:active {
+  opacity: 0.6;
+}
+
+.btn:disabled {
+  color: var(--dg-text-muted);
+  cursor: default;
+}
+
+.btn-filled {
+  background: var(--dg-accent);
+  color: var(--dg-on-accent);
+}
+
+.btn-tinted {
+  border: 1px solid var(--dg-separator);
+  background: var(--dg-surface-alt);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dg-space-2);
+}
+
+/* Inputs sit on the alternate surface inside a section. */
+.input {
+  inline-size: 100%;
+  min-block-size: var(--dg-target);
+  padding: var(--dg-space-2) var(--dg-space-3);
+  border: 1px solid var(--dg-separator);
+  border-radius: var(--dg-radius-control);
+  background: var(--dg-surface-alt);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--dg-danger);
+  border-width: 2px;
+}
+
+textarea.input {
+  min-block-size: 96px;
+  resize: vertical;
+}
+
+/* Chips are native radios or checkboxes with a visible label (MINI_APP 5.6). */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dg-space-2);
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dg-space-2);
+  min-block-size: var(--dg-target);
+  padding: 0 var(--dg-space-4);
+  border: 1px solid var(--dg-separator);
+  border-radius: var(--dg-radius-full);
+}
+
+.chip input:checked + span {
+  border-color: var(--dg-accent-text);
+  box-shadow: inset 0 0 0 1px var(--dg-accent-text);
+  color: var(--dg-accent-text);
+}
+
+.chip input:focus-visible + span {
+  outline: 2px solid var(--dg-focus);
+  outline-offset: 2px;
+}
