@@ -2,11 +2,15 @@ package dosegram.adapter.telegram
 
 import dosegram.contracts.*
 import dosegram.core.chat.CapabilityProfiles
+import dosegram.core.chat.InboxProcessor
 import dosegram.core.chat.VendorMarkup
 import dosegram.core.domain.copy.AdapterCopy
 import dosegram.core.ports.Clock
+import dosegram.core.ports.InboundInbox
+import dosegram.core.ports.PendingInboxEntry
 import ox.discard
 
+import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -17,7 +21,7 @@ enum UpdatesMode:
   /** The adapter runs the `getUpdates` loop itself. */
   case Poll
 
-  /** Updates arrive through [[WebhookHandler]] and [[TelegramAdapter.ingest]]; the adapter starts no loop. */
+  /** Updates arrive through [[WebhookHandler]] and [[TelegramAdapter.receive]]; the adapter starts no loop. */
   case Webhook
 
 /** Who may use the bot (ROADMAP G1.6): everyone, or the listed Telegram user ids until invitations replace the list. */
@@ -35,6 +39,9 @@ trait TelegramMetrics:
   def ackLatency(waited: Duration): Unit
   def callbackExpired(): Unit
 
+  /** `dosegram_inbox_quarantined_total` (ARCHITECTURE TG-09). */
+  def inboxQuarantined(): Unit = ()
+
 object TelegramMetrics:
   val noop: TelegramMetrics = new TelegramMetrics:
     override def ackLatency(waited: Duration): Unit = ()
@@ -50,8 +57,17 @@ final case class TelegramConfig(
     /** The address of the Mini App; an app button is left out while it is unset. */
     miniAppUrl: Option[String],
     ack: AckTiming = AckTiming.Default,
-    limits: FloodGate.Limits = FloodGate.Limits.Default
+    limits: FloodGate.Limits = FloodGate.Limits.Default,
+    /** In webhook mode, what start-up registers with `setWebhook`; without it the webhook is left as it is. */
+    webhook: Option[WebhookRegistration] = None
 )
+
+/** What `setWebhook` registers (ARCHITECTURE section 7.9, ROADMAP G1.7): the public URL, which carries the path secret,
+  * the header secret and the connection count, which the skeleton keeps at one so updates arrive in order. Neither
+  * secret shows in a `toString`.
+  */
+final class WebhookRegistration(val url: String, val secretToken: String, val maxConnections: Int = 1):
+  override def toString: String = s"WebhookRegistration(***, max_connections=$maxConnections)"
 
 /** The Telegram `ChatAdapter` (ROADMAP G1.5, ARCHITECTURE section 7): private chats only, one inbound event per update
   * with `vendor_event_id = telegram:update:<update_id>`, a single-shot callback answer with a watchdog, and sends,
@@ -77,8 +93,22 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
 
   // ---------- Lifecycle ----------
 
-  /** Checks the bot's identity, sets the default menu button and, in polling mode, starts the reader. A failure here is
-    * a failed start: it is thrown, and the process does not come up half-configured.
+  /** The processor of the durable inbox, when the adapter has one (ADR-017). The process runs its loop in a fork of its
+    * own; [[stop]] ends it.
+    */
+  val inboxProcessor: Option[InboxProcessor] =
+    runtime.inbox.map: inbox =>
+      InboxProcessor(
+        inbox,
+        deliverStored,
+        runtime.clock,
+        runtime.log,
+        quarantined = () => runtime.metrics.inboxQuarantined()
+      )
+
+  /** Checks the bot's identity, sets the default menu button and, in polling mode, starts the reader; in webhook mode
+    * it registers the webhook when one is configured. A failure here is a failed start: it is thrown, and the process
+    * does not come up half-configured.
     */
   override def start(sink: InboundSink, resumeFrom: Option[String]): Unit =
     val identity = verifiedIdentity()
@@ -86,16 +116,18 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
     required(api.setChatMenuButton(None, MenuButton.Commands), "setChatMenuButton")
     this.sink.set(Some(sink))
     config.updates match
-      case UpdatesMode.Webhook => ()
-      case UpdatesMode.Poll    =>
+      case UpdatesMode.Webhook =>
+        config.webhook.foreach(registration => required(api.setWebhook(registration), "setWebhook"))
+      case UpdatesMode.Poll =>
         if config.developmentBot then required(api.deleteWebhook(), "deleteWebhook")
         val polling =
-          LongPollReader(api, ingest, resumeFrom.flatMap(_.toLongOption), runtime.log, runtime.sleep)
+          LongPollReader(api, receive, resumeFrom.flatMap(_.toLongOption), runtime.log, runtime.sleep)
         reader.set(Some(polling))
         runtime.timer.after(Duration.ZERO)(() => polling.run())
 
   override def stop(): Unit =
     reader.getAndSet(None).foreach(_.stop())
+    inboxProcessor.foreach(_.stop())
     sink.set(None)
 
   private def verifiedIdentity(): BotIdentity =
@@ -114,36 +146,72 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   /** Maps one update and hands it to the mediator. `false` only when the update must come again: the adapter is not
     * started, or the mediator's queue is full.
     */
-  def ingest(update: Update): Boolean =
+  def ingest(update: Update): Boolean = handOver(update, runtime.clock.now())(_.push(_))
+
+  /** The receipt of one update from the long poll or the webhook (ADR-017). With an inbox, an update that becomes an
+    * event is stored before this returns true, and processed later; a sender outside the allowlist gets the fixed reply
+    * and nothing is stored. `false` when the update could not be stored: it must come again. Without an inbox it is
+    * [[ingest]].
+    */
+  def receive(update: Update): Boolean =
+    runtime.inbox match
+      case None        => ingest(update)
+      case Some(inbox) => sink.get().isDefined && screened(update)(_ => stored(inbox, update))
+
+  private def stored(inbox: InboundInbox, update: Update): Boolean =
+    try
+      inbox.store(InboxCodec.entry(update), runtime.clock.now())
+      inboxProcessor.foreach(_.wake())
+      true
+    catch
+      case _: SQLException =>
+        runtime.log(s"telegram update not stored: database unavailable update_id=${update.updateId}")
+        false
+
+  /** An update from the inbox, processed to its end: true once its effect is durable (TG-08). */
+  private def deliverStored(pending: PendingInboxEntry): Boolean =
+    InboxCodec.update(pending.entry) match
+      case Some(update) => handOver(update, pending.receivedAt)(_.pushAndWait(_))
+      case None         =>
+        // It will never decode: offering it again cannot help.
+        runtime.log(s"telegram inbox entry undecodable: ${pending.entry.vendorEventId}")
+        true
+
+  private def handOver(update: Update, receivedAt: Instant)(hand: (InboundSink, InboundEvent) => Boolean): Boolean =
     sink.get() match
       case None         => false
-      case Some(target) =>
-        UpdateMapper.map(update, botUsername.get()) match
-          case UpdateMapper.Mapped.Deliver(draft) if config.access.allows(draft.userId) =>
-            target.push(event(update, draft))
-          case UpdateMapper.Mapped.Deliver(draft) =>
-            refuse(draft)
-            true
-          case UpdateMapper.Mapped.Dismiss(queryId) =>
-            answerQuery(queryId, None, Duration.ZERO)
-            true
-          case UpdateMapper.Mapped.Ignore(reason) =>
-            runtime.log(s"telegram update ignored: reason=$reason update_id=${update.updateId}")
-            true
+      case Some(target) => screened(update)(draft => hand(target, event(update, draft, receivedAt)))
 
-  private def event(update: Update, draft: UpdateMapper.Draft): InboundEvent =
+  /** Maps one update. A draft from an allowed sender goes to `accept`; anything else is settled here: a stranger gets
+    * the fixed reply, a callback that cannot become an event is answered, the rest is logged and dropped.
+    */
+  private def screened(update: Update)(accept: UpdateMapper.Draft => Boolean): Boolean =
+    UpdateMapper.map(update, botUsername.get()) match
+      case UpdateMapper.Mapped.Deliver(draft) if config.access.allows(draft.userId) => accept(draft)
+      case UpdateMapper.Mapped.Deliver(draft)                                       =>
+        refuse(draft)
+        true
+      case UpdateMapper.Mapped.Dismiss(queryId) =>
+        answerQuery(queryId, None, Duration.ZERO)
+        true
+      case UpdateMapper.Mapped.Ignore(reason) =>
+        runtime.log(s"telegram update ignored: reason=$reason update_id=${update.updateId}")
+        true
+
+  private def event(update: Update, draft: UpdateMapper.Draft, receivedAt: Instant): InboundEvent =
     InboundEvent(
       eventId = EventId(runtime.newEventId()),
       vendor = vendor,
-      vendorEventId = s"telegram:update:${update.updateId}",
-      receivedAt = runtime.clock.now(),
+      vendorEventId = InboxCodec.vendorEventId(update.updateId),
+      receivedAt = receivedAt,
       createdAt = draft.sentAt,
       // The display name is not passed on: the product never shows it, so it is not collected.
       actor = PlatformIdentity(vendor, draft.userId.toString),
       chat = ChatRef(vendor, draft.chatId.toString),
       cursor = Some(update.updateId.toString),
       body = draft.body,
-      interaction = draft.callback.map(source => CallbackAnswer(source.queryId, source.source, config.ack, answers))
+      interaction =
+        draft.callback.map(source => CallbackAnswer(source.queryId, source.source, config.ack, answers, receivedAt))
     )
 
   /** A sender outside the allowlist gets the one fixed reply; nothing is stored and no event is produced. */
@@ -357,7 +425,8 @@ object TelegramAdapter:
   private val NoChat = 0L
 
   /** What the adapter is run with besides its configuration: time, the timer, the asset bytes, the `file_id` cache, a
-    * log sink that gets fixed labels and identifiers only, the metrics, and the two sources of non-determinism.
+    * log sink that gets fixed labels and identifiers only, the metrics, the two sources of non-determinism, and the
+    * inbox.
     */
   final case class Runtime(
       clock: Clock,
@@ -367,7 +436,9 @@ object TelegramAdapter:
       log: String => Unit,
       metrics: TelegramMetrics = TelegramMetrics.noop,
       sleep: Duration => Unit = wait => Thread.sleep(wait.toMillis),
-      newEventId: () => UUID = () => UUID.randomUUID()
+      newEventId: () => UUID = () => UUID.randomUUID(),
+      /** The durable inbox (ADR-017); without it an update is processed as it is received. */
+      inbox: Option[InboundInbox] = None
   )
 
   /** Where one part goes and what it carries besides its content. */

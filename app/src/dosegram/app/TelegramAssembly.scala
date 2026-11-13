@@ -10,7 +10,9 @@ import dosegram.adapter.telegram.TelegramConfig
 import dosegram.adapter.telegram.TelegramMetrics
 import dosegram.adapter.telegram.TelegramTransport
 import dosegram.adapter.telegram.UpdatesMode
+import dosegram.adapter.telegram.WebhookRegistration
 import dosegram.core.ports.Clock
+import dosegram.core.ports.InboundInbox
 import dosegram.infra.Environment
 import dosegram.infra.Metrics
 import dosegram.infra.Settings
@@ -30,19 +32,18 @@ import java.time.Duration
 object TelegramAssembly:
 
   /** The production adapter: the HTTP transport, closed with the scope. `images` holds the bytes of attachments and the
-    * file ids of the uploads.
+    * file ids of the uploads; `inbox` holds every update between its receipt and its processing (ROADMAP G1.7).
     */
-  def production(settings: Settings, telegram: TelegramSettings, clock: Clock)(images: StatusImages)(using
-      Ox
-  ): TelegramAdapter =
-    if telegram.updates == TelegramUpdates.Webhook then
-      // The endpoint needs the durable inbox of ROADMAP G1.7; a bot that receives nothing must not start silently.
-      throw IllegalArgumentException("TELEGRAM_UPDATES_MODE=webhook is not served by this build; use poll")
+  def production(settings: Settings, telegram: TelegramSettings, clock: Clock)(
+      images: StatusImages,
+      inbox: InboundInbox
+  )(using Ox): TelegramAdapter =
     val transport = useCloseableInScope(HttpTelegramTransport(BotToken(telegram.token)))
-    adapter(settings, telegram, transport, clock)(images)
+    adapter(settings, telegram, transport, clock)(images, Some(inbox))
 
   def adapter(settings: Settings, telegram: TelegramSettings, transport: TelegramTransport, clock: Clock)(
-      images: StatusImages
+      images: StatusImages,
+      inbox: Option[InboundInbox]
   )(using Ox): TelegramAdapter =
     TelegramAdapter(
       BotApi(transport),
@@ -54,7 +55,8 @@ object TelegramAssembly:
         media = images.store,
         fileIds = images.fileIds,
         log = line => scribe.info(line),
-        metrics = MicrometerTelegramMetrics
+        metrics = MicrometerTelegramMetrics,
+        inbox = inbox
       )
     )
 
@@ -69,11 +71,12 @@ object TelegramAssembly:
         if telegram.allowedUserIds.isEmpty then AccessPolicy.Open else AccessPolicy.Allowlist(telegram.allowedUserIds),
       expectedBotId = Some(telegram.botId),
       developmentBot = settings.environment == Environment.Development,
-      miniAppUrl = settings.miniAppUrl
+      miniAppUrl = settings.miniAppUrl,
+      webhook = telegram.webhook.map(hook => WebhookRegistration(hook.url, hook.secretToken))
     )
 
-/** The adapter's metrics on the shared registry: `dosegram_interaction_ack_latency_seconds` (ARCHITECTURE TG-12) and
-  * `dosegram_callback_expired_total` (section 7.10).
+/** The adapter's metrics on the shared registry: `dosegram_interaction_ack_latency_seconds` (ARCHITECTURE TG-12),
+  * `dosegram_callback_expired_total` (section 7.10) and `dosegram_inbox_quarantined_total` (TG-09).
   */
 object MicrometerTelegramMetrics extends TelegramMetrics:
 
@@ -83,6 +86,11 @@ object MicrometerTelegramMetrics extends TelegramMetrics:
   private val callbackExpiredCounter: Counter =
     Counter.builder("dosegram_callback_expired_total").register(Metrics.registry)
 
+  private val inboxQuarantinedCounter: Counter =
+    Counter.builder("dosegram_inbox_quarantined_total").register(Metrics.registry)
+
   override def ackLatency(waited: Duration): Unit = ackLatencyTimer.record(waited)
 
   override def callbackExpired(): Unit = callbackExpiredCounter.increment()
+
+  override def inboxQuarantined(): Unit = inboxQuarantinedCounter.increment()

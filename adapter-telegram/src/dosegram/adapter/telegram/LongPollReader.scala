@@ -10,7 +10,8 @@ final class TelegramFatal(reason: String) extends RuntimeException(s"telegram lo
 /** The `getUpdates` loop (ARCHITECTURE section 7.2.2, ROADMAP G1.6). Updates of one batch are delivered in `update_id`
   * order on this one thread, so the mediator's per-chat queues see every chat's updates in order. The offset moves only
   * past an update that was delivered; an update at or below the last delivered one is a redelivery and is dropped
-  * (TG-04 on the polling path). The next call confirms what was delivered by its offset.
+  * (TG-04 on the polling path). The next call confirms what was delivered by its offset. With the durable inbox,
+  * delivered means stored (ADR-017).
   */
 final class LongPollReader(
     api: BotApi,

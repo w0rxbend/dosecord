@@ -138,6 +138,12 @@ trait InboundSink:
   /** Returns false when the per-adapter queue is full (pull-based adapters then stop polling). */
   def push(event: InboundEvent): Boolean
 
+  /** Processes the event to its end before it returns (ADR-017): true when its effect is durable or it needs none (a
+    * duplicate, a refused token), false when it failed and may be offered again. A durable inbox marks an update
+    * processed only after a true (ARCHITECTURE TG-08). A sink without a queue of its own already works this way.
+    */
+  def pushAndWait(event: InboundEvent): Boolean = push(event)
+
 /** A dumb, stateless vendor adapter (ADR-005). All methods block and run on virtual threads. No `(using Ox)` here:
   * contracts depends on upickle only, so adapters fork their gateway from their own scope — the mediator supervises
   * `start`/`stop`.

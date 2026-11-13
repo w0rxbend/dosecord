@@ -978,6 +978,7 @@ State of the schema on 2026-11-13. The baseline `V1__baseline.sql` is frozen: th
 | Consent ledger | `consent_events`, `consent_state` | identity-and-consent; `PgConsentLedger` | `Tx.consents` |
 | Stores of the edges | `render_assets`, `telegram_file_cache`, `miniapp_sessions`, `idempotency_keys` | visual-reports, the Telegram adapter, the API; `PgRenderAssets`, `PgTelegramFileCache`, `PgMiniAppSessions`, `PgIdempotencyKeys` | their own short statements on the pool, never the transaction of a chat event |
 | Day profile, nudge plans and prompts (`V2__day_profile_nudge_plans_and_prompts.sql`) | `day_profiles`, `prompt_schedules`, `prompt_occurrences` | schedule-and-reminders (ADR-023); `PgReminderRepositories`; written by the `PromptLoop` of `app` and the `/reminders` handler | `Tx.reminders.dayProfiles`, `Tx.reminders.prompts` |
+| Async edges: the inbox (`V3__inbound_inbox.sql`) | `inbound_inbox` | the Telegram adapter and the inbox processor (ADR-017); `PgInboundInbox` behind the `InboundInbox` port; emptied by the deleting job of the worker half, which also deletes `inbound_events` after 7 days | its own short statements on the pool, never the transaction of a chat event |
 | Grants | the role grants of every table above | the track that owns the table | n/a |
 
 Differences from the tables of sections 10.2 and 10.11 that this state has, each to be closed by the named slice:
@@ -988,6 +989,7 @@ Differences from the tables of sections 10.2 and 10.11 that this state has, each
 - `telegram_file_cache` holds `file_id` for every asset; the encrypted column for personal images arrives with the account keys (G2.4b). A row not used for 30 days is deleted.
 - `miniapp_sessions` holds the hashes as hexadecimal text and no expiry or revocation columns: the session policy computes expiry from `created_at` and `last_used_at`.
 - `idempotency_keys` holds `request_hash`, `response_json` (not encrypted, G2.4b) and `created_at`; a row without a response is a request in flight.
+- `inbound_inbox` differs from the row of section 10.15: `sequence` in place of `cursor`, no `kind`, `finished_at` in place of `processed_at`, a fourth status `expired` for a pending body the 24-hour deletion took, and `body` holds the minimal update the adapter decodes, not encrypted (G2.4b).
 
 Rules for a track that changes the schema:
 

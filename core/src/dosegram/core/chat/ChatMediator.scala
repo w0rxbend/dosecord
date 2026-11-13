@@ -6,11 +6,14 @@ import dosegram.core.ports.*
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.core.telemetry.LogContext
 import ox.Ox
+import ox.discard
 
 import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import scala.util.control.NonFatal
 
 /** The core boundary rejects any event that reaches it without a mediator-stamped principal (R8, M0.12a acceptance).
   */
@@ -73,12 +76,35 @@ final class ChatMediator(
 
   // Step 1 (verify + ack) runs on the caller's thread, before any database work and outside the executor (ADR-013).
   override def push(event: InboundEvent): Boolean =
-    callbackOf(event.body) match
-      case Some(ref) if !verifiedCallback(ref) => rejectTampered(event)
-      case _                                   =>
-        ack(event)
-        executor.submit(s"${event.vendor}:${event.chat.chatId}")(process(event))
+    if admitted(event) then executor.submit(chatKey(event))(process(event))
     true
+
+  /** [[push]] for a durable inbox (ADR-017): the event takes its place in its chat's queue like any other, and the call
+    * returns when it has been processed. False when its transaction failed or the handler threw.
+    */
+  override def pushAndWait(event: InboundEvent): Boolean =
+    if !admitted(event) then true
+    else
+      val outcome = CompletableFuture[Boolean]()
+      executor.submit(chatKey(event)):
+        val committed =
+          try processed(event)
+          catch case NonFatal(_) => false
+        outcome.complete(committed).discard
+      // Interruptible, unlike join: a scope that ends while the event waits must be able to cancel the caller.
+      outcome.get()
+
+  /** Step 1: a tampered token is rejected here and goes no further; anything else is acknowledged and goes on. */
+  private def admitted(event: InboundEvent): Boolean =
+    callbackOf(event.body) match
+      case Some(ref) if !verifiedCallback(ref) =>
+        rejectTampered(event)
+        false
+      case _ =>
+        ack(event)
+        true
+
+  private def chatKey(event: InboundEvent): String = s"${event.vendor}:${event.chat.chatId}"
 
   private def callbackOf(body: Inbound): Option[CallbackRef] =
     body match
@@ -131,7 +157,10 @@ final class ChatMediator(
 
   // ---------- Steps 3-8, inside the keyed executor ----------
 
-  private[chat] def process(event: InboundEvent): Unit =
+  private[chat] def process(event: InboundEvent): Unit = processed(event).discard
+
+  /** Steps 3 to 8; false when the transaction failed. */
+  private def processed(event: InboundEvent): Boolean =
     val correlationId = s"${event.vendor}:${event.vendorEventId}"
     LogContext.scoped(
       LogContext(
@@ -157,6 +186,7 @@ final class ChatMediator(
           plan.domainEvents.foreach(events.publish)
           deliverAfterCommit(event, plan)
         case Outcome.Failed => ()
+      outcome != Outcome.Failed
 
   /** The per-event transaction (ADR-003): inbound insert-or-replay, identity stamping, the handler, `domain_events`,
     * outbox rows and the stored reply commit together or not at all.

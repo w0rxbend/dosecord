@@ -89,9 +89,22 @@ final case class Secret(value: String):
 /** What the Telegram adapter is configured with; present exactly when the adapter is enabled. `botId` is the id the
   * token must belong to, `allowedUserIds` the Telegram users who may use the bot (empty: everyone, development only).
   */
-final case class TelegramSettings(token: String, botId: Long, updates: TelegramUpdates, allowedUserIds: Set[Long]):
+final case class TelegramSettings(
+    token: String,
+    botId: Long,
+    updates: TelegramUpdates,
+    allowedUserIds: Set[Long],
+    webhook: Option[TelegramWebhookSettings] = None
+):
   // The token must not show in a log line that prints the settings.
   override def toString: String = s"TelegramSettings(***, $botId, $updates, ${allowedUserIds.size} allowed)"
+
+/** The webhook of ROADMAP G1.7, present exactly when `TELEGRAM_UPDATES_MODE=webhook`: the URL that `setWebhook`
+  * registers, which ends in the path secret, and the header secret Telegram sends with every delivery. Neither secret
+  * shows in a `toString`.
+  */
+final case class TelegramWebhookSettings(url: String, pathSecret: String, secretToken: String):
+  override def toString: String = "TelegramWebhookSettings(***)"
 
 /** Runtime configuration parsed from environment variables and Docker secrets (DESIGN.md section 12). Every field maps
   * to exactly one env var in [[Settings.spec]]; any of them may instead be supplied as `<NAME>_FILE` pointing at a
@@ -223,7 +236,7 @@ object Settings:
       "PUBLIC_BASE_URL",
       required = false,
       secret = false,
-      "External base URL of the auth-link page (M4.1); unused until then.",
+      "External https base URL; the Telegram webhook is registered under it. Required with TELEGRAM_UPDATES_MODE=webhook.",
       "https://dosegram.example.com"
     ),
     EnvSpec(
@@ -246,7 +259,7 @@ object Settings:
       "HTTP_PORT",
       required = false,
       secret = false,
-      "TCP port of the public listener (/app/ and /api/v1/); opened only when MINIAPP_ENABLED=true.",
+      "TCP port of the public listener (/app/, /api/v1/, /tg/webhook/); opened for the Mini App or the webhook only.",
       DefaultHttpPort.toString,
       Some(DefaultHttpPort.toString)
     ),
@@ -293,6 +306,20 @@ object Settings:
       secret = false,
       "Directory of the pinned font pack (report-renderer/fonts); required with RESVG_PATH.",
       "report-renderer/fonts"
+    ),
+    EnvSpec(
+      "TELEGRAM_WEBHOOK_PATH_SECRET",
+      required = false,
+      secret = true,
+      "Last path segment of the webhook URL; 16 to 256 of A-Z a-z 0-9 _ -. Required with TELEGRAM_UPDATES_MODE=webhook.",
+      "change-me-path-secret"
+    ),
+    EnvSpec(
+      "TELEGRAM_WEBHOOK_SECRET_TOKEN",
+      required = false,
+      secret = true,
+      "Header secret Telegram sends with each update; 16 to 256 of A-Z a-z 0-9 _ -. Required with the webhook.",
+      "change-me-header-secret"
     )
   )
 
@@ -463,10 +490,37 @@ object Settings:
       ids => ids.nonEmpty || environment == Environment.Development,
       "TELEGRAM_ALLOWED_USER_IDS must name at least one user outside development"
     )
-    val problems = List(token, botId, updates, allowed).collect { case Left(problem) => problem }
-    (token, botId, updates, allowed) match
-      case (Right(t), Right(id), Right(mode), Right(ids)) => Right(TelegramSettings(t, id, mode, ids))
-      case _                                              => Left(problems)
+    val webhook = updates match
+      case Right(TelegramUpdates.Webhook) => parseWebhook(lookup).map(Some(_))
+      case _                              => Right(None)
+    val problems = List(token, botId, updates, allowed).collect { case Left(problem) => problem } ++
+      webhook.left.toOption.toList.flatten
+    (token, botId, updates, allowed, webhook) match
+      case (Right(t), Right(id), Right(mode), Right(ids), Right(hook)) =>
+        Right(TelegramSettings(t, id, mode, ids, hook))
+      case _ => Left(problems)
+
+  /** The webhook of ROADMAP G1.7: an https base URL and two secrets of the characters Telegram accepts in a
+    * `secret_token` (research brief 02). No message quotes a secret.
+    */
+  private def parseWebhook(lookup: String => Option[String]): Either[List[String], TelegramWebhookSettings] =
+    val whenWebhook = "when TELEGRAM_UPDATES_MODE=webhook"
+    def secret(name: String): Either[String, String] =
+      lookup(name)
+        .toRight(s"$name is required $whenWebhook")
+        .filterOrElse(
+          _.matches("[A-Za-z0-9_-]{16,256}"),
+          s"$name must be 16 to 256 characters of A-Z, a-z, 0-9, _ and -"
+        )
+    val base = lookup("PUBLIC_BASE_URL")
+      .filter(_.startsWith("https://"))
+      .toRight(s"PUBLIC_BASE_URL must be an https address $whenWebhook")
+    val path = secret("TELEGRAM_WEBHOOK_PATH_SECRET")
+    val header = secret("TELEGRAM_WEBHOOK_SECRET_TOKEN")
+    (base, path, header) match
+      case (Right(url), Right(p), Right(h)) =>
+        Right(TelegramWebhookSettings(s"${url.stripSuffix("/")}/tg/webhook/$p", p, h))
+      case _ => Left(List(base, path, header).collect { case Left(problem) => problem })
 
   private def parseUserIds(raw: String): Either[String, Set[Long]] =
     val entries = raw.split(",").toList.map(_.trim).filter(_.nonEmpty)

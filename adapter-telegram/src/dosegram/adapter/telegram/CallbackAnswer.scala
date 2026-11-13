@@ -47,10 +47,11 @@ private[telegram] final class CallbackAnswer(
     queryId: String,
     source: Option[MessageHandle],
     timing: AckTiming,
-    port: AnswerPort
+    port: AnswerPort,
+    /** When the update arrived: the inbox's receipt time for an update processed from the inbox (TG-11). */
+    receivedAt: Instant
 ) extends InteractionHandle:
 
-  private val receivedAt = port.now()
   private val spent = AtomicBoolean(false)
   private val neutralRequested = AtomicBoolean(false)
 
