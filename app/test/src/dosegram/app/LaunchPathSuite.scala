@@ -237,6 +237,9 @@ class LaunchPathSuite extends PgSuite:
       rig.typeLine("/start")
       eventually("the wizard prompt is printed")(rig.messages.size == 1)
       assertEquals(count("conversation_sessions"), 1)
+      // The mediator marks the prompt's outbox safety row sent only after the console has printed it. A clock stepped
+      // past that row's delay before then lets the dispatcher send the prompt a second time.
+      eventually("the prompt's safety row is marked sent")(outbox() == List("interaction_reply" -> "sent"))
       clock.advance(WizardEngine.IdleAfter.plusSeconds(1))
       eventually("the grace prompt is printed")(rig.messages.size == 2)
       assert(rig.messages(1).contains(WizardCopy.stillThere), rig.messages(1))
