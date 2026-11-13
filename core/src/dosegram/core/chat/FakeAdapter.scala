@@ -60,11 +60,6 @@ final class FakeAdapter(val capabilities: CapabilityProfile, val vendor: String 
     recorded += VendorOp.Delete(handle)
     messages -= s"${handle.chatId}:${handle.messageId}"
 
-  override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit =
-    maybeFail()
-    if !capabilities.botReactions then throw ChatError.Unsupported("react")
-    recorded += VendorOp.React(handle, emoji, on, txnKey)
-
   override def registerCommands(specs: List[CommandSpec]): Unit =
     maybeFail()
     recorded += VendorOp.RegisterCommands(specs)

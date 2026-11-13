@@ -2,18 +2,17 @@ scenario: menu
 profile: console
 report:
   rung menu.main=choices.numbered
-  rung visibility=visibility.persistent
   splitInto=1 paged=false
   warnings: -
 op 1: SEND chat=console:dm:owner sendKey=menu:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  flags silent=false suppressPreview=false deleteAfter=-
   chunk 1 (94 chars):
   ---
   What would you like to do?
-  
+
   1) Today 2) Medications 3) Habits 4) Reminders 5) Stats 6) Account
   ---
-  controls[0] numbered id=menu.main reactions=
+  controls[0] numbered id=menu.main
     [1] Today -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA (Secondary)
     [2] Medications -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAALtWf-_gSgaJQ (Secondary)
     [3] Habits -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAMrFGRVYMMu-w (Secondary)

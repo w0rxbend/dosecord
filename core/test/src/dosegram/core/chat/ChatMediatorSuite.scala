@@ -80,9 +80,6 @@ class ChatMediatorSuite extends munit.FunSuite:
       inner.edit(handle, rendered)
     )
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
-      inner.react(handle, emoji, on, txnKey)
-    )
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
@@ -160,12 +157,12 @@ class ChatMediatorSuite extends munit.FunSuite:
   test("a tampered token yields the toast and an audit row; nothing reaches the core"):
     ox.supervised:
       val uow = InMemoryUnitOfWork()
-      val adapter = SyncAdapter(FakeAdapter(TestProfiles.Native))
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
       val handle = RecordingInteractionHandle()
       val tap = event(
-        Inbound.InteractionSubmitted(tamperedRef(token("dose.taken", UUID.randomUUID())), Nil, None),
+        Inbound.InteractionSubmitted(tamperedRef(token("dose.taken", UUID.randomUUID())), None),
         "evt-tampered",
         interaction = Some(handle)
       )
@@ -180,10 +177,10 @@ class ChatMediatorSuite extends munit.FunSuite:
       assertEquals(handler.handled, 0, "nothing reaches the core")
       assert(uow.inboundEvents.all.isEmpty, "no inbound row is recorded")
 
-  test("a verified component tap is acked with deferUpdate before any database work"):
+  test("a verified component tap is answered before any database work"):
     ox.supervised:
       val uow = InMemoryUnitOfWork()
-      val adapter = SyncAdapter(FakeAdapter(TestProfiles.Native))
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val latch = CountDownLatch(1)
       val handler = RecordingHandler { _ =>
         latch.await()
@@ -192,14 +189,14 @@ class ChatMediatorSuite extends munit.FunSuite:
       val m = mediator(uow, adapter, handler)
       val handle = RecordingInteractionHandle()
       val tap = event(
-        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), Nil, None),
+        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), None),
         "evt-ack",
         interaction = Some(handle)
       )
 
       m.push(tap)
       await(handle.acked, "the ack lands before the handler returns")
-      assertEquals(handle.calls.peek, "deferUpdate", "a component tap defers with an update (ADR-013)")
+      assertEquals(handle.calls.peek, "answer()", "a component tap is answered with no toast (ADR-013)")
       latch.countDown()
       await(handler.handled == 1, "handler ran")
 
@@ -230,7 +227,7 @@ class ChatMediatorSuite extends munit.FunSuite:
       assertEquals(events.head.correlationId, Some("fake:evt-mood"))
 
   // Acceptance 6 (unit half): quoted-reply numbers resolve by target unconditionally; bare digits and hotkeys
-  // against the latest pending prompt only; reactions resolve by target.
+  // against the latest pending prompt only.
   test("quoted and bare '2' resolve to the same token when the prompt is latest; only the quoted one when not"):
     ox.supervised:
       val uow = InMemoryUnitOfWork()
@@ -282,13 +279,6 @@ class ChatMediatorSuite extends munit.FunSuite:
       assertEquals(resolvedCallback("bare-2"), callbackRef(tokenB2), "bare digits hit the latest prompt only")
       assertEquals(resolvedCallback("quoted-2"), callbackRef(tokenA2), "quoted replies resolve by target")
 
-      // Reactions resolve by target unconditionally; a removal is ignored.
-      m.push(event(Inbound.ReactionChanged("2️⃣", handleA, added = true), "reaction-1"))
-      assertEquals(resolvedCallback("reaction-1"), callbackRef(tokenA2))
-      m.push(event(Inbound.ReactionChanged("2️⃣", handleA, added = false), "reaction-2"))
-      Thread.sleep(200)
-      assert(handler.calls.forall(_._1.vendorEventId != "reaction-2"), "a reaction removal is ignored")
-
       // Once every prompt's controls are removed, a bare "2" is not eaten: it passes through as text.
       uow.renderedMessages.removeControls(handleA)
       uow.renderedMessages.removeControls(handleB)
@@ -304,20 +294,20 @@ class ChatMediatorSuite extends munit.FunSuite:
   // Acceptance 7 (unit half): with the pool paused the tap yields the catalogue failure toast.
   test("a tap with the pool paused reports an unconfirmed outcome"):
     ox.supervised:
-      val adapter = SyncAdapter(FakeAdapter(TestProfiles.Native))
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = ChatMediator(PoolPausedUow(), Map("fake" -> adapter), codec, handler, FixedClock(t0))
       val handle = RecordingInteractionHandle()
       val tap = event(
-        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), Nil, None),
+        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), None),
         "evt-paused",
         interaction = Some(handle)
       )
 
       m.push(tap)
       await(
-        handle.calls.asScala.exists(_.contains(ReminderCopy.checkingOutcome)),
-        s"the failure toast was delivered: ${handle.calls.asScala.mkString}"
+        adapter.inner.synchronized(adapter.inner.sent).exists(_._2.chunks.contains(ReminderCopy.checkingOutcome)),
+        "the failure notice was delivered as a message once the single answer was spent"
       )
-      assertEquals(handle.calls.peek, "deferUpdate", "the ack still lands before the database work")
+      assertEquals(handle.calls.peek, "answer()", "the ack still lands before the database work")
       assertEquals(handler.handled, 0)

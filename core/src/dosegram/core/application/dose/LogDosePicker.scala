@@ -27,7 +27,7 @@ private[application] object LogDosePicker:
                   id = "log.picker",
                   choices = medications.map(medication =>
                     Choice(
-                      MenuCopy.logDoseLabel(medication.name),
+                      ControlLimits.fitLabel(MenuCopy.logDoseLabel(medication.name)),
                       codec
                         .encode(
                           CallbackMode.Direct,

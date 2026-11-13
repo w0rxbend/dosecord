@@ -10,84 +10,83 @@ report:
   rung digest.item7=choices.numbered
   rung digest.item8=choices.numbered
   rung digest.item9=choices.numbered
-  rung visibility=visibility.persistent
   splitInto=1 paged=false
   warnings: -
 op 1: SEND chat=console:dm:owner sendKey=digest:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  flags silent=false suppressPreview=false deleteAfter=-
   chunk 1 (430 chars):
   ---
   While I was away, 9 doses passed without a reminder.
-  
+
   Dose 1
-  
+
   1) Taken 2) Snooze 10m 3) Skip
-  
+
   Dose 2
-  
+
   4) Taken 5) Snooze 10m 6) Skip
-  
+
   Dose 3
-  
+
   7) Taken 8) Snooze 10m 9) Skip
-  
+
   Dose 4
-  
+
   10) Taken 11) Snooze 10m 12) Skip
-  
+
   Dose 5
-  
+
   13) Taken 14) Snooze 10m 15) Skip
-  
+
   Dose 6
-  
+
   16) Taken 17) Snooze 10m 18) Skip
-  
+
   Dose 7
-  
+
   19) Taken 20) Snooze 10m 21) Skip
-  
+
   Dose 8
-  
+
   22) Taken 23) Snooze 10m 24) Skip
-  
+
   Dose 9
-  
+
   25) Taken 26) Snooze 10m 27) Skip
   ---
-  controls[0] numbered id=digest.item1 reactions=
+  controls[0] numbered id=digest.item1
     [1] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAADhqt33pLNyDw (Success)
     [2] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAApIAwSC23WNpw (Secondary)
     [3] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAEAAAAAAAB_EClsxmFWWA (Secondary)
-  controls[1] numbered id=digest.item2 reactions=
+  controls[1] numbered id=digest.item2
     [4] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAChtl0l7Khdpg (Success)
     [5] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAr5c6LomH8MmQ (Secondary)
     [6] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAIAAAAAAAAT48h8oH75vw (Secondary)
-  controls[2] numbered id=digest.item3 reactions=
+  controls[2] numbered id=digest.item3
     [7] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAMAAAAAAADitT7zkP1PcA (Success)
     [8] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAMAAAAAAApD_RH8GlLQLQ (Secondary)
     [9] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAMAAAAAAADsdoTBvvpYnA (Secondary)
-  controls[3] numbered id=digest.item4 reactions=
+  controls[3] numbered id=digest.item4
     [10] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAQAAAAAAADpMR4_MzmxRQ (Success)
     [11] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAQAAAAAAAqVCOn14RcbHQ (Secondary)
     [12] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAQAAAAAAABwYIoOmQLL3Q (Secondary)
-  controls[4] numbered id=digest.item5 reactions=
+  controls[4] numbered id=digest.item5
     [13] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAUAAAAAAAAZwvA5GV7ivA (Success)
     [14] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAUAAAAAAAqq7NRLI1q_hA (Secondary)
     [15] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAUAAAAAAACYgtZJHLdNsg (Secondary)
-  controls[5] numbered id=digest.item6 reactions=
+  controls[5] numbered id=digest.item6
     [16] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAYAAAAAAACLIj54jVBmyg (Success)
     [17] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAYAAAAAAArsf7v3AEbRHA (Secondary)
     [18] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAYAAAAAAABIi5Lrv_8u4g (Secondary)
-  controls[6] numbered id=digest.item7 reactions=
+  controls[6] numbered id=digest.item7
     [19] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAcAAAAAAADQXb5wh9WFjg (Success)
     [20] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAcAAAAAAAqboSe6gnV2HQ (Secondary)
     [21] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAcAAAAAAABx4c0NAjPgPg (Secondary)
-  controls[7] numbered id=digest.item8 reactions=
+  controls[7] numbered id=digest.item8
     [22] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAgAAAAAAACkGn6qu2oxOA (Success)
     [23] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAgAAAAAAArQd1FcCEk2bg (Secondary)
     [24] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAgAAAAAAACYn75qD-8QsQ (Secondary)
-  controls[8] numbered id=digest.item9 reactions=
+  controls[8] numbered id=digest.item9
     [25] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAkAAAAAAABk0qIqXhxI3A (Success)
     [26] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAkAAAAAAAp3h_dFoe-PoA (Secondary)
     [27] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAkAAAAAAADsViJdEdyppw (Secondary)

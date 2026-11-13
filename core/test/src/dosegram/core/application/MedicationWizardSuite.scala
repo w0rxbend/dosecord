@@ -2,7 +2,6 @@ package dosegram.core.application
 
 import dosegram.contracts.*
 import dosegram.core.application.MedicationWizardRig.Profile
-import dosegram.core.chat.CallbackMode
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
@@ -13,10 +12,9 @@ import dosegram.core.domain.copy.WizardCopy
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.util.UUID
 
 /** M1.9 acceptance on `FakeAdapter` over the in-memory ports: the add-medication wizard transcript goldens on the
-  * console and native profiles, restart survival at every step, the `[Back]` pre-filled form, `/cancel` leaving no
+  * console and Telegram profiles, restart survival at every step, the `[Back]` pre-filled form, `/cancel` leaving no
   * row, the 48 h materialisation, instructions on the reminder's second line (and NULL when skipped), find-or-create,
   * and the multi-select day picker on both tiers. The Postgres half is `infra`'s `MedicationWizardPgSuite`.
   */
@@ -73,23 +71,17 @@ class MedicationWizardSuite extends munit.FunSuite:
       // No leftover session.
       assertEquals(rig.uow.sessions.all, Nil)
 
-  test("wizard transcript (golden, native): one modal for step 1, buttons elsewhere"):
+  test("wizard transcript (golden, telegram): buttons for choices, one question per form field"):
     ox.supervised:
-      val rig = MedicationWizardRig(Profile.Native)
-      val transcript = rig.drive(MedicationWizardRig.NativeScript)
+      val rig = MedicationWizardRig(Profile.Telegram)
+      val transcript = rig.drive(MedicationWizardRig.TelegramScript)
 
       assertEquals(
         transcript,
-        MedicationWizardRig.expectedGolden(Profile.Native),
+        MedicationWizardRig.expectedGolden(Profile.Telegram),
         "transcript drifted; regenerate with " +
           "./mill core.test.runMain dosegram.core.application.medicationWizardGoldenGenerate"
       )
-
-      // The native profile saw exactly one modal (step 1), opened through the un-acked menu interaction.
-      val modals = rig.openedForms
-      assertEquals(modals.size, 1)
-      assertEquals(modals.head.id, "medication.add")
-      assertEquals(modals.head.fields.map(_.key), List("name", "dose", "times", "instructions"))
 
       assertEquals(rig.uow.medications.all.size, 1)
       assertEquals(rig.uow.occurrences.all.size, 2)
@@ -217,20 +209,6 @@ class MedicationWizardSuite extends munit.FunSuite:
       rig.line("with breakfast")
       assert(rig.lastChunks.exists(_.contains(WizardCopy.daysPrompt)), s"back on the days step: ${rig.lastChunks}")
 
-  test("[Back] from step 2 re-opens the pre-filled modal on the native profile"):
-    ox.supervised:
-      val rig = MedicationWizardRig(Profile.Native)
-      rig.bootstrapNative()
-      rig.startWizardNative(instructions = "with breakfast")
-      rig.tapLabel(WizardCopy.daysPrompt, Labels.Back)
-      val modals = rig.openedForms
-      assertEquals(modals.size, 2, "the modal re-opened")
-      assertEquals(
-        modals.last.fields.map(f => f.key -> f.value),
-        List("name" -> Some("Vitamin D"), "dose" -> Some("1000 IU"), "times" -> Some("09:00"),
-          "instructions" -> Some("with breakfast"))
-      )
-
   test("/cancel mid-wizard leaves no medication row"):
     ox.supervised:
       val rig = MedicationWizardRig(Profile.Console)
@@ -247,9 +225,9 @@ class MedicationWizardSuite extends munit.FunSuite:
 
   test("a skipped instructions field stores NULL and the reminder has no second line"):
     ox.supervised:
-      val rig = MedicationWizardRig(Profile.Native)
-      rig.bootstrapNative()
-      rig.startWizardNative(instructions = "")
+      val rig = MedicationWizardRig(Profile.Telegram)
+      rig.bootstrapTelegram()
+      rig.startWizardTelegram(instructions = "")
       rig.tapLabel(WizardCopy.daysPrompt, WizardCopy.everyDay)
       rig.tapLabel("every day 09:00", Labels.Create)
 
@@ -310,9 +288,9 @@ class MedicationWizardSuite extends munit.FunSuite:
 
   test("as-needed: empty times skips the days step and creates an AsNeeded schedule"):
     ox.supervised:
-      val rig = MedicationWizardRig(Profile.Native)
-      rig.bootstrapNative()
-      rig.startWizardNative(times = "", instructions = "")
+      val rig = MedicationWizardRig(Profile.Telegram)
+      rig.bootstrapTelegram()
+      rig.startWizardTelegram(times = "", instructions = "")
       // No days step: the confirm card is the as-needed variant.
       assert(rig.lastChunks.exists(_.contains("as needed")), s"as-needed card: ${rig.lastChunks}")
       assert(rig.lastChunks.exists(_.contains(WizardCopy.asNeededNote)), s"the note: ${rig.lastChunks}")
@@ -345,39 +323,6 @@ class MedicationWizardSuite extends munit.FunSuite:
       val rule = rig.uow.revisions.all.head.rule.asInstanceOf[Rule.FixedTimes]
       assertEquals(rule.slotGroups.head.days, dosegram.contracts.Weekday.values.toList.take(5))
 
-  test("the day picker accepts a native multi-select submission on the native profile"):
-    ox.supervised:
-      val rig = MedicationWizardRig(Profile.Native)
-      rig.bootstrapNative()
-      rig.startWizardNative(instructions = "")
-      rig.tapLabel(WizardCopy.daysPrompt, WizardCopy.chooseDays)
-      // The native select submits every selected option's wire in `values`.
-      val mon = rig.wireOf(WizardCopy.daysPrompt, "Mon")
-      val wed = rig.wireOf(WizardCopy.daysPrompt, "Wed")
-      val fri = rig.wireOf(WizardCopy.daysPrompt, "Fri")
-      val payload = MedicationWizardRig.codec.decode(mon).toOption.get
-      val event = InboundEvent(
-        EventId(UUID.randomUUID()),
-        "fake",
-        "fake:msg:wiz:multiselect",
-        MedicationWizardRig.t0,
-        actor = MedicationWizardRig.actor,
-        chat = ChatRef("fake", "dm:user-1"),
-        body = Inbound.InteractionSubmitted(
-          CallbackRef(payload.action.id, payload.subject, payload.value, payload.mode == CallbackMode.Slot, mon),
-          List(mon, wed, fri),
-          None
-        )
-      )
-      rig.push(event)
-      assert(rig.lastChunks.exists(_.contains("on Mon, Wed, Fri")), s"the card: ${rig.lastChunks}")
-      rig.tapLabel("on Mon, Wed, Fri", Labels.Create)
-      val rule = rig.uow.revisions.all.head.rule.asInstanceOf[Rule.FixedTimes]
-      assertEquals(
-        rule.slotGroups.head.days,
-        List(dosegram.contracts.Weekday.Mon, dosegram.contracts.Weekday.Wed, dosegram.contracts.Weekday.Fri)
-      )
-
   test("the day picker rejects junk and accepts names"):
     ox.supervised:
       val rig = MedicationWizardRig(Profile.Console)
@@ -395,7 +340,7 @@ class MedicationWizardSuite extends munit.FunSuite:
   */
 @main def medicationWizardGoldenGenerate(): Unit =
   ox.supervised:
-    Seq(Profile.Console -> MedicationWizardRig.ConsoleScript, Profile.Native -> MedicationWizardRig.NativeScript)
+    Seq(Profile.Console -> MedicationWizardRig.ConsoleScript, Profile.Telegram -> MedicationWizardRig.TelegramScript)
       .foreach: (profile, script) =>
         val transcript = MedicationWizardRig(profile).drive(script)
         val target = Path.of(MedicationWizardRig.goldenPath(profile))

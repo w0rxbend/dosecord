@@ -208,18 +208,13 @@ object Gens:
         ),
       Gen.zip(genText, smallMap(), genText).map(Inbound.CommandInvoked.apply),
       Gen
-        .zip(
-          Arbitrary.arbitrary[CallbackRef],
-          smallList(genText),
-          Gen.option(Arbitrary.arbitrary[MessageHandle])
-        )
+        .zip(Arbitrary.arbitrary[CallbackRef], Gen.option(Arbitrary.arbitrary[MessageHandle]))
         .map(Inbound.InteractionSubmitted.apply),
       Gen
         .zip(genText, Arbitrary.arbitrary[CallbackRef], smallMap())
         .map(
           Inbound.FormSubmitted.apply
         ),
-      Gen.zip(genText, Arbitrary.arbitrary[MessageHandle], Gen.oneOf(true, false)).map(Inbound.ReactionChanged.apply),
       Gen.const(Inbound.ConversationStarted),
       Gen.zip(genUuid, genUuid).map(Inbound.AccountLinkCompleted.apply),
       Gen.zip(Arbitrary.arbitrary[LifecycleState], genOptText).map(Inbound.AdapterLifecycle.apply)
@@ -264,7 +259,6 @@ object Gens:
   given Arbitrary[RichText] = Arbitrary(smallNonEmptyList(Arbitrary.arbitrary[Node]))
 
   given Arbitrary[ChoiceStyle] = Arbitrary(Gen.oneOf(ChoiceStyle.values.toList))
-  given Arbitrary[ChoiceLayout] = Arbitrary(Gen.oneOf(ChoiceLayout.values.toList))
   given Arbitrary[Choice] = Arbitrary(
     Gen.zip(genText, genText, Arbitrary.arbitrary[ChoiceStyle], genOptText, smallList(genText)).map(Choice.apply)
   )
@@ -272,12 +266,11 @@ object Gens:
     for
       id <- genText
       prompt <- Gen.option(Arbitrary.arbitrary[RichText])
-      choices <- smallNonEmptyList(Arbitrary.arbitrary[Choice], 25)
-      layout <- Arbitrary.arbitrary[ChoiceLayout]
+      choices <- smallNonEmptyList(Arbitrary.arbitrary[Choice], ControlLimits.MaxButtonsPerMessage)
       maxSelect <- Gen.choose(1, choices.length)
       minSelect <- Gen.choose(0, maxSelect)
       ttl <- Gen.option(genDuration)
-    yield ChoiceSet(id, prompt, choices, layout, minSelect, maxSelect, ttl)
+    yield ChoiceSet(id, prompt, choices, minSelect, maxSelect, ttl)
   )
   given Arbitrary[FieldType] = Arbitrary(Gen.oneOf(FieldType.values.toList))
   given Arbitrary[Field] = Arbitrary(
@@ -296,7 +289,7 @@ object Gens:
   given Arbitrary[Form] = Arbitrary(
     for
       id <- genText
-      title <- genText.map(_.take(45))
+      title <- genText
       fields <- smallNonEmptyList(Arbitrary.arbitrary[Field], 5)
       submit <- genText
     yield Form(id, title, fields, submit)
@@ -312,13 +305,11 @@ object Gens:
       Arbitrary.arbitrary[Notice].map(Block.NoticeBlock.apply)
     )
   )
-  given Arbitrary[Visibility] = Arbitrary(Gen.oneOf(Visibility.values.toList))
   given Arbitrary[Importance] = Arbitrary(Gen.oneOf(Importance.values.toList))
   given Arbitrary[OutboundMessage] = Arbitrary(
     for
       body <- Arbitrary.arbitrary[RichText]
       blocks <- smallList(Arbitrary.arbitrary[Block], 3)
-      visibility <- Arbitrary.arbitrary[Visibility]
       importance <- Arbitrary.arbitrary[Importance]
       replaces <- Gen.option(Arbitrary.arbitrary[MessageHandle])
       deleteAfter <- Gen.option(genDuration)
@@ -329,7 +320,6 @@ object Gens:
     yield OutboundMessage(
       body,
       blocks,
-      visibility,
       importance,
       replaces,
       deleteAfter,
@@ -362,15 +352,9 @@ object Gens:
     for
       nativeCommands <- Gen.oneOf(true, false)
       buttons <- Gen.oneOf(true, false)
-      select <- Gen.oneOf(true, false)
-      modal <- Gen.oneOf(true, false)
-      ephemeral <- Gen.oneOf(true, false)
       editOwn <- Arbitrary.arbitrary[EditCapability]
       deleteOwn <- Arbitrary.arbitrary[DeleteCapability]
-      botReactions <- Gen.oneOf(true, false)
-      reactionEvents <- Gen.oneOf(true, false)
       transientAck <- Gen.oneOf(true, false)
-      deferrable <- Gen.oneOf(true, false)
       ackDeadline <- Gen.option(genDuration)
       polls <- Gen.oneOf(true, false)
       silentDelivery <- Gen.oneOf(true, false)
@@ -384,15 +368,9 @@ object Gens:
     yield CapabilityProfile(
       nativeCommands,
       buttons,
-      select,
-      modal,
-      ephemeral,
       editOwn,
       deleteOwn,
-      botReactions,
-      reactionEvents,
       transientAck,
-      deferrable,
       ackDeadline,
       polls,
       silentDelivery,
@@ -427,16 +405,7 @@ object Gens:
     Gen.oneOf(
       Gen.const(RenderedControls.NoControls),
       smallNonEmptyList(smallNonEmptyList(Arbitrary.arbitrary[RenderedChoice])).map(RenderedControls.Buttons.apply),
-      Gen
-        .zip(genText, smallNonEmptyList(Arbitrary.arbitrary[RenderedChoice]), Gen.choose(0, 1), Gen.choose(1, 25))
-        .map(
-          RenderedControls.SelectMenu.apply
-        ),
-      Gen
-        .zip(genText, smallNonEmptyList(Arbitrary.arbitrary[RenderedChoice]), smallList(genText))
-        .map(
-          RenderedControls.Numbered.apply
-        )
+      Gen.zip(genText, smallNonEmptyList(Arbitrary.arbitrary[RenderedChoice])).map(RenderedControls.Numbered.apply)
     )
   )
   given Arbitrary[ChoiceMapEntry] = Arbitrary(
@@ -456,12 +425,11 @@ object Gens:
       chunks <- smallNonEmptyList(genText)
       controls <- smallList(Arbitrary.arbitrary[RenderedControls], 3)
       form <- Gen.option(Arbitrary.arbitrary[RenderedForm])
-      ephemeral <- Gen.oneOf(true, false)
       deleteAfter <- Gen.option(genDuration)
       silent <- Gen.oneOf(true, false)
       suppressPreview <- Gen.oneOf(true, false)
       choiceMap <- smallList(Arbitrary.arbitrary[ChoiceMapEntry], 5)
-    yield RenderedMessage(chunks, controls, form, ephemeral, deleteAfter, silent, suppressPreview, choiceMap)
+    yield RenderedMessage(chunks, controls, form, deleteAfter, silent, suppressPreview, choiceMap)
   )
   given Arbitrary[RenderReport] = Arbitrary(
     Gen
@@ -469,18 +437,10 @@ object Gens:
       .map(RenderReport.apply)
   )
   given Arbitrary[CommandArg] = Arbitrary(
-    Gen.zip(genText, genText, Gen.oneOf(true, false), smallList(genText), Gen.oneOf(true, false)).map(CommandArg.apply)
+    Gen.zip(genText, genText, Gen.oneOf(true, false)).map(CommandArg.apply)
   )
   given Arbitrary[CommandSpec] = Arbitrary(
-    Gen
-      .zip(
-        genText,
-        genText,
-        smallList(Arbitrary.arbitrary[CommandArg]),
-        Arbitrary.arbitrary[Visibility],
-        Gen.oneOf(true, false)
-      )
-      .map(CommandSpec.apply)
+    Gen.zip(genText, genText, smallList(Arbitrary.arbitrary[CommandArg])).map(CommandSpec.apply)
   )
   given Arbitrary[VendorOp] = Arbitrary(
     Gen.oneOf(
@@ -494,9 +454,6 @@ object Gens:
         .map(VendorOp.Send.apply),
       Gen.zip(Arbitrary.arbitrary[MessageHandle], Arbitrary.arbitrary[RenderedMessage]).map(VendorOp.Edit.apply),
       Arbitrary.arbitrary[MessageHandle].map(VendorOp.Delete.apply),
-      Gen.zip(Arbitrary.arbitrary[MessageHandle], genText, Gen.oneOf(true, false), genText).map(VendorOp.React.apply),
-      Arbitrary.arbitrary[MessageHandle].map(VendorOp.UnreactAll.apply),
-      Arbitrary.arbitrary[RenderedForm].map(VendorOp.OpenForm.apply),
       genOptText.map(VendorOp.Ack.apply),
       Arbitrary.arbitrary[ChatRef].map(VendorOp.Typing.apply),
       smallList(Arbitrary.arbitrary[CommandSpec]).map(VendorOp.RegisterCommands.apply)

@@ -7,7 +7,6 @@ import dosegram.core.application.CommandRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatMediator
 import dosegram.infra.Adapter
-import dosegram.infra.Metrics
 import dosegram.infra.Settings
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
@@ -48,8 +47,7 @@ object Adapters:
       codec,
       Application.handler(uow, adapters, codec, parts.clock),
       parts.clock,
-      commands = CommandRegistry.byName,
-      recordFormDegraded = () => formDegradedCounter.increment()
+      commands = CommandRegistry.byName
     )
     adapters.foreach((name, adapter) =>
       adapter.start(mediator, None)
@@ -58,6 +56,3 @@ object Adapters:
       log(s"adapter started: $name")
     )
     adapters.toList.map((name, adapter) => name -> (() => adapter.stop()))
-
-  private[app] val formDegradedCounter: io.micrometer.core.instrument.Counter =
-    io.micrometer.core.instrument.Counter.builder("dosegram_form_degraded_total").register(Metrics.registry)

@@ -57,15 +57,12 @@ final class ConsoleMux(personas: List[PersonaConsole], transcript: SimTranscript
     transcript.record(persona.personaId, chat.chatId, sendKey, rendered, handle)
     handle
 
-  // Capability honesty, same as the real console adapter: the profile claims no edit/delete/reactions.
+  // Capability honesty, same as the real console adapter: the profile claims no edit and no delete.
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     throw dosegram.contracts.ChatError.Unsupported("edit")
 
   override def delete(handle: MessageHandle): Unit =
     throw dosegram.contracts.ChatError.Unsupported("delete")
-
-  override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit =
-    throw dosegram.contracts.ChatError.Unsupported("react")
 
   override def registerCommands(specs: List[CommandSpec]): Unit = ()
 

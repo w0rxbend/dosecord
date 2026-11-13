@@ -5,10 +5,9 @@ import java.util.UUID
 
 /** Reads the clear-text fields of a `dc:` callback token without verifying the MAC (DESIGN.md section 4.4 layout: the
   * MAC covers only bytes 0..25, so the action id, subject, value and mode are readable by anyone). The mediator
-  * re-verifies the MAC before anything reaches the core — this peek exists solely so the adapter's ack watchdog can
-  * pick the declared ack type ([[ActionRegistry]] `opensForm`, ADR-013) without holding keys. A token that does not
-  * parse is treated as an unknown action: the watchdog defers (safe default) and the mediator's verification rejects it
-  * with the tamper toast.
+  * re-verifies the MAC before anything reaches the core — this peek exists solely so an adapter can read the action of
+  * a tapped control without holding keys. A token that does not parse is treated as an unknown action and the
+  * mediator's verification rejects it with the tamper toast.
   */
 object CallbackPeek:
 

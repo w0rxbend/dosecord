@@ -3,11 +3,10 @@ profile: telegram
 report:
   rung reminder.main=choices.buttons
   rung reminder.more=choices.buttons
-  rung visibility=visibility.persistent
   splitInto=1 paged=false
   warnings: -
 op 1: SEND chat=telegram:dm:owner sendKey=reminder:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  flags silent=false suppressPreview=false deleteAfter=-
   chunk 1 (28 chars):
   ---
   Time for Vitamin D, 1000 IU.

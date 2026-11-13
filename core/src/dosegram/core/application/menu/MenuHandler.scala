@@ -79,8 +79,8 @@ final class MenuHandler(
         guardLinked(event, principal)(todayView(event, principal, tx, source = None))
       case Inbound.CommandInvoked(CommandHistory, _, _) =>
         guardLinked(event, principal)(historyView(event, principal, tx, source = None))
-      case Inbound.InteractionSubmitted(ref, _, source) => onTap(event, principal, ref, source, tx)
-      case _                                            => inner.handle(event, principal, tx)
+      case Inbound.InteractionSubmitted(ref, source) => onTap(event, principal, ref, source, tx)
+      case _                                         => inner.handle(event, principal, tx)
 
   private def guardLinked(event: InboundEvent, principal: Principal)(reply: => Reply): Reply =
     if principal.accountId.isEmpty then
@@ -399,7 +399,7 @@ final class MenuHandler(
           id = s"today.log.${medication.id}",
           choices = List(
             Choice(
-              MenuCopy.logDoseLabel(medication.name),
+              ControlLimits.fitLabel(MenuCopy.logDoseLabel(medication.name)),
               directToken("dose.log", medication.id)
             )
           )

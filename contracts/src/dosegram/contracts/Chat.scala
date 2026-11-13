@@ -44,9 +44,8 @@ final case class CallbackRef(actionId: Int, subject: UUID, value: Long, slot: Bo
 enum Inbound derives ReadWriter:
   case MessageReceived(text: String, replyTo: Option[MessageHandle], truncated: Boolean)
   case CommandInvoked(name: String, args: Map[String, String], raw: String)
-  case InteractionSubmitted(callback: CallbackRef, values: List[String], source: Option[MessageHandle])
+  case InteractionSubmitted(callback: CallbackRef, source: Option[MessageHandle])
   case FormSubmitted(formId: String, callback: CallbackRef, fields: Map[String, String])
-  case ReactionChanged(emoji: String, target: MessageHandle, added: Boolean)
   case ConversationStarted
   case AccountLinkCompleted(linkId: UUID, accountId: UUID)
   case AdapterLifecycle(state: LifecycleState, fromCursor: Option[String])
@@ -112,20 +111,16 @@ object InboundEvent:
       )
   )
 
-/** The one vendor-timing abstraction (DESIGN.md section 4.1). Opaque to the core; the mediator acks through it. Not
-  * serialisable by design — it is a live vendor handle, so it is the one adapter-API type excluded from the ReadWriter
-  * contract test.
+/** The live handle of one tapped control (ADR-015): a single-shot answer and an edit of the message that carried the
+  * control. Opaque to the core; the mediator acks through it. Not serialisable by design, so it is the one adapter-API
+  * type excluded from the ReadWriter contract test.
   */
 trait InteractionHandle:
-  /** Acknowledgement and reply-hook lifetime are independent. */
-  def replyAvailable: Boolean = false
-  def modalAvailable: Boolean = !acked
-  def deferUpdate(): Unit
-  def deferReply(ephemeral: Boolean): Unit
+  /** Single shot: the first answer wins and later calls are no-ops. */
   def answer(toast: Option[String]): Unit
-  def respond(rendered: RenderedMessage): MessageHandle
   def editSource(rendered: RenderedMessage): Unit
-  def openForm(form: RenderedForm): Unit
+
+  /** Whether the single answer is already spent. */
   def acked: Boolean
 
 // ---------- Outbound message model (DESIGN.md section 4.2) ----------
@@ -151,11 +146,18 @@ enum Node derives ReadWriter:
 /** An AST, never a vendor string (DESIGN.md section 4.2); no headings, tables or images. */
 type RichText = List[Node]
 
+/** Product limits on tappable controls (ADR-015). They are our own bounds, not platform maxima. */
+object ControlLimits:
+  val MaxLabelChars = 32
+  val MaxButtonsPerRow = 8
+  val MaxButtonsPerMessage = 24
+
+  /** Shortens a label built from user text (a medication name) to the label limit. */
+  def fitLabel(text: String): String =
+    if text.length <= MaxLabelChars then text else text.take(MaxLabelChars - 1) + "…"
+
 enum ChoiceStyle derives ReadWriter:
   case Primary, Secondary, Danger, Success
-
-enum ChoiceLayout derives ReadWriter:
-  case Buttons, Select
 
 /** `callback` is the wire form of a CallbackToken (core/chat) — a 49-char `dc:` string, kept as a plain string here so
   * contracts never depends on core.
@@ -167,19 +169,24 @@ final case class Choice(
     emoji: Option[String] = None,
     hotkeys: List[String] = Nil
 ) derives ReadWriter:
-  require(label.nonEmpty && label.length <= 80, "choice label must be 1-80 chars")
+  require(
+    label.nonEmpty && label.length <= ControlLimits.MaxLabelChars,
+    s"choice label must be 1-${ControlLimits.MaxLabelChars} chars"
+  )
 
 final case class ChoiceSet(
     id: String,
     prompt: Option[RichText] = None,
     choices: List[Choice],
-    layout: ChoiceLayout = ChoiceLayout.Buttons,
     minSelect: Int = 1,
     maxSelect: Int = 1,
     ttl: Option[Duration] = None
 ) derives ReadWriter:
   require(id.nonEmpty, "choice set id must not be empty")
-  require(choices.nonEmpty && choices.length <= 25, "1-25 choices (native select limit)")
+  require(
+    choices.nonEmpty && choices.length <= ControlLimits.MaxButtonsPerMessage,
+    s"1-${ControlLimits.MaxButtonsPerMessage} choices"
+  )
   require(minSelect >= 0 && maxSelect >= 1 && minSelect <= maxSelect, "invalid select bounds")
   require(maxSelect <= choices.length, "maxSelect exceeds the choice count")
 
@@ -200,8 +207,8 @@ final case class Field(
 
 final case class Form(id: String, title: String, fields: List[Field], submit: String) derives ReadWriter:
   require(id.nonEmpty, "form id must not be empty")
-  require(title.nonEmpty && title.length <= 45, "form title must be 1-45 chars (native modal cap)")
-  require(fields.nonEmpty && fields.length <= 5, "1-5 fields (native modal cap)")
+  require(title.nonEmpty, "form title must not be empty")
+  require(fields.nonEmpty, "a form has at least one field")
 
 enum NoticeLevel derives ReadWriter:
   case Info, Success, Warning
@@ -213,16 +220,12 @@ enum Block derives ReadWriter:
   case FormBlock(f: Form)
   case NoticeBlock(n: Notice)
 
-enum Visibility derives ReadWriter:
-  case Persistent, Ephemeral
-
 enum Importance derives ReadWriter:
   case InteractionReply, Reminder, Info, Bulk
 
 final case class OutboundMessage(
     body: RichText,
     blocks: List[Block] = Nil,
-    visibility: Visibility = Visibility.Persistent,
     importance: Importance = Importance.Info,
     replaces: Option[MessageHandle] = None,
     deleteAfter: Option[Duration] = None,
@@ -260,15 +263,9 @@ enum Markup derives ReadWriter:
 final case class CapabilityProfile(
     nativeCommands: Boolean,
     buttons: Boolean,
-    select: Boolean,
-    modal: Boolean,
-    ephemeral: Boolean,
     editOwn: EditCapability,
     deleteOwn: DeleteCapability,
-    botReactions: Boolean,
-    reactionEvents: Boolean,
     transientAck: Boolean,
-    deferrable: Boolean,
     ackDeadline: Option[Duration],
     polls: Boolean,
     silentDelivery: Boolean,
@@ -281,7 +278,10 @@ final case class CapabilityProfile(
     markup: Markup
 ) derives ReadWriter:
   require(maxText > 0, "maxText must be positive")
-  require(maxChoicesPerRow >= 0 && maxRows >= 0, "row budgets must be >= 0")
+  require(
+    maxChoicesPerRow >= 0 && maxChoicesPerRow <= ControlLimits.MaxButtonsPerRow && maxRows >= 0,
+    s"row budgets must be >= 0 and a row holds at most ${ControlLimits.MaxButtonsPerRow} buttons"
+  )
   require(eventsPerMessageBudget >= 1, "eventsPerMessageBudget must be >= 1")
 
 // ---------- Handler reply (DESIGN.md section 4.6 step 7) ----------

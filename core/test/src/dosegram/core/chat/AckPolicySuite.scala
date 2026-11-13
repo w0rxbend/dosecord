@@ -1,10 +1,17 @@
 package dosegram.core.chat
 
-import dosegram.contracts.CommandSpec
+import dosegram.core.chat.MediatorFakes.RecordingInteractionHandle
+
+import scala.jdk.CollectionConverters.*
 
 class AckPolicySuite extends munit.FunSuite:
-  test("a synthetic form-opening command leaves its initial acknowledgement for the modal"):
-    assertEquals(
-      AckPolicy.forCommand(CommandSpec("synthetic-form", "test", opensForm = true), TestProfiles.Native),
-      AckPolicy.Ack.NoAck
-    )
+  test("a single-shot vendor is answered once, with no toast, before database work"):
+    val interaction = RecordingInteractionHandle()
+    AckPolicy.ackBeforeWork(CapabilityProfiles.Telegram, interaction)
+    AckPolicy.ackBeforeWork(CapabilityProfiles.Telegram, interaction)
+    assertEquals(interaction.calls.asScala.toList, List("answer()"))
+
+  test("a vendor without a transient ack is not answered"):
+    val interaction = RecordingInteractionHandle()
+    AckPolicy.ackBeforeWork(CapabilityProfiles.Console, interaction)
+    assertEquals(interaction.calls.asScala.toList, Nil)

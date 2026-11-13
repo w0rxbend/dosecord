@@ -6,10 +6,10 @@ import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
-/** Per-vendor and per-chat token buckets (DESIGN.md section 7.6): they count vendor events, not rows — a reaction-tier
-  * reminder is 1 + reactions events. The rates are configuration, not code; the defaults below are the documented
-  * vendor limits. Priority is not a bucket property: the dispatcher dispatches each claimed batch in priority order
-  * ([[OutboxDispatcher.priorityRank]]) and buckets are FIFO per dispatcher fork.
+/** Per-vendor and per-chat token buckets (DESIGN.md section 7.6): they count vendor events, not rows. The rates are
+  * configuration, not code; the defaults below are the documented vendor limits. Priority is not a bucket property: the
+  * dispatcher dispatches each claimed batch in priority order ([[OutboxDispatcher.priorityRank]]) and buckets are FIFO
+  * per dispatcher fork.
   */
 object TokenBuckets:
 

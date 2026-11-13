@@ -13,7 +13,6 @@ enum OutboxOp(val db: String):
   case Edit extends OutboxOp("edit")
   case Finalize extends OutboxOp("finalize")
   case Delete extends OutboxOp("delete")
-  case React extends OutboxOp("react")
 
 object OutboxOp:
   def fromDb(db: String): OutboxOp =
@@ -112,13 +111,8 @@ trait OutboxRepository:
     */
   def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage]
 
-  /** Records the primary handle right after the primary send, before any reaction sub-op; sets the send bit (0) of
-    * `ops_done`.
-    */
+  /** Records the primary handle right after the primary send; sets the send bit (0) of `ops_done`. */
   def recordHandle(id: UUID, encodedHandle: String): Unit
-
-  /** Sets bit `opIndex` of `ops_done` (bit 0 = primary send, bit i+1 = reaction i). */
-  def markOpDone(id: UUID, opIndex: Int): Unit
 
   /** Terminal write of a successful dispatch; always the last write. */
   def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit
@@ -190,8 +184,7 @@ trait RenderedMessageRepository:
     */
   def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle]
 
-  /** Quoted-reply numbers and reactions resolve through the target's `choice_map` unconditionally (DESIGN.md section
-    * 4.6 step 5).
+  /** Quoted-reply numbers resolve through the target's `choice_map` unconditionally (DESIGN.md section 4.6 step 5).
     */
   def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap]
 

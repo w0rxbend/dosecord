@@ -11,7 +11,7 @@ import java.io.StringReader
 import java.time.Instant
 
 /** Suite A wiring for the real console adapter: stdin/stdout stand-ins, the text-only console profile, no transport
-  * traits (stdin has no redelivery, status codes or modal payloads).
+  * traits (stdin has no redelivery and no status codes).
   */
 object ConsoleWiring extends AdapterWiring:
   override val vendor: String = "console"
@@ -26,7 +26,7 @@ object ConsoleWiring extends AdapterWiring:
     AdapterUnderTest(adapter, server, sink)
 
 /** ROADMAP M0.13 acceptance for the console adapter: it passes every applicable suite A scenario, and suite B2 for the
-  * console profile (quoted reply, bare digit gate, stale step, ephemeral downgrade, ordering) runs against the real
+  * console profile (quoted reply, bare digit gate, stale step, ordering) runs against the real
   * adapter through the mediator.
   */
 class ConsoleConformanceSuite extends munit.FunSuite:
@@ -41,7 +41,7 @@ class ConsoleConformanceSuite extends munit.FunSuite:
     val skipped = results.collect { case s: ScenarioResult.Skipped => s }
     skipped.foreach(s => println(s"skipped ${s.name}: ${s.reason}"))
     assert(failures.isEmpty, failures.map(f => s"${f.name}: ${f.errors.mkString("; ")}").mkString("\n"))
-    // 13 scenarios; the text-only console profile applies to 6 of them.
+    // 12 scenarios; the text-only console profile applies to 6 of them.
     assertEquals(results.size - skipped.size, 6)
 
   test("suite B2: mediator resolution for the console profile"):
@@ -65,4 +65,4 @@ class ConsoleConformanceSuite extends munit.FunSuite:
         failures.isEmpty,
         failures.map(r => s"${r.name}: ${r.errors.mkString("; ")}").mkString("\n")
       )
-      assertEquals(results.size, 5)
+      assertEquals(results.size, 4)

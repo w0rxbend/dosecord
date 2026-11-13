@@ -6,7 +6,7 @@ report:
   splitInto=1 paged=false
   warnings: -
 op 1: EDIT telegram:dm:owner:m42@r0
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  flags silent=false suppressPreview=false deleteAfter=-
   chunk 1 (18 chars):
   ---
   Recorded at 09:03.

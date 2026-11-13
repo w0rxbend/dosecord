@@ -1,6 +1,5 @@
 package dosegram.core.chat
 
-import dosegram.contracts.ChoiceLayout
 import dosegram.contracts.Field
 import dosegram.contracts.InboundEvent
 import dosegram.contracts.Principal
@@ -18,16 +17,16 @@ import java.util.UUID
 
 /** What a step accepted from the user, after mediator resolution. */
 enum StepInput:
-  /** A rendered choice was tapped (button/select/numbered/reaction — all resolve to the same key). */
+  /** A rendered choice was tapped or its number typed — both resolve to the same key. */
   case Chosen(key: String)
 
-  /** A multi-select choice set was submitted (native select values, or a space/comma reply on the text tiers). */
+  /** A multi-select choice set was submitted. */
   case ChosenMany(keys: List[String])
 
   /** Free text on a text step, or one FormRunner field answer handled by the engine. */
   case TextEntered(text: String)
 
-  /** A form submission — identical whether it came from a native modal or a completed FormRunner (M0.12b). */
+  /** A form submission from a completed FormRunner (M0.12b). */
   case FormAnswered(fields: Map[String, String])
 
 /** Where a step sends the session next. */
@@ -47,29 +46,23 @@ enum StepTransition:
 enum StepKind:
   /** Tappable options as (payload key, label), computed from the accumulated data at render time so steps like the
     * timezone picker can group by the current offset; `[Back]`/`[Cancel]` are appended by the engine. `maxSelect > 1`
-    * makes it a multi-select picker (M1.9's day picker): the engine renders the multi-select instruction on the text
-    * tiers and routes space/comma replies and native select values to the step as [[StepInput.ChosenMany]].
+    * makes it a multi-select picker (M1.9's day picker): on the numbered rung a space/comma reply reaches the step as
+    * [[StepInput.TextEntered]].
     */
-  case Choices(
-      options: Map[String, String] => List[(String, String)],
-      layout: ChoiceLayout = ChoiceLayout.Buttons,
-      minSelect: Int = 1,
-      maxSelect: Int = 1
-  )
+  case Choices(options: Map[String, String] => List[(String, String)], minSelect: Int = 1, maxSelect: Int = 1)
 
   /** Free text; Back/Cancel render as a typed hint so bare digits stay wizard input (DESIGN.md section 4.6 step 5). */
   case Text
 
-  /** A form: one native modal where supported, the mediator FormRunner elsewhere; both yield one FormAnswered.
-    * Re-rendered with session data, the fields carry their previous answers as pre-filled values (M1.9 `[Back]`
-    * pre-fill).
+  /** A form: the mediator FormRunner asks one field per message and yields one FormAnswered. Re-rendered with session
+    * data, the fields carry their previous answers as pre-filled values (M1.9 `[Back]` pre-fill).
     */
   case Form(formId: String, title: String, fields: List[Field])
 
 object StepKind:
   /** A static option list (the common case). */
-  def choices(options: List[(String, String)], layout: ChoiceLayout = ChoiceLayout.Buttons): StepKind =
-    StepKind.Choices(_ => options, layout)
+  def choices(options: List[(String, String)]): StepKind =
+    StepKind.Choices(_ => options)
 
 final case class Step(
     id: String,

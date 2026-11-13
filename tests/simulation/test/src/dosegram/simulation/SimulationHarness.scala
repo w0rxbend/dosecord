@@ -4,7 +4,6 @@ import dosegram.contracts.ChatRef
 import dosegram.contracts.EventId
 import dosegram.contracts.Inbound
 import dosegram.contracts.InboundEvent
-import dosegram.contracts.MessageHandle
 import dosegram.contracts.PlatformIdentity
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
@@ -212,7 +211,7 @@ final class SimulationHarness(dataSource: DataSource, val clock: MutableClock, t
         Some(clock.now()),
         persona.identity,
         ChatRef("console", persona.chatId),
-        body = Inbound.ReactionChanged("sim", MessageHandle("console", persona.chatId, "0"), added = false)
+        body = Inbound.AdapterLifecycle(dosegram.contracts.LifecycleState.Resumed, None)
       )
     )
     awaitProcessed(ackId)

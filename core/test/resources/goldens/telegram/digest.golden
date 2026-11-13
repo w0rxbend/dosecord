@@ -10,32 +10,29 @@ report:
   rung digest.item7=choices.buttons
   rung digest.item8=choices.buttons
   rung digest.item9=choices.buttons
-  rung visibility=visibility.persistent
-  splitInto=1 paged=false
+  splitInto=2 paged=true
   warnings: -
-op 1: SEND chat=telegram:dm:owner sendKey=digest:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
-  chunk 1 (124 chars):
+op 1: SEND chat=telegram:dm:owner sendKey=digest:1:p1 replyTo=-
+  flags silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (116 chars):
   ---
   While I was away, 9 doses passed without a reminder.
-  
+
   Dose 1
-  
+
   Dose 2
-  
+
   Dose 3
-  
+
   Dose 4
-  
+
   Dose 5
-  
+
   Dose 6
-  
+
   Dose 7
-  
+
   Dose 8
-  
-  Dose 9
   ---
   controls[0] buttons:
     row 1: [1] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAADhqt33pLNyDw (Success) [2] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAApIAwSC23WNpw (Secondary) [3] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAEAAAAAAAB_EClsxmFWWA (Secondary)
@@ -53,8 +50,6 @@ op 1: SEND chat=telegram:dm:owner sendKey=digest:1 replyTo=-
     row 1: [19] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAcAAAAAAADQXb5wh9WFjg (Success) [20] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAcAAAAAAAqboSe6gnV2HQ (Secondary) [21] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAcAAAAAAABx4c0NAjPgPg (Secondary)
   controls[7] buttons:
     row 1: [22] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAgAAAAAAACkGn6qu2oxOA (Success) [23] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAgAAAAAAArQd1FcCEk2bg (Secondary) [24] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAgAAAAAAACYn75qD-8QsQ (Secondary)
-  controls[8] buttons:
-    row 1: [25] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAkAAAAAAABk0qIqXhxI3A (Success) [26] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAkAAAAAAAp3h_dFoe-PoA (Secondary) [27] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAkAAAAAAADsViJdEdyppw (Secondary)
   choiceMap:
     digest.item1 1 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAADhqt33pLNyDw
     digest.item1 2 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAApIAwSC23WNpw
@@ -80,6 +75,17 @@ op 1: SEND chat=telegram:dm:owner sendKey=digest:1 replyTo=-
     digest.item8 22 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAgAAAAAAACkGn6qu2oxOA
     digest.item8 23 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAgAAAAAAArQd1FcCEk2bg
     digest.item8 24 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAgAAAAAAACYn75qD-8QsQ
+op 2: SEND chat=telegram:dm:owner sendKey=digest:1:p2 replyTo=-
+  flags silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (19 chars):
+  ---
+  Page 2 of 2
+
+  Dose 9
+  ---
+  controls[0] buttons:
+    row 1: [25] Taken -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAkAAAAAAABk0qIqXhxI3A (Success) [26] Snooze 10m -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAkAAAAAAAp3h_dFoe-PoA (Secondary) [27] Skip -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAkAAAAAAADsViJdEdyppw (Secondary)
+  choiceMap:
     digest.item9 25 Taken emoji=- -> dc:EQAAAQAAAAAAAAAAAAAAAAAAAAkAAAAAAABk0qIqXhxI3A
     digest.item9 26 Snooze 10m emoji=- -> dc:EQAAAgAAAAAAAAAAAAAAAAAAAAkAAAAAAAp3h_dFoe-PoA
     digest.item9 27 Skip emoji=- -> dc:EQAAAwAAAAAAAAAAAAAAAAAAAAkAAAAAAADsViJdEdyppw

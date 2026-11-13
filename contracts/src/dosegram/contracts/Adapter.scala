@@ -50,10 +50,8 @@ final case class RenderedChoice(
 enum RenderedControls derives ReadWriter:
   case NoControls
   case Buttons(rows: List[List[RenderedChoice]])
-  case SelectMenu(id: String, choices: List[RenderedChoice], minSelect: Int, maxSelect: Int)
-  // Numbered legend in the text plus the digit reactions the bot must add to its own message
-  // (empty when the profile cannot react: the text-only rung).
-  case Numbered(id: String, choices: List[RenderedChoice], reactions: List[String])
+  // Numbered legend in the text; the user answers with the number (the text-only rung).
+  case Numbered(id: String, choices: List[RenderedChoice])
 
 /** One row of `rendered_messages.choice_map` (DESIGN.md section 4.3): index, label and emoji all resolve to the
   * callback.
@@ -68,21 +66,20 @@ final case class RenderedField(
     required: Boolean,
     placeholder: Option[String],
     options: List[String],
-    /** Pre-filled value (M1.9: modal inputs and FormRunner questions show the previous answers). */
+    /** Pre-filled value (M1.9: FormRunner questions show the previous answers). */
     value: Option[String] = None
 ) derives ReadWriter
 
 final case class RenderedForm(id: String, title: String, fields: List[RenderedField], submit: String) derives ReadWriter
 
 /** The lowered message an adapter executes: vendor-markup text chunks (split at `maxText`, blocks attach to the last
-  * chunk) plus controls. `choiceMap` is recorded by the mediator before any reaction sub-op so controls stay resolvable
-  * after a crash (DESIGN.md section 9).
+  * chunk) plus controls. `choiceMap` is recorded by the mediator right after the send so controls stay resolvable after
+  * a crash (DESIGN.md section 9).
   */
 final case class RenderedMessage(
     chunks: List[String],
     controls: List[RenderedControls] = Nil,
     form: Option[RenderedForm] = None,
-    ephemeral: Boolean = false,
     deleteAfter: Option[Duration] = None,
     silent: Boolean = false,
     suppressPreview: Boolean = false,
@@ -91,7 +88,7 @@ final case class RenderedMessage(
   require(chunks.nonEmpty && chunks.forall(_.nonEmpty), "at least one non-empty text chunk")
 
 /** Which ladder rung each block resolved to (DESIGN.md section 4.3: the report names the rung). Keys: choice set / form
-  * ids, `visibility`, `finalize`.
+  * ids and `finalize`.
   */
 final case class RenderReport(
     rungs: Map[String, String],
@@ -106,36 +103,17 @@ enum VendorOp derives ReadWriter:
   case Send(chat: ChatRef, message: RenderedMessage, sendKey: String, replyTo: Option[MessageHandle])
   case Edit(handle: MessageHandle, message: RenderedMessage)
   case Delete(handle: MessageHandle)
-  case React(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String)
-  // Remove the bot's own reactions (reaction-tier finalize).
-  case UnreactAll(handle: MessageHandle)
-  // Open a native modal through a live interaction (rung 1 of the form ladder).
-  case OpenForm(form: RenderedForm)
   case Ack(toast: Option[String])
   case Typing(chat: ChatRef)
   case RegisterCommands(specs: List[CommandSpec])
 
 // ---------- Commands the core registers ----------
 
-final case class CommandArg(
-    name: String,
-    description: String,
-    required: Boolean = true,
-    choices: List[String] = Nil,
-    autocomplete: Boolean = false
-) derives ReadWriter:
+/** A free-text command argument (ADR-015: bot commands carry no typed options). */
+final case class CommandArg(name: String, description: String, required: Boolean = true) derives ReadWriter:
   require(name.nonEmpty, "arg name must not be empty")
 
-/** Static per command (DESIGN.md section 4.2): a deferring vendor fixes the ephemeral flag at defer time, so visibility
-  * and opensForm are declared here, not chosen per reply (ADR-013).
-  */
-final case class CommandSpec(
-    name: String,
-    description: String,
-    args: List[CommandArg] = Nil,
-    visibility: Visibility = Visibility.Persistent,
-    opensForm: Boolean = false
-) derives ReadWriter:
+final case class CommandSpec(name: String, description: String, args: List[CommandArg] = Nil) derives ReadWriter:
   require(name.nonEmpty, "command name must not be empty")
 
 // ---------- Adapter contract (DESIGN.md section 4.5) ----------
@@ -159,7 +137,6 @@ trait ChatAdapter:
   def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle
   def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle
   def delete(handle: MessageHandle): Unit
-  def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit
   def registerCommands(specs: List[CommandSpec]): Unit
   def resolveChat(identity: PlatformIdentity): ChatRef
   def renderText(text: RichText): List[String]
@@ -178,6 +155,5 @@ trait ChatPort:
   def finalize(handle: MessageHandle, summary: RichText, keep: Option[ChoiceSet]): SendResult
   def delete(handle: MessageHandle): Unit
   def ack(interaction: InteractionHandle, toast: Option[String]): Unit
-  def react(handle: MessageHandle, emoji: String, on: Boolean): Unit
   def typing(chat: ChatRef): Unit
   def registerCommands(specs: List[CommandSpec]): Unit

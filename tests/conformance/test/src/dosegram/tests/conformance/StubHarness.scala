@@ -11,7 +11,7 @@ import scala.collection.mutable.ListBuffer
 
 /** A generic in-memory fake wire for adapters without a gateway (FakeAdapter and test doubles): the stub server pushes
   * wire events straight to the sink with a stable per-wireId vendor_event_id, and the fault-injecting wrapper plays the
-  * honest vendor-fault mappings of DESIGN.md section 4.5 at the adapter boundary (NotModified and DuplicateReaction are
+  * honest vendor-fault mappings of DESIGN.md section 4.5 at the adapter boundary (NotModified is
   * success; DeleteWindow and EditNotFound are non-fatal Permanent; Blocked is Unreachable; RateLimited carries the
   * Retry-After).
   */
@@ -19,7 +19,6 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
   private val deliveriesBuf = ListBuffer.empty[(WireEvent, InboundEvent)]
   private val sentBuf = ListBuffer.empty[SentObservation]
   private val acksBuf = ListBuffer.empty[AckObservation]
-  private val modalBuf = ListBuffer.empty[String]
   private var armed = Option.empty[VendorFault]
   private var seq = 0
   private var at = Instant.parse("2026-09-21T00:00:00Z")
@@ -33,7 +32,6 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
       case WireEvent.Callback(_, chat, callback, source) =>
         Inbound.InteractionSubmitted(
           CallbackRef(20, UUID(0L, 0L), 0, slot = false, callback),
-          Nil,
           Some(MessageHandle(vendor, chat, source))
         )
     val inbound = InboundEvent(
@@ -56,7 +54,6 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
   override def deliveries: List[(WireEvent, InboundEvent)] = deliveriesBuf.toList
   override def sent: List[SentObservation] = sentBuf.toList
   override def acks: List[AckObservation] = acksBuf.toList
-  override def modalPayloads: List[String] = modalBuf.toList
   override def failNext(fault: VendorFault): Unit = armed = Some(fault)
   override def clock: Instant = at
   override def advanceClock(by: Duration): Unit = at = at.plus(by)
@@ -68,9 +65,6 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
 
   private[conformance] def recordAck(kind: String): Unit = acksBuf += AckObservation(kind, at)
 
-  private[conformance] def recordModal(form: RenderedForm): Unit =
-    modalBuf += upickle.default.write(form)
-
   private[conformance] def takeFault(): Option[VendorFault] =
     val fault = armed
     armed = None
@@ -78,13 +72,8 @@ final class StubVendorServer(val vendor: String, sink: RecordingSink) extends Fa
 
 /** The interaction the stub wire hands back for callback deliveries. */
 final class StubInteractionHandle(server: StubVendorServer) extends InteractionHandle:
-  override def deferUpdate(): Unit = server.recordAck("deferUpdate")
-  override def deferReply(ephemeral: Boolean): Unit = server.recordAck(s"deferReply($ephemeral)")
   override def answer(toast: Option[String]): Unit = server.recordAck(s"answer(${toast.getOrElse("")})")
-  override def respond(rendered: RenderedMessage): MessageHandle =
-    MessageHandle("stub", "dm:owner", "r1")
   override def editSource(rendered: RenderedMessage): Unit = ()
-  override def openForm(form: RenderedForm): Unit = server.recordModal(form)
   override def acked: Boolean = false
 
 /** Records vendor ops and raises armed faults around a delegate adapter. */
@@ -126,16 +115,6 @@ final class FaultInjectingAdapter(delegate: ChatAdapter, server: StubVendorServe
       case None                                   => ()
     delegate.delete(handle)
 
-  override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit =
-    server.takeFault() match
-      // REACTION_ALREADY_EXISTS / M_DUPLICATE_ANNOTATION are success (DESIGN.md section 4.5).
-      case Some(VendorFault.DuplicateReaction) => ()
-      case Some(VendorFault.RateLimited(seconds)) =>
-        throw ChatError.RateLimited(Duration.ofSeconds(seconds))
-      case Some(other) => throw IllegalStateException(s"fault $other on react")
-      case None        => ()
-    delegate.react(handle, emoji, on, txnKey)
-
   override def registerCommands(specs: List[CommandSpec]): Unit = delegate.registerCommands(specs)
   override def resolveChat(identity: PlatformIdentity): ChatRef = delegate.resolveChat(identity)
   override def renderText(text: RichText): List[String] = delegate.renderText(text)
@@ -153,26 +132,23 @@ final class StubWiring(
     val server = StubVendorServer(vendor, sink)
     AdapterUnderTest(FaultInjectingAdapter(newAdapter(), server), server, sink)
 
-/** A deliberately dishonest adapter: it claims `buttons` and `select` but rejects sends carrying them — capability
+/** A deliberately dishonest adapter: it claims `buttons` but rejects sends carrying them — capability
   * honesty must fail it (ROADMAP M0.13 acceptance).
   */
 class LyingButtonsAdapter extends ChatAdapter:
   override val vendor: String = "liar"
-  override val capabilities: CapabilityProfile = CapabilityProfiles.Console.copy(buttons = true, select = true)
+  override val capabilities: CapabilityProfile = CapabilityProfiles.Console.copy(buttons = true)
   override def start(sink: InboundSink, resumeFrom: Option[String]): Unit = ()
   override def stop(): Unit = ()
   override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle =
     rendered.controls.foreach {
       case RenderedControls.Buttons(_)   => throw ChatError.Unsupported("buttons")
-      case RenderedControls.SelectMenu(_, _, _, _) => throw ChatError.Unsupported("select")
       case _ => ()
     }
     MessageHandle(vendor, chat.chatId, "m1")
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     throw ChatError.Unsupported("edit")
   override def delete(handle: MessageHandle): Unit = throw ChatError.Unsupported("delete")
-  override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit =
-    throw ChatError.Unsupported("react")
   override def registerCommands(specs: List[CommandSpec]): Unit = ()
   override def resolveChat(identity: PlatformIdentity): ChatRef = ChatRef(vendor, s"dm:${identity.vendorUserId}")
   override def renderText(text: RichText): List[String] =
@@ -202,8 +178,6 @@ final class SynchronizedRecording(delegate: ChatAdapter) extends ChatAdapter:
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     this.synchronized(delegate.edit(handle, rendered))
   override def delete(handle: MessageHandle): Unit = this.synchronized(delegate.delete(handle))
-  override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit =
-    this.synchronized(delegate.react(handle, emoji, on, txnKey))
   override def registerCommands(specs: List[CommandSpec]): Unit = this.synchronized(delegate.registerCommands(specs))
   override def resolveChat(identity: PlatformIdentity): ChatRef = delegate.resolveChat(identity)
   override def renderText(text: RichText): List[String] = delegate.renderText(text)

@@ -1,23 +1,22 @@
 scenario: days-multi-select
 profile: console
 report:
-  rung visibility=visibility.persistent
   rung wizard.days=choices.numbered
   splitInto=1 paged=false
   warnings: -
 op 1: SEND chat=console:dm:owner sendKey=days:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  flags silent=false suppressPreview=false deleteAfter=-
   chunk 1 (164 chars):
   ---
   Set up your schedule.
-  
+
   Which days?
-  
+
   1) Mon 2) Tue 3) Wed 4) Thu 5) Fri 6) Sat 7) Sun
-  
+
   Select all that apply — reply with the numbers, separated by spaces or commas.
   ---
-  controls[0] numbered id=wizard.days reactions=
+  controls[0] numbered id=wizard.days
     [1] Mon -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAEmucbap50GzQ (Secondary)
     [2] Tue -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAL-6SL8MjkysA (Secondary)
     [3] Wed -> dc:EQAAHv8RIjNEVWZ3iJmqu8zd7v8AAAAAAAOnvfhKgcQ9YA (Secondary)

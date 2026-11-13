@@ -172,8 +172,6 @@ private object ConsoleFlowFakes:
           .toList
     override def recordHandle(id: UUID, encodedHandle: String): Unit = this.synchronized:
       states(id) = states(id).copy(opsDone = states(id).opsDone | 1, platformMessageId = Some(encodedHandle))
-    override def markOpDone(id: UUID, opIndex: Int): Unit = this.synchronized:
-      states(id) = states(id).copy(opsDone = states(id).opsDone | (1 << opIndex))
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit =
       this.synchronized:
         sent += id

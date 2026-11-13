@@ -89,7 +89,7 @@ class ConsoleMediatorSuite extends munit.FunSuite:
         case (e, _) if e.vendorEventId == "console:msg:s1:4" => e.body
       }.get
       resolved match
-        case Inbound.InteractionSubmitted(callback, _, source) =>
+        case Inbound.InteractionSubmitted(callback, source) =>
           assertEquals(callback.raw, tokenOne, "index 1 resolves to the first choice's token")
           assertEquals(
             source,
@@ -220,7 +220,6 @@ private object ConsoleMediatorFakes:
     override def enqueueDigest(msg: NewOutboxMessage): Boolean = true
     override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] = Nil
     override def recordHandle(id: UUID, encodedHandle: String): Unit = ()
-    override def markOpDone(id: UUID, opIndex: Int): Unit = ()
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit = ()
     override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
     override def dead(id: UUID, error: String): Unit = ()

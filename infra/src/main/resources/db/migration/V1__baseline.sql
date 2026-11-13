@@ -109,7 +109,7 @@ CREATE TABLE dose_actions (id uuid PRIMARY KEY, occurrence_id uuid NOT NULL REFE
 -- Async edges as tables (ADR-003)
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE outbox_messages (id uuid PRIMARY KEY, send_key text UNIQUE NOT NULL, op text NOT NULL CHECK (op IN ('send','edit','finalize','delete','react')),
+CREATE TABLE outbox_messages (id uuid PRIMARY KEY, send_key text UNIQUE NOT NULL, op text NOT NULL CHECK (op IN ('send','edit','finalize','delete')),
   kind text NOT NULL, vendor text NOT NULL, account_id uuid, occurrence_id uuid, channel_id uuid, epoch int, items jsonb,
   target jsonb, importance text NOT NULL, payload jsonb NOT NULL,
   status text NOT NULL CHECK (status IN ('queued','sending','sent','failed_retry','failed_permanent','cancelled','dead')),

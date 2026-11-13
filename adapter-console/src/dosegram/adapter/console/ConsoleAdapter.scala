@@ -104,15 +104,12 @@ final class ConsoleAdapter(
       out.flush()
       handle
 
-  // Capability honesty: the console profile claims no edit, delete or reactions, so these are Unsupported.
+  // Capability honesty: the console profile claims no edit and no delete, so these are Unsupported.
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     throw ChatError.Unsupported("edit")
 
   override def delete(handle: MessageHandle): Unit =
     throw ChatError.Unsupported("delete")
-
-  override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit =
-    throw ChatError.Unsupported("react")
 
   override def registerCommands(specs: List[CommandSpec]): Unit =
     () // text-only profile: commands are typed, there is nothing to register

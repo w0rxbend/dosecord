@@ -53,7 +53,7 @@ trait MedicationRepository:
   /** Every not-archived medication of the account (M1.9's Medications submenu, `/today` as-needed rows). */
   def listForAccount(accountId: UUID): List[StoredMedication]
 
-  /** Not-archived medications whose `name_norm` starts with `prefix`, for slash-option autocomplete (M2.1); the caller
-    * applies `lower(btrim(...))`-style normalisation to the prefix.
+  /** Not-archived medications whose `name_norm` starts with `prefix`, for a medication picker; the caller applies
+    * `lower(btrim(...))`-style normalisation to the prefix.
     */
   def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication]

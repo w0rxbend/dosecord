@@ -62,7 +62,7 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     event.body match
-      case Inbound.InteractionSubmitted(ref, _, source) if isDoseAction(ref) =>
+      case Inbound.InteractionSubmitted(ref, source) if isDoseAction(ref) =>
         onTap(event, principal, ref, source, tx)
       case Inbound.CommandInvoked(name, _, _) if commandNames.contains(name) =>
         guardLinked(event, principal)(onCommand(event, principal, name, tx))

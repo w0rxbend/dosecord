@@ -33,5 +33,5 @@ class SuiteB2Suite extends munit.FunSuite:
       )
       assertEquals(
         results.map(_.name).toSet,
-        Set("quoted-reply", "bare-digit-gate", "stale-step", "ephemeral-downgrade", "ordering")
+        Set("quoted-reply", "bare-digit-gate", "stale-step", "ordering")
       )

@@ -11,14 +11,29 @@ What would you like to do?
 > tap "Medications"
 send: Medications
 
-No medications yet. | [Today's doses] [Add medication] [Log dose] [Settings] [History] [Back]
+No medications yet. | [Today's doses] [Add medication] [Log dose] [Settings] | [History] [Back]
 > tap "Add medication"
-modal: medication.add (name, dose, times, instructions)
 send: Let's add a medication.
 
 Reply Back to go back or Cancel to stop.
-> submit name="Vitamin D" dose="1000 IU" times="09:00" instructions="with breakfast"
-send: Which days? | [Every day] [Weekdays] [Choose days...] [Back] [Cancel]
+
+Add medication — question 1 of 4:
+
+Name (e.g. Vitamin D)
+> Vitamin D
+Add medication — question 2 of 4:
+
+Dose (e.g. 1000 IU)
+> 1000 IU
+Add medication — question 3 of 4:
+
+Times (HH:MM, comma-separated) (e.g. 09:00 or 09:00, 21:00 — empty for as-needed)
+> 09:00
+Add medication — question 4 of 4:
+
+Instructions (e.g. with breakfast)
+> with breakfast
+Which days?
 > tap "Every day"
 send: Vitamin D 1000 IU, every day 09:00 Europe/Kyiv | [Create] [Change days] [Change timezone] [Cancel] [Back] [Cancel]
 > tap "Create"

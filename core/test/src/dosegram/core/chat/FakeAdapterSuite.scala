@@ -28,7 +28,6 @@ class FakeAdapterSuite extends munit.FunSuite:
 
   test("capability honesty: ops the profile does not claim raise Unsupported"):
     val console = FakeAdapter(CapabilityProfiles.Console, "console")
-    intercept[ChatError.Unsupported](console.react(MessageHandle("console", "dm:u1", "m1"), "1️⃣", true, "t1"))
     intercept[ChatError.Unsupported](console.edit(MessageHandle("console", "dm:u1", "m1"), rendered))
     intercept[ChatError.Unsupported](console.delete(MessageHandle("console", "dm:u1", "m1")))
 

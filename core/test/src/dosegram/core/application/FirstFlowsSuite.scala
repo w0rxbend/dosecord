@@ -210,9 +210,6 @@ private object FirstFlowsRig:
       inner.edit(handle, rendered)
     )
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
-      inner.react(handle, emoji, on, txnKey)
-    )
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))

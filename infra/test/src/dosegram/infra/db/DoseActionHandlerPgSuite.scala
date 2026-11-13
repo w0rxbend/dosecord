@@ -79,9 +79,6 @@ class DoseActionHandlerPgSuite extends PgSuite:
       inner.edit(handle, rendered)
     )
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
-      inner.react(handle, emoji, on, txnKey)
-    )
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
@@ -168,7 +165,7 @@ class DoseActionHandlerPgSuite extends PgSuite:
 
       // The tap: its transaction blocks on the row lock until the tick commits, then decides on the fresh row.
       Thread.ofVirtual().start(() => m.push(event(
-        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", occurrenceId)), Nil, None),
+        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", occurrenceId)), None),
         "evt-tap-1"
       )))
       Thread.sleep(300)
@@ -201,7 +198,7 @@ class DoseActionHandlerPgSuite extends PgSuite:
       val source = MessageHandle("fake", "chat-1", "m1")
 
       m.push(event(
-        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", occurrenceId)), Nil, Some(source)),
+        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", occurrenceId)), Some(source)),
         "evt-taken-1"
       ))
       await(sendsOf(adapter).size == 1, "the recorded toast")
@@ -219,7 +216,7 @@ class DoseActionHandlerPgSuite extends PgSuite:
 
       // A second Taken on the same control: "Already recorded", no new action row, no new domain event.
       m.push(event(
-        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", occurrenceId)), Nil, Some(source)),
+        Inbound.InteractionSubmitted(callbackRef(token("dose.taken", occurrenceId)), Some(source)),
         "evt-taken-2"
       ))
       await(sendsOf(adapter).size == 2, "the already-recorded answer")

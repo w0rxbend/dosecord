@@ -3,7 +3,7 @@ package dosegram.core.chat
 import dosegram.contracts.*
 
 /** Stable textual rendering of renderer output for golden files. Everything the dispatcher would act on is visible: ops
-  * in order, chunks with lengths, controls with rows and styles, reaction sets, choice_map rows, and the report's
+  * in order, chunks with lengths, controls with rows and styles, choice_map rows, and the report's
   * rungs.
   */
 object GoldenFormat:
@@ -29,13 +29,6 @@ object GoldenFormat:
         formatMessage(b, message)
       case VendorOp.Delete(handle) =>
         b ++= s"op $n: DELETE ${formatHandle(handle)}\n"
-      case VendorOp.React(handle, emoji, on, txnKey) =>
-        b ++= s"op $n: REACT ${formatHandle(handle)} $emoji on=$on txn=$txnKey\n"
-      case VendorOp.UnreactAll(handle) =>
-        b ++= s"op $n: UNREACT_ALL ${formatHandle(handle)}\n"
-      case VendorOp.OpenForm(form) =>
-        b ++= s"op $n: OPEN_FORM ${form.id} title=${form.title} submit=${form.submit}\n"
-        form.fields.foreach(f => b ++= s"  field ${f.key}: ${f.label} (${f.tpe}) required=${f.required}\n")
       case VendorOp.Ack(toast) =>
         b ++= s"op $n: ACK toast=${toast.getOrElse("-")}\n"
       case VendorOp.Typing(chat) =>
@@ -47,11 +40,12 @@ object GoldenFormat:
     s"${h.vendor}:${h.chatId}:${h.messageId}@r${h.revision}"
 
   private def formatMessage(b: StringBuilder, m: RenderedMessage): Unit =
-    b ++= s"  flags ephemeral=${m.ephemeral} silent=${m.silent} suppressPreview=${m.suppressPreview} deleteAfter=${m.deleteAfter.getOrElse("-")}\n"
+    b ++= s"  flags silent=${m.silent} suppressPreview=${m.suppressPreview} deleteAfter=${m.deleteAfter.getOrElse("-")}\n"
     m.chunks.zipWithIndex.foreach { (chunk, i) =>
       b ++= s"  chunk ${i + 1} (${chunk.length} chars):\n"
       b ++= "  ---\n"
-      chunk.linesIterator.foreach(line => b ++= s"  $line\n")
+      // An empty chunk line stays empty in the golden: an indent alone would be trailing whitespace.
+      chunk.linesIterator.foreach(line => b ++= (if line.isEmpty then "\n" else s"  $line\n"))
       b ++= "  ---\n"
     }
     m.controls.zipWithIndex.foreach((c, i) => formatControls(b, i, c))
@@ -74,11 +68,8 @@ object GoldenFormat:
           val cells = row.map(formatChoice).mkString(" ")
           b ++= s"    row ${r + 1}: $cells\n"
         }
-      case RenderedControls.SelectMenu(id, choices, minSelect, maxSelect) =>
-        b ++= s"  controls[$i] select id=$id min=$minSelect max=$maxSelect:\n"
-        choices.foreach(ch => b ++= s"    ${formatChoice(ch)}\n")
-      case RenderedControls.Numbered(id, choices, reactions) =>
-        b ++= s"  controls[$i] numbered id=$id reactions=${reactions.mkString(",")}\n"
+      case RenderedControls.Numbered(id, choices) =>
+        b ++= s"  controls[$i] numbered id=$id\n"
         choices.foreach(ch => b ++= s"    ${formatChoice(ch)}\n")
 
   private def formatChoice(c: RenderedChoice): String =

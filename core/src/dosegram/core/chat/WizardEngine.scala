@@ -31,7 +31,6 @@ object WizardEngine:
   private[chat] val ConfirmKeepKey = "engine.confirmcancel.keep"
 
   private[chat] val StepAction: ActionEntry = ActionRegistry.byName("wizard.step").get
-  private[chat] val TextStepAction: ActionEntry = ActionRegistry.byName("wizard.text_step").get
   private[chat] val ConfirmAction: ActionEntry = ActionRegistry.byName("wizard.confirm").get
 
   private[chat] def paragraph(text: String): Node = Node.Paragraph(List(Inline.Text(text)))
@@ -86,8 +85,8 @@ final class WizardEngine(
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     event.body match
-      case Inbound.InteractionSubmitted(ref, values, source) if isWizardAction(ref) =>
-        onWizardTap(event, principal, ref, values, source, tx)
+      case Inbound.InteractionSubmitted(ref, source) if isWizardAction(ref) =>
+        onWizardTap(event, principal, ref, source, tx)
       case Inbound.FormSubmitted(_, ref, fields) if isWizardAction(ref) =>
         onFormSubmit(event, principal, ref, fields, tx)
       case msg: Inbound.MessageReceived =>
@@ -111,7 +110,6 @@ final class WizardEngine(
       event: InboundEvent,
       principal: Principal,
       ref: CallbackRef,
-      values: List[String],
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
@@ -119,7 +117,6 @@ final class WizardEngine(
       case None          => Reply(toast = Some(ReminderCopy.staleControlToast))
       case Some(session) =>
         if ref.value != session.stepSeq then staleTap(session)
-        else if values.nonEmpty then selectChoices(event, principal, session, values, source, tx)
         else
           tx.slots.loadForUpdate(ref.subject) match
             case Some(slot) if slot.sessionId.contains(session.id) =>
@@ -136,44 +133,6 @@ final class WizardEngine(
                     case None       => Reply(toast = Some(ReminderCopy.staleControlToast))
                 case key => choose(event, principal, session, key, source, tx)
             case _ => staleTap(session)
-
-  /** Native selects carry signed option tokens even for a single-choice step. Validate the whole selection before
-    * routing by the declared cardinality; one selected item in a multi-select still means `ChosenMany`.
-    */
-  private def selectChoices(
-      event: InboundEvent,
-      principal: Principal,
-      session: ConversationSession,
-      values: List[String],
-      source: Option[MessageHandle],
-      tx: Tx
-  ): Reply =
-    stepOf(session) match
-      case Some((flow, step)) =>
-        step.kind match
-          case StepKind.Choices(options, _, minSelect, maxSelect)
-              if values.size >= minSelect && values.size <= maxSelect =>
-            val allowed = options(dataOf(session)).map(_._1).toSet
-            val decoded = values.map: wire =>
-              for
-                payload <- codec.decode(wire).toOption
-                if payload.mode == CallbackMode.Slot && payload.action == StepAction && payload.value == session.stepSeq
-                slot <- tx.slots.loadForUpdate(payload.subject)
-                if slot.sessionId.contains(session.id) && slot.stepSeq.contains(session.stepSeq)
-                key = WizardDocument.slotPayloadKey(slot.payload)
-                if allowed.contains(key)
-              yield key
-            if decoded.exists(_.isEmpty) then staleTap(session)
-            else
-              val keys = decoded.flatten
-              if keys.distinct.size != keys.size then staleTap(session)
-              else
-                val input = if maxSelect > 1 then StepInput.ChosenMany(keys) else StepInput.Chosen(keys.head)
-                step.accept(input, dataOf(session)) match
-                  case Left(reason)   => reprompt(event, session, step, reason, source, tx)
-                  case Right(through) => transition(event, principal, session, flow, through, source, tx)
-          case _ => staleTap(session)
-      case None => Reply(toast = Some(ReminderCopy.failureToast))
 
   /** A stale `step_seq` tap: the toast and the current prompt again (DESIGN.md section 4.6). */
   private def staleTap(session: ConversationSession): Reply =
@@ -231,7 +190,7 @@ final class WizardEngine(
             val navBack = text.equalsIgnoreCase(Labels.Back)
             val navCancel = text.equalsIgnoreCase(Labels.Cancel)
             step.kind match
-              case StepKind.Choices(_, _, _, maxSelect) if maxSelect > 1 =>
+              case StepKind.Choices(_, _, maxSelect) if maxSelect > 1 =>
                 // A multi-select picker also takes typed selections ("1 3 5", "Mon, Wed") on the text tiers (M1.9).
                 if navBack then goBack(event, session, None, tx)
                 else if navCancel then abort(session, None, tx)
@@ -239,8 +198,8 @@ final class WizardEngine(
                   step.accept(StepInput.TextEntered(text), dataOf(session)) match
                     case Left(reason)   => reprompt(event, session, step, reason, None, tx)
                     case Right(through) => transition(event, principal, session, flow, through, None, tx)
-              case StepKind.Choices(_, _, _, _) => inner.handle(event, principal, tx)
-              case StepKind.Text                =>
+              case StepKind.Choices(_, _, _) => inner.handle(event, principal, tx)
+              case StepKind.Text             =>
                 if navBack then goBack(event, session, None, tx)
                 else if navCancel then abort(session, None, tx)
                 else
@@ -381,18 +340,7 @@ final class WizardEngine(
     val step = flow.steps(flow.firstStep)
     val accountId = principal.accountId.map(_.uuid)
     val entered = step.onEnter(Map.empty, accountId, tx)
-    val prompt =
-      renderStepPrompt(
-        event.chat,
-        accountId,
-        sessionId,
-        step,
-        entered,
-        0,
-        tx,
-        backToForm = step.kind
-          .isInstanceOf[StepKind.Form]
-      )
+    val prompt = renderStepPrompt(event.chat, accountId, sessionId, step, entered, 0, tx)
     val now = clock.now()
     tx.sessions.insert(
       ConversationSession(
@@ -418,12 +366,6 @@ final class WizardEngine(
   private def stepOf(session: ConversationSession): Option[(Flow, Step)] =
     for flow <- flows.get(session.flow); step <- flow.steps.get(session.step)
     yield (flow, step)
-
-  /** Whether `[Back]` from the step being rendered would land on a Form step (its nav control is then minted
-    * `opensForm` so the modal can re-open on vendors with native modals).
-    */
-  private def backTargetIsForm(flowId: String, backTarget: String): Boolean =
-    flows.get(flowId).flatMap(_.steps.get(backTarget)).exists(_.kind.isInstanceOf[StepKind.Form])
 
   private def goBack(event: InboundEvent, session: ConversationSession, source: Option[MessageHandle], tx: Tx): Reply =
     val history = historyOf(session)
@@ -465,8 +407,7 @@ final class WizardEngine(
       step,
       dataOf(session),
       newSeq,
-      tx,
-      backToForm = backTargetIsForm(session.flow, historyOf(session).lastOption.getOrElse(session.step))
+      tx
     )
     val prompt = base.copy(body = paragraph(reason) +: base.body)
     persist(session, step.id, dataOf(session), historyOf(session), newSeq, prompt, tx)
@@ -519,8 +460,7 @@ final class WizardEngine(
       step,
       entered,
       newSeq,
-      tx,
-      backToForm = backTargetIsForm(session.flow, history.lastOption.getOrElse(step.id))
+      tx
     )
     persist(session, step.id, entered, history, newSeq, prompt, tx)
     Reply(replace = Some(prompt.copy(replaces = source)))
@@ -565,9 +505,7 @@ final class WizardEngine(
   // ---------- Prompt rendering ----------
 
   /** Renders one step's prompt: body from the flow, controls from the step kind, `[Back]`/`[Cancel]` on every step — as
-    * a nav row on choice steps and as a typed hint on text/form steps (so bare digits stay wizard input). When going
-    * back would land on a Form step, `[Back]` is minted `opensForm` so an un-acked vendor interaction answers with the
-    * re-opened pre-filled modal instead of the FormRunner degrade (M1.9).
+    * a nav row on choice steps and as a typed hint on text/form steps (so bare digits stay wizard input).
     */
   private[chat] def renderStepPrompt(
       chat: ChatRef,
@@ -576,28 +514,26 @@ final class WizardEngine(
       step: Step,
       data: Map[String, String],
       stepSeq: Int,
-      tx: Tx,
-      backToForm: Boolean = false
+      tx: Tx
   ): OutboundMessage =
     val (blocks, extraBody) =
       step.kind match
-        case StepKind.Choices(options, layout, minSelect, maxSelect) =>
+        case StepKind.Choices(options, minSelect, maxSelect) =>
           val choices = ChoiceSet(
             id = s"wizard.${step.id}",
             choices = options(data).map((key, label) =>
               Choice(label, mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire)
             ),
-            layout = layout,
             minSelect = minSelect,
             maxSelect = maxSelect
           )
-          (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, backToForm, tx)), Nil)
+          (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, tx)), Nil)
         case StepKind.Text =>
           (Nil, List(paragraph(WizardCopy.textNavHint)))
         case StepKind.Form(formId, title, fields) =>
           val submit = mint(chat, accountId, sessionId, stepSeq, ConfirmAction, FormSubmitKey, tx)
           // A re-rendered form (e.g. `[Back]` from the next step) pre-fills the previous answers: the FormRunner
-          // keeps them on an empty re-answer, and the modal carries them as the fields' values.
+          // keeps them on an empty re-answer.
           val prefill = fields.flatMap(f => data.get(f.key).map(f.key -> _)).toMap
           formRunner.start(tx, sessionId, formId, submit.wire, prefill)
           val filled = fields.map(f => f.copy(value = data.get(f.key)))
@@ -617,15 +553,13 @@ final class WizardEngine(
       accountId: Option[UUID],
       sessionId: UUID,
       stepSeq: Int,
-      backToForm: Boolean,
       tx: Tx
   ): Block =
-    val backAction = if backToForm then TextStepAction else StepAction
     Block.Choices(
       ChoiceSet(
         id = "wizard.nav",
         choices = List(
-          Choice(Labels.Back, mint(chat, accountId, sessionId, stepSeq, backAction, BackKey, tx).wire),
+          Choice(Labels.Back, mint(chat, accountId, sessionId, stepSeq, StepAction, BackKey, tx).wire),
           Choice(
             Labels.Cancel,
             mint(chat, accountId, sessionId, stepSeq, StepAction, CancelKey, tx).wire,

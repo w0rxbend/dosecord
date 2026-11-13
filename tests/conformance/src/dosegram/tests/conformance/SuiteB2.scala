@@ -6,7 +6,6 @@ import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.*
 import ox.Ox
 
-import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -27,8 +26,8 @@ final case class B2Wiring(
 )
 
 /** Suite B2 (ROADMAP M0.13): mediator resolution parameterised by profile — quoted reply, the bare-digit gate, stale
-  * `step_seq`, ephemeral downgrade and per-chat ordering — through the real `ChatMediator` and `WizardEngine` on the
-  * in-memory ports. Every scenario returns its errors instead of throwing, so one run reports every broken rule.
+  * `step_seq` and per-chat ordering — through the real `ChatMediator` and `WizardEngine` on the in-memory ports. Every
+  * scenario returns its errors instead of throwing, so one run reports every broken rule.
   */
 object SuiteB2:
 
@@ -45,7 +44,6 @@ object SuiteB2:
       "quoted-reply" -> (() => quotedReply(wiring)),
       "bare-digit-gate" -> (() => bareDigitGate(wiring)),
       "stale-step" -> (() => staleStep(wiring)),
-      "ephemeral-downgrade" -> (() => ephemeralDowngrade(wiring)),
       "ordering" -> (() => ordering(wiring))
     ).map { (name, scenario) =>
       try scenario().copy(name = name)
@@ -147,7 +145,7 @@ object SuiteB2:
     await(handler.calls.size >= 3, "the quoted reply was handled")
     val resolved = handler.calls.asScala.find(_.vendorEventId.endsWith(":e3")).map(_.body)
     resolved match
-      case Some(Inbound.InteractionSubmitted(ref, _, source)) =>
+      case Some(Inbound.InteractionSubmitted(ref, source)) =>
         checks.check(ref.raw == tokensA(1), s"quoted '2' on message A resolved to ${ref.raw}, expected ${tokensA(1)}")
         checks.check(source.contains(handleA), s"the resolution source is message A, got $source")
       case other => checks.check(false, s"quoted reply did not resolve, handler saw $other")
@@ -157,7 +155,7 @@ object SuiteB2:
     await(handler.calls.size >= 4, "the bare digit was handled")
     val bare = handler.calls.asScala.find(_.vendorEventId.endsWith(":e4")).map(_.body)
     bare match
-      case Some(Inbound.InteractionSubmitted(ref, _, source)) =>
+      case Some(Inbound.InteractionSubmitted(ref, source)) =>
         checks.check(
           ref.raw == tokensB(1),
           s"bare '2' resolved to ${ref.raw}, expected the latest prompt's ${tokensB(1)}"
@@ -191,7 +189,7 @@ object SuiteB2:
     await(handler.calls.size >= 3, "the bare digit was handled")
     val bare = handler.calls.asScala.find(_.vendorEventId.endsWith(":e3")).map(_.body)
     checks.check(
-      bare.exists { case Inbound.InteractionSubmitted(ref, _, _) => ref.raw == tokensB(0); case _ => false },
+      bare.exists { case Inbound.InteractionSubmitted(ref, _) => ref.raw == tokensB(0); case _ => false },
       s"bare '1' must resolve against the latest prompt B (${tokensB(0)}), got $bare"
     )
 
@@ -200,7 +198,7 @@ object SuiteB2:
     await(handler.calls.size >= 4, "the quoted reply was handled")
     val quoted = handler.calls.asScala.find(_.vendorEventId.endsWith(":e4")).map(_.body)
     checks.check(
-      quoted.exists { case Inbound.InteractionSubmitted(ref, _, _) => ref.raw == tokensA(0); case _ => false },
+      quoted.exists { case Inbound.InteractionSubmitted(ref, _) => ref.raw == tokensA(0); case _ => false },
       s"quoted '1' on A must resolve to ${tokensA(0)}, got $quoted"
     )
 
@@ -279,12 +277,12 @@ object SuiteB2:
     val ref = decodeRef(wiring, choiceA.callback)
 
     // Tap Option A: the session advances to the text step (step_seq 1).
-    push(Inbound.InteractionSubmitted(ref, Nil, Some(handleP1)), "e2")
+    push(Inbound.InteractionSubmitted(ref, Some(handleP1)), "e2")
     await(uow.renderedMessages.all.size == 2, "the text-step prompt was recorded")
 
     // Tap the same control again: stale step_seq -> toast + the current prompt.
     val deliveredBefore = b2.deliveredTexts().size
-    push(Inbound.InteractionSubmitted(ref, Nil, Some(handleP1)), "e3")
+    push(Inbound.InteractionSubmitted(ref, Some(handleP1)), "e3")
     await(b2.deliveredTexts().size >= deliveredBefore + 2, "the stale tap produced the current prompt and the toast")
     val delivered = b2.deliveredTexts()
     checks.check(
@@ -296,52 +294,6 @@ object SuiteB2:
       s"the stale tap toasts '${ReminderCopy.staleControlToast}', delivered: $delivered"
     )
     checks.result("stale-step")
-
-  /** Ephemeral downgrade on the ladder (DESIGN.md section 4.3): with no live interaction the native rung is
-    * unreachable, so a text-only profile degrades ephemeral to the "not kept" notice.
-    */
-  private def ephemeralDowngrade(wiring: B2Wiring)(using Ox): Result =
-    val checks = Checks()
-    val handler = ScriptedHandler: event =>
-      event.body match
-        case Inbound.MessageReceived("ephemeral", _, _) =>
-          Reply(followUps =
-            List(
-              OutboundMessage(
-                body = List(paragraph("Heads up")),
-                visibility = Visibility.Ephemeral,
-                dedupeKey = "b2:eph",
-                correlationId = "b2:eph"
-              )
-            )
-          )
-        case _ => Reply.empty
-    val harness = Harness(wiring, handler)
-    import harness.*
-    push(Inbound.MessageReceived("ephemeral", None, truncated = false), "e1")
-    await(b2.deliveredTexts().nonEmpty, "the ephemeral reply was delivered")
-    val expectedRung =
-      val deletable = wiring.profile.deleteOwn != DeleteCapability.NoDelete
-      val windowOk = wiring.profile.deleteOwn match
-        case DeleteCapability.Window(limit) => limit.compareTo(Duration.ofSeconds(60)) >= 0
-        case _                              => true
-      if deletable && windowOk then "autoDelete" else "notice"
-    val delivered = b2.deliveredTexts().mkString("\n")
-    checks.check(
-      delivered.contains("Heads up"),
-      s"the reply body was delivered, got: $delivered"
-    )
-    if expectedRung == "notice" then
-      checks.check(
-        delivered.contains("This message will not be kept."),
-        s"ephemeral on a text-only profile downgrades to the notice, got: $delivered"
-      )
-    else
-      checks.check(
-        !delivered.contains("This message will not be kept."),
-        s"ephemeral on a delete-capable profile must not degrade to the notice, got: $delivered"
-      )
-    checks.result(s"ephemeral-downgrade($expectedRung)")
 
   /** Per-chat ordering: interleaved events on two chats are handled in per-chat FIFO order. */
   private def ordering(wiring: B2Wiring)(using Ox): Result =

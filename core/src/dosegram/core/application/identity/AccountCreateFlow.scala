@@ -95,7 +95,7 @@ object AccountCreateFlow:
   def timezonePickerSteps(clock: Clock, intro: List[Node]): Map[String, Step] = Map(
     "timezone" -> Step(
       id = "timezone",
-      kind = StepKind.Choices(_ => pickerOptions(clock.now()), ChoiceLayout.Select),
+      kind = StepKind.Choices(_ => pickerOptions(clock.now())),
       render = data =>
         data.get(ErrorKey).filter(_.nonEmpty).map(e => paragraph(e)).toList ++
           intro ++ List(paragraph(IdentityCopy.timezonePrompt)),

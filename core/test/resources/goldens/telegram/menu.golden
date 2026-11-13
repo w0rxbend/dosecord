@@ -2,11 +2,10 @@ scenario: menu
 profile: telegram
 report:
   rung menu.main=choices.buttons
-  rung visibility=visibility.persistent
   splitInto=1 paged=false
   warnings: -
 op 1: SEND chat=telegram:dm:owner sendKey=menu:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=false deleteAfter=-
+  flags silent=false suppressPreview=false deleteAfter=-
   chunk 1 (26 chars):
   ---
   What would you like to do?

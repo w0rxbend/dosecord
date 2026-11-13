@@ -66,9 +66,6 @@ class MedicationWizardPgSuite extends PgSuite:
       inner.edit(handle, rendered)
     )
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
-      inner.react(handle, emoji, on, txnKey)
-    )
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
@@ -131,10 +128,7 @@ class MedicationWizardPgSuite extends PgSuite:
         t0,
         actor = actor,
         chat = ChatRef("fake", "dm:user-1"),
-        body = Inbound.InteractionSubmitted(
-          CallbackRef(payload.action.id, payload.subject, payload.value, payload.mode == CallbackMode.Slot, wire),
-          Nil,
-          None
+        body = Inbound.InteractionSubmitted(CallbackRef(payload.action.id, payload.subject, payload.value, payload.mode == CallbackMode.Slot, wire), None
         )
       )
       val before = sends.size

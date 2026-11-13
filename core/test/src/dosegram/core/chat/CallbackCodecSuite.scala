@@ -6,7 +6,6 @@ import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-import dosegram.contracts.Visibility
 
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
@@ -221,12 +220,7 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
       )
     )
 
-  test("registry flags drive the acknowledgement policy"):
-    assert(ActionRegistry.byName("dose.note").exists(_.opensForm))
-    assert(ActionRegistry.byName("wizard.text_step").exists(_.opensForm))
-    // dose.correct is a two-choice button row per M1.10/M2.2, not a modal.
-    assert(!ActionRegistry.byName("dose.correct").exists(_.opensForm))
+  test("only wizard actions are bound to a session"):
     assert(ActionRegistry.entries.filter(_.name.startsWith("wizard.")).forall(_.requiresSession))
     assert(ActionRegistry.entries.filter(_.name.startsWith("dose.")).forall(!_.requiresSession))
-    assertEquals(ActionRegistry.byName("link.confirm").map(_.visibility), Some(Visibility.Ephemeral))
 end CallbackCodecSuite

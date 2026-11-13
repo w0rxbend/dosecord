@@ -81,7 +81,6 @@ object GoldenScenarios:
             choices = WizardCopy.weekdayLabels.zipWithIndex.map { (label, i) =>
               Choice(label, token("wizard.step", sessionSubject, i + 1).wire)
             },
-            layout = ChoiceLayout.Select,
             minSelect = 1,
             maxSelect = 7
           )
@@ -167,7 +166,7 @@ object GoldenScenarios:
       "days-multi-select" -> ((p: CapabilityProfile) => Renderer.render(daysMessage, chat(profileName), p, "days:1")),
       "post-taken" -> ((p: CapabilityProfile) => postTakenOps(profileName, p)),
       "form" -> ((p: CapabilityProfile) =>
-        Renderer.render(formMessage, chat(profileName), p, "form:1", RenderContext(liveInteraction = true))
+        Renderer.render(formMessage, chat(profileName), p, "form:1")
       ),
       "long-body" -> ((p: CapabilityProfile) => Renderer.render(longBodyMessage, chat(profileName), p, "long:1")),
       "digest" -> ((p: CapabilityProfile) => Renderer.render(digestMessage, chat(profileName), p, "digest:1")),

@@ -14,5 +14,5 @@ trait IdentityRepository:
     */
   def resolve(actor: PlatformIdentity, now: Instant): Principal
 
-  /** Read-only lookup (the one indexed read of the `opensForm` ack path, ADR-013). */
+  /** Read-only lookup of an identity by its vendor key. */
   def find(actor: PlatformIdentity): Option[Principal]

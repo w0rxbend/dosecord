@@ -56,7 +56,7 @@ import scala.language.implicitConversions
 
 /** The outbox dispatcher protocol (ADR-009, DESIGN.md section 7.6) against Testcontainers Postgres 18 — the M0.10
   * acceptance (exactly one row per `send_key`, bounded flagged duplicate after a crash, lease-expiry re-claim,
-  * exactly-once claiming with two concurrent dispatchers, `ops_done` resume of reaction sub-ops) grown in M1.7: epoch
+  * exactly-once claiming with two concurrent dispatchers, `ops_done` resume after the recorded send) grown in M1.7: epoch
   * fencing, the jittered backoff envelope with the `dead` metric, and the catalogue renderer at send time.
   */
 class OutboxDispatcherSuite extends PgSuite:
@@ -107,9 +107,6 @@ class OutboxDispatcherSuite extends PgSuite:
       inner.edit(handle, rendered)
     }
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around {
-      inner.react(handle, emoji, on, txnKey)
-    }
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
@@ -117,22 +114,13 @@ class OutboxDispatcherSuite extends PgSuite:
   private def newAdapter(sendDelayMillis: Long = 0): TestAdapter =
     TestAdapter(FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake"), sendDelayMillis)
 
-  private val reactions = List("✅", "⏰")
-
-  private def renderer(withReactions: Boolean): OutboxRenderer = new OutboxRenderer:
+  private def renderer(withControls: Boolean): OutboxRenderer = new OutboxRenderer:
     override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
-      val controls =
-        if !withReactions then Nil
-        else
-          val choices = reactions.zipWithIndex.map: (emoji, i) =>
-            RenderedChoice(index = i + 1, label = s"choice ${i + 1}", callback = s"dc:cb${i}", emoji = Some(emoji))
-          List(RenderedControls.Numbered("cs1", choices, reactions))
-      val choiceMap = reactions.zipWithIndex.map: (emoji, i) =>
-        ChoiceMapEntry("cs1", i + 1, s"choice ${i + 1}", Some(emoji), s"dc:cb${i}")
+      val choice = RenderedChoice(index = 1, label = "choice 1", callback = "dc:cb0")
       val rendered = RenderedMessage(
         chunks = List(s"body for ${row.sendKey}"),
-        controls = if withReactions then controls else Nil,
-        choiceMap = if withReactions then choiceMap else Nil
+        controls = if withControls then List(RenderedControls.Numbered("cs1", List(choice))) else Nil,
+        choiceMap = if withControls then List(ChoiceMapEntry("cs1", 1, "choice 1", None, "dc:cb0")) else Nil
       )
       (ChatRef(row.vendor, "chat-1"), rendered)
 
@@ -152,10 +140,10 @@ class OutboxDispatcherSuite extends PgSuite:
       uow: UnitOfWork,
       adapter: ChatAdapter,
       clock: Clock,
-      withReactions: Boolean = false,
+      withControls: Boolean = false,
       claimLimit: Int = 20
   ): OutboxDispatcher =
-    OutboxDispatcher(uow, Map("fake" -> adapter), renderer(withReactions), clock, claimLimit = claimLimit)
+    OutboxDispatcher(uow, Map("fake" -> adapter), renderer(withControls), clock, claimLimit = claimLimit)
 
   private def rowBySendKey(sendKey: String): OutboxMessage = withConnection { conn =>
     given Connection = conn
@@ -184,9 +172,6 @@ class OutboxDispatcherSuite extends PgSuite:
 
   private def sendsOf(adapter: TestAdapter): List[VendorOp.Send] =
     adapter.inner.ops.collect { case s: VendorOp.Send => s }
-
-  private def reactsOf(adapter: TestAdapter): List[VendorOp.React] =
-    adapter.inner.ops.collect { case r: VendorOp.React => r }
 
   // Acceptance 1: exactly one row per send_key (UNIQUE constraint + insert path, concurrent inserts).
   test("exactly one row per send_key under concurrent inserts"):
@@ -277,40 +262,31 @@ class OutboxDispatcherSuite extends PgSuite:
     byKey.foreach((k, sends) => assertEquals(sends.size, 1, s"send_key $k sent more than once"))
     keys.foreach(k => assertEquals(rowBySendKey(k).status, OutboxStatus.Sent))
 
-  // Acceptance 5: ops_done resume of reaction sub-ops.
-  test("crash mid reaction sub-ops resumes the remaining ones without redoing completed ones"):
+  // Acceptance 5: ops_done resume after the primary send is recorded.
+  test("a crash after the handle is recorded resumes without a second send"):
     val clock = new MutableClock(t0)
     val pgUow = PgUnitOfWork(dataSource, clock)
     val uow = CrashingUow(pgUow)
     val adapter = newAdapter()
     pgUow.transaction(_.outbox.enqueue(newSend("key-ops", t0)))
 
-    // tx1 claim, tx2 recordHandle, tx3 markOpDone(r0), tx4 markOpDone(r1): r1 reached the vendor but its
-    // completion record is lost.
-    uow.crashOn = 4
-    intercept[SimulatedCrash](dispatcher(uow, adapter, clock, withReactions = true).dispatchOnce())
+    // tx1 claim, tx2 recordHandle, tx3 markSent: the send reached the vendor but its terminal write is lost.
+    uow.crashOn = 3
+    intercept[SimulatedCrash](dispatcher(uow, adapter, clock, withControls = true).dispatchOnce())
     assertEquals(sendsOf(adapter).size, 1)
-    assertEquals(reactsOf(adapter).map(_.emoji), reactions, "both reactions reached the vendor")
-    val stuck = rowBySendKey("key-ops")
-    assertEquals(stuck.opsDone, 3, "send and first reaction recorded")
+    assertEquals(rowBySendKey("key-ops").opsDone, 1, "the primary send is recorded")
 
     clock.at = t0.plusSeconds(61)
-    assertEquals(dispatcher(pgUow, adapter, clock, withReactions = true).dispatchOnce(), 1)
+    assertEquals(dispatcher(pgUow, adapter, clock, withControls = true).dispatchOnce(), 1)
 
     assertEquals(sendsOf(adapter).size, 1, "primary send is not redone")
-    val reacts = reactsOf(adapter)
-    assertEquals(reacts.count(_.emoji == "✅"), 1, "completed sub-op is not redone")
-    assertEquals(reacts.count(_.emoji == "⏰"), 2, "lost record is redone once (duplicate-reaction is success)")
-    assertEquals(reacts.map(_.txnKey).distinct, List("key-ops:r0", "key-ops:r1"), "per-op txn keys are stable")
-
     val row = rowBySendKey("key-ops")
     assertEquals(row.status, OutboxStatus.Sent)
-    assertEquals(row.opsDone, 7, "all sub-ops recorded")
     assert(!row.possibleDuplicate, "no resend happened, so no duplicate flag")
 
     val handle = adapter.inner.sent.head._1
     val rendered = renderedRowsFor(handle)
-    assertEquals(rendered.size, 1, "handle recorded before the first reaction")
+    assertEquals(rendered.size, 1, "handle recorded right after the send")
     assert(rendered.head._2.isDefined, "choice_map recorded: controls resolvable after the crash")
 
   // Retryable failure: rescheduled with backoff, no duplicate flag, later claim succeeds.

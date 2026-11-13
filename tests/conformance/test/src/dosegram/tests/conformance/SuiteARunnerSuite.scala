@@ -4,18 +4,18 @@ import dosegram.core.chat.CapabilityProfiles
 import dosegram.core.chat.FakeAdapter
 
 /** Runner self-tests: the JSON catalog loads, an honest adapter passes every applicable scenario, and a deliberately
-  * lying profile (claims `buttons` and `select` but rejects them) fails capability honesty — the M0.13 acceptance
+  * lying profile (claims `buttons` but rejects them) fails capability honesty — the M0.13 acceptance
   * demonstration.
   */
 class SuiteARunnerSuite extends munit.FunSuite:
 
-  test("the scenario catalog loads: 13 scenarios with unique names"):
+  test("the scenario catalog loads: 12 scenarios with unique names"):
     val scenarios = Scenario.loadAll()
-    assertEquals(scenarios.size, 13)
+    assertEquals(scenarios.size, 12)
     assertEquals(scenarios.map(_.name).distinct.size, scenarios.size)
 
   test("an honest text-only adapter passes every applicable scenario"):
-    val wiring = StubWiring("fake", CapabilityProfiles.Console, Set("redelivery", "httpStatus", "wireModal"), () =>
+    val wiring = StubWiring("fake", CapabilityProfiles.Console, Set("redelivery", "httpStatus"), () =>
       FakeAdapter(CapabilityProfiles.Console, "fake")
     )
     val results = SuiteARunner.run(wiring)
@@ -28,14 +28,13 @@ class SuiteARunnerSuite extends munit.FunSuite:
       Set(
         "deadline-auto-ack",
         "not-modified-success",
-        "duplicate-reaction-success",
         "delete-window-permanent",
         "edit-not-found-permanent"
       )
     )
 
   test("capability honesty passes an adapter that delivers what its profile claims"):
-    val wiring = StubWiring("honest", CapabilityProfiles.Console.copy(buttons = true, select = true), Set.empty, () =>
+    val wiring = StubWiring("honest", CapabilityProfiles.Console.copy(buttons = true), Set.empty, () =>
       HonestButtonsAdapter()
     )
     val results = SuiteARunner.run(wiring)
@@ -43,7 +42,7 @@ class SuiteARunnerSuite extends munit.FunSuite:
     assert(honesty.isEmpty, honesty.map(_.errors.mkString("; ")).getOrElse(""))
 
   test("capability honesty fails a deliberately lying profile (claims buttons, rejects them)"):
-    val wiring = StubWiring("liar", CapabilityProfiles.Console.copy(buttons = true, select = true), Set.empty, () =>
+    val wiring = StubWiring("liar", CapabilityProfiles.Console.copy(buttons = true), Set.empty, () =>
       LyingButtonsAdapter()
     )
     val results = SuiteARunner.run(wiring)

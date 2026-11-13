@@ -3,11 +3,10 @@ profile: telegram
 report:
   rung reminder.main=choices.buttons
   rung reminder.more=choices.buttons
-  rung visibility=visibility.persistent
   splitInto=1 paged=false
   warnings: -
 op 1: SEND chat=telegram:dm:owner sendKey=discreet:1 replyTo=-
-  flags ephemeral=false silent=false suppressPreview=true deleteAfter=-
+  flags silent=false suppressPreview=true deleteAfter=-
   chunk 1 (25 chars):
   ---
   Time for your 09:00 dose.

@@ -2,7 +2,6 @@ package dosegram.core.application
 
 import dosegram.contracts.CommandArg
 import dosegram.contracts.CommandSpec
-import dosegram.core.domain.ReminderPolicy
 
 /** The registered commands (ROADMAP M0.12d, R51, K9; `/today` and `/history` from M1.9; `/taken`, `/snooze`, `/skip`,
   * `/log` from M1.10). `/help` renders from this registry, so it cannot omit a command — including itself; the
@@ -19,7 +18,7 @@ object CommandRegistry:
     name = "mood",
     description = "Log your mood.",
     args = List(
-      CommandArg("level", "1-10 or a word like okay or great", choices = (1 to 10).map(_.toString).toList),
+      CommandArg("level", "1-10 or a word like okay or great"),
       CommandArg("note", "An optional note", required = false),
       CommandArg("tags", "Optional #tags", required = false)
     )
@@ -42,23 +41,16 @@ object CommandRegistry:
       CommandArg(
         "medication",
         "Which medication; omitted takes the latest open dose",
-        required = false,
-        autocomplete = true
+        required = false
       )
     )
   )
 
-  // The slash registration offers the default policy's snooze minutes (ADR-012); per-user filtering stays a render-time
-  // concern of the reminder buttons.
   val Snooze: CommandSpec = CommandSpec(
     name = "snooze",
     description = "Snooze the latest dose.",
     args = List(
-      CommandArg(
-        "minutes",
-        "How many minutes, e.g. /snooze 10",
-        choices = ReminderPolicy.Default.snoozeOptionsMinutes.map(_.toString)
-      )
+      CommandArg("minutes", "How many minutes, e.g. /snooze 10")
     )
   )
 
@@ -69,8 +61,7 @@ object CommandRegistry:
       CommandArg(
         "medication",
         "Which medication; omitted skips the latest open dose",
-        required = false,
-        autocomplete = true
+        required = false
       )
     )
   )
@@ -82,8 +73,7 @@ object CommandRegistry:
       CommandArg(
         "medication",
         "Which medication; omitted shows a picker",
-        required = false,
-        autocomplete = true
+        required = false
       )
     )
   )

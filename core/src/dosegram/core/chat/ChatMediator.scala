@@ -63,8 +63,7 @@ final class ChatMediator(
     clock: Clock,
     commands: Map[String, CommandSpec] = Map.empty,
     stripes: Int = 16,
-    events: DomainEventBus = DomainEventBus.noop,
-    recordFormDegraded: () => Unit = () => ()
+    events: DomainEventBus = DomainEventBus.noop
 )(using Ox)
     extends InboundSink:
 
@@ -83,9 +82,9 @@ final class ChatMediator(
 
   private def callbackOf(body: Inbound): Option[CallbackRef] =
     body match
-      case Inbound.InteractionSubmitted(callback, _, _) => Some(callback)
-      case Inbound.FormSubmitted(_, callback, _)        => Some(callback)
-      case _                                            => None
+      case Inbound.InteractionSubmitted(callback, _) => Some(callback)
+      case Inbound.FormSubmitted(_, callback, _)     => Some(callback)
+      case _                                         => None
 
   /** The mediator re-verifies the raw token against the claimed fields (ADR-006); the decoded form is never trusted.
     */
@@ -100,26 +99,14 @@ final class ChatMediator(
     for
       interaction <- event.interaction
       profile <- adapters.get(event.vendor).map(_.capabilities)
-      if !interaction.acked
-    do
-      event.body match
-        case Inbound.InteractionSubmitted(ref, _, _) =>
-          ActionRegistry
-            .byId(ref.actionId)
-            .foreach: entry =>
-              AckPolicy(AckPolicy.forComponent(entry, profile), interaction)
-        case Inbound.FormSubmitted(_, ref, _) =>
-          ActionRegistry
-            .byId(ref.actionId)
-            .foreach: entry =>
-              if profile.deferrable then interaction.deferReply(entry.visibility == Visibility.Ephemeral)
-              else if profile.transientAck then interaction.answer(None)
-        case Inbound.CommandInvoked(name, _, _) =>
-          commands
-            .get(name)
-            .foreach: spec =>
-              AckPolicy(AckPolicy.forCommand(spec, profile), interaction)
-        case _ => ()
+      if declared(event.body)
+    do AckPolicy.ackBeforeWork(profile, interaction)
+
+  /** Only a registered action or command is acknowledged before database work (ADR-013). */
+  private def declared(body: Inbound): Boolean =
+    body match
+      case Inbound.CommandInvoked(name, _, _) => commands.contains(name)
+      case other => callbackOf(other).exists(ref => ActionRegistry.byId(ref.actionId).isDefined)
 
   /** A tampered token: the catalogue toast plus an audit row, and nothing reaches the core (DESIGN.md section 4.4).
     */
@@ -195,9 +182,7 @@ final class ChatMediator(
         reply.domainEvents.map(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
       val sends = (reply.replace.toList ++ reply.followUps).map: message =>
         val outboxId = UUID.randomUUID()
-        // Private hook responses cannot be replayed as ordinary durable sends after token expiry.
-        val hookPrivate = message.visibility == Visibility.Ephemeral && adapters(event.vendor).capabilities.ephemeral
-        val enqueued = !hookPrivate && tx.outbox.enqueue(
+        val enqueued = tx.outbox.enqueue(
           NewOutboxMessage(
             id = outboxId,
             sendKey = message.dedupeKey,
@@ -258,9 +243,6 @@ final class ChatMediator(
 
   private def resolve(event: InboundEvent, tx: Tx): Resolution =
     event.body match
-      case Inbound.ReactionChanged(_, _, added) if !added => Resolution.Ignore
-      case Inbound.ReactionChanged(emoji, target, _)      =>
-        resolveFrom(tx.renderedMessages.choiceMapFor(target), _.emoji.contains(emoji), Some(target), Resolution.Ignore)
       case Inbound.MessageReceived(text, replyTo, _) =>
         val trimmed = text.trim
         if trimmed.nonEmpty && trimmed.length <= 3 && trimmed.forall(_.isDigit) then
@@ -292,7 +274,7 @@ final class ChatMediator(
       fallback: Resolution
   ): Resolution =
     row.flatMap(_.choiceMap.find(matches)).flatMap(decodeEntry) match
-      case Some(ref) => Resolution.Resolved(Inbound.InteractionSubmitted(ref, Nil, source))
+      case Some(ref) => Resolution.Resolved(Inbound.InteractionSubmitted(ref, source))
       case None      => fallback
 
   private def decodeEntry(entry: ChoiceMapEntry): Option[CallbackRef] =
@@ -317,126 +299,92 @@ final class ChatMediator(
     */
   private def deliverAfterCommit(event: InboundEvent, plan: DeliveryPlan): Unit =
     val adapter = adapters(event.vendor)
-    val liveInteraction = event.interaction.exists(i => i.replyAvailable || i.modalAvailable)
     plan.sends.foreach: planned =>
-      val hasForm = planned.message.blocks.exists:
-        case Block.FormBlock(_) => true
-        case _                  => false
-      val modalAvailable = event.interaction.exists(_.modalAvailable)
-      if hasForm && adapter.capabilities.modal && !modalAvailable then recordFormDegraded()
-      val context = RenderContext(liveInteraction = liveInteraction, allowModal = modalAvailable)
-      val (initialOps, _) = Renderer.render(
-        planned.message,
-        event.chat,
-        adapter.capabilities,
-        planned.message.dedupeKey,
-        context
-      )
-      val modalResult =
-        try
-          Some(initialOps.exists:
-            case VendorOp.OpenForm(form) =>
-              try
-                event.interaction.foreach(_.openForm(form))
-                false
-              catch case _: ChatError.TooOld => true
-            case _ => false)
-        catch case _: ChatError => None // retain the safety row; only expiry permits form degradation
-      val ops = modalResult match
-        case Some(true) =>
-          recordFormDegraded()
-          Renderer
-            .render(
-              planned.message,
-              event.chat,
-              adapter.capabilities,
-              planned.message.dedupeKey,
-              context.copy(allowModal = false, liveInteraction = event.interaction.exists(_.replyAvailable))
-            )
-            ._1
-        case Some(false) => initialOps
-        case None        => Nil
+      val (ops, _) =
+        Renderer.render(planned.message, event.chat, adapter.capabilities, planned.message.dedupeKey)
       ops.foreach:
         case VendorOp.Send(chat, rendered, sendKey, _) =>
           try
-            val hookPrivate = planned.message.visibility == Visibility.Ephemeral && adapter.capabilities.ephemeral
-            val handle = if hookPrivate then
-              event.interaction.filter(_.replyAvailable) match
-                case Some(interaction) => interaction.respond(rendered.copy(ephemeral = true))
-                case None              =>
-                  adapter.send(
-                    chat,
-                    RenderedMessage(
-                      chunks = List("Private response expired. Use a fresh command to view the current record."),
-                      silent = true
-                    ),
-                    s"$sendKey:private-recovery"
-                  )
-            else
-              planned.message.replaces.filter(_ => adapter.capabilities.editOwn == EditCapability.AnyAge) match
-                case Some(source) =>
-                  val first = rendered.copy(
-                    chunks = List(rendered.chunks.head),
-                    controls = if rendered.chunks.size == 1 then rendered.controls else Nil,
-                    choiceMap = if rendered.chunks.size == 1 then rendered.choiceMap else Nil
-                  )
-                  val edited =
-                    try adapter.edit(source, first)
-                    catch
-                      case e: ChatError.Permanent
-                          if !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
-                        adapter.send(ChatRef(source.vendor, source.chatId), first, s"$sendKey:replacement")
-                  rendered.chunks.tail.zipWithIndex.foldLeft(edited): (_, part) =>
-                    val (chunk, index) = part
-                    val last = index == rendered.chunks.size - 2
-                    val page = rendered.copy(
-                      chunks = List(chunk),
-                      controls = if last then rendered.controls else Nil,
-                      choiceMap = if last then rendered.choiceMap else Nil
-                    )
-                    event.interaction.filter(_.replyAvailable) match
-                      case Some(interaction) => interaction.respond(page)
-                      case None              => adapter.send(chat, page, s"$sendKey:chunk:${index + 1}")
-                case None =>
-                  event.interaction.filter(_.replyAvailable) match
-                    case Some(interaction) => interaction.respond(rendered)
-                    case None              => adapter.send(chat, rendered, sendKey)
-            try
-              uow.transaction: tx =>
-                tx.renderedMessages.record(
-                  handle,
-                  plan.accountId,
-                  kind = "interaction_reply",
-                  subjectType = None,
-                  subjectId = None,
-                  epoch = None,
-                  rendered.choiceMap,
-                  clock.now()
-                )
-                if planned.message.replaces.isDefined then
-                  tx.renderedMessages.recordEdit(handle, rendered.choiceMap, clock.now())
-                planned.outboxId.foreach: id =>
-                  tx.outbox.markSent(id, OutboxDispatcher.encodeHandle(handle), clock.now(), possibleDuplicate = false)
-            catch case _: SQLException => () // the safety row redelivers
+            val handle = deliverSend(adapter, planned.message.replaces, chat, rendered, sendKey)
+            recordDelivery(plan.accountId, planned, handle, rendered)
           catch case _: ChatError => () // the queued safety row redelivers
-        case VendorOp.OpenForm(_) => ()
-        case _                    => ()
-    plan.toast.foreach: toast =>
-      event.interaction match
-        case Some(interaction) if interaction.replyAvailable =>
-          try
-            val _ = interaction.respond(RenderedMessage(chunks = List(toast), ephemeral = true))
-          catch case _: ChatError => ()
-        case Some(interaction) if !interaction.acked => interaction.answer(Some(toast))
-        case _                                       =>
-          try
-            adapter.send(
-              event.chat,
-              RenderedMessage(chunks = List(toast), deleteAfter = Some(ToastDeleteAfter)),
-              sendKey = s"toast:${event.vendor}:${event.vendorEventId}"
-            )
-            ()
-          catch case _: ChatError => ()
+        case _ => ()
+    plan.toast.foreach(deliverToast(event, adapter, _))
+
+  /** An edit of the source where the vendor edits at any age (a missing source is replaced by a new message), a plain
+    * send otherwise. Only the first chunk fits the edit; later chunks are new messages and the last carries the
+    * controls.
+    */
+  private def deliverSend(
+      adapter: ChatAdapter,
+      replaces: Option[MessageHandle],
+      chat: ChatRef,
+      rendered: RenderedMessage,
+      sendKey: String
+  ): MessageHandle =
+    replaces.filter(_ => adapter.capabilities.editOwn == EditCapability.AnyAge) match
+      case None         => adapter.send(chat, rendered, sendKey)
+      case Some(source) =>
+        val single = rendered.chunks.size == 1
+        val first = rendered.copy(
+          chunks = List(rendered.chunks.head),
+          controls = if single then rendered.controls else Nil,
+          choiceMap = if single then rendered.choiceMap else Nil
+        )
+        val edited =
+          try adapter.edit(source, first)
+          catch
+            case e: ChatError.Permanent if !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
+              adapter.send(ChatRef(source.vendor, source.chatId), first, s"$sendKey:replacement")
+        rendered.chunks.tail.zipWithIndex.foldLeft(edited): (_, part) =>
+          val (chunk, index) = part
+          val last = index == rendered.chunks.size - 2
+          val page = rendered.copy(
+            chunks = List(chunk),
+            controls = if last then rendered.controls else Nil,
+            choiceMap = if last then rendered.choiceMap else Nil
+          )
+          adapter.send(chat, page, s"$sendKey:chunk:${index + 1}")
+
+  private def recordDelivery(
+      accountId: Option[UUID],
+      planned: PlannedSend,
+      handle: MessageHandle,
+      rendered: RenderedMessage
+  ): Unit =
+    try
+      uow.transaction: tx =>
+        tx.renderedMessages.record(
+          handle,
+          accountId,
+          kind = "interaction_reply",
+          subjectType = None,
+          subjectId = None,
+          epoch = None,
+          rendered.choiceMap,
+          clock.now()
+        )
+        if planned.message.replaces.isDefined then
+          tx.renderedMessages.recordEdit(handle, rendered.choiceMap, clock.now())
+        planned.outboxId.foreach: id =>
+          tx.outbox.markSent(id, OutboxDispatcher.encodeHandle(handle), clock.now(), possibleDuplicate = false)
+    catch case _: SQLException => () // the safety row redelivers
+
+  /** The toast rides the single-shot answer while it is unspent, and degrades to a short auto-deleting message once the
+    * ack before database work has spent it (DESIGN.md section 4.6 step 8).
+    */
+  private def deliverToast(event: InboundEvent, adapter: ChatAdapter, toast: String): Unit =
+    event.interaction match
+      case Some(interaction) if !interaction.acked => interaction.answer(Some(toast))
+      case _                                       =>
+        try
+          adapter.send(
+            event.chat,
+            RenderedMessage(chunks = List(toast), deleteAfter = Some(ToastDeleteAfter)),
+            sendKey = s"toast:${event.vendor}:${event.vendorEventId}"
+          )
+          ()
+        catch case _: ChatError => ()
 
   /** A duplicate delivery replays the stored reply (C3); the handler is not re-run. */
   private def replayStoredReply(event: InboundEvent, reportUnknown: Boolean = true): Unit =
@@ -467,14 +415,13 @@ final class ChatMediator(
               PlannedSend(replay, tx.outbox.replyId(event.vendor, message.dedupeKey))
             DeliveryPlan(row.accountId, sends, reply.toast, Nil)
 
-  /** The catalogue failure toast when the database is unavailable (R68: visibly fails). */
+  /** The catalogue failure notice when the database is unavailable (R68: visibly fails): the single-shot answer while
+    * it is unspent, a silent message otherwise.
+    */
   private def deliverFailureToast(event: InboundEvent, text: String): Unit =
-    event.interaction match
+    event.interaction.filterNot(_.acked) match
       case Some(interaction) =>
-        try
-          if interaction.replyAvailable then
-            val _ = interaction.respond(RenderedMessage(chunks = List(text), ephemeral = true, silent = true))
-          else if !interaction.acked then interaction.answer(Some(text))
+        try interaction.answer(Some(text))
         catch case _: ChatError => ()
       case None =>
         adapters

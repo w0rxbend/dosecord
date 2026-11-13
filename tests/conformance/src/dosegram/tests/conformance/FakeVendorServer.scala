@@ -31,14 +31,13 @@ enum WireEvent:
     case Command(_, chat, _, _)  => chat
     case Callback(_, chat, _, _) => chat
 
-/** Vendor faults the fake wire raises, with the adapter-contract mappings of DESIGN.md section 4.5: NotModified and
-  * DuplicateReaction are success; DeleteWindow and EditNotFound are `Permanent(channelFatal = false)`; Blocked is
-  * `Unreachable` (`channelFatal = true`); RateLimited carries the vendor's Retry-After.
+/** Vendor faults the fake wire raises, with the adapter-contract mappings of DESIGN.md section 4.5: NotModified is
+  * success; DeleteWindow and EditNotFound are `Permanent(channelFatal = false)`; Blocked is `Unreachable`
+  * (`channelFatal = true`); RateLimited carries the vendor's Retry-After.
   */
 enum VendorFault:
   case RateLimited(retryAfterSeconds: Long)
   case NotModified
-  case DuplicateReaction
   case DeleteWindow
   case EditNotFound
   case Blocked
@@ -51,15 +50,14 @@ final case class SentObservation(messageId: Option[String], text: String, raw: S
 /** One ack the vendor observed (the deadline-auto-ack scenario), stamped with the fake clock. */
 final case class AckObservation(kind: String, at: Instant)
 
-/** The vendor-side test double (the "fake wire"): it delivers raw events inbound, records what the adapter sends, acks
-  * and modal-opens, raises faults, owns the fake clock and captures logs. One instance per scenario run.
+/** The vendor-side test double (the "fake wire"): it delivers raw events inbound, records what the adapter sends and
+  * acks, raises faults, owns the fake clock and captures logs. One instance per scenario run.
   */
 trait FakeVendorServer:
   def deliver(event: WireEvent): Unit
   def deliveries: List[(WireEvent, InboundEvent)]
   def sent: List[SentObservation]
   def acks: List[AckObservation]
-  def modalPayloads: List[String]
   def failNext(fault: VendorFault): Unit
   def clock: Instant
   def advanceClock(by: Duration): Unit
@@ -83,9 +81,8 @@ final case class AdapterUnderTest(adapter: ChatAdapter, server: FakeVendorServer
 
 /** Per-adapter wiring: how to build the adapter against the fake wire, and which transport traits it has. Traits gate
   * scenario applicability: `redelivery` (the vendor can deliver the same wire event twice), `httpStatus` (the vendor
-  * answers status codes such as 429), `wireModal` (the vendor carries a raw modal payload). Capability requirements
-  * (`edit`, `delete`, `react`, `buttons`, `select`, `modal`, `ephemeral`, `nativeCommands`, `transientAck`,
-  * `ackDeadline`, `silent`) are evaluated against the adapter's CapabilityProfile.
+  * answers status codes such as 429). Capability requirements (`edit`, `delete`, `buttons`, `nativeCommands`,
+  * `transientAck`, `ackDeadline`, `silent`) are evaluated against the adapter's CapabilityProfile.
   */
 trait AdapterWiring:
   def vendor: String

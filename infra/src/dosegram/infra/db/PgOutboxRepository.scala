@@ -88,14 +88,6 @@ final class PgOutboxRepository(conn: Connection) extends OutboxRepository:
             WHERE id = $id""".execute()
     require(updated == 1, s"outbox row $id vanished before recordHandle")
 
-  override def markOpDone(id: java.util.UUID, opIndex: Int): Unit =
-    val bit = 1 << opIndex
-    val updated =
-      sql"""UPDATE outbox_messages
-            SET ops_done = ops_done | $bit
-            WHERE id = $id""".execute()
-    require(updated == 1, s"outbox row $id vanished before markOpDone")
-
   override def markSent(id: java.util.UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit =
     val updated =
       sql"""UPDATE outbox_messages

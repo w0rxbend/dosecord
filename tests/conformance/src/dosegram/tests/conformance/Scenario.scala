@@ -14,8 +14,7 @@ final case class Scenario(
     requires: List[String],
     steps: List[Step],
     expect: List[Expect],
-    richText: Option[RichText],
-    form: Option[RenderedForm]
+    richText: Option[RichText]
 )
 
 enum Step:
@@ -26,13 +25,11 @@ enum Step:
   case SendControls(text: String, controls: String, sendKey: String, chat: Option[String])
   case Edit(messageId: String, text: String, chat: Option[String])
   case Delete(messageId: String, chat: Option[String])
-  case React(messageId: String, emoji: String, on: Boolean, chat: Option[String])
   case RegisterCommands(names: List[String])
   case InjectFault(fault: VendorFault)
   case AdvanceClock(seconds: Long)
   case RenderText
   case ExerciseClaimedCapabilities
-  case OpenForm
 
 enum Expect:
   case InboundCount(count: Int)
@@ -56,7 +53,6 @@ enum Expect:
   case RenderTextRespectsMaxText
   case LogClean(canaries: List[String])
   case Acked(withinSeconds: Option[Long])
-  case ModalPayloadContains(values: List[String])
 
 object Scenario:
 
@@ -78,8 +74,7 @@ object Scenario:
         requires = strings(json, "requires"),
         steps = json("steps").arr.toList.map(step(_, source)),
         expect = json("expect").arr.toList.map(expect(_, source)),
-        richText = json.obj.get("richText").map(richText(_, source)),
-        form = json.obj.get("form").map(form(_))
+        richText = json.obj.get("richText").map(richText(_, source))
       )
     catch
       case e: ScenarioFormatException => throw e
@@ -107,21 +102,13 @@ object Scenario:
           str(json, "sendKey"),
           json.obj.get("chat").map(_.str)
         )
-      case "edit"   => Step.Edit(str(json, "messageId"), str(json, "text"), json.obj.get("chat").map(_.str))
-      case "delete" => Step.Delete(str(json, "messageId"), json.obj.get("chat").map(_.str))
-      case "react"  =>
-        Step.React(
-          str(json, "messageId"),
-          str(json, "emoji"),
-          json.obj.get("on").forall(_.bool),
-          json.obj.get("chat").map(_.str)
-        )
-      case "registerCommands"            => Step.RegisterCommands(strings(json, "names"))
-      case "injectFault"                 => Step.InjectFault(fault(json, source))
-      case "advanceClock"                => Step.AdvanceClock(json("seconds").num.toLong)
-      case "renderText"                  => Step.RenderText
+      case "edit"             => Step.Edit(str(json, "messageId"), str(json, "text"), json.obj.get("chat").map(_.str))
+      case "delete"           => Step.Delete(str(json, "messageId"), json.obj.get("chat").map(_.str))
+      case "registerCommands" => Step.RegisterCommands(strings(json, "names"))
+      case "injectFault"      => Step.InjectFault(fault(json, source))
+      case "advanceClock"     => Step.AdvanceClock(json("seconds").num.toLong)
+      case "renderText"       => Step.RenderText
       case "exerciseClaimedCapabilities" => Step.ExerciseClaimedCapabilities
-      case "openForm"                    => Step.OpenForm
       case other                         => throw ScenarioFormatException(source, s"unknown step '$other'")
 
   private def expect(json: ujson.Value, source: String): Expect =
@@ -158,7 +145,6 @@ object Scenario:
       case "renderTextRespectsMaxText" => Expect.RenderTextRespectsMaxText
       case "logClean"                  => Expect.LogClean(strings(json, "canaries"))
       case "acked"                     => Expect.Acked(json.obj.get("withinSeconds").map(_.num.toLong))
-      case "modalPayloadContains"      => Expect.ModalPayloadContains(strings(json, "values"))
       case other                       => throw ScenarioFormatException(source, s"unknown expect '$other'")
 
   private def wireEvent(json: ujson.Value, source: String): WireEvent =
@@ -177,13 +163,12 @@ object Scenario:
 
   private def fault(json: ujson.Value, source: String): VendorFault =
     json("fault").str match
-      case "rateLimited"       => VendorFault.RateLimited(json("retryAfterSeconds").num.toLong)
-      case "notModified"       => VendorFault.NotModified
-      case "duplicateReaction" => VendorFault.DuplicateReaction
-      case "deleteWindow"      => VendorFault.DeleteWindow
-      case "editNotFound"      => VendorFault.EditNotFound
-      case "blocked"           => VendorFault.Blocked
-      case other               => throw ScenarioFormatException(source, s"unknown fault '$other'")
+      case "rateLimited"  => VendorFault.RateLimited(json("retryAfterSeconds").num.toLong)
+      case "notModified"  => VendorFault.NotModified
+      case "deleteWindow" => VendorFault.DeleteWindow
+      case "editNotFound" => VendorFault.EditNotFound
+      case "blocked"      => VendorFault.Blocked
+      case other          => throw ScenarioFormatException(source, s"unknown fault '$other'")
 
   /** The scenario RichText mini-language: `{"paragraph": [inline]}`, `{"bullets": [[inline]]}`, `{"code": "..."}` with
     * inline forms `{"text": s}`, `{"bold": s}`, `{"italic": s}`, `{"code": s}`, `{"lineBreak": true}`,
@@ -210,23 +195,6 @@ object Scenario:
         Inline.Text(char.str * times.num.toInt)
       case keys => throw ScenarioFormatException(source, s"unknown inline $keys")
 
-  private def form(json: ujson.Value): RenderedForm =
-    RenderedForm(
-      str(json, "id"),
-      str(json, "title"),
-      json("fields").arr.toList.map { f =>
-        RenderedField(
-          str(f, "key"),
-          str(f, "label"),
-          FieldType.valueOf(str(f, "tpe")),
-          f.obj.get("required").forall(_.bool),
-          f.obj.get("placeholder").map(_.str),
-          f.obj.get("options").map(_.arr.toList.map(_.str)).getOrElse(Nil)
-        )
-      },
-      str(json, "submit")
-    )
-
   /** Capability requirements are evaluated against the profile; transport traits against the wiring. */
   def unsatisfied(scenario: Scenario, wiring: AdapterWiring): List[String] =
     scenario.requires.filterNot { token =>
@@ -234,11 +202,7 @@ object Scenario:
       token match
         case "edit"           => profile.editOwn != EditCapability.NoEdit
         case "delete"         => profile.deleteOwn != DeleteCapability.NoDelete
-        case "react"          => profile.botReactions
         case "buttons"        => profile.buttons
-        case "select"         => profile.select
-        case "modal"          => profile.modal
-        case "ephemeral"      => profile.ephemeral
         case "nativeCommands" => profile.nativeCommands
         case "transientAck"   => profile.transientAck
         case "ackDeadline"    => profile.ackDeadline.isDefined

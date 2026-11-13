@@ -215,8 +215,6 @@ object MediatorFakes:
           .toList
     override def recordHandle(id: UUID, encodedHandle: String): Unit = this.synchronized:
       states(id) = states(id).copy(opsDone = states(id).opsDone | 1, platformMessageId = Some(encodedHandle))
-    override def markOpDone(id: UUID, opIndex: Int): Unit = this.synchronized:
-      states(id) = states(id).copy(opsDone = states(id).opsDone | (1 << opIndex))
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit =
       this.synchronized:
         sent += id
@@ -609,24 +607,11 @@ object MediatorFakes:
   final class RecordingInteractionHandle extends InteractionHandle:
     val calls = new ConcurrentLinkedQueue[String]()
     @volatile private var ackedFlag = false
-    override def deferUpdate(): Unit =
-      calls.add("deferUpdate")
-      ackedFlag = true
-    override def deferReply(ephemeral: Boolean): Unit =
-      calls.add(s"deferReply($ephemeral)")
-      ackedFlag = true
     override def answer(toast: Option[String]): Unit =
       calls.add(s"answer(${toast.getOrElse("")})")
       ackedFlag = true
-    override def replyAvailable: Boolean = true
-    override def respond(rendered: RenderedMessage): MessageHandle =
-      calls.add(s"respond(${rendered.chunks.mkString(" ")})")
-      MessageHandle("fake", "chat-1", "r1")
     override def editSource(rendered: RenderedMessage): Unit =
       calls.add(s"editSource(${rendered.chunks.mkString(" ")})")
-    override def openForm(form: RenderedForm): Unit =
-      calls.add(s"openForm(${form.id})")
-      ackedFlag = true
     override def acked: Boolean = ackedFlag
 
   final class RecordingHandler(reply: InboundEvent => Reply) extends ChatHandler:

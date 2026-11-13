@@ -15,8 +15,8 @@ import java.time.Instant
 import scala.collection.mutable.ListBuffer
 
 /** The console's fake vendor wire (suite A, ROADMAP M0.13): a pipe stands in for stdin and a buffer for stdout; the
-  * printed `[#n] ...` records are parsed back into sent observations. The console has no vendor faults, acks, modal
-  * payloads or log output, so those surfaces are empty (and the scenarios needing them skip on this profile).
+  * printed `[#n] ...` records are parsed back into sent observations. The console has no vendor faults, acks or
+  * log output, so those surfaces are empty (and the scenarios needing them skip on this profile).
   */
 final class ConsoleFakeVendorServer(sink: RecordingSink) extends FakeVendorServer:
   private val pipeIn = PipedInputStream()
@@ -50,7 +50,6 @@ final class ConsoleFakeVendorServer(sink: RecordingSink) extends FakeVendorServe
     ConsoleFakeVendorServer.parsePrinted(buffer.toString(StandardCharsets.UTF_8))
 
   override def acks: List[AckObservation] = Nil
-  override def modalPayloads: List[String] = Nil
   override def failNext(fault: VendorFault): Unit =
     throw new IllegalStateException(s"the console transport has no vendor faults (got $fault)")
   override def clock: Instant = at

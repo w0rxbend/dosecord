@@ -28,8 +28,8 @@ import scala.io.Source
 import scala.util.Using
 
 /** The transcript rig of [[MedicationWizardSuite]]: the real mediator, the M1.9 [[Application]] composition and the
-  * real flows over the in-memory ports and a `FakeAdapter` on the console or native profile. Drives console-grammar
-  * lines, raw taps (with a recording interaction handle) and modal submits, and collects the adapter's ops.
+  * real flows over the in-memory ports and a `FakeAdapter` on the console or Telegram profile. Drives console-grammar
+  * lines and raw taps (with a recording interaction handle), and collects the adapter's ops.
   */
 private final class MedicationWizardRig(
     profile: MedicationWizardRig.Profile,
@@ -61,9 +61,6 @@ private final class MedicationWizardRig(
     handles += handle
     handle
 
-  /** Every interaction handle created by this rig (modal captures for the transcript and assertions). */
-  def openedForms: List[RenderedForm] = handles.flatMap(_.openedForm).toList
-
   // ---------- Driving ----------
 
   /** Feeds one console-grammar line through the mediator and returns the newly printed chunks. */
@@ -91,21 +88,9 @@ private final class MedicationWizardRig(
 
   private[application] def tapWithHandle(wire: String): (CapturingInteractionHandle, List[String]) =
     val handle = newHandle()
-    val chunks = pushAndCollect(Inbound.InteractionSubmitted(refOf(wire), Nil, None), Some(handle))
+    val chunks = pushAndCollect(Inbound.InteractionSubmitted(refOf(wire), None), Some(handle))
       .collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten
     (handle, chunks)
-
-  /** Submits the wizard's step 1 modal (the last opened form) with these field answers. */
-  def submitWizardForm(name: String, dose: String, times: String, instructions: String): List[String] =
-    val form = handles.reverseIterator.flatMap(_.openedForm).nextOption()
-      .getOrElse(throw new NoSuchElementException("no open modal to submit"))
-    val body = Inbound.FormSubmitted(
-      form.id,
-      refOf(form.submit),
-      Map("name" -> name, "dose" -> dose, "times" -> times, "instructions" -> instructions)
-    )
-    pushAndCollect(body, Some(newHandle()))
-      .collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten
 
   // ---------- The M1.6/M1.7 machinery over the same stores (intake-flow tests) ----------
 
@@ -142,18 +127,18 @@ private final class MedicationWizardRig(
     line("09:00")
     line("with breakfast")
 
-  // ---------- Native-profile helpers ----------
+  // ---------- Telegram-profile helpers ----------
 
-  def bootstrapNative(): Unit =
+  def bootstrapTelegram(): Unit =
     command("start")
     tapLabel("Pick your timezone", "UTC+03:00 — Europe/Kyiv")
     tapLabel("It is", Labels.Yes)
 
-  def startWizardNative(times: String = "09:00", instructions: String = "with breakfast"): Unit =
+  def startWizardTelegram(times: String = "09:00", instructions: String = "with breakfast"): Unit =
     command("menu")
     tapLabel(MenuCopy.mainPrompt, "Medications")
     tapLabel("Medications", "Add medication")
-    submitWizardForm("Vitamin D", "1000 IU", times, instructions)
+    List("Vitamin D", "1000 IU", times, instructions).foreach(line)
 
   // ---------- Restart ----------
 
@@ -289,16 +274,8 @@ private final class MedicationWizardRig(
   def tapT(containing: String, label: String): List[String] =
     val before = ops.size
     val wire = wireOf(containing, label)
-    val (handle, _) = tapWithHandle(wire)
-    val modal = handle.openedForm.map: form =>
-      s"modal: ${form.id} (${form.fields.map(_.key).mkString(", ")})"
-    s"> tap \"$label\"" +: (modal.toList ++ ops.drop(before).map(formatOp))
-
-  def submitT(name: String, dose: String, times: String, instructions: String): List[String] =
-    val before = ops.size
-    submitWizardForm(name, dose, times, instructions)
-    s"> submit name=\"$name\" dose=\"$dose\" times=\"$times\" instructions=\"$instructions\"" +:
-      ops.drop(before).map(formatOp)
+    tapWithHandle(wire)
+    s"> tap \"$label\"" +: ops.drop(before).map(formatOp)
 
   def drive(script: List[MedicationWizardRig => List[String]]): String =
     script.flatMap(_.apply(this)).mkString("\n") + "\n"
@@ -337,14 +314,11 @@ private final class MedicationWizardRig(
       val controls = message.controls.map {
         case RenderedControls.Buttons(rows) =>
           rows.map(_.map(c => s"[${c.label}]").mkString(" ")).mkString(" | ")
-        case RenderedControls.SelectMenu(_, choices, min, max) =>
-          s"select(${choices.map(_.label).mkString("|")} min=$min max=$max)"
-        case RenderedControls.Numbered(_, choices, _) =>
+        case RenderedControls.Numbered(_, choices) =>
           s"numbered(${choices.map(_.label).mkString("|")})"
         case RenderedControls.NoControls => ""
       }.filter(_.nonEmpty).mkString(" ")
       s"send: ${message.chunks.mkString(" / ")}" + (if controls.nonEmpty then s" | $controls" else "")
-    case VendorOp.OpenForm(form) => s"modal: ${form.id} (${form.fields.map(_.key).mkString(", ")})"
     case VendorOp.Edit(_, message) => s"edit: ${message.chunks.mkString(" / ")}"
     case other                     => other.productPrefix
 
@@ -355,7 +329,7 @@ private object MedicationWizardRig:
 
   enum Profile(val capabilities: CapabilityProfile):
     case Console extends Profile(CapabilityProfiles.Console)
-    case Native extends Profile(TestProfiles.Native)
+    case Telegram extends Profile(CapabilityProfiles.Telegram)
 
   val ConsoleScript: List[MedicationWizardRig => List[String]] = List(
     _.lineT("/start"),
@@ -372,14 +346,17 @@ private object MedicationWizardRig:
     _.lineT("1")  // Create
   )
 
-  val NativeScript: List[MedicationWizardRig => List[String]] = List(
+  val TelegramScript: List[MedicationWizardRig => List[String]] = List(
     _.commandT("start"),
     _.tapT("Pick your timezone", "UTC+03:00 — Europe/Kyiv"),
     _.tapT("It is", Labels.Yes),
     _.commandT("menu"),
     _.tapT(MenuCopy.mainPrompt, "Medications"),
     _.tapT("Medications", "Add medication"),
-    _.submitT("Vitamin D", "1000 IU", "09:00", "with breakfast"),
+    _.lineT("Vitamin D"),
+    _.lineT("1000 IU"),
+    _.lineT("09:00"),
+    _.lineT("with breakfast"),
     _.tapT(WizardCopy.daysPrompt, WizardCopy.everyDay),
     _.tapT("every day 09:00", Labels.Create)
   )
@@ -393,31 +370,15 @@ private object MedicationWizardRig:
       .getOrElse(throw IllegalStateException(s"$path is not on the test classpath"))
     Using(Source.fromInputStream(stream, "UTF-8"))(_.mkString).get
 
-  /** A recording interaction handle that also captures the opened modal (the mediator delivers VendorOp.OpenForm
-    * through the live handle, never through the adapter).
-    */
+  /** A recording interaction handle. */
   final class CapturingInteractionHandle extends InteractionHandle:
     val calls = new java.util.concurrent.ConcurrentLinkedQueue[String]()
-    @volatile var openedForm: Option[RenderedForm] = None
     @volatile private var ackedFlag = false
-    override def deferUpdate(): Unit =
-      calls.add("deferUpdate")
-      ackedFlag = true
-    override def deferReply(ephemeral: Boolean): Unit =
-      calls.add(s"deferReply($ephemeral)")
-      ackedFlag = true
     override def answer(toast: Option[String]): Unit =
       calls.add(s"answer(${toast.getOrElse("")})")
       ackedFlag = true
-    override def respond(rendered: RenderedMessage): MessageHandle =
-      calls.add(s"respond(${rendered.chunks.mkString(" ")})")
-      MessageHandle("fake", "dm:user-1", "r1")
     override def editSource(rendered: RenderedMessage): Unit =
       calls.add(s"editSource(${rendered.chunks.mkString(" ")})")
-    override def openForm(form: RenderedForm): Unit =
-      calls.add(s"openForm(${form.id})")
-      openedForm = Some(form)
-      ackedFlag = true
     override def acked: Boolean = ackedFlag
 
   /** A fixture-only FIFO fence. The repository recognizes its private event as an already-seen event with no stored
@@ -475,9 +436,6 @@ private object MedicationWizardRig:
       inner.edit(handle, rendered)
     )
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
-      inner.react(handle, emoji, on, txnKey)
-    )
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))

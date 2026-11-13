@@ -38,13 +38,8 @@ class ConsoleAdapterSuite extends munit.FunSuite:
     assertEquals(adapter.vendor, "console")
     assertEquals(adapter.capabilities.nativeCommands, false)
     assertEquals(adapter.capabilities.buttons, false)
-    assertEquals(adapter.capabilities.select, false)
-    assertEquals(adapter.capabilities.modal, false)
-    assertEquals(adapter.capabilities.ephemeral, false)
     assertEquals(adapter.capabilities.editOwn, EditCapability.NoEdit)
     assertEquals(adapter.capabilities.deleteOwn, DeleteCapability.NoDelete)
-    assertEquals(adapter.capabilities.botReactions, false)
-    assertEquals(adapter.capabilities.reactionEvents, false)
     assertEquals(adapter.capabilities.markup, Markup.Plain)
 
   test("a plain line maps to MessageReceived with a stable vendor_event_id, the CONSOLE_USER_ID actor and a cursor"):
@@ -122,12 +117,11 @@ class ConsoleAdapterSuite extends munit.FunSuite:
       Inbound.CommandInvoked("mood", Map.empty, "/mood 8 slept well #sleep")
     )
 
-  test("capability honesty: edit, delete and react are Unsupported; registerCommands is a no-op"):
+  test("capability honesty: edit and delete are Unsupported; registerCommands is a no-op"):
     val (adapter, _) = newAdapter()
     val handle = MessageHandle("console", "dm:owner", "1")
     intercept[ChatError.Unsupported](adapter.edit(handle, RenderedMessage(chunks = List("x"))))
     intercept[ChatError.Unsupported](adapter.delete(handle))
-    intercept[ChatError.Unsupported](adapter.react(handle, "1️⃣", on = true, txnKey = "k"))
     adapter.registerCommands(List(CommandSpec("mood", "log a mood")))
     adapter.registerCommands(Nil)
 

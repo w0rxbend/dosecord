@@ -33,164 +33,25 @@ class RendererSuite extends munit.FunSuite:
   private def sends(ops: List[VendorOp]): List[VendorOp.Send] =
     ops.collect { case s: VendorOp.Send => s }
 
-  test("reminder layout: two rows, Taken success, Skip secondary (buttons rung)"):
-    val (ops, report) = Renderer.render(reminderMessage, chat, TestProfiles.Native, "k1")
-    assertEquals(report.rungs("reminder.main"), Renderer.Rung.Buttons)
-    assertEquals(report.rungs("reminder.more"), Renderer.Rung.Buttons)
-    val msg = sends(ops).head.message
-    val rows = msg.controls.collect { case RenderedControls.Buttons(rows) => rows }
-    assertEquals(
-      rows.map(_.map(_.map(_.label))),
-      List(List(List("Taken", "Snooze 10m", "Skip")), List(List("Snooze 30m", "Snooze 1h")))
-    )
-    val flat = rows.flatten.flatten
-    assertEquals(flat.find(_.label == "Taken").map(_.style), Some(ChoiceStyle.Success))
-    assertEquals(flat.find(_.label == "Skip").map(_.style), Some(ChoiceStyle.Secondary))
+  private val days = List("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
-  test("reminder on telegram: buttons rung, 4-per-row packing keeps the two rows"):
-    val (ops, report) = Renderer.render(reminderMessage, chat, CapabilityProfiles.Telegram, "k1")
-    assertEquals(report.rungs("reminder.main"), Renderer.Rung.Buttons)
-    val rows = sends(ops).head.message.controls.collect { case RenderedControls.Buttons(rows) => rows }
-    assertEquals(
-      rows.map(_.map(_.map(_.label))),
-      List(List(List("Taken", "Snooze 10m", "Skip")), List(List("Snooze 30m", "Snooze 1h")))
-    )
-
-  test("reminder on the reaction tier: Taken, default Snooze, Skip as reactions, rest by reply"):
-    val (ops, report) = Renderer.render(reminderMessage, chat, TestProfiles.Reactions, "k1")
-    assertEquals(report.rungs("reminder.main"), Renderer.Rung.NumberedReactions)
-    // eventsPerMessageBudget - 1 = 3 reactions on the reaction tier, so reminder.more falls to text only.
-    assertEquals(report.rungs("reminder.more"), Renderer.Rung.Numbered)
-    val msg = sends(ops).head.message
-    val numbered = msg.controls.collect { case n: RenderedControls.Numbered => n }
-    assertEquals(numbered.head.reactions, List("1️⃣", "2️⃣", "3️⃣"))
-    assertEquals(msg.choiceMap.size, 5)
-
-  test("reminder on the console: numbered list only"):
-    val (ops, report) = Renderer.render(reminderMessage, chat, CapabilityProfiles.Console, "k1")
-    assertEquals(report.rungs("reminder.main"), Renderer.Rung.Numbered)
-    val numbered = sends(ops).head.message.controls.collect { case n: RenderedControls.Numbered => n }
-    assert(numbered.forall(_.reactions.isEmpty))
-
-  test("select layout: native multi-select on the native profile, numbered with instruction on text tiers"):
-    val days = ChoiceSet(
+  private def daysMessage: OutboundMessage =
+    val cs = ChoiceSet(
       id = "wizard.days",
-      choices = List("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").map(l => Choice(l, "cb:" + l)),
-      layout = ChoiceLayout.Select,
+      prompt = Some(List(Node.Paragraph(List(Inline.Text("Which days?"))))),
+      choices = days.map(d => Choice(d, s"cb:$d")),
       minSelect = 1,
       maxSelect = 7
     )
-    val msg = OutboundMessage(
-      body = List(Node.Paragraph(List(Inline.Text("Pick days.")))),
-      blocks = List(Block.Choices(days)),
+    OutboundMessage(
+      body = List(Node.Paragraph(List(Inline.Text("Set up your schedule.")))),
+      blocks = List(Block.Choices(cs)),
       dedupeKey = "d",
       correlationId = "c"
     )
-    val (nativeOps, nativeReport) = Renderer.render(msg, chat, TestProfiles.Native, "k1")
-    assertEquals(nativeReport.rungs("wizard.days"), Renderer.Rung.Select)
-    sends(nativeOps).head.message.controls.head match
-      case RenderedControls.SelectMenu(_, _, min, max) => assertEquals((min, max), (1, 7))
-      case other                                       => fail(s"expected select, got $other")
-    (CapabilityProfiles.all :+ ("reactions" -> TestProfiles.Reactions)).foreach { (name, profile) =>
-      val (ops, report) = Renderer.render(msg, chat, profile, "k1")
-      val text = sends(ops).head.message.chunks.mkString("\n")
-      assert(
-        text.contains("reply with the numbers, separated by spaces or commas"),
-        s"$name: multi-select instruction missing"
-      )
-      assert(report.rungs("wizard.days") != Renderer.Rung.Select, s"$name")
-    }
 
-  test("ephemeral ladder: native with a live interaction, auto-delete, then notice"):
-    val msg = reminderMessage.copy(visibility = Visibility.Ephemeral)
-    val (_, liveReport) =
-      Renderer.render(msg, chat, TestProfiles.Native, "k1", RenderContext(liveInteraction = true))
-    assertEquals(liveReport.rungs("visibility"), Renderer.Rung.VisibilityNative)
-    val (noLiveOps, noLiveReport) = Renderer.render(msg, chat, TestProfiles.Native, "k1")
-    assertEquals(noLiveReport.rungs("visibility"), Renderer.Rung.VisibilityAutoDelete)
-    assertEquals(sends(noLiveOps).head.message.deleteAfter.map(_.toSeconds), Some(60L))
-    val (tgOps, tgReport) = Renderer.render(msg, chat, CapabilityProfiles.Telegram, "k1")
-    assertEquals(tgReport.rungs("visibility"), Renderer.Rung.VisibilityAutoDelete)
-    assertEquals(sends(tgOps).head.message.deleteAfter.map(_.toSeconds), Some(60L))
-    val (consoleOps, consoleReport) = Renderer.render(msg, chat, CapabilityProfiles.Console, "k1")
-    assertEquals(consoleReport.rungs("visibility"), Renderer.Rung.VisibilityNotice)
-    assert(sends(consoleOps).head.message.chunks.last.contains("This message will not be kept."))
-
-  test("ephemeral auto-delete respects the delete window"):
-    val msg = reminderMessage.copy(visibility = Visibility.Ephemeral)
-    val (_, report) =
-      Renderer.render(msg, chat, CapabilityProfiles.Telegram, "k1", RenderContext(withinDeleteWindow = false))
-    assertEquals(report.rungs("visibility"), Renderer.Rung.VisibilityNotice)
-
-  test("form ladder: native modal only on a live interaction, else FormRunner first question"):
-    val form = Form(
-      id = "f1",
-      title = "Add medication",
-      fields = List(Field("name", "Name", FieldType.Text), Field("dose", "Dose", FieldType.Text, required = false)),
-      submit = "cb:submit"
-    )
-    val msg = reminderMessage.copy(blocks = List(Block.FormBlock(form)))
-    val (liveOps, liveReport) =
-      Renderer.render(msg, chat, TestProfiles.Native, "k1", RenderContext(liveInteraction = true))
-    assertEquals(liveReport.rungs("f1"), Renderer.Rung.FormModal)
-    assert(liveOps.exists(_.isInstanceOf[VendorOp.OpenForm]))
-    val (noLiveOps, noLiveReport) = Renderer.render(msg, chat, TestProfiles.Native, "k1")
-    assertEquals(noLiveReport.rungs("f1"), Renderer.Rung.FormRunner)
-    val send = sends(noLiveOps).head
-    assert(send.message.chunks.mkString("\n").contains("Name"))
-    assertEquals(send.message.form.map(_.fields.size), Some(2))
-    val (_, tgReport) = Renderer.render(msg, chat, CapabilityProfiles.Telegram, "k1")
-    assertEquals(tgReport.rungs("f1"), Renderer.Rung.FormRunner)
-
-  test("finalize ladder: native edit / reaction reply-quote / replace"):
-    val handle = MessageHandle("test", "dm:u1", "m1")
-    val keep = Some(
-      Controls.postTaken(
-        CallbackToken("dc:undo"),
-        CallbackToken("dc:correct")
-      )
-    )
-    val summary = List(Node.Paragraph(List(Inline.Text("Recorded at 09:03."))))
-    val (nativeOps, nativeReport) =
-      Renderer.renderFinalize(handle, summary, keep, chat, TestProfiles.Native, "fk1")
-    assertEquals(nativeReport.rungs("finalize"), Renderer.Rung.FinalizeNativeEdit)
-    assertEquals(nativeOps.length, 1)
-    assert(nativeOps.head.isInstanceOf[VendorOp.Edit])
-    val (reactionOps, reactionReport) =
-      Renderer.renderFinalize(handle, summary, keep, chat, TestProfiles.Reactions, "fk1")
-    assertEquals(reactionReport.rungs("finalize"), Renderer.Rung.FinalizeReactionReplyQuote)
-    assert(reactionOps.head.isInstanceOf[VendorOp.UnreactAll])
-    val quote = sends(reactionOps).head
-    assertEquals(quote.replyTo, Some(handle))
-    // The kept ChoiceSet posts with its own choice_map row and reaction set.
-    quote.message.controls.head match
-      case RenderedControls.Numbered(_, _, reactions) => assertEquals(reactions, List("1️⃣", "2️⃣"))
-      case other                                      => fail(s"expected numbered, got $other")
-    assertEquals(quote.message.choiceMap.map(_.index), List(1, 2))
-    val (consoleOps, consoleReport) =
-      Renderer.renderFinalize(handle, summary, keep, chat, CapabilityProfiles.Console, "fk1")
-    assertEquals(consoleReport.rungs("finalize"), Renderer.Rung.FinalizeReplaceOnly)
-    assertEquals(consoleOps.length, 1)
-
-  test("text over maxText splits at paragraph boundaries; blocks attach to the last chunk"):
-    val paragraph = "the quick brown fox " * 30 // 600 chars
-    val body = List.fill(9)(Node.Paragraph(List(Inline.Text(paragraph))))
-    val msg = OutboundMessage(
-      body = body,
-      blocks = List(Block.Choices(Controls.postTaken(CallbackToken("dc:u"), CallbackToken("dc:c")))),
-      dedupeKey = "d",
-      correlationId = "c"
-    )
-    val (ops, report) = Renderer.render(msg, chat, TestProfiles.Native, "k1")
-    val send = sends(ops).head
-    assertEquals(send.message.chunks.size, 3)
-    assertEquals(report.splitInto, 3)
-    assert(send.message.chunks.forall(_.length <= 2000))
-    assert(!send.message.chunks.exists(_.isEmpty))
-    assert(send.message.controls.nonEmpty, "blocks attach to the last chunk")
-
-  test("digest paging: the native profile pages at the 25-component cap; the reaction tier keeps one message"):
-    val items = (1 to 9).toList.map { i =>
+  private def digestMessage(items: Int): OutboundMessage =
+    val blocks = (1 to items).toList.map { i =>
       Block.Choices(
         ChoiceSet(
           id = s"digest.item$i",
@@ -203,24 +64,123 @@ class RendererSuite extends munit.FunSuite:
         )
       )
     }
-    val msg = OutboundMessage(
+    OutboundMessage(
       body = List(Node.Paragraph(List(Inline.Text("While I was away.")))),
-      blocks = items,
+      blocks = blocks,
       importance = Importance.Bulk,
       dedupeKey = "d",
       correlationId = "c"
     )
-    val (nativeOps, nativeReport) = Renderer.render(msg, chat, TestProfiles.Native, "k1")
-    assert(nativeReport.paged)
-    assertEquals(nativeOps.size, 2)
-    val page1Buttons = sends(nativeOps).head.message.controls.collect { case RenderedControls.Buttons(rows) =>
-      rows.flatten.size
-    }.sum
-    assertEquals(page1Buttons, 24)
-    val (reactionOps, _) = Renderer.render(msg, chat, TestProfiles.Reactions, "k1")
-    assertEquals(reactionOps.size, 1)
-    val reactions = sends(reactionOps).head.message.controls.collect { case n: RenderedControls.Numbered => n.reactions }
-    assertEquals(reactions.flatten.size, 3, "one reaction set bounded by eventsPerMessageBudget - 1")
+
+  private def buttonCount(message: RenderedMessage): Int =
+    message.controls.collect { case RenderedControls.Buttons(rows) => rows.flatten.size }.sum
+
+  test("reminder on telegram: buttons rung, two rows, Taken success, Skip secondary"):
+    val (ops, report) = Renderer.render(reminderMessage, chat, CapabilityProfiles.Telegram, "k1")
+    assertEquals(report.rungs("reminder.main"), Renderer.Rung.Buttons)
+    assertEquals(report.rungs("reminder.more"), Renderer.Rung.Buttons)
+    val rows = sends(ops).head.message.controls.collect { case RenderedControls.Buttons(rows) => rows }
+    assertEquals(
+      rows.map(_.map(_.map(_.label))),
+      List(List(List("Taken", "Snooze 10m", "Skip")), List(List("Snooze 30m", "Snooze 1h")))
+    )
+    val flat = rows.flatten.flatten
+    assertEquals(flat.find(_.label == "Taken").map(_.style), Some(ChoiceStyle.Success))
+    assertEquals(flat.find(_.label == "Skip").map(_.style), Some(ChoiceStyle.Secondary))
+
+  test("reminder on the console: one numbered legend, numbered continuously across the two sets"):
+    val (ops, report) = Renderer.render(reminderMessage, chat, CapabilityProfiles.Console, "k1")
+    assertEquals(report.rungs("reminder.main"), Renderer.Rung.Numbered)
+    val message = sends(ops).head.message
+    val numbered = message.controls.collect { case n: RenderedControls.Numbered => n }
+    assertEquals(numbered.flatMap(_.choices.map(_.index)), List(1, 2, 3, 4, 5))
+    assert(message.chunks.head.contains("1) Taken 2) Snooze 10m 3) Skip"), message.chunks.head)
+    assertEquals(message.choiceMap.map(_.index), List(1, 2, 3, 4, 5))
+
+  test("a single-select of more than ten choices stays on the buttons rung up to the product limit"):
+    val cs = ChoiceSet(
+      id = "picker",
+      choices = (1 to ControlLimits.MaxButtonsPerMessage).toList.map(i => Choice(s"Zone $i", s"cb:$i"))
+    )
+    val msg = OutboundMessage(body = List(Node.Paragraph(List(Inline.Text("Pick a zone.")))), blocks = List(Block.Choices(cs)), dedupeKey = "d", correlationId = "c")
+    val (ops, report) = Renderer.render(msg, chat, CapabilityProfiles.Telegram, "k1")
+    assertEquals(report.rungs("picker"), Renderer.Rung.Buttons)
+    assertEquals(buttonCount(sends(ops).head.message), ControlLimits.MaxButtonsPerMessage)
+    assert(!report.paged)
+
+  test("multi-select on the console: numbered legend with the typed-reply instruction"):
+    val (ops, report) = Renderer.render(daysMessage, chat, CapabilityProfiles.Console, "k1")
+    assertEquals(report.rungs("wizard.days"), Renderer.Rung.Numbered)
+    val text = sends(ops).head.message.chunks.mkString("\n")
+    assert(text.contains("1) Mon 2) Tue 3) Wed 4) Thu 5) Fri 6) Sat 7) Sun"), text)
+    assert(text.contains(Renderer.MultiSelectInstruction), text)
+
+  test("a form is asked one field per message: the first question is in the text on every profile"):
+    val form = Form(
+      id = "medication.add",
+      title = "Add medication",
+      fields = List(Field("name", "Name", FieldType.Text), Field("dose", "Dose", FieldType.Text)),
+      submit = "cb:submit"
+    )
+    val msg = OutboundMessage(body = Nil, blocks = List(Block.FormBlock(form)), dedupeKey = "d", correlationId = "c")
+    CapabilityProfiles.all.foreach { (name, profile) =>
+      val (ops, report) = Renderer.render(msg, chat, profile, "k1")
+      assertEquals(report.rungs("medication.add"), Renderer.Rung.FormRunner, name)
+      val message = sends(ops).head.message
+      assertEquals(message.form.map(_.fields.map(_.key)), Some(List("name", "dose")), name)
+      assert(message.chunks.head.contains("Add medication — question 1 of 2:"), message.chunks.head)
+    }
+
+  test("finalize ladder: edit in place, else replace and delete, else replace only"):
+    val handle = MessageHandle("test", "dm:u1", "m42")
+    val summary = List(Node.Paragraph(List(Inline.Text("Taken at 09:03."))))
+    val keep = Some(Controls.postTaken(CallbackToken("dc:undo"), CallbackToken("dc:correct")))
+
+    val (editOps, editReport) =
+      Renderer.renderFinalize(handle, summary, keep, chat, CapabilityProfiles.Telegram, "fk1")
+    assertEquals(editReport.rungs("finalize"), Renderer.Rung.FinalizeNativeEdit)
+    val edit = editOps.collect { case e: VendorOp.Edit => e }.head
+    assertEquals(edit.handle, handle)
+    assertEquals(edit.message.choiceMap.map(_.label), List("Undo", "Correct"))
+    assertEquals(editReport.rungs("post_taken.followup"), Renderer.Rung.Buttons)
+
+    val windowed = CapabilityProfiles.Telegram.copy(editOwn = EditCapability.Window(java.time.Duration.ofMinutes(10)))
+    val (replaceOps, replaceReport) =
+      Renderer.renderFinalize(handle, summary, keep, chat, windowed, "fk1", RenderContext(withinEditWindow = false))
+    assertEquals(replaceReport.rungs("finalize"), Renderer.Rung.FinalizeReplaceAndDelete)
+    assertEquals(replaceOps.map(_.productPrefix), List("Send", "Delete"))
+
+    val (consoleOps, consoleReport) =
+      Renderer.renderFinalize(handle, summary, keep, chat, CapabilityProfiles.Console, "fk1")
+    assertEquals(consoleReport.rungs("finalize"), Renderer.Rung.FinalizeReplaceOnly)
+    assertEquals(sends(consoleOps).map(_.replyTo), List(Some(handle)))
+
+  test("text over maxText splits at paragraph boundaries; blocks attach to the last chunk"):
+    val paragraph = "the quick brown fox " * 30 // 600 chars
+    val msg = OutboundMessage(
+      body = List.fill(9)(Node.Paragraph(List(Inline.Text(paragraph)))),
+      blocks = List(Block.Choices(Controls.postTaken(CallbackToken("dc:u"), CallbackToken("dc:c")))),
+      dedupeKey = "d",
+      correlationId = "c"
+    )
+    val (ops, report) = Renderer.render(msg, chat, CapabilityProfiles.Telegram, "k1")
+    val send = sends(ops).head
+    assertEquals(send.message.chunks.size, 2)
+    assertEquals(report.splitInto, 2)
+    assert(send.message.chunks.forall(c => c.nonEmpty && c.length <= CapabilityProfiles.Telegram.maxText))
+    assert(send.message.controls.nonEmpty, "blocks attach to the last chunk")
+
+  test("digest paging: a message carries at most the product limit of buttons; the console keeps one message"):
+    val (ops, report) = Renderer.render(digestMessage(9), chat, CapabilityProfiles.Telegram, "k1")
+    assert(report.paged)
+    assertEquals(sends(ops).map(s => buttonCount(s.message)), List(24, 3))
+    assertEquals(sends(ops).map(_.sendKey), List("k1:p1", "k1:p2"))
+    val (fits, fitsReport) = Renderer.render(digestMessage(8), chat, CapabilityProfiles.Telegram, "k1")
+    assert(!fitsReport.paged)
+    assertEquals(fits.size, 1)
+    val (consoleOps, consoleReport) = Renderer.render(digestMessage(9), chat, CapabilityProfiles.Console, "k1")
+    assert(!consoleReport.paged)
+    assertEquals(consoleOps.size, 1)
 
   test("discreet: previews suppressed and a leftover name wrapped in the vendor spoiler"):
     val named = reminderMessage.copy(discreet = true)
@@ -261,13 +221,13 @@ class RendererSuite extends munit.FunSuite:
       dedupeKey = "d",
       correlationId = "c"
     )
-    val (ops, _) = Renderer.render(msg, chat, TestProfiles.Reactions, "k1")
+    val (ops, _) = Renderer.render(msg, chat, CapabilityProfiles.Console, "k1")
     val entry = sends(ops).head.message.choiceMap.head
     assertEquals(entry.callback, token.wire)
     assertEquals(codec.decode(entry.callback).map(_.subject), Right(subject))
 
-  test("RenderReport names the rung used for every block and for visibility"):
-    val (_, report) = Renderer.render(reminderMessage, chat, TestProfiles.Reactions, "k1")
-    assert(report.rungs.keySet == Set("visibility", "reminder.main", "reminder.more"))
+  test("RenderReport names the rung used for every block"):
+    val (_, report) = Renderer.render(reminderMessage, chat, CapabilityProfiles.Console, "k1")
+    assertEquals(report.rungs.keySet, Set("reminder.main", "reminder.more"))
     assert(report.rungs.values.forall(_.nonEmpty))
 end RendererSuite

@@ -136,7 +136,7 @@ final class WizardHarness:
   def message(text: String): Reply = handle(event(Inbound.MessageReceived(text, None, truncated = false)))
 
   def tap(wire: String, source: Option[MessageHandle] = None): Reply =
-    handle(event(Inbound.InteractionSubmitted(refOf(wire), Nil, source)))
+    handle(event(Inbound.InteractionSubmitted(refOf(wire), source)))
 
   def submitForm(formId: String, submitWire: String, fields: Map[String, String]): Reply =
     handle(event(Inbound.FormSubmitted(formId, refOf(submitWire), fields)))

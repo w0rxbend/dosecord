@@ -348,54 +348,6 @@ class InteractionRecoveryPgSuite extends PgSuite:
     assertEquals(count("inbound_events"), 0L)
     assertEquals(pgUow.transaction(_.outbox.recordedHandle("fake", "unavailable-event")), None)
 
-  private final class PrivateHook(failReply: Boolean) extends InteractionHandle:
-    val responses = new java.util.concurrent.ConcurrentLinkedQueue[RenderedMessage]()
-    override def replyAvailable: Boolean = true
-    override def acked: Boolean = true
-    override def deferUpdate(): Unit = ()
-    override def deferReply(ephemeral: Boolean): Unit = ()
-    override def answer(toast: Option[String]): Unit = ()
-    override def respond(rendered: RenderedMessage): MessageHandle =
-      responses.add(rendered)
-      if failReply then throw ChatError.Retryable("synthetic hook outage")
-      MessageHandle("fake", source.chatId, "private-reply")
-    override def editSource(rendered: RenderedMessage): Unit = fail("private response cannot edit a public source")
-    override def openForm(form: RenderedForm): Unit = fail("not a modal")
-
-  List(false, true).foreach: failHook =>
-    test(s"private hook fail-closed recovery after restart (hook failure=$failHook)"):
-      val pgUow = PgUnitOfWork(dataSource, clock)
-      val fault = FaultUow(pgUow, failAt = 2, afterCommit = false)
-      // The private-hook path needs a vendor that declares ephemeral replies; no shipped profile does.
-      val adapter = FakeAdapter(CapabilityProfiles.Telegram.copy(ephemeral = true))
-      val hook = PrivateHook(failHook)
-      val privateMessage = message("private-outcome").copy(
-        visibility = Visibility.Ephemeral,
-        body = List(Node.Paragraph(List(Inline.Text("SYNTHETIC_PRIVATE_DETAIL"))))
-      )
-      val handler = new ChatHandler:
-        override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
-          Reply(replace = Some(privateMessage))
-      ox.supervised:
-        val mediator = ChatMediator(fault, Map("fake" -> adapter), codec, handler, clock)
-        mediator.push(inbound("private-event").copy(interaction = Some(hook)))
-        await(if failHook then !hook.responses.isEmpty else fault.faults.get() == 1)
-      assertEquals(count("outbox_messages"), 0L)
-      assert(adapter.ops.isEmpty, "private payload never reaches a channel send/edit")
-      ox.supervised:
-        val restarted = ChatMediator(pgUow, Map("fake" -> adapter), codec, handler, clock)
-        restarted.push(inbound("private-event"))
-        await(adapter.sent.nonEmpty)
-      assertEquals(adapter.sent.size, 1)
-      assert(!adapter.sent.head._2.chunks.mkString.contains("SYNTHETIC_PRIVATE_DETAIL"))
-      assertEquals(adapter.ops.count(_.isInstanceOf[VendorOp.Edit]), 0)
-      val later: Clock = () => now.plusSeconds(31)
-      assertEquals(
-        OutboxDispatcher(pgUow, Map("fake" -> adapter), CatalogueOutboxRenderer(pgUow, codec, later), later)
-          .dispatchOnce(),
-        0
-      )
-
   test("source edit retries exhaust the existing attempt budget without named fallback"):
     val pgUow = PgUnitOfWork(dataSource, clock)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)

@@ -11,9 +11,7 @@ import dosegram.core.ports.Tx
 import java.util.UUID
 
 object FormRunner:
-  /** Reserved answers key holding the form's submit token wire, so a completed run emits a FormSubmitted whose callback
-    * is identical to the native modal path's.
-    */
+  /** Reserved answers key holding the form's submit token wire, which a completed run's FormSubmitted carries. */
   private[chat] val SubmitKey = "_submit"
 
   enum AnswerOutcome:
@@ -21,9 +19,8 @@ object FormRunner:
     case Advanced(nextFieldIndex: Int)
     case Completed(submitted: Inbound.FormSubmitted)
 
-/** The mediator FormRunner (DESIGN.md section 4.3, form ladder rung 2): on tiers without native modals the engine asks
-  * one field per message, keeps partial answers in `form_runs` and emits exactly one `FormSubmitted` — equal to the
-  * modal path's, so the core never learns which happened.
+/** The mediator FormRunner (DESIGN.md section 4.3): the engine asks one field per message, keeps partial answers in
+  * `form_runs` and emits exactly one `FormSubmitted`.
   */
 final class FormRunner(codec: CallbackCodec):
   import FormRunner.*

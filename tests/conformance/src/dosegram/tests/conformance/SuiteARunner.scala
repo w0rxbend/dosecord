@@ -82,8 +82,6 @@ object SuiteARunner:
         ()
       case Step.Delete(messageId, chat) =>
         aut.adapter.delete(handleOf(wiring, aut, messageId, chat))
-      case Step.React(messageId, emoji, on, chat) =>
-        aut.adapter.react(handleOf(wiring, aut, messageId, chat), emoji, on, txnKey = "conformance:react")
       case Step.RegisterCommands(names) =>
         aut.adapter.registerCommands(names.map(n => CommandSpec(n, s"conformance command $n")))
       case Step.InjectFault(fault)    => aut.server.failNext(fault)
@@ -98,20 +96,6 @@ object SuiteARunner:
         )
       case Step.ExerciseClaimedCapabilities =>
         state.errors ++= exerciseClaimedCapabilities(aut, wiring)
-      case Step.OpenForm =>
-        val interaction = aut.sink.all.lastOption
-          .flatMap(_.interaction)
-          .getOrElse(
-            throw Scenario.ScenarioFormatException(
-              scenario.name,
-              "openForm step requires a delivered callback with a live interaction"
-            )
-          )
-        interaction.openForm(
-          scenario.form.getOrElse(
-            throw Scenario.ScenarioFormatException(scenario.name, "openForm step requires a form field")
-          )
-        )
 
   private def chatRef(wiring: AdapterWiring, chat: Option[String]): ChatRef =
     chat.map(id => ChatRef(wiring.vendor, id)).getOrElse(wiring.defaultChat)
@@ -135,9 +119,7 @@ object SuiteARunner:
     val choice = RenderedChoice(index = 1, label = "One", callback = "dc:conformance")
     kind match
       case "buttons" => RenderedControls.Buttons(List(List(choice)))
-      case "select"  =>
-        RenderedControls.SelectMenu(id = "conformance", choices = List(choice), minSelect = 1, maxSelect = 1)
-      case other => throw Scenario.ScenarioFormatException("scenario", s"unknown controls kind '$other'")
+      case other     => throw Scenario.ScenarioFormatException("scenario", s"unknown controls kind '$other'")
 
   /** Capability honesty: every capability the profile claims must work when exercised (ROADMAP M0.13 acceptance: a
     * profile claiming `buttons` but rejecting button sends fails here). Ops the profile does not claim are never called
@@ -160,18 +142,6 @@ object SuiteARunner:
           "conformance:buttons"
         )
         ()
-    if profile.select then
-      attempt("select"):
-        aut.adapter.send(
-          chat,
-          RenderedMessage(chunks = List("Pick"), controls = List(controlsOf("select"))),
-          "conformance:select"
-        )
-        ()
-    if profile.ephemeral then
-      attempt("ephemeral"):
-        aut.adapter.send(chat, RenderedMessage(chunks = List("ghost"), ephemeral = true), "conformance:ephemeral")
-        ()
     if profile.silentDelivery then
       attempt("silentDelivery"):
         aut.adapter.send(chat, RenderedMessage(chunks = List("quiet"), silent = true), "conformance:silent")
@@ -183,40 +153,19 @@ object SuiteARunner:
     if profile.deleteOwn != DeleteCapability.NoDelete then
       attempt("deleteOwn"):
         aut.adapter.delete(probe)
-    if profile.botReactions then
-      attempt("botReactions"):
-        aut.adapter.react(probe, "1️⃣", on = true, txnKey = "conformance:react")
     if profile.nativeCommands then
       attempt("nativeCommands"):
         aut.adapter.registerCommands(List(CommandSpec("conformance", "capability probe")))
-    // Interaction-backed capabilities need a live vendor interaction: deliver a callback and use its handle.
-    if profile.transientAck || profile.modal then
+    // The single-shot answer needs a live vendor interaction: deliver a callback and use its handle.
+    if profile.transientAck then
       aut.server.deliver(
         WireEvent.Callback("conformance-cb", wiring.defaultChat.chatId, "dc:conformance", probe.messageId)
       )
       aut.sink.all.lastOption.flatMap(_.interaction) match
-        case None =>
-          failures += s"profile claims '${
-              if profile.transientAck then "transientAck" else "modal"
-            }' but a callback produced no live interaction"
+        case None => failures += "profile claims 'transientAck' but a callback produced no live interaction"
         case Some(interaction) =>
-          if profile.transientAck then
-            attempt("transientAck"):
-              if interaction.acked then () else interaction.answer(None)
-          if profile.modal then
-            attempt("modal"):
-              // A modal must be the initial acknowledgement, never the transient-ack probe's second ack.
-              aut.server.deliver(
-                WireEvent.Callback("conformance-modal", wiring.defaultChat.chatId, "dc:conformance", probe.messageId)
-              )
-              aut.sink.all.last.interaction.get.openForm(
-                RenderedForm(
-                  "conformance",
-                  "Conformance",
-                  List(RenderedField("k", "K", FieldType.Text, required = true, None, Nil)),
-                  "dc:conformance"
-                )
-              )
+          attempt("transientAck"):
+            if interaction.acked then () else interaction.answer(None)
     failures.toList
 
   // ---------- Expectations ----------
@@ -306,11 +255,6 @@ object SuiteARunner:
         val deadline = withinSeconds.getOrElse(wiring.profile.ackDeadline.map(_.getSeconds).getOrElse(0L))
         val first = aut.server.acks.headOption
         check(state, s"no ack observed before the deadline (${deadline}s)", first.isDefined)
-      case Expect.ModalPayloadContains(values) =>
-        val payload = aut.server.modalPayloads.headOption
-        check(state, "no raw modal payload observed", payload.isDefined)
-        payload.foreach: raw =>
-          values.foreach(v => check(state, s"modal payload missing '$v': $raw", raw.contains(v)))
 
   private def check(state: RunState, clue: => String, ok: Boolean): Unit =
     if !ok then state.errors += clue

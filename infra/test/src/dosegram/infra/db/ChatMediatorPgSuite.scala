@@ -86,24 +86,11 @@ class ChatMediatorPgSuite extends PgSuite:
   private final class RecordingInteractionHandle extends InteractionHandle:
     val calls = new ConcurrentLinkedQueue[String]()
     @volatile private var ackedFlag = false
-    override def deferUpdate(): Unit =
-      calls.add("deferUpdate")
-      ackedFlag = true
-    override def deferReply(ephemeral: Boolean): Unit =
-      calls.add(s"deferReply($ephemeral)")
-      ackedFlag = true
     override def answer(toast: Option[String]): Unit =
       calls.add(s"answer(${toast.getOrElse("")})")
       ackedFlag = true
-    override def replyAvailable: Boolean = true
-    override def respond(rendered: RenderedMessage): MessageHandle =
-      calls.add(s"respond(${rendered.chunks.mkString(" ")})")
-      MessageHandle("fake", "chat-1", "r1")
     override def editSource(rendered: RenderedMessage): Unit =
       calls.add(s"editSource(${rendered.chunks.mkString(" ")})")
-    override def openForm(form: RenderedForm): Unit =
-      calls.add(s"openForm(${form.id})")
-      ackedFlag = true
     override def acked: Boolean = ackedFlag
 
   private final class RecordingHandler(reply: InboundEvent => Reply) extends ChatHandler:
@@ -126,9 +113,6 @@ class ChatMediatorPgSuite extends PgSuite:
       inner.edit(handle, rendered)
     )
     override def delete(handle: MessageHandle): Unit = around(inner.delete(handle))
-    override def react(handle: MessageHandle, emoji: String, on: Boolean, txnKey: String): Unit = around(
-      inner.react(handle, emoji, on, txnKey)
-    )
     override def registerCommands(specs: List[CommandSpec]): Unit = around(inner.registerCommands(specs))
     override def resolveChat(identity: PlatformIdentity): ChatRef = around(inner.resolveChat(identity))
     override def renderText(text: RichText): List[String] = around(inner.renderText(text))
@@ -303,7 +287,7 @@ class ChatMediatorPgSuite extends PgSuite:
 
       m.push(
         event(
-          Inbound.InteractionSubmitted(tamperedRef(token("dose.taken", UUID.randomUUID())), Nil, None),
+          Inbound.InteractionSubmitted(tamperedRef(token("dose.taken", UUID.randomUUID())), None),
           "evt-tampered",
           interaction = Some(handle)
         )
@@ -327,8 +311,7 @@ class ChatMediatorPgSuite extends PgSuite:
       seedLinkedAccount()
       val pausable = PausableDataSource(dataSource)
       val uow = PgUnitOfWork(pausable, Clock.system)
-      // The asserted deferUpdate ack needs a deferrable vendor; no shipped profile is one.
-      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram.copy(deferrable = true)))
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
       val handle = RecordingInteractionHandle()
@@ -337,16 +320,16 @@ class ChatMediatorPgSuite extends PgSuite:
       try
         m.push(
           event(
-            Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), Nil, None),
+            Inbound.InteractionSubmitted(callbackRef(token("dose.taken", UUID.randomUUID())), None),
             "evt-paused",
             interaction = Some(handle)
           )
         )
         await(
-          handle.calls.asScala.exists(_.contains(ReminderCopy.checkingOutcome)),
-          s"the failure toast was delivered: ${handle.calls.asScala.mkString}"
+          adapter.inner.synchronized(adapter.inner.sent).exists(_._2.chunks.contains(ReminderCopy.checkingOutcome)),
+          "the failure notice was delivered as a message once the single answer was spent"
         )
-        assertEquals(handle.calls.peek, "deferUpdate", "the ack landed before the failed database work")
+        assertEquals(handle.calls.peek, "answer()", "the ack landed before the failed database work")
         assertEquals(
           countSql("SELECT count(*) FROM inbound_events WHERE processed_at IS NULL"),
           0L,

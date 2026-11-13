@@ -10,18 +10,18 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 class MedicationWizardRigSuite extends munit.FunSuite:
-  test("modal transcript action waits for its final send before returning a snapshot"):
+  test("a tap transcript action waits for its final send before returning a snapshot"):
     ox.supervised:
       val entered = CountDownLatch(1)
       val release = CountDownLatch(1)
       val rig = MedicationWizardRig(
-        Profile.Native,
+        Profile.Telegram,
         message =>
           if message.chunks.exists(_.contains("Let's add a medication")) then
             entered.countDown()
             if !release.await(10, TimeUnit.SECONDS) then throw TimeoutException("final send was not released")
       )
-      rig.bootstrapNative()
+      rig.bootstrapTelegram()
       rig.command("menu")
       rig.tapLabel(MenuCopy.mainPrompt, "Medications")
       val worker = Executors.newSingleThreadExecutor()
@@ -34,9 +34,8 @@ class MedicationWizardRigSuite extends munit.FunSuite:
           catch case _: TimeoutException => None
         release.countDown()
         val transcript = action.get(5, TimeUnit.SECONDS)
-        assert(sendEntered, "the send after the modal must reach the controlled delivery boundary")
-        assertEquals(prematureSnapshot, None, "an opened modal is not completion of the event's delivery plan")
-        assert(transcript.exists(_.startsWith("modal: medication.add")))
+        assert(sendEntered, "the send must reach the controlled delivery boundary")
+        assertEquals(prematureSnapshot, None, "the snapshot must wait for the event's delivery plan")
         assert(transcript.exists(_.contains("Let's add a medication")), "the snapshot must include the final send")
         assertEquals(rig.uow.inboundEvents.all.size, 6, "completion must not add fixture-only inbound rows")
       finally

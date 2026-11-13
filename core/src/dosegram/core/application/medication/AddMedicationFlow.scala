@@ -28,8 +28,8 @@ import scala.util.matching.Regex
 /** The add-medication wizard (ROADMAP M1.9, R11/R13/R17/R18; flow per docs/MEDICATION_REMINDER_UX.md): a declarative
   * `Flow` over the M0.12b engine.
   *
-  *   - step 1 `Form(name, dose, times, instructions)` — one modal on vendors with modal capability, four FormRunner
-  *     questions on the text tiers; times is an `HH:MM` list, empty = as-needed; instructions optional.
+  *   - step 1 `Form(name, dose, times, instructions)` — four FormRunner questions; times is an `HH:MM` list, empty =
+  *     as-needed; instructions optional.
   *   - step 2 (only when times were given) days `[Every day][Weekdays][Choose days...]`, the multi-select day picker
   *     behind the last.
   *   - step 3 one confirm card `Vitamin D 1000 IU, every day 09:00 Europe/Kyiv [Create][Change days][Change timezone]
@@ -206,7 +206,6 @@ object AddMedicationFlow:
         id = "days_custom",
         kind = StepKind.Choices(
           _ => WizardCopy.weekdayLabels.map(label => label -> label),
-          ChoiceLayout.Select,
           minSelect = 1,
           maxSelect = 7
         ),
@@ -226,7 +225,7 @@ object AddMedicationFlow:
       ),
       "tz" -> Step(
         id = "tz",
-        kind = StepKind.Choices(_ => AccountCreateFlow.pickerOptions(clock.now()), ChoiceLayout.Select),
+        kind = StepKind.Choices(_ => AccountCreateFlow.pickerOptions(clock.now())),
         render = data =>
           data.get(TzErrorKey).filter(_.nonEmpty).map(paragraph).toList ++
             List(paragraph(IdentityCopy.timezonePrompt)),
@@ -252,7 +251,7 @@ object AddMedicationFlow:
       ),
       "confirm" -> Step(
         id = "confirm",
-        kind = StepKind.Choices(confirmOptions, ChoiceLayout.Buttons),
+        kind = StepKind.Choices(confirmOptions),
         render = confirmRender,
         accept = {
           case (StepInput.Chosen(CreateKey | UpdateKey), _) => Right(StepTransition.Complete)
