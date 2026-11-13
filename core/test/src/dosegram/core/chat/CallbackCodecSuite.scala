@@ -229,7 +229,12 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         71 -> "mood.energy",
         72 -> "mood.undo",
         80 -> "stats.show",
-        81 -> "stats.image"
+        81 -> "stats.image",
+        90 -> "sleep.start",
+        91 -> "sleep.up",
+        92 -> "sleep.rate",
+        93 -> "sleep.undo",
+        94 -> "sleep.start_undo"
       )
     )
 

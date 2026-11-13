@@ -18,6 +18,11 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   case WaterImage extends Pending(6, 0)
   case DayImage extends Pending(7, 0)
 
+  case SleepCard extends Pending(9, 0)
+
+  /** A typed night or nap; it is typed again after the consent, because the times do not fit in a button. */
+  case SleepTyped extends Pending(10, 0)
+
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
 
@@ -33,15 +38,17 @@ private[capture] object Pending:
 
   def of(kind: Int, argument: Int): Option[Pending] =
     kind match
-      case 1 => Some(WaterCard)
-      case 2 => Some(WaterAdd(argument))
-      case 3 => Some(MoodPrompt)
-      case 4 => Some(MoodCheckIn(argument))
-      case 5 => Some(Stats)
-      case 6 => Some(WaterImage)
-      case 7 => Some(DayImage)
-      case 8 => MedicationScreen.values.find(_.code == argument).map(Medication(_))
-      case _ => None
+      case 1  => Some(WaterCard)
+      case 2  => Some(WaterAdd(argument))
+      case 3  => Some(MoodPrompt)
+      case 4  => Some(MoodCheckIn(argument))
+      case 5  => Some(Stats)
+      case 6  => Some(WaterImage)
+      case 7  => Some(DayImage)
+      case 8  => MedicationScreen.values.find(_.code == argument).map(Medication(_))
+      case 9  => Some(SleepCard)
+      case 10 => Some(SleepTyped)
+      case _  => None
 
 /** The two stages of a consent (BUX-CONS-02) and the two ways out of them. The codes are the wire form. */
 private[capture] enum ConsentStage(val code: Int):

@@ -16,6 +16,7 @@ import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.SleepCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.ports.AccountSettings
@@ -339,6 +340,48 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(view.doses, Some(List(DoseMark.Open)))
       assertEquals(view.water.map(water => (water.totalMl, water.goalMl)), Some((500, 2000)))
       assertEquals(view.mood.map(_.valence.step), Some(4))
+
+  // ---------- Sleep ----------
+
+  test("/sleep before the consent shows stage 1 and records nothing"):
+    withChat(Profile.Telegram): chat =>
+      assertEquals(chat.rig.command("sleep"), List(ConsentCopy.statement(ConsentPurpose.Sleep)))
+      assertEquals(chat.world.tracking.sleep.live, Nil)
+
+  test("Going to sleep, then I'm up seven hours later, is one night from the check-ins, rated with one tap"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      assertEquals(chat.rig.command("sleep"), List(SleepCopy.noNight))
+      val started = chat.rig.tapOn(SleepCopy.noNight, SleepCopy.GoingToSleep)
+      assertEquals(texts(started), List(SleepCopy.started("03:00")))
+      assertEquals(labels(started), List(SleepCopy.ImUp, "Undo"))
+      chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofHours(7))
+      val woke = chat.rig.tapOn(SleepCopy.started("03:00"), SleepCopy.ImUp)
+      val night = "Slept 03:00 to 10:00, 7 h 00 min (your check-ins)."
+      assertEquals(texts(woke), List(s"$night\n\n${SleepCopy.qualityAsk}"))
+      val rated = chat.rig.tapOn(SleepCopy.qualityAsk, "4")
+      assertEquals(texts(rated), List(s"$night\n\n${SleepCopy.rated(4)}"))
+      assertEquals(chat.world.tracking.sleep.live.map(_.quality.map(_.step)), List(Some(4)))
+      assertEquals(chat.rig.command("sleep"), List(night))
+
+  test("I'm up without an open night records no night and asks for the times"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      chat.rig.command("sleep")
+      chat.rig.tapOn(SleepCopy.noNight, SleepCopy.GoingToSleep)
+      chat.rig.tapOn(SleepCopy.started("03:00"), "Undo")
+      assertEquals(chat.rig.command("sleep"), List(SleepCopy.noNight))
+      chat.world.tracking.sleep.live.foreach(night => fail(s"no night: $night"))
+
+  test("a typed night is the latest night with those clock times; a typed length is not guessed"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      val typed = "Slept 23:30 to 07:10, 7 h 40 min (your entry)."
+      assertEquals(chat.rig.line("slept 23:30 7:10"), List(s"$typed\n\n${SleepCopy.qualityAsk}"))
+      assertEquals(chat.rig.line("slept 7h"), List(SleepCopy.ask))
+      assertEquals(chat.rig.line("/sleep 22:00 6:00"), List(SleepCopy.nightExists))
+      assertEquals(chat.rig.line("/sleep soon"), List(SleepCopy.usage))
+      assertEquals(chat.world.tracking.sleep.live.map(_.duration.toMinutes), List(460L))
 
   test("with the sleep consent and a sleep goal the daily summary carries last night, in the text and on the card"):
     val cards = RecordingCards()

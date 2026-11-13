@@ -105,6 +105,18 @@ object CommandRegistry:
     args = List(CommandArg("step", "A step from 1 to 5; omitted shows the prompt", required = false))
   )
 
+  val Sleep: CommandSpec = CommandSpec(
+    name = "sleep",
+    description = "Log sleep.",
+    args = List(
+      CommandArg(
+        "times",
+        "Bedtime and wake time, e.g. /sleep 23:30 7:10; omitted shows the sleep card",
+        required = false
+      )
+    )
+  )
+
   val Stats: CommandSpec = CommandSpec(
     name = "stats",
     description = "Show statistics.",
@@ -127,7 +139,7 @@ object CommandRegistry:
     * ledger (BUX-CMD-08): [[Application.withCapture]] handles them, [[all]] stays the list of a composition without
     * one.
     */
-  val capture: List[CommandSpec] = List(Water, Mood, Stats, Privacy)
+  val capture: List[CommandSpec] = List(Water, Mood, Sleep, Stats, Privacy)
 
   /** The command list of the composition with capture, with the capture commands ahead of `/menu`. */
   val withCapture: List[CommandSpec] =

@@ -36,7 +36,12 @@ object ActionRegistry:
     ActionEntry(71, "mood.energy", requiresSession = false),
     ActionEntry(72, "mood.undo", requiresSession = false),
     ActionEntry(80, "stats.show", requiresSession = false),
-    ActionEntry(81, "stats.image", requiresSession = false)
+    ActionEntry(81, "stats.image", requiresSession = false),
+    ActionEntry(90, "sleep.start", requiresSession = false),
+    ActionEntry(91, "sleep.up", requiresSession = false),
+    ActionEntry(92, "sleep.rate", requiresSession = false),
+    ActionEntry(93, "sleep.undo", requiresSession = false),
+    ActionEntry(94, "sleep.start_undo", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

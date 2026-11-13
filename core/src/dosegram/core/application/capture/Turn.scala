@@ -88,6 +88,11 @@ private[capture] object CaptureActions:
   val MoodUndo: ActionEntry = named("mood.undo")
   val StatsShow: ActionEntry = named("stats.show")
   val StatsImage: ActionEntry = named("stats.image")
+  val SleepStart: ActionEntry = named("sleep.start")
+  val SleepUp: ActionEntry = named("sleep.up")
+  val SleepRate: ActionEntry = named("sleep.rate")
+  val SleepUndo: ActionEntry = named("sleep.undo")
+  val SleepStartUndo: ActionEntry = named("sleep.start_undo")
 
   val all: Set[ActionEntry] = Set(
     ConsentStep,
@@ -101,7 +106,12 @@ private[capture] object CaptureActions:
     MoodEnergy,
     MoodUndo,
     StatsShow,
-    StatsImage
+    StatsImage,
+    SleepStart,
+    SleepUp,
+    SleepRate,
+    SleepUndo,
+    SleepStartUndo
   )
 
   private def named(name: String): ActionEntry =

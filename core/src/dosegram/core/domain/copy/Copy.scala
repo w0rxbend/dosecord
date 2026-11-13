@@ -30,5 +30,6 @@ object Copy:
       WaterCopy.entries ++
       CheckInCopy.entries ++
       StatsCardCopy.entries ++
+      SleepCopy.entries ++
       InputCopy.entries
 end Copy

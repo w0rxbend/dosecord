@@ -13,6 +13,7 @@ import dosegram.core.chat.ChatHandler
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.SleepCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.hydration.AmountOutOfBounds
@@ -22,6 +23,8 @@ import dosegram.core.domain.hydration.WaterText
 import dosegram.core.domain.hydration.WaterTextParser
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.sleep.SleepText
+import dosegram.core.domain.sleep.SleepTextParser
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DoseMark
@@ -47,6 +50,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val water = WaterChat(parts.hydration, parts.cards, tokens)
   private val mood = MoodChat(parts.mood, parts.cards, tokens)
   private val stats = StatsChat(parts, tokens)
+  private val sleep = SleepChat(parts.sleep, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -79,6 +83,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case WaterCommand => waterCommand(turn, argument)
       case MoodCommand  => moodCommand(turn, argument)
       case StatsCommand => statsCommand(turn, argument)
+      case SleepCommand => sleepCommand(turn, argument)
       // The fourth capture command, `/privacy`: `route` lets no other name in.
       case _ => consent.privacy(turn)
 
@@ -94,6 +99,16 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         case WaterText.Amount(amount) => recordWater(turn, amount.millilitres)(water.typed(turn, amount))
         case WaterText.OutOfBounds    => turn.toast(WaterCopy.tooMuch)
         case WaterText.MissingUnit | WaterText.NotWater => turn.toast(WaterCopy.usage)
+
+  private def sleepCommand(turn: Turn, argument: String): Reply =
+    if argument.isEmpty then consent.guarded(turn, ConsentPurpose.Sleep, Pending.SleepCard)(sleep.card(turn))
+    else
+      SleepTextParser.times(argument) match
+        case Some((bedtime, wakeTime)) => recordSleep(turn, SleepText.Night(bedtime, wakeTime))
+        case None                      => turn.toast(SleepCopy.usage)
+
+  private def recordSleep(turn: Turn, text: SleepText): Reply =
+    consent.guarded(turn, ConsentPurpose.Sleep, Pending.SleepTyped)(sleep.typed(turn, text))
 
   private def moodCommand(turn: Turn, argument: String): Reply =
     if argument.isEmpty then consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodPrompt)(mood.prompt(turn))
@@ -112,7 +127,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case WaterText.MissingUnit | WaterText.NotWater =>
         text.trim match
           case MoodLine(step) => step.toIntOption.flatMap(Valence.of).map(recordMood(turn, _))
-          case _              => None
+          case _              =>
+            SleepTextParser.free(text) match
+              case SleepText.NotSleep => None
+              case sleepText          => Some(recordSleep(turn, sleepText))
 
   private def recordWater(turn: Turn, millilitres: Int)(record: => Reply): Reply =
     consent.guarded(turn, ConsentPurpose.Hydration, Pending.WaterAdd(millilitres))(record)
@@ -122,9 +140,12 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
 
   private def onTap(turn: Turn, ref: CallbackRef): Reply =
     ActionRegistry.byId(ref.actionId) match
-      case Some(CaptureActions.WaterUndo)  => water.undo(turn, ref.subject)
-      case Some(CaptureActions.MoodEnergy) => mood.energyStep(turn, ref.subject, ref.value)
-      case Some(CaptureActions.MoodUndo)   => mood.undo(turn, ref.subject)
+      case Some(CaptureActions.WaterUndo)      => water.undo(turn, ref.subject)
+      case Some(CaptureActions.MoodEnergy)     => mood.energyStep(turn, ref.subject, ref.value)
+      case Some(CaptureActions.MoodUndo)       => mood.undo(turn, ref.subject)
+      case Some(CaptureActions.SleepRate)      => sleep.rate(turn, ref.subject, ref.value)
+      case Some(CaptureActions.SleepUndo)      => sleep.undo(turn, ref.subject)
+      case Some(CaptureActions.SleepStartUndo) => sleep.undoStart(turn, ref.subject)
       // Every other button names the account it was made for: a tap from another account is a stale button.
       case Some(action) if ref.subject == turn.accountId => onAccountTap(turn, action, ref.value)
       case _                                             => stale(turn)
@@ -140,6 +161,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.WaterImage      => imageOf(turn, Pending.WaterImage)(water.image(turn))
       case CaptureActions.MoodCheckIn     => Valence.of(value.toInt).map(recordMood(turn, _)).getOrElse(stale(turn))
       case CaptureActions.StatsShow       => stats.show(turn, value)
+      case CaptureActions.SleepStart      => sleep.goingToSleep(turn)
+      case CaptureActions.SleepUp         => sleep.wakeUp(turn)
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
       case _                              => stale(turn)
 
@@ -163,6 +186,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
       case Pending.Medication(screen)    => openMedication(fresh, screen)
+      case Pending.SleepCard             => sleep.card(fresh)
+      case Pending.SleepTyped            => sleep.card(fresh)
 
   /** The medication screen the consent was asked for, as its own command answers it. */
   private def openMedication(turn: Turn, screen: MedicationScreen): Reply =
@@ -196,6 +221,7 @@ private object CaptureHandler:
   val WaterCommand: String = CommandRegistry.Water.name
   val MoodCommand: String = CommandRegistry.Mood.name
   val StatsCommand: String = CommandRegistry.Stats.name
+  val SleepCommand: String = CommandRegistry.Sleep.name
   val commandNames: Set[String] = CommandRegistry.capture.map(_.name).toSet
 
   /** Free text is parsed before the consent is known, so a glass has the default size here; [[WaterChat.typed]] sizes
