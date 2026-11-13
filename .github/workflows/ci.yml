@@ -88,6 +88,14 @@ jobs:
       - uses: actions/checkout@v7
       - run: scripts/check-sql-now.sh
 
+  # ADR-002 addendum of 2026-11-13: real data exists, so a committed Flyway
+  # migration is never edited; every schema change is a new versioned migration.
+  frozen-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/check-frozen-migrations.sh
+
   doc-lint:
     runs-on: ubuntu-latest
     steps:

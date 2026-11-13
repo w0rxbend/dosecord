@@ -765,7 +765,7 @@ API-20. A header test asserts the full set on `/app/` and `/api/v1/`, asserts th
 | Topic | Convention |
 |---|---|
 | Engine | PostgreSQL 18, extension `citext` no longer needed once `handle` is removed. |
-| Migrations | Flyway, plain SQL. No Git tag exists, so the baseline `V1__baseline.sql` is still edited in place (roadmap rule; brief 01, section 7). The pivot reshapes `V1` once: renames, removals, encryption columns and row-level security. From tag `0.1.0` every change is a new versioned migration in expand-and-contract form. DATA-01: `scripts/flyway-validate.sh` passes on an empty database and the migration is idempotent under the session advisory lock. |
+| Migrations | Flyway, plain SQL. The baseline `V1__baseline.sql` is frozen since 2026-11-13, when the owner's live use began (ADR-002 addendum, section 10.17): every change is a new versioned migration (`V2`, `V3` and so on) in expand-and-contract form, and `scripts/check-frozen-migrations.sh` fails on an edited, missing or unlisted migration. The reshape the pivot planned for `V1` (renames, removals, encryption columns and row-level security) arrives as such migrations. DATA-01: `scripts/flyway-validate.sh` passes on an empty database and the migration is idempotent under the session advisory lock. |
 | Roles | `dosegram_migrator` (owner, migrations only), `dosegram_app` (no ownership, no `BYPASSRLS`), `dosegram_worker` (same plus `EXECUTE` on the claim functions), `dosegram_erasure` (may delete from append-only tables while the session setting `dosegram.erasure = 'on'` is set). |
 | Account key | Every account-scoped table has `account_id uuid NOT NULL`. The existing mix of `user_id` and `account_id` is unified to `account_id`; the table `users` becomes `accounts`. |
 | Row-level security | DATA-02. Every account-scoped table has `ENABLE` and `FORCE ROW LEVEL SECURITY` and a policy `USING (account_id = current_setting('app.account_id')::uuid)` with the same `WITH CHECK`. A schema test lists every table with an `account_id` column and fails if one lacks the policy. |
@@ -964,7 +964,7 @@ BIL-01. Reminders, logging, export and deletion never check an entitlement.
 
 ### 10.17 Schema areas present in the baseline, and how a track adds its own
 
-State of `V1__baseline.sql` on 2026-11-13. The baseline is one file that is edited in place until checkpoint CP2-f (ROADMAP section 3, "Order inside G2"). It is laid out in areas, each under its own banner comment, and the rules below let parallel tracks add tables without touching the area of another track.
+State of the schema on 2026-11-13. The baseline `V1__baseline.sql` is frozen: the owner's live use began that day, so the file is never edited again (ADR-002 addendum, which supersedes ROADMAP RQ-2 and RQ-13). It is the file of commit `d57873f`, the schema the owner's live database was created with (Flyway checksum `1193628809`), and the local Git tag `schema-baseline-v1` marks the commit that recorded the freeze. Every schema change from then on is a new versioned migration, `V2`, `V3` and so on. `scripts/check-frozen-migrations.sh`, in the standard gate and in CI, compares every migration with the SHA-256 in `scripts/frozen-migrations.sha256` and fails when one changed, is missing or is not listed. The baseline is laid out in areas, each under its own banner comment; a later migration keeps the same banners.
 
 | Area (banner in the file) | Tables | Owner module and code | Reached through |
 |---|---|---|---|
@@ -977,7 +977,7 @@ State of `V1__baseline.sql` on 2026-11-13. The baseline is one file that is edit
 | Daily rollups | `daily_rollups`, `rollup_dirty` and the triggers that fill the queue | insights-and-correlations; drained by the rollup worker of `app` | `Tx.tracking.rollups`, `Tx.tracking.doseHistory` |
 | Consent ledger | `consent_events`, `consent_state` | identity-and-consent; `PgConsentLedger` | `Tx.consents` |
 | Stores of the edges | `render_assets`, `telegram_file_cache`, `miniapp_sessions`, `idempotency_keys` | visual-reports, the Telegram adapter, the API; `PgRenderAssets`, `PgTelegramFileCache`, `PgMiniAppSessions`, `PgIdempotencyKeys` | their own short statements on the pool, never the transaction of a chat event |
-| Day profile, nudge plans and prompts | `day_profiles`, `prompt_schedules`, `prompt_occurrences` | schedule-and-reminders (ADR-023); `PgReminderRepositories`; written by the `PromptLoop` of `app` and the `/reminders` handler | `Tx.reminders.dayProfiles`, `Tx.reminders.prompts` |
+| Day profile, nudge plans and prompts (`V2__day_profile_nudge_plans_and_prompts.sql`) | `day_profiles`, `prompt_schedules`, `prompt_occurrences` | schedule-and-reminders (ADR-023); `PgReminderRepositories`; written by the `PromptLoop` of `app` and the `/reminders` handler | `Tx.reminders.dayProfiles`, `Tx.reminders.prompts` |
 | Grants | the role grants of every table above | the track that owns the table | n/a |
 
 Differences from the tables of sections 10.2 and 10.11 that this state has, each to be closed by the named slice:
@@ -989,14 +989,15 @@ Differences from the tables of sections 10.2 and 10.11 that this state has, each
 - `miniapp_sessions` holds the hashes as hexadecimal text and no expiry or revocation columns: the session policy computes expiry from `created_at` and `last_used_at`.
 - `idempotency_keys` holds `request_hash`, `response_json` (not encrypted, G2.4b) and `created_at`; a row without a response is a request in flight.
 
-Rules for a track that adds tables:
+Rules for a track that changes the schema:
 
-1. Add a new banner section for the area immediately above the `Grants` banner. Do not insert into, reorder or reformat the section of another area.
-2. Every table that holds a record of a user has `account_id uuid NOT NULL REFERENCES users`. An entry table follows the shape of section 10.1 and gets the two triggers of the tracking area (immutable rows, and the rollup queue when the domain has a rollup).
-3. Append the grants of the new tables at the end of the `Grants` section, in one block with a comment that names the area. The blanket `GRANT SELECT, INSERT, UPDATE ON ALL TABLES` covers a new table; `DELETE` is granted per table and only where a job or a replacement needs it.
-4. A new value of a `CHECK` list or of an enum in the area of another track (a new `domain` of `daily_rollups`, a new consent purpose, a new `cancel_reason`) is a one-line edit of that line and nothing else in that section.
-5. Repositories of a new area join `Tx` as one repository group (one member, like `tracking`), implemented in `PgUnitOfWork`. An in-memory double that does not use the group answers it with a failure that names the group.
-6. `MigrationSuite` lists the tables of the baseline: add the new ones there. Run `scripts/flyway-validate.sh` against a throwaway database, and recreate any local database: an edited baseline changes its checksum.
+1. Never edit a committed migration, `V1__baseline.sql` included, and never run `flyway repair`. A change is a new file `V<n>__<what>.sql` with the next free version, one per change, under a banner comment that names the area as the baseline does.
+2. List the new file in `scripts/frozen-migrations.sha256` in the commit that adds it (`sha256sum infra/src/main/resources/db/migration/V<n>__<what>.sql >> scripts/frozen-migrations.sha256`). From then on it is frozen like the baseline. Two parallel tracks that both add a migration agree the version numbers before merging; the second renumbers its own unmerged file.
+3. Every table that holds a record of a user has `account_id uuid NOT NULL REFERENCES users`. An entry table follows the shape of section 10.1 and gets the two triggers of the tracking area (immutable rows, and the rollup queue when the domain has a rollup).
+4. The blanket `GRANT SELECT, INSERT, UPDATE ON ALL TABLES` of the baseline covers only the tables that existed when it ran: a new migration grants `SELECT, INSERT, UPDATE` on its tables to `dosegram_app` itself, and `DELETE` per table only where a job, a replacement or erasure needs it.
+5. A new value of a `CHECK` list or of an enum (a new `domain` of `daily_rollups`, a new consent purpose, a new `cancel_reason`) is an `ALTER TABLE ... DROP CONSTRAINT ... ADD CONSTRAINT` or `ALTER TYPE ... ADD VALUE` in a new migration. A rename or a removal goes through expand and contract: add the new shape, move the code and the rows, and drop the old shape in a later migration.
+6. Repositories of a new area join `Tx` as one repository group (one member, like `tracking`), implemented in `PgUnitOfWork`. An in-memory double that does not use the group answers it with a failure that names the group.
+7. `MigrationSuite` lists the tables of the schema: add the new ones there. Run `scripts/flyway-validate.sh` against a throwaway database and `scripts/check-frozen-migrations.sh`. A database that holds the owner's data is upgraded only by `dosegram migrate`, never recreated.
 
 ## 11. Analytics and insights computation
 

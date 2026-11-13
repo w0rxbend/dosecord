@@ -102,8 +102,9 @@ Useful next, in this order:
 5. What the consent and store work of 2026-11-13 left open: the rest of
    onboarding (adult attestation, region, discreet choice, G2.8), deletion
    of a domain's data (G2.17), encryption of the stores of the edges
-   (G2.4b), and the `StorageError` port of G2.1. ARCHITECTURE section 10.17
-   lists the schema areas and the rules for adding a table.
+   (G2.4b), and the `StorageError` port of G2.1, each as a new versioned
+   migration. ARCHITECTURE section 10.17 lists the schema areas and the rules
+   for adding a table.
 6. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
    are eligible by dependency and untouched.
 
@@ -147,6 +148,14 @@ For every product slice:
   what the user did and reminds the user of what the user configured; it must
   not prescribe, advise a dose, interpret a value or compute a health score.
 - Every generated image has a text equivalent.
+- The schema baseline is frozen (ADR-002 addendum of 2026-11-13): the owner's
+  live database holds real data. Never edit a committed migration,
+  `V1__baseline.sql` included, and never run `flyway repair`. Every schema
+  change is a new versioned migration (`V2`, `V3` and so on), listed in
+  `scripts/frozen-migrations.sha256` in the commit that adds it;
+  `scripts/check-frozen-migrations.sh` enforces this in the standard gate.
+  ARCHITECTURE section 10.17 has the rules. Never drop, truncate or recreate
+  a database that holds the owner's data.
 - Do not add a product slice absent from the roadmap. A user-directed
   repository-governance change may be separate, but must not alter the
   roadmap's product status.

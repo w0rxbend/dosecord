@@ -102,7 +102,7 @@ Deliberate pull-forwards, the only slices that may start before their milestone'
 | G11.4 (rasteriser isolation) | G1.9 | A container change that is cheaper early |
 | G10.4 (export as a file in the chat) | CP6-c | A V1 capability that needs only G3.10 |
 
-No versioned migration other than `V1__baseline.sql` may merge before checkpoint CP2-f. A slice that needs a new migration (G4.4, G5.1 and every domain slice) therefore cannot merge before the baseline freeze, whatever its dependency list says.
+No versioned migration other than `V1__baseline.sql` may merge before checkpoint CP2-f. A slice that needs a new migration (G4.4, G5.1 and every domain slice) therefore cannot merge before the baseline freeze, whatever its dependency list says. Superseded on 2026-11-13 (ADR-002 addendum): the owner's live use froze the baseline that day, before CP2-f. `V1__baseline.sql` is never edited again, every schema change is a new versioned migration (`V2`, `V3` and so on), and `scripts/check-frozen-migrations.sh` in the standard gate enforces it (ARCHITECTURE section 10.17).
 
 ### 0.6 Commands used for verification
 
@@ -119,6 +119,7 @@ All commands below exist in the repository today (`REPO`, research brief 01 sect
 scripts/flyway-validate.sh
 scripts/check-vendor-symbols.sh
 scripts/check-sql-now.sh
+scripts/check-frozen-migrations.sh
 scripts/doc-lint.sh
 scripts/license-gate.sh
 git diff --check
@@ -850,7 +851,7 @@ Size S. Depends on: G1.8, G1.11, G1.13. Parallel: no. No new product code.
 
 **Goal.** The owner runs a real medication regimen from the Telegram chat alone. **User-visible outcome.** Onboarding with consent, add a medication in chat, reminders answered in one tap on the message, Undo and Correct, a Today card, quiet hours and discreet mode, text statistics, and deletion of everything from `/privacy`. **Non-goals.** The Mini App (the G1 stub is switched off on the production bot by `MINIAPP_ENABLED` until CP3-a), images (the G1 card is switched off outside staging), any new domain, external users (the owner allowlist of G1.6 stays in force).
 
-**Order inside G2.** Data protection comes first (G2.1 to G2.4) because it reshapes the baseline schema, which is possible in place only while no real data exists. Then the chat experience. The schema baseline is frozen at checkpoint CP2-f, immediately before the owner enters real data: from that commit, tagged `0.1.0-rc.1`, every schema change is a new versioned migration in expand-and-contract form (RQ-13).
+**Order inside G2.** Data protection comes first (G2.1 to G2.4) because it reshapes the baseline schema, which is possible in place only while no real data exists. Then the chat experience. The schema baseline is frozen at checkpoint CP2-f, immediately before the owner enters real data: from that commit, tagged `0.1.0-rc.1`, every schema change is a new versioned migration in expand-and-contract form (RQ-13). Superseded on 2026-11-13 by the owner's live use (ADR-002 addendum, ARCHITECTURE section 10.17): real data entered that day, so the baseline froze then, before G2.2 to G2.4b reshaped it. Each slice below that still names an in-place edit of `V1__baseline.sql` makes its change as a new versioned migration instead, and the staging reset below no longer applies to a database that holds the owner's data.
 
 **Staging database before the freeze.** `V1__baseline.sql` is edited in place by G0.4, G0.6, G1.7, G1.10, G1.12, G2.2, G2.3, G2.4, G2.4b, G2.8 and G2.16, and each edit changes its Flyway checksum, so a staging database created from an older baseline fails validation at the next start. The rule: until CP2-f the staging database is disposable and is recreated by the script `scripts/staging-db-reset.sh` `[new, G1.8]` on every deployment that changes the baseline. `flyway repair` is never used, on any environment. The script refuses to run when `ENVIRONMENT` is `production`. It is run only with the owner's authorisation, like any deployment. Evidence that depends on staging data (the 48-hour edit timer of G1.1, the live-smoke transcripts) is recorded before a reset or repeated after it. The production database does not exist before CP2-f and is created only from the baseline tagged `0.1.0-rc.1`.
 
@@ -2443,7 +2444,7 @@ Each question has a recommendation. The plan is written on the recommendation.
 | Id | Question | Recommendation | Rejected alternative |
 |---|---|---|---|
 | RQ-1 | Is the order accepted: rename, walking skeleton, medication in chat, Mini App, images, then water and mood as the end of the MVP? | Yes | Mini App before the chat MVP: it delays the first daily use behind the largest new surface |
-| RQ-2 | Is there any database or deployment that must be preserved? | No. The baseline is edited in place until CP2-f and event types are renamed | A migration chain from today's baseline, which costs a chain of migrations for data that does not exist |
+| RQ-2 | Is there any database or deployment that must be preserved? | No. The baseline is edited in place until CP2-f and event types are renamed. Superseded on 2026-11-13 by the owner's live use: the baseline froze that day (ADR-002 addendum) | A migration chain from today's baseline, which costs a chain of migrations for data that does not exist |
 | RQ-3 | Is sleep without last seen accepted (check-ins, plus an opt-in estimate the user confirms)? | Yes. The platform offers no alternative | A user-authorised Telegram session on the server |
 | RQ-4 | Several accounts from the start, by invitation, capped at 50; or owner only? | Several. Isolation, consent and deletion are then proven before growth; G2.2 to G2.4 are needed either way for the Telegram developer terms on encryption (`V-R02[S11]`) | Owner only, with multi-user retrofitted |
 | RQ-5 | Mini App stack: Svelte 5 with TypeScript in `miniapp/` with its own toolchain (X-02, X-03)? | Yes, confirmed or reversed by the measurement in G3.2 | Scala.js with Laminar; Preact |
@@ -2459,7 +2460,7 @@ Each question has a recommendation. The plan is written on the recommendation.
 | RQ-10 | Which language does the owner-use gate need? | English for G2.23; Ukrainian before Gate E1. If the owner wants Ukrainian daily, G2.22 becomes a dependency of G2.23 | G2.22 |
 | RQ-11 | Is the walking skeleton accepted before the data-protection baseline, on synthetic data only? | Yes (section 4.2) | CP0-c |
 | RQ-12 | Is the checkpoint model accepted: 18 gates that block, and 29 reviews that do not block and that the owner reads once per milestone? | Yes. Rejected: every checkpoint a gate; and a renumbering to one review per milestone, which would detach existing evidence groupings for no saving in owner time | CP0-a |
-| RQ-13 | Schema baseline freeze at CP2-f with tag `0.1.0-rc.1`, before real data enters? | Yes | CP2-a |
+| RQ-13 | Schema baseline freeze at CP2-f with tag `0.1.0-rc.1`, before real data enters? | Yes. Superseded on 2026-11-13 by the owner's live use: the baseline froze that day, tagged `schema-baseline-v1` (ADR-002 addendum) | CP2-a |
 | RQ-14 | When does the first external user join: after the MVP (CP6-c) or after V1? | After the MVP, if the owner wants feedback early; part A of G11 is independent of G7 to G10 | CP6-c |
 | RQ-15 | Confirm that no model processes user content in any planned wave (X-10) | Confirm | G0.1 |
 | RQ-16 | Repository name `w0rxbend/dosegram`, renamed after G0.4 merges | Yes | CP0-b |

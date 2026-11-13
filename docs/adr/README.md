@@ -5,7 +5,7 @@ Records ADR-001 to ADR-013 were accepted on 2026-09-11 as the decisions behind t
 | ADR | Title | Status |
 |---|---|---|
 | [ADR-001](ADR-001.md) | Scala 3 direct-style modular monolith on JDK 25 is the implementation language and process model (supersedes the Python decision of revision 1) | Accepted 2026-09-11; addendum 2026-11-13 |
-| [ADR-002](ADR-002.md) | PostgreSQL 18 via pgjdbc + HikariCP with hand-written SQL and Flyway migrations | Accepted 2026-09-11 |
+| [ADR-002](ADR-002.md) | PostgreSQL 18 via pgjdbc + HikariCP with hand-written SQL and Flyway migrations | Accepted 2026-09-11; addendum 2026-11-13 (baseline frozen) |
 | [ADR-003](ADR-003.md) | Kafka is removed; Postgres is the messaging backbone (transactional outbox, inbound dedupe, domain_events, LISTEN/NOTIFY) | Accepted 2026-09-11 |
 | [ADR-004](ADR-004.md) | Scheduler = materialised dose_occurrences with one next_action_at column, epoch fencing, schedule revisions and a cross-revision live-slot index; no scheduler library | Accepted 2026-09-11 |
 | [ADR-005](ADR-005.md) | Vendor adapters are decoupled from the core by a ChatMediator with a capability-driven renderer in the core | Accepted 2026-09-11; superseded in part by ADR-015 (2026-11-13) |

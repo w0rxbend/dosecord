@@ -57,7 +57,7 @@ class MigrationSuite extends PgSuite:
 
   // ROADMAP G0.6, BOT_UX BUX-CMD-08: a domain has no table before it has a consent purpose. Habits are a non-goal
   // (PRODUCT_SPEC N20). Mood has the purpose `mood` (PRODUCT_SPEC R-IDC-6): its table came back with the domain part
-  // of G6.1, in the final shape of ARCHITECTURE section 10.8 and in the baseline, which is still edited in place.
+  // of G6.1, in the final shape of ARCHITECTURE section 10.8 and in the baseline, before it froze.
   test("the baseline has no table of a domain without a consent purpose"):
     withConnection { conn =>
       given Connection = conn
