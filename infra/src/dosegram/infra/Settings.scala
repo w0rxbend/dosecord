@@ -45,6 +45,32 @@ enum LogFormat(val envName: String):
 object LogFormat:
   def parse(value: String): Option[LogFormat] = values.find(_.envName == value.toLowerCase)
 
+/** Where the process runs (ROADMAP G1.6). Outside `development` the Telegram allowlist must not be empty, and only a
+  * development bot may have its webhook deleted to make room for long polling.
+  */
+enum Environment(val envName: String):
+  case Development extends Environment("development")
+  case Staging extends Environment("staging")
+  case Production extends Environment("production")
+
+object Environment:
+  def parse(value: String): Option[Environment] = values.find(_.envName == value.toLowerCase)
+
+/** How Telegram updates reach the process (ARCHITECTURE section 7.2): long polling or the webhook. */
+enum TelegramUpdates(val envName: String):
+  case Poll extends TelegramUpdates("poll")
+  case Webhook extends TelegramUpdates("webhook")
+
+object TelegramUpdates:
+  def parse(value: String): Option[TelegramUpdates] = values.find(_.envName == value.toLowerCase)
+
+/** What the Telegram adapter is configured with; present exactly when the adapter is enabled. `botId` is the id the
+  * token must belong to, `allowedUserIds` the Telegram users who may use the bot (empty: everyone, development only).
+  */
+final case class TelegramSettings(token: String, botId: Long, updates: TelegramUpdates, allowedUserIds: Set[Long]):
+  // The token must not show in a log line that prints the settings.
+  override def toString: String = s"TelegramSettings(***, $botId, $updates, ${allowedUserIds.size} allowed)"
+
 /** Runtime configuration parsed from environment variables and Docker secrets (DESIGN.md section 12). Every field maps
   * to exactly one env var in [[Settings.spec]]; any of them may instead be supplied as `<NAME>_FILE` pointing at a
   * Docker secret whose content becomes the value.
@@ -58,9 +84,11 @@ final case class Settings(
     logLevel: LogLevel,
     logFormat: LogFormat,
     consoleUserId: Option[String],
-    telegramToken: Option[String],
+    telegram: Option[TelegramSettings],
     publicBaseUrl: Option[String],
-    healthPort: Int
+    healthPort: Int,
+    environment: Environment,
+    miniAppUrl: Option[String]
 )
 
 object Settings:
@@ -131,6 +159,42 @@ object Settings:
       secret = true,
       "Telegram bot token; required when the telegram adapter is enabled.",
       "change-me"
+    ),
+    EnvSpec(
+      "TELEGRAM_BOT_ID",
+      required = false,
+      secret = false,
+      "Numeric id of the bot the token must belong to; start-up refuses any other bot. Required with telegram.",
+      "123456789"
+    ),
+    EnvSpec(
+      "TELEGRAM_UPDATES_MODE",
+      required = false,
+      secret = false,
+      "How updates arrive: poll (getUpdates) | webhook. Required with telegram; there is no default.",
+      "poll"
+    ),
+    EnvSpec(
+      "TELEGRAM_ALLOWED_USER_IDS",
+      required = false,
+      secret = false,
+      "Comma-separated Telegram user ids that may use the bot; may be empty in development only.",
+      "123456789"
+    ),
+    EnvSpec(
+      "MINI_APP_URL",
+      required = false,
+      secret = false,
+      "https address of the Mini App that app buttons open; without it no app button is shown.",
+      "https://dosegram.example.com/app/"
+    ),
+    EnvSpec(
+      "ENVIRONMENT",
+      required = false,
+      secret = false,
+      "development | staging | production.",
+      "production",
+      Some("production")
     ),
     EnvSpec(
       "PUBLIC_BASE_URL",
@@ -216,14 +280,31 @@ object Settings:
       case Left(err) => { errors = errors :+ err; None })
 
     val consoleUserId = lookup("CONSOLE_USER_ID")
-    val telegramToken = lookup("TELEGRAM_TOKEN")
+
+    val environment = lookup("ENVIRONMENT")
+      .map(Environment.parse(_) match
+        case Some(e) => e
+        case None    =>
+          errors = errors :+ "ENVIRONMENT must be development, staging or production"
+          Environment.Production)
+      .getOrElse(Environment.Production)
+
+    val miniAppUrl = lookup("MINI_APP_URL").filter: url =>
+      val secure = url.startsWith("https://")
+      if !secure then errors = errors :+ "MINI_APP_URL must be an https address"
+      secure
 
     adapters.foreach { list =>
       if list.contains(Adapter.Console) && consoleUserId.isEmpty then
         errors = errors :+ "CONSOLE_USER_ID is required when the console adapter is enabled"
-      if list.contains(Adapter.Telegram) && telegramToken.isEmpty then
-        errors = errors :+ "TELEGRAM_TOKEN is required when the telegram adapter is enabled"
     }
+
+    val telegram = adapters
+      .filter(_.contains(Adapter.Telegram))
+      .flatMap: _ =>
+        parseTelegram(lookup, environment) match
+          case Right(settings) => Some(settings)
+          case Left(problems)  => { errors = errors ++ problems; None }
 
     if errors.nonEmpty then Left(errors)
     else
@@ -237,11 +318,46 @@ object Settings:
           logLevel = logLevel.getOrElse(LogLevel.Info),
           logFormat = logFormat.getOrElse(LogFormat.Json),
           consoleUserId = consoleUserId,
-          telegramToken = telegramToken,
+          telegram = telegram,
           publicBaseUrl = lookup("PUBLIC_BASE_URL"),
-          healthPort = healthPort.getOrElse(DefaultHealthPort)
+          healthPort = healthPort.getOrElse(DefaultHealthPort),
+          environment = environment,
+          miniAppUrl = miniAppUrl
         )
       )
+
+  /** The Telegram block (ROADMAP G1.6): token, bot id and updates mode are required together; outside development the
+    * allowlist must name at least one user. No message quotes the token.
+    */
+  private def parseTelegram(
+      lookup: String => Option[String],
+      environment: Environment
+  ): Either[List[String], TelegramSettings] =
+    val whenEnabled = "when the telegram adapter is enabled"
+    val token = lookup("TELEGRAM_TOKEN").toRight(s"TELEGRAM_TOKEN is required $whenEnabled")
+    val botId = lookup("TELEGRAM_BOT_ID")
+      .toRight(s"TELEGRAM_BOT_ID is required $whenEnabled")
+      .flatMap(_.toLongOption.filter(_ > 0).toRight("TELEGRAM_BOT_ID must be the numeric id of the bot"))
+    val updates = lookup("TELEGRAM_UPDATES_MODE")
+      .toRight(s"TELEGRAM_UPDATES_MODE is required $whenEnabled (poll or webhook)")
+      .flatMap(TelegramUpdates.parse(_).toRight("TELEGRAM_UPDATES_MODE must be poll or webhook"))
+    val allowed = parseUserIds(lookup("TELEGRAM_ALLOWED_USER_IDS").getOrElse("")).filterOrElse(
+      ids => ids.nonEmpty || environment == Environment.Development,
+      "TELEGRAM_ALLOWED_USER_IDS must name at least one user outside development"
+    )
+    val problems = List(token, botId, updates, allowed).collect { case Left(problem) => problem }
+    (token, botId, updates, allowed) match
+      case (Right(t), Right(id), Right(mode), Right(ids)) => Right(TelegramSettings(t, id, mode, ids))
+      case _                                              => Left(problems)
+
+  private def parseUserIds(raw: String): Either[String, Set[Long]] =
+    val entries = raw.split(",").toList.map(_.trim).filter(_.nonEmpty)
+    val ids = entries.flatMap(_.toLongOption.filter(_ > 0))
+    Either.cond(
+      ids.size == entries.size,
+      ids.toSet,
+      "TELEGRAM_ALLOWED_USER_IDS must be comma-separated numeric user ids"
+    )
 
   /** `CALLBACK_KEYS` = comma-separated `<id>:<base64url>` pairs; the first key signs, both verify (ADR-006). */
   def parseCallbackKeys(raw: String): Either[String, CallbackKeys] =

@@ -58,6 +58,9 @@ class SettingsSuite extends munit.FunSuite:
     val Right(settings) = parse(base ++ Map(
       "ENABLED_ADAPTERS" -> "console,telegram",
       "TELEGRAM_TOKEN"   -> "t",
+      "TELEGRAM_BOT_ID"  -> "42",
+      "TELEGRAM_UPDATES_MODE" -> "poll",
+      "TELEGRAM_ALLOWED_USER_IDS" -> "7001, 7002",
       "ROLE"             -> "worker",
       "INSTANCE_ID"      -> "worker-1",
       "LOG_LEVEL"        -> "warn",
@@ -69,8 +72,64 @@ class SettingsSuite extends munit.FunSuite:
     assertEquals(settings.instanceId, "worker-1")
     assertEquals(settings.logLevel, LogLevel.Warn)
     assertEquals(settings.logFormat, LogFormat.Plain)
-    assertEquals(settings.telegramToken, Some("t"))
+    assertEquals(settings.telegram, Some(TelegramSettings("t", 42L, TelegramUpdates.Poll, Set(7001L, 7002L))))
     assertEquals(settings.publicBaseUrl, Some("https://dosegram.example.com"))
+
+  private val telegram = base ++ Map(
+    "ENABLED_ADAPTERS"          -> "telegram",
+    "TELEGRAM_TOKEN"            -> "42:CANARY-token",
+    "TELEGRAM_BOT_ID"           -> "42",
+    "TELEGRAM_UPDATES_MODE"     -> "webhook",
+    "TELEGRAM_ALLOWED_USER_IDS" -> "7001"
+  )
+
+  test("the telegram adapter needs its token, bot id and updates mode; all are reported together"):
+    val Left(errors) = parse(base ++ Map("ENABLED_ADAPTERS" -> "telegram", "ENVIRONMENT" -> "development")): @unchecked
+    assert(errors.exists(_.startsWith("TELEGRAM_TOKEN is required")), errors.toString)
+    assert(errors.exists(_.startsWith("TELEGRAM_BOT_ID is required")), errors.toString)
+    assert(errors.exists(_.startsWith("TELEGRAM_UPDATES_MODE is required")), errors.toString)
+
+  test("without the telegram adapter its settings are absent and none is required"):
+    val Right(settings) = parse(base): @unchecked
+    assertEquals(settings.telegram, None)
+
+  test("a bot id that is not a number and an unknown updates mode are rejected"):
+    val Left(errors) = parse(telegram ++ Map("TELEGRAM_BOT_ID" -> "bot", "TELEGRAM_UPDATES_MODE" -> "push")): @unchecked
+    assert(errors.contains("TELEGRAM_BOT_ID must be the numeric id of the bot"), errors.toString)
+    assert(errors.contains("TELEGRAM_UPDATES_MODE must be poll or webhook"), errors.toString)
+
+  test("outside development the telegram allowlist must name at least one user"):
+    val Left(production) = parse(telegram - "TELEGRAM_ALLOWED_USER_IDS"): @unchecked
+    assert(production.exists(_.startsWith("TELEGRAM_ALLOWED_USER_IDS must name at least one user")), production.toString)
+    val Left(staging) = parse(telegram - "TELEGRAM_ALLOWED_USER_IDS" + ("ENVIRONMENT" -> "staging")): @unchecked
+    assert(staging.exists(_.startsWith("TELEGRAM_ALLOWED_USER_IDS must name at least one user")), staging.toString)
+
+  test("in development an empty telegram allowlist means everyone"):
+    val Right(settings) = parse(telegram - "TELEGRAM_ALLOWED_USER_IDS" + ("ENVIRONMENT" -> "development")): @unchecked
+    assertEquals(settings.telegram.map(_.allowedUserIds), Some(Set.empty[Long]))
+    assertEquals(settings.environment, Environment.Development)
+
+  test("an allowlist entry that is not a user id is rejected"):
+    val Left(errors) = parse(telegram + ("TELEGRAM_ALLOWED_USER_IDS" -> "7001,@owner")): @unchecked
+    assert(errors.contains("TELEGRAM_ALLOWED_USER_IDS must be comma-separated numeric user ids"), errors.toString)
+
+  test("ENVIRONMENT defaults to production and rejects an unknown value"):
+    val Right(settings) = parse(base): @unchecked
+    assertEquals(settings.environment, Environment.Production)
+    val Left(errors) = parse(base + ("ENVIRONMENT" -> "laptop")): @unchecked
+    assert(errors.exists(_.startsWith("ENVIRONMENT must be")), errors.toString)
+
+  test("MINI_APP_URL must be an https address"):
+    val Right(settings) = parse(base + ("MINI_APP_URL" -> "https://dosegram.example.com/app/")): @unchecked
+    assertEquals(settings.miniAppUrl, Some("https://dosegram.example.com/app/"))
+    val Left(errors) = parse(base + ("MINI_APP_URL" -> "http://dosegram.example.com/app/")): @unchecked
+    assert(errors.contains("MINI_APP_URL must be an https address"), errors.toString)
+
+  test("no settings error and no text form of the telegram settings quotes the token"):
+    val Right(settings) = parse(telegram): @unchecked
+    assert(!settings.toString.contains("CANARY"), settings.toString)
+    val Left(errors) = parse(telegram + ("TELEGRAM_BOT_ID" -> "x")): @unchecked
+    assert(!errors.exists(_.contains("CANARY")), errors.toString)
 
   test("HEALTH_PORT overrides the /healthz port"):
     val Right(settings) = parse(base ++ Map("HEALTH_PORT" -> "18080")): @unchecked

@@ -10,6 +10,7 @@ import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.ports.Clock
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.infra.Adapter
+import dosegram.infra.Environment
 import dosegram.infra.LogFormat
 import dosegram.infra.LogLevel
 import dosegram.infra.Role
@@ -83,9 +84,11 @@ class LaunchPathSuite extends PgSuite:
       logLevel = LogLevel.Info,
       logFormat = LogFormat.Plain,
       consoleUserId = Some(LaunchRig.ConsoleUser),
-      telegramToken = None,
+      telegram = None,
       publicBaseUrl = None,
-      healthPort = freePort()
+      healthPort = freePort(),
+      environment = Environment.Development,
+      miniAppUrl = None
     )
 
   /** One launch: `vendor` stands between the dispatcher and the real console adapter. */

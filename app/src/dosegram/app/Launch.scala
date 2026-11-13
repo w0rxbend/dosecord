@@ -19,8 +19,8 @@ object Launch:
   final class Parts(val clock: Clock, val adapters: Map[String, ChatAdapter], val cadence: Workers.Cadence)
 
   object Parts:
-    def production(settings: Settings): Parts =
-      Parts(Clock.system, Adapters.build(settings), Workers.Cadence.Production)
+    def production(settings: Settings)(using Ox): Parts =
+      Parts(Clock.system, Adapters.build(settings, Clock.system), Workers.Cadence.Production)
 
   /** Starts, in the order of DESIGN.md section 12, the workers, then the adapters, then the HTTP edge, each only when
     * the role hosts it, and returns the drain that stops them on SIGTERM.
