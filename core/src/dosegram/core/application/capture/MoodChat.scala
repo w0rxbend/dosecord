@@ -34,12 +34,38 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
     * without an image the confirmation takes the place of the prompt.
     */
   def checkIn(turn: Turn, valence: Valence): Reply =
-    val command = CheckIn(turn.accountId, valence, None, Nil, EntryDay.Today, EntrySource.Bot, turn.clientKey)
-    answered(turn, mood.checkIn(turn.tx, command)): recorded =>
+    record(turn, valence, turn.clientKey): recorded =>
       val confirmation = turn.message("mood.recorded", List(captionOf(turn, recorded.checkin)), followUpRows(recorded))
       cards.mood(MoodCardView(valence, None), turn.look) match
         case Some(attachment) => Reply(followUps = List(confirmation.copy(attachment = Some(attachment))))
         case None             => turn.show(confirmation)
+
+  /** A tap on a prompt (owner decision 2026-11-13: one prompt, one check-in). The check-in's key is the prompt message,
+    * so a later, racing or post-restart tap on it replays the first check-in: it records nothing and answers "Already
+    * recorded at 21:04". The first tap edits the prompt into the recorded level with its 1 to 5 buttons gone; with an
+    * image, the image follows as its own message and carries Add energy and Undo.
+    */
+  def checkInFromPrompt(turn: Turn, valence: Valence): Reply =
+    turn.source match
+      case None         => checkIn(turn, valence)
+      case Some(prompt) =>
+        val key = s"mood.prompt:${prompt.vendor}:${prompt.chatId}:${prompt.messageId}"
+        record(turn, valence, key): recorded =>
+          val caption = captionOf(turn, recorded.checkin)
+          cards.mood(MoodCardView(valence, None), turn.look) match
+            case None             => turn.show(turn.message("mood.recorded", List(caption), followUpRows(recorded)))
+            case Some(attachment) =>
+              val photo = turn.message("mood.recorded", List(caption), followUpRows(recorded))
+              turn
+                .show(turn.message("mood.prompt.recorded", List(caption), Nil))
+                .copy(followUps = List(photo.copy(attachment = Some(attachment))))
+
+  private def record(turn: Turn, valence: Valence, key: String)(reply: MoodRecorded => Reply): Reply =
+    val command = CheckIn(turn.accountId, valence, None, Nil, EntryDay.Today, EntrySource.Bot, key)
+    answered(turn, mood.checkIn(turn.tx, command)): recorded =>
+      if recorded.replayed && key != turn.clientKey then
+        turn.toast(CheckInCopy.alreadyRecorded(turn.localTime(recorded.checkin.occurredAt)))
+      else reply(recorded)
 
   /** "Add energy": value 0 asks, 1 to 5 answer. The caption carries the energy label; the picture is not replaced. */
   def energyStep(turn: Turn, checkinId: UUID, value: Long): Reply =

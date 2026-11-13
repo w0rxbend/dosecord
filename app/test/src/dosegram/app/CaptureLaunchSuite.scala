@@ -205,9 +205,9 @@ class CaptureLaunchSuite extends PgSuite:
   /** One process over the suite's database: the image bytes and the file ids are in its tables, as in production. A
     * second launch in one test is the process after a restart; its updates continue after the first one's.
     */
-  private def launchedFrom[A](firstUpdate: Long)(test: Bot => A): A =
+  private def launchedFrom[A](firstUpdate: Long, lastMessageId: Long = 0L)(test: Bot => A): A =
     val clock = SteppedClock(monday)
-    val wire = FakeTelegramTransport(clock)
+    val wire = FakeTelegramTransport(clock, lastMessageId = lastMessageId)
     val rasteriser = NumberingRasteriser()
     supervised:
       val config = settings
@@ -304,14 +304,19 @@ class CaptureLaunchSuite extends PgSuite:
       val List(prompt) = bot.say("/mood", expected = 1): @unchecked
       assertEquals(bot.body(prompt), s"${CheckInCopy.prompt}\n\n${CheckInCopy.scale}")
 
-      val List(first) = bot.tap(prompt, "4", expected = 1): @unchecked
+      val List(promptEdit, first) = bot.tap(prompt, "4", expected = 2): @unchecked
+      assertEquals(promptEdit.method, "editMessageText")
+      assertEquals(bot.body(promptEdit), "Pleasant · 08:00", "the prompt shows the recorded level")
+      assertEquals(bot.buttons(promptEdit), Nil, "and its steps are gone")
       assertEquals(first.method, "sendPhoto")
       assertEquals(bot.body(first), "Pleasant · 08:00")
       assertEquals(bot.buttons(first).map(_._1), List(CheckInCopy.AddEnergy, "Undo"))
       assertEquals(uploadOf(first), Some("png:1"))
       assert(bot.rasteriser.shows(1, "Pleasant"), "it is the mood card of the tapped step")
 
-      val List(again) = bot.tap(prompt, "4", expected = 1): @unchecked
+      // One prompt is one check-in (owner decision 2026-11-13): the second check-in comes from a new prompt.
+      val List(secondPrompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(_, again) = bot.tap(secondPrompt, "4", expected = 2): @unchecked
       assertEquals(again.method, "sendPhoto")
       assertEquals(uploadOf(again), None, "the second send of the state carries no upload")
       assertEquals(again.text("photo"), Some("fake-photo-2"), "it names the file id of the first upload")
@@ -372,14 +377,15 @@ class CaptureLaunchSuite extends PgSuite:
     grant(accountId, ConsentPurpose.Mood)
     launched: bot =>
       val List(prompt) = bot.say("/mood", expected = 1): @unchecked
-      val List(first) = bot.tap(prompt, "4", expected = 1): @unchecked
+      val List(_, first) = bot.tap(prompt, "4", expected = 2): @unchecked // the prompt's edit, then the image
       assertEquals(uploadOf(first), Some("png:1"))
     assertEquals(strings("SELECT media_kind || ':' || bot_id FROM telegram_file_cache"), List(s"photo:${telegram.botId}"))
     assertEquals(strings("SELECT mime FROM render_assets"), List("image/png"))
 
-    launchedFrom(firstUpdate = 900L): bot =>
+    // Telegram never reuses a message id in a chat: the restarted process continues after the first one's ids.
+    launchedFrom(firstUpdate = 900L, lastMessageId = 100L): bot =>
       val List(prompt) = bot.say("/mood", expected = 1): @unchecked
-      val List(again) = bot.tap(prompt, "4", expected = 1): @unchecked
+      val List(_, again) = bot.tap(prompt, "4", expected = 2): @unchecked
       assertEquals(again.method, "sendPhoto")
       assertEquals(uploadOf(again), None, "the new process sends the file id the old one stored")
       assertEquals(bot.rasteriser.count, 0, "the bytes of the old process are still in the asset store")
