@@ -28,8 +28,11 @@ object Launch:
       this(clock, adapters, cadence, StatusImages.textOnly)
 
   object Parts:
-    def production(settings: Settings)(using Ox): Parts =
-      val images = StatusImages.from(settings.render, line => scribe.info(line))
+    def production(settings: Settings, dataSource: DataSource)(using Ox): Parts =
+      // The file ids belong to the one bot of the process; without that adapter nothing asks for one.
+      val botId = settings.telegram.map(_.botId).getOrElse(0L)
+      val stores = StatusImages.Stores.durable(dataSource, botId, Clock.system)
+      val images = StatusImages.from(settings.render, stores, line => scribe.info(line))
       Parts(Clock.system, Adapters.build(settings, Clock.system, images), Workers.Cadence.Production, images)
 
   /** Starts, in the order of DESIGN.md section 12, the workers, then the adapters, then the HTTP edge, each only when

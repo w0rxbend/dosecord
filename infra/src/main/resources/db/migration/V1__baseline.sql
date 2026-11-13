@@ -426,6 +426,47 @@ CREATE TRIGGER consent_events_append_only BEFORE UPDATE OR DELETE ON consent_eve
   FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
 
 -- ---------------------------------------------------------------------------
+-- Stores of the edges (docs/ARCHITECTURE.md sections 9.4, 10.2 and 10.11): what
+-- the process used to hold in memory and lost on a restart. None of them is a
+-- record of the user: each row is derived, has a deleting job, and may be
+-- dropped at any time at the cost of one render, one upload, one sign-in or
+-- one repeated request.
+--
+-- render_assets holds the bytes of a drawn image until the adapter has
+-- uploaded it; purge_after is at most one hour after the image was drawn.
+-- telegram_file_cache maps an asset to the file id the Bot API returned, per
+-- bot and media kind (TG-35, TG-36). miniapp_sessions holds the SHA-256 of a
+-- session token and of the launch data, never the values (API-05).
+-- idempotency_keys holds the outcome of a creating request for 24 hours
+-- (API-16); a row without a response is a request still in flight.
+--
+-- Not yet as section 10 specifies them: the bytes, the file ids of personal
+-- images and the stored responses are not encrypted, and no row names the
+-- account of a personal image. Both arrive with the account data keys
+-- (ROADMAP G2.4, G2.4b), before real data enters.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE render_assets (asset_key text PRIMARY KEY, mime text NOT NULL, byte_size int NOT NULL CHECK (byte_size > 0),
+  bytes bytea NOT NULL, created_at timestamptz NOT NULL, purge_after timestamptz NOT NULL,
+  CONSTRAINT render_assets_lifetime CHECK (purge_after > created_at AND purge_after <= created_at + interval '1 hour'));
+CREATE INDEX ix_render_assets_purge_after ON render_assets (purge_after);
+
+CREATE TABLE telegram_file_cache (asset_key text NOT NULL, bot_id bigint NOT NULL,
+  media_kind text NOT NULL CHECK (media_kind IN ('photo','document','animation','sticker')), file_id text NOT NULL,
+  created_at timestamptz NOT NULL, last_used_at timestamptz NOT NULL, PRIMARY KEY (asset_key, bot_id, media_kind));
+CREATE INDEX ix_telegram_file_cache_last_used_at ON telegram_file_cache (last_used_at);
+
+CREATE TABLE miniapp_sessions (token_hash text PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  initdata_hash text NOT NULL, created_at timestamptz NOT NULL, last_used_at timestamptz NOT NULL);
+CREATE INDEX ix_miniapp_sessions_account ON miniapp_sessions (account_id);
+CREATE INDEX ix_miniapp_sessions_initdata_hash ON miniapp_sessions (initdata_hash);
+
+CREATE TABLE idempotency_keys (account_id uuid NOT NULL REFERENCES users, key uuid NOT NULL,
+  request_hash text, response_json text, created_at timestamptz NOT NULL, PRIMARY KEY (account_id, key),
+  CONSTRAINT idempotency_keys_outcome CHECK ((request_hash IS NULL) = (response_json IS NULL)));
+CREATE INDEX ix_idempotency_keys_created_at ON idempotency_keys (created_at);
+
+-- ---------------------------------------------------------------------------
 -- Grants
 -- ---------------------------------------------------------------------------
 
@@ -437,5 +478,8 @@ GRANT SELECT, DELETE ON dose_actions, auth_audit_log TO dosegram_erasure;
 GRANT DELETE ON daily_rollups, rollup_dirty, hydration_presets TO dosegram_app;
 GRANT SELECT, DELETE ON hydration_entries, mood_checkins TO dosegram_erasure;
 GRANT SELECT, DELETE ON consent_events, consent_state TO dosegram_erasure;
+-- The stores of the edges are emptied by their own jobs, and by erasure for the rows that name an account.
+GRANT DELETE ON render_assets, telegram_file_cache, miniapp_sessions, idempotency_keys TO dosegram_app;
+GRANT SELECT, DELETE ON miniapp_sessions, idempotency_keys TO dosegram_erasure;
 -- Deleting an entry queues its day through the rollup trigger, and erasure removes the derived rows as well.
 GRANT SELECT, INSERT, UPDATE, DELETE ON rollup_dirty, daily_rollups TO dosegram_erasure;

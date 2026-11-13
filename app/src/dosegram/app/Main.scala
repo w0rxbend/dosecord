@@ -53,7 +53,7 @@ object Main:
               // The SIGTERM hook halts the JVM as soon as the scope has ended, which can outrun the `finally` below.
               // The scope therefore closes the pool itself, after every fork that uses it has finished.
               releaseAfterScope { dataSource.close(); info("shutdown: pool closed") }
-              Launch.start(settings, dataSource, Launch.Parts.production(settings), info)
+              Launch.start(settings, dataSource, Launch.Parts.production(settings, dataSource), info)
             },
             log = info
           )

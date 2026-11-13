@@ -1,14 +1,19 @@
 package dosegram.app
 
+import dosegram.adapter.telegram.FileIdCache
+import dosegram.adapter.telegram.InMemoryFileIdCache
 import dosegram.adapter.telegram.MediaStore
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.MediaKind
+import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WaterCardView
 import dosegram.infra.RenderSettings
+import dosegram.infra.db.PgRenderAssets
+import dosegram.infra.db.PgTelegramFileCache
 import dosegram.render.CardRenderer
 import dosegram.render.Rasteriser
 import dosegram.render.blob.MoodReading
@@ -34,23 +39,30 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.HexFormat
+import javax.sql.DataSource
 
-/** The bytes behind an `AttachmentRef.assetKey` for the life of this process (ADR-015: the asset store owns the bytes).
-  * It holds at most `maximumImages` images and drops the one that was read longest ago; an image that is gone, or one
-  * asked for after a restart, is sent as its text equivalent by the adapter.
+/** Where the bytes behind an `AttachmentRef.assetKey` live (ADR-015: the asset store owns the bytes): the card side
+  * puts an image, the adapter loads it. An image that is gone is sent as its text equivalent by the adapter.
   */
-final class InMemoryAssetStore(maximumImages: Int) extends MediaStore:
+trait AssetStore extends MediaStore:
+  def put(assetKey: String, png: Array[Byte]): Unit
+  def holds(assetKey: String): Boolean
+
+/** An asset store for the life of one process, for a composition without a database behind its images (the text-only
+  * profile and the suites). It holds at most `maximumImages` images and drops the one that was read longest ago.
+  */
+final class InMemoryAssetStore(maximumImages: Int) extends AssetStore:
   require(maximumImages > 0, "an asset store holds at least one image")
 
   // Access order: a read moves the image to the young end, so the eldest entry is the one read longest ago.
   private val images = new java.util.LinkedHashMap[String, Array[Byte]](16, 0.75f, true):
     override def removeEldestEntry(eldest: java.util.Map.Entry[String, Array[Byte]]): Boolean = size() > maximumImages
 
-  def put(assetKey: String, png: Array[Byte]): Unit = images.synchronized:
+  override def put(assetKey: String, png: Array[Byte]): Unit = images.synchronized:
     images.put(assetKey, png)
     ()
 
-  def holds(assetKey: String): Boolean = images.synchronized(images.containsKey(assetKey))
+  override def holds(assetKey: String): Boolean = images.synchronized(images.containsKey(assetKey))
 
   override def load(assetKey: String): Option[Array[Byte]] = images.synchronized(Option(images.get(assetKey)))
 
@@ -59,8 +71,7 @@ final class InMemoryAssetStore(maximumImages: Int) extends MediaStore:
   * equivalent as its alt text. A card that cannot be drawn is logged by its template and the kind of failure only, and
   * the flow sends its text (VISUALS VA-FB-01).
   */
-final class RenderedStatusCards(renderer: CardRenderer, store: InMemoryAssetStore, log: String => Unit)
-    extends StatusCards:
+final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: String => Unit) extends StatusCards:
 
   import RenderedStatusCards.*
 
@@ -132,33 +143,52 @@ object RenderedStatusCards:
       case DoseMark.NoRecord     => DoseStatus.Unknown
       case DoseMark.Open         => DoseStatus.Open
 
-/** The image side of one process: the store the adapters load attachments from, and the cards the chat flows ask for.
-  * Both halves share the store, so an image a flow made is the image the adapter uploads.
+/** The image side of one process: the store the adapters load attachments from, the `file_id` cache of the uploads, and
+  * the cards the chat flows ask for. Both halves share the store, so an image a flow made is the image the adapter
+  * uploads.
   */
-final class StatusImages(val store: InMemoryAssetStore, val cards: StatusCards)
+final class StatusImages(val store: AssetStore, val fileIds: FileIdCache, val cards: StatusCards)
 
 object StatusImages:
 
   /** Mood states are 70 images at most; the rest are the personal cards of the last few minutes. */
   private val AssetCapacity = 256
 
-  /** No renderer: every image is its text equivalent. */
-  def textOnly: StatusImages = StatusImages(InMemoryAssetStore(AssetCapacity), StatusCards.textOnly)
+  /** Where the bytes and the file ids of the images are kept. */
+  final case class Stores(assets: AssetStore, fileIds: FileIdCache)
 
-  def over(rasteriser: Rasteriser, log: String => Unit): StatusImages =
-    val store = InMemoryAssetStore(AssetCapacity)
-    StatusImages(store, RenderedStatusCards(CardRenderer(rasteriser), store, log))
+  object Stores:
+
+    /** Stores of one process: an image and its file id are gone with it. */
+    def inMemory: Stores = Stores(InMemoryAssetStore(AssetCapacity), InMemoryFileIdCache())
+
+    /** The durable stores (`render_assets`, `telegram_file_cache`). `botId` is the bot whose file ids these are; a
+      * process without that adapter never asks for one.
+      */
+    def durable(dataSource: DataSource, botId: Long, clock: Clock): Stores =
+      Stores(
+        PgAssetStore(PgRenderAssets(dataSource), clock),
+        PgFileIdCache(PgTelegramFileCache(dataSource, botId), clock)
+      )
+
+  /** No renderer: every image is its text equivalent. */
+  def textOnly: StatusImages =
+    val stores = Stores.inMemory
+    StatusImages(stores.assets, stores.fileIds, StatusCards.textOnly)
+
+  def over(rasteriser: Rasteriser, stores: Stores, log: String => Unit): StatusImages =
+    StatusImages(stores.assets, stores.fileIds, RenderedStatusCards(CardRenderer(rasteriser), stores.assets, log))
 
   /** The renderer the settings name, or text only without them. A binary that cannot run fails the start: a bot that
     * silently never draws is worse than one that does not start.
     */
-  def from(render: Option[RenderSettings], log: String => Unit): StatusImages =
+  def from(render: Option[RenderSettings], stores: Stores, log: String => Unit): StatusImages =
     render match
-      case None           => textOnly
+      case None           => StatusImages(stores.assets, stores.fileIds, StatusCards.textOnly)
       case Some(settings) =>
         val binary = Path.of(settings.resvgPath)
         val fonts = Path.of(settings.fontsDir)
         if !Files.isExecutable(binary) then throw IllegalArgumentException("RESVG_PATH does not name an executable")
         if !Files.isDirectory(fonts) then throw IllegalArgumentException("RENDER_FONTS_DIR does not name a directory")
         val emptyResources = Files.createTempDirectory("dosegram-resvg-empty")
-        over(ResvgRasteriser(ResvgConfig.standard(binary, fonts, emptyResources)), log)
+        over(ResvgRasteriser(ResvgConfig.standard(binary, fonts, emptyResources)), stores, log)

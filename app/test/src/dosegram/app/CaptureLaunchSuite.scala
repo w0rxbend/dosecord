@@ -54,7 +54,9 @@ class CaptureLaunchSuite extends PgSuite:
     reminderPoll = Duration.ofMillis(100),
     materialiserPeriod = Duration.ofMinutes(15),
     outboxIdlePoll = Duration.ofMillis(50),
-    sessionSweepPeriod = Duration.ofMillis(100)
+    sessionSweepPeriod = Duration.ofMillis(100),
+    rollupIdlePoll = Duration.ofMillis(100),
+    imagePurgePeriod = Duration.ofMillis(100)
   )
 
   private lazy val fixtures = Fixtures(dataSource)
@@ -64,7 +66,8 @@ class CaptureLaunchSuite extends PgSuite:
       val st = conn.createStatement()
       try
         st.execute(
-          "TRUNCATE hydration_entries, hydration_goals, hydration_presets, mood_checkins, daily_rollups, rollup_dirty, " +
+          "TRUNCATE render_assets, telegram_file_cache, " +
+            "hydration_entries, hydration_goals, hydration_presets, mood_checkins, daily_rollups, rollup_dirty, " +
             "consent_state, dose_actions, dose_occurrences, schedule_revisions, medication_schedules, " +
             "medications, inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
             "conversation_sessions, form_runs, callback_slots, delivery_channels, platform_identities, " +
@@ -114,8 +117,13 @@ class CaptureLaunchSuite extends PgSuite:
       documents.add(svg)
       Right(PngImage(IArray.unsafeFromArray(s"png:${documents.size}".getBytes(UTF_8))))
 
-  private final class Bot(val clock: SteppedClock, val wire: FakeTelegramTransport, val rasteriser: NumberingRasteriser):
-    private var updateSeq = 500L
+  private final class Bot(
+      val clock: SteppedClock,
+      val wire: FakeTelegramTransport,
+      val rasteriser: NumberingRasteriser,
+      firstUpdate: Long
+  ):
+    private var updateSeq = firstUpdate
 
     private val messageMethods = Set("sendMessage", "sendPhoto", "editMessageText", "editMessageCaption")
 
@@ -192,16 +200,22 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(caused.size, expected, s"message calls: ${caused.map(call => s"${call.method}: ${body(call)}")}")
       caused
 
-  private def launched[A](test: Bot => A): A =
+  private def launched[A](test: Bot => A): A = launchedFrom(firstUpdate = 500L)(test)
+
+  /** One process over the suite's database: the image bytes and the file ids are in its tables, as in production. A
+    * second launch in one test is the process after a restart; its updates continue after the first one's.
+    */
+  private def launchedFrom[A](firstUpdate: Long)(test: Bot => A): A =
     val clock = SteppedClock(monday)
     val wire = FakeTelegramTransport(clock)
     val rasteriser = NumberingRasteriser()
     supervised:
       val config = settings
-      val images = StatusImages.over(rasteriser, _ => ())
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images.store)
+      val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock)
+      val images = StatusImages.over(rasteriser, stores, _ => ())
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images)
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), idle, images), log = _ => ())
-      test(Bot(clock, wire, rasteriser))
+      test(Bot(clock, wire, rasteriser, firstUpdate))
 
   /** One account whose Telegram identity and chat are the owner's. */
   private def seedOwner(): UUID =
@@ -352,4 +366,32 @@ class CaptureLaunchSuite extends PgSuite:
 
       val List(asked) = bot.say("/today", expected = 1): @unchecked
       assertEquals(bot.body(asked), ConsentCopy.statement(ConsentPurpose.Medication), "no dose is shown")
+
+  test("after a restart a mood image is sent by its stored file id: no second upload and no second drawing"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Mood)
+    launched: bot =>
+      val List(prompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(first) = bot.tap(prompt, "4", expected = 1): @unchecked
+      assertEquals(uploadOf(first), Some("png:1"))
+    assertEquals(strings("SELECT media_kind || ':' || bot_id FROM telegram_file_cache"), List(s"photo:${telegram.botId}"))
+    assertEquals(strings("SELECT mime FROM render_assets"), List("image/png"))
+
+    launchedFrom(firstUpdate = 900L): bot =>
+      val List(prompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(again) = bot.tap(prompt, "4", expected = 1): @unchecked
+      assertEquals(again.method, "sendPhoto")
+      assertEquals(uploadOf(again), None, "the new process sends the file id the old one stored")
+      assertEquals(bot.rasteriser.count, 0, "the bytes of the old process are still in the asset store")
+
+  test("the rollup worker drains the queue a capture filled, without a read"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Hydration)
+    launched: bot =>
+      bot.say("300 ml", expected = 1)
+      val deadline = System.nanoTime() + 30.seconds.toNanos
+      def drained: Boolean = strings("SELECT 1 FROM rollup_dirty").isEmpty && strings("SELECT 1 FROM daily_rollups").nonEmpty
+      while !drained && System.nanoTime() < deadline do Thread.sleep(50)
+      assertEquals(strings("SELECT domain FROM rollup_dirty"), Nil, "the worker took the dirty day")
+      assertEquals(strings("SELECT domain || ':' || (metrics ->> 'totalMl') FROM daily_rollups"), List("hydration:300"))
 end CaptureLaunchSuite

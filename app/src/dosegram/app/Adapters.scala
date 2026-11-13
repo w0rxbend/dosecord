@@ -40,7 +40,7 @@ object Adapters:
         val telegram = settings.telegram.getOrElse(
           throw IllegalArgumentException("TELEGRAM_TOKEN is required when the telegram adapter is enabled")
         )
-        TelegramAdapter.Vendor -> TelegramAssembly.production(settings, telegram, clock)(images.store)
+        TelegramAdapter.Vendor -> TelegramAssembly.production(settings, telegram, clock)(images)
     }.toMap
 
   /** Starts every adapter as a gateway; returns `(name, stop)` pairs for the drain. */

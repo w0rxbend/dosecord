@@ -48,7 +48,9 @@ class LaunchPathSuite extends PgSuite:
     reminderPoll = Duration.ofMillis(100),
     materialiserPeriod = Duration.ofMinutes(15),
     outboxIdlePoll = Duration.ofMillis(50),
-    sessionSweepPeriod = Duration.ofMillis(100)
+    sessionSweepPeriod = Duration.ofMillis(100),
+    rollupIdlePoll = Duration.ofMillis(100),
+    imagePurgePeriod = Duration.ofMillis(100)
   )
   private val settleMillis = 600L
 

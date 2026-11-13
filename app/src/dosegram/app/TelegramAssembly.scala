@@ -4,8 +4,6 @@ import dosegram.adapter.telegram.AccessPolicy
 import dosegram.adapter.telegram.BotApi
 import dosegram.adapter.telegram.BotToken
 import dosegram.adapter.telegram.HttpTelegramTransport
-import dosegram.adapter.telegram.InMemoryFileIdCache
-import dosegram.adapter.telegram.MediaStore
 import dosegram.adapter.telegram.OxTimer
 import dosegram.adapter.telegram.TelegramAdapter
 import dosegram.adapter.telegram.TelegramConfig
@@ -31,18 +29,20 @@ import java.time.Duration
   */
 object TelegramAssembly:
 
-  /** The production adapter: the HTTP transport, closed with the scope. `media` holds the bytes of attachments. */
-  def production(settings: Settings, telegram: TelegramSettings, clock: Clock)(media: MediaStore)(using
+  /** The production adapter: the HTTP transport, closed with the scope. `images` holds the bytes of attachments and the
+    * file ids of the uploads.
+    */
+  def production(settings: Settings, telegram: TelegramSettings, clock: Clock)(images: StatusImages)(using
       Ox
   ): TelegramAdapter =
     if telegram.updates == TelegramUpdates.Webhook then
       // The endpoint needs the durable inbox of ROADMAP G1.7; a bot that receives nothing must not start silently.
       throw IllegalArgumentException("TELEGRAM_UPDATES_MODE=webhook is not served by this build; use poll")
     val transport = useCloseableInScope(HttpTelegramTransport(BotToken(telegram.token)))
-    adapter(settings, telegram, transport, clock)(media)
+    adapter(settings, telegram, transport, clock)(images)
 
   def adapter(settings: Settings, telegram: TelegramSettings, transport: TelegramTransport, clock: Clock)(
-      media: MediaStore
+      images: StatusImages
   )(using Ox): TelegramAdapter =
     TelegramAdapter(
       BotApi(transport),
@@ -51,8 +51,8 @@ object TelegramAssembly:
         clock = clock,
         timer = OxTimer(),
         // An attachment whose bytes the store does not hold is sent as its text equivalent.
-        media = media,
-        fileIds = InMemoryFileIdCache(),
+        media = images.store,
+        fileIds = images.fileIds,
         log = line => scribe.info(line),
         metrics = MicrometerTelegramMetrics
       )

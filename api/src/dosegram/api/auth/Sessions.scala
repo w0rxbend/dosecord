@@ -38,8 +38,8 @@ final case class SessionPolicy(idle: Duration, absolute: Duration, maxPerAccount
 object SessionPolicy:
   val Default: SessionPolicy = SessionPolicy(Duration.ofMinutes(15), Duration.ofHours(12), maxPerAccount = 5)
 
-/** Where sessions live. The table `miniapp_sessions` of ROADMAP G1.12 replaces [[InMemorySessionStore]] once the schema
-  * has it; the port is what that repository implements.
+/** Where sessions live: the table `miniapp_sessions` in production, [[InMemorySessionStore]] in a suite. The
+  * composition root implements the port over the table, so this module never sees the storage (DEP-05).
   */
 trait SessionStore:
   def insert(session: Session): Unit
@@ -51,8 +51,10 @@ trait SessionStore:
   /** Removes every session created from this launch value and returns how many there were (API-07). */
   def deleteByInitData(digest: String): Int
 
-  /** Removes the sessions `isLive` rejects and returns how many there were (the deletion job of section 15.6). */
-  def deleteWhere(dead: Session => Boolean): Int
+  /** Removes the sessions that are over and returns how many there were (the deletion job of section 15.6): one last
+    * used at or before `idleBefore`, or created at or before `createdBefore`.
+    */
+  def deleteEnded(idleBefore: Instant, createdBefore: Instant): Int
 
 /** Sessions of one process. They do not survive a restart: the client then meets "This session has ended" and
   * relaunches (MINI_APP gate G-4).
@@ -71,7 +73,9 @@ final class InMemorySessionStore extends SessionStore:
   override def listForAccount(accountId: UUID): List[Session] =
     synchronized(sessions.values.filter(_.accountId == accountId).toList)
   override def deleteByInitData(digest: String): Int = deleteWhere(_.initDataDigest == digest)
-  override def deleteWhere(dead: Session => Boolean): Int = synchronized:
+  override def deleteEnded(idleBefore: Instant, createdBefore: Instant): Int =
+    deleteWhere(session => !session.lastUsedAt.isAfter(idleBefore) || !session.createdAt.isAfter(createdBefore))
+  private def deleteWhere(dead: Session => Boolean): Int = synchronized:
     val doomed = sessions.values.filter(dead).map(_.tokenHash).toList
     doomed.foreach(sessions.remove)
     doomed.size
@@ -133,7 +137,9 @@ final class SessionService(
       case Some(session) if !policy.isLive(session, now) =>
         store.delete(tokenHash)
         Left(ApiFailure.sessionExpired())
-      case Some(session) =>
+      // API-06: the idle timer is written at most once per minute, so a screen that loads does not write per request.
+      case Some(session) if now.isBefore(session.lastUsedAt.plus(SessionService.TouchInterval)) => Right(session)
+      case Some(session)                                                                        =>
         store.touch(tokenHash, now)
         Right(session.copy(lastUsedAt = now))
 
@@ -144,7 +150,7 @@ final class SessionService(
   /** Deletes expired sessions; the caller runs it on a period. */
   def sweep(): Int =
     val now = clock.now()
-    store.deleteWhere(session => !policy.isLive(session, now))
+    store.deleteEnded(idleBefore = now.minus(policy.idle), createdBefore = now.minus(policy.absolute))
 
   private def accountOf(telegramUserId: Long): Option[Account] =
     uow.transaction: tx =>
@@ -178,6 +184,7 @@ final class SessionService(
 object SessionService:
   private val Vendor = "telegram"
   private val TokenBytes = 32
+  private val TouchInterval = Duration.ofMinutes(1)
 
   private final case class Account(id: UUID, timeZone: String)
 

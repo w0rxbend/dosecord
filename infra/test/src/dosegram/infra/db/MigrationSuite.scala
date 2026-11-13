@@ -35,7 +35,11 @@ class MigrationSuite extends PgSuite:
       "delivery_channels",
       "domain_events",
       "worker_heartbeat",
-      "reminders"
+      "reminders",
+      "render_assets",
+      "telegram_file_cache",
+      "miniapp_sessions",
+      "idempotency_keys"
     )
     withConnection { conn =>
       given Connection = conn

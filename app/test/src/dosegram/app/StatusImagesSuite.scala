@@ -38,7 +38,7 @@ class StatusImagesSuite extends munit.FunSuite:
 
   private final class Rig(rasteriser: Rasteriser):
     val log: mutable.ListBuffer[String] = mutable.ListBuffer.empty
-    val images: StatusImages = StatusImages.over(rasteriser, log += _)
+    val images: StatusImages = StatusImages.over(rasteriser, StatusImages.Stores.inMemory, log += _)
 
   test("a mood state is drawn once and its key names the state, not a person"):
     val rasteriser = CountingRasteriser()
@@ -101,9 +101,9 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals(List("a", "b", "c").filter(store.holds), List("a", "c"))
 
   test("without renderer settings there is no image, and a binary that does not exist fails the start"):
-    assertEquals(StatusImages.from(None, _ => ()).cards.water(water), None)
+    assertEquals(StatusImages.from(None, StatusImages.Stores.inMemory, _ => ()).cards.water(water), None)
     val missing = RenderSettings("/nonexistent/resvg", sys.env("DOSEGRAM_FONTS_DIR"))
-    val error = intercept[IllegalArgumentException](StatusImages.from(Some(missing), _ => ()))
+    val error = intercept[IllegalArgumentException](StatusImages.from(Some(missing), StatusImages.Stores.inMemory, _ => ()))
     assertEquals(error.getMessage, "RESVG_PATH does not name an executable")
 
   test("with the resvg binary of this machine every card is a PNG"):
@@ -116,7 +116,7 @@ class StatusImagesSuite extends munit.FunSuite:
       .find(Files.isExecutable(_))
     assume(binary.isDefined, "no resvg on the PATH")
     val log = mutable.ListBuffer.empty[String]
-    val images = StatusImages.from(Some(RenderSettings(binary.get.toString, sys.env("DOSEGRAM_FONTS_DIR"))), log += _)
+    val images = StatusImages.from(Some(RenderSettings(binary.get.toString, sys.env("DOSEGRAM_FONTS_DIR"))), StatusImages.Stores.inMemory, log += _)
     val drawn = List(
       images.cards.mood(MoodCardView(pleasant, Energy.of(2))),
       images.cards.water(water),

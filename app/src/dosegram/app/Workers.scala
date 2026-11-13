@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.contracts.ChatAdapter
+import dosegram.core.application.insights.RollupService
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.SessionSweeper
 import dosegram.core.ports.LoopMetrics
@@ -15,6 +16,8 @@ import dosegram.infra.MicrometerLoopMetrics
 import dosegram.infra.MicrometerOutboxMetrics
 import dosegram.infra.Settings
 import dosegram.infra.db.PgNotifyWake
+import dosegram.infra.db.PgRenderAssets
+import dosegram.infra.db.PgTelegramFileCache
 import dosegram.infra.db.PgUnitOfWork
 import dosegram.infra.db.PgVendorLocks
 import ox.Ox
@@ -26,11 +29,13 @@ import javax.sql.DataSource
 import scala.annotation.tailrec
 
 /** The worker half of the process (docs/dosegram/ARCHITECTURE.md section 4.1): the wake listener, the materialiser, the
-  * reminder loop, one outbox dispatcher per vendor under that vendor's ownership lock, and the session sweeper. Each
-  * runs in a fork of the root scope, so a failing fork fails the scope and the process restarts (DESIGN.md section 3).
+  * reminder loop, one outbox dispatcher per vendor under that vendor's ownership lock, the session sweeper, the rollup
+  * worker and the purge of the image stores. Each runs in a fork of the root scope, so a failing fork fails the scope
+  * and the process restarts (DESIGN.md section 3).
   *
-  * Only the forks that call a vendor go through the [[ClaimGate]]: the reminder loop and the materialiser write to the
-  * database alone, one transaction per unit, so cancelling them with the scope loses nothing.
+  * Only the forks that call a vendor go through the [[ClaimGate]]: the reminder loop, the materialiser, the rollup
+  * worker and the purge write to the database alone, one transaction per unit, so cancelling them with the scope loses
+  * nothing.
   */
 final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Parts):
 
@@ -49,6 +54,8 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startReminderLoop(materialiser, wake, loopMetrics)
     parts.adapters.foreach((vendor, adapter) => startDispatcher(vendor, adapter, gate))
     startSessionSweeper(gate)
+    startRollupWorker()
+    startImagePurge()
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
@@ -100,27 +107,63 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
         report.graced + report.aborted
     ()
 
+  /** Drains the rollup queue (ARCHITECTURE section 11.1, INS-01): a day a write made dirty is recomputed here, so a
+    * read finds it ready. A read still refreshes the days of its own range, so it never shows a stale one either way.
+    */
+  private def startRollupWorker()(using Ox): Unit =
+    val rollups = RollupService(uow, clock)
+    fork:
+      while true do if rollups.drain(Workers.RollupBatch) == 0 then Thread.sleep(parts.cadence.rollupIdlePoll.toMillis)
+    ()
+
+  /** The deleting jobs of the image stores (ROADMAP G1.10): the bytes of an image one hour after it was drawn, and a
+    * file id that no send has used for [[Workers.FileIdUnusedFor]].
+    */
+  private def startImagePurge()(using Ox): Unit =
+    val assets = PgRenderAssets(dataSource)
+    // Pruning is by last use, whichever bot the file id belongs to.
+    val fileIds = PgTelegramFileCache(dataSource, botId = 0L)
+    fork:
+      while true do
+        val now = clock.now()
+        assets.purge(now)
+        fileIds.forgetUnusedSince(now.minus(Workers.FileIdUnusedFor))
+        Thread.sleep(parts.cadence.imagePurgePeriod.toMillis)
+    ()
+
 object Workers:
+
+  /** The dirty keys one rollup step takes. */
+  private val RollupBatch = 100
+
+  /** A file id that nothing has sent for this long is forgotten; the next send uploads the image again. */
+  val FileIdUnusedFor: Duration = Duration.ofDays(30)
 
   /** How long each worker fork waits between passes that found no work. The reminder loop also wakes on NOTIFY. */
   final case class Cadence(
       reminderPoll: Duration,
       materialiserPeriod: Duration,
       outboxIdlePoll: Duration,
-      sessionSweepPeriod: Duration
+      sessionSweepPeriod: Duration,
+      rollupIdlePoll: Duration,
+      imagePurgePeriod: Duration
   )
 
   object Cadence:
 
     /** The reminder poll and the 15-minute materialiser are DESIGN.md sections 7.4 and 7.2. No document fixes the other
       * two: one second bounds the delay between a committed outbox row and its send, one minute is the granularity of
-      * the 30-minute session idle limit.
+      * the 30-minute session idle limit. The rollup poll and the image purge are explained at their values.
       */
     val Production: Cadence = Cadence(
       reminderPoll = ReminderLoop.PollInterval,
       materialiserPeriod = Duration.ofMinutes(15),
       outboxIdlePoll = Duration.ofSeconds(1),
-      sessionSweepPeriod = Duration.ofMinutes(1)
+      sessionSweepPeriod = Duration.ofMinutes(1),
+      // A read refreshes its own days, so the worker only keeps the queue short; the purge keeps the one-hour promise
+      // of the image bytes to within a minute.
+      rollupIdlePoll = Duration.ofSeconds(5),
+      imagePurgePeriod = Duration.ofMinutes(1)
     )
 
   /** Repeats `pass` (which returns the number of units it worked on) until claiming stops, waiting `idle` after a pass

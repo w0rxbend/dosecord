@@ -1,7 +1,6 @@
 package dosegram.app
 
 import dosegram.adapter.telegram.FakeTelegramTransport
-import dosegram.adapter.telegram.MediaStore
 import dosegram.adapter.telegram.WireReply
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
@@ -51,7 +50,9 @@ class TelegramLaunchSuite extends PgSuite:
     reminderPoll = Duration.ofMillis(100),
     materialiserPeriod = Duration.ofMinutes(15),
     outboxIdlePoll = Duration.ofMillis(50),
-    sessionSweepPeriod = Duration.ofMillis(100)
+    sessionSweepPeriod = Duration.ofMillis(100),
+    rollupIdlePoll = Duration.ofMillis(100),
+    imagePurgePeriod = Duration.ofMillis(100)
   )
   private val settleMillis = 700L
 
@@ -155,7 +156,7 @@ class TelegramLaunchSuite extends PgSuite:
     prepare(wire)
     supervised:
       val config = settings
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(MediaStore.empty)
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly)
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
       test(Bot(clock, wire))
 

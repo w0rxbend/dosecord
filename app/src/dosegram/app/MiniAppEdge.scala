@@ -1,15 +1,15 @@
 package dosegram.app
 
 import dosegram.api.ApiModule
-import dosegram.api.InMemoryIdempotencyStore
 import dosegram.api.TrackingReads
 import dosegram.api.auth.Ed25519InitDataCheck
-import dosegram.api.auth.InMemorySessionStore
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataVerifier
 import dosegram.api.auth.TelegramInitDataVerifier
 import dosegram.infra.MiniAppSettings
 import dosegram.infra.Settings
+import dosegram.infra.db.PgIdempotencyKeys
+import dosegram.infra.db.PgMiniAppSessions
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
 import ox.fork
@@ -84,8 +84,8 @@ object MiniAppEdge:
       uow,
       parts.clock,
       verifier(settings, miniApp),
-      InMemorySessionStore(),
-      InMemoryIdempotencyStore(),
+      PgSessionStore(PgMiniAppSessions(dataSource)),
+      PgIdempotencyStore(PgIdempotencyKeys(dataSource), parts.clock),
       TrackingReads(tracking.stats, tracking.hydration),
       log
     )
