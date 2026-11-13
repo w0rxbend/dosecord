@@ -22,7 +22,21 @@ object ActionRegistry:
     ActionEntry(30, "wizard.step", requiresSession = true),
     ActionEntry(31, "wizard.text_step", requiresSession = true),
     ActionEntry(32, "wizard.confirm", requiresSession = true),
-    ActionEntry(40, "link.confirm", requiresSession = false)
+    ActionEntry(40, "link.confirm", requiresSession = false),
+    // Consent, water, mood and statistics (BOT_UX sections 5.5, 11.2, 11.4, 12.5): direct mode on the account id, or
+    // on the entry for an Undo and the energy step; the value carries the stage, the amount, the step or the period.
+    ActionEntry(50, "consent.step", requiresSession = false),
+    ActionEntry(51, "consent.withdraw", requiresSession = false),
+    ActionEntry(60, "water.add", requiresSession = false),
+    ActionEntry(61, "water.undo", requiresSession = false),
+    ActionEntry(62, "water.goal", requiresSession = false),
+    ActionEntry(63, "water.goal_ask", requiresSession = false),
+    ActionEntry(64, "water.image", requiresSession = false),
+    ActionEntry(70, "mood.checkin", requiresSession = false),
+    ActionEntry(71, "mood.energy", requiresSession = false),
+    ActionEntry(72, "mood.undo", requiresSession = false),
+    ActionEntry(80, "stats.show", requiresSession = false),
+    ActionEntry(81, "stats.image", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

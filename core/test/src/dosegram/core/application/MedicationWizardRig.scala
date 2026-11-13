@@ -33,7 +33,8 @@ import scala.util.Using
   */
 private final class MedicationWizardRig(
     profile: MedicationWizardRig.Profile,
-    beforeSend: RenderedMessage => Unit = _ => ()
+    beforeSend: RenderedMessage => Unit = _ => (),
+    captureParts: Option[Clock => dosegram.core.application.capture.CaptureParts] = None
 )(using Ox):
   import MedicationWizardRig.*
 
@@ -43,15 +44,20 @@ private final class MedicationWizardRig(
   private val adapter = SyncAdapter(fake, beforeSend)
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
   private val barrier = DeliveryBarrier(uow)
-  private val mediator =
-    ChatMediator(
-      barrier.uow,
-      adapters,
-      codec,
-      Application.handler(uow, adapters, codec, clock),
-      clock,
-      CommandRegistry.byName
-    )
+  // With capture parts the rig runs the product composition; without them, the composition of the earlier slices.
+  private val mediator = captureParts match
+    case Some(partsFor) =>
+      val handler = Application.withCapture(uow, adapters, codec, clock)(partsFor(clock))
+      ChatMediator(barrier.uow, adapters, codec, handler, clock, CommandRegistry.withCaptureByName)
+    case None =>
+      ChatMediator(
+        barrier.uow,
+        adapters,
+        codec,
+        Application.handler(uow, adapters, codec, clock),
+        clock,
+        CommandRegistry.byName
+      )
 
   private var seq = 0
   private val handles = scala.collection.mutable.ListBuffer.empty[CapturingInteractionHandle]
@@ -91,6 +97,16 @@ private final class MedicationWizardRig(
     val chunks = pushAndCollect(Inbound.InteractionSubmitted(refOf(wire), None), Some(handle))
       .collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten
     (handle, chunks)
+
+  /** Taps `label` on the latest message whose text contains `containing`, with that message as the source of the tap
+    * (as a vendor with buttons reports it), and returns the ops of the answer.
+    */
+  def tapOn(containing: String, label: String): List[VendorOp] =
+    val (source, rendered) = fake.synchronized(fake.sent).reverse
+      .find((_, message) => message.chunks.exists(_.contains(containing)) && message.choiceMap.exists(_.label == label))
+      .getOrElse(throw new NoSuchElementException(s"no message containing '$containing' with choice '$label'"))
+    val wire = rendered.choiceMap.find(_.label == label).get.callback
+    pushAndCollect(Inbound.InteractionSubmitted(refOf(wire), Some(source)), Some(newHandle()))
 
   // ---------- The M1.6/M1.7 machinery over the same stores (intake-flow tests) ----------
 

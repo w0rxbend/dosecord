@@ -1,6 +1,9 @@
 package dosegram.core.application
 
 import dosegram.contracts.ChatAdapter
+import dosegram.contracts.CommandSpec
+import dosegram.core.application.capture.CaptureHandler
+import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.dose.DoseIntakeHandler
 import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.application.identity.AccountTimezoneFlow
@@ -33,9 +36,27 @@ object Application:
     )
 
   def handler(uow: UnitOfWork, adapters: Map[String, ChatAdapter], codec: CallbackCodec, clock: Clock): ChatHandler =
+    compose(uow, adapters, codec, clock)(CommandRegistry.all, menu => menu)
+
+  /** The same composition with the capture surface (`/water`, `/mood`, `/stats`, `/privacy`, quick-capture text)
+    * between the dose handler and the menu, and `/help` over [[CommandRegistry.withCapture]]. Dose taps and wizard
+    * answers are taken before it, so a typed amount inside a wizard step stays the wizard's.
+    */
+  def withCapture(uow: UnitOfWork, adapters: Map[String, ChatAdapter], codec: CallbackCodec, clock: Clock)(
+      capture: CaptureParts
+  ): ChatHandler =
+    compose(uow, adapters, codec, clock)(
+      CommandRegistry.withCapture,
+      menu => new CaptureHandler(codec, clock, capture, inner = menu)
+    )
+
+  private def compose(uow: UnitOfWork, adapters: Map[String, ChatAdapter], codec: CallbackCodec, clock: Clock)(
+      commands: List[CommandSpec],
+      beforeMenu: ChatHandler => ChatHandler
+  ): ChatHandler =
     val lifecycle = ScheduleLifecycle(uow, clock)
-    val menu = new MenuHandler(codec, clock, lifecycle, inner = FirstFlows.innerHandlers)
-    val dose = new DoseIntakeHandler(codec, clock, inner = menu)
+    val menu = new MenuHandler(codec, clock, lifecycle, inner = FirstFlows.innerHandlers(commands))
+    val dose = new DoseIntakeHandler(codec, clock, inner = beforeMenu(menu))
     val engine = WizardEngine(
       flows = flows(clock, lifecycle),
       flowCommands = Map.empty,

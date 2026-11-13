@@ -25,5 +25,9 @@ object Copy:
       IdentityCopy.entries ++
       AdapterCopy.entries ++
       StatsCopy.entries ++
-      MoodLabels.entries
+      MoodLabels.entries ++
+      ConsentCopy.entries ++
+      WaterCopy.entries ++
+      CheckInCopy.entries ++
+      StatsCardCopy.entries
 end Copy

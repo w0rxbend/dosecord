@@ -11,8 +11,11 @@ import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentCheck
+import dosegram.core.ports.ConsentLedger
+import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DoseHistoryRepository
+import dosegram.core.ports.GrantedConsent
 import dosegram.core.ports.HydrationRepository
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.MoodRepository
@@ -43,6 +46,28 @@ final class FakeConsent(initial: Set[(UUID, ConsentPurpose)]) extends ConsentChe
 object FakeConsent:
   def all(accounts: UUID*): FakeConsent =
     FakeConsent(accounts.flatMap(account => ConsentPurpose.values.map(account -> _)).toSet)
+
+/** The consent ledger in memory: the current state per purpose and the events in order. */
+final class InMemoryConsentLedger extends ConsentLedger:
+  private val state = mutable.LinkedHashMap.empty[(UUID, ConsentPurpose), GrantedConsent]
+  val events: mutable.ListBuffer[String] = mutable.ListBuffer.empty
+
+  override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean = state.contains((accountId, purpose))
+
+  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+    val changed = !state.get((accountId, purpose)).exists(_.policyVersion == notice.policyVersion)
+    if changed then
+      state((accountId, purpose)) = GrantedConsent(purpose, at, notice.policyVersion)
+      events += s"${purpose.id}:granted"
+    changed
+
+  override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
+    val removed = state.remove((accountId, purpose)).isDefined
+    if removed then events += s"${purpose.id}:withdrawn"
+    removed
+
+  override def granted(accountId: UUID): List[GrantedConsent] =
+    state.collect { case ((owner, _), consent) if owner == accountId => consent }.toList
 
 /** Identifiers in creation order, so tests can tell rows apart without randomness. */
 final class SequentialIds extends IdSource:

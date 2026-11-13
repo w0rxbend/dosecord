@@ -160,7 +160,7 @@ object StatsCopy:
     java.math.BigDecimal.valueOf(value).setScale(1, RoundingMode.HALF_UP).toPlainString
 
   /** Litres with at most `decimals` places and at least one: "1.25", "0.5", "2.0". */
-  private def litres(millilitres: Int, decimals: Int): String =
+  private[copy] def litres(millilitres: Int, decimals: Int): String =
     val rounded = java.math.BigDecimal.valueOf(millilitres.toLong, 3).setScale(decimals, RoundingMode.HALF_UP)
     val stripped = rounded.stripTrailingZeros
     (if stripped.scale < 1 then stripped.setScale(1) else stripped).toPlainString

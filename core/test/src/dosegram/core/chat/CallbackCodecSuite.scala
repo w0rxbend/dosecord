@@ -216,7 +216,20 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         30 -> "wizard.step",
         31 -> "wizard.text_step",
         32 -> "wizard.confirm",
-        40 -> "link.confirm"
+        40 -> "link.confirm",
+        // The capture surface (BOT_UX sections 5.5, 11.2, 11.4, 12.5): ids are wire form and never change.
+        50 -> "consent.step",
+        51 -> "consent.withdraw",
+        60 -> "water.add",
+        61 -> "water.undo",
+        62 -> "water.goal",
+        63 -> "water.goal_ask",
+        64 -> "water.image",
+        70 -> "mood.checkin",
+        71 -> "mood.energy",
+        72 -> "mood.undo",
+        80 -> "stats.show",
+        81 -> "stats.image"
       )
     )
 

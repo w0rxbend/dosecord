@@ -93,12 +93,47 @@ object CommandRegistry:
     description = "Show this help."
   )
 
+  val Water: CommandSpec = CommandSpec(
+    name = "water",
+    description = "Log water.",
+    args = List(CommandArg("amount", "How much, e.g. /water 300; omitted shows the water card", required = false))
+  )
+
+  val Mood: CommandSpec = CommandSpec(
+    name = "mood",
+    description = "Log mood.",
+    args = List(CommandArg("step", "A step from 1 to 5; omitted shows the prompt", required = false))
+  )
+
+  val Stats: CommandSpec = CommandSpec(
+    name = "stats",
+    description = "Show statistics.",
+    args = List(CommandArg("period", "today, 7 or 30; omitted shows the last 7 days", required = false))
+  )
+
+  val Privacy: CommandSpec = CommandSpec(
+    name = "privacy",
+    description = "Show and withdraw your consents."
+  )
+
   /** Display order is the registration order. A domain has no command here before it has a consent purpose and its
     * capture slice has shipped (BOT_UX BUX-CMD-08).
     */
   val all: List[CommandSpec] = List(Start, Today, Meds, History, Taken, Snooze, Skip, Log, Menu, App, Cancel, Help)
 
   val byName: Map[String, CommandSpec] = all.map(spec => spec.name -> spec).toMap
+
+  /** The commands of the capture domains and of their consents. They exist only in a composition that has a consent
+    * ledger (BUX-CMD-08): [[Application.withCapture]] handles them, [[all]] stays the list of a composition without
+    * one.
+    */
+  val capture: List[CommandSpec] = List(Water, Mood, Stats, Privacy)
+
+  /** The command list of the composition with capture, with the capture commands ahead of `/menu`. */
+  val withCapture: List[CommandSpec] =
+    all.flatMap(spec => if spec == Menu then capture :+ spec else List(spec))
+
+  val withCaptureByName: Map[String, CommandSpec] = withCapture.map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

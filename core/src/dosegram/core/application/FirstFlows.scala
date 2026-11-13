@@ -29,7 +29,7 @@ object FirstFlows:
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,
-      inner = CommandHandlers(),
+      inner = CommandHandlers(CommandRegistry.all),
       uow = uow,
       adapters = adapters
     )
@@ -52,7 +52,7 @@ object FirstFlows:
     * on this legacy path; the M1.9 [[Application]] composition wires the real menu behind the engine's global
     * interrupt.
     */
-  private[application] final class CommandHandlers extends ChatHandler:
+  private[application] final class CommandHandlers(commands: List[CommandSpec]) extends ChatHandler:
     override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
       event.body match
         case Inbound.CommandInvoked(CommandRegistry.Help.name, _, _) => help(event)
@@ -63,10 +63,12 @@ object FirstFlows:
           Reply(followUps = List(FirstFlows.outbound(event, "help.unknown", HelpCopy.unknownMessage)))
         case _ => Reply.empty
 
-    /** Rendered from the [[CommandRegistry]] so it cannot omit a registered command — including `/help` itself (K9). */
+    /** Rendered from the composition's command list, so it cannot omit a registered command — including `/help` itself
+      * (K9).
+      */
     private def help(event: InboundEvent): Reply =
       val lines =
-        HelpCopy.intro +: CommandRegistry.all.map(spec => s"${CommandRegistry.usage(spec)} — ${spec.description}")
+        HelpCopy.intro +: commands.map(spec => s"${CommandRegistry.usage(spec)} — ${spec.description}")
       Reply(followUps =
         List(
           OutboundMessage(
@@ -87,7 +89,7 @@ object FirstFlows:
   /** The M1.9 composition's building blocks: the plain command handlers (`/help`, the fallbacks) as the inner handler
     * behind the menu, and the identity gate in front of the engine.
     */
-  private[application] def innerHandlers: ChatHandler = CommandHandlers()
+  private[application] def innerHandlers(commands: List[CommandSpec]): ChatHandler = CommandHandlers(commands)
 
   private[application] def identityGate(engine: WizardEngine): ChatHandler = IdentityGate(engine)
 end FirstFlows

@@ -43,8 +43,10 @@ enum HydrationRefusal:
   case GoalOutOfBounds(min: Int, max: Int)
   case PresetsInvalid
 
-/** A local day of one account as the Today card shows it: `recorded` is absent on a day with no entry. */
-final case class WaterDayView(date: LocalDate, zone: ZoneId, recorded: Option[HydrationDay])
+/** A local day of one account as the Today card shows it: `recorded` is absent on a day with no entry, and `goalMl` is
+  * the user's own goal in force on that day, with or without an entry.
+  */
+final case class WaterDayView(date: LocalDate, zone: ZoneId, recorded: Option[HydrationDay], goalMl: Option[Int])
 
 /** The outcome of [[HydrationService.log]]. `goalReachedNow` is true only for the entry that first takes the day's
   * total to the goal; `replayed` marks a repeated request that created nothing.
@@ -172,5 +174,5 @@ final class HydrationService(uow: TrackingUnitOfWork, consent: ConsentCheck, clo
   private def dayView(tx: TrackingTx, accountId: UUID, date: LocalDate, zone: ZoneId): WaterDayView =
     val entries = tx.hydration.listLive(accountId, DateRange.single(date))
     val goals = tx.hydration.goals(accountId, date)
-    WaterDayView(date, zone, HydrationStats.byDay(entries, goals).get(date))
+    WaterDayView(date, zone, HydrationStats.byDay(entries, goals).get(date), HydrationStats.goalOn(date, goals))
 end HydrationService
