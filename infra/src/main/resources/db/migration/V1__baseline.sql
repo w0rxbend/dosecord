@@ -198,6 +198,203 @@ CREATE TRIGGER auth_audit_log_append_only BEFORE UPDATE OR DELETE ON auth_audit_
   FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
 
 -- ---------------------------------------------------------------------------
+-- Tracking entries: hydration and mood (docs/ARCHITECTURE.md sections 10.1,
+-- 10.6 and 10.8). An entry is immutable: it can be voided once, and a
+-- correction is a new row that names the row it supersedes. local_date and tz
+-- are fixed when the entry is made, so a later change of the account zone does
+-- not move it to another day. The bounds are input guards, not guidance.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE hydration_entries (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  occurred_at timestamptz NOT NULL, local_date date NOT NULL, tz text NOT NULL,
+  source text NOT NULL CHECK (source IN ('bot','miniapp','import','integration','system')),
+  client_key text, import_job_id uuid, external_ref_hmac bytea, supersedes_id uuid REFERENCES hydration_entries,
+  amount_ml int NOT NULL CHECK (amount_ml BETWEEN 1 AND 5000),
+  entered_value numeric(8,3) NOT NULL, entered_unit text NOT NULL CHECK (entered_unit IN ('ml','l','floz','glass')),
+  beverage_code smallint NOT NULL DEFAULT 0 CHECK (beverage_code BETWEEN 0 AND 6),   -- 0 = water; the other codes arrive with drink types
+  created_at timestamptz NOT NULL, voided_at timestamptz,
+  void_reason text CHECK (void_reason IS NULL OR void_reason IN ('undone','deleted','superseded')),
+  CONSTRAINT hydration_entries_void CHECK ((voided_at IS NULL) = (void_reason IS NULL)));
+CREATE UNIQUE INDEX uq_hydration_entries_account_client_key ON hydration_entries (account_id, client_key);   -- one tap records once
+CREATE INDEX ix_hydration_entries_account_local_date ON hydration_entries (account_id, local_date);
+CREATE INDEX ix_hydration_entries_account_occurred_at_id ON hydration_entries (account_id, occurred_at, id);
+
+-- target_ml NULL means "no goal from that day": the user may have none.
+CREATE TABLE hydration_goals (account_id uuid NOT NULL REFERENCES users, effective_from date NOT NULL,
+  target_ml int CHECK (target_ml BETWEEN 100 AND 10000), created_at timestamptz NOT NULL,
+  PRIMARY KEY (account_id, effective_from));
+
+CREATE TABLE hydration_presets (account_id uuid NOT NULL REFERENCES users, slot smallint NOT NULL CHECK (slot BETWEEN 1 AND 4),
+  amount_ml int NOT NULL CHECK (amount_ml BETWEEN 1 AND 5000),
+  beverage_code smallint NOT NULL DEFAULT 0 CHECK (beverage_code BETWEEN 0 AND 6),
+  PRIMARY KEY (account_id, slot));
+
+-- The account's own tag list. A label is content: it is stored encrypted, with
+-- a keyed hash for equality inside one account (ARCHITECTURE section 10.1).
+CREATE TABLE account_tags (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  domain text NOT NULL CHECK (domain IN ('mood','symptom','meal')), label_enc bytea NOT NULL, label_hmac bytea NOT NULL,
+  archived_at timestamptz, created_at timestamptz NOT NULL);
+CREATE UNIQUE INDEX uq_account_tags_account_domain_label_hmac ON account_tags (account_id, domain, label_hmac);
+
+-- Valence and energy are steps 1 to 5. There is no questionnaire score and no
+-- interpretation column. note_enc holds the encrypted note; no query reads it.
+CREATE TABLE mood_checkins (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  occurred_at timestamptz NOT NULL, local_date date NOT NULL, tz text NOT NULL,
+  source text NOT NULL CHECK (source IN ('bot','miniapp','import','integration','system')),
+  client_key text, import_job_id uuid, external_ref_hmac bytea, supersedes_id uuid REFERENCES mood_checkins,
+  valence smallint NOT NULL CHECK (valence BETWEEN 1 AND 5), energy smallint CHECK (energy BETWEEN 1 AND 5),
+  tag_ids uuid[] NOT NULL DEFAULT '{}' CHECK (cardinality(tag_ids) <= 5), note_enc bytea, prompt_occurrence_id uuid,
+  created_at timestamptz NOT NULL, voided_at timestamptz,
+  void_reason text CHECK (void_reason IS NULL OR void_reason IN ('undone','deleted','superseded')),
+  CONSTRAINT mood_checkins_void CHECK ((voided_at IS NULL) = (void_reason IS NULL)));
+CREATE UNIQUE INDEX uq_mood_checkins_account_client_key ON mood_checkins (account_id, client_key);
+CREATE INDEX ix_mood_checkins_account_local_date ON mood_checkins (account_id, local_date);
+CREATE INDEX ix_mood_checkins_account_occurred_at_id ON mood_checkins (account_id, occurred_at, id);
+
+-- The only UPDATE an entry accepts is its first void. DELETE follows the
+-- append-only rule above: the erasure role with the erasure GUC.
+CREATE FUNCTION dosegram_guard_entry_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.voided_at IS NOT NULL THEN
+    RAISE EXCEPTION 'dosegram: % rows are immutable; this row is already voided', TG_TABLE_NAME;
+  ELSIF (to_jsonb(NEW) - 'voided_at' - 'void_reason') IS DISTINCT FROM (to_jsonb(OLD) - 'voided_at' - 'void_reason') THEN
+    RAISE EXCEPTION 'dosegram: % rows are immutable; only a void is allowed', TG_TABLE_NAME;
+  END IF;
+  RETURN NEW;
+END
+$$;
+
+CREATE TRIGGER hydration_entries_immutable BEFORE UPDATE ON hydration_entries
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_entry_immutable();
+CREATE TRIGGER hydration_entries_no_delete BEFORE DELETE ON hydration_entries
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
+CREATE TRIGGER mood_checkins_immutable BEFORE UPDATE ON mood_checkins
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_entry_immutable();
+CREATE TRIGGER mood_checkins_no_delete BEFORE DELETE ON mood_checkins
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
+
+-- ---------------------------------------------------------------------------
+-- Daily rollups (docs/ARCHITECTURE.md section 11.1, ADR-024). daily_rollups is
+-- derived and rebuildable: one row per account, local day and domain, holding
+-- counts and sums only. rollup_dirty is its work queue. A write to a source
+-- table queues the affected days in the same transaction, by trigger, so no
+-- write path can forget it and a crash cannot lose the marker.
+--
+-- The markers upsert with DO UPDATE on purpose: the row lock makes a
+-- concurrent claim (FOR UPDATE SKIP LOCKED) skip a key whose source write has
+-- not committed yet, instead of deleting the marker before the new row is
+-- visible. marked_at is queue order only; it takes the database clock through
+-- its DEFAULT.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE daily_rollups (account_id uuid NOT NULL REFERENCES users, local_date date NOT NULL,
+  domain text NOT NULL CHECK (domain IN ('medication','hydration','nutrition','mood','sleep','symptoms')),
+  metrics jsonb NOT NULL, rollup_version smallint NOT NULL, computed_at timestamptz NOT NULL,
+  PRIMARY KEY (account_id, local_date, domain));
+
+CREATE TABLE rollup_dirty (account_id uuid NOT NULL, local_date date NOT NULL,
+  domain text NOT NULL CHECK (domain IN ('medication','hydration','nutrition','mood','sleep','symptoms')),
+  marked_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (account_id, local_date, domain));
+CREATE INDEX ix_rollup_dirty_marked_at ON rollup_dirty (marked_at);
+
+-- An entry counts on the local_date stored on it; TG_ARGV[0] is the domain.
+CREATE FUNCTION dosegram_entry_rollup_dirty() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  entry record;
+BEGIN
+  IF TG_OP = 'DELETE' THEN entry := OLD; ELSE entry := NEW; END IF;
+  INSERT INTO rollup_dirty (account_id, local_date, domain)
+  VALUES (entry.account_id, entry.local_date, TG_ARGV[0])
+  ON CONFLICT (account_id, local_date, domain) DO UPDATE SET marked_at = EXCLUDED.marked_at;
+  RETURN NULL;
+END
+$$;
+
+CREATE TRIGGER hydration_entries_rollup_dirty AFTER INSERT OR UPDATE OR DELETE ON hydration_entries
+  FOR EACH ROW EXECUTE FUNCTION dosegram_entry_rollup_dirty('hydration');
+CREATE TRIGGER mood_checkins_rollup_dirty AFTER INSERT OR UPDATE OR DELETE ON mood_checkins
+  FOR EACH ROW EXECUTE FUNCTION dosegram_entry_rollup_dirty('mood');
+
+-- The hydration rollup carries the goal in force on its day, so a goal change
+-- queues every recorded day from its first day on.
+CREATE FUNCTION dosegram_goal_rollup_dirty() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO rollup_dirty (account_id, local_date, domain)
+  SELECT DISTINCT e.account_id, e.local_date, 'hydration'
+  FROM hydration_entries e
+  WHERE e.account_id = NEW.account_id AND e.local_date >= NEW.effective_from
+  ORDER BY 2
+  ON CONFLICT (account_id, local_date, domain) DO UPDATE SET marked_at = EXCLUDED.marked_at;
+  RETURN NULL;
+END
+$$;
+
+CREATE TRIGGER hydration_goals_rollup_dirty AFTER INSERT OR UPDATE ON hydration_goals
+  FOR EACH ROW EXECUTE FUNCTION dosegram_goal_rollup_dirty();
+
+-- A dose counts on the local day of its effective, skip, miss or scheduled
+-- instant in the account zone (ADR-012). The trigger does not resolve that
+-- zone: it queues the UTC date of each instant and its two neighbours, which
+-- covers every zone offset. Queuing a day too many only costs a recomputation.
+CREATE FUNCTION dosegram_dose_rollup_dirty() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  instants timestamptz[];
+BEGIN
+  instants := ARRAY[NEW.scheduled_for, NEW.effective_at, NEW.skipped_at, NEW.missed_at];
+  IF TG_OP = 'UPDATE' THEN
+    instants := instants || ARRAY[OLD.scheduled_for, OLD.effective_at, OLD.skipped_at, OLD.missed_at];
+  END IF;
+  INSERT INTO rollup_dirty (account_id, local_date, domain)
+  SELECT DISTINCT NEW.account_id, (ts AT TIME ZONE 'UTC')::date + shift, 'medication'
+  FROM unnest(instants) AS ts, generate_series(-1, 1) AS shift
+  WHERE ts IS NOT NULL
+  ORDER BY 2
+  ON CONFLICT (account_id, local_date, domain) DO UPDATE SET marked_at = EXCLUDED.marked_at;
+  RETURN NULL;
+END
+$$;
+
+CREATE TRIGGER dose_occurrences_rollup_dirty_insert AFTER INSERT ON dose_occurrences
+  FOR EACH ROW EXECUTE FUNCTION dosegram_dose_rollup_dirty();
+-- The reminder loop's own updates change no figure and queue nothing: a move between the open statuses (pending,
+-- due, snoozed), reminder_seq, next_action_at, error_count, and the due window of a dose that is not taken. The due
+-- window matters only for a taken dose, where it decides between on time and late.
+CREATE TRIGGER dose_occurrences_rollup_dirty_update AFTER UPDATE ON dose_occurrences
+  FOR EACH ROW WHEN (
+    (OLD.status IS DISTINCT FROM NEW.status
+      AND NOT (OLD.status IN ('pending','due','snoozed') AND NEW.status IN ('pending','due','snoozed')))
+    OR OLD.effective_at IS DISTINCT FROM NEW.effective_at
+    OR OLD.skipped_at IS DISTINCT FROM NEW.skipped_at OR OLD.missed_at IS DISTINCT FROM NEW.missed_at
+    OR OLD.scheduled_for IS DISTINCT FROM NEW.scheduled_for
+    OR (NEW.status = 'taken' AND OLD.due_window_end IS DISTINCT FROM NEW.due_window_end))
+  EXECUTE FUNCTION dosegram_dose_rollup_dirty();
+
+-- Day attribution of doses follows the account zone, so a zone change queues
+-- every medication day of the account.
+CREATE FUNCTION dosegram_zone_rollup_dirty() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO rollup_dirty (account_id, local_date, domain)
+  SELECT NEW.id, days.local_date, 'medication'
+  FROM (
+    SELECT (ts AT TIME ZONE 'UTC')::date + shift AS local_date
+    FROM dose_occurrences o,
+         unnest(ARRAY[o.scheduled_for, o.effective_at, o.skipped_at, o.missed_at]) AS ts,
+         generate_series(-1, 1) AS shift
+    WHERE o.account_id = NEW.id AND ts IS NOT NULL
+    UNION
+    SELECT r.local_date FROM daily_rollups r WHERE r.account_id = NEW.id AND r.domain = 'medication'
+  ) days
+  ORDER BY 2
+  ON CONFLICT (account_id, local_date, domain) DO UPDATE SET marked_at = EXCLUDED.marked_at;
+  RETURN NULL;
+END
+$$;
+
+CREATE TRIGGER users_zone_rollup_dirty AFTER UPDATE OF timezone ON users
+  FOR EACH ROW WHEN (OLD.timezone IS DISTINCT FROM NEW.timezone)
+  EXECUTE FUNCTION dosegram_zone_rollup_dirty();
+
+-- ---------------------------------------------------------------------------
 -- Grants
 -- ---------------------------------------------------------------------------
 
@@ -205,3 +402,8 @@ GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO dosegram_app;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO dosegram_app;
 REVOKE UPDATE ON dose_actions, auth_audit_log FROM dosegram_app;
 GRANT SELECT, DELETE ON dose_actions, auth_audit_log TO dosegram_erasure;
+-- Derived rows and the quick-add settings are replaced by deleting them. Entries are deleted by erasure only.
+GRANT DELETE ON daily_rollups, rollup_dirty, hydration_presets TO dosegram_app;
+GRANT SELECT, DELETE ON hydration_entries, mood_checkins TO dosegram_erasure;
+-- Deleting an entry queues its day through the rollup trigger, and erasure removes the derived rows as well.
+GRANT SELECT, INSERT, UPDATE, DELETE ON rollup_dirty, daily_rollups TO dosegram_erasure;

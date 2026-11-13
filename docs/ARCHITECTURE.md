@@ -1033,6 +1033,38 @@ Per ROADMAP section 0.1, VISUALS_AND_ANALYTICS owns metric and insight definitio
 | INS-14 | No composite health score exists in any module. | Schema test DATA-03; review rule |
 | INS-15 | Image, caption, text view and API response for the same request derive from one `stats_snapshots` row. | Text-equivalent golden next to each SVG golden |
 
+### 11.4 Read API as built on 2026-11-13
+
+[ADR-024](adr/ADR-024.md) records the decisions and each difference from sections 10.6, 11.1 and 11.3. This section is the index that the chat flows, the report renderer and the Mini App API cite. Everything named here is in `core`; nothing in it knows a vendor.
+
+One class answers every statistics request: `core.application.insights.StatsQueryService`. It takes an account id and a period, refreshes the dirty rollup days of that range inside its own transaction (INS-03), reads `daily_rollups` and passes the rows to the pure functions of `core.domain.insights`. A caller never computes a figure and never reads a rollup table itself.
+
+| Call | Answer | Consent it needs |
+|---|---|---|
+| `medication(accountId, period)` | `MedicationPeriodView`: the pooled figures, the same figures per medication id, the per-day rollups for a calendar, the delay statistics, the as-needed counts | `medication` |
+| `hydration(accountId, period)` | `HydrationPeriodView`: goal days, mean volume, coverage, and the recorded days | `hydration` |
+| `mood(accountId, period)` | `MoodPeriodView`: average, range, distribution, the two variability figures, energy, and the check-in days | `mood` |
+| `summary(accountId, period)` | `PeriodSummary`: the lines of the text view of BOT_UX section 12.5. A domain without consent or without data is left out | none for the call; each domain block needs its own |
+| `waterGoalAndMood(accountId, window)` | `Comparison` for rule IR-04 over 28, 56 or 84 local days | `cross_domain_patterns`, `hydration` and `mood` |
+
+`period` is `StatsPeriod.Today`, `Last7Days` or `Last30Days`, ending on the account's current local day. A refusal is `StatsRefusal.UnknownAccount` or `StatsRefusal.ConsentMissing(purpose)`. Consent is asked through the port `ConsentCheck`; the ledger behind it is ROADMAP slice G2.8.
+
+| Type | What a caller does with it |
+|---|---|
+| `Stat[A]` | Match on `Shown(value, n, window, basis)`, `Insufficient(n, required, window)` and `NoVariation(n, window)`. `Shown` cannot be built outside `core.domain.insights` |
+| `Ratio` | Print both counts; `percent` is the displayed whole percentage of VISUALS section 7.1 |
+| `Comparison` | `Shown(rule, first, second, window)` with both group sizes and means; `TooFewDays` and `TooFewInGroup` with the count and the requirement; `NoVariation` and `Withheld` are omitted from every surface |
+| `MedicationFigures` | The buckets of VISUALS section 7.2 with adherence, on-time rate and recorded rate, each a `Stat[Ratio]` |
+| `StatsCopy` | The English text of every figure and of the comparison sentence. A surface that needs words takes them from here, so image captions and the text view cannot differ |
+
+A medication is identified by id in every answer. The caller resolves the name, or "Item 1" in discreet mode, for its own surface.
+
+The write side of the two new domains has the same shape: `core.application.hydration.HydrationService` (`log`, `undo`, `delete`, `setGoal`, `day`, `presets`, `setPresets`) and `core.application.mood.MoodService` (`checkIn`, `setEnergy`, `undo`, `day`). Each takes a client key and records at most once per key. Free text for water is parsed by `core.domain.hydration.WaterTextParser`. `RollupService.drain(limit)` is the worker step; no loop calls it from the executable yet, and reads do not depend on it.
+
+Rollup `metrics` as stored, replacing the shapes of section 11.1 for these three domains: medication `{perMedication: [{medicationId, takenOnTime, takenLate, skipped, missed, unknown, open, asNeeded}]}`; hydration `{totalMl, entries, goalMl}` with `goalMl` null on a day without a goal; mood `{n, valenceSum, valenceMin, valenceMax, energyN, energySum}`.
+
+The repositories are reached through `TrackingUnitOfWork` (`PgTrackingUnitOfWork` in `infra`), a transaction handle beside `Tx` until slice G2.1 builds the repository groups of DEP-10.
+
 ## 12. Image render service
 
 Research brief 04 is adopted as written. This section fixes the boundary.

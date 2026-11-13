@@ -1,0 +1,64 @@
+# stats.header.today
+Today · Europe/Kyiv
+
+# stats.header.7d
+Last 7 days · Europe/Kyiv
+
+# stats.header.30d
+Last 30 days · Europe/Kyiv
+
+# stats.empty
+Nothing was recorded in this period.
+
+# stats.doses
+Doses: 26 of 28 taken (93%) · skipped 1 · not confirmed 1
+22 of 26 taken doses on time
+27 of 28 answered
+2 with no record, not counted
+1 still due, not counted
+As-needed logs: 3
+
+# stats.doses.counts
+Doses: 3 of 4 taken · not confirmed 1
+3 of 3 taken doses on time
+3 of 4 answered
+
+# stats.doses.no_data
+Doses: No data
+2 with no record, not counted
+
+# stats.medication
+Item 1: 26 of 28 taken (93%) · skipped 1 · not confirmed 1
+
+# stats.water
+Water: goal reached on 3 of 5 recorded days · average 2.0 l a day · 5 of 7 days have data
+
+# stats.water.no_goal
+Water: average 2.0 l a day · 5 of 7 days have data
+
+# stats.water.gate
+Water: 1 more recorded day with a goal for the goal count · 1 more recorded day for an average · 2 of 7 days have data
+
+# stats.water.day
+Water today: 1.25 of 2.0 l (62%)
+
+# stats.water.day.no_goal
+Water today: 1.25 l
+
+# stats.mood
+Mood: 12 check-ins · average 3.1 (neutral) · day-to-day change averaged 0.7 levels · 6 of 7 days have data
+
+# stats.mood.gate
+Mood: 2 check-ins · 2 more days with a check-in for an average · 1 of 7 days have data
+
+# stats.mood.day
+Mood today: 3.5 (slightly pleasant) · 2 check-ins
+
+# insight.ir04
+On the 8 days you reached your water goal, your average mood was 4.0 (pleasant). On the 9 other days it was 3.0 (neutral). This compares your own days. It does not show a cause.
+
+# insight.ir04.gate.days
+5 more days with both water and mood records for this comparison.
+
+# insight.ir04.gate.group
+2 more days in the smaller group of days for this comparison.
