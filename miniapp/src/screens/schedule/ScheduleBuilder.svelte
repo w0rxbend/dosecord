@@ -30,7 +30,7 @@
   let previewed = $state.raw<{ key: string; preview: SchedulePreview } | null>(null);
   let problem = $state<string | null>(null);
 
-  const errors = $derived(validateSchedule(form));
+  const errors = $derived(validateSchedule(form, options.perTimeDose));
   const draftKey = $derived(errors.length === 0 ? JSON.stringify(toScheduleDraft(form)) : null);
   const shown = $derived(errors.filter((error) => attempted || visited.includes(error.field)));
   const messages = $derived(Object.fromEntries(shown.map((error) => [error.field, fieldErrorText(error.code)])));

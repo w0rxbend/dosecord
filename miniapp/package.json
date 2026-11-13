@@ -10,7 +10,9 @@
     "dev": "vite",
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && node scripts/lint-source.mjs",
     "test": "vitest run",
-    "build": "vite build && node scripts/check-budget.mjs"
+    "build": "vite build && node scripts/check-budget.mjs",
+    "api:generate": "node scripts/api-types.mjs",
+    "api:check": "node scripts/api-types.mjs --check"
   },
   "dependencies": {
     "svelte": "^5.57.3"
@@ -20,6 +22,7 @@
     "@testing-library/svelte": "^5.4.2",
     "@testing-library/user-event": "^14.6.10",
     "jsdom": "^31.0.0",
+    "openapi-typescript": "^7.13.0",
     "svelte-check": "^4.7.8",
     "typescript": "~6.0.3",
     "vite": "^8.3.8",

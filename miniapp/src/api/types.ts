@@ -1,4 +1,5 @@
-// Hand-written until the backend publishes its OpenAPI document; then generated (MINI_APP 13.1).
+// What the screens work with. The wire types are generated from the backend's OpenAPI document
+// (./schema.d.ts) and mapped to these in ./wire.ts.
 // Conventions of MINI_APP 15.1: local dates YYYY-MM-DD, local times HH:MM, quantities as decimal
 // strings, and every sentence about a schedule or a chart written by the server.
 
@@ -47,6 +48,8 @@ export interface TodayView {
   readonly isToday: boolean;
   /** Future days list planned occurrences without actions (MA-TODAY-9). */
   readonly readOnly: boolean;
+  /** Set when this backend records doses in the chat only; the day is shown, not answered. */
+  readonly answerInChat?: boolean;
   readonly previousDate: LocalDate;
   readonly nextDate: LocalDate;
   readonly nowMinute?: number;
@@ -112,6 +115,8 @@ export interface MedicationOptions {
   readonly colourTags: readonly Choice[];
   readonly shapeTags: readonly Choice[];
   readonly limits: { readonly nameMax: number; readonly notesMax: number };
+  /** Whether a medication can hide its name in reminders; without it the switch is not shown. */
+  readonly reminderNameToggle: boolean;
 }
 
 export type SchedulePattern = 'fixed_times' | 'weekly' | 'as_needed';
@@ -135,6 +140,8 @@ export interface ScheduleOptions {
   readonly weekdays: readonly { readonly value: number; readonly label: string }[];
   readonly maxRows: number;
   readonly today: LocalDate;
+  /** Whether each time carries its own dose; without it the dose is the medication's. */
+  readonly perTimeDose: boolean;
 }
 
 export interface PreviewOccurrence {

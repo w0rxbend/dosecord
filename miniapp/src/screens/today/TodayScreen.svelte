@@ -102,7 +102,8 @@
           <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} />
         </div>
       {:else}
-        <TodayDoses occurrences={view.occurrences} readOnly={view.readOnly} onAction={act} />
+        {#if view.answerInChat}<p class="note">{en.today.answerInChat}</p>{/if}
+        <TodayDoses occurrences={view.occurrences} readOnly={view.readOnly} planned={!view.answerInChat} onAction={act} />
       {/if}
       {#if view.hydration}
         <WaterRow hydration={view.hydration} canAdd={view.isToday} onAdd={addWater} />

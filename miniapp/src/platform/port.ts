@@ -72,6 +72,8 @@ export interface TelegramPort {
   expand(): void;
   disableVerticalSwipes(): void;
   setClosingConfirmation(enabled: boolean): void;
+  /** Closes the Mini App; the one action of a gate screen (MINI_APP 3.5). */
+  close(): void;
 
   readonly mainButton: BottomButtonPort;
   readonly backButton: BackButtonPort;

@@ -147,6 +147,7 @@ export class MockBackend implements ApiClient {
       weekdays: WEEKDAYS,
       maxRows: 12,
       today: this.localToday(),
+      perTimeDose: true,
     }));
 
   previewSchedule: ApiClient['previewSchedule'] = (medicationId, draft) =>

@@ -6,13 +6,14 @@
   interface Props {
     rows: ScheduleRowForm[];
     doseUnit: string;
+    perTimeDose: boolean;
     maxRows: number;
     errors: Readonly<Record<string, string>>;
     onAdd: () => void;
     onRemove: (key: number) => void;
   }
 
-  let { rows = $bindable(), doseUnit, maxRows, errors, onAdd, onRemove }: Props = $props();
+  let { rows = $bindable(), doseUnit, perTimeDose, maxRows, errors, onAdd, onRemove }: Props = $props();
 </script>
 
 <!-- Every time and dose is typed by the person; nothing is proposed (MA-SCHED-10). -->
@@ -24,11 +25,13 @@
           <input {...attributes} class="input numeric" type="time" bind:value={row.time} />
         {/snippet}
       </Field>
-      <Field id="sch-{rowField(index, 'dose')}" label={en.schedule.dose(index + 1)} help={doseUnit} required error={errors[rowField(index, 'dose')]}>
-        {#snippet children(attributes)}
-          <input {...attributes} class="input numeric" type="text" inputmode="decimal" autocomplete="off" bind:value={row.dose} />
-        {/snippet}
-      </Field>
+      {#if perTimeDose}
+        <Field id="sch-{rowField(index, 'dose')}" label={en.schedule.dose(index + 1)} help={doseUnit} required error={errors[rowField(index, 'dose')]}>
+          {#snippet children(attributes)}
+            <input {...attributes} class="input numeric" type="text" inputmode="decimal" autocomplete="off" bind:value={row.dose} />
+          {/snippet}
+        </Field>
+      {/if}
       <button type="button" class="btn" aria-label={en.schedule.remove(index + 1)} onclick={() => onRemove(row.key)}>
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
       </button>

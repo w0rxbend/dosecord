@@ -813,6 +813,8 @@ Size M. Depends on: G1.3 with a go verdict, G1.4, G0.5. Parallel: yes, with G1.9
 - Verify: `./mill --no-server -j 1 api.test` `[new]`, `adapter-telegram.test`, `infra.test`; `scripts/check-vendor-symbols.sh`; SG.
 - Touches: `api/` (new), `adapter-telegram/InitDataVerifier.scala`, `core/ports/`, `infra/`, `app/`, `build.mill`, `docs/adr/ADR-016.md`.
 
+State on 2026-11-13: built on the fake side only, ahead of G1.3 and G1.4, because the owner started the Mini App track in parallel with the transport track. In the repository: the `api` module with `POST /api/v1/session`, `DELETE /api/v1/session`, `POST /api/v1/session/keepalive`, `GET /api/v1/today` and `GET /api/v1/days/{date}`; both launch-data checks; the switch `MINIAPP_ENABLED` with the production refusal; ADR-016. It differs from the text above in three points, each recorded in ADR-016: the verifier lives in `api` behind a port instead of in `adapter-telegram`; sessions are kept in memory behind a port instead of in `miniapp_sessions`, because the schema belonged to another track; the go verdict of G1.3 does not exist. The status of this slice is unchanged.
+
 #### G1.13 Mini App launch stub and app buttons
 Size S. Depends on: G1.12, G1.8, G0.6, OA-8. Parallel: no.
 - Does: one static page under `/app/` with one script and no framework, served by the application: it exchanges `initData` for a session and lists today's occurrences. The reminder message gains an inline `web_app` button (the contract additions of G0.7 for the open-app choice and `setMenu`, with an ADR-015 addendum); the menu button is set per chat for an account that has completed set-up (X-28). The page is replaced by the real shell in G3.2 and is marked as a stub in its source. On the production bot the stub is off (`MINIAPP_ENABLED`, G1.12).
@@ -1117,6 +1119,8 @@ Size S. Depends on: G1.12, G2.3, checkpoint CP2-h. Parallel: yes, with G4.1 to G
   - The cross-tenant suite covers every route that exists: an identifier of another account answers 404. A registry test fails when a route is added without a cross-tenant case.
 - Verify: `./mill --no-server -j 1 api.test`, `infra.test`; the OpenAPI diff step `[new]`; SG.
 - Touches: `api/`, `core/application/` (authorise function), `docs/API.md`, `.github/workflows/ci.yml`, `docs/adr/ADR-020.md`.
+
+State on 2026-11-13: the committed OpenAPI document with its CI diff, the path check against ARCHITECTURE section 9.5, problem documents and the cross-account suite with its registry test exist, together with the server parts of G3.3 (one origin, the header set), G3.4 (`GET /medications/{id}`, `GET /medication-options`), G3.5 (`POST` and `PATCH` of a medication, state changes, `Idempotency-Key`, `ETag` and `If-Match`) and G3.6 (schedule routes and the seven-day preview). ADR-020 lists what each of them still lacks; the largest gaps are the consent check, the policy function, the dose actions of G3.7 and durable stores for sessions and idempotency records. No status in Appendix B is changed by this note.
 
 #### G3.2* Mini App shell with the medication list (S-02)
 Size M. Depends on: G3.1, G1.3, G2.4b. Parallel: yes, with G3.1 once the session route is frozen.

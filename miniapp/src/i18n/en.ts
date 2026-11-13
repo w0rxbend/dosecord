@@ -19,6 +19,20 @@ export const en = {
       title: 'This Telegram version is too old for Dosegram.',
       body: 'Update Telegram, then open Dosegram again.',
     },
+    accountRequired: {
+      title: 'Start Dosegram in chat first.',
+      body: 'Setup takes about a minute and includes your consent choices. Then open the app again.',
+    },
+    sessionEnded: {
+      title: 'This session has ended.',
+      body: 'Close this window and open Dosegram from the chat.',
+    },
+    offline: {
+      title: 'No connection.',
+      body: 'Check the network, then try again.',
+    },
+    close: 'Close',
+    tryAgain: 'Try again',
   },
 
   common: {
@@ -50,6 +64,7 @@ export const en = {
     version_conflict: 'This item was changed elsewhere. Reload it, then make your change again.',
     validation: 'Some values were not accepted. Check the marked fields.',
     server: 'Dosegram could not load this. Try again.',
+    unavailable: 'This part of Dosegram is not available yet.',
     notSaved: 'Not saved. Try again.',
   },
 
@@ -67,6 +82,7 @@ export const en = {
     empty: 'Nothing scheduled today.',
     emptyAction: 'Add a medication',
     planned: 'Planned doses. You can answer them on the day.',
+    answerInChat: 'Answer reminders in the chat. This screen shows what is recorded.',
     taken: 'Taken',
     skip: 'Skip',
     snooze: 'Snooze',
@@ -157,11 +173,18 @@ export const en = {
     date_invalid: 'Enter a date such as 2026-11-12',
     end_before_start: 'The end date is before the start date',
     no_occurrences: 'This schedule has no doses. Check the dates and days.',
+    schedule_exists: 'This medication already has a schedule. End it before you add another.',
   } as Readonly<Record<string, string>>,
 
   schedule: {
     title: (name: string) => `Schedule for ${name}`,
     heading: 'When do you take it?',
+    patterns: {
+      fixed_times: 'Every day',
+      weekly: 'Certain days of the week',
+      as_needed: 'Only when needed',
+    },
+    weekdayNames: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     loading: 'Loading the schedule form',
     pattern: 'Pattern',
     weekdays: 'Days of the week',

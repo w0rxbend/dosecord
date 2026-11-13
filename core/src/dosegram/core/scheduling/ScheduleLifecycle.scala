@@ -18,6 +18,7 @@ import dosegram.core.ports.NewMedication
 import dosegram.core.ports.NewSchedule
 import dosegram.core.ports.NewScheduleRevision
 import dosegram.core.ports.ScheduleStatus
+import dosegram.core.ports.StoredMedication
 import dosegram.core.ports.StoredOccurrence
 import dosegram.core.ports.StoredSchedule
 import dosegram.core.ports.StoredScheduleRevision
@@ -25,6 +26,7 @@ import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 
@@ -41,6 +43,20 @@ final case class CreateSchedule(
     instructions: Option[String] = None,
     policy: ReminderPolicy = ReminderPolicy.Default,
     tzFollowsUser: Boolean = true
+)
+
+/** What a second entry point needs to start a schedule for a medication that already exists (ROADMAP G3.6: the Mini App
+  * creates the medication first). `startDate` defaults to today in `zone`; the schedule produces nothing before it and
+  * nothing after `endDate`.
+  */
+final case class AddSchedule(
+    medicationId: UUID,
+    rule: Rule,
+    zone: ZoneId,
+    policy: ReminderPolicy = ReminderPolicy.Default,
+    tzFollowsUser: Boolean = true,
+    startDate: Option[LocalDate] = None,
+    endDate: Option[LocalDate] = None
 )
 
 /** The result of one revision application. `keptForQuestion` holds the kept rows of DESIGN.md section 7.1 that the M3.2
@@ -68,7 +84,8 @@ private final case class RevisionPlan(
     reason: String,
     cancelReason: CancelReason,
     status: Option[ScheduleStatus],
-    effectiveFrom: Option[Instant]
+    effectiveFrom: Option[Instant],
+    doseSnapshot: Option[DoseSnapshot] = None
 )
 
 /** The schedule revision lifecycle of ADR-004 / DESIGN.md section 7.1 (ROADMAP M1.5): create, edit, pause, resume,
@@ -104,14 +121,38 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
       ),
       now
     )
+    val snapshot = DoseSnapshot(cmd.medicationName, cmd.doseAmount, cmd.doseUnit, cmd.instructions)
+    val plan = AddSchedule(medicationId, cmd.rule, cmd.zone, cmd.policy, cmd.tzFollowsUser)
+    startInTx(tx, cmd.accountId, plan, snapshot, now)
+
+  /** Starts a schedule for an existing medication of `accountId`: the schedule row, revision 1 with the medication's
+    * current dose snapshot, the 48 h horizon and `dosegram.medication.schedule_created.v1`. A medication of another
+    * account is unknown here.
+    */
+  def addInTx(tx: Tx, accountId: UUID, cmd: AddSchedule, now: Instant): Either[List[String], RevisionOutcome] =
+    val errors = ruleErrors(cmd.rule)
+    if errors.nonEmpty then Left(errors)
+    else
+      val medication = tx.medications
+        .get(cmd.medicationId)
+        .filter(_.accountId == accountId)
+        .getOrElse(throw new NoSuchElementException(s"unknown medication ${cmd.medicationId}"))
+      Right(startInTx(tx, accountId, cmd, ScheduleLifecycle.snapshotOf(medication), now))
+
+  private def startInTx(
+      tx: Tx,
+      accountId: UUID,
+      cmd: AddSchedule,
+      snapshot: DoseSnapshot,
+      now: Instant
+  ): RevisionOutcome =
     val scheduleId = UUID.randomUUID()
-    val startDate = now.atZone(cmd.zone).toLocalDate
+    val startDate = cmd.startDate.getOrElse(now.atZone(cmd.zone).toLocalDate)
     val kind = Rule.kindTag(cmd.rule)
     tx.schedules.insert(
-      NewSchedule(scheduleId, medicationId, cmd.accountId, kind, cmd.zone, cmd.tzFollowsUser, startDate),
+      NewSchedule(scheduleId, cmd.medicationId, accountId, kind, cmd.zone, cmd.tzFollowsUser, startDate, cmd.endDate),
       now
     )
-    val snapshot = DoseSnapshot(cmd.medicationName, cmd.doseAmount, cmd.doseUnit, cmd.instructions)
     val revision = NewScheduleRevision(
       UUID.randomUUID(),
       scheduleId,
@@ -128,23 +169,23 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     val storedSchedule =
       StoredSchedule(
         scheduleId,
-        medicationId,
-        cmd.accountId,
+        cmd.medicationId,
+        accountId,
         kind,
         ScheduleStatus.Active,
         1,
         cmd.zone,
         cmd.tzFollowsUser,
         startDate,
-        None,
+        cmd.endDate,
         None
       )
     val horizonEnd = now.plus(Evaluator.MaterialisationHorizon)
     val inserted =
       Materialiser.materializeSchedule(tx, storedSchedule, stored(revision, now), now, horizonEnd, now).inserted
     tx.schedules.advanceMaterializedThrough(scheduleId, horizonEnd, now)
-    appendScheduleCreated(tx, cmd.accountId, medicationId, scheduleId, cmd.zone, now)
-    RevisionOutcome(scheduleId, medicationId, revision = 1, effectiveFrom = now, inserted, Nil, Nil)
+    appendScheduleCreated(tx, accountId, cmd.medicationId, scheduleId, cmd.zone, now)
+    RevisionOutcome(scheduleId, cmd.medicationId, revision = 1, effectiveFrom = now, inserted, Nil, Nil)
 
   /** A rule/policy edit in the schedule's current zone (the M3.2 edit wizard's data side). */
   def edit(
@@ -280,6 +321,27 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
       )
     }
 
+  /** A medication edit as a revision (ROADMAP G3.5): same rule, policy and zone, the medication's new dose snapshot,
+    * effective now. Pending rows from now on are re-materialised, so the next reminder names what the registry says;
+    * rows already due keep the snapshot they were sent with. Only an active schedule takes it: a paused one has nothing
+    * pending, and its resume is followed by this call when the snapshot is stale.
+    */
+  def changeDoseInTx(tx: Tx, scheduleId: UUID, snapshot: DoseSnapshot, now: Instant): RevisionOutcome =
+    plannedInTx(tx, scheduleId, now) { (_, schedule, latest, _) =>
+      requireActive(schedule)
+      RevisionPlan(
+        latest.rule,
+        schedule.tz,
+        latest.policy,
+        "user",
+        "dose_change",
+        CancelReason.Superseded,
+        None,
+        Some(now),
+        Some(snapshot)
+      )
+    }
+
   /** The data side of Account -> Timezone (R10): re-revisions the account's active `tz_follows_user` schedules into the
     * new zone; non-following schedules are untouched. Paused following schedules get the row update only — their
     * `Paused` revision materialises nothing and resume picks the new zone up.
@@ -329,7 +391,7 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
       tz = plan.zone,
       rule = plan.rule,
       policy = plan.policy,
-      doseSnapshot = latest.doseSnapshot,
+      doseSnapshot = plan.doseSnapshot.getOrElse(latest.doseSnapshot),
       createdBy = plan.createdBy,
       reason = Some(plan.reason)
     )
@@ -470,3 +532,9 @@ final class ScheduleLifecycle(uow: UnitOfWork, clock: Clock):
     Rule.validate(rule) ++
       (if Rule.isSupportedInMvp(rule) then Nil
        else List(s"rule kind ${Rule.kindTag(rule)} is not supported until M7"))
+
+object ScheduleLifecycle:
+
+  /** The medication facts a revision copies (DESIGN.md section 8 `dose_snapshot`). */
+  def snapshotOf(medication: StoredMedication): DoseSnapshot =
+    DoseSnapshot(medication.name, medication.doseAmount, medication.doseUnit, medication.instructions)
