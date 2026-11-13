@@ -1,0 +1,111 @@
+/*
+ * Semantic tokens (MINI_APP 5.2 to 5.5). The values here are the fallbacks for the first paint;
+ * platform/apply-theme.ts overwrites the colours from Telegram themeParams. Components use
+ * these tokens only: no literal colour and no --tg-theme-* variable anywhere else.
+ * To be generated from the shared design-token file once it exists (MA-Q-9, ROADMAP G4).
+ */
+:root {
+  color-scheme: light;
+  --dg-bg: #f0f2f5;
+  --dg-surface: #ffffff;
+  --dg-surface-alt: #ffffff;
+  --dg-text: #111418;
+  --dg-text-muted: #5b6470;
+  --dg-text-section: #5b6470;
+  --dg-separator: #d9dde3;
+  --dg-accent: #1f6fd0;
+  --dg-on-accent: #ffffff;
+  --dg-accent-text: #1f6fd0;
+  --dg-danger: #c62828;
+  --dg-focus: #1f6fd0;
+  --dg-bottom-bar: #f0f2f5;
+
+  --dg-domain-medication: #2456c8;
+  --dg-domain-hydration: #0b7f8c;
+  --dg-domain-nutrition: #a85a00;
+  --dg-domain-mood: #b0307a;
+  --dg-domain-sleep: #6a42c2;
+  --dg-recorded: #1f7a4d;
+  --dg-neutral-strong: var(--dg-text);
+  --dg-neutral-weak: var(--dg-separator);
+
+  /* Literal pill colours for the recognition tags a person chooses (MA-EDIT-4). */
+  --dg-pill-white: #ffffff;
+  --dg-pill-yellow: #f2d04b;
+  --dg-pill-orange: #f0943a;
+  --dg-pill-pink: #f2a3c0;
+  --dg-pill-red: #d9534f;
+  --dg-pill-brown: #8a5a3c;
+  --dg-pill-green: #5aa469;
+  --dg-pill-blue: #5b8fd9;
+  --dg-pill-purple: #8e6fc9;
+  --dg-pill-grey: #9aa1ab;
+
+  --dg-inset-top: 0px;
+  --dg-inset-right: 0px;
+  --dg-inset-bottom: 0px;
+  --dg-inset-left: 0px;
+  --dg-stable-height: 100vh;
+
+  --dg-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --dg-text-caption: 0.8125rem;
+  --dg-text-secondary: 0.875rem;
+  --dg-text-body: 1rem;
+  --dg-text-title: 1.25rem;
+  --dg-text-screen: 1.5rem;
+  --dg-text-metric: 2rem;
+
+  --dg-space-1: 4px;
+  --dg-space-2: 8px;
+  --dg-space-3: 12px;
+  --dg-space-4: 16px;
+  --dg-space-5: 20px;
+  --dg-space-6: 24px;
+  --dg-space-7: 32px;
+
+  --dg-radius-control: 8px;
+  --dg-radius-section: 12px;
+  --dg-radius-full: 999px;
+  --dg-target: 48px;
+  --dg-row-two-line: 64px;
+  --dg-content-max: 560px;
+
+  --dg-motion-press: 120ms;
+  --dg-motion-state: 200ms;
+}
+
+:root[data-scheme='dark'] {
+  color-scheme: dark;
+  --dg-bg: #0f1113;
+  --dg-surface: #1f2226;
+  --dg-surface-alt: #17191c;
+  --dg-text: #f2f4f7;
+  --dg-text-muted: #a3abb5;
+  --dg-text-section: #a3abb5;
+  --dg-separator: #2c3036;
+  --dg-accent: #2a72d0;
+  --dg-accent-text: #6cb0ff;
+  --dg-danger: #ff6b6b;
+  --dg-focus: #6cb0ff;
+  --dg-bottom-bar: #0f1113;
+
+  --dg-domain-medication: #7fa6ff;
+  --dg-domain-hydration: #4cc4d2;
+  --dg-domain-nutrition: #f0a04b;
+  --dg-domain-mood: #f07ab8;
+  --dg-domain-sleep: #b49cff;
+  --dg-recorded: #5fcf94;
+}
+
+/* Reduced motion: every transition becomes an instant cut (MA-DS-5). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dg-motion-press: 0ms;
+    --dg-motion-state: 0ms;
+  }
+}
+
+:root[data-reduced-motion='true'] {
+  --dg-motion-press: 0ms;
+  --dg-motion-state: 0ms;
+}
