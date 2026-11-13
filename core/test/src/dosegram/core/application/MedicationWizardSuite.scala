@@ -214,6 +214,22 @@ class MedicationWizardSuite extends munit.FunSuite:
       rig.line("with breakfast")
       assert(rig.lastChunks.exists(_.contains(WizardCopy.daysPrompt)), s"back on the days step: ${rig.lastChunks}")
 
+  test("the confirm card has one Cancel, the nav row's, and it leaves no medication row"):
+    ox.supervised:
+      val rig = TimeInputTranscriptSuite.atTimesStep()
+      rig.line("9:00")
+      rig.line("")
+      rig.tapLabel(WizardCopy.daysPrompt, WizardCopy.everyDay)
+      val card = "Vitamin D 1000 IU, every day 09:00"
+      assertEquals(
+        rig.lastChoiceMap(card).map(_.label),
+        List(Labels.Create, WizardCopy.changeDays, WizardCopy.changeTimezoneLabel, Labels.Back, Labels.Cancel)
+      )
+      val out = rig.tapLabel(card, Labels.Cancel)
+      assert(out.exists(_.contains(WizardCopy.setupCancelled)), s"cancelled: $out")
+      assertEquals(rig.uow.medications.all, Nil, "no medication row")
+      assertEquals(rig.uow.sessions.all, Nil, "the session is gone")
+
   test("/cancel mid-wizard leaves no medication row"):
     ox.supervised:
       val rig = MedicationWizardRig(Profile.Console)

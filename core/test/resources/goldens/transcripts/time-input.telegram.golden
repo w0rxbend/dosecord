@@ -50,4 +50,4 @@ Any instructions to show with the reminder? Type them, like with breakfast. | [N
 > with breakfast
 send: Which days? | [Every day] [Weekdays] [Choose days...] [Back] [Cancel]
 > tap "Every day"
-send: Vitamin D 1000 IU, every day 08:00, 14:30, 22:00 Europe/Kyiv | [Create] [Change days] [Change timezone] [Cancel] [Back] [Cancel]
+send: Vitamin D 1000 IU, every day 08:00, 14:30, 22:00 Europe/Kyiv | [Create] [Change days] [Change timezone] [Back] [Cancel]

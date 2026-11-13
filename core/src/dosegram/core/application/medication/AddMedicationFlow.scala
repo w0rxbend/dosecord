@@ -40,8 +40,8 @@ import java.util.UUID
   *   - the instructions step echoes the times understood (`[Change times]` goes back) and takes optional text.
   *   - step 2 (only when times were given) days `[Every day][Weekdays][Choose days...]`, the multi-select day picker
   *     behind the last.
-  *   - step 3 one confirm card `Vitamin D 1000 IU, every day 09:00 Europe/Kyiv [Create][Change days][Change timezone]
-  *     [Cancel]` (as-needed cards skip Change days).
+  *   - step 3 one confirm card `Vitamin D 1000 IU, every day 09:00 Europe/Kyiv [Create][Change days][Change timezone]`
+  *     (as-needed cards skip Change days); its Cancel is the one of the nav row.
   *
   * `[Back]`/`[Cancel]` are on every step (the engine's nav row) and `/cancel` aborts; nothing writes a row before the
   * confirm. Find-or-create on `name_norm` (R18): re-adding a tracked name shows the offer on the confirm card, and its
@@ -72,7 +72,6 @@ object AddMedicationFlow:
   private val UpdateKey = "update"
   private val ChangeDaysKey = "change_days"
   private val ChangeTimezoneKey = "change_tz"
-  private val CancelKey = "cancel"
   private val TzOtherKey = "tz.other"
   private val QuickTimePrefix = "time."
   private val OtherTimeKey = "times.other"
@@ -279,7 +278,6 @@ object AddMedicationFlow:
           case (StepInput.Chosen(CreateKey | UpdateKey), _) => Right(StepTransition.Complete)
           case (StepInput.Chosen(ChangeDaysKey), _)         => Right(StepTransition.Next("days"))
           case (StepInput.Chosen(ChangeTimezoneKey), _)     => Right(StepTransition.Next("tz"))
-          case (StepInput.Chosen(CancelKey), _)             => Right(StepTransition.Abort)
           case _                                            => Left(WizardCopy.confirmActionHint)
         },
         onEnter = confirmEnter
@@ -303,8 +301,7 @@ object AddMedicationFlow:
     val primary = if existing then List(UpdateKey -> Labels.Update) else List(CreateKey -> Labels.Create)
     val changeDays =
       if data.getOrElse(TimesKey, "").nonEmpty then List(ChangeDaysKey -> WizardCopy.changeDays) else Nil
-    primary ++ changeDays ++
-      List(ChangeTimezoneKey -> WizardCopy.changeTimezoneLabel, CancelKey -> Labels.Cancel)
+    primary ++ changeDays ++ List(ChangeTimezoneKey -> WizardCopy.changeTimezoneLabel)
 
   private def confirmRender(data: Map[String, String]): RichText =
     val name = data.getOrElse(NameKey, "")
