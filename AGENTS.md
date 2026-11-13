@@ -39,9 +39,9 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-13, after four parallel tracks were merged and
-wired together. Appendix B and its status notes are the record; this is the
-short form.
+State of `main` on 2026-11-13, after two rounds of parallel tracks were
+merged and wired together (the second: input, sleep, images, Mini App).
+Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
   `green`. G0.2 is `building`. G0.1 is not performed: `docs/traceability.csv`
@@ -55,27 +55,34 @@ short form.
   their bytes in `render_assets` for at most one hour and their file ids in
   `telegram_file_cache`; it needs `RESVG_PATH` and `RENDER_FONTS_DIR`, and
   without them every image is sent as its text. The container image has no
-  resvg and no fonts yet.
-- Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, daily
+  resvg and no fonts yet. Chat images follow the image theme and discreet
+  mode set in the Mini App; a discreet personal card goes behind a spoiler.
+  The sleep regularity card (IMG-12) is sent from `/sleep`.
+- Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep
+  (episodes, check-ins, goals; no rollup, read from the episodes), daily
   rollups with a worker that drains their queue, the `Stat` type, text
-  statistics, one comparison rule, and the consent ledger (`consent_events`,
-  `consent_state`). The tracking repositories and the ledger are groups of
+  statistics, one comparison rule, the sleep regularity figures, and the
+  consent ledger (`consent_events`, `consent_state`). The tracking repositories and the ledger are groups of
   the one transaction handle (`Tx.tracking`, `Tx.consents`).
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
   withdrawing it pauses every schedule and cancels every open dose in the
   same transaction. `Application.handler` is the one handler composition.
-- Chat: besides the medication flows, `/water`, `/mood`, `/stats` and
-  `/privacy` with the two-stage consent at first use, quick-capture text
-  ("250 ml", "mood 4"), the mood image as the answer to a check-in, and the
-  vessel and daily summary images on request (`core/application/capture`).
+- Chat: besides the medication flows, `/water`, `/mood`, `/sleep`, `/stats`
+  and `/privacy` with the two-stage consent at first use, quick-capture text
+  ("250 ml", "mood 4", "slept 23:30 7:10"), the mood image as the answer to a
+  check-in, and the vessel, daily summary and sleep images on request
+  (`core/application/capture`). Typed times, lengths, days, doses and zones
+  are read leniently (`core/domain/input`, BOT_UX 15.6).
 - API and Mini App (`api`, `miniapp`, ADR-016, ADR-020): session exchange,
-  Today read, the medication and schedule registry and
+  Today read, the medication and schedule registry, water, mood and sleep
+  routes, the history calendar, settings, consents and
   `GET /insights/overview` behind `MINIAPP_ENABLED`, which production refuses.
   Sessions and idempotency records are rows of `miniapp_sessions` and
-  `idempotency_keys`.
-  The Insights screen reads the overview; dose actions over HTTP do not exist.
+  `idempotency_keys`. Screens: Today, medications, Log, water, mood, sleep,
+  Insights, history and day detail, settings. The app records and withdraws
+  no consent; dose actions over HTTP do not exist.
 
 Every slice these touch is `building`, none is `green`. No Telegram bot token
 exists: everything is built and tested against the fake wire and hand-written
@@ -90,12 +97,14 @@ Useful next, in this order:
    Mini App, then the image gate with rendering on (G1.2, G1.9).
 3. G1.7: the durable inbox and the webhook endpoint. It also closes the window
    in which a polled update is lost when the process dies.
-4. What the consent and store work of 2026-11-13 left open: the rest of
+4. Sleep: the bedtime and morning touchpoints (G7.2), "Adjust times", nap
+   check-ins, and the weekly card (G9.1, G9.2), which sleep would join.
+5. What the consent and store work of 2026-11-13 left open: the rest of
    onboarding (adult attestation, region, discreet choice, G2.8), deletion
    of a domain's data (G2.17), encryption of the stores of the edges
    (G2.4b), and the `StorageError` port of G2.1. ARCHITECTURE section 10.17
    lists the schema areas and the rules for adding a table.
-5. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
+6. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
    are eligible by dependency and untouched.
 
 ## Agent workflow

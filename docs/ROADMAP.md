@@ -2633,10 +2633,10 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G2.6 | Localisation catalogue, English | M | G0.4; pull-forward | MVP | todo |
 | G2.7 | Single sender with per-chat pacing and wrong-recipient guard | M | G1.6; gate CP1-e | MVP | todo |
 | G2.8 | Onboarding with consent ledger and discreet choice | M | G2.4b, G2.6; gate CP1-e | MVP | building |
-| G2.9 | Time zone capture in chat | S | G2.8; gate CP1-e | MVP | todo |
+| G2.9 | Time zone capture in chat | S | G2.8; gate CP1-e | MVP | building |
 | G2.10* | Reminder card as message operations | M | G2.7, G2.6, G2.8, the answer to RQ-9; gate CP1-e | MVP | todo |
 | G2.11* | Undo, correction and "Taken earlier?" | S | G2.10; gate CP1-e | MVP | todo |
-| G2.12* | Medication management in chat | M | G2.8; gate CP1-e | MVP | todo |
+| G2.12* | Medication management in chat | M | G2.8; gate CP1-e | MVP | building |
 | G2.13* | Today card, navigation and commands | M | G2.10, G2.12, G1.8; gate CP1-e | MVP | todo |
 | G2.14* | Quiet hours, discreet mode and settings in chat | M | G2.13; gate CP1-e | MVP | todo |
 | G2.15* | Reachability and outage digest | S | G2.10; gate CP1-e | MVP | todo |
@@ -2657,7 +2657,7 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G3.6* | Schedule builder for the MVP patterns (S-05) | M | G3.5; gate CP2-h | MVP | building |
 | G3.7* | Today and day detail (S-01, S-13) | M | G3.4, G3.5, G2.13; gate CP2-h | MVP | building |
 | G3.8 | Step-up confirmation through the chat | S | G3.1, G2.10; gate CP2-h | MVP | todo |
-| G3.9 | Settings and consent view (S-15) | M | G3.8, G2.14, G2.17; gate CP2-h | MVP | todo |
+| G3.9 | Settings and consent view (S-15) | M | G3.8, G2.14, G2.17; gate CP2-h | MVP | building |
 | G3.10 | Full export with a download ticket | M | G3.8, G1.10, G2.4b, G2.17; gate CP2-h | MVP | todo |
 | G3.11 | Time-zone probe in onboarding | S | G3.2, G2.9; gate CP2-h | MVP | todo |
 | G3.12 | Browser end-to-end suite and per-client live smoke | M | G3.4 to G3.10; gate CP2-h | MVP | todo |
@@ -2675,21 +2675,21 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G5.3b | Water: typed amounts and Undo | S | G5.3; gate CP3-d, CP4-b | MVP | building |
 | G5.3c* | Water: own goal, yesterday and the Today card | S | G5.3b; gate CP3-d, CP4-b | MVP | building |
 | G5.4 | Hydration nudges | S | G5.2, G5.3c; gate CP3-d, CP4-b | MVP | todo |
-| G5.5 | Hydration in the Mini App (S-07) | M | G5.3c, G3.7; gate CP3-d, CP4-b | MVP | todo |
+| G5.5 | Hydration in the Mini App (S-07) | M | G5.3c, G3.7; gate CP3-d, CP4-b | MVP | building |
 | G5.6 | Hydration rollup and vessel card (IMG-08) | M | G5.3c, G4.5, G4.6; gate CP3-d, CP4-b | MVP | building |
 | G5.7 | Consent withdrawal and per-domain deletion | M | G5.3, G2.17, G3.8, G3.9; gate CP3-d, CP4-b | MVP | building |
 | G6.1* | Mood check-in in chat | M | G5.3, G2.8; gate CP5-a | MVP | building |
 | G6.2 | Mood blob geometry and mood card (IMG-02) | M | G4.1, G4.3, G4.6, G6.1, the SP-11 verdict of G1.1; gate CP5-a | MVP | building |
 | G6.3 | Mood prompt at a touchpoint | S | G5.2, G6.1; gate CP5-a | MVP | todo |
-| G6.4 | Mood in the Mini App (S-09) | M | G6.1, G3.7, G4.8; gate CP5-a | MVP | todo |
-| G6.5 | Log hub and history calendar (S-06, S-12) | M | G5.5, G6.4; gate CP5-a | MVP | todo |
+| G6.4 | Mood in the Mini App (S-09) | M | G6.1, G3.7, G4.8; gate CP5-a | MVP | building |
+| G6.5 | Log hub and history calendar (S-06, S-12) | M | G5.5, G6.4; gate CP5-a | MVP | building |
 | G6.6* | Evening wrap-up and the Today card for all MVP domains | M | G5.4, G6.3; gate CP5-a | MVP | todo |
 | G6.7 | Daily summary card (IMG-03) | M | G6.2, G5.6, G4.6; gate CP5-a | MVP | building |
 | G6.8 | Period text summaries for hydration and mood | S | G5.6, G6.1; gate CP5-a | MVP | building |
-| G7.1* | Sleep check-ins and episodes in chat | M | G6.1, G5.1; gate CP6-c | V1 | todo |
+| G7.1* | Sleep check-ins and episodes in chat | M | G6.1, G5.1; gate CP6-c | V1 | building |
 | G7.2 | Bedtime nudge and morning touchpoint | S | G7.1, G5.2; gate CP6-c | V1 | todo |
-| G7.3 | Sleep in the Mini App with a goal (S-10) | M | G7.1, G6.5; gate CP6-c | V1 | todo |
-| G7.4 | Sleep metrics, rollup and timeline card (IMG-12) | M | G7.1, G4.5; gate CP6-c | V1 | todo |
+| G7.3 | Sleep in the Mini App with a goal (S-10) | M | G7.1, G6.5; gate CP6-c | V1 | building |
+| G7.4 | Sleep metrics, rollup and timeline card (IMG-12) | M | G7.1, G4.5; gate CP6-c | V1 | building |
 | G7.4b | Pure quiet-window estimator and coverage replay on the owner's own data | S | G7.1, the owner's recorded agreement to the replay; gate CP6-c | V1 | todo |
 | G7.5 | Quiet-window evidence capture and retention | M | G7.1, G7.4b with a go decision at CP7-r, G5.7; gate CP6-c | V1 | todo |
 | G7.6 | Quiet-window confirmation flow | M | G7.5, G7.2, G7.4b; gate CP6-c | V1 | todo |
@@ -2701,7 +2701,7 @@ This table is the only status source since slice G0.2 (2026-11-13). An asterisk 
 | G9.2 | Weekly report card and the proactive report schedule (IMG-04) | M | G9.1, G5.2, G4.6; gate CP7-b, G8 | V1 | todo |
 | G9.3 | Own-baseline comparison and medication timing statements | M | G9.1; gate CP7-b, G8 | V1 | todo |
 | G9.4 | Weekly consistency counts and minimum-data gates | M | G9.1; gate CP7-b, G8 | V1 | todo |
-| G9.5 | Insights screen with trend charts (S-11) | M | G9.1, G4.8; gate CP7-b, G8 | V1 | todo |
+| G9.5 | Insights screen with trend charts (S-11) | M | G9.1, G4.8; gate CP7-b, G8 | V1 | building |
 | G9.6 | Notes, skip reasons and custom-time correction | M | G2.11; gate CP7-b, G8 | V1 | todo |
 | G9.7 | Grouped slot card for doses due in the same minute | M | G2.10; gate CP7-b, G8 | V1 | todo |
 | G9.8 | Further schedule patterns in the engine | M | G0.5; gate CP2-h (pull-forward) | V1 | todo |
@@ -2762,6 +2762,11 @@ Status notes. They record evidence and deviations; they are not a second status 
 | G2.1 (part) | The tracking repositories and the consent ledger are repository groups of `Tx` (`Tx.tracking`, `Tx.consents`; ADR-024 addendum): a capture event uses one connection and an entry is atomic with its inbound event (`CaptureTransactionPgSuite`), and a double that is called on a group it does not implement names the group. Not done, so the slice stays `todo`: the `StorageError` port in place of `java.sql.SQLException` in `ChatMediator` and `WizardEngine`, `java.sql` on the forbidden list of `core/` and `contracts/`, and a group per module id for the repositories that were on `Tx` before |
 | G5.3, G5.3b, G5.3c, G5.6 | `/water`, the quick-add buttons, typed amounts, Undo, the user's own goal and the vessel card on request work in chat on the fake wire. Missing: "Other amount" and editable presets, add for yesterday, the Today card line, nudges (G5.4), the Mini App screen (G5.5), fluid ounces, the domain checklist of section 6.2 |
 | G6.1, G6.2, G6.7 | `/mood`, the five-step tap, the energy step, Undo and the mood image as the answer work in chat on the fake wire; the daily summary card is sent from `/stats today`. Missing: notes and tags, the picture is not replaced when energy is added (`editMessageMedia`), the independent review of the 35 blob states, the scheduled evening image, the domain checklist of section 6.2 |
+| Integration of 2026-11-13, second round | Four more tracks were merged to `main` and wired together: input (`f5c8294`), sleep (`268da09`), images (`f3b8256`) and Mini App (`7b2513c`), then `576ed77` (chat images in the theme and discreet mode set in the Mini App), `106ee27` (sleep in `/stats` and the daily summary card), `2d57bfb` (sleep in the API and the Sleep screen), `0d658d9` (`/sleep` in chat) and `555eae7` (the sleep regularity image). Executed tests after `555eae7`: 2,102 Scala tests (core 1,045, infra 238, report-renderer 323, adapter-telegram 166, api 137, contracts 89, app 66, adapter-console 19, report-renderer.resvg 12, tests.conformance 6, tests.simulation 1) and 269 frontend tests. Under the load of other agents the `FirstFlows` suites of core, infra and adapter-console fail now and then on the order of the welcome message; they pass alone and in a run with `-j 2`. Every slice touched stays `building`: no live check exists |
+| G2.9, G2.12 | Typed times, lengths, days, doses and zones are read leniently (`core/domain/input`, BOT_UX 15.6), and add medication asks for the reminder times on a step of their own with quick-time buttons (ADR-015 addendum 2). The zone confirmation names the zone. Location sharing is not built: BUX-TZ-03, R-IDC-12 and R-IDC-22 forbid it. Missing: the single-message grammar of BOT_UX 10.1, typed date and quiet-hours steps, the live retry of the owner's case |
+| G3.9, G5.5, G6.4, G6.5, G9.5 | The Mini App has the Log hub, water (S-07), mood (S-09), the history calendar (S-12), day detail, settings with time zone and quiet hours (S-15) and Insights charts that the arrow keys move, over new API routes with a consent-off case each and a cross-account case for every `{id}`. The app records and withdraws no consent; a withdrawal answers `stepup_required`. Missing: pending consent requests to the chat, entry sheets on MainButton, mood tags and notes, corrections, the offline queue, 90 days, the year view, the zone-mismatch banner; MA-PERF-5 is exceeded because Today needs 3 to 4 reads without the medication consent |
+| G4.6 | The image theme and discreet mode set in the Mini App are read on the event's transaction: light and dark draw in their theme, auto is dark, and discreet mode draws at the discreet level and sends a personal card behind a spoiler (`has_spoiler`, ADR-015 addendum 3) |
+| G7.1, G7.3, G7.4 | Sleep is recorded only as the user states it: `/sleep` with "Going to sleep" and "I'm up", the 1 to 5 rating, Undo, and typed nights and naps ("slept 23:30 7:10", "nap 20 min"); an "I'm up" without an open night records nothing and asks. The API has episodes, check-ins, the own goal and a summary; the Mini App has the Sleep screen (S-10), sleep on Log, Today, day detail, Insights and the calendar. `/stats` and the daily summary card carry last night; "Show as image" on `/sleep` sends IMG-12 with the circular spread and median of bedtimes and wake times on 10 of 14 nights. Missing: the bedtime and morning touchpoints (G7.2), "Adjust times" and "Until now", nap check-ins, quality in the app, typical times, the irregular-schedule setting, the regularity index (Mini App only, A13 unchecked), the quiet-window estimate (G7.4b to G7.6), sleep in the weekly card (no weekly card is sent yet, G9.2) |
 
 Totals for G0 to G11: 132 scheduled slices, of which 48 are S and 84 are M; G0.7 is dissolved, and G10.2, G10.3 and G11.11 are deferred. Of the 132, the slices of part B of G11 (G11.8 to G11.18) are not scheduled until the owner decides on a public beta.
 
