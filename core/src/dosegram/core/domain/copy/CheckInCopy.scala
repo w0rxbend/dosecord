@@ -23,11 +23,14 @@ object CheckInCopy:
   /** The caption of a check-in and its complete text equivalent (BUX-MOOD-04): "Pleasant · 21:04", or with the energy
     * step "Pleasant. Energy: low. · 21:04".
     */
-  def recorded(valence: Valence, energy: Option[Energy], time: String): String =
+  def recorded(valence: Valence, energy: Option[Energy], time: String): String = s"${label(valence, energy)} · $time"
+
+  /** The words of a check-in without its time: "Pleasant", or with the energy step "Pleasant. Energy: low." */
+  def label(valence: Valence, energy: Option[Energy]): String =
     energy match
       case Some(level) =>
-        s"${MoodLabels.valence(valence)}. Energy: ${MoodLabels.energy(level).toLowerCase(Locale.ROOT)}. · $time"
-      case None => s"${MoodLabels.valence(valence)} · $time"
+        s"${MoodLabels.valence(valence)}. Energy: ${MoodLabels.energy(level).toLowerCase(Locale.ROOT)}."
+      case None => MoodLabels.valence(valence)
 
   val entries: List[CopyEntry] =
     List(

@@ -111,6 +111,15 @@ class MoodServiceSuite extends munit.FunSuite:
     rig.clock.advance(Duration.ofMinutes(16))
     assertEquals(rig.service.undo(rig.tx, account, later.checkin.id), Left(MoodRefusal.UndoWindowPassed))
 
+  test("a delete voids a check-in of any age, and a second delete changes nothing"):
+    val rig = Rig()
+    val recorded = rig.checkIn(2, "k1")
+    rig.clock.advance(Duration.ofDays(3))
+    val deleted = rig.service.delete(rig.tx, account, recorded.checkin.id).toOption.get
+    assertEquals((deleted.changed, deleted.day.date, deleted.day.recorded), (true, today, None))
+    assertEquals(rig.service.delete(rig.tx, account, recorded.checkin.id).map(_.changed), Right(false))
+    assertEquals(rig.service.delete(rig.tx, stranger, recorded.checkin.id), Left(MoodRefusal.UnknownCheckin))
+
   test("a check-in of another account is unknown and stays untouched"):
     val rig = Rig()
     val recorded = rig.checkIn(3, "k1")
@@ -134,4 +143,13 @@ class MoodServiceSuite extends munit.FunSuite:
     val recorded = rig.checkIn(4, "k1", day = EntryDay.Yesterday)
     assertEquals(recorded.checkin.localDate, today.minusDays(1))
     assertEquals(rig.service.day(rig.tx, account, EntryDay.Today).map(_.recorded), Right(None))
+
+  test("any local day is read by its date, and not without the consent"):
+    val rig = Rig()
+    val recorded = rig.checkIn(4, "k1", day = EntryDay.Yesterday)
+    val yesterday = rig.service.dayOn(rig.tx, account, today.minusDays(1)).toOption.get
+    assertEquals((yesterday.recorded.map(_.n), yesterday.latest.map(_.id)), (Some(1), Some(recorded.checkin.id)))
+    assertEquals(rig.service.dayOn(rig.tx, account, today.minusDays(9)).map(_.recorded), Right(None))
+    val off = Rig(FakeConsent(Set(account -> ConsentPurpose.Hydration)))
+    assertEquals(off.service.dayOn(off.tx, account, today), Left(MoodRefusal.ConsentMissing))
 end MoodServiceSuite

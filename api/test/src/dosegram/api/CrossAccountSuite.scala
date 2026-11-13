@@ -1,5 +1,6 @@
 package dosegram.api
 
+import dosegram.core.ports.ConsentPurpose
 import sttp.tapir.AnyEndpoint
 
 /** ARCHITECTURE API-10 and API-11, ROADMAP G3.1: every route that names a record is called as account B with an
@@ -11,8 +12,17 @@ final class CrossAccountSuite extends ApiSuite:
   private val dailyAtNine = ujson.Obj("pattern" -> "fixed_times", "times" -> ujson.Arr("09:00"))
   private val validMedication = ujson.Obj("name" -> "Taken over")
 
-  /** Account A with one medication and one schedule, and a session of account B. */
-  private final case class World(ownerToken: String, strangerToken: String, medication: Reply, schedule: Reply):
+  /** Account A with one medication, one schedule, one water entry and one check-in, and a session of account B. */
+  private final case class World(
+      ownerToken: String,
+      strangerToken: String,
+      medication: Reply,
+      schedule: Reply,
+      water: Reply,
+      checkin: Reply
+  ):
+    val waterId: String = water.json("entry")("id").str
+    val checkinId: String = checkin.json("checkin")("id").str
     val medicationId: String = medication.json("id").str
     val scheduleId: String = schedule.json("id").str
     val medicationTag: Map[String, String] = Map("If-Match" -> medication.header("ETag").get)
@@ -20,16 +30,34 @@ final class CrossAccountSuite extends ApiSuite:
 
   private lazy val world: World =
     startNewDay()
-    val ownerToken = login(telegramAccount())
+    val ownerToken = login(trackingAccount())
     val medication = post("/api/v1/medications", ujson.Obj("name" -> "Private", "doseAmount" -> "5", "doseUnit" -> "mg"), ownerToken, newKey())
     val schedule = post(s"/api/v1/medications/${medication.json("id").str}/schedules", dailyAtNine, ownerToken, newKey())
     assertEquals(schedule.status, 201, schedule.body)
-    World(ownerToken, login(telegramAccount()), get(s"/api/v1/medications/${medication.json("id").str}", ownerToken), schedule)
+    val water = post("/api/v1/hydration/entries", ujson.Obj("amountMl" -> 321), ownerToken, newKey())
+    val checkin = post("/api/v1/mood/checkins", ujson.Obj("valence" -> 2), ownerToken, newKey())
+    assertEquals((water.status, checkin.status), (201, 201), water.body + checkin.body)
+    World(
+      ownerToken,
+      login(trackingAccount()),
+      get(s"/api/v1/medications/${medication.json("id").str}", ownerToken),
+      schedule,
+      water,
+      checkin
+    )
 
-  private def ownerView(): (ujson.Value, ujson.Value) =
+  /** An account with every consent of the routes under test, so a refusal can only come from the identifier. */
+  private def trackingAccount(): ApiSuite.TelegramAccount =
+    val account = telegramAccount()
+    fixtures.grant(account.accountId, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    account
+
+  private def ownerView(): (ujson.Value, ujson.Value, ujson.Value, ujson.Value) =
     (
       get(s"/api/v1/medications/${world.medicationId}", world.ownerToken).json,
-      get(s"/api/v1/schedules/${world.scheduleId}", world.ownerToken).json
+      get(s"/api/v1/schedules/${world.scheduleId}", world.ownerToken).json,
+      get("/api/v1/hydration/entries", world.ownerToken).json,
+      get("/api/v1/mood/checkins", world.ownerToken).json
     )
 
   /** One case per route with an identifier: the route name and the request account B sends. */
@@ -51,7 +79,9 @@ final class CrossAccountSuite extends ApiSuite:
     ),
     "changeScheduleState" -> (w =>
       post(s"/api/v1/schedules/${w.scheduleId}/state-changes", ujson.Obj("change" -> "end"), w.strangerToken, w.scheduleTag)
-    )
+    ),
+    "deleteHydrationEntry" -> (w => delete(s"/api/v1/hydration/entries/${w.waterId}", w.strangerToken)),
+    "deleteMoodCheckin" -> (w => delete(s"/api/v1/mood/checkins/${w.checkinId}", w.strangerToken))
   )
 
   cases.foreach: (route, request) =>
@@ -59,7 +89,7 @@ final class CrossAccountSuite extends ApiSuite:
       val before = ownerView()
       val reply = request(world)
       assertProblem(reply, 404, "not_found")
-      assert(!reply.body.contains("Private"), reply.body)
+      assert(!reply.body.contains("Private") && !reply.body.contains("321"), reply.body)
       assertEquals(ownerView(), before)
 
   test("the answer for a foreign identifier equals the answer for an unknown one, apart from the request id"):
@@ -74,6 +104,12 @@ final class CrossAccountSuite extends ApiSuite:
 
   test("lists and day views of account B hold nothing of account A"):
     assertEquals(get("/api/v1/medications", world.strangerToken).json("items").arr.toList, Nil)
+    assertEquals(get("/api/v1/hydration/entries", world.strangerToken).json("items").arr.toList, Nil)
+    assertEquals(get("/api/v1/mood/checkins", world.strangerToken).json("items").arr.toList, Nil)
+    assertEquals(get("/api/v1/hydration/summary", world.strangerToken).json("today")("totalMl").num.toInt, 0)
+    assertEquals(get("/api/v1/mood/summary", world.strangerToken).json("today")("checkIns").num.toInt, 0)
+    val calendar = get("/api/v1/insights/calendar?domain=hydration", world.strangerToken).json("days").arr
+    assertEquals(calendar.count(_("swatch")("state").str == "value"), 0)
     assertEquals(get("/api/v1/today", world.strangerToken).json("occurrences").arr.toList, Nil)
     assertEquals(get("/api/v1/today", world.ownerToken).json("occurrences").arr.size, 1)
 

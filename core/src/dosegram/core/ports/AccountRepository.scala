@@ -2,9 +2,32 @@ package dosegram.core.ports
 
 import dosegram.contracts.AccountId
 import dosegram.contracts.IdentityId
+import dosegram.core.domain.QuietHours
 
 import java.time.Instant
 import java.util.UUID
+
+/** Which theme the images that the bot sends are drawn in (VISUALS_AND_ANALYTICS section 3.3.3). The `dbValue` strings
+  * match the `users.image_theme` CHECK.
+  */
+enum ImageTheme(val dbValue: String):
+  case Auto extends ImageTheme("auto")
+  case Light extends ImageTheme("light")
+  case Dark extends ImageTheme("dark")
+
+object ImageTheme:
+  def fromDbValue(value: String): ImageTheme =
+    values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown image theme '$value'"))
+
+/** What an account set for itself besides its time zone: the locale (absent until the user chooses one), the quiet
+  * hours (absent when off), discreet reminders and the image theme.
+  */
+final case class AccountSettings(
+    locale: Option[String],
+    quietHours: Option[QuietHours],
+    isDiscreet: Boolean,
+    imageTheme: ImageTheme
+)
 
 /** `users` / `platform_identities` / `delivery_channels` (DESIGN.md section 6, ROADMAP M0.12d): account creation is one
   * transactional write — the `users` row (handle and display name left NULL: generated/neutral, never the vendor
@@ -24,3 +47,9 @@ trait AccountRepository:
     * schedule lifecycle.
     */
   def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit
+
+  /** The account's own settings; `None` for an account that does not exist. */
+  def settingsOf(accountId: UUID): Option[AccountSettings]
+
+  /** Replaces the settings. The time zone is not one of them: it moves through [[setTimezone]], with its schedules. */
+  def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit

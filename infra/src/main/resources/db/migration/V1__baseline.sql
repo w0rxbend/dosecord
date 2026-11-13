@@ -31,6 +31,7 @@ CREATE TYPE dose_action AS ENUM ('reminder_sent','reminder_deferred','taken','sk
 CREATE TABLE users (id uuid PRIMARY KEY, handle citext UNIQUE, display_name text, timezone text NOT NULL DEFAULT 'UTC',
   locale text, status text NOT NULL CHECK (status IN ('active','pending_credentials','disabled')),
   quiet_hours jsonb, discreet_default boolean NOT NULL DEFAULT false, delivery_policy text NOT NULL DEFAULT 'primary_then_fallback',
+  image_theme text NOT NULL DEFAULT 'auto' CHECK (image_theme IN ('auto','light','dark')),   -- the theme of the images the bot sends
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
 
 CREATE TABLE platform_identities (id uuid PRIMARY KEY, user_id uuid REFERENCES users, vendor text NOT NULL, vendor_user_id text NOT NULL,

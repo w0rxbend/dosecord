@@ -77,6 +77,26 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       val days = moodDays(tx, accountId, range)
       MoodPeriodView(zone, MoodStats.period(days, range), days)
 
+  /** The recorded days of a range of local days, for a calendar or a chart of days: a day without a dose is absent. */
+  def medicationCalendar(
+      tx: Tx,
+      accountId: UUID,
+      range: DateRange
+  ): Either[StatsRefusal, Map[LocalDate, MedicationDay]] =
+    answer(tx, accountId, ConsentPurpose.Medication)(_ => medicationDays(tx, accountId, range))
+
+  /** The recorded days of a range of local days: a day without an entry is absent, never a zero. */
+  def hydrationCalendar(
+      tx: Tx,
+      accountId: UUID,
+      range: DateRange
+  ): Either[StatsRefusal, Map[LocalDate, HydrationDay]] =
+    answer(tx, accountId, ConsentPurpose.Hydration)(_ => hydrationDays(tx, accountId, range))
+
+  /** The check-in days of a range of local days: a day without a check-in is absent. */
+  def moodCalendar(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, Map[LocalDate, MoodDay]] =
+    answer(tx, accountId, ConsentPurpose.Mood)(_ => moodDays(tx, accountId, range))
+
   /** The text of `/stats` for a period. A domain without consent is left out, and so is a domain without data; a period
     * with nothing at all says so.
     */

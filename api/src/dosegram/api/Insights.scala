@@ -1,9 +1,9 @@
 package dosegram.api
 
-import dosegram.core.application.hydration.HydrationService
-import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.DaySeries
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.ports.Clock
@@ -13,17 +13,13 @@ import dosegram.core.ports.UnitOfWork
 import java.time.ZoneId
 import java.util.UUID
 
-/** The read side of the tracking domains that the API shows (ARCHITECTURE section 11.4). The composition root builds
-  * the services; this module never sees their storage (DEP-05).
-  */
-final case class TrackingReads(stats: StatsQueryService, hydration: HydrationService)
-
 /** `GET /insights/overview` (ARCHITECTURE section 9.5): the statistics of a period, one block per domain whose consent
   * is active. Every line is written by the statistics copy of the core, so the app shows the sentences of the chat and
   * composes none of its own (MINI_APP section 15.1). A domain without consent is absent, not empty (PRODUCT_SPEC
-  * R-IDC-9).
+  * R-IDC-9). Each block carries the charts of its days, laid out by [[Charts]]: dose outcomes and doses by day, water
+  * by day, mood by day.
   */
-final class Insights(uow: UnitOfWork, tracking: TrackingReads, clock: Clock):
+final class Insights(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
 
   import Insights.*
 
@@ -35,8 +31,11 @@ final class Insights(uow: UnitOfWork, tracking: TrackingReads, clock: Clock):
   private def overviewOf(tx: Tx, accountId: UUID, period: StatsPeriod): InsightsOverview =
     val zone = ZoneId.of(tx.accounts.timezoneOf(accountId).getOrElse("UTC"))
     val window = period.window(LocalDays.dateOf(clock.now(), zone))
-    val blocks =
-      List(medication(tx, accountId, period), hydration(tx, accountId, period), mood(tx, accountId, period)).flatten
+    val blocks = List(
+      medication(tx, accountId, period, window),
+      hydration(tx, accountId, period, window),
+      mood(tx, accountId, period, window)
+    ).flatten
     InsightsOverview(
       rangeDays = period.days,
       rangeLabel = ApiCopy.rangeLabel(window),
@@ -47,23 +46,30 @@ final class Insights(uow: UnitOfWork, tracking: TrackingReads, clock: Clock):
     )
 
   // A refusal is a missing consent (or an account that is gone): the block is left out.
-  private def medication(tx: Tx, accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
+  private def medication(tx: Tx, accountId: UUID, period: StatsPeriod, window: DateRange): Option[InsightBlock] =
     tracking.stats
       .medication(tx, accountId, period)
       .toOption
-      .map(view => block(InsightDomain.Medication, StatsCopy.doseFigures(view.period.total), vessel = None))
+      .map: view =>
+        val byDay = DaySeries.of(view.period.days, window).shown.map(Charts.dosesByDay(_, window))
+        val charts = Charts.doseOutcomes(view.period.total.buckets).toList ++ byDay.toList
+        block(InsightDomain.Medication, StatsCopy.doseFigures(view.period.total), vessel = None, charts)
 
-  private def hydration(tx: Tx, accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
+  private def hydration(tx: Tx, accountId: UUID, period: StatsPeriod, window: DateRange): Option[InsightBlock] =
     tracking.stats
       .hydration(tx, accountId, period)
       .toOption
-      .map(view => block(InsightDomain.Hydration, StatsCopy.waterFigures(view.period), vesselOf(tx, accountId)))
+      .map: view =>
+        val chart = DaySeries.of(view.days, window).shown.map(Charts.waterByDay(_, window))
+        block(InsightDomain.Hydration, StatsCopy.waterFigures(view.period), vesselOf(tx, accountId), chart.toList)
 
-  private def mood(tx: Tx, accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
+  private def mood(tx: Tx, accountId: UUID, period: StatsPeriod, window: DateRange): Option[InsightBlock] =
     tracking.stats
       .mood(tx, accountId, period)
       .toOption
-      .map(view => block(InsightDomain.Mood, StatsCopy.moodFigures(view.period), vessel = None))
+      .map: view =>
+        val chart = DaySeries.of(view.days, window).shown.map(Charts.moodByDay(_, window))
+        block(InsightDomain.Mood, StatsCopy.moodFigures(view.period), vessel = None, chart.toList)
 
   /** Today against the user's own goal; without a goal there is nothing to fill. */
   private def vesselOf(tx: Tx, accountId: UUID): Option[InsightVessel] =
@@ -81,11 +87,17 @@ object Insights:
 
   private def periodOf(rangeDays: Int): Option[StatsPeriod] = Periods.find(_.days == rangeDays)
 
-  private def block(domain: InsightDomain, lines: List[String], vessel: Option[InsightVessel]): InsightBlock =
+  private def block(
+      domain: InsightDomain,
+      lines: List[String],
+      vessel: Option[InsightVessel],
+      charts: List[Chart]
+  ): InsightBlock =
     InsightBlock(
       id = domain,
       title = ApiCopy.insightTitle(domain),
       lines = lines,
       noDataText = Option.when(lines.isEmpty)(ApiCopy.noDataInPeriod),
-      vessel = vessel
+      vessel = vessel,
+      charts = if lines.isEmpty then Nil else charts
     )

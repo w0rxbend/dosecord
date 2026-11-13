@@ -69,7 +69,8 @@ trait ApiSuite extends PgSuite:
     TelegramInitDataVerifier(ed25519 = None, hmacSecret = Some(InitDataHmac.secretKeyFor(BotToken))),
     sessionStore,
     InMemoryIdempotencyStore(),
-    TrackingReads(tracking.statsService, tracking.hydrationService),
+    TrackingUseCases(tracking.statsService, tracking.hydrationService, tracking.moodService),
+    ApiSuite.BlobStates,
     line => logged.synchronized { logged += line; () }
   )
 
@@ -194,5 +195,22 @@ trait ApiSuite extends PgSuite:
 object ApiSuite:
   val T0: Instant = Instant.parse("2026-11-13T08:00:00Z")
   val BotToken = "7000000001:AAFakeTokenForTestsOnly_0123456789abcde"
+
+  /** A stand-in for the renderer's asset, which the composition root converts: the route only serves it. */
+  val BlobStates: MoodBlobStates = MoodBlobStates(
+    "test-1",
+    List(
+      BlobState(
+        id = "blob.none",
+        outline = List(1.0, 0.0, 1.0, 0.5, 0.5, 1.0, 0.0, 1.0),
+        outlineWidth = 0.02,
+        isDotted = true,
+        gradient = Nil,
+        ground = List(0.0, 1.18, 0.65, 0.03),
+        light = BlobColours("#d8dfe3", "#d8dfe3", "#5e6e78", "#cdd6db", "#d8dfe3"),
+        dark = BlobColours("#23363f", "#23363f", "#8b9ba3", "#2f434d", "#23363f")
+      )
+    )
+  )
 
   final case class TelegramAccount(accountId: UUID, telegramUserId: Long)

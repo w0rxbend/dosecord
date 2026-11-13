@@ -35,6 +35,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Replaces the editable set; a new time zone moves the schedules that follow the account. */
+        patch: operations["updateSettings"];
+        trace?: never;
+    };
+    "/api/v1/time-zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listTimeZones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/time-zone-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A pure evaluation of a zone change; nothing is written. */
+        post: operations["previewTimeZone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listConsents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/consents/{purpose}/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Needs a confirmation in the chat (step-up). Until the step-up exists it answers stepup_required. */
+        post: operations["withdrawConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/today": {
         parameters: {
             query?: never;
@@ -230,6 +313,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notification-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNotificationSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateNotificationSettings"];
+        trace?: never;
+    };
+    "/api/v1/hydration/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listHydrationEntries"];
+        put?: never;
+        post: operations["createHydrationEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hydration/entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Voids the entry and answers with its day; a second delete answers the same. */
+        delete: operations["deleteHydrationEntry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hydration/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHydrationSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateHydrationSettings"];
+        trace?: never;
+    };
+    "/api/v1/hydration/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHydrationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mood/scale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMoodScale"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mood/blob-states": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The global geometry of the mood blob; it holds no user data. */
+        get: operations["getMoodBlobStates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mood/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMoodCheckins"];
+        put?: never;
+        post: operations["createMoodCheckin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mood/checkins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Voids the check-in and answers with its day; a second delete answers the same. */
+        delete: operations["deleteMoodCheckin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mood/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMoodSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/insights/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getInsightCalendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/insights/overview": {
         parameters: {
             query?: never;
@@ -251,10 +513,96 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BlobColours */
+        BlobColours: {
+            fillInner: string;
+            fillOuter: string;
+            outline: string;
+            ground: string;
+            background: string;
+        };
+        /** BlobFace */
+        BlobFace: {
+            ink: string;
+            eyes?: number[][];
+            mouth?: number[];
+            /** Format: double */
+            strokeWidth: number;
+            brows?: number[][];
+        };
+        /** BlobState */
+        BlobState: {
+            id: string;
+            outline?: number[];
+            /** Format: double */
+            outlineWidth: number;
+            isDotted: boolean;
+            gradient?: number[];
+            ground?: number[];
+            light: components["schemas"]["BlobColours"];
+            dark: components["schemas"]["BlobColours"];
+            face?: components["schemas"]["BlobFace"];
+        };
         /** Bootstrap */
         Bootstrap: {
             timeZone: string;
             limits: components["schemas"]["Limits"];
+            consents?: string[];
+        };
+        /**
+         * CalendarCellState
+         * @enum {string}
+         */
+        CalendarCellState: "empty" | "future" | "value";
+        /** CalendarDay */
+        CalendarDay: {
+            /** Format: date */
+            date: string;
+            swatch: components["schemas"]["CalendarSwatch"];
+            name: string;
+            value?: string;
+        };
+        /** CalendarLegendEntry */
+        CalendarLegendEntry: {
+            label: string;
+            swatch: components["schemas"]["CalendarSwatch"];
+        };
+        /** CalendarSwatch */
+        CalendarSwatch: {
+            state: components["schemas"]["CalendarCellState"];
+            /** Format: int32 */
+            step?: number;
+            hasNoRecord: boolean;
+            blobState?: string;
+        };
+        /** Chart */
+        Chart: {
+            id: string;
+            title: string;
+            summary: string;
+            scene: components["schemas"]["Scene"];
+            table: components["schemas"]["ChartTable"];
+            marks?: string[];
+        };
+        /** ChartTable */
+        ChartTable: {
+            caption: string;
+            columns?: string[];
+            rows?: string[][];
+        };
+        /** ConsentList */
+        ConsentList: {
+            items?: components["schemas"]["ConsentView"][];
+            notes?: string[];
+        };
+        /** ConsentView */
+        ConsentView: {
+            purpose: string;
+            title: string;
+            granted: boolean;
+            text: string;
+            /** Format: int32 */
+            noticeVersion?: number;
         };
         /** DayView */
         DayView: {
@@ -301,6 +649,99 @@ export interface components {
             field: string;
             code: string;
         };
+        /** HydrationDayView */
+        HydrationDayView: {
+            /** Format: date */
+            date: string;
+            /** Format: int32 */
+            totalMl: number;
+            /** Format: int32 */
+            entries: number;
+            text: string;
+            /** Format: int32 */
+            goalMl?: number;
+            /** Format: int32 */
+            percent?: number;
+            vesselLabel?: string;
+        };
+        /** HydrationEntries */
+        HydrationEntries: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            items?: components["schemas"]["HydrationEntryView"][];
+        };
+        /** HydrationEntryInput */
+        HydrationEntryInput: {
+            /** Format: int32 */
+            amountMl: number;
+        };
+        /** HydrationEntryView */
+        HydrationEntryView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            date: string;
+            time: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: int32 */
+            amountMl: number;
+            text: string;
+        };
+        /** HydrationLimits */
+        HydrationLimits: {
+            /** Format: int32 */
+            entryMinMl: number;
+            /** Format: int32 */
+            entryMaxMl: number;
+            /** Format: int32 */
+            goalMinMl: number;
+            /** Format: int32 */
+            goalMaxMl: number;
+            /** Format: int32 */
+            presetsMax: number;
+            /** Format: int32 */
+            entriesPerDayMax: number;
+        };
+        /** HydrationLogged */
+        HydrationLogged: {
+            entry: components["schemas"]["HydrationEntryView"];
+            day: components["schemas"]["HydrationDayView"];
+            goalReachedNow: boolean;
+        };
+        /** HydrationSettings */
+        HydrationSettings: {
+            presetsMl?: number[];
+            limits: components["schemas"]["HydrationLimits"];
+            /** Format: int64 */
+            version: number;
+            /** Format: int32 */
+            goalMl?: number;
+        };
+        /** HydrationSettingsInput */
+        HydrationSettingsInput: {
+            presetsMl?: number[];
+            /** Format: int32 */
+            goalMl?: number;
+        };
+        /** HydrationSummary */
+        HydrationSummary: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            today: components["schemas"]["HydrationDayView"];
+            presetsMl?: number[];
+            chart?: components["schemas"]["Chart"];
+            noDataText?: string;
+        };
+        /**
+         * ImageThemeChoice
+         * @enum {string}
+         */
+        ImageThemeChoice: "auto" | "dark" | "light";
         /** InsightBlock */
         InsightBlock: {
             id: components["schemas"]["InsightDomain"];
@@ -308,6 +749,23 @@ export interface components {
             lines?: string[];
             noDataText?: string;
             vessel?: components["schemas"]["InsightVessel"];
+            charts?: components["schemas"]["Chart"][];
+        };
+        /** InsightCalendar */
+        InsightCalendar: {
+            domain: components["schemas"]["InsightDomain"];
+            month: string;
+            monthLabel: string;
+            previousMonth: string;
+            /** Format: int32 */
+            steps: number;
+            /** Format: int32 */
+            weekStart: number;
+            days?: components["schemas"]["CalendarDay"][];
+            legend?: components["schemas"]["CalendarLegendEntry"][];
+            summary: string;
+            domains?: components["schemas"]["InsightDomain"][];
+            nextMonth?: string;
         };
         /**
          * InsightDomain
@@ -331,6 +789,11 @@ export interface components {
             ranges?: number[];
             blocks?: components["schemas"]["InsightBlock"][];
             notice?: string;
+        };
+        /** LanguageChoice */
+        LanguageChoice: {
+            code: string;
+            label: string;
         };
         /** Limits */
         Limits: {
@@ -399,6 +862,102 @@ export interface components {
             scheduleSummary: string;
             doseText?: string;
         };
+        /** MoodBlobStates */
+        MoodBlobStates: {
+            revision: string;
+            states?: components["schemas"]["BlobState"][];
+        };
+        /** MoodCheckinInput */
+        MoodCheckinInput: {
+            /** Format: int32 */
+            valence: number;
+            /** Format: int32 */
+            energy?: number;
+        };
+        /** MoodCheckinView */
+        MoodCheckinView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            date: string;
+            time: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: int32 */
+            valence: number;
+            label: string;
+            blobState: string;
+            /** Format: int32 */
+            energy?: number;
+        };
+        /** MoodCheckins */
+        MoodCheckins: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            items?: components["schemas"]["MoodCheckinView"][];
+        };
+        /** MoodDayView */
+        MoodDayView: {
+            /** Format: date */
+            date: string;
+            /** Format: int32 */
+            checkIns: number;
+            text: string;
+            blobState: string;
+            latest?: components["schemas"]["MoodCheckinView"];
+        };
+        /** MoodRecordedView */
+        MoodRecordedView: {
+            checkin: components["schemas"]["MoodCheckinView"];
+            day: components["schemas"]["MoodDayView"];
+        };
+        /** MoodScale */
+        MoodScale: {
+            valence?: components["schemas"]["MoodStop"][];
+            energy?: components["schemas"]["MoodStop"][];
+            blobRevision: string;
+            statement: string;
+        };
+        /** MoodStop */
+        MoodStop: {
+            /** Format: int32 */
+            step: number;
+            label: string;
+        };
+        /** MoodSummary */
+        MoodSummary: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            today: components["schemas"]["MoodDayView"];
+            days?: components["schemas"]["MoodSummaryDay"][];
+        };
+        /** MoodSummaryDay */
+        MoodSummaryDay: {
+            /** Format: date */
+            date: string;
+            label: string;
+            name: string;
+            blobState: string;
+            /** Format: int32 */
+            checkIns: number;
+        };
+        /** NotificationSettingsInput */
+        NotificationSettingsInput: {
+            discreet: boolean;
+            quietHours?: components["schemas"]["QuietHoursView"];
+        };
+        /** NotificationSettingsView */
+        NotificationSettingsView: {
+            discreet: boolean;
+            notes?: string[];
+            /** Format: int64 */
+            version: number;
+            quietHours?: components["schemas"]["QuietHoursView"];
+        };
         /** PreviewDay */
         PreviewDay: {
             /** Format: date */
@@ -426,6 +985,65 @@ export interface components {
             schedule?: components["schemas"]["Schedule"];
             purpose?: string;
         };
+        /** QuietHoursView */
+        QuietHoursView: {
+            start: string;
+            end: string;
+        };
+        /** Scene */
+        Scene: {
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            height: number;
+            nodes?: components["schemas"]["SceneNode"][];
+        };
+        /**
+         * SceneAnchor
+         * @enum {string}
+         */
+        SceneAnchor: "end" | "middle" | "start";
+        /** SceneNode */
+        SceneNode: {
+            shape: components["schemas"]["SceneShape"];
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+            tone: components["schemas"]["SceneTone"];
+            /** Format: double */
+            width?: number;
+            /** Format: double */
+            height?: number;
+            /** Format: double */
+            x2?: number;
+            /** Format: double */
+            y2?: number;
+            /** Format: double */
+            radius?: number;
+            text?: string;
+            anchor?: components["schemas"]["SceneAnchor"];
+            /** Format: double */
+            opacity?: number;
+            style?: components["schemas"]["SceneStyle"];
+            /** Format: int32 */
+            mark?: number;
+        };
+        /**
+         * SceneShape
+         * @enum {string}
+         */
+        SceneShape: "circle" | "hit" | "line" | "rect" | "text";
+        /**
+         * SceneStyle
+         * @enum {string}
+         */
+        SceneStyle: "dashed" | "outlined";
+        /**
+         * SceneTone
+         * @enum {string}
+         */
+        SceneTone: "domain-hydration" | "text" | "domain-medication" | "domain-mood" | "text-muted" | "recorded" | "separator";
         /** Schedule */
         Schedule: {
             /** Format: uuid */
@@ -525,6 +1143,40 @@ export interface components {
             version?: string;
             colorScheme?: string;
         };
+        /** SettingsInput */
+        SettingsInput: {
+            language: string;
+            timeZone: string;
+            imageTheme: components["schemas"]["ImageThemeChoice"];
+        };
+        /** SettingsView */
+        SettingsView: {
+            language: string;
+            languages?: components["schemas"]["LanguageChoice"][];
+            timeZone: string;
+            imageTheme: components["schemas"]["ImageThemeChoice"];
+            /** Format: int64 */
+            version: number;
+        };
+        /** TimeZoneChoice */
+        TimeZoneChoice: {
+            id: string;
+            offset: string;
+        };
+        /** TimeZoneList */
+        TimeZoneList: {
+            items?: components["schemas"]["TimeZoneChoice"][];
+        };
+        /** TimeZonePreview */
+        TimeZonePreview: {
+            timeZone: string;
+            localTime: string;
+            lines?: string[];
+        };
+        /** TimeZonePreviewRequest */
+        TimeZonePreviewRequest: {
+            timeZone: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -597,6 +1249,189 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; required */
+                "If-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listTimeZones: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeZoneList"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewTimeZone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TimeZonePreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeZonePreview"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listConsents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentList"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    withdrawConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purpose: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -1109,6 +1944,492 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Schedule"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettingsView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; required */
+                "If-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettingsView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listHydrationEntries: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HydrationEntries"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createHydrationEntry: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HydrationEntryInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HydrationLogged"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteHydrationEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HydrationDayView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getHydrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HydrationSettings"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateHydrationSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; required */
+                "If-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HydrationSettingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HydrationSettings"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getHydrationSummary: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HydrationSummary"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMoodScale: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoodScale"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMoodBlobStates: {
+        parameters: {
+            query?: {
+                revision?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoodBlobStates"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMoodCheckins: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoodCheckins"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMoodCheckin: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoodCheckinInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoodRecordedView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteMoodCheckin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoodDayView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMoodSummary: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoodSummary"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInsightCalendar: {
+        parameters: {
+            query: {
+                domain: components["schemas"]["InsightDomain"];
+                /** @description YYYY-MM; absent is the current month */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightCalendar"];
                 };
             };
             default: {

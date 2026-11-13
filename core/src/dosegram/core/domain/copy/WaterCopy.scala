@@ -1,6 +1,7 @@
 package dosegram.core.domain.copy
 
 import dosegram.core.domain.hydration.HydrationBounds
+import dosegram.core.domain.insights.GoalProgress
 import dosegram.core.domain.insights.HydrationDay
 
 /** Water copy for the chat (BOT_UX section 11.2 and the transcript of section 21.7). Every line states what was logged
@@ -24,7 +25,15 @@ object WaterCopy:
   val tooMuch = s"One entry can be at most ${HydrationBounds.MaxEntryMl} ml. Send a smaller amount."
 
   def preset(millilitres: Int): String = s"+ $millilitres ml"
-  def goalChoice(millilitres: Int): String = s"${StatsCopy.litres(millilitres, 2)} l"
+  def goalChoice(millilitres: Int): String = volume(millilitres)
+
+  /** A volume in litres with its unit: "1.25 l", "2.0 l". */
+  def volume(millilitres: Int): String = s"${StatsCopy.litres(millilitres, 2)} l"
+
+  /** The accessible name of the vessel: the value, the goal and the percent in words (MINI_APP MA-HYD-2). */
+  def vesselName(progress: GoalProgress): String =
+    s"Water: ${StatsCopy.litres(progress.totalMl, 2)} of ${StatsCopy.litres(progress.goalMl, 2)} litres, " +
+      s"${progress.percent} percent"
   def dailyLimit(limit: Int): String = s"A day holds at most $limit water entries."
 
   /** The water card of `/water`. */
@@ -40,7 +49,8 @@ object WaterCopy:
   def goalSet(millilitres: Option[Int]): String =
     millilitres.map(goal => s"Daily goal: ${goalChoice(goal)}.").getOrElse("No daily goal.")
 
-  private def figures(day: HydrationDay): String =
+  /** The figures of a day without the domain name in front, for a surface that shows the domain as a heading. */
+  def figures(day: HydrationDay): String =
     day.progress match
       case Some(progress) =>
         s"${StatsCopy.litres(progress.totalMl, 2)} of ${StatsCopy.litres(progress.goalMl, 2)} l (${progress.percent}%)"
@@ -53,6 +63,7 @@ object WaterCopy:
     CopyEntry("water.goal.none", NoGoal),
     CopyEntry("water.goal.button", Goal),
     CopyEntry("water.goal.choice", goalChoice(2000)),
+    CopyEntry("water.vessel.name", vesselName(GoalProgress(1250, 2000))),
     CopyEntry("water.goal.set", goalSet(Some(2000))),
     CopyEntry("water.goal.unset", goalSet(None)),
     CopyEntry("water.show_as_image", ShowAsImage),
