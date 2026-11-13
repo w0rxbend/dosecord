@@ -20,6 +20,22 @@ class TelegramAdapterSuite extends munit.FunSuite:
 
   private val photo = AttachmentRef(MediaKind.Photo, "asset-week", "image/png", "Seven days, five recorded.")
 
+  // ---------- Chat actions ----------
+
+  test("while an image is drawn the chat shows the photo upload status (VISUALS VA-FB-02)"):
+    val rig = TelegramRig().started()
+    rig.adapter.showUploadingPhoto(chat)
+    val List(action) = rig.wire.calls("sendChatAction"): @unchecked
+    assertEquals(action.text("action"), Some("upload_photo"))
+    assertEquals(action.number("chat_id"), Some(chat.chatId.toLong))
+
+  test("a chat action the API refuses is logged by its kind and never fails the drawing"):
+    val rig = TelegramRig().started()
+    rig.wire.replyNext("sendChatAction", 400, ujson.Obj("ok" -> false, "error_code" -> 400, "description" -> "Bad Request: chat not found"))
+    rig.adapter.showUploadingPhoto(chat)
+    assert(rig.logs.exists(_.startsWith("telegram sendChatAction failed: ")), rig.logs)
+    assert(!rig.logs.exists(_.contains("chat not found")), "the description is not logged")
+
   // ---------- Start ----------
 
   test("start checks the bot's identity and sets the command list as the default menu button"):

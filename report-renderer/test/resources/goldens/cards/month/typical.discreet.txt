@@ -1,0 +1,5 @@
+file: dosegram-month.png
+spoiler: true
+caption: Your month.
+alt: October 2026. Medication: 112 of 119 scheduled doses recorded as taken (94%), 4 skipped, 3 not confirmed. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. Sleep: 7 h 05 min on average over 24 nights from your check-ins. 29 days with records. September: 91% of scheduled doses taken.
+full: October 2026. Medication: 112 of 119 scheduled doses recorded as taken (94%), 4 skipped, 3 not confirmed. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. Sleep: 7 h 05 min on average over 24 nights from your check-ins. 29 days with records. September: 91% of scheduled doses taken.

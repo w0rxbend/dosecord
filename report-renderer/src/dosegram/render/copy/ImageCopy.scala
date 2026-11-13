@@ -3,6 +3,8 @@ package dosegram.render.copy
 import dosegram.render.blob.MoodReading
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
+import dosegram.render.card.InsightData
+import dosegram.render.card.InsightRule
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -100,6 +102,10 @@ trait ImageCopy:
   def checkInDays(count: Int): String
   def sleepAverage(minutes: Int): String
   def noRecordsThisWeek: String
+  def yourGoal: String
+  def noRecordMark: String
+  def estimateMark: String
+  def snackMark: String
   def weekText(week: WeekSummary): String
   def weekDiscreet: String
 
@@ -109,15 +115,47 @@ trait ImageCopy:
   def sleepRowDate(date: LocalDate): String
   def sleepAverageOf(minutes: Int, nights: Int): String
   def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String
-  def sleepLegend: String
+  def sleepEntriesMark: String
+  def sleepNapMark: String
+  def sleepTypicalMark: String
   def sleepGoal(minutes: Int): String
   def sleepNoNights: String
   def sleepText(sleep: SleepRegularityData): String
   def sleepDiscreet: String
 
+  // Month (IMG-05, page 1).
+  def monthTitle: String
+  def weekNumber(week: Int): String
+  def monthHeroDoses(counts: DoseCounts): Vector[String]
+  def monthHeroDays(days: Int): Vector[String]
+  def monthPrevious(month: YearMonth, percent: Int): String
+  def monthText(month: MonthSummary): String
+  def monthDiscreet: String
+
+  // Insight (IMG-13). The fixed non-causal sentence is part of the template (VA-IN-11).
+  def insightTitle: String
+  def insightGroup(rule: InsightRule, isFirst: Boolean): String
+  def insightValue(value: Double): String
+  def insightDays(days: Int): String
+  def insightScaleNote(outcome: Domain): String
+  def insightNotCause: String
+  def insightText(insight: InsightData): String
+  def insightDiscreet: String
+
   // Milestone (IMG-14).
   def milestoneLabel(milestone: MilestoneData): String
   def milestoneText(milestone: MilestoneData): String
+
+/** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
+final case class MonthSummary(
+    month: YearMonth,
+    daysWithRecords: Int,
+    doses: Option[DoseCounts],
+    water: Option[GoalDays],
+    moodCheckInDays: Option[Int],
+    sleep: Option[(Int, Int)],
+    previousAdherence: Option[Int]
+)
 
 /** The counts behind the calendar's text equivalent. */
 final case class CalendarLines(

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Today</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Thu 12 Nov</text>
+<g>
+  <path d="M566.76 259.96 A184 184 0 1 1 513.24 259.96" fill="none" stroke="#cdd6db" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M566.76 259.96 A184 184 0 1 1 360.55 482.65" fill="none" stroke="#02558f" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <path d="M540 659 C533.93 667.4 524.83 677.67 524.83 685.83 A15.17 15.17 0 0 0 555.17 685.83 C555.17 677.67 546.07 667.4 540 659 Z" fill="none" stroke="#02558f" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <ellipse cx="540" cy="578.88" rx="75.4" ry="3.48" fill="#cdd6db"/>
+  <path d="M656.68 442 C656.44 464.62 646.46 491.94 632.66 509.32 C618.86 526.7 595.66 538.02 573.88 546.28 C552.11 554.54 523.7 564.6 502.03 558.86 C480.36 553.12 456.5 531.31 443.89 511.83 C431.28 492.35 425.38 464.57 426.35 442 C427.33 419.43 436.82 394.96 449.74 376.42 C462.65 357.88 482.69 338.69 503.86 330.77 C525.03 322.86 555.02 321.79 576.74 328.93 C598.46 336.06 620.84 354.74 634.16 373.59 C647.49 392.43 656.93 419.38 656.68 442 Z" fill="#d8dfe3" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="540" y="762" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e" text-anchor="middle">No mood entry</text>
+<g>
+  <path d="M92 801 C85.93 809.4 76.83 819.67 76.83 827.83 A15.17 15.17 0 0 0 107.17 827.83 C107.17 819.67 98.07 809.4 92 801 Z" fill="none" stroke="#02558f" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="144" y="838" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Water</text>
+<text x="1016" y="840" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">1.45 of 2.0 l</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

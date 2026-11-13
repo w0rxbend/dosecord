@@ -9,6 +9,22 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache \
     ./mill app.assembly
 
+# The image renderer's rasteriser (ADR-022, ROADMAP G1.9): resvg 0.49.0, the
+# version the pixel goldens are pinned to, built from its release source
+# tarball. The tarball vendors every crate, so the build is offline and the
+# checksum covers all of the code. The release binary links glibc, which the
+# Alpine runtime lacks; this stage builds a musl one.
+FROM rust:1.100.0-alpine AS resvg
+RUN apk add --no-cache musl-dev
+WORKDIR /src
+ADD --checksum=sha256:a1b167d575d0be44e303c76b46fe0aefc5c5748a46979ebae6a7dc3276c2ce8c \
+    https://github.com/linebender/resvg/releases/download/v0.49.0/resvg-0.49.0.tar.xz /src/
+RUN tar xJf resvg-0.49.0.tar.xz \
+ && cd resvg-0.49.0 \
+ && cargo build --profile production --locked --offline -p resvg \
+ && install -m 0755 target/production/resvg /usr/local/bin/resvg \
+ && resvg --version | grep -qx '0.49.0'
+
 FROM eclipse-temurin:25-jre-alpine
 
 # M0.7 spike no-go remedy, required of M0.5 (docs/spikes/dst-primitives.md):
@@ -25,6 +41,13 @@ RUN apk add --no-cache --upgrade tzdata \
 
 RUN addgroup -S dosegram && adduser -S -u 10001 -G dosegram dosegram
 COPY --from=build /build/out/app/assembly.dest/out.jar /opt/dosegram/dosegram.jar
+# The rasteriser and the pinned font pack (VISUALS section 3.4) with its OFL
+# licences. With both set the status images are drawn; without them every
+# image is sent as its text equivalent.
+COPY --from=resvg /usr/local/bin/resvg /opt/dosegram/bin/resvg
+COPY report-renderer/fonts/ /opt/dosegram/fonts/
+ENV RESVG_PATH=/opt/dosegram/bin/resvg \
+    RENDER_FONTS_DIR=/opt/dosegram/fonts
 USER dosegram
 EXPOSE 8080
 

@@ -22,11 +22,16 @@ object Vessel:
   def of(box: Box, cornerRadius: Double, share: Double, tokens: Tokens): Node =
     val outline =
       Node.outlinedRect(box.inset(OutlinePx / 2), cornerRadius - OutlinePx / 2, Stroke.butt(tokens.ink2, OutlinePx))
+    // The glass is the panel well, so the empty part reads as room in the vessel and not as the card behind it.
+    val glass = Node.filledRect(box.inset(OutlinePx), cornerRadius - OutlinePx, tokens.panel)
     val clamped = StrictMath.max(0.0, StrictMath.min(1.0, share))
     val fill = Option.when(clamped > 0) {
       Node.filledPath(fillPath(interior(box), cornerRadius - OutlinePx - FillGapPx, clamped), tokens.tide)
     }
-    Node.Mark(MarkMeta("water.level", Set(Channel.Colour, Channel.Position, Channel.Label)), fill.toVector :+ outline)
+    Node.Mark(
+      MarkMeta("water.level", Set(Channel.Colour, Channel.Position, Channel.Label)),
+      (glass +: fill.toVector) :+ outline
+    )
 
   // The part of a rounded rectangle below the level line. Inside a corner zone the level line is shorter and its
   // ends lie on the corner arcs.

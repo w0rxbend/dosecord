@@ -1,0 +1,5 @@
+file: dosegram-pattern.png
+spoiler: false
+caption: A pattern in your records, 13 Oct to 9 Nov. On the 18 days you reached your water goal, your average mood was 3.7. On the 9 other days with water logged it was 3.2. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.
+alt: A pattern in your records, 13 Oct to 9 Nov. On the 18 days you reached your water goal, your average mood was 3.7. On the 9 other days with water logged it was 3.2. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.
+full: A pattern in your records, 13 Oct to 9 Nov. On the 18 days you reached your water goal, your average mood was 3.7. On the 9 other days with water logged it was 3.2. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.

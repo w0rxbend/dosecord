@@ -59,26 +59,31 @@ class CaptureFlowsSuite extends munit.FunSuite:
     val days: mutable.ListBuffer[DayCardView] = mutable.ListBuffer.empty
     val sleeps: mutable.ListBuffer[SleepRegularityFigures] = mutable.ListBuffer.empty
     val looks: mutable.ListBuffer[CardLook] = mutable.ListBuffer.empty
+    val chats: mutable.ListBuffer[Option[ChatRef]] = mutable.ListBuffer.empty
 
     private def image(key: String): Option[AttachmentRef] =
       Some(AttachmentRef(MediaKind.Photo, key, "image/png", s"alt of $key"))
 
-    override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] =
+    override def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      chats += chat
       moods += view
       looks += look
       image("mood")
 
-    override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] =
+    override def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      chats += chat
       waters += view
       looks += look
       image("water")
 
-    override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] =
+    override def day(view: DayCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      chats += chat
       days += view
       looks += look
       image("day")
 
-    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef] =
+    override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      chats += chat
       sleeps += view
       looks += look
       image("sleep")
@@ -272,6 +277,8 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(photo.map(_.attachment.map(_.assetKey)), List(Some("water")))
       assertEquals(photo.flatMap(_.chunks), List("Water today: 0.5 of 2.0 l (25%)"))
       assertEquals(cards.waters.toList.map(view => (view.totalMl, view.goalMl, view.entries)), List((500, 2000, 1)))
+      // The card is drawn for the chat of the tap, so its adapter can show the upload status while it is drawn.
+      assertEquals(cards.chats.toList.map(_.exists(_.chatId.nonEmpty)), List(true))
 
   // ---------- Mood ----------
 

@@ -40,7 +40,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
       case Right(summary) =>
         val today = summary.window.end
         val view = DayCardView(today, latestMood(turn), doses, waterToday(turn, today), sleepToday(turn, today))
-        parts.cards.day(view, turn.look) match
+        parts.cards.day(view, turn.look, Some(turn.event.chat)) match
           case Some(attachment) =>
             val caption = turn.message("stats.image", summary.lines, Nil)
             Reply(followUps = List(caption.copy(attachment = Some(attachment))))

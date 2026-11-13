@@ -54,8 +54,8 @@ Appendix B and its status notes are the record; this is the short form.
   equivalent. `app` draws the mood, water and daily summary cards and keeps
   their bytes in `render_assets` for at most one hour and their file ids in
   `telegram_file_cache`; it needs `RESVG_PATH` and `RENDER_FONTS_DIR`, and
-  without them every image is sent as its text. The container image has no
-  resvg and no fonts yet. Chat images follow the image theme and discreet
+  without them every image is sent as its text. The container image has
+  resvg and the fonts (built from the pinned 0.49.0 source). Chat images follow the image theme and discreet
   mode set in the Mini App; a discreet personal card goes behind a spoiler.
   The sleep regularity card (IMG-12) is sent from `/sleep`.
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep

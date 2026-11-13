@@ -1,6 +1,7 @@
 package dosegram.core.ports
 
 import dosegram.contracts.AttachmentRef
+import dosegram.contracts.ChatRef
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
@@ -42,21 +43,23 @@ object CardLook:
 /** The status images of VISUALS_AND_ANALYTICS as the chat flows ask for them (ARCHITECTURE DEP-02: the core never holds
   * image bytes). An implementation renders the card, keeps the bytes where the adapter's asset lookup finds them and
   * returns the reference with the text equivalent as its alt text, drawn in the account's [[CardLook]]. `None` means
-  * there is no image now: the caller sends its text alone (VISUALS VA-FB-01).
+  * there is no image now: the caller sends its text alone (VISUALS VA-FB-01). `chat` is the chat the image is for,
+  * where a slow drawing shows an upload status (VA-FB-02); without it no status is shown.
   */
 trait StatusCards:
-  def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef]
-  def water(view: WaterCardView, look: CardLook): Option[AttachmentRef]
-  def day(view: DayCardView, look: CardLook): Option[AttachmentRef]
+  def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
+  def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
+  def day(view: DayCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
 
   /** IMG-12, the sleep regularity chart of the recent nights. */
-  def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef]
+  def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
 
 object StatusCards:
 
   /** No renderer is wired: every flow answers with its text. */
   val textOnly: StatusCards = new StatusCards:
-    override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] = None
-    override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] = None
-    override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] = None
-    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef] = None
+    override def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
+    override def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
+    override def day(view: DayCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
+    override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      None

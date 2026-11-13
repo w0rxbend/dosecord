@@ -84,7 +84,7 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, clo
 
   private def image(turn: Turn, valence: Valence): Option[AttachmentRef] =
     if turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.ImagesInChat) then
-      cards.mood(MoodCardView(valence, None), turn.look)
+      cards.mood(MoodCardView(valence, None), turn.look, Some(turn.event.chat))
     else None
 
   private def record(turn: Turn, valence: Valence, key: String)(reply: MoodRecorded => Reply): Reply =

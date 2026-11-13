@@ -36,10 +36,17 @@ object ResvgConfig:
 final class ResvgRasteriser(config: ResvgConfig) extends Rasteriser:
   private val permits = Semaphore(config.maximumConcurrentRenders)
 
+  /** One deadline covers the wait for a free slot and the render (VISUALS VA-FB-01): a caller behind a slow render is
+    * answered within the timeout, never after two of them.
+    */
   def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
-    permits.acquire()
-    try start(zoom).flatMap(process => collect(process, svg))
-    finally permits.release()
+    val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(config.timeoutMillis)
+    if !permits.tryAcquire(config.timeoutMillis, TimeUnit.MILLISECONDS) then Left(RasterFailure.QueueFull)
+    else
+      try
+        val remainingMillis = StrictMath.max(1L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()))
+        start(zoom).flatMap(process => collect(process, svg, remainingMillis))
+      finally permits.release()
 
   private def start(zoom: Int): Either[RasterFailure, Process] =
     val command = List(
@@ -59,12 +66,12 @@ final class ResvgRasteriser(config: ResvgConfig) extends Rasteriser:
 
   // Both pipes are served by forks, so neither a process that never reads nor one that never stops writing can block
   // this thread; the wait below is the only deadline. Killing the process tree closes its pipes and ends the forks.
-  private def collect(process: Process, svg: String): Either[RasterFailure, PngImage] =
+  private def collect(process: Process, svg: String, timeoutMillis: Long): Either[RasterFailure, PngImage] =
     try
       supervised {
         val output = fork(readCapped(process))
         val input = fork(writeAll(process, svg))
-        val hasExited = process.waitFor(config.timeoutMillis, TimeUnit.MILLISECONDS)
+        val hasExited = process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
         if !hasExited then kill(process)
         input.join()
         classify(hasExited, process, output.join())

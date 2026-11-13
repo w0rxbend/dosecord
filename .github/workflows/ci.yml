@@ -64,10 +64,20 @@ jobs:
         with:
           path: ~/.cache/coursier
           key: coursier-${{ hashFiles('build.mill', '.mill-version') }}
+      # The pixel tests draw with the pinned resvg (ADR-022); with
+      # DOSEGRAM_REQUIRE_RESVG they fail instead of skipping without it.
+      - name: install resvg 0.49.0
+        run: |
+          curl -fsSL -o /tmp/resvg.tar.gz https://github.com/linebender/resvg/releases/download/v0.49.0/resvg-linux-x86_64.tar.gz
+          echo "216637e75e909e53e3098b0875cd5f7da2fdc8b4359771b4a29b539afff9d3f5  /tmp/resvg.tar.gz" | sha256sum -c -
+          sudo tar xzf /tmp/resvg.tar.gz -C /usr/local/bin resvg
+          resvg --version | grep -qx '0.49.0'
       # scalacOptions carry -Werror -Wunused:all -deprecation (build.mill).
       - run: ./mill __.compile
       # Infra tests use Testcontainers (Docker is available on the runner).
       - run: ./mill __.test
+        env:
+          DOSEGRAM_REQUIRE_RESVG: "true"
       # M0.5: the committed .env.example must equal the generated one.
       - run: ./mill app.test.runMain dosegram.app.envExampleCheck .env.example
       # G3.1: the committed OpenAPI document must equal the one generated from the Tapir endpoints.
@@ -130,6 +140,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: docker build
         run: docker build -f docker/Dockerfile -t dosegram:ci .
+      - name: the image draws text with its own resvg and font pack
+        run: scripts/image-render-check.sh dosegram:ci
       - name: compose smoke
         run: |
           docker compose -f docker/compose.yml up -d --build --wait

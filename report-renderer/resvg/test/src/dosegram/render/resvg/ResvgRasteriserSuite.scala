@@ -26,17 +26,22 @@ import scala.io.Source
 import scala.util.Using
 
 /** The child-process adapter against the real resvg binary and against fake binaries that hang, crash or flood. The
-  * tests that need resvg are skipped on a machine without it; the failure-path tests need only a shell.
+  * tests that need resvg are skipped on a machine without it, and fail instead where `ResvgBinary.isRequired`; the
+  * failure-path tests need only a shell.
   */
 class ResvgRasteriserSuite extends munit.FunSuite:
-  private val PinnedVersion = "0.49.0"
+  private val PinnedVersion = ResvgBinary.PinnedVersion
 
   // The fixture run starts 96 child processes; on a loaded host that exceeds the default 30 seconds.
   override val munitTimeout: Duration = 5.minutes
   private val binary = ResvgBinary.locate
 
+  private def needed(condition: Boolean, reason: String): Unit =
+    if ResvgBinary.isRequired then assert(condition, s"$reason, and DOSEGRAM_REQUIRE_RESVG is set")
+    else assume(condition, reason)
+
   private def rasteriser: ResvgRasteriser =
-    assume(binary.isDefined, "resvg is not installed")
+    needed(binary.isDefined, "resvg is not installed")
     ResvgRasteriser(ResvgBinary.config(binary.get))
 
   private def fakeBinary(script: String): Path =
@@ -71,7 +76,7 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     assertEquals(colourAt(8, 8), Tokens.Light.surface)
     assertEquals(colourAt(1071, 1071), Tokens.Light.surface)
     assertEquals(colourAt(244, 700), Tokens.Light.tide, "the vessel fill at 1.4 of 2.0 l covers this point")
-    assertEquals(colourAt(244, 260), Tokens.Light.surface, "the vessel is empty above the level")
+    assertEquals(colourAt(244, 260), Tokens.Light.panel, "the vessel is empty glass above the level")
     val pixels = image.getRGB(0, 0, image.getWidth, image.getHeight, null, 0, image.getWidth)
     assert(pixels.forall(pixel => (pixel >>> 24) == 0xff), "a pixel is not fully opaque")
 
@@ -97,7 +102,7 @@ class ResvgRasteriserSuite extends munit.FunSuite:
       entry.name -> PixelGoldens.hash(image.png)
     }
     assert(rendered.size >= 90, "the fixture set shrank")
-    assume(resvgVersion.contains(PinnedVersion), s"pixel goldens are pinned to resvg $PinnedVersion")
+    needed(resvgVersion.contains(PinnedVersion), s"pixel goldens are pinned to resvg $PinnedVersion")
     assertEquals(PixelGoldens.format(rendered), PixelGoldens.load, "pixels drifted; regenerate with pixelGoldenGenerate and review")
 
   test("the table measurer agrees with the rasteriser's own text extents within two percent"):
@@ -121,6 +126,19 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     val elapsedMillis = (System.nanoTime() - started) / 1000000
     assertEquals(result.left.toOption, Some(RasterFailure.TimedOut))
     assert(elapsedMillis < 5000, s"the caller waited $elapsedMillis ms")
+
+  test("a render that waits for a busy slot ends within its own deadline, waiting included (VISUALS VA-FB-01)"):
+    val busy = ResvgRasteriser(ResvgConfig(fakeBinary("sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 600, 1024, 1))
+    val first = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()
+    val holding = first.submit(() => busy.rasterise(waterSvg(Theme.Dark), 1))
+    Thread.sleep(200)
+    val started = System.nanoTime()
+    val second = busy.rasterise(waterSvg(Theme.Dark), 1)
+    val elapsedMillis = (System.nanoTime() - started) / 1000000
+    assert(second.isLeft, s"$second")
+    assert(elapsedMillis < 900, s"the second caller waited $elapsedMillis ms against a 600 ms deadline")
+    assertEquals(holding.get().left.toOption, Some(RasterFailure.TimedOut))
+    first.shutdown()
 
   test("a rasteriser that never reads its input cannot block the caller"):
     val large = "<svg>" + "x" * (4 * 1024 * 1024) + "</svg>"

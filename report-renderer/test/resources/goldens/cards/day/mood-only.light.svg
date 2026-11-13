@@ -1,17 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="462" cy="522" r="286"><stop offset="0" stop-color="#98acaf"/><stop offset="1" stop-color="#758f92"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="480" cy="422" r="220"><stop offset="0" stop-color="#98acaf"/><stop offset="1" stop-color="#758f92"/></radialGradient>
 </defs>
-<rect width="1080" height="1350" fill="#eef5f8"/>
+<rect width="1080" height="1080" fill="#eef5f8"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Today</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Thu 12 Nov</text>
 <g>
-  <ellipse cx="540" cy="932.8" rx="169" ry="7.8" fill="#cdd6db"/>
-  <path d="M808.46 626 C808.08 676.75 780.27 737.77 748.41 777.42 C716.55 817.07 665.26 848.4 617.3 863.89 C569.33 879.38 510.05 883.42 460.61 870.33 C411.17 857.25 352.28 826.08 320.66 785.36 C289.05 744.63 267.35 676.52 270.93 626 C274.5 575.48 310.63 523.36 342.11 482.23 C373.59 441.09 413.33 396.8 459.81 379.2 C506.3 361.61 572.54 361.03 621.02 376.65 C669.5 392.27 719.45 431.37 750.69 472.92 C781.93 514.48 808.84 575.25 808.46 626 Z" fill="url(#g1)" stroke="#435561" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="467.2" cy="594.8" rx="14.3" ry="10.73" fill="#13242e"/>
-  <ellipse cx="612.8" cy="594.8" rx="14.3" ry="10.73" fill="#13242e"/>
-  <path d="M488 683.2 Q540 683.2 592 683.2" fill="none" stroke="#13242e" stroke-width="9.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="540" cy="738" rx="130" ry="6" fill="#cdd6db"/>
+  <path d="M746.5 502 C746.21 541.04 724.82 587.98 700.31 618.48 C675.81 648.97 636.35 673.08 599.46 684.99 C562.56 696.9 516.96 700.02 478.93 689.95 C440.9 679.88 395.6 655.91 371.28 624.58 C346.96 593.26 330.27 540.86 333.02 502 C335.77 463.14 363.56 423.05 387.78 391.41 C411.99 359.76 442.56 325.69 478.32 312.16 C514.07 298.62 565.03 298.18 602.32 310.19 C639.61 322.21 678.04 352.28 702.07 384.25 C726.1 416.22 746.8 462.96 746.5 502 Z" fill="url(#g1)" stroke="#435561" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="484" cy="478" rx="11" ry="8.25" fill="#13242e"/>
+  <ellipse cx="596" cy="478" rx="11" ry="8.25" fill="#13242e"/>
+  <path d="M500 546 Q540 546 580 546" fill="none" stroke="#13242e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="540" y="998.6" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e" text-anchor="middle">Neutral. Energy: medium.</text>
-<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+<text x="540" y="798" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e" text-anchor="middle">Neutral. Energy: medium.</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
 </svg>

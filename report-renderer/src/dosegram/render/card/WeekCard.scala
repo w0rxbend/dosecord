@@ -41,6 +41,8 @@ object WeekCard:
   private val EmptyRowPx = 76.0
   private val WeekdayHeightPx = 32.0
   private val StripToLegendPx = 8.0
+  // The legend of the shared marks sits closer under the last row than a row gap.
+  private val MarksLegendRisePx = 8.0
   private val MaximumRowGapPx = 44.0
   private val TextLeft = 136.0
   private val CellPx = DoseGlyph.MinimumSidePx
@@ -70,7 +72,6 @@ object WeekCard:
   final private case class Strip(heightPx: Double, draw: (Int, Box) => Vector[Node])
 
   def render(week: WeekData, context: CardContext): CardOutput =
-    val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
     val copy = context.copy
     val summary = summarise(week)
     val rows = Vector(
@@ -80,8 +81,14 @@ object WeekCard:
       mood(week, summary, context),
       sleep(week, summary, context)
     ).flatten
+    val marks = marksLegend(week, rows, context)
+    val probe = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
+    val heights = blockHeights(rows, marks, probe, context)
+    // A week whose rows fit the square at the widest gap collapses to it.
+    val naturalEnd = RowsTop + heights.sum + (heights.size - 1) * MaximumRowGapPx
+    val frame = CardFrame(context, CardFrame.collapsing(naturalEnd), context.tokens.surface)
     val nodes = frame.header(copy.weekTitle, copy.dateRange(summary.from, summary.to))
-      ++ body(week, rows, frame, context)
+      ++ body(week, rows, marks, frame, context)
       :+ frame.footer
     val text = TextEquivalent.of(copy.weekText(summary), copy.weekDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-week.png", context.privacy == Privacy.Discreet)
@@ -174,22 +181,92 @@ object WeekCard:
         val strip = Strip(SleepStripPx, (day, slot) => sleepBar(nights(day), scaleMinutes, slot, context.tokens))
         Row(Domain.Sleep, headline, Some(strip))
 
-  // The weekday line and the rows. Rows share the room down to the footer with a capped gap; what a week with few
-  // domains leaves over is shared above and below the body.
-  private def body(week: WeekData, rows: Vector[Row], frame: CardFrame, context: CardContext): Vector[Node] =
+  // The weekday line, the rows, and the legend of the marks the rows share. Rows share the room down to the footer
+  // with a capped gap; what a week with few domains leaves over is shared above and below the body.
+  private def body(
+      week: WeekData,
+      rows: Vector[Row],
+      marks: Vector[LegendItem],
+      frame: CardFrame,
+      context: CardContext
+  ): Vector[Node] =
     val legends = rows.map(row => Legend.flow(row.legendItems, frame.width, context.fitter))
-    val heights = rows.zip(legends).map { (row, legend) =>
-      row.stripBottom + (if legend.rows.isEmpty then 0.0 else StripToLegendPx + legend.height)
-    }
-    val gaps = StrictMath.max(1, rows.size - 1)
+    val marksLegend = Legend.flow(marks, frame.width, context.fitter)
+    val heights = blockHeights(rows, marks, frame, context)
+    val gaps = StrictMath.max(1, heights.size - 1)
     val gap = StrictMath.min(MaximumRowGapPx, (frame.bodyBottom - RowsTop - heights.sum) / gaps)
     val natural = heights.scanLeft(RowsTop)((top, height) => top + height + gap)
     val shift = frame.balance(WeekdayBaseline - WeekdayHeightPx, natural.last - gap)
+    val marksNodes = Option
+      .when(marksLegend.rows.nonEmpty) {
+        marksLegend.nodes(Point(frame.left, natural(rows.size) + shift - MarksLegendRisePx), frame, context.fitter)
+      }
+      .toVector
+      .flatten
     weekdays(week, WeekdayBaseline + shift, frame, context) ++
       rows.zip(legends).zip(natural.map(_ + shift)).flatMap { case ((row, legend), top) =>
         drawRow(row, top, frame, context) ++
           legend.nodes(Point(frame.left, top + row.stripBottom + StripToLegendPx), frame, context.fitter)
-      }
+      } ++ marksNodes
+
+  // The height of each row with its legend, and of the shared marks legend when there is one.
+  private def blockHeights(
+      rows: Vector[Row],
+      marks: Vector[LegendItem],
+      frame: CardFrame,
+      context: CardContext
+  ): Vector[Double] =
+    val marksLegend = Legend.flow(marks, frame.width, context.fitter)
+    rows.map { row =>
+      val legend = Legend.flow(row.legendItems, frame.width, context.fitter)
+      row.stripBottom + (if legend.rows.isEmpty then 0.0 else StripToLegendPx + legend.height)
+    } ++ Option.when(marksLegend.rows.nonEmpty)(marksLegend.height - MarksLegendRisePx)
+
+  // The marks of the water, food, mood and sleep strips are named once under the rows, each only when a strip draws
+  // it: the dotted goal line, the dotted slot of a day without a record, the hatch of an estimate and the snack dot.
+  private def marksLegend(week: WeekData, rows: Vector[Row], context: CardContext): Vector[LegendItem] =
+    val tokens = context.tokens
+    val copy = context.copy
+    val drawn = rows.filter(_.strip.isDefined).map(_.domain).toSet
+    val water = week.water.filter(_ => drawn(Domain.Water)).getOrElse(Vector.empty)
+    val food = week.food.filter(_ => drawn(Domain.Food)).getOrElse(Vector.empty)
+    val mood = week.mood.filter(_ => drawn(Domain.Mood)).getOrElse(Vector.empty)
+    val nights = week.sleep.filter(_ => drawn(Domain.Sleep)).getOrElse(Vector.empty)
+    val hasGoal = water.exists(_.isDefined) || nights.exists(_.isInstanceOf[SleepEvidence.Recorded])
+    val hasGap =
+      water.contains(None) || food.contains(None) || mood.contains(None) || nights.contains(SleepEvidence.NoRecord)
+    val hasEstimate = nights.contains(SleepEvidence.QuietWindowOnly)
+    val hasSnack = food.flatten.exists(_.snacks > 0)
+    Vector(
+      Option.when(hasGoal)(LegendItem.of(box => goalGlyph(box, tokens), copy.yourGoal)),
+      Option.when(hasGap)(LegendItem.of(box => gapGlyph(box, tokens), copy.noRecordMark)),
+      Option.when(hasEstimate)(LegendItem.of(box => estimateGlyph(box, tokens), copy.estimateMark)),
+      Option.when(hasSnack)(LegendItem.of(box => snackGlyph(box, tokens), copy.snackMark))
+    ).flatten
+
+  private def goalGlyph(box: Box, tokens: Tokens): Node =
+    val y = box.center.y
+    Node.Mark(
+      MarkMeta("legend.goal", Set(Channel.Pattern)),
+      Vector(Node.Line(Point(box.x + 2, y), Point(box.right - 2, y), Stroke.dotted(tokens.ink3)))
+    )
+
+  private def gapGlyph(box: Box, tokens: Tokens): Node =
+    emptySlot("legend.none", Node.outlinedRect(box.inset(4), 10, Stroke.dotted(tokens.ink3)))
+
+  private def estimateGlyph(box: Box, tokens: Tokens): Node =
+    val inner = box.inset(4)
+    val outline = Node.outlinedRect(inner, 10, Stroke.butt(tokens.ink3, 4))
+    Node.Mark(
+      MarkMeta("legend.estimate", Set(Channel.Pattern)),
+      outline +: Hatch.lines(inner.inset(4), Stroke.butt(tokens.ink3, 4))
+    )
+
+  private def snackGlyph(box: Box, tokens: Tokens): Node =
+    Node.Mark(
+      MarkMeta("legend.snack", Set(Channel.Colour, Channel.Shape, Channel.Label)),
+      Vector(Node.filledCircle(box.center, 8, tokens.rye))
+    )
 
   private def drawRow(row: Row, top: Double, frame: CardFrame, context: CardContext): Vector[Node] =
     val nameLook = frame.look(TextStyle.BodyMedium, frame.tokens.ink)

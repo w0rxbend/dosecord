@@ -13,6 +13,7 @@ import dosegram.render.scene.Align
 import dosegram.render.scene.Box
 import dosegram.render.scene.Node
 import dosegram.render.scene.Point
+import dosegram.render.scene.Size
 import dosegram.render.scene.TextKind
 import dosegram.render.tokens.Domain
 import dosegram.render.tokens.TextStyle
@@ -23,19 +24,26 @@ import dosegram.render.tokens.TextStyle
   */
 object DayCard:
   val TemplateId = "card.day.v1"
-  private val Center = Point(540, 410)
-  private val BlobRadius = 190.0
-  private val LoneBlobRadius = 260.0
-  private val HaloRadius = 300.0
-  private val LabelBelowPx = 58.0
+  // Up to this many domain lines the card collapses to the square canvas with a smaller picture; more stay portrait.
+  private val CompactRowLimit = 2
+  private val LabelBelowPx = 54.0
   private val LabelDescentPx = 12.0
-  private val LabelToRowsPx = 30.0
-  private val LinePx = 68.0
+  private val LabelToRowsPx = 28.0
+  private val LinePx = 64.0
   private val RowGapPx = 12.0
   private val TextLeft = 144.0
   private val GlyphPx = DoseGlyph.MinimumSidePx
   private val GlyphGapPx = 12.0
   private val NoteLinePx = 48.0
+
+  /** The picture of one canvas: the blob and halo radii, and the blob radius when there is no halo. The halo's top sits
+    * on the body top, clear of the header.
+    */
+  final private case class Geometry(canvas: Size, blobRadius: Double, haloRadius: Double, loneBlobRadius: Double):
+    def center: Point = Point(canvas.width / 2, CardFrame.BodyTop + haloRadius + Halo.StrokePx / 2)
+
+  private val PortraitGeometry = Geometry(CardFrame.Portrait, 172, 272, 260)
+  private val CompactGeometry = Geometry(CardFrame.Square, 116, 184, 200)
 
   /** One domain line: the value at the end edge and what, if anything, sits on the second line. */
   final private case class Row(domain: Domain, value: String, halo: HaloState, detail: Detail):
@@ -58,29 +66,32 @@ object DayCard:
   /** Where the picture sits: the blob, the halo and its icons when a domain is tracked, and the mood label under them.
     * Without a halo the blob takes the room of the ring (VA-BL-05).
     */
-  final private case class Picture(halo: HaloFrame, segmentCount: Int):
+  final private case class Picture(geometry: Geometry, halo: HaloFrame, segmentCount: Int):
     private def hasHalo: Boolean = segmentCount > 0
     def center: Point = halo.center
-    def blobFrame: BlobFrame = BlobFrame(center, if hasHalo then BlobRadius else LoneBlobRadius)
+    def blobFrame: BlobFrame = BlobFrame(center, if hasHalo then geometry.blobRadius else geometry.loneBlobRadius)
     def iconCenters: Vector[Point] = if hasHalo then Halo.iconCenters(segmentCount, halo) else Vector.empty
-    def top: Double = if hasHalo then center.y - HaloRadius - Halo.StrokePx / 2 else center.y - LoneBlobRadius
+
+    def top: Double =
+      if hasHalo then center.y - halo.radius - Halo.StrokePx / 2 else center.y - geometry.loneBlobRadius
 
     def labelBaseline: Double =
-      val ringBottom = center.y + HaloRadius + Halo.StrokePx / 2
+      val ringBottom = center.y + halo.radius + Halo.StrokePx / 2
       val bottom =
         if hasHalo then (iconCenters.map(_.y + Icons.SizePx / 2) :+ ringBottom).max
-        else center.y + LoneBlobRadius * BlobFigure.GroundBottomShare
+        else center.y + geometry.loneBlobRadius * BlobFigure.GroundBottomShare
       bottom + LabelBelowPx
 
     def movedDown(distance: Double): Picture = copy(halo = halo.copy(center = center.moved(0, distance)))
 
   def render(day: DayData, context: CardContext): CardOutput =
-    val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
     val copy = context.copy
     val rows = Vector(medication(day, context), water(day, context), food(day, context), sleep(day, context)).flatten
-    // A day with one or two domains leaves room under its rows: the picture and the rows move down together, so the
-    // room is shared above and below them and the card does not end in an empty half.
-    val natural = Picture(HaloFrame(Center, HaloRadius, frame.background), rows.size)
+    val geometry = if rows.size <= CompactRowLimit then CompactGeometry else PortraitGeometry
+    val frame = CardFrame(context, geometry.canvas, context.tokens.surface)
+    // What the card leaves under its rows is shared above and below the picture and the rows, so the card does not end
+    // in an empty band.
+    val natural = Picture(geometry, HaloFrame(geometry.center, geometry.haloRadius, frame.background), rows.size)
     val belowLabel = if rows.isEmpty then LabelDescentPx else LabelToRowsPx + rows.map(rowHeight).sum
     val picture = natural.movedDown(frame.balance(natural.top, natural.labelBaseline + belowLabel))
     val blob = day.mood

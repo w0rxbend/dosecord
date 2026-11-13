@@ -55,13 +55,16 @@ object MedicationStripCard:
     val pages = paginate(rows, lowestLegendTop - RowGapPx - RowsTop)
     val period = context.copy.dateRange(strip.from, strip.from.plusDays(strip.dayCount - 1L))
     pages.zipWithIndex.map { (pageRows, pageIndex) =>
-      val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
       val rowsBottom = RowsTop + StrictMath.max(EmptyStatePx, pageRows.map(_.height + RowGapPx).sum)
       val legendTop = StrictMath.min(lowestLegendTop, rowsBottom + RowGapPx)
+      // A strip of one page collapses to the square when it fits; the pages of an album keep one size.
+      val canvas = if pages.size == 1 then CardFrame.collapsing(legendTop + legend.height) else CardFrame.Portrait
+      val frame = CardFrame(context, canvas, context.tokens.surface)
       // A page with few rows leaves room under its legend: the body moves down so the room is shared around it.
       val shift = frame.balance(WeekdayBaseline - WeekdayHeightPx, legendTop + legend.height)
       val nodes = frame.header(context.copy.stripTitle, period)
-        ++ weekdays(strip, WeekdayLine(cellPx, WeekdayBaseline + shift), frame, context)
+        ++ (if pageRows.isEmpty then Vector.empty
+            else weekdays(strip, WeekdayLine(cellPx, WeekdayBaseline + shift), frame, context))
         ++ drawRows(pageRows, RowsTop + shift, frame)
         ++ emptyState(pageRows, RowsTop + shift, frame, context)
         ++ legend.nodes(Point(frame.left, legendTop + shift), frame, context.fitter)

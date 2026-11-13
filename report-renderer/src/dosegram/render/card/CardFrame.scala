@@ -106,3 +106,10 @@ object CardFrame:
   private val GridPx = 4.0
   val Square: Size = Size(1080, 1080)
   val Portrait: Size = Size(1080, 1350)
+
+  /** The canvas of a portrait card whose body may be short (VISUALS section 5.3): the square when a body ending at
+    * `bodyEnd` keeps its line of room above the square's footer, the portrait otherwise. A card collapses rather than
+    * ending in an empty band.
+    */
+  def collapsing(bodyEnd: Double): Size =
+    if bodyEnd <= Square.height - MarginPx - FooterClearancePx then Square else Portrait

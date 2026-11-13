@@ -18,6 +18,9 @@ final class PngImage(val bytes: IArray[Byte]):
 enum RasterFailure:
   case OutsideProfile(violationCount: Int)
   case Unavailable
+
+  /** Every rendering slot stayed busy for the whole deadline. */
+  case QueueFull
   case TimedOut
   case TooLarge
   case Crashed(exitCode: Int)

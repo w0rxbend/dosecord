@@ -1,5 +1,5 @@
 file: dosegram-water.png
 spoiler: false
-caption: Water on Thu 12 Nov: 4.8 of 2.0 l (237%). 14 entries, last at 22:10. The goal is the one you set. Counted with your drink factors.
-alt: Water on Thu 12 Nov: 4.8 of 2.0 l (237%). 14 entries, last at 22:10. The goal is the one you set. Counted with your drink factors.
-full: Water on Thu 12 Nov: 4.8 of 2.0 l (237%). 14 entries, last at 22:10. The goal is the one you set. Counted with your drink factors.
+caption: Water on Thu 12 Nov: 4.75 of 2.0 l (237%). 14 entries, last at 22:10. The goal is the one you set. Counted with your drink factors.
+alt: Water on Thu 12 Nov: 4.75 of 2.0 l (237%). 14 entries, last at 22:10. The goal is the one you set. Counted with your drink factors.
+full: Water on Thu 12 Nov: 4.75 of 2.0 l (237%). 14 entries, last at 22:10. The goal is the one you set. Counted with your drink factors.

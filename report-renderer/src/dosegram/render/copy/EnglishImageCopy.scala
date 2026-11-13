@@ -3,6 +3,8 @@ package dosegram.render.copy
 import dosegram.render.blob.MoodReading
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
+import dosegram.render.card.InsightData
+import dosegram.render.card.InsightRule
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MilestoneKind
 import dosegram.render.card.SleepEvidence
@@ -149,7 +151,7 @@ object EnglishImageCopy extends ImageCopy:
       case DayClass.NoRecord     => "No record"
       case DayClass.StillOpen    => "Still open"
 
-  def blankDayNote: String = "Blank: none scheduled"
+  def blankDayNote: String = "None scheduled"
 
   def resolvedDosesTaken(taken: Int, resolved: Int): String = s"$taken of $resolved resolved doses taken."
 
@@ -225,7 +227,9 @@ object EnglishImageCopy extends ImageCopy:
   def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String =
     s"Bedtime varied about $bedtimeMinutes min, wake $wakeMinutes min"
 
-  def sleepLegend: String = "Your entries · n nap · dotted: typical"
+  def sleepEntriesMark: String = "Your entries"
+  def sleepNapMark: String = "Nap (n)"
+  def sleepTypicalMark: String = "Typical times"
   def sleepGoal(minutes: Int): String = s"Your goal: ${duration(minutes)}"
   def sleepNoNights: String = "No night logged in these days."
 
@@ -254,6 +258,10 @@ object EnglishImageCopy extends ImageCopy:
 
   def sleepDiscreet: String = "Sleep, recent nights."
   def noRecordsThisWeek: String = "No records this week"
+  def yourGoal: String = "Your goal"
+  def noRecordMark: String = "No record"
+  def estimateMark: String = "Estimate"
+  def snackMark: String = "Snack"
 
   def weekText(week: WeekSummary): String =
     val medication = week.doses.map { counts =>
@@ -274,6 +282,73 @@ object EnglishImageCopy extends ImageCopy:
 
   def weekDiscreet: String = "Your week."
 
+  def monthTitle: String = "Your month"
+  def weekNumber(week: Int): String = s"Week $week"
+
+  def monthHeroDoses(counts: DoseCounts): Vector[String] =
+    Vector("of scheduled doses", "recorded as taken", s"(${counts.taken} of ${counts.counted})")
+
+  def monthHeroDays(days: Int): Vector[String] = Vector(if days == 1 then "day with records" else "days with records")
+
+  def monthPrevious(month: YearMonth, percent: Int): String =
+    s"${MonthNames(month.getMonthValue - 1)}: ${this.percent(percent)} of scheduled doses taken."
+
+  def monthText(month: MonthSummary): String =
+    val medication = month.doses.map { counts =>
+      if counts.counted == 0 then "Medication: no records this month." else s"Medication: ${doseSentence(counts)}."
+    }
+    val water = month.water.map { goalDays =>
+      s"Water: goal reached on ${goalDays.reached} of ${plural(goalDays.recorded, "recorded day")}."
+    }
+    val mood = month.moodCheckInDays.map(count => s"Mood: ${checkInDays(count)}.")
+    val sleep = month.sleep.map { (minutes, nights) =>
+      s"Sleep: ${duration(minutes)} on average over ${plural(nights, "night")} from your check-ins."
+    }
+    val days = s"${plural(month.daysWithRecords, "day")} with records."
+    val previous = month.previousAdherence
+      .filter(_ => month.doses.exists(_.counted >= MinimumDosesForPercent))
+      .map(percent => monthPrevious(month.month.minusMonths(1), percent))
+    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ Vector(days) ++ previous)
+      .mkString(" ")
+
+  def monthDiscreet: String = "Your month."
+
+  def insightTitle: String = "A pattern in your records"
+
+  def insightGroup(rule: InsightRule, isFirst: Boolean): String =
+    rule match
+      case InsightRule.WaterGoalMood => if isFirst then "Water goal reached" else "Water logged, goal not reached"
+      case InsightRule.SleepGoalMood =>
+        if isFirst then "After nights at or above your sleep goal" else "After shorter nights"
+
+  def insightValue(value: Double): String =
+    BigDecimal(value).setScale(1, BigDecimal.RoundingMode.HALF_UP).toString
+
+  def insightDays(days: Int): String = plural(days, "day")
+
+  def insightScaleNote(outcome: Domain): String = "Mood is the daily average on the 1 to 5 scale."
+
+  def insightNotCause: String = "This compares your own days. It does not show a cause."
+
+  def insightText(insight: InsightData): String =
+    val (first, second) = (insight.first, insight.second)
+    val groups = insight.rule match
+      case InsightRule.WaterGoalMood =>
+        s"On the ${plural(first.days, "day")} you reached your water goal, your average mood was " +
+          s"${insightValue(first.value)}. On the ${second.days} other days with water logged it was " +
+          s"${insightValue(second.value)}."
+      case InsightRule.SleepGoalMood =>
+        s"On the ${plural(first.days, "day")} after a night at or above your sleep goal, your average mood was " +
+          s"${insightValue(first.value)}. On the ${second.days} other days it was ${insightValue(second.value)}."
+    Vector(
+      s"$insightTitle, ${dateRange(insight.from, insight.to)}.",
+      groups,
+      insightScaleNote(insight.outcome),
+      insightNotCause
+    ).mkString(" ")
+
+  def insightDiscreet: String = "A pattern in your records."
+
   def milestoneLabel(milestone: MilestoneData): String =
     val isOne = milestone.count == 1
     milestone.kind match
@@ -293,8 +368,11 @@ object EnglishImageCopy extends ImageCopy:
   private def days(count: Int): String = plural(count, "day")
   private def plural(count: Int, noun: String): String = if count == 1 then s"1 $noun" else s"$count ${noun}s"
 
+  // Two places at most and at least one, rounded down: a day short of its goal never reads as the goal, and the figure
+  // is the one the chat caption states for the same day.
   private def litres(volumeMl: Int): String =
-    (BigDecimal(volumeMl) / 1000).setScale(1, BigDecimal.RoundingMode.HALF_UP).toString
+    val rounded = (BigDecimal(volumeMl) / 1000).setScale(2, BigDecimal.RoundingMode.DOWN).bigDecimal.stripTrailingZeros
+    (if rounded.scale < 1 then rounded.setScale(1) else rounded).toPlainString
 
   private def dayClassPhrase(dayClass: DayClass): String =
     dayClass match

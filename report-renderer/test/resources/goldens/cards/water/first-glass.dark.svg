@@ -3,6 +3,7 @@
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Water</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">Thu 12 Nov</text>
 <g>
+  <rect x="70" y="190" width="348" height="628" rx="90" fill="#071820"/>
   <path d="M86.37 764.1 L401.63 764.1 A82 82 0 0 1 328 810 L160 810 A82 82 0 0 1 86.37 764.1 Z" fill="#0072be"/>
   <rect x="67" y="187" width="354" height="634" rx="93" fill="none" stroke="#b1c0c8" stroke-width="6"/>
 </g>
@@ -15,7 +16,7 @@
 <line x1="436" y1="198" x2="456" y2="198" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="468" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">2.0 l</text>
 <text x="1016" y="472" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4" text-anchor="end">7%</text>
-<text x="1016" y="568" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">0.2 of 2.0 l</text>
+<text x="1016" y="568" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">0.15 of 2.0 l</text>
 <text x="1016" y="652" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="end">1 entry</text>
 <text x="1016" y="708" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="end">last at 08:05</text>
 <text x="64" y="916" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">The goal is the one you set.</text>

@@ -6,9 +6,15 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /** Finds the resvg binary for tests and tools: `DOSEGRAM_RESVG` when set, else the first `resvg` on the PATH. The
-  * pixel tests are skipped, not failed, on a machine without it; the SVG goldens need no binary.
+  * pixel tests are skipped, not failed, on a machine without it; the SVG goldens need no binary. CI sets
+  * `DOSEGRAM_REQUIRE_RESVG=true`, and there a missing binary or another version fails them instead.
   */
 object ResvgBinary:
+  val PinnedVersion: String = "0.49.0"
+
+  /** Whether this run must draw: a skipped pixel test would otherwise pass unseen. */
+  def isRequired: Boolean = sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true")
+
   def locate: Option[Path] =
     sys.env
       .get("DOSEGRAM_RESVG")
