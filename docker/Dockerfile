@@ -2,6 +2,16 @@
 
 # Dosegram app image (ROADMAP M0.5, DESIGN.md sections 2 and 12).
 
+# The Mini App (MINI_APP 13.1): built from the frozen lockfile with lifecycle scripts off; the
+# build fails when the bundle exceeds its budget. Served under /app/ when MINIAPP_ENABLED=true.
+FROM node:22-alpine AS miniapp
+RUN npm install --global pnpm@10
+WORKDIR /build/miniapp
+COPY miniapp/package.json miniapp/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY miniapp/ ./
+RUN pnpm run build
+
 FROM eclipse-temurin:25-jdk-alpine AS build
 RUN apk add --no-cache curl
 WORKDIR /build
@@ -25,8 +35,10 @@ RUN apk add --no-cache --upgrade tzdata \
 
 RUN addgroup -S dosegram && adduser -S -u 10001 -G dosegram dosegram
 COPY --from=build /build/out/app/assembly.dest/out.jar /opt/dosegram/dosegram.jar
+COPY --from=miniapp /build/miniapp/dist /opt/dosegram/miniapp
+ENV MINIAPP_STATIC_DIR=/opt/dosegram/miniapp
 USER dosegram
-EXPOSE 8080
+EXPOSE 8080 8081
 
 ENTRYPOINT [ \
   "java", \

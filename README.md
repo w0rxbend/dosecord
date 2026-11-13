@@ -43,4 +43,5 @@ docker compose -f docker/compose.yml down -v
 | [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md), [docs/BOT_UX.md](docs/BOT_UX.md), [docs/MINI_APP.md](docs/MINI_APP.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/VISUALS_AND_ANALYTICS.md](docs/VISUALS_AND_ANALYTICS.md) | The specification |
 | [docs/adr/](docs/adr/README.md) | Decision records |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, test and gate commands |
+| [docs/DEPLOY_MINIAPP.md](docs/DEPLOY_MINIAPP.md) | Serving the Mini App on an https origin: settings, proxy, BotFather, smoke checklist |
 | [docs/archive/](docs/archive/) | The Dosecord roadmap, design and UX plan. History only |
