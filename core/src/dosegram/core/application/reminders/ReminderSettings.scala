@@ -141,7 +141,6 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
   def pauseKind(tx: Tx, scheduleId: UUID, until: Instant): Unit =
     tx.reminders.prompts.pause(scheduleId, Some(until), clock.now())
 
-  /** The start of the next local day: the end of "Pause for today". */
   /** Every reminder a local day holds with the plans as they are: the prompt slots outside quiet hours of the plans
     * whose domain has its consent, and the dose reminders of the materialised schedules when the medication consent is
     * given. In time order.
@@ -164,6 +163,7 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
           .map(o => TimelineItem(o.scheduledFor, None, None))
     (prompts ++ doses).sortBy(_.at)
 
+  /** The start of the next local day: the end of "Pause for today". */
   def endOfToday(zone: ZoneId): Instant =
     clock.now().atZone(zone).toLocalDate.plusDays(1).atStartOfDay(zone).toInstant
 
