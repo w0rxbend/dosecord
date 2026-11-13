@@ -46,6 +46,9 @@ enum CancelReason(val dbValue: String):
   case Archived extends CancelReason("archived")
   case AnchorUndone extends CancelReason("anchor_undone")
 
+  /** The `medication` consent was withdrawn (PRODUCT_SPEC R-IDC-10): every open dose is cancelled with it. */
+  case ConsentWithdrawn extends CancelReason("consent_withdrawn")
+
 object CancelReason:
   def fromDbValue(value: String): CancelReason =
     values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown cancel_reason '$value'"))

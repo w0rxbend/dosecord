@@ -1,6 +1,8 @@
 package dosegram.core.application.menu
 
 import dosegram.contracts.*
+import dosegram.core.application.capture.MedicationConsentGate
+import dosegram.core.application.capture.MedicationScreen
 import dosegram.core.application.dose.LogDosePicker
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
@@ -65,6 +67,8 @@ final class MenuHandler(
 
   import MenuHandler.*
 
+  private val gate = MedicationConsentGate(codec, clock)
+
   private var flowStarter: Option[(InboundEvent, Principal, String, Tx) => Reply] = None
 
   /** Wired by the composition root: starting a wizard from a menu entry goes through the engine (sessions, tokens). */
@@ -76,11 +80,16 @@ final class MenuHandler(
       case Inbound.CommandInvoked(CommandMenu, _, _) =>
         guardLinked(event, principal)(mainMenu(event, principal, tx, source = None))
       case Inbound.CommandInvoked(CommandToday, _, _) =>
-        guardLinked(event, principal)(todayView(event, principal, tx, source = None))
+        guardLinked(event, principal):
+          gate.guarded(event, principal, tx)(MedicationScreen.Today)(todayView(event, principal, tx, source = None))
       case Inbound.CommandInvoked(CommandHistory, _, _) =>
-        guardLinked(event, principal)(historyView(event, principal, tx, source = None))
+        guardLinked(event, principal):
+          gate.guarded(event, principal, tx)(MedicationScreen.History):
+            historyView(event, principal, tx, source = None)
       case Inbound.CommandInvoked(CommandMeds, _, _) =>
-        guardLinked(event, principal)(medicationsMenu(event, principal, tx, source = None, notice = None))
+        guardLinked(event, principal):
+          gate.guarded(event, principal, tx)(MedicationScreen.Medications):
+            medicationsMenu(event, principal, tx, source = None, notice = None)
       case Inbound.CommandInvoked(CommandApp, _, _) =>
         guardLinked(event, principal)(appCard(event))
       case Inbound.InteractionSubmitted(ref, source) => onTap(event, principal, ref, source, tx)
@@ -118,7 +127,21 @@ final class MenuHandler(
       // handled by the M1.10 DoseIntakeHandler in front of this handler.
       case _ => inner.handle(event, principal, tx)
 
+  /** A menu entry of the medication domain is behind its consent (PRODUCT_SPEC R-IDC-9); the main menu, the account
+    * menu and the timezone are not.
+    */
   private def dispatch(
+      key: String,
+      event: InboundEvent,
+      principal: Principal,
+      source: Option[MessageHandle],
+      tx: Tx
+  ): Reply =
+    medicationScreenOf(key) match
+      case Some(screen) => gate.guarded(event, principal, tx)(screen)(open(key, event, principal, source, tx))
+      case None         => open(key, event, principal, source, tx)
+
+  private def open(
       key: String,
       event: InboundEvent,
       principal: Principal,
@@ -651,6 +674,16 @@ private object MenuHandler:
 
   /** The 8 x 3 digest cap of DESIGN.md section 4.3 applied to the interactive Today. */
   val MaxTodayRows = 8
+
+  /** The screen a medication entry belongs to, which is the one its consent prompt leads back to; `None` for an entry
+    * outside the medication domain.
+    */
+  def medicationScreenOf(key: String): Option[MedicationScreen] =
+    key match
+      case KeyRoot | KeyAccount | KeyTimezone => None
+      case KeyToday | KeyLogDose              => Some(MedicationScreen.Today)
+      case KeyHistory                         => Some(MedicationScreen.History)
+      case _                                  => Some(MedicationScreen.Medications)
 
   val WeekdayRange: List[Weekday] = Weekday.values.toList.take(5)
 end MenuHandler

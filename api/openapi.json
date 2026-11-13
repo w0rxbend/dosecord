@@ -1649,6 +1649,9 @@
           },
           "schedule" : {
             "$ref" : "#/components/schemas/Schedule"
+          },
+          "purpose" : {
+            "type" : "string"
           }
         }
       },

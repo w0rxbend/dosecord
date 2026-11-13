@@ -2,6 +2,7 @@ package dosegram.infra.db
 
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.GrantedConsent
 
 import java.sql.SQLException
@@ -15,7 +16,7 @@ import scala.language.implicitConversions
 class ConsentLedgerPgSuite extends PgSuite:
 
   private val t0 = Instant.parse("2026-11-13T09:00:00Z")
-  private val notice = ConsentNotice(1, "I agree that Dosegram stores and processes my water intake records.")
+  private val notice = ConsentNotice(1, "I agree that Dosegram stores and processes my water intake records.", "en")
   private lazy val fixtures = Fixtures(dataSource)
   private lazy val uow = PgUnitOfWork(dataSource, () => t0)
 
@@ -23,7 +24,7 @@ class ConsentLedgerPgSuite extends PgSuite:
   private object ledger:
     def isGranted(account: UUID, purpose: ConsentPurpose): Boolean = uow.transaction(_.consents.isGranted(account, purpose))
     def grant(account: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
-      uow.transaction(_.consents.grant(account, purpose, notice, at))
+      uow.transaction(_.consents.grant(account, purpose, notice, ConsentTaps(at.minusSeconds(7), at)))
     def withdraw(account: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
       uow.transaction(_.consents.withdraw(account, purpose, at))
     def granted(account: UUID): List[GrantedConsent] = uow.transaction(_.consents.granted(account))
@@ -75,6 +76,26 @@ class ConsentLedgerPgSuite extends PgSuite:
       assertEquals(hashBytes, List(32))
       intercept[SQLException](sql"UPDATE consent_events SET action = 'withdrawn' WHERE account_id = $account".execute())
       intercept[SQLException](sql"DELETE FROM consent_events WHERE account_id = $account".execute())
+
+  test("a grant stores both tap times and the locale of the statement; a withdrawal stores neither"):
+    val account = fixtures.account("Europe/Kyiv")
+    ledger.grant(account, ConsentPurpose.Medication, notice, t0)
+    ledger.withdraw(account, ConsentPurpose.Medication, t0.plusSeconds(60))
+    val rows = withConnection: conn =>
+      given java.sql.Connection = conn
+      sql"""SELECT action || '|' || coalesce(locale, '-') || '|' ||
+                   coalesce(extract(epoch FROM occurred_at - agreed_at)::int::text, '-')
+            FROM consent_events WHERE account_id = $account ORDER BY occurred_at, id""".query[String]()
+    assertEquals(rows, List("granted|en|7", "withdrawn|-|-"))
+
+  test("the schema refuses a grant without its first tap or its locale"):
+    val account = fixtures.account("Europe/Kyiv")
+    withConnection: conn =>
+      given java.sql.Connection = conn
+      val hash = Array.fill[Byte](32)(1)
+      intercept[SQLException]:
+        sql"""INSERT INTO consent_events (id, account_id, purpose, action, policy_version, notice_hash, channel, occurred_at)
+              VALUES (${UUID.randomUUID()}, $account, 'medication', 'granted', 1, $hash, 'bot', $t0)""".execute()
 
   test("the ledger accepts exactly the purposes of PRODUCT_SPEC R-IDC-6"):
     val account = fixtures.account("Europe/Kyiv")

@@ -1,10 +1,27 @@
 > /start
-Welcome to Dosegram! Let's get you set up.
+Welcome to Dosegram. Before you start, please read this.
 
-Pick your timezone:
+Dosegram stores what you record here: medications, schedules and doses, water, mood. This is health data.
+
+This chat is not end-to-end encrypted: the messenger can read the messages and images the bot sends.
+
+Your records are kept on the Dosegram server. Only you see them here; the people who run the service can access the database.
+
+You agree to each kind of record separately and can withdraw at any time with /privacy. Deleting stored records and exporting them are not available in this version yet.
+
+Reminders are best effort: one can be late or missing. Dosegram gives no medical advice.
+
+What do you want to start with? You can turn on the others later.
+> tap "Medication"
+send: I agree that Dosegram stores and processes my medication records: medications, schedules, reminders and the doses I record. | [I agree] [Back] [Cancel]
+> tap "I agree"
+send: Please confirm: Dosegram may store and process your medication records: medications, schedules, reminders and the doses you record. You can withdraw at any time with /privacy. | [Confirm] [Back] [Cancel]
+> tap "Confirm"
+send: Pick your timezone: | [UTC-10:00 — Pacific/Honolulu] [UTC-08:00 — America/Anchorage] [UTC-07:00 — America/Los_Angeles] [UTC-06:00 — America/Denver] | [UTC-05:00 — America/Chicago] [UTC-04:00 — America/New_York] [UTC-03:00 — America/Sao_Paulo] [UTC+00:00 — Atlantic/Azores] | [UTC+00:00 — UTC] [UTC+01:00 — Europe/London] [UTC+02:00 — Europe/Berlin] [UTC+02:00 — Europe/Paris] | [UTC+03:00 — Europe/Kyiv] [UTC+03:00 — Europe/Moscow] [UTC+04:00 — Asia/Dubai] [UTC+05:30 — Asia/Kolkata] | [UTC+07:00 — Asia/Bangkok] [UTC+08:00 — Asia/Shanghai] [UTC+09:00 — Asia/Tokyo] [UTC+10:00 — Australia/Sydney] | [UTC+12:00 — Pacific/Auckland] [Other — type your timezone] [Back] [Cancel]
 > tap "UTC+03:00 — Europe/Kyiv"
 send: It is 03:00 for you now, right? | [Yes] [Change] [Back] [Cancel]
 > tap "Yes"
+send: Consent recorded on 21 Sep 2026: medication records. Privacy notice version 1. Withdraw at any time with /privacy.
 send: You're all set — your account is ready. Try /menu or /help.
 > /menu
 What would you like to do?

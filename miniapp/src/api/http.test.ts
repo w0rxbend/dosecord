@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './client';
 import { createHttpApi, type HttpApiConfig } from './http';
+import { errorText } from '../i18n/en';
 import type { MedicationDraft, ScheduleDraft } from './types';
 
 // 13 November 2026, 12:00:00 UTC: the launch data below was signed 10 seconds earlier.
@@ -157,6 +158,17 @@ describe('HTTP API client', () => {
       { minute: 480, kind: 'dose', state: 'due' },
       { minute: 1290, kind: 'dose', state: 'pending' },
     ]);
+  });
+
+  it('maps 403 consent_required to its own code, so the screen says where consent is given', async () => {
+    serve({ 'POST /api/v1/session': [session('t')], 'GET /api/v1/today': [problem(403, 'consent_required')] });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const failure = await api.client.today().catch((cause: unknown) => cause);
+
+    expect((failure as ApiError).code).toBe('consent_required');
+    expect(errorText('consent_required')).toContain('only with your consent');
   });
 
   it('asks for another day through days/{date}', async () => {

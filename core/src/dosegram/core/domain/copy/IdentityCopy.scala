@@ -1,14 +1,12 @@
 package dosegram.core.domain.copy
 
-/** Identity and onboarding copy (ROADMAP M0.12d, M1.4a catalogue). Account creation asks for the timezone only; the
-  * handle is generated and the display name stays neutral (both editable later), so there is no copy asking for them.
-  * Link and Restore have no copy here on purpose: they are hidden until M4.1/M5.3 and are never shown as "available
-  * later".
+/** Identity and onboarding copy (ROADMAP M0.12d, M1.4a catalogue). Account creation opens with the notice and the
+  * consent of `ConsentCopy` and then asks for the timezone; the handle is generated and the display name stays neutral
+  * (both editable later), so there is no copy asking for them. Link and Restore have no copy here on purpose: they are
+  * hidden until M4.1/M5.3 and are never shown as "available later".
   */
 object IdentityCopy:
 
-  /** First prompt of the Create flow. */
-  val welcome = "Welcome to Dosegram! Let's get you set up."
   val timezonePrompt = "Pick your timezone:"
 
   /** The "Other" picker entry leads to free-text entry of an IANA zone. */
@@ -31,7 +29,6 @@ object IdentityCopy:
   val createFirst = "Create your account first with /start."
 
   val entries: List[CopyEntry] = List(
-    CopyEntry("identity.welcome", welcome),
     CopyEntry("identity.timezone.prompt", timezonePrompt),
     CopyEntry("identity.timezone.other", timezoneOther),
     CopyEntry("identity.timezone.custom_prompt", timezoneCustomPrompt),

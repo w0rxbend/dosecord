@@ -29,6 +29,7 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentLedger
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.GrantedConsent
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.Tx
@@ -81,8 +82,8 @@ final class TransactionalTracking(val uow: UnitOfWork, clock: Clock, ids: IdSour
       uow.transaction(statsService.waterGoalAndMood(_, accountId, window))
 
   object consents:
-    def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
-      uow.transaction(_.consents.grant(accountId, purpose, notice, at))
+    def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
+      uow.transaction(_.consents.grant(accountId, purpose, notice, taps))
     def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
       uow.transaction(_.consents.withdraw(accountId, purpose, at))
 
@@ -95,7 +96,7 @@ object TransactionalTracking:
         export tx.{consents as _, *}
         override val consents: ConsentLedger = new ConsentLedger:
           override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean = true
-          override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+          override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
             false
           override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean = false
           override def granted(accountId: UUID): List[GrantedConsent] = Nil

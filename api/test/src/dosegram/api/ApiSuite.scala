@@ -4,6 +4,7 @@ import dosegram.api.auth.InMemorySessionStore
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataSuite
 import dosegram.api.auth.TelegramInitDataVerifier
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
 import dosegram.infra.db.Fixtures
 import dosegram.infra.db.MutableClock
@@ -104,8 +105,14 @@ trait ApiSuite extends PgSuite:
 
   // ---------- accounts and sessions ----------
 
-  /** An account that the chat created for a Telegram user, as `/start` would leave it. */
+  /** An account that the chat created for a Telegram user, as `/start` leaves it when the user chose Medication. */
   protected def telegramAccount(timezone: String = "UTC"): TelegramAccount =
+    val account = accountWithoutConsent(timezone)
+    fixtures.grant(account.accountId, ConsentPurpose.Medication)
+    account
+
+  /** An account with no consent at all: the suites about consent grant their own. */
+  protected def accountWithoutConsent(timezone: String = "UTC"): TelegramAccount =
     val accountId = fixtures.account(timezone)
     val telegramUserId = telegramUsers.incrementAndGet()
     val conn = dataSource.getConnection

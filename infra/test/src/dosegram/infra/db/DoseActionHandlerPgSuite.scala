@@ -3,6 +3,9 @@ package dosegram.infra.db
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.capture.CaptureParts
+import dosegram.core.ports.IdSource
+import dosegram.core.ports.StatusCards
 import dosegram.core.chat.*
 import dosegram.core.domain.ActionRowIntent
 import dosegram.core.domain.Actor as DomainActor
@@ -64,6 +67,7 @@ class DoseActionHandlerPgSuite extends PgSuite:
       sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
             VALUES ($channelId, $accountId, $identityId, 'primary', 0, 'healthy', $t0)""".execute()
     }
+    fixtures.grant(accountId, dosegram.core.ports.ConsentPurpose.Medication)
     accountId
 
   private final class SyncAdapter(val inner: FakeAdapter) extends ChatAdapter:
@@ -116,7 +120,10 @@ class DoseActionHandlerPgSuite extends PgSuite:
   private def mediator(clock: MutableClock, adapter: SyncAdapter)(using ox.Ox): ChatMediator =
     val uow = PgUnitOfWork(dataSource, clock)
     val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
-    ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock), clock, CommandRegistry.byName)
+    ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock)(textOnlyParts(uow, clock)), clock, CommandRegistry.byName)
+
+  private def textOnlyParts(uow: dosegram.core.ports.UnitOfWork, clock: dosegram.core.ports.Clock): CaptureParts =
+    CaptureParts.over(uow, clock, IdSource.uuidV7(java.util.random.RandomGenerator.getDefault), StatusCards.textOnly)
 
   test("a tap on a row claimed by an in-flight tick waits and applies on the fresh row"):
     ox.supervised:

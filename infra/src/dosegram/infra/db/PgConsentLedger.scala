@@ -3,6 +3,7 @@ package dosegram.infra.db
 import dosegram.core.ports.ConsentLedger
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.GrantedConsent
 import dosegram.core.ports.IdSource
 
@@ -34,7 +35,8 @@ final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedg
       .queryOne[Boolean]()
       .contains(true)
 
-  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
+    val at = taps.confirmedAt
     val changed =
       sql"""INSERT INTO consent_state (account_id, purpose, granted, policy_version, updated_at)
             VALUES ($accountId, ${purpose.id}, true, ${notice.policyVersion}, $at)
@@ -43,8 +45,8 @@ final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedg
               WHERE NOT consent_state.granted OR consent_state.policy_version <> EXCLUDED.policy_version"""
         .execute() == 1
     if changed then
-      val event = ConsentEvent(accountId, purpose, "granted", notice.policyVersion, Some(hashOf(notice.statement)))
-      append(event, at)
+      val shown = ShownNotice(hashOf(notice.statement), notice.locale, taps.agreedAt)
+      append(ConsentEvent(accountId, purpose, "granted", notice.policyVersion, Some(shown)), at)
     changed
 
   override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
@@ -52,25 +54,32 @@ final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedg
       sql"""UPDATE consent_state SET granted = false, updated_at = $at
             WHERE account_id = $accountId AND purpose = ${purpose.id} AND granted
             RETURNING policy_version""".queryOne[Int]()
-    version.foreach(v => append(ConsentEvent(accountId, purpose, "withdrawn", v, noticeHash = None), at))
+    version.foreach(v => append(ConsentEvent(accountId, purpose, "withdrawn", v, shown = None), at))
     version.isDefined
 
   override def granted(accountId: UUID): List[GrantedConsent] =
     sql"""SELECT purpose, updated_at, policy_version FROM consent_state
           WHERE account_id = $accountId AND granted ORDER BY updated_at, purpose""".query[GrantedConsent]()
 
+  /** What a grant adds to its event: the hash and locale of the statement, and the first of the two taps. */
+  private final case class ShownNotice(hash: Array[Byte], locale: String, agreedAt: Instant)
+
   private final case class ConsentEvent(
       accountId: UUID,
       purpose: ConsentPurpose,
       action: String,
       policyVersion: Int,
-      noticeHash: Option[Array[Byte]]
+      shown: Option[ShownNotice]
   )
 
   private def append(event: ConsentEvent, at: Instant): Unit =
-    sql"""INSERT INTO consent_events (id, account_id, purpose, action, policy_version, notice_hash, channel, occurred_at)
+    sql"""INSERT INTO consent_events (id, account_id, purpose, action, policy_version, notice_hash, locale, agreed_at,
+                                      channel, occurred_at)
           VALUES (${ids.next(at)}, ${event.accountId}, ${event.purpose.id}, ${event.action}, ${event.policyVersion},
-                  ${event.noticeHash}, 'bot', $at)""".execute()
+                  ${event.shown.map(_.hash)}, ${event.shown.map(_.locale)}, ${event.shown.map(
+        _.agreedAt
+      )}, 'bot', $at)"""
+      .execute()
     ()
 
   private def hashOf(statement: String): Array[Byte] =

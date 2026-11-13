@@ -31,7 +31,7 @@ final class ManualClock(start: Instant) extends Clock:
 final class FakeConsent(initial: Set[(UUID, ConsentPurpose)]) extends ConsentLedger:
   private val current = mutable.LinkedHashSet.from(initial)
   override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean = current((accountId, purpose))
-  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
     current.add((accountId, purpose))
   override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
     current.remove((accountId, purpose))
@@ -48,13 +48,17 @@ final class InMemoryConsentLedger extends ConsentLedger:
   private val state = mutable.LinkedHashMap.empty[(UUID, ConsentPurpose), GrantedConsent]
   val events: mutable.ListBuffer[String] = mutable.ListBuffer.empty
 
+  /** Every recorded grant with what the ledger row holds: the notice and both taps. */
+  val grants: mutable.ListBuffer[(ConsentPurpose, ConsentNotice, ConsentTaps)] = mutable.ListBuffer.empty
+
   override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean = state.contains((accountId, purpose))
 
-  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+  override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
     val changed = !state.get((accountId, purpose)).exists(_.policyVersion == notice.policyVersion)
     if changed then
-      state((accountId, purpose)) = GrantedConsent(purpose, at, notice.policyVersion)
+      state((accountId, purpose)) = GrantedConsent(purpose, taps.confirmedAt, notice.policyVersion)
       events += s"${purpose.id}:granted"
+      grants += ((purpose, notice, taps))
     changed
 
   override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =

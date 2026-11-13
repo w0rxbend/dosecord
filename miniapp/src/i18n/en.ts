@@ -65,6 +65,9 @@ export const en = {
     validation: 'Some values were not accepted. Check the marked fields.',
     server: 'Dosegram could not load this. Try again.',
     unavailable: 'This part of Dosegram is not available yet.',
+    // MINI_APP "Consent needed": consent is given in chat only (ARCHITECTURE API-19).
+    consent_required:
+      'Medication tracking is off. Dosegram records medications only with your consent. Send /meds in the chat to turn it on.',
     notSaved: 'Not saved. Try again.',
   },
 

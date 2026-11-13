@@ -3,7 +3,7 @@ package dosegram.core.application
 import dosegram.contracts.*
 import dosegram.core.chat.*
 import dosegram.core.chat.MediatorFakes.*
-import dosegram.core.domain.copy.IdentityCopy
+import dosegram.core.domain.copy.ConsentCopy
 import ox.Ox
 
 import java.nio.file.Files
@@ -55,6 +55,7 @@ class FirstFlowsSuite extends munit.FunSuite:
     ox.supervised:
       val rig = FirstFlowsRig()
       rig.line("/start")
+      (1 to 3).foreach(_ => rig.line("1")) // Medication, I agree, Confirm
       rig.line("13")
       rig.line("1")
       val help = rig.line("/help")
@@ -66,7 +67,7 @@ class FirstFlowsSuite extends munit.FunSuite:
     ox.supervised:
       val rig = FirstFlowsRig()
       val out = rig.push(Inbound.ConversationStarted(None))
-      assert(out.exists(_.contains(IdentityCopy.welcome)), s"the picker: $out")
+      assert(out.exists(_.contains(ConsentCopy.notice.head)), s"the notice card: $out")
       assertEquals(rig.uow.sessions.all.size, 1, "a create session started")
 
   // BOT_UX BUX-CMD-08: no command of a domain exists before the domain has a consent purpose.
@@ -74,6 +75,7 @@ class FirstFlowsSuite extends munit.FunSuite:
     ox.supervised:
       val rig = FirstFlowsRig()
       rig.line("/start")
+      (1 to 3).foreach(_ => rig.line("1")) // Medication, I agree, Confirm
       rig.line("13")
       rig.line("1")
       assert(!CommandRegistry.all.exists(_.name == "mood"), "the registry lists no mood command")
@@ -161,6 +163,9 @@ private object FirstFlowsRig:
   /** The acceptance script: create with a wrong turn, the refused /mood, help, and the refused second create. */
   val Script: List[String] = List(
     "/start",
+    "1", // Medication
+    "1", // I agree
+    "1", // Confirm
     "22", // Other — type your timezone
     "Mars/Olympus_Mons", // invalid zone: the picker is re-shown, no row written
     "13", // UTC+03:00 — Europe/Kyiv

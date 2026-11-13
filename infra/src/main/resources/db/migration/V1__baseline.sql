@@ -78,7 +78,7 @@ CREATE TABLE dose_occurrences (id uuid PRIMARY KEY, account_id uuid NOT NULL, me
   origin text NOT NULL CHECK (origin IN ('scheduled','chain','manual')), local_date date NOT NULL, local_time time, slot_key text NOT NULL,
   tz text NOT NULL, dst_kind text NOT NULL DEFAULT 'none' CHECK (dst_kind IN ('none','gap','fold')),
   scheduled_for timestamptz NOT NULL, due_window_start timestamptz NOT NULL, due_window_end timestamptz NOT NULL, miss_deadline timestamptz NOT NULL,
-  status occ_status NOT NULL, cancel_reason text CHECK (cancel_reason IS NULL OR cancel_reason IN ('superseded','paused','archived','anchor_undone')),
+  status occ_status NOT NULL, cancel_reason text CHECK (cancel_reason IS NULL OR cancel_reason IN ('superseded','paused','archived','anchor_undone','consent_withdrawn')),
   unknown_reason text, missed_reason text,
   epoch int NOT NULL DEFAULT 0, reminder_seq int NOT NULL DEFAULT 0, snooze_count int NOT NULL DEFAULT 0, snoozed_until timestamptz,
   last_reminded_at timestamptz, taken_at timestamptz, effective_at timestamptz, skipped_at timestamptz, missed_at timestamptz, next_action_at timestamptz,
@@ -399,16 +399,21 @@ CREATE TRIGGER users_zone_rollup_dirty AFTER UPDATE OF timezone ON users
 -- append-only; consent_state is its projection and is written in the same
 -- transaction. The purposes are exactly those of PRODUCT_SPEC R-IDC-6, plus
 -- the ledger kind 'attestation'. notice_hash is the SHA-256 of the statement
--- the user confirmed; the statement itself is copy, not data. The Mini App
--- never records a consent, so 'bot' is the only channel.
+-- the user confirmed; the statement itself is copy, not data. A grant carries
+-- both taps of the two-step consent: agreed_at is the first tap ("I agree"),
+-- occurred_at the confirming one, and locale is the locale the statement was
+-- shown in (PRODUCT_SPEC R-IDC-7, R-IDC-8). The Mini App never records a
+-- consent, so 'bot' is the only channel.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE consent_events (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
   purpose text NOT NULL CHECK (purpose IN ('medication','hydration','mood','sleep','nutrition','vitals','images_in_chat',
     'sleep_passive_estimate','export_to_chat','photo_storage','cross_domain_patterns','caregiver_sharing','import','attestation')),
   action text NOT NULL CHECK (action IN ('granted','withdrawn','attested')),
-  policy_version int NOT NULL CHECK (policy_version > 0), notice_hash bytea,
-  channel text NOT NULL CHECK (channel = 'bot'), subject_ref uuid, occurred_at timestamptz NOT NULL);
+  policy_version int NOT NULL CHECK (policy_version > 0), notice_hash bytea, locale text, agreed_at timestamptz,
+  channel text NOT NULL CHECK (channel = 'bot'), subject_ref uuid, occurred_at timestamptz NOT NULL,
+  CONSTRAINT consent_events_grant_taps CHECK (action <> 'granted'
+    OR (notice_hash IS NOT NULL AND locale IS NOT NULL AND agreed_at IS NOT NULL AND agreed_at <= occurred_at)));
 CREATE INDEX consent_events_account_purpose_idx ON consent_events (account_id, purpose, occurred_at);
 
 CREATE TABLE consent_state (account_id uuid NOT NULL REFERENCES users,

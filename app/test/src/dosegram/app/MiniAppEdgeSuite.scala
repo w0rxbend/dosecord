@@ -129,7 +129,7 @@ final class MiniAppEdgeSuite extends PgSuite:
     response.headers().firstValue(name).toScala
 
   private def telegramAccount(): Long =
-    val accountId = fixtures.account("UTC")
+    val accountId = fixtures.medicationAccount("UTC")
     val telegramUserId = 6000000L + scala.util.Random.nextInt(1000000)
     val conn = dataSource.getConnection
     try
@@ -258,7 +258,11 @@ final class MiniAppEdgeSuite extends PgSuite:
       assertEquals(header(overview, "Cache-Control"), Some("no-store"))
       val document = ujson.read(overview.body())
       assertEquals(document("ranges").arr.toList.map(_.num.toInt), List(7, 30))
-      assertEquals(document("blocks").arr.toList, Nil, "an account without a consent has no block")
+      assertEquals(
+        document("blocks").arr.toList.map(_("id").str),
+        List("medication"),
+        "the block of the one domain the account agreed to at onboarding"
+      )
       assertEquals(call(on.httpPort, "/api/v1/insights/overview?range=7").statusCode(), 401)
 
   test("launch data signed with another token is refused"):

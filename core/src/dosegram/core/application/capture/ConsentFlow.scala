@@ -19,22 +19,22 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
   /** Runs `granted` when the purpose is on; otherwise shows stage 1 with `pending` in its buttons. */
   def guarded(turn: Turn, purpose: ConsentPurpose, pending: Pending)(granted: => Reply): Reply =
     if turn.tx.consents.isGranted(turn.accountId, purpose) then granted
-    else turn.show(stageOne(turn, ConsentRequest(ConsentStage.Ask, purpose, pending)))
+    else turn.show(stageOne(turn, ConsentRequest.asking(purpose, pending)))
 
   /** One tap on a consent card. `resume` runs the pending input once the consent is recorded. */
   def step(turn: Turn, request: ConsentRequest)(resume: Pending => Reply): Reply =
     request.stage match
       case ConsentStage.Ask     => turn.show(stageOne(turn, request))
-      case ConsentStage.Agree   => turn.show(stageTwo(turn, request))
+      case ConsentStage.Agree   => turn.show(stageTwo(turn, request.agreedAt(clock.now())))
       case ConsentStage.Decline =>
         turn.show(turn.message("consent.declined", List(ConsentCopy.declined(request.purpose)), Nil))
       case ConsentStage.Confirm => confirm(turn, request, resume)
 
   private def confirm(turn: Turn, request: ConsentRequest, resume: Pending => Reply): Reply =
     val now = clock.now()
-    val notice = ConsentNotice(ConsentCopy.NoticeVersion, ConsentCopy.statement(request.purpose))
+    val notice = ConsentNotice(ConsentCopy.NoticeVersion, ConsentCopy.statement(request.purpose), ConsentCopy.Locale)
     // A second tap on an old card records nothing and must not run the pending input a second time.
-    if !turn.tx.consents.grant(turn.accountId, request.purpose, notice, now) then
+    if !turn.tx.consents.grant(turn.accountId, request.purpose, notice, request.taps(now)) then
       turn.toast(ReminderCopy.staleControlToast)
     else
       val receipt = List(ConsentCopy.receipt(request.purpose, turn.localDate(now)))
@@ -57,7 +57,7 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
   private def stageTwo(turn: Turn, request: ConsentRequest): OutboundMessage =
     val buttons = List(
       List(button(turn, ConsentCopy.Confirm, request.at(ConsentStage.Confirm))),
-      List(button(turn, ConsentCopy.GoBack, request.at(ConsentStage.Ask)))
+      List(button(turn, ConsentCopy.GoBack, ConsentRequest.asking(request.purpose, request.pending)))
     )
     turn.message("consent.stage2", List(ConsentCopy.confirmation(request.purpose)), buttons)
 
@@ -82,9 +82,12 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
       )
     turn.show(turn.message("privacy.card", lines, buttons))
 
-  /** Withdrawal takes effect at once: the domain's commands return to the consent prompt. */
-  def withdraw(turn: Turn, purposeCode: Long): Reply =
+  /** Withdrawal takes effect at once, in the transaction of the tap: the domain's commands return to the consent
+    * prompt, and `stop` ends whatever the purpose kept running (PRODUCT_SPEC R-IDC-10).
+    */
+  def withdraw(turn: Turn, purposeCode: Long)(stop: ConsentPurpose => Unit): Reply =
     ConsentRequest.purposeOf(purposeCode) match
       case Some(purpose) if turn.tx.consents.withdraw(turn.accountId, purpose, clock.now()) =>
+        stop(purpose)
         turn.show(turn.message("privacy.withdrawn", List(ConsentCopy.withdrawn(purpose)), Nil))
       case _ => turn.toast(ReminderCopy.staleControlToast)

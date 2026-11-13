@@ -37,7 +37,7 @@ class MedicationWizardRigSuite extends munit.FunSuite:
         assert(sendEntered, "the send must reach the controlled delivery boundary")
         assertEquals(prematureSnapshot, None, "the snapshot must wait for the event's delivery plan")
         assert(transcript.exists(_.contains("Let's add a medication")), "the snapshot must include the final send")
-        assertEquals(rig.uow.inboundEvents.all.size, 6, "completion must not add fixture-only inbound rows")
+        assertEquals(rig.uow.inboundEvents.all.size, 9, "completion must not add fixture-only inbound rows")
       finally
         release.countDown()
         worker.shutdownNow()

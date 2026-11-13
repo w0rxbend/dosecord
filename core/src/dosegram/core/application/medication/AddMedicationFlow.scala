@@ -1,6 +1,7 @@
 package dosegram.core.application.medication
 
 import dosegram.contracts.*
+import dosegram.core.application.capture.MedicationConsentGate
 import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.chat.Flow
 import dosegram.core.chat.FlowContext
@@ -11,6 +12,7 @@ import dosegram.core.chat.StepTransition
 import dosegram.core.domain.ReminderPolicy
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.WizardCopy
@@ -310,6 +312,11 @@ object AddMedicationFlow:
       case None =>
         Reply(followUps =
           List(outbound(IdentityCopy.createFirst, s"medication.add:unlinked:${ctx.event.eventId.uuid}", ctx))
+        )
+      // The wizard is opened behind the consent; one that was open when the consent was withdrawn saves nothing.
+      case Some(account) if !MedicationConsentGate.isOpen(ctx.tx, account.uuid) =>
+        Reply(followUps =
+          List(outbound(ConsentCopy.medicationOff, s"medication.add:off:${ctx.event.eventId.uuid}", ctx))
         )
       case Some(account) =>
         val now = clock.now()

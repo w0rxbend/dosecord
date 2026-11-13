@@ -6,9 +6,6 @@ import dosegram.core.application.CommandRegistry
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
-import dosegram.core.application.insights.RollupService
-import dosegram.core.application.insights.StatsQueryService
-import dosegram.core.application.mood.MoodService
 import dosegram.core.chat.*
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
@@ -16,6 +13,7 @@ import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewInboundEvent
 import dosegram.core.ports.StatusCards
@@ -38,7 +36,7 @@ class CaptureTransactionPgSuite extends PgSuite:
   private val hydration = HydrationService(clock, ids)
   private val codec =
     CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))
-  private val notice = ConsentNotice(1, "test statement")
+  private val notice = ConsentNotice(1, "test statement", "en")
 
   /** An account linked to the vendor user `user`, with the `hydration` consent. */
   private def seedConsentedAccount(user: String): UUID =
@@ -51,7 +49,7 @@ class CaptureTransactionPgSuite extends PgSuite:
             VALUES ($identityId, $accountId, 'fake', $user, ${s"chat-$user"}, $t0)""".execute()
       sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
             VALUES (${UUID.randomUUID()}, $accountId, $identityId, 'primary', 0, 'healthy', $t0)""".execute()
-    PgUnitOfWork(dataSource, clock).transaction(_.consents.grant(accountId, ConsentPurpose.Hydration, notice, t0))
+    PgUnitOfWork(dataSource, clock).transaction(_.consents.grant(accountId, ConsentPurpose.Hydration, notice, ConsentTaps(t0, t0)))
     accountId
 
   private def count(table: String, account: UUID): Int =
@@ -104,13 +102,8 @@ class CaptureTransactionPgSuite extends PgSuite:
       ox.supervised:
         val uow = PgUnitOfWork(pool, clock)
         val adapters: Map[String, ChatAdapter] = Map("fake" -> FakeAdapter(CapabilityProfiles.Console))
-        val parts = CaptureParts(
-          hydration,
-          MoodService(clock, ids),
-          StatsQueryService(RollupService(uow, clock), clock),
-          StatusCards.textOnly
-        )
-        val handler = Application.withCapture(uow, adapters, codec, clock)(parts)
+        val parts = CaptureParts.over(uow, clock, ids, StatusCards.textOnly)
+        val handler = Application.handler(uow, adapters, codec, clock)(parts)
         val mediator = ChatMediator(uow, adapters, codec, handler, clock, CommandRegistry.withCaptureByName)
         accounts.foreach: (user, _) =>
           val event = InboundEvent(

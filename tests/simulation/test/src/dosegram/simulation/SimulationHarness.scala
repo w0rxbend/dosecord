@@ -7,6 +7,9 @@ import dosegram.contracts.InboundEvent
 import dosegram.contracts.PlatformIdentity
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.capture.CaptureParts
+import dosegram.core.ports.IdSource
+import dosegram.core.ports.StatusCards
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
@@ -72,7 +75,9 @@ final class SimulationHarness(dataSource: DataSource, val clock: MutableClock, t
     uow,
     Map("console" -> mux),
     codec,
-    Application.handler(uow, Map("console" -> mux), codec, clock),
+    Application.handler(uow, Map("console" -> mux), codec, clock)(
+      CaptureParts.over(uow, clock, IdSource.uuidV7(java.util.random.RandomGenerator.getDefault), StatusCards.textOnly)
+    ),
     clock,
     CommandRegistry.byName
   )
@@ -118,6 +123,8 @@ final class SimulationHarness(dataSource: DataSource, val clock: MutableClock, t
       sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
             VALUES ($channelId, $accountId, $identityId, 'primary', 0, 'healthy', ${clock.now()})""".execute()
     finally conn.close()
+    // As onboarding leaves a persona that chose Medication.
+    fixtures.grant(accountId, dosegram.core.ports.ConsentPurpose.Medication)
     val outcome = fixtures.schedule(
       clock,
       accountId,

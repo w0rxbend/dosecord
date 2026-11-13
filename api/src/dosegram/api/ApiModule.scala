@@ -5,6 +5,7 @@ import dosegram.api.auth.Session
 import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.UnitOfWork
 import sttp.model.StatusCode
 import sttp.shared.Identity
@@ -49,6 +50,14 @@ final class ApiModule(
 
   private def authenticate(bearer: String): Either[ApiFailure, Session] = guarded(sessions.authenticate(bearer))
 
+  /** The medication routes (ARCHITECTURE API-19, PRODUCT_SPEC R-IDC-9): without an active `medication` consent a read
+    * shows nothing and a write stores nothing; the answer is 403 `consent_required`.
+    */
+  private def medication[A](session: Session)(run: => Either[ApiFailure, A]): Either[ApiFailure, A] =
+    guarded:
+      if uow.transaction(_.consents.isGranted(session.accountId, ConsentPurpose.Medication)) then run
+      else Left(ApiFailure.consentRequired(ConsentPurpose.Medication))
+
   /** An unexpected exception becomes the `internal` problem; its class and the request id are the only things logged.
     */
   private def guarded[A](run: => Either[ApiFailure, A]): Either[ApiFailure, A] =
@@ -78,22 +87,26 @@ final class ApiModule(
   )
 
   private val dayEndpoints: List[ServerEndpoint[Any, Identity]] = List(
-    Endpoints.today.handleSecurity(authenticate).handle(session => _ => guarded(Right(days.today(session.accountId)))),
+    Endpoints.today
+      .handleSecurity(authenticate)
+      .handle(session => _ => medication(session)(Right(days.today(session.accountId)))),
     Endpoints.day
       .handleSecurity(authenticate)
-      .handle(session => date => guarded(Right(days.on(session.accountId, date))))
+      .handle(session => date => medication(session)(Right(days.on(session.accountId, date))))
   )
 
   private val medicationEndpoints: List[ServerEndpoint[Any, Identity]] = List(
-    Endpoints.medicationOptions.handleSecurity(authenticate).handle(_ => _ => Right(registry.options)),
+    Endpoints.medicationOptions
+      .handleSecurity(authenticate)
+      .handle(session => _ => medication(session)(Right(registry.options))),
     Endpoints.listMedications
       .handleSecurity(authenticate)
-      .handle(session => status => guarded(Right(registry.list(session.accountId, status)))),
+      .handle(session => status => medication(session)(Right(registry.list(session.accountId, status)))),
     Endpoints.createMedication
       .handleSecurity(authenticate)
       .handle: session =>
         (key, input) =>
-          guarded:
+          medication(session):
             for
               parsedKey <- idempotencyKeyOf(key)
               medication <- idempotency.once(session.accountId, parsedKey, hashOf("medications", input)):
@@ -102,37 +115,37 @@ final class ApiModule(
     ,
     Endpoints.getMedication
       .handleSecurity(authenticate)
-      .handle(session => id => guarded(registry.get(session.accountId, id).map(withEtag))),
+      .handle(session => id => medication(session)(registry.get(session.accountId, id).map(withEtag))),
     Endpoints.updateMedication
       .handleSecurity(authenticate)
       .handle: session =>
         (id, ifMatch, input) =>
-          guarded:
+          medication(session):
             versionOf(ifMatch).flatMap(registry.update(session.accountId, id, _, input)).map(withEtag)
     ,
     Endpoints.changeMedicationState
       .handleSecurity(authenticate)
       .handle: session =>
         (id, ifMatch, body) =>
-          guarded:
+          medication(session):
             versionOf(ifMatch).flatMap(registry.changeState(session.accountId, id, _, body.change)).map(withEtag)
   )
 
   private val scheduleEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.scheduleOptions
       .handleSecurity(authenticate)
-      .handle(session => _ => guarded(Right(registry.scheduleOptions(session.accountId)))),
+      .handle(session => _ => medication(session)(Right(registry.scheduleOptions(session.accountId)))),
     Endpoints.previewSchedule
       .handleSecurity(authenticate)
-      .handle(session => request => guarded(registry.preview(session.accountId, request.draft))),
+      .handle(session => request => medication(session)(registry.preview(session.accountId, request.draft))),
     Endpoints.listSchedules
       .handleSecurity(authenticate)
-      .handle(session => medicationId => guarded(registry.schedules(session.accountId, medicationId))),
+      .handle(session => medicationId => medication(session)(registry.schedules(session.accountId, medicationId))),
     Endpoints.createSchedule
       .handleSecurity(authenticate)
       .handle: session =>
         (medicationId, key, draft) =>
-          guarded:
+          medication(session):
             for
               parsedKey <- idempotencyKeyOf(key)
               schedule <- idempotency.once(session.accountId, parsedKey, hashOf(s"schedules:$medicationId", draft)):
@@ -141,19 +154,19 @@ final class ApiModule(
     ,
     Endpoints.getSchedule
       .handleSecurity(authenticate)
-      .handle(session => id => guarded(registry.schedule(session.accountId, id).map(withRevisionTag))),
+      .handle(session => id => medication(session)(registry.schedule(session.accountId, id).map(withRevisionTag))),
     Endpoints.reviseSchedule
       .handleSecurity(authenticate)
       .handle: session =>
         (id, ifMatch, draft) =>
-          guarded:
+          medication(session):
             versionOf(ifMatch).flatMap(registry.revise(session.accountId, id, _, draft)).map(withRevisionTag)
     ,
     Endpoints.changeScheduleState
       .handleSecurity(authenticate)
       .handle: session =>
         (id, ifMatch, body) =>
-          guarded:
+          medication(session):
             versionOf(ifMatch)
               .flatMap(registry.changeScheduleState(session.accountId, id, _, body.change))
               .map(withRevisionTag)

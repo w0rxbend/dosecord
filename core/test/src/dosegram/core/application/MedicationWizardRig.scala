@@ -2,12 +2,14 @@ package dosegram.core.application
 
 import dosegram.contracts.*
 import dosegram.core.chat.*
+import dosegram.core.application.capture.CaptureParts
 import dosegram.core.chat.MediatorFakes.*
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.Occurrence
 import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.ReminderPolicy
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.WizardCopy
@@ -34,7 +36,7 @@ import scala.util.Using
 private final class MedicationWizardRig(
     profile: MedicationWizardRig.Profile,
     beforeSend: RenderedMessage => Unit = _ => (),
-    captureParts: Option[UnitOfWork => Clock => dosegram.core.application.capture.CaptureParts] = None
+    captureParts: Option[UnitOfWork => Clock => CaptureParts] = None
 )(using Ox):
   import MedicationWizardRig.*
 
@@ -44,20 +46,13 @@ private final class MedicationWizardRig(
   private val adapter = SyncAdapter(fake, beforeSend)
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
   private val barrier = DeliveryBarrier(uow)
-  // With capture parts the rig runs the product composition; without them, the composition of the earlier slices.
-  private val mediator = captureParts match
-    case Some(partsFor) =>
-      val handler = Application.withCapture(uow, adapters, codec, clock)(partsFor(uow)(clock))
-      ChatMediator(barrier.uow, adapters, codec, handler, clock, CommandRegistry.withCaptureByName)
-    case None =>
-      ChatMediator(
-        barrier.uow,
-        adapters,
-        codec,
-        Application.handler(uow, adapters, codec, clock),
-        clock,
-        CommandRegistry.byName
-      )
+  // The product composition; a suite that looks at the cards hands in its own parts.
+  private val mediator =
+    val parts = captureParts
+      .map(_(uow)(clock))
+      .getOrElse(CaptureParts.over(uow, clock, SequentialIds(), StatusCards.textOnly))
+    val handler = Application.handler(uow, adapters, codec, clock)(parts)
+    ChatMediator(barrier.uow, adapters, codec, handler, clock, CommandRegistry.withCaptureByName)
 
   private var seq = 0
   private val handles = scala.collection.mutable.ListBuffer.empty[CapturingInteractionHandle]
@@ -129,6 +124,9 @@ private final class MedicationWizardRig(
 
   def bootstrapConsole(): Unit =
     line("/start")
+    line("1")  // Medication
+    line("1")  // I agree
+    line("1")  // Confirm
     line("13") // UTC+03:00 — Europe/Kyiv
     line("1")  // Yes
 
@@ -147,6 +145,9 @@ private final class MedicationWizardRig(
 
   def bootstrapTelegram(): Unit =
     command("start")
+    tapLabel("Welcome to Dosegram", "Medication")
+    tapLabel("I agree that", ConsentCopy.Agree)
+    tapLabel("Please confirm", ConsentCopy.Confirm)
     tapLabel("Pick your timezone", "UTC+03:00 — Europe/Kyiv")
     tapLabel("It is", Labels.Yes)
 
@@ -173,9 +174,14 @@ private final class MedicationWizardRig(
   // ---------- Seeding (menu tests) ----------
 
   /** A linked account (as the create flow would leave it). */
-  def seedAccount(): UUID =
+  /** An account as onboarding leaves it when the user chose Medication. */
+  def seedAccount(): UUID = seedAccount(List(ConsentPurpose.Medication))
+
+  def seedAccount(consents: List[ConsentPurpose]): UUID =
     val principal = uow.identities.resolve(actor, t0)
-    uow.accounts.createAccount(principal.identityId, "Europe/Kyiv", t0).uuid
+    val account = uow.accounts.createAccount(principal.identityId, "Europe/Kyiv", t0).uuid
+    consents.foreach(uow.consents.grant(account, _, ConsentNotice(1, "seeded for the test", "en"), ConsentTaps(t0, t0)))
+    account
 
   /** A medication + schedule + revision 1 through the real lifecycle (materialises the 48 h horizon). */
   def seedSchedule(
@@ -349,6 +355,9 @@ private object MedicationWizardRig:
 
   val ConsoleScript: List[MedicationWizardRig => List[String]] = List(
     _.lineT("/start"),
+    _.lineT("1"),  // Medication
+    _.lineT("1"),  // I agree
+    _.lineT("1"),  // Confirm
     _.lineT("13"), // UTC+03:00 — Europe/Kyiv
     _.lineT("1"),  // Yes
     _.lineT("/menu"),
@@ -364,6 +373,9 @@ private object MedicationWizardRig:
 
   val TelegramScript: List[MedicationWizardRig => List[String]] = List(
     _.commandT("start"),
+    _.tapT("Welcome to Dosegram", "Medication"),
+    _.tapT("I agree that", ConsentCopy.Agree),
+    _.tapT("Please confirm", ConsentCopy.Confirm),
     _.tapT("Pick your timezone", "UTC+03:00 — Europe/Kyiv"),
     _.tapT("It is", Labels.Yes),
     _.commandT("menu"),

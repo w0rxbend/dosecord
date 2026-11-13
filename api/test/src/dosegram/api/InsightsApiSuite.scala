@@ -10,6 +10,7 @@ import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.mood.Valence
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 
 import java.time.Duration
 
@@ -20,7 +21,7 @@ import java.time.Duration
 final class InsightsApiSuite extends ApiSuite:
 
   private def grant(account: TelegramAccount, purposes: ConsentPurpose*): Unit =
-    purposes.foreach(tracking.consents.grant(account.accountId, _, ConsentNotice(1, "seeded for the test"), clock.now()))
+    purposes.foreach(tracking.consents.grant(account.accountId, _, ConsentNotice(1, "seeded for the test", "en"), ConsentTaps(clock.now(), clock.now())))
 
   private def drink(account: TelegramAccount, millilitres: Int): Unit =
     val amount = WaterAmount.ofMillilitres(millilitres).toOption.get
@@ -42,7 +43,7 @@ final class InsightsApiSuite extends ApiSuite:
   private def blocks(reply: Reply): List[ujson.Value] = reply.json("blocks").arr.toList
 
   test("without a consent there is no block, and the notice says where consents are given"):
-    val overview = get("/api/v1/insights/overview?range=7", login(telegramAccount()))
+    val overview = get("/api/v1/insights/overview?range=7", login(accountWithoutConsent()))
     assertEquals(overview.status, 200, overview.body)
     assertEquals(blocks(overview), Nil)
     assertEquals(overview.json("notice").str, "Statistics appear here for the records you turned on in the chat.")
@@ -52,7 +53,7 @@ final class InsightsApiSuite extends ApiSuite:
     assertEquals(overview.header("Cache-Control"), None, "the edge, not the module, sets the cache header")
 
   test("a domain with consent and no record says so, and a domain without consent is absent"):
-    val account = telegramAccount()
+    val account = accountWithoutConsent()
     grant(account, ConsentPurpose.Hydration)
     val overview = get("/api/v1/insights/overview?range=7", login(account))
     assertEquals(blocks(overview).map(_("id").str), List("hydration"))
@@ -61,7 +62,7 @@ final class InsightsApiSuite extends ApiSuite:
     assert(!overview.json.obj.contains("notice"), overview.body)
 
   test("water, mood and doses are reported in the words of the statistics, with today's vessel against the own goal"):
-    val account = telegramAccount()
+    val account = accountWithoutConsent()
     grant(account, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.Mood)
     assert(tracking.water.setGoal(account.accountId, Some(2000)).isRight)
     drink(account, 500)
@@ -91,7 +92,7 @@ final class InsightsApiSuite extends ApiSuite:
     assertEquals(everyLine.flatMap(InsightPhrases.violations), Nil, "no line states a cause or judges a value")
 
   test("the range is 7 or 30 days; anything else is a validation error that names the member"):
-    val account = telegramAccount()
+    val account = accountWithoutConsent()
     grant(account, ConsentPurpose.Hydration)
     val token = login(account)
     assertEquals(get("/api/v1/insights/overview?range=30", token).json("rangeDays").num.toInt, 30)
@@ -102,8 +103,8 @@ final class InsightsApiSuite extends ApiSuite:
 
   test("the overview needs a session, and shows only the session's account"):
     assertProblem(get("/api/v1/insights/overview?range=7"), 401, "unauthenticated")
-    val owner = telegramAccount()
-    val other = telegramAccount()
+    val owner = accountWithoutConsent()
+    val other = accountWithoutConsent()
     grant(owner, ConsentPurpose.Hydration)
     grant(other, ConsentPurpose.Hydration)
     drink(owner, 900)
@@ -112,7 +113,7 @@ final class InsightsApiSuite extends ApiSuite:
     assert(!seenByOther.body.contains("900") && !seenByOther.body.contains("0.9"), seenByOther.body)
 
   test("a withdrawn consent takes the block away at once"):
-    val account = telegramAccount()
+    val account = accountWithoutConsent()
     grant(account, ConsentPurpose.Mood)
     checkIn(account, 2)
     val token = login(account)

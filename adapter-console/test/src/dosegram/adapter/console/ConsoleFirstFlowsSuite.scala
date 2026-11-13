@@ -86,6 +86,9 @@ private object ConsoleFlowRig:
   /** The acceptance script: create with a wrong turn, the refused /mood, help, and the refused second create. */
   val Script: List[String] = List(
     "/start",
+    "1", // Medication
+    "1", // I agree
+    "1", // Confirm
     "22", // Other — type your timezone
     "Mars/Olympus_Mons", // invalid zone: the picker is re-shown, no row written
     "13", // UTC+03:00 — Europe/Kyiv

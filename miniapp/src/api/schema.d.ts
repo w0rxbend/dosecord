@@ -424,6 +424,7 @@ export interface components {
             errors?: components["schemas"]["FieldError"][];
             medication?: components["schemas"]["Medication"];
             schedule?: components["schemas"]["Schedule"];
+            purpose?: string;
         };
         /** Schedule */
         Schedule: {

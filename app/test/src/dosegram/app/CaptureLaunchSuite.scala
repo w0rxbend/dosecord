@@ -10,6 +10,7 @@ import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.infra.Adapter
 import dosegram.infra.Environment
 import dosegram.infra.LogFormat
@@ -214,8 +215,8 @@ class CaptureLaunchSuite extends PgSuite:
     accountId
 
   private def grant(accountId: UUID, purposes: ConsentPurpose*): Unit =
-    val notice = ConsentNotice(1, "seeded for the test")
-    PgUnitOfWork(dataSource, () => monday).transaction(tx => purposes.foreach(tx.consents.grant(accountId, _, notice, monday)))
+    val notice = ConsentNotice(1, "seeded for the test", "en")
+    PgUnitOfWork(dataSource, () => monday).transaction(tx => purposes.foreach(tx.consents.grant(accountId, _, notice, ConsentTaps(monday, monday))))
 
   private def strings(query: String): List[String] = withConnection { conn =>
     val st = conn.createStatement()
@@ -333,4 +334,22 @@ class CaptureLaunchSuite extends PgSuite:
       // The mood check-in drew the first card; the daily summary is the second.
       assertEquals(uploadOf(photo), Some("png:2"))
       assert(bot.rasteriser.shows(2, "Today") && bot.rasteriser.shows(2, "0 of 1 taken"), "it is the daily summary")
+
+  test("withdrawing the medication consent pauses the schedules and cancels the open doses, and /today asks again"):
+    val accountId = seedOwner()
+    val daily = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
+    fixtures.schedule(SteppedClock(monday), accountId, "Vitamin D", daily, ZoneOffset.UTC)
+    grant(accountId, ConsentPurpose.Medication)
+    launched: bot =>
+      val List(card) = bot.say("/privacy", expected = 1): @unchecked
+      val label = ConsentCopy.withdrawLabel(ConsentPurpose.Medication)
+      val List(done) = bot.tap(card, label, expected = 1): @unchecked
+      assertEquals(bot.body(done), ConsentCopy.withdrawn(ConsentPurpose.Medication))
+      assertEquals(strings("SELECT granted::text FROM consent_state WHERE purpose = 'medication'"), List("false"))
+      assertEquals(strings("SELECT status FROM medication_schedules"), List("paused"))
+      assertEquals(strings("SELECT DISTINCT status::text FROM dose_occurrences"), List("cancelled"))
+      assertEquals(strings("SELECT purpose || ':' || action FROM consent_events ORDER BY occurred_at, id").last, "medication:withdrawn")
+
+      val List(asked) = bot.say("/today", expected = 1): @unchecked
+      assertEquals(bot.body(asked), ConsentCopy.statement(ConsentPurpose.Medication), "no dose is shown")
 end CaptureLaunchSuite

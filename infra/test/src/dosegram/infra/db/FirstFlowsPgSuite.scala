@@ -124,7 +124,12 @@ class FirstFlowsPgSuite extends PgSuite:
     ox.supervised:
       val rig = Rig()
 
-      val picker = rig.line("/start")
+      val notice = rig.line("/start")
+      assert(notice.exists(_.contains("health data")), s"the notice is the first card: $notice")
+      rig.line("1") // Medication
+      rig.line("1") // I agree
+      assertEquals(countSql("SELECT count(*) FROM users"), 0L, "no account before the confirming tap")
+      val picker = rig.line("1") // Confirm
       assert(picker.exists(_.contains("Pick your timezone:")), s"picker shown: $picker")
       assert(picker.exists(_.contains("Europe/Kyiv")), "the picker lists zones grouped by current offset")
 
@@ -143,6 +148,17 @@ class FirstFlowsPgSuite extends PgSuite:
 
       val welcome = rig.line("1") // Yes
       assert(welcome.exists(_.contains(IdentityCopy.accountCreated)), s"welcome: $welcome")
+      assert(welcome.exists(w => w.contains("Consent recorded on") && w.contains("medication records")), s"receipt: $welcome")
+
+      // PRODUCT_SPEC R-IDC-8, BOT_UX step C2: the account comes with its consent, and the ledger row has the purpose
+      // the user chose, both taps and the locale of the statement.
+      withConnection { conn =>
+        given Connection = conn
+        val ledger = sql"""SELECT purpose || '|' || action || '|' || locale || '|' || (agreed_at <= occurred_at)::text
+                           FROM consent_events""".query[String]()
+        assertEquals(ledger, List("medication|granted|en|true"))
+        assertEquals(sql"SELECT purpose FROM consent_state WHERE granted".query[String](), List("medication"))
+      }
 
       // The create transaction: users + platform_identities link + delivery_channels.
       val users = withConnection { conn =>
@@ -186,7 +202,7 @@ class FirstFlowsPgSuite extends PgSuite:
         events.foreach((_, _, account) => assertEquals(account, user.id, "account_id = principal"))
         // The stored reply of the confirming event carries the created account id too (C2).
         val confirmAccount =
-          sql"SELECT account_id FROM inbound_events WHERE vendor_event_id = 'fake:msg:pg:5'".queryOne[UUID]()
+          sql"SELECT account_id FROM inbound_events WHERE vendor_event_id = 'fake:msg:pg:8'".queryOne[UUID]()
         assertEquals(confirmAccount, Some(user.id), "the confirm event's stored reply carries the new account")
       }
 
@@ -198,6 +214,7 @@ class FirstFlowsPgSuite extends PgSuite:
     ox.supervised:
       val rig = Rig()
       rig.line("/start")
+      (1 to 3).foreach(_ => rig.line("1")) // Medication, I agree, Confirm
       rig.line("13")
       rig.line("1")
       assertEquals(countSql("SELECT count(*) FROM users"), 1L)
@@ -217,6 +234,7 @@ class FirstFlowsPgSuite extends PgSuite:
     ox.supervised:
       val rig = Rig()
       rig.line("/start")
+      (1 to 3).foreach(_ => rig.line("1")) // Medication, I agree, Confirm
       rig.line("13")
       rig.line("1")
       val help = rig.line("/help")

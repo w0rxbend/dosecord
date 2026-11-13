@@ -3,6 +3,9 @@ package dosegram.infra.db
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.capture.CaptureParts
+import dosegram.core.ports.IdSource
+import dosegram.core.ports.StatusCards
 import dosegram.core.chat.*
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
@@ -79,7 +82,7 @@ class MedicationWizardPgSuite extends PgSuite:
       uow,
       adapters,
       codec,
-      Application.handler(uow, adapters, codec, clock),
+      Application.handler(uow, adapters, codec, clock)(textOnlyParts(uow, clock)),
       clock,
       commands = CommandRegistry.byName
     )
@@ -151,7 +154,7 @@ class MedicationWizardPgSuite extends PgSuite:
 
     /** Seeds the account and links the rig's actor to it (as the create flow would). */
     def seedAccount(timezone: String = "Europe/Kyiv"): UUID =
-      val accountId = fixtures.account(timezone)
+      val accountId = fixtures.medicationAccount(timezone)
       withConnection { conn =>
         given Connection = conn
         sql"""INSERT INTO platform_identities (id, user_id, vendor, vendor_user_id, linked_at)
@@ -231,6 +234,9 @@ class MedicationWizardPgSuite extends PgSuite:
   }
 
   // ---------- Wizard create ----------
+
+  private def textOnlyParts(uow: dosegram.core.ports.UnitOfWork, clock: dosegram.core.ports.Clock): CaptureParts =
+    CaptureParts.over(uow, clock, IdSource.uuidV7(java.util.random.RandomGenerator.getDefault), StatusCards.textOnly)
 
   test("the wizard writes the medication, the schedule, the 48 h occurrences and the event"):
     ox.supervised:

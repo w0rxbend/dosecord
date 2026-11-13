@@ -519,10 +519,10 @@ private object ConsoleFlowFakes:
     private val state = scala.collection.mutable.LinkedHashMap.empty[(UUID, ConsentPurpose), GrantedConsent]
     override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean =
       this.synchronized(state.contains((accountId, purpose)))
-    override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+    override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
       this.synchronized:
         val changed = !state.get((accountId, purpose)).exists(_.policyVersion == notice.policyVersion)
-        if changed then state((accountId, purpose)) = GrantedConsent(purpose, at, notice.policyVersion)
+        if changed then state((accountId, purpose)) = GrantedConsent(purpose, taps.confirmedAt, notice.policyVersion)
         changed
     override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
       this.synchronized(state.remove((accountId, purpose)).isDefined)

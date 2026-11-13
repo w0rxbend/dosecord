@@ -1,6 +1,7 @@
 package dosegram.api
 
 import dosegram.api.ApiJson.ReadWriter
+import dosegram.core.ports.ConsentPurpose
 import sttp.model.StatusCode
 import sttp.tapir.Schema
 
@@ -36,7 +37,8 @@ object ErrorCode:
 final case class FieldError(field: String, code: String) derives ReadWriter, Schema
 
 /** An RFC 9457 problem document (API-14). No member echoes user input. On a version conflict `medication` or `schedule`
-  * carries the current representation, so the client can show what changed (API-17).
+  * carries the current representation, so the client can show what changed (API-17). On `consent_required`, `purpose`
+  * is the consent purpose of PRODUCT_SPEC R-IDC-6 that is missing (API-19).
   */
 final case class Problem(
     `type`: String,
@@ -46,7 +48,8 @@ final case class Problem(
     requestId: String,
     errors: List[FieldError] = Nil,
     medication: Option[Medication] = None,
-    schedule: Option[Schedule] = None
+    schedule: Option[Schedule] = None,
+    purpose: Option[String] = None
 ) derives ReadWriter,
       Schema
 
@@ -84,6 +87,11 @@ object ApiFailure:
 
   def accountRequired(): ApiFailure =
     of(StatusCode.Forbidden, ErrorCode.AccountRequired, "Start the bot in chat first.")
+
+  /** API-19: the domain has no active consent. Nothing of it is read or written; consent is given in chat only. */
+  def consentRequired(purpose: ConsentPurpose): ApiFailure =
+    val failure = of(StatusCode.Forbidden, ErrorCode.ConsentRequired, "Turn this on in chat first.")
+    failure.copy(problem = failure.problem.copy(purpose = Some(purpose.id)))
 
   /** An unknown identifier and an identifier of another account answer alike (API-11). */
   def notFound(): ApiFailure = of(StatusCode.NotFound, ErrorCode.NotFound, "Not found.")

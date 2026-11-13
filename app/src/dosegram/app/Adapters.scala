@@ -9,11 +9,13 @@ import dosegram.core.application.capture.CaptureParts
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatMediator
 import dosegram.core.ports.Clock
+import dosegram.core.ports.IdSource
 import dosegram.infra.Adapter
 import dosegram.infra.Settings
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
 
+import java.security.SecureRandom
 import javax.sql.DataSource
 
 /** Adapter wiring (ROADMAP M0.12c/d, M1.9, M2.1): builds the adapters named by `ENABLED_ADAPTERS`, wires them into the
@@ -48,13 +50,12 @@ object Adapters:
     val adapters = parts.adapters
     val uow = PgUnitOfWork(dataSource, parts.clock)
     val codec = CallbackCodec(settings.callbackKeys)
-    val tracking = TrackingServices.over(uow, parts.clock)
-    val capture = CaptureParts(tracking.hydration, tracking.mood, tracking.stats, parts.images.cards)
+    val capture = CaptureParts.over(uow, parts.clock, IdSource.uuidV7(SecureRandom()), parts.images.cards)
     val mediator = ChatMediator(
       uow,
       adapters,
       codec,
-      Application.withCapture(uow, adapters, codec, parts.clock)(capture),
+      Application.handler(uow, adapters, codec, parts.clock)(capture),
       parts.clock,
       commands = CommandRegistry.withCaptureByName
     )

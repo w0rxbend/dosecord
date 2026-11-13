@@ -8,17 +8,18 @@ import dosegram.contracts.Inline
 import dosegram.contracts.MessageHandle
 import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
+import dosegram.contracts.Principal
 import dosegram.contracts.Reply
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
+import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.ports.Tx
 
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.UUID
 
 /** One inbound event of a linked account as the capture flows see it: who, in which zone, the message a tap came from,
@@ -27,6 +28,7 @@ import java.util.UUID
   */
 private[capture] final case class Turn(
     event: InboundEvent,
+    principal: Principal,
     accountId: UUID,
     zone: ZoneId,
     source: Option[MessageHandle],
@@ -58,11 +60,10 @@ private[capture] final case class Turn(
 
   def localTime(at: Instant): String = Turn.Clock.withZone(zone).format(at)
 
-  def localDate(at: Instant): String = Turn.Day.withZone(zone).format(at)
+  def localDate(at: Instant): String = ConsentCopy.dateOf(at, zone)
 
 private[capture] object Turn:
   private val Clock = DateTimeFormatter.ofPattern("HH:mm")
-  private val Day = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
 
 /** The direct-mode tokens of the capture buttons (ADR-006): the subject is the account, or the entry for an Undo. */
 private[capture] final class Tokens(codec: CallbackCodec):

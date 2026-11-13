@@ -24,10 +24,19 @@ object ConsentPurpose:
 trait ConsentCheck:
   def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean
 
-/** What the user agreed to: the version of the privacy notice and the statement shown at the confirming tap. */
-final case class ConsentNotice(policyVersion: Int, statement: String):
+/** What the user agreed to: the version of the privacy notice, the statement shown at the confirming tap and the locale
+  * it was shown in (PRODUCT_SPEC R-IDC-8, R-LOC-11).
+  */
+final case class ConsentNotice(policyVersion: Int, statement: String, locale: String):
   require(policyVersion > 0, "a notice version is positive")
   require(statement.nonEmpty, "a consent statement must not be empty")
+  require(locale.nonEmpty, "a consent is recorded with the locale of its text")
+
+/** The two taps of a consent (PRODUCT_SPEC R-IDC-7): "I agree" at stage 1 and "Confirm" at stage 2. The consent counts
+  * from the confirming tap.
+  */
+final case class ConsentTaps(agreedAt: Instant, confirmedAt: Instant):
+  require(!confirmedAt.isBefore(agreedAt), "the confirming tap does not come before the first one")
 
 /** One purpose that an account has granted, as the ledger holds it. */
 final case class GrantedConsent(purpose: ConsentPurpose, grantedAt: Instant, policyVersion: Int)
@@ -38,9 +47,10 @@ final case class GrantedConsent(purpose: ConsentPurpose, grantedAt: Instant, pol
   */
 trait ConsentLedger extends ConsentCheck:
 
-  /** Records a grant. `false` when the purpose was already granted under the same notice version: nothing is written.
+  /** Records a grant with both tap times. `false` when the purpose was already granted under the same notice version:
+    * nothing is written.
     */
-  def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean
+  def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean
 
   /** Records a withdrawal. `false` when the purpose was not granted: nothing is written. */
   def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean

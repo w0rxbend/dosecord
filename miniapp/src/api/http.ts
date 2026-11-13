@@ -31,6 +31,7 @@ const CODES: Readonly<Record<string, ApiErrorCode>> = {
   session_expired: 'unauthorised',
   client_too_old: 'client_too_old',
   account_required: 'account_required',
+  consent_required: 'consent_required',
   not_found: 'not_found',
   version_conflict: 'version_conflict',
   precondition_required: 'version_conflict',

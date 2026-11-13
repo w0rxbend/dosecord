@@ -3,6 +3,9 @@ package dosegram.adapter.console
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.capture.CaptureParts
+import dosegram.core.ports.IdSource
+import dosegram.core.ports.StatusCards
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
@@ -16,6 +19,9 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.DoseActionKind
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentNotice
+import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.DeliveryTarget
 import dosegram.core.ports.NewMedication
 import dosegram.core.ports.NewOccurrence
@@ -95,7 +101,9 @@ private final class ConsoleIntakeRig(using ox.Ox):
     ConsoleAdapter("owner", BufferedReader(StringReader("")), PrintStream(out), "s1", () => nowAt)
   private val adapters: Map[String, ChatAdapter] = Map("console" -> adapter)
   private val mediator =
-    ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock), clock, CommandRegistry.byName)
+    val parts =
+      CaptureParts.over(uow, clock, IdSource.uuidV7(java.util.random.RandomGenerator.getDefault), StatusCards.textOnly)
+    ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock)(parts), clock, CommandRegistry.byName)
 
   // The seeded regimen: Vitamin D 1000 IU daily 09:00 Europe/Kyiv, one pending dose today.
   private val account = seedAccount()
@@ -161,7 +169,10 @@ private final class ConsoleIntakeRig(using ox.Ox):
 
   private def seedAccount(): UUID =
     val principal = uow.identities.resolve(PlatformIdentity("console", "owner"), t0)
-    uow.accounts.createAccount(principal.identityId, "Europe/Kyiv", t0).uuid
+    val account = uow.accounts.createAccount(principal.identityId, "Europe/Kyiv", t0).uuid
+    // As onboarding leaves it when the user chose Medication.
+    uow.consents.grant(account, ConsentPurpose.Medication, ConsentNotice(1, "seeded for the test", "en"), ConsentTaps(t0, t0))
+    account
 
   private def seedSchedule(account: UUID, name: String, times: List[String]): (UUID, UUID) =
     uow.transaction: tx =>

@@ -3,10 +3,6 @@ package dosegram.core.application
 import dosegram.contracts.*
 import dosegram.core.application.MedicationWizardRig.Profile
 import dosegram.core.application.capture.CaptureParts
-import dosegram.core.application.hydration.HydrationService
-import dosegram.core.application.insights.RollupService
-import dosegram.core.application.insights.StatsQueryService
-import dosegram.core.application.mood.MoodService
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackMode
 import dosegram.core.domain.Rule
@@ -20,6 +16,7 @@ import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.MoodCardView
@@ -65,23 +62,18 @@ class CaptureFlowsSuite extends munit.FunSuite:
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
 
   private def parts(uow: UnitOfWork, cards: StatusCards)(clock: Clock): CaptureParts =
-    CaptureParts(
-      HydrationService(clock, SequentialIds()),
-      MoodService(clock, SequentialIds()),
-      StatsQueryService(RollupService(uow, clock), clock),
-      cards
-    )
+    CaptureParts.over(uow, clock, SequentialIds(), cards)
 
   private final class Chat(val rig: MedicationWizardRig, val world: World, val account: UUID):
     def grant(purposes: ConsentPurpose*): Unit =
-      purposes.foreach(world.consents.grant(account, _, ConsentNotice(1, "test statement"), rig.clock.now()))
+      purposes.foreach(world.consents.grant(account, _, ConsentNotice(1, "test statement", "en"), ConsentTaps(rig.clock.now(), rig.clock.now())))
 
     def liveWater: List[Int] = world.tracking.entries.values.filter(_.isLive).map(_.amount.millilitres).toList
 
   private def withChat(profile: Profile, cards: StatusCards = RecordingCards())(test: Chat => Unit): Unit =
     ox.supervised:
       val rig = MedicationWizardRig(profile, captureParts = Some(uow => parts(uow, cards)))
-      val account = rig.seedAccount()
+      val account = rig.seedAccount(consents = Nil)
       test(Chat(rig, World(rig.uow.tracking, rig.uow.consents), account))
 
   private def texts(ops: List[VendorOp]): List[String] =

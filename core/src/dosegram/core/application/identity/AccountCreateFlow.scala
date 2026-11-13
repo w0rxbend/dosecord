@@ -7,23 +7,31 @@ import dosegram.core.chat.Step
 import dosegram.core.chat.StepInput
 import dosegram.core.chat.StepKind
 import dosegram.core.chat.StepTransition
+import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentNotice
+import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 
 import java.time.DateTimeException
 import java.time.Instant
 import java.time.ZoneId
 
-/** The account-create flow (ROADMAP M0.12d, DESIGN.md section 6): `ConversationStarted` / `/start` run it. It asks for
-  * the timezone ONLY — a `ChoiceSet(select)` of zones grouped by current offset with "Other" leading to text entry —
-  * then confirms with the live echo "It is 14:32 for you now, right? [Yes][Change]" (R10). The handle is generated and
-  * the display name left NULL (both editable later, never the vendor nickname, K8). Link and Restore are absent until
-  * M4.1/M5.3 — not hidden menu entries, no "available later" copy.
+/** The account-create flow (ROADMAP M0.12d and the consent part of G2.8; BOT_UX section 5.3): `ConversationStarted` /
+  * `/start` run it. The notice card names what is stored and offers the domains; the two consent stages follow for the
+  * one domain the user chose (BUX-CONS-03), and only then the timezone — a `ChoiceSet(select)` of zones grouped by
+  * current offset with "Other" leading to text entry, confirmed with the live echo "It is 14:32 for you now, right?
+  * [Yes][Change]" (R10). The handle is generated and the display name left NULL (both editable later, never the vendor
+  * nickname, K8). Link and Restore are absent until M4.1/M5.3 — not hidden menu entries, no "available later" copy.
   *
-  * Completing the flow inserts `users`, links `platform_identities` and inserts the `delivery_channels` row in the
-  * mediator's transaction, and answers with `dosegram.identity.account_created.v1` on the reply.
+  * Until the flow completes, the wizard session is the only row about the person (PRODUCT_SPEC R-IDC-3): it holds the
+  * step, the chosen domain and the two tap times. Completing the flow inserts `users`, links `platform_identities`,
+  * inserts the `delivery_channels` row and records the consent with both tap times in the mediator's transaction, so no
+  * account exists without its consent. It answers with the consent receipt, a message of its own (BUX-ONB-01), and with
+  * `dosegram.identity.account_created.v1` on the reply.
   */
 object AccountCreateFlow:
 
@@ -34,6 +42,9 @@ object AccountCreateFlow:
   // Session-data keys.
   private[identity] val TimezoneKey = "timezone"
   private val ErrorKey = "tz_error"
+  private val PurposeKey = "consent_purpose"
+  private val AgreedAtKey = "consent_agreed_at"
+  private val ConfirmedAtKey = "consent_confirmed_at"
 
   /** The curated picker zones; labels are computed per render so the offset grouping follows DST. Together with the
     * "Other" entry the picker stays inside the 25-choice `ChoiceSet` bound.
@@ -83,9 +94,51 @@ object AccountCreateFlow:
 
   def flow(clock: Clock): Flow = Flow(
     id = Id,
-    firstStep = "timezone",
-    steps = timezonePickerSteps(clock, List(paragraph(IdentityCopy.welcome))),
-    onComplete = (data, ctx) => complete(clock, data, ctx)
+    firstStep = "notice",
+    steps = consentSteps(clock) ++ timezonePickerSteps(clock, intro = Nil),
+    onComplete = (data, ctx) => complete(data, ctx)
+  )
+
+  private def purposeOf(data: Map[String, String]): ConsentPurpose =
+    data
+      .get(PurposeKey)
+      .flatMap(ConsentPurpose.ofId)
+      .getOrElse(throw IllegalStateException("the set-up session reached a consent step without a chosen domain"))
+
+  /** Notice, stage 1 and stage 2 (BOT_UX section 5.5). Nothing is recorded here: each tap time goes into the session,
+    * and the ledger row is written when the account is.
+    */
+  private def consentSteps(clock: Clock): Map[String, Step] = Map(
+    "notice" -> Step(
+      id = "notice",
+      kind = StepKind.choices(ConsentCopy.onboardingPurposes.map(p => p.id -> ConsentCopy.onboardingLabel(p))),
+      render = _ => ConsentCopy.notice.map(paragraph),
+      accept = {
+        case (StepInput.Chosen(key), _) if ConsentCopy.onboardingPurposes.exists(_.id == key) =>
+          Right(StepTransition.Next("consent_agree", Map(PurposeKey -> key)))
+        case _ => Left(ConsentCopy.onboardingChoiceHint)
+      }
+    ),
+    "consent_agree" -> Step(
+      id = "consent_agree",
+      kind = StepKind.choices(List("agree" -> ConsentCopy.Agree)),
+      render = data => List(paragraph(ConsentCopy.statement(purposeOf(data)))),
+      accept = {
+        case (StepInput.Chosen("agree"), _) =>
+          Right(StepTransition.Next("consent_confirm", Map(AgreedAtKey -> clock.now().toString)))
+        case _ => Left(ConsentCopy.agreeHint)
+      }
+    ),
+    "consent_confirm" -> Step(
+      id = "consent_confirm",
+      kind = StepKind.choices(List("confirm" -> ConsentCopy.Confirm)),
+      render = data => List(paragraph(ConsentCopy.confirmation(purposeOf(data)))),
+      accept = {
+        case (StepInput.Chosen("confirm"), _) =>
+          Right(StepTransition.Next("timezone", Map(ConfirmedAtKey -> clock.now().toString, ErrorKey -> "")))
+        case _ => Left(ConsentCopy.confirmHint)
+      }
+    )
   )
 
   /** The timezone picker + custom entry + live-echo confirm steps, shared with Account -> Timezone (M1.9): both flows
@@ -136,7 +189,7 @@ object AccountCreateFlow:
     )
   )
 
-  private def complete(clock: Clock, data: Map[String, String], ctx: FlowContext): Reply =
+  private def complete(data: Map[String, String], ctx: FlowContext): Reply =
     ctx.principal.accountId match
       // Defensive: the identity gate refuses a second create before a session starts.
       case Some(_) =>
@@ -144,10 +197,18 @@ object AccountCreateFlow:
           List(outbound(IdentityCopy.alreadyLinked, s"account.create:linked:${ctx.event.eventId.uuid}", ctx))
         )
       case None =>
-        val accountId = ctx.tx.accounts.createAccount(ctx.principal.identityId, data(TimezoneKey), clock.now())
+        val purpose = purposeOf(data)
+        val taps = ConsentTaps(Instant.parse(data(AgreedAtKey)), Instant.parse(data(ConfirmedAtKey)))
+        val notice = ConsentNotice(ConsentCopy.NoticeVersion, ConsentCopy.statement(purpose), ConsentCopy.Locale)
+        // The account dates from the confirming tap: the account and its consent are one record.
+        val accountId = ctx.tx.accounts.createAccount(ctx.principal.identityId, data(TimezoneKey), taps.confirmedAt)
+        ctx.tx.consents.grant(accountId.uuid, purpose, notice, taps)
+        val date = ConsentCopy.dateOf(taps.confirmedAt, ZoneId.of(data(TimezoneKey)))
         Reply(
-          followUps =
-            List(outbound(IdentityCopy.accountCreated, s"account.create:done:${ctx.event.eventId.uuid}", ctx)),
+          followUps = List(
+            outbound(ConsentCopy.receipt(purpose, date), s"account.create:receipt:${ctx.event.eventId.uuid}", ctx),
+            outbound(IdentityCopy.accountCreated, s"account.create:done:${ctx.event.eventId.uuid}", ctx)
+          ),
           domainEvents = List(Event.AccountCreated(accountId, ctx.principal.identityId, ctx.event.vendor))
         )
 

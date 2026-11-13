@@ -26,6 +26,7 @@ export type ApiErrorCode =
   | 'timeout'
   | 'unauthorised'
   | 'account_required'
+  | 'consent_required'
   | 'client_too_old'
   | 'unavailable'
   | 'not_found'

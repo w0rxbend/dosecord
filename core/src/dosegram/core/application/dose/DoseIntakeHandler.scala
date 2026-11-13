@@ -2,6 +2,8 @@ package dosegram.core.application.dose
 
 import dosegram.contracts.*
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.capture.MedicationConsentGate
+import dosegram.core.application.capture.MedicationScreen
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
@@ -60,12 +62,18 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
 
   import DoseIntakeHandler.*
 
+  private val gate = MedicationConsentGate(codec, clock)
+
+  /** Every dose button and dose command is behind the `medication` consent (PRODUCT_SPEC R-IDC-9): without it nothing
+    * is recorded, and the answer is the consent prompt, which leads to Today.
+    */
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     event.body match
       case Inbound.InteractionSubmitted(ref, source) if isDoseAction(ref) =>
-        onTap(event, principal, ref, source, tx)
+        gate.guarded(event, principal, tx)(MedicationScreen.Today)(onTap(event, principal, ref, source, tx))
       case Inbound.CommandInvoked(name, _, _) if commandNames.contains(name) =>
-        guardLinked(event, principal)(onCommand(event, principal, name, tx))
+        guardLinked(event, principal):
+          gate.guarded(event, principal, tx)(MedicationScreen.Today)(onCommand(event, principal, name, tx))
       case _ => inner.handle(event, principal, tx)
 
   private def isDoseAction(ref: CallbackRef): Boolean =

@@ -163,7 +163,7 @@ class TelegramLaunchSuite extends PgSuite:
 
   /** One account whose Telegram identity and chat are the owner's, with one daily 09:00 schedule. */
   private def seedOwner(clock: SteppedClock): UUID =
-    val accountId = fixtures.account()
+    val accountId = fixtures.medicationAccount("UTC")
     val channelId = fixtures.deliveryChannel(accountId, "telegram", owner.toString, clock.now())
     withConnection { conn =>
       given Connection = conn

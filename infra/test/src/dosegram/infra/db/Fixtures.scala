@@ -8,6 +8,9 @@ import dosegram.core.domain.ReminderPolicy
 import dosegram.core.domain.Rule
 import dosegram.core.domain.UnknownReason
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentNotice
+import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.NewMedication
 import dosegram.core.ports.NewOccurrence
 import dosegram.core.ports.OccurrenceOrigin
@@ -46,6 +49,17 @@ final class Fixtures(dataSource: DataSource):
       sql"INSERT INTO users (id, timezone, status) VALUES ($id, $timezone, 'active')".execute()
     } finally conn.close()
     id
+
+  /** An account as onboarding leaves it when the user chose Medication: with the `medication` consent. */
+  def medicationAccount(timezone: String): UUID =
+    val id = account(timezone)
+    grant(id, ConsentPurpose.Medication)
+    id
+
+  def grant(accountId: UUID, purposes: ConsentPurpose*): Unit =
+    val now = Clock.system.now()
+    val notice = ConsentNotice(1, "seeded for the test", "en")
+    uow.transaction(tx => purposes.foreach(tx.consents.grant(accountId, _, notice, ConsentTaps(now, now))))
 
   def medication(
       accountId: UUID,

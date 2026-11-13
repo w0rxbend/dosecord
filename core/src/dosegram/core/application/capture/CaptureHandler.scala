@@ -52,7 +52,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
     val answer = principal.accountId match
       case Some(account) =>
         val zone = ZoneId.of(tx.accounts.timezoneOf(account.uuid).getOrElse("UTC"))
-        route(Turn(event, account.uuid, zone, source = None, tx))
+        route(Turn(event, principal, account.uuid, zone, source = None, tx))
       case None => unlinked(event)
     answer.getOrElse(inner.handle(event, principal, tx))
 
@@ -133,7 +133,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
     action match
       case CaptureActions.ConsentStep =>
         ConsentRequest.of(value).map(consent.step(turn, _)(resume(turn, _))).getOrElse(stale(turn))
-      case CaptureActions.ConsentWithdraw => consent.withdraw(turn, value)
+      case CaptureActions.ConsentWithdraw => consent.withdraw(turn, value)(stop(turn, _))
       case CaptureActions.WaterAdd        => waterButton(turn, value)
       case CaptureActions.WaterGoal       => water.setGoal(turn, value)
       case CaptureActions.WaterGoalAsk    => water.askGoal(turn, pendingMl = 0)
@@ -162,6 +162,20 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
+      case Pending.Medication(screen)    => openMedication(fresh, screen)
+
+  /** The medication screen the consent was asked for, as its own command answers it. */
+  private def openMedication(turn: Turn, screen: MedicationScreen): Reply =
+    val command = Inbound.CommandInvoked(screen.command, Map.empty, s"/${screen.command}")
+    inner.handle(turn.event.copy(body = command, interaction = None), turn.principal, turn.tx)
+
+  /** What ends with a consent besides the consent itself (PRODUCT_SPEC R-IDC-10). */
+  private def stop(turn: Turn, purpose: ConsentPurpose): Unit =
+    purpose match
+      case ConsentPurpose.Medication => parts.withdrawal.stop(turn.tx, turn.accountId, clock.now())
+      case ConsentPurpose.Hydration | ConsentPurpose.Mood | ConsentPurpose.CrossDomainPatterns |
+          ConsentPurpose.ImagesInChat =>
+        ()
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
     * of its own, so the card the request came from stays as it is.
