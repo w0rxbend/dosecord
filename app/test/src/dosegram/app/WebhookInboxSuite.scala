@@ -11,6 +11,7 @@ import dosegram.infra.Adapter
 import dosegram.infra.Environment
 import dosegram.infra.LogFormat
 import dosegram.infra.LogLevel
+import dosegram.infra.MiniAppSettings
 import dosegram.infra.Role
 import dosegram.infra.Settings
 import dosegram.infra.TelegramSettings
@@ -89,7 +90,7 @@ class WebhookInboxSuite extends PgSuite:
     Some(webhook)
   )
 
-  private def settings(port: Int): Settings =
+  private def settings(port: Int, miniApp: Option[MiniAppSettings]): Settings =
     Settings(
       enabledAdapters = List(Adapter.Telegram),
       databaseUrl = databaseUrl,
@@ -103,7 +104,8 @@ class WebhookInboxSuite extends PgSuite:
       publicBaseUrl = Some("https://bot.example"),
       healthPort = freePort(),
       environment = Environment.Development,
-      httpPort = port
+      httpPort = port,
+      miniApp = miniApp
     )
 
   private final class Bot(val wire: FakeTelegramTransport, val port: Int, val adapter: TelegramAdapter):
@@ -118,14 +120,18 @@ class WebhookInboxSuite extends PgSuite:
       client.send(request.build(), HttpResponse.BodyHandlers.discarding()).statusCode()
 
   /** Runs `test` against a launched application whose inbox is `inbox` over this suite's database. */
-  private def launched[A](inbox: DataSource => InboundInbox = PgInboundInbox(_), lastMessageId: Long = 0L)(
+  private def launched[A](
+      inbox: DataSource => InboundInbox = PgInboundInbox(_),
+      lastMessageId: Long = 0L,
+      miniApp: Option[MiniAppSettings] = None
+  )(
       test: Bot => A
   ): A =
     val clock = SteppedClock(t0)
     val wire = FakeTelegramTransport(clock, lastMessageId = lastMessageId)
     val port = freePort()
     supervised:
-      val config = settings(port)
+      val config = settings(port, miniApp)
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(inbox(dataSource)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
       awaitListener(port)
@@ -210,6 +216,22 @@ class WebhookInboxSuite extends PgSuite:
       assertEquals(bot.post("x" * (2 * 1024 * 1024), header = Some("wrong-secret-0000000000")), 404)
       settle()
       assertEquals(strings("SELECT 1 FROM inbound_inbox").size, 0)
+
+  test("with the Mini App on, the webhook shares its listener: secrets checked, stored, processed, headers set"):
+    val miniApp = MiniAppSettings(None, Some(FakeTelegramTransport.Bot.id), None, hmacFallback = false)
+    launched(miniApp = Some(miniApp)): bot =>
+      val (updateId, body) = text(owner, "/help")
+      assertEquals(bot.post(body, path = "path-secret-guessed000"), 404)
+      assertEquals(bot.post(body, header = None), 404)
+      assertEquals(inboxStatus(updateId), Nil, "a refused request stores nothing")
+      assertEquals(bot.post(body), 200)
+      eventually("the update is processed")(inboxStatus(updateId) == List("processed"))
+      val api = client.send(
+        HttpRequest.newBuilder(URI.create(s"http://localhost:${bot.port}/api/v1/today")).GET().build(),
+        HttpResponse.BodyHandlers.discarding()
+      )
+      assertEquals(api.statusCode(), 401, "the API of the same listener still asks for a session")
+      assert(api.headers().firstValue("Content-Security-Policy").isPresent, "the Mini App's header set is applied")
 
   test("TG-04: the same update delivered twice is one row and one effect"):
     launched(): bot =>
