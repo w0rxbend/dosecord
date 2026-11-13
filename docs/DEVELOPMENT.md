@@ -136,10 +136,14 @@ and the pinned font pack of this repository:
 | `RESVG_PATH` | The resvg binary, for example the output of `command -v resvg` |
 | `RENDER_FONTS_DIR` | `report-renderer/fonts` |
 
-Without the two variables every image is sent as its text equivalent, which is
-also what the container image does today: it has neither resvg nor the fonts.
-`./mill report-renderer.resvg.test.contactSheet` writes every card as a PNG to
-`out/report-renderer/preview`.
+Without the two variables every image is sent as its text equivalent. The
+container image sets both: `docker/Dockerfile` builds resvg 0.49.0 from its
+checksummed release source in a build stage and copies the font pack to
+`/opt/dosegram/fonts`; `scripts/image-render-check.sh <image>` proves the two
+draw inside the image. CI installs the same resvg release and sets
+`DOSEGRAM_REQUIRE_RESVG=true`, so the pixel tests fail there instead of
+skipping. `./mill report-renderer.resvg.test.contactSheet` writes every card as
+a PNG to `out/report-renderer/preview`.
 
 ## Rules that hold everywhere
 

@@ -161,7 +161,8 @@ class StatusImagesSuite extends munit.FunSuite:
       .filter(_.nonEmpty)
       .map(Path.of(_, "resvg"))
       .find(Files.isExecutable(_))
-    assume(binary.isDefined, "no resvg on the PATH")
+    if sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true") then assert(binary.isDefined, "no resvg on the PATH")
+    else assume(binary.isDefined, "no resvg on the PATH")
     val log = mutable.ListBuffer.empty[String]
     val images = StatusImages.from(Some(RenderSettings(binary.get.toString, sys.env("DOSEGRAM_FONTS_DIR"))), StatusImages.Stores.inMemory, log += _)
     val drawn = List(

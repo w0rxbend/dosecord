@@ -26,17 +26,22 @@ import scala.io.Source
 import scala.util.Using
 
 /** The child-process adapter against the real resvg binary and against fake binaries that hang, crash or flood. The
-  * tests that need resvg are skipped on a machine without it; the failure-path tests need only a shell.
+  * tests that need resvg are skipped on a machine without it, and fail instead where `ResvgBinary.isRequired`; the
+  * failure-path tests need only a shell.
   */
 class ResvgRasteriserSuite extends munit.FunSuite:
-  private val PinnedVersion = "0.49.0"
+  private val PinnedVersion = ResvgBinary.PinnedVersion
 
   // The fixture run starts 96 child processes; on a loaded host that exceeds the default 30 seconds.
   override val munitTimeout: Duration = 5.minutes
   private val binary = ResvgBinary.locate
 
+  private def needed(condition: Boolean, reason: String): Unit =
+    if ResvgBinary.isRequired then assert(condition, s"$reason, and DOSEGRAM_REQUIRE_RESVG is set")
+    else assume(condition, reason)
+
   private def rasteriser: ResvgRasteriser =
-    assume(binary.isDefined, "resvg is not installed")
+    needed(binary.isDefined, "resvg is not installed")
     ResvgRasteriser(ResvgBinary.config(binary.get))
 
   private def fakeBinary(script: String): Path =
@@ -97,7 +102,7 @@ class ResvgRasteriserSuite extends munit.FunSuite:
       entry.name -> PixelGoldens.hash(image.png)
     }
     assert(rendered.size >= 90, "the fixture set shrank")
-    assume(resvgVersion.contains(PinnedVersion), s"pixel goldens are pinned to resvg $PinnedVersion")
+    needed(resvgVersion.contains(PinnedVersion), s"pixel goldens are pinned to resvg $PinnedVersion")
     assertEquals(PixelGoldens.format(rendered), PixelGoldens.load, "pixels drifted; regenerate with pixelGoldenGenerate and review")
 
   test("the table measurer agrees with the rasteriser's own text extents within two percent"):
