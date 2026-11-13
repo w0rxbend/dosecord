@@ -716,6 +716,37 @@ class DecideSuite extends munit.FunSuite:
     )
     assertEquals(result, Transition.unchanged(occ, Feedback.Refused(Refusal.UndoWindowPassedOfferCorrect)))
 
+  test("(taken, undo) of a manual log within 15 min: cancelled, never due, nothing to remind"):
+    val taken = LastUserAction(DoseActionKind.Taken, 1, t("09:03"))
+    val result = Decide.decide(
+      takenOcc(t("09:03")),
+      policy,
+      noQuiet,
+      t("09:10"),
+      user(OccurrenceEvent.Undo, lastAction = Some(taken)).copy(manualLog = true)
+    )
+    assertEquals(result.row.status, OccurrenceStatus.Cancelled)
+    assertEquals(result.row.takenAt, None)
+    assertEquals(result.row.effectiveAt, None)
+    assertEquals(result.row.nextActionAt, None)
+    assertEquals(result.dispatches, Nil)
+    assertEquals(result.action.map(_.action), Some(DoseActionKind.Undone))
+    assertEquals(result.action.map(_.newStatus), Some(OccurrenceStatus.Cancelled))
+    assertEquals(result.action.flatMap(_.undoesSeq), Some(1))
+    assertEquals(result.feedback, Feedback.LogUndone)
+
+  test("(taken, undo, now = +20 min) of a manual log: refused, no correction offered"):
+    val occ = takenOcc(t("09:03"))
+    val result = Decide.decide(
+      occ,
+      policy,
+      noQuiet,
+      t("09:23"),
+      user(OccurrenceEvent.Undo, lastAction = Some(LastUserAction(DoseActionKind.Taken, 1, t("09:03"))))
+        .copy(manualLog = true)
+    )
+    assertEquals(result, Transition.unchanged(occ, Feedback.Refused(Refusal.UndoWindowPassed)))
+
   test("(skipped, undo) within 15 min: back to due"):
     val result = Decide.decide(
       skippedOcc(t("09:03")),

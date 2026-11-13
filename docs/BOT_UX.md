@@ -920,6 +920,8 @@ Reached from "Doses" on the Today card or from history. It names the medication 
 |---|---|
 | BUX-TAKE-01 | Picker tap, then outcome: at most 2 taps from `/take` (C10). The outcome `take.logged` shows the name, dose text and time, with "Undo", "Change time" and "Log another". |
 | BUX-TAKE-02 | One displayed picker is one intent and commits at most once (C20). A second tap on the same picker shows `toast.take.already`. "Log another" renders a fresh picker with a fresh intent. |
+| BUX-TAKE-05 | Owner decision of 2026-11-13. The first tap edits the picker in place into `take.logged` ("Logged <name> at 09:05.") and removes every medication button; only "Undo" and "Log another" remain. The intent is the picker message itself, so the guard holds for racing taps, a failed edit and a restart. A later tap records nothing and answers "Already logged at 09:05.", or `take.undone` once the log was undone. |
+| BUX-TAKE-06 | Owner decision of 2026-11-13. Undo of a manual log (inside 15 minutes) cancels the dose instead of restoring it to due, because it has no schedule to return to: it leaves every count, is never reminded, and the action log keeps an `undone` row. The card becomes `take.undone` ("Undone. Nothing is recorded for this dose.") with "Log another". After 15 minutes Undo changes nothing and offers no correction. |
 | BUX-TAKE-03 | Free text such as "took ibuprofen" never records a dose. It opens the picker filtered to the best name match and waits for a tap (D6). |
 | BUX-TAKE-04 | The bot shows no count of as-needed doses per day beside the picker and makes no comment on frequency. |
 
@@ -1427,7 +1429,7 @@ Images in chat: on
 | ID | Requirement |
 |---|---|
 | BUX-UNDO-01 | Every message that confirms a recorded action carries "Undo" for 15 minutes after the action (C7). This covers dose actions, as-needed doses, water, meals, mood, sleep, notes, settings changes, pause, archive and time zone changes. |
-| BUX-UNDO-02 | Undo of a dose action restores the occurrence to due and extends its deadlines (ADR-012). Undo of a capture entry removes the entry. Undo of a setting restores the previous value. Each undo is itself recorded in the action log. |
+| BUX-UNDO-02 | Undo of a dose action restores the occurrence to due and extends its deadlines (ADR-012); undo of a manual log cancels it (BUX-TAKE-06). Undo of a capture entry removes the entry. Undo of a setting restores the previous value. Each undo is itself recorded in the action log. |
 | BUX-UNDO-03 | After Undo the card states what was undone ("Undone. Nothing is recorded for this dose.") and shows the keyboard of the restored state. |
 | BUX-UNDO-04 | After 15 minutes the Undo button is not removed by a timer. A late press changes nothing, shows `toast.undo.expired` and re-renders the card with "Correct" or "Edit entry" (section 4.5). |
 | BUX-UNDO-05 | Actions without undo are stated as such before they run: account deletion (unless the user chose the 7-day delay, research 06 section 9.3), deletion of a domain's data, and withdrawal of consent with deletion. Their confirmation buttons name the action. |

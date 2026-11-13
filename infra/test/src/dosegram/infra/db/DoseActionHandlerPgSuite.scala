@@ -305,6 +305,34 @@ class DoseActionHandlerPgSuite extends PgSuite:
         1L
       )
 
+  test("Undo of a manual log cancels the row in Postgres and leaves the loop nothing to claim"):
+    ox.supervised:
+      val account = seedLinkedAccount("chat-1")
+      val clock = MutableClock(t0)
+      val medication = fixtures.medication(account, "Vitamin D", t0)
+      clock.advance(Duration.ofMinutes(365))
+      val picker = MessageHandle("fake", "chat-1", "m7")
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
+      val m = mediator(clock, adapter)
+      def toasts = sendsOf(adapter).filter(_.message.deleteAfter.isDefined).flatMap(_.message.chunks)
+
+      m.push(event(Inbound.InteractionSubmitted(callbackRef(token("dose.log", medication)), Some(picker)), "evt-log"))
+      await(toasts.size == 1, s"the log answered: $toasts")
+      val occurrenceId = fixtures.uow.transaction(_.occurrences.listForAccountBetween(account, java.time.LocalDate.MIN,
+        java.time.LocalDate.MAX)).head.id
+      clock.advance(Duration.ofMinutes(5))
+      m.push(event(Inbound.InteractionSubmitted(callbackRef(token("dose.undo", occurrenceId)), Some(picker)), "evt-undo"))
+      await(
+        fixtures.uow.transaction(_.occurrences.get(occurrenceId)).exists(_.status == OccurrenceStatus.Cancelled),
+        "the undo cancelled the manual row"
+      )
+
+      val actions = fixtures.uow.transaction(_.doseActions.listForOccurrence(occurrenceId))
+      assertEquals(actions.map(_.action), List(DoseActionKind.Taken, DoseActionKind.Undone))
+      assertEquals(actions.last.newStatus, OccurrenceStatus.Cancelled)
+      clock.advance(Duration.ofHours(6))
+      assertEquals(fixtures.uow.transaction(_.occurrences.claimDue(clock.now(), 50)), Nil, "nothing to remind")
+
   private def countSql(query: String): Long = withConnection { conn =>
     val st = conn.createStatement()
     try

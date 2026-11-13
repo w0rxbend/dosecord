@@ -670,7 +670,7 @@ private object MenuHandler:
   val KeyResumePrefix = "menu:resume:"
   val KeyArchivePrefix = "menu:archive:"
   val KeyArchiveConfirmPrefix = "menu:archive:confirm:"
-  val KeyLogDose = "menu:logdose"
+  val KeyLogDose: String = LogDosePicker.MenuKey
 
   /** The 8 x 3 digest cap of DESIGN.md section 4.3 applied to the interactive Today. */
   val MaxTodayRows = 8

@@ -8,7 +8,9 @@ import dosegram.core.domain.Actor as DomainActor
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.domain.Refusal
 import dosegram.core.domain.copy.DoseActionKind
+import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.DeliveryTarget
 import dosegram.core.ports.NewOutboxMessage
 import dosegram.core.ports.OccurrenceOrigin
@@ -404,7 +406,7 @@ class DoseIntakeSuite extends munit.FunSuite:
 
       val shown = rig.messageAt(picker)
       assertEquals(shown.chunks.mkString, "Logged Vitamin C at 09:05.", "the picker became the confirmation")
-      assertEquals(shown.choiceMap, Nil, "with no button left to tap")
+      assertEquals(shown.choiceMap.map(_.label), List("Undo", "Log another"), "no medication button left to tap")
       assertEquals(rig.ops.count(_.isInstanceOf[VendorOp.Edit]) - editsBefore, 1, "one confirmation edit")
 
       assertEquals(toasts(first), List("Recorded at 09:05."))
@@ -441,6 +443,59 @@ class DoseIntakeSuite extends munit.FunSuite:
       assertNotEquals(fresh, picker)
       rig.tapFrom(fresh, freshWire)
       assertEquals(manualTakenRows(rig).size, 2, "a new picker is a new intent")
+
+  test("Undo of a manual log cancels it, records the undo, and nothing is ever reminded"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      val manual = rig.uow.occurrences.all.find(_.origin == OccurrenceOrigin.Manual).get
+      rig.clock.at = due.plusSeconds(5 * 60)
+      val undoWire = rig.controlOn("Logged Vitamin C at 09:05.", "Undo")._2
+      rig.tapFrom(picker, undoWire)
+
+      val undone = rig.uow.occurrences.get(manual.id).get
+      assertEquals(undone.status, OccurrenceStatus.Cancelled)
+      assertEquals(undone.state.takenAt, None)
+      assertEquals(undone.state.nextActionAt, None)
+      val actions = rig.uow.doseActions.listForOccurrence(manual.id)
+      assertEquals(actions.map(_.action), List(DoseActionKind.Taken, DoseActionKind.Undone))
+      assertEquals(actions.last.newStatus, OccurrenceStatus.Cancelled)
+      assertEquals(actions.last.undoesSeq, Some(actions.head.seq))
+
+      val shown = rig.messageAt(picker)
+      assertEquals(shown.chunks.mkString, "Undone. Nothing is recorded for this dose.")
+      assertEquals(shown.choiceMap.map(_.label), List("Log another"), "the Undo button is gone")
+
+      // Hours later the loop finds nothing to remind, and the old picker still logs nothing.
+      val sendsBefore = rig.ops.count(_.isInstanceOf[VendorOp.Send])
+      rig.clock.at = due.plusSeconds(3 * 3600)
+      rig.tickLoop()
+      rig.dispatchOnce()
+      assertEquals(rig.ops.count(_.isInstanceOf[VendorOp.Send]), sendsBefore, "no reminder for an undone log")
+      assertEquals(toasts(rig.tapFrom(picker, wire)), List("Undone. Nothing is recorded for this dose."))
+      assertEquals(rig.uow.occurrences.get(manual.id).get.status, OccurrenceStatus.Cancelled)
+
+  test("Undo of a manual log after 15 minutes changes nothing"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      val manual = rig.uow.occurrences.all.find(_.origin == OccurrenceOrigin.Manual).get
+      rig.clock.at = due.plusSeconds(20 * 60)
+      val late = rig.tapFrom(picker, rig.controlOn("Logged Vitamin C at 09:05.", "Undo")._2)
+      assertEquals(toasts(late), List(ReminderCopy.refusal(Refusal.UndoWindowPassed)))
+      assertEquals(rig.uow.occurrences.get(manual.id).get.status, OccurrenceStatus.Taken)
+      assertEquals(rig.uow.doseActions.listForOccurrence(manual.id).map(_.action), List(DoseActionKind.Taken))
+
+  test("Log another on the confirmation sends a fresh picker that logs again"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      rig.clock.at = due.plusSeconds(3600)
+      rig.tapFrom(picker, rig.controlOn("Logged Vitamin C at 09:05.", "Log another")._2)
+      val (fresh, freshWire) = rig.controlOn("Log a dose of which medication?", "Log Vitamin C")
+      assertNotEquals(fresh, picker)
+      rig.tapFrom(fresh, freshWire)
+      assertEquals(manualTakenRows(rig).size, 2)
 
   test("a repeat reminder finalizes the previous message"):
     withRig: rig =>

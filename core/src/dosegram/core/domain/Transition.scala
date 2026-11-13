@@ -109,6 +109,7 @@ enum Feedback:
   case SkippedRecorded
   case SnoozedUntil(until: Instant)
   case Undone(nextReminderAt: Instant)
+  case LogUndone
   case Corrected(effectiveAt: Instant)
   case NoteRecorded
   case Refused(reason: Refusal)

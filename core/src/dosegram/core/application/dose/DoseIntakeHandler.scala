@@ -178,7 +178,8 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       event = userEvent,
       delivered = tx.outbox.deliveredFor(occ.id),
       nextOccurrenceScheduledFor = occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor)),
-      lastUndoableAction = lastUndoableAction(tx, occ.id)
+      lastUndoableAction = lastUndoableAction(tx, occ.id),
+      manualLog = occ.origin == OccurrenceOrigin.Manual
     )
     val transition = Decide.decide(occ.state, policy, quiet, now, ctx)
     if transition.row == occ.state then noTransitionReply(event, occ, transition.feedback)
@@ -205,7 +206,10 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
         case DispatchIntent.FinalizeControls(reason) =>
           FinalizeDispatch.enqueue(tx, occ.id, occ.accountId, transition.row.epoch, reason, now)
         case _ => () // a user event never sends a reminder of its own
-      feedbackReply(occ, transition, takenEvent(occ, userEvent, transition, now))
+      val reply = feedbackReply(occ, transition, takenEvent(occ, userEvent, transition, now))
+      if transition.feedback == Feedback.LogUndone then
+        reply.copy(replace = source.map(logUndoneCard(event, principal, occ, _, tx)))
+      else reply
     end if
   end applyUserEvent
 
@@ -425,7 +429,8 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
     * confirmation (BUX-STALE-01).
     */
   private def alreadyLogged(logged: StoredOccurrence): Reply =
-    Reply(toast = Some(ReminderCopy.alreadyLogged(formatTime(logged.state.scheduledFor, logged.tz))))
+    if logged.status == OccurrenceStatus.Cancelled then Reply(toast = Some(ReminderCopy.logUndone))
+    else Reply(toast = Some(ReminderCopy.alreadyLogged(formatTime(logged.state.scheduledFor, logged.tz))))
 
   private def recordLog(
       event: InboundEvent,
@@ -499,23 +504,51 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
     )
     val time = formatTime(now, row.tz)
     Reply(
-      replace = source.map(confirmation(event, row.doseSnapshot.medicationName, time, row.id, _)),
+      replace = source.map(confirmation(event, principal, row.doseSnapshot.medicationName, time, row.id, _, tx)),
       toast = Some(ReminderCopy.takenConfirmation(time)),
       domainEvents = List(Event.IntakeTaken(AccountId(row.accountId), row.id, now, takenLate = false))
     )
 
-  /** The picker edited in place into the confirmation, its keyboard removed so it cannot be tapped again. */
+  /** The picker edited in place into the confirmation. Its medication buttons are gone; only [Undo] (15 minutes) and
+    * [Log another] remain (BUX-TAKE-01).
+    */
   private def confirmation(
       event: InboundEvent,
+      principal: Principal,
       name: String,
       time: String,
       occurrenceId: UUID,
-      picker: MessageHandle
+      picker: MessageHandle,
+      tx: Tx
   ): OutboundMessage =
+    val undo = Choice.callback(Labels.Undo, directToken("dose.undo", occurrenceId, 0))
+    logCard(event, principal, ReminderCopy.logged(name, time), List(undo), picker, s"dose:logged:$occurrenceId", tx)
+
+  /** The confirmation after Undo of a manual log: what was undone, and [Log another] (BUX-UNDO-03). */
+  private def logUndoneCard(
+      event: InboundEvent,
+      principal: Principal,
+      occ: StoredOccurrence,
+      card: MessageHandle,
+      tx: Tx
+  ): OutboundMessage =
+    logCard(event, principal, ReminderCopy.logUndone, Nil, card, s"dose:log-undone:${occ.id}", tx)
+
+  private def logCard(
+      event: InboundEvent,
+      principal: Principal,
+      text: String,
+      choices: List[Choice],
+      card: MessageHandle,
+      dedupeKey: String,
+      tx: Tx
+  ): OutboundMessage =
+    val another = LogDosePicker.anotherChoice(codec, event.chat, principal.accountId.get.uuid, tx)
     OutboundMessage(
-      body = List(Node.Paragraph(List(Inline.Text(ReminderCopy.logged(name, time))))),
-      replaces = Some(picker),
-      dedupeKey = s"dose:logged:$occurrenceId",
+      body = List(Node.Paragraph(List(Inline.Text(text)))),
+      blocks = List(Block.Choices(ChoiceSet(id = "dose.logged", choices = choices :+ another))),
+      replaces = Some(card),
+      dedupeKey = dedupeKey,
       correlationId = s"${event.vendor}:${event.vendorEventId}"
     )
 
