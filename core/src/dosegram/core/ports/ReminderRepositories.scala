@@ -85,11 +85,6 @@ trait PromptRepository:
   /** Records that the prompt's message now carries `notice` (the pause notice it was edited to). */
   def markNotice(id: UUID, notice: PromptNotice): Unit
 
-  /** Cancels the outbox row of a sent prompt that has not left the queue yet, so a replaced prompt is never delivered
-    * late. Returns whether a row was cancelled.
-    */
-  def cancelQueued(sendKey: String): Boolean
-
 /** `day_profiles`: the anchors and work hours, and the pause of every prompt of the account. */
 trait DayProfileRepository:
   def anchors(accountId: UUID): Option[DayAnchors]

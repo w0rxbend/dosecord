@@ -142,11 +142,6 @@ final class PgPromptRepository(conn: Connection) extends PromptRepository:
     sql"UPDATE prompt_occurrences SET notice = ${notice.db} WHERE id = $id".execute()
     ()
 
-  // The one write of this group to another area's table: a replaced prompt must not leave the queue late.
-  override def cancelQueued(sendKey: String): Boolean =
-    sql"""UPDATE outbox_messages SET status = 'cancelled'
-          WHERE send_key = $sendKey AND status IN ('queued', 'failed_retry')""".execute() == 1
-
   private def kindOf(id: String): PromptKind =
     PromptKind.byId(id).getOrElse(throw IllegalStateException(s"unknown prompt kind '$id'"))
 

@@ -203,7 +203,7 @@ final class PromptLoop(
     previous.sendKey.foreach: key =>
       tx.outbox.recordedHandle(target.vendor, key) match
         case Some(handle) => followUp(tx, previous, target, OutboxOp.Delete, s"$key:delete", handle, "{}", now)
-        case None         => tx.reminders.prompts.cancelQueued(key)
+        case None         => tx.outbox.cancelQueued(key)
 
   /** Turns the open prompt into the one-line pause notice: the kind pauses for the day and says so once. */
   private def announcePause(

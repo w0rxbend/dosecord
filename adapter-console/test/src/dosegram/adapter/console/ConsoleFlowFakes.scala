@@ -200,6 +200,12 @@ private object ConsoleFlowFakes:
       )
       doomed.foreach(msg => states(msg.id) = states(msg.id).copy(status = OutboxStatus.Cancelled))
       doomed.size
+    override def cancelQueued(sendKey: String): Boolean = this.synchronized:
+      val doomed = enqueued.filter(msg =>
+        msg.sendKey == sendKey && Set(OutboxStatus.Queued, OutboxStatus.FailedRetry).contains(states(msg.id).status)
+      )
+      doomed.foreach(msg => states(msg.id) = states(msg.id).copy(status = OutboxStatus.Cancelled))
+      doomed.nonEmpty
 
     private def toOutboxMessage(msg: NewOutboxMessage, s: State, previousAttemptedAt: Option[Instant]): OutboxMessage =
       OutboxMessage(

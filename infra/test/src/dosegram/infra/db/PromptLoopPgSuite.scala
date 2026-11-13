@@ -130,6 +130,22 @@ class PromptLoopPgSuite extends PgSuite:
     assert(rig.adapter.ops.contains(VendorOp.Delete(first)), rig.adapter.ops)
     assertEquals(rig.prompts.map(p => (p.slotKey, p.status)), List("0930" -> PromptStatus.Expired, "1000" -> PromptStatus.Sent))
 
+  test("a prompt replaced before it left the queue is cancelled and never sent"):
+    val rig = Rig()
+    rig.at("09:30")
+    rig.loop().tick() // decided and queued, not dispatched
+    rig.at("10:00")
+    rig.tickAndSend()
+    assertEquals(rig.adapter.ops.count(_.isInstanceOf[VendorOp.Send]), 1, rig.adapter.ops)
+    assertEquals(rig.open.size, 1)
+    withConnection: conn =>
+      given Connection = conn
+      val first = rig.prompts.head.sendKey.get
+      assertEquals(
+        sql"SELECT status FROM outbox_messages WHERE send_key = $first".queryOne[String](),
+        Some("cancelled")
+      )
+
   test("water logged within the interval skips the slot, and the goal reached stops the day"):
     val rig = Rig()
     rig.uow.transaction(tx => rig.hydration.setGoal(tx, rig.account, Some(1000)))

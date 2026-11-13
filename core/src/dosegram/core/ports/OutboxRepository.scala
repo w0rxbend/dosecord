@@ -146,6 +146,11 @@ trait OutboxRepository:
     */
   def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int
 
+  /** Cancels the row of `sendKey` while it has not left the queue (`queued` or `failed_retry`): a replaced prompt is
+    * never delivered late (ADR-023). False when the row was claimed, sent or never queued.
+    */
+  def cancelQueued(sendKey: String): Boolean
+
 /** A `rendered_messages` row as the mediator's resolution rules need it (DESIGN.md section 4.6 step 5): the
   * `choice_map` plus whether finalize already removed the controls.
   */

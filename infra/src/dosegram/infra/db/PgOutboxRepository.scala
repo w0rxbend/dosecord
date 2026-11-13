@@ -139,6 +139,11 @@ final class PgOutboxRepository(conn: Connection) extends OutboxRepository:
           WHERE occurrence_id = $occurrenceId AND status = 'queued'
             AND (epoch IS NULL OR epoch < $epoch)""".execute()
 
+  override def cancelQueued(sendKey: String): Boolean =
+    sql"""UPDATE outbox_messages
+          SET status = 'cancelled', lease_until = NULL
+          WHERE send_key = $sendKey AND status IN ('queued', 'failed_retry')""".execute() == 1
+
 object PgOutboxRepository:
   /** Reads every column the dispatcher needs; the query must also project `prev_attempted_at` (e.g.
     * `attempted_at AS prev_attempted_at` for plain reads).
