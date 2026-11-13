@@ -105,9 +105,14 @@ final class ReminderLoop(
     * place it in an Ox fork, so the method itself needs no scope.
     */
   def run(): Unit =
-    while true do
-      val claimed = tickOnce(clock.now())
-      wake.awaitOrTimeout(if claimed >= batchSize then Duration.ZERO else pollInterval)
+    while true do step()
+
+  /** One turn of [[run]]: a tick, then the wait for a wake or the poll interval (none after a full batch). A caller
+    * that keeps the loop alive across a failed turn repeats this.
+    */
+  def step(): Unit =
+    val claimed = tickOnce(clock.now())
+    wake.awaitOrTimeout(if claimed >= batchSize then Duration.ZERO else pollInterval)
 
   /** One iteration of the process loop: the safety net (the materialiser-first startup of M1.8 — it runs before the
     * loop resumes ticking), one `tick`, then the per-instance heartbeat in its own short transaction (DESIGN.md section

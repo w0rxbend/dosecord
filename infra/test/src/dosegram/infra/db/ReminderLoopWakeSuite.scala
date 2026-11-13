@@ -9,6 +9,7 @@ import dosegram.core.scheduling.Materialiser
 import dosegram.core.scheduling.ReminderLoop
 
 import java.sql.Connection
+import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
@@ -72,6 +73,25 @@ class ReminderLoopWakeSuite extends PgSuite:
       listener.join(10000)
       assert(!listener.isAlive, "the NOTIFY woke the listener")
       assert(elapsed.get() >= 0 && elapsed.get() < 10000, s"prompt wake, took ${elapsed.get()} ms")
+    finally wake.close()
+
+  test("a LISTEN connection the database ends fails one wait, and the next wait listens on a new one"):
+    val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
+    try
+      val terminated = withConnection { conn =>
+        given Connection = conn
+        sql"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query = 'LISTEN dosegram_wake'"
+          .queryOne[Boolean]()
+      }
+      assertEquals(terminated, Some(true), "the listening backend was ended")
+      // The broken connection is a database error, not a cancellation: the worker loop logs it and goes on.
+      intercept[SQLException](wake.awaitOrTimeout(Duration.ofSeconds(5)))
+      val listener = new Thread(() => wake.awaitOrTimeout(Duration.ofSeconds(30)))
+      listener.start()
+      Thread.sleep(400) // let the listener open its new connection and block on the socket
+      sendNotify()
+      listener.join(10000)
+      assert(!listener.isAlive, "the NOTIFY woke the listener on its new connection")
     finally wake.close()
 
   test("run(): a NOTIFY on dosegram_wake triggers a prompt tick despite a 10-minute poll interval"):

@@ -33,12 +33,13 @@ import ox.useCloseableInScope
 
 import java.time.Duration
 import javax.sql.DataSource
-import scala.annotation.tailrec
 
 /** The worker half of the process (docs/dosegram/ARCHITECTURE.md section 4.1): the wake listener, the materialiser, the
   * reminder loop, one outbox dispatcher per vendor under that vendor's ownership lock, the session sweeper, the rollup
-  * worker and the purge of the image stores. Each runs in a fork of the root scope, so a failing fork fails the scope
-  * and the process restarts (DESIGN.md section 3).
+  * worker and the purge of the image stores. Each runs in a fork of the root scope. A failed pass of a worker is logged
+  * and retried after a backoff ([[WorkerLoop]]), so a database blip does not stop the process; a failure of a step the
+  * start depends on (the wake connection, the first materialiser pass, the ownership lock) still fails the scope and
+  * the process restarts (DESIGN.md section 3).
   *
   * Only the forks that call a vendor go through the [[ClaimGate]]: the reminder loop, the materialiser, the rollup
   * worker and the purge write to the database alone, one transaction per unit, so cancelling them with the scope loses
@@ -54,31 +55,35 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     * dispatchers, session sweeper.
     */
   def start(gate: ClaimGate, log: String => Unit)(using Ox): Unit =
+    val passes = WorkerLoop.standard(log)
     val wake = useCloseableInScope(PgNotifyWake(settings.databaseUrl))
     val loopMetrics = MicrometerLoopMetrics()
     val materialiser = Materialiser(uow, clock, loopMetrics)
-    startMaterialiser(materialiser)
-    startReminderLoop(materialiser, wake, loopMetrics)
-    parts.adapters.foreach((vendor, adapter) => startDispatcher(vendor, adapter, gate))
-    startSessionSweeper(gate)
-    startRollupWorker()
-    startImagePurge()
-    startPromptLoop(log)
-    startInboxPurge()
+    startMaterialiser(materialiser, passes)
+    startReminderLoop(materialiser, wake, loopMetrics, passes)
+    parts.adapters.foreach((vendor, adapter) => startDispatcher(vendor, adapter, gate, passes))
+    startSessionSweeper(gate, passes)
+    startRollupWorker(passes)
+    startImagePurge(passes)
+    startPromptLoop(log, passes)
+    startInboxPurge(passes)
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
     * claimed (DESIGN.md section 7.5); later passes follow the materialiser period.
     */
-  private def startMaterialiser(materialiser: Materialiser)(using Ox): Unit =
+  private def startMaterialiser(materialiser: Materialiser, passes: WorkerLoop)(using Ox): Unit =
     materialiser.runOnce()
     fork:
-      while true do
+      passes.repeat("materialiser"): () =>
         Thread.sleep(parts.cadence.materialiserPeriod.toMillis)
         materialiser.runOnce()
+        true
     ()
 
-  private def startReminderLoop(materialiser: Materialiser, wake: Wake, metrics: LoopMetrics)(using Ox): Unit =
+  private def startReminderLoop(materialiser: Materialiser, wake: Wake, metrics: LoopMetrics, passes: WorkerLoop)(using
+      Ox
+  ): Unit =
     val loop = ReminderLoop(
       uow,
       materialiser,
@@ -90,10 +95,15 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       metrics = metrics
     )
     Metrics.registerSchedulerTickAge(settings.instanceId, clock, loop.lastTickCompletedAt)
-    fork(loop.run())
+    fork:
+      passes.repeat("reminder loop"): () =>
+        loop.step()
+        true
     ()
 
-  private def startDispatcher(vendor: String, adapter: ChatAdapter, gate: ClaimGate)(using Ox): Unit =
+  private def startDispatcher(vendor: String, adapter: ChatAdapter, gate: ClaimGate, passes: WorkerLoop)(using
+      Ox
+  ): Unit =
     val dispatcher = OutboxDispatcher(
       uow,
       Map(vendor -> adapter),
@@ -105,56 +115,62 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     fork:
       // Ownership before the first claim (ADR-009): a second process that hosts this vendor waits here.
       useCloseableInScope(PgVendorLocks(dataSource, Seq(vendor))).lockAll()
-      Workers.repeatWhileClaiming(gate, parts.cadence.outboxIdlePoll)(() => dispatcher.dispatchOnce())
+      passes.repeat(s"outbox dispatcher $vendor"):
+        Workers.whileClaiming(gate, parts.cadence.outboxIdlePoll)(() => dispatcher.dispatchOnce())
     ()
 
-  private def startSessionSweeper(gate: ClaimGate)(using Ox): Unit =
+  private def startSessionSweeper(gate: ClaimGate, passes: WorkerLoop)(using Ox): Unit =
     val sweeper = SessionSweeper(uow, parts.adapters, codec, clock)
     fork:
-      Workers.repeatWhileClaiming(gate, parts.cadence.sessionSweepPeriod): () =>
-        val report = sweeper.sweepOnce()
-        report.graced + report.aborted
+      passes.repeat("session sweeper"):
+        Workers.whileClaiming(gate, parts.cadence.sessionSweepPeriod): () =>
+          val report = sweeper.sweepOnce()
+          report.graced + report.aborted
     ()
 
   /** Drains the rollup queue (ARCHITECTURE section 11.1, INS-01): a day a write made dirty is recomputed here, so a
     * read finds it ready. A read still refreshes the days of its own range, so it never shows a stale one either way.
     */
-  private def startRollupWorker()(using Ox): Unit =
+  private def startRollupWorker(passes: WorkerLoop)(using Ox): Unit =
     val rollups = RollupService(uow, clock)
     fork:
-      while true do if rollups.drain(Workers.RollupBatch) == 0 then Thread.sleep(parts.cadence.rollupIdlePoll.toMillis)
+      passes.repeat("rollup worker"): () =>
+        if rollups.drain(Workers.RollupBatch) == 0 then Thread.sleep(parts.cadence.rollupIdlePoll.toMillis)
+        true
     ()
 
   /** The deleting jobs of the image stores (ROADMAP G1.10): the bytes of an image one hour after it was drawn, and a
     * file id that no send has used for [[Workers.FileIdUnusedFor]].
     */
-  private def startImagePurge()(using Ox): Unit =
+  private def startImagePurge(passes: WorkerLoop)(using Ox): Unit =
     val assets = PgRenderAssets(dataSource)
     // Pruning is by last use, whichever bot the file id belongs to.
     val fileIds = PgTelegramFileCache(dataSource, botId = 0L)
     fork:
-      while true do
+      passes.repeat("image purge"): () =>
         val now = clock.now()
         assets.purge(now)
         fileIds.forgetUnusedSince(now.minus(Workers.FileIdUnusedFor))
         Thread.sleep(parts.cadence.imagePurgePeriod.toMillis)
+        true
     ()
 
   /** The deleting job of the inbound stores (ROADMAP G1.7, ARCHITECTURE section 15.6): inbox bodies after 24 hours,
     * inbox and `inbound_events` rows after 7 days. A processed body is deleted when it is processed.
     */
-  private def startInboxPurge()(using Ox): Unit =
+  private def startInboxPurge(passes: WorkerLoop)(using Ox): Unit =
     val inbox = PgInboundInbox(dataSource)
     fork:
-      while true do
+      passes.repeat("inbox purge"): () =>
         inbox.purge(clock.now())
         Thread.sleep(parts.cadence.inboxPurgePeriod.toMillis)
+        true
     ()
 
   /** The prompt loop (ADR-023): water, mood and sleep prompts through the outbox, at the reminder poll. A plan that
     * fails is logged by id and error class only, and the others go on.
     */
-  private def startPromptLoop(log: String => Unit)(using Ox): Unit =
+  private def startPromptLoop(log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
     val loop = PromptLoop(
       uow,
       clock,
@@ -165,9 +181,10 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       (plan, error) => log(s"prompt plan $plan failed: ${error.getClass.getSimpleName}")
     )
     fork:
-      while true do
+      passes.repeat("prompt loop"): () =>
         loop.tick()
         Thread.sleep(parts.cadence.reminderPoll.toMillis)
+        true
     ()
 
 object Workers:
@@ -207,13 +224,12 @@ object Workers:
       imagePurgePeriod = Duration.ofMinutes(1)
     )
 
-  /** Repeats `pass` (which returns the number of units it worked on) until claiming stops, waiting `idle` after a pass
-    * that found nothing.
+  /** One pass for [[WorkerLoop.repeat]]: runs `pass` (which returns the number of units it worked on) as one claimed
+    * unit and waits `idle` after a pass that found nothing. False once claiming has stopped, which ends the loop.
     */
-  @tailrec
-  private def repeatWhileClaiming(gate: ClaimGate, idle: Duration)(pass: () => Int): Unit =
+  private def whileClaiming(gate: ClaimGate, idle: Duration)(pass: () => Int): () => Boolean = () =>
     gate.whileClaiming(pass()) match
-      case None         => ()
+      case None         => false
       case Some(worked) =>
         if worked == 0 then Thread.sleep(idle.toMillis)
-        repeatWhileClaiming(gate, idle)(pass)
+        true

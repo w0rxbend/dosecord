@@ -164,7 +164,7 @@ flowchart TB
 
 ### 4.1 Process roles
 
-The executable keeps the command shape `dosegram run [--role gateway|worker|all]` and `dosegram migrate`, and gains `dosegram admin`. One Ox `supervised` scope owns all forks. Any fork failure fails the scope and the process restarts; supervision is the recovery model (unchanged from DESIGN section 3).
+The executable keeps the command shape `dosegram run [--role gateway|worker|all]` and `dosegram migrate`, and gains `dosegram admin`. One Ox `supervised` scope owns all forks. Any fork failure fails the scope and the process restarts; supervision is the recovery model (unchanged from DESIGN section 3). A periodic worker (the reminder, prompt and rollup loops, the materialiser, the outbox dispatchers, the sweepers and the purges) does not let a failed pass fail its fork: the pass is logged by the worker's name and the error's kind, and the next pass follows a backoff of 1 second doubling to 1 minute (`app` `WorkerLoop`, stability review of 2026-11-14). A failure of a step the start depends on (the wake connection, the first materialiser pass, a vendor's ownership lock) still fails the scope. The wake listener opens a new `LISTEN` connection after the database ends its old one.
 
 | Fork | Role | Purpose | Exists today |
 |---|---|---|---|

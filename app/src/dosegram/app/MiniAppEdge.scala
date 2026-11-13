@@ -94,9 +94,12 @@ object MiniAppEdge:
       log
     )
     fork:
-      while true do
-        Thread.sleep(SweepPeriod.toMillis)
-        api.sweep()
+      WorkerLoop
+        .standard(log)
+        .repeat("mini app sweep"): () =>
+          Thread.sleep(SweepPeriod.toMillis)
+          api.sweep()
+          true
     val static = miniApp.staticDir.map(dir => StaticApp.load(Path.of(dir))).getOrElse(StaticApp.absent)
     // Requests are not logged: a line would hold the path, and a path can hold a record id (AGENTS.md).
     val options = NettySyncServerOptions.customiseInterceptors
