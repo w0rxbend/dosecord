@@ -3,6 +3,7 @@
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Water</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Thu 12 Nov</text>
 <g>
+  <rect x="70" y="190" width="348" height="628" rx="90" fill="#ffffff"/>
   <path d="M160 198 L328 198 A82 82 0 0 1 410 280 L410 728 A82 82 0 0 1 328 810 L160 810 A82 82 0 0 1 78 728 L78 280 A82 82 0 0 1 160 198 Z" fill="#02558f"/>
   <rect x="67" y="187" width="354" height="634" rx="93" fill="none" stroke="#435561" stroke-width="6"/>
 </g>

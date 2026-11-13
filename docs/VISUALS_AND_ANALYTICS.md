@@ -550,11 +550,11 @@ The day blob answers "how is today going" for the daily summary card (IMG-03) an
                  food
 ```
 
-Geometry on the 1080 by 1350 daily card: blob `R = 190 px`; halo radius 300 px; halo stroke 28 px with round caps; segments have equal angular spans separated by 8 degree gaps; a 56 px domain icon sits outside the start of each segment.
+Geometry on the 1080 by 1350 daily card: blob `R = 172 px`; halo radius 272 px, its top on the body top under the header; halo stroke 28 px with round caps; segments have equal angular spans separated by 8 degree gaps; a 56 px domain icon sits outside the middle of each segment. A card with one or two domain lines, or mood alone, collapses to the square canvas with blob `R = 116 px` and halo radius 184 px (section 5.3).
 
 | Segment | Progress `p` | Drawn as |
 |---|---|---|
-| Medication | Scheduled doses of the local day with status taken (on time or late), divided by all scheduled doses of the day that are not cancelled or unknown. Skipped doses are a separate part. | Filled arc of length `p` in `spruce.base`; then a hollow arc (6 px outline in `ink2`) for the skipped share; then track. |
+| Medication | Scheduled doses of the local day with status taken (on time or late), divided by all scheduled doses of the day that are not cancelled or unknown. Skipped doses are a separate part. | Filled arc of length `p` in `spruce.base`; then, one 10 px gap after the round end of the fill, a thin line (8 px, `ink2`, round caps) along the middle of the track for the skipped share: answered, so marked, but not filled; then track. Owner review of 2026-11-13 replaced the earlier hollow arc, which read as a second, empty sleeve. |
 | Water | `min(1, effective volume / goal)` (section 7.4) | Filled arc in `tide` |
 | Food | Meals logged today divided by the user's number of planned meals (default 3), capped at 1 | Filled arc in `rye` |
 | Sleep | Last main sleep duration divided by the user's sleep goal, capped at 1. Tier T2 or T3 only. | Filled arc in `dusk`. With only a passive quiet window (T1) the segment is a hatched outline of full length with no fill, because a bound is not a duration. |
@@ -647,6 +647,8 @@ The pipeline of research brief 04 section 7 is adopted without change: snapshot,
 | `wide` | 1280 by 720 | 16:9 | Reminder card, timelines, refill card |
 | `a4` | 595 by 842 pt | A4 portrait | PDF pages (Typst) |
 | `miniapp` | 360 units wide, height by content | free | Mini App charts (section 9); one unit is one CSS pixel at 360 px width and the SVG scales by `viewBox` |
+
+A `portrait` card whose body fits the square collapses to `square` rather than ending in an empty band: a daily card with one or two domain lines or mood alone, a week whose rows fit, a strip of one page. The pages of one album keep one size.
 
 All chat images are PNG with an opaque background and a long side of at most 1280 px. Expected size is 50 to 300 KB and the limit is 2 MB (research brief 04 section 8.2).
 
@@ -882,6 +884,7 @@ Example caption: "Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded
 | VA-IMG-04a | A domain with no record in the week is listed as one line "No records this week" without a strip. A domain that is not tracked is absent. |
 | VA-IMG-04b | The weekly report is not sent when no domain has a record in the week (section 10). |
 | VA-IMG-04c | Each row's strip uses its own scale. No two rows share an axis. |
+| VA-IMG-04d | The marks the water, food, mood and sleep strips share are named once by glyph under the rows, each only when a strip draws it: the dotted goal line ("Your goal"), the dotted slot of a day without a record ("No record"), the hatch of an estimate ("Estimate") and the snack dot ("Snack"). |
 
 ### 6.6 IMG-05 Monthly report
 
@@ -958,9 +961,9 @@ Example caption on the first photo: "October 2026. Details below." Text equivale
 | None taken | Fraction equals 0 with at least one resolved dose | Hollow cell (the skipped glyph) when every resolved dose was skipped; empty cell with the dash when at least one was missed |
 | Not known | Only unknown doses | Hatched cell |
 | Open | The day is today or later and doses are open | Dotted outline |
-| Nothing scheduled | No dose | Blank slot |
+| Nothing scheduled | No dose | Empty cell in the `surface` tone, named "None scheduled" in the legend with the same cell |
 
-Cells are 96 px squares in 128 px slots; the day number sits under the cell in `label` size and `ink3`, so no text lies on a coloured fill (VA-CO-03). Today has a 4 px `ink` outline around the slot.
+Cells are 96 px squares in 128 px slots; the day number sits under the cell in `label` size and `ink3`, so no text lies on a coloured fill (VA-CO-03). Today has a 4 px `ink` outline around the slot. The weekday line, the grid and the legend sit on one `panel` (radius 40 px), the background the heat steps were validated against; the fact lines follow on the surface.
 
 Example caption: "October 2026, all medications. All scheduled doses recorded as taken on 25 days, most on 3 days, none on 1 day, no record on 1 day. Nothing scheduled on 1 day. 2 doses have no record and are not counted. 112 of 119 resolved doses taken (94%)."
 
@@ -1022,7 +1025,7 @@ Example caption (L2): "27 Oct to 9 Nov. Metformin 500 mg: 27 of 28 scheduled dos
 +------------------------------+
 ```
 
-The vessel is a rounded rectangle 360 by 640 px with a 96 px corner radius and a 6 px `ink2` outline. The fill rises from the bottom in `tide`; the level is a straight line; ticks mark each quarter of the goal. Above the goal the vessel is full and the surplus appears as text only ("2.4 of 2.0 l"); nothing overflows, sparkles or celebrates. The percentage is floored and is 100 only when the goal is reached.
+The vessel is a rounded rectangle 360 by 640 px with a 96 px corner radius and a 6 px `ink2` outline around a `panel` glass. The fill rises from the bottom in `tide`; the level is a straight line; ticks mark each quarter of the goal. Above the goal the vessel is full and the surplus appears as text only ("2.4 of 2.0 l"); nothing overflows, sparkles or celebrates. The percentage is floored and is 100 only when the goal is reached. The litres are written with at most two decimals and at least one, rounded down, in the image, its alt text and the chat caption alike: a day short of its goal never reads as the goal ("1.99 of 2.0 l (99%)").
 
 Example caption: "Water today: 1.4 of 2.0 l (70%). 5 entries, last at 15:20. The goal is the one you set."
 
@@ -1172,6 +1175,7 @@ Example caption: "October 2026: 22 check-in days. Most frequent: Good (9 days). 
 | Interruption | A 12 px surface-coloured gap in the bar at the time of an awake burst. A reminder acknowledged at night is stated in the caption as a neutral fact. |
 | Nap | A separate short bar, 28 px high, same row, marked "n". |
 | Medians | Two dotted vertical lines at the circular median bedtime and wake time, over nights with T2 or T3 data. |
+| Panel and legend | The axis, the rows and the bars sit on one `panel`. The marks drawn are named by glyph under it, each only when drawn: a night bar ("Your entries"), a nap bar ("Nap (n)"), the dotted typical times. |
 | `tz_shift` nights | Drawn, with a small clock icon; excluded from regularity for that night and the next. |
 | Daylight saving nights | Clock times are drawn as local times; the caption gives the true duration and notes the transition. |
 

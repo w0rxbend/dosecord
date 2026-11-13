@@ -28,11 +28,11 @@ object WaterCopy:
   def goalChoice(millilitres: Int): String = volume(millilitres)
 
   /** A volume in litres with its unit: "1.25 l", "2.0 l". */
-  def volume(millilitres: Int): String = s"${StatsCopy.litres(millilitres, 2)} l"
+  def volume(millilitres: Int): String = s"${StatsCopy.dayLitres(millilitres)} l"
 
   /** The accessible name of the vessel: the value, the goal and the percent in words (MINI_APP MA-HYD-2). */
   def vesselName(progress: GoalProgress): String =
-    s"Water: ${StatsCopy.litres(progress.totalMl, 2)} of ${StatsCopy.litres(progress.goalMl, 2)} litres, " +
+    s"Water: ${StatsCopy.dayLitres(progress.totalMl)} of ${StatsCopy.dayLitres(progress.goalMl)} litres, " +
       s"${progress.percent} percent"
   def dailyLimit(limit: Int): String = s"A day holds at most $limit water entries."
 
@@ -53,8 +53,8 @@ object WaterCopy:
   def figures(day: HydrationDay): String =
     day.progress match
       case Some(progress) =>
-        s"${StatsCopy.litres(progress.totalMl, 2)} of ${StatsCopy.litres(progress.goalMl, 2)} l (${progress.percent}%)"
-      case None => s"${StatsCopy.litres(day.totalMl, 2)} l"
+        s"${StatsCopy.dayLitres(progress.totalMl)} of ${StatsCopy.dayLitres(progress.goalMl)} l (${progress.percent}%)"
+      case None => s"${StatsCopy.dayLitres(day.totalMl)} l"
 
   private val sampleDay = HydrationDay(totalMl = 1250, entries = 4, goalMl = Some(2000))
 

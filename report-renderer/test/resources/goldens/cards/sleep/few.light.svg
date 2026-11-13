@@ -2,47 +2,55 @@
 <rect width="1080" height="1350" fill="#eef5f8"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Sleep</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">30 Oct to 12 Nov</text>
-<line x1="208" y1="240" x2="208" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="208" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">18</text>
-<line x1="309" y1="240" x2="309" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="309" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">21</text>
-<line x1="410" y1="240" x2="410" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="410" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">00</text>
-<line x1="511" y1="240" x2="511" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="511" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">03</text>
-<line x1="612" y1="240" x2="612" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="612" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">06</text>
-<line x1="713" y1="240" x2="713" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="713" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">09</text>
-<line x1="814" y1="240" x2="814" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="814" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">12</text>
-<line x1="915" y1="240" x2="915" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="915" y="216" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">15</text>
-<line x1="1016" y1="240" x2="1016" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="64" y="279.43" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Fri 30</text>
-<text x="64" y="330.29" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sat 31</text>
-<text x="64" y="381.14" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sun 1</text>
-<text x="64" y="432" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mon 2</text>
-<text x="64" y="482.86" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Tue 3</text>
-<text x="64" y="533.71" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Wed 4</text>
-<text x="64" y="584.57" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Thu 5</text>
-<text x="64" y="635.43" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Fri 6</text>
-<text x="64" y="686.29" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sat 7</text>
-<text x="64" y="737.14" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sun 8</text>
-<text x="64" y="788" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mon 9</text>
-<text x="64" y="838.86" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Tue 10</text>
+<rect x="64" y="152" width="952" height="824" rx="40" fill="#ffffff"/>
+<line x1="224" y1="236" x2="224" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="224" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">18</text>
+<line x1="318.5" y1="236" x2="318.5" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="318.5" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">21</text>
+<line x1="413" y1="236" x2="413" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="413" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">00</text>
+<line x1="507.5" y1="236" x2="507.5" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="507.5" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">03</text>
+<line x1="602" y1="236" x2="602" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="602" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">06</text>
+<line x1="696.5" y1="236" x2="696.5" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="696.5" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">09</text>
+<line x1="791" y1="236" x2="791" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="791" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">12</text>
+<line x1="885.5" y1="236" x2="885.5" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="885.5" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">15</text>
+<line x1="980" y1="236" x2="980" y2="952" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="88" y="275.57" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Fri 30</text>
+<text x="88" y="326.71" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sat 31</text>
+<text x="88" y="377.86" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sun 1</text>
+<text x="88" y="429" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mon 2</text>
+<text x="88" y="480.14" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Tue 3</text>
+<text x="88" y="531.29" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Wed 4</text>
+<text x="88" y="582.43" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Thu 5</text>
+<text x="88" y="633.57" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Fri 6</text>
+<text x="88" y="684.71" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sat 7</text>
+<text x="88" y="735.86" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sun 8</text>
+<text x="88" y="787" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mon 9</text>
+<text x="88" y="838.14" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Tue 10</text>
 <g>
-  <rect x="881.33" y="814.86" width="16.83" height="20" rx="10" fill="#8a66d9"/>
-  <text x="906.17" y="838.86" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">n</text>
+  <rect x="854" y="814.14" width="15.75" height="20" rx="10" fill="#8a66d9"/>
+  <text x="877.75" y="838.14" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">n</text>
 </g>
-<text x="64" y="889.71" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="40" fill="#435561">Wed 11</text>
+<text x="88" y="889.29" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="40" fill="#435561">Wed 11</text>
 <g>
-  <rect x="381.38" y="857.71" width="276.07" height="36" rx="18" fill="#8a66d9"/>
+  <rect x="386.23" y="857.29" width="258.3" height="36" rx="18" fill="#8a66d9"/>
 </g>
-<text x="64" y="940.57" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Thu 12</text>
+<text x="88" y="940.43" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Thu 12</text>
 <g>
-  <rect x="402.14" y="908.57" width="268.21" height="36" rx="18" fill="#8a66d9"/>
+  <rect x="405.65" y="908.43" width="250.95" height="36" rx="18" fill="#8a66d9"/>
 </g>
-<text x="64" y="1024" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e">Your entries · n nap · dotted: typical</text>
+<g>
+  <rect x="64" y="1010" width="44" height="24" rx="12" fill="#8a66d9"/>
+</g>
+<text x="120" y="1036" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Your entries</text>
+<g>
+  <rect x="371.16" y="1015" width="44" height="14" rx="7" fill="#8a66d9"/>
+</g>
+<text x="427.16" y="1036" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Nap (n)</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
 </svg>

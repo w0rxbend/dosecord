@@ -103,7 +103,17 @@ object Samples:
         )
         Vector(DayCard.render(day, context))
     ),
-    Fixture("day/mood-only", context => Vector(DayCard.render(DayData(Today, Some(reading(4, 3)), None, None, None, None), context)))
+    Fixture("day/mood-only", context => Vector(DayCard.render(DayData(Today, Some(reading(4, 3)), None, None, None, None), context))),
+    Fixture(
+      "day/two-domains",
+      context =>
+        val day = DayData(Today, Some(reading(5, 3)), Some(Vector(TakenOnTime, TakenLate, Skipped)), None, None, Some(SleepEvidence.Recorded(445, 480)))
+        Vector(DayCard.render(day, context))
+    ),
+    Fixture(
+      "day/one-domain",
+      context => Vector(DayCard.render(DayData(Today, None, None, Some(WaterProgress(1450, 2000)), None, None), context))
+    )
   )
 
   private def water(volumeMl: Int, entryCount: Int, lastEntry: Option[LocalTime]): WaterData =

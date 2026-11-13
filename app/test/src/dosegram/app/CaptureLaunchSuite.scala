@@ -276,7 +276,7 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(photo.method, "sendPhoto")
       assertEquals(bot.body(photo), "Water today: 0.25 of 2.0 l (12%)", "the caption is the text equivalent")
       assertEquals(uploadOf(photo), Some("png:1"), "the bytes of the card are the upload")
-      assert(bot.rasteriser.shows(1, "Water") && bot.rasteriser.shows(1, "0.3 of 2.0 l"), "it is the vessel card")
+      assert(bot.rasteriser.shows(1, "Water") && bot.rasteriser.shows(1, "0.25 of 2.0 l"), "it is the vessel card, with the caption's figures")
       assertEquals(
         strings("SELECT purpose FROM consent_state WHERE granted ORDER BY purpose"),
         List("hydration", "images_in_chat")

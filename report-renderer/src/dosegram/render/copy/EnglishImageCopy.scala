@@ -149,7 +149,7 @@ object EnglishImageCopy extends ImageCopy:
       case DayClass.NoRecord     => "No record"
       case DayClass.StillOpen    => "Still open"
 
-  def blankDayNote: String = "Blank: none scheduled"
+  def blankDayNote: String = "None scheduled"
 
   def resolvedDosesTaken(taken: Int, resolved: Int): String = s"$taken of $resolved resolved doses taken."
 
@@ -225,7 +225,9 @@ object EnglishImageCopy extends ImageCopy:
   def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String =
     s"Bedtime varied about $bedtimeMinutes min, wake $wakeMinutes min"
 
-  def sleepLegend: String = "Your entries · n nap · dotted: typical"
+  def sleepEntriesMark: String = "Your entries"
+  def sleepNapMark: String = "Nap (n)"
+  def sleepTypicalMark: String = "Typical times"
   def sleepGoal(minutes: Int): String = s"Your goal: ${duration(minutes)}"
   def sleepNoNights: String = "No night logged in these days."
 
@@ -254,6 +256,10 @@ object EnglishImageCopy extends ImageCopy:
 
   def sleepDiscreet: String = "Sleep, recent nights."
   def noRecordsThisWeek: String = "No records this week"
+  def yourGoal: String = "Your goal"
+  def noRecordMark: String = "No record"
+  def estimateMark: String = "Estimate"
+  def snackMark: String = "Snack"
 
   def weekText(week: WeekSummary): String =
     val medication = week.doses.map { counts =>
@@ -293,8 +299,11 @@ object EnglishImageCopy extends ImageCopy:
   private def days(count: Int): String = plural(count, "day")
   private def plural(count: Int, noun: String): String = if count == 1 then s"1 $noun" else s"$count ${noun}s"
 
+  // Two places at most and at least one, rounded down: a day short of its goal never reads as the goal, and the figure
+  // is the one the chat caption states for the same day.
   private def litres(volumeMl: Int): String =
-    (BigDecimal(volumeMl) / 1000).setScale(1, BigDecimal.RoundingMode.HALF_UP).toString
+    val rounded = (BigDecimal(volumeMl) / 1000).setScale(2, BigDecimal.RoundingMode.DOWN).bigDecimal.stripTrailingZeros
+    (if rounded.scale < 1 then rounded.setScale(1) else rounded).toPlainString
 
   private def dayClassPhrase(dayClass: DayClass): String =
     dayClass match

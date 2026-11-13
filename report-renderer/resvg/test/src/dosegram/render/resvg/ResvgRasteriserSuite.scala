@@ -76,7 +76,7 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     assertEquals(colourAt(8, 8), Tokens.Light.surface)
     assertEquals(colourAt(1071, 1071), Tokens.Light.surface)
     assertEquals(colourAt(244, 700), Tokens.Light.tide, "the vessel fill at 1.4 of 2.0 l covers this point")
-    assertEquals(colourAt(244, 260), Tokens.Light.surface, "the vessel is empty above the level")
+    assertEquals(colourAt(244, 260), Tokens.Light.panel, "the vessel is empty glass above the level")
     val pixels = image.getRGB(0, 0, image.getWidth, image.getHeight, null, 0, image.getWidth)
     assert(pixels.forall(pixel => (pixel >>> 24) == 0xff), "a pixel is not fully opaque")
 

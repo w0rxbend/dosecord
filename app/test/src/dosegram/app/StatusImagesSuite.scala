@@ -47,6 +47,25 @@ class StatusImagesSuite extends munit.FunSuite:
     val log: mutable.ListBuffer[String] = mutable.ListBuffer.empty
     val images: StatusImages = StatusImages.over(rasteriser, StatusImages.Stores.inMemory, log += _)
 
+  test("the water image, its alt text and the chat caption state the same litres and percentage"):
+    val litresAndPercent = """(\d+\.\d+) of (\d+\.\d+) l \((\d+)%\)""".r
+    for totalMl <- List(150, 1250, 1450, 1950, 1995, 2000, 4750) do
+      val rig = Rig(CountingRasteriser())
+      val view = water.copy(totalMl = totalMl)
+      val alt = rig.images.cards.water(view, light).get.altText
+      val caption = dosegram.core.domain.copy.StatsCopy
+        .waterDay(Some(dosegram.core.domain.insights.HydrationDay(totalMl, view.entries, Some(view.goalMl))))
+        .get
+      val inAlt = litresAndPercent.findFirstMatchIn(alt).map(_.subgroups)
+      val inCaption = litresAndPercent.findFirstMatchIn(caption).map(_.subgroups)
+      assert(inAlt.isDefined, alt)
+      assertEquals(inAlt, inCaption, s"$totalMl ml: '$alt' against '$caption'")
+      val drawn = rig.images.store.load(rig.images.cards.water(view, light).get.assetKey)
+      assert(drawn.isDefined)
+      // The volume is never rounded up to the goal: a day short of it never reads as "2.0 of 2.0 l".
+      val (shown, goal) = (BigDecimal(inAlt.get.head), BigDecimal(inAlt.get(1)))
+      assertEquals(shown >= goal, totalMl >= view.goalMl, s"$totalMl ml shows $shown of $goal")
+
   test("a mood state is drawn once and its key names the state, not a person"):
     val rasteriser = CountingRasteriser()
     val rig = Rig(rasteriser)
@@ -70,7 +89,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val rig = Rig(CountingRasteriser())
     val card = rig.images.cards.water(water, light).get
     assert(card.assetKey.matches("card\\.[0-9a-f]{64}"), card.assetKey)
-    assert(card.altText.contains("1.3 of 2.0 l (62%)"), card.altText)
+    assert(card.altText.contains("1.25 of 2.0 l (62%)"), card.altText)
     assert(card.altText.contains("4 entries"), card.altText)
     assertEquals(rig.images.cards.water(water, light).map(_.assetKey), Some(card.assetKey), "the same day is the same key")
     assertNotEquals(rig.images.cards.water(water.copy(totalMl = 1500), light).map(_.assetKey), Some(card.assetKey))
@@ -93,7 +112,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val full = rig.images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(marks), Some(water), None), light).get
     assert(full.altText.contains("2 of 5 scheduled doses recorded as taken"), full.altText)
     assert(full.altText.contains("1 skipped, 1 not confirmed, 1 still open"), full.altText)
-    assert(full.altText.contains("Water: 1.3 of 2.0 l."), full.altText)
+    assert(full.altText.contains("Water: 1.25 of 2.0 l."), full.altText)
     val bare = rig.images.cards.day(DayCardView(today, None, None, None, None), light).get
     val slept = rig.images.cards.day(DayCardView(today, None, None, None, Some(SleepCardView(Some(430), 450))), light).get
     assert(slept.altText.contains("Sleep: 7 h 10 min, from your check-ins."), slept.altText)

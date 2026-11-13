@@ -1,121 +1,121 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
-<rect width="1080" height="1350" fill="#0f222b"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#0f222b"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Your week</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">2 to 8 Nov</text>
-<text x="132" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
-<text x="268" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
-<text x="404" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
-<text x="540" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
-<text x="676" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
-<text x="812" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
-<text x="948" y="548" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="132" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
+<text x="268" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="404" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
+<text x="540" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="676" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
+<text x="812" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="948" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
 <g>
-  <rect x="73.33" y="585.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <line x1="82.67" y1="604" x2="101.33" y2="604" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="73.33" y="453.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="472" x2="101.33" y2="472" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="136" y="618" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication</text>
-<text x="1016" y="618" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">26 of 28 taken · 93%</text>
+<text x="136" y="486" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication</text>
+<text x="1016" y="486" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">26 of 28 taken · 93%</text>
 <g>
-  <rect x="84" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
-</g>
-<g>
-  <rect x="136" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="84" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="84" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="136" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="136" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="84" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="220" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="136" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="272" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="220" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="220" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="272" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="272" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="220" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="356" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="272" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <path d="M420.32 642 L438.8 642 L452 655.2 L452 673.68 A12.32 12.32 0 0 1 439.68 686 L420.32 686 A12.32 12.32 0 0 1 408 673.68 L408 654.32 A12.32 12.32 0 0 1 420.32 642 Z" fill="#038265"/>
+  <rect x="356" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="359" y="697" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
+  <path d="M420.32 510 L438.8 510 L452 523.2 L452 541.68 A12.32 12.32 0 0 1 439.68 554 L420.32 554 A12.32 12.32 0 0 1 408 541.68 L408 522.32 A12.32 12.32 0 0 1 420.32 510 Z" fill="#038265"/>
 </g>
 <g>
-  <rect x="408" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="359" y="565" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
 </g>
 <g>
-  <rect x="492" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="408" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="544" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="492" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="492" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="544" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="544" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="492" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="628" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="544" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="680" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="628" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="628" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="680" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="680" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="628" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="764" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="680" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="818" y="644" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
-  <line x1="829.2" y1="664" x2="846.8" y2="664" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="764" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="764" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="818" y="512" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <line x1="829.2" y1="532" x2="846.8" y2="532" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
-  <rect x="816" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="764" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="900" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="816" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="952" y="642" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="900" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="900" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="952" y="510" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="952" y="694" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="900" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="64" y="748" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="952" y="562" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
-<text x="120" y="784" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
 <g>
-  <path d="M272.68 748 L291.16 748 L304.36 761.2 L304.36 779.68 A12.32 12.32 0 0 1 292.04 792 L272.68 792 A12.32 12.32 0 0 1 260.36 779.68 L260.36 760.32 A12.32 12.32 0 0 1 272.68 748 Z" fill="#038265"/>
+  <rect x="64" y="616" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
-<text x="316.36" y="784" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
+<text x="120" y="652" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
 <g>
-  <rect x="539.36" y="751" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
+  <path d="M272.68 616 L291.16 616 L304.36 629.2 L304.36 647.68 A12.32 12.32 0 0 1 292.04 660 L272.68 660 A12.32 12.32 0 0 1 260.36 647.68 L260.36 628.32 A12.32 12.32 0 0 1 272.68 616 Z" fill="#038265"/>
 </g>
-<text x="592.36" y="784" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
+<text x="316.36" y="652" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
 <g>
-  <rect x="66" y="806" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
-  <line x1="77.2" y1="826" x2="94.8" y2="826" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="539.36" y="619" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
 </g>
-<text x="120" y="840" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Not confirmed</text>
-<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+<text x="592.36" y="652" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
+<g>
+  <rect x="66" y="674" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <line x1="77.2" y1="694" x2="94.8" y2="694" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="120" y="708" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Not confirmed</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
 </svg>

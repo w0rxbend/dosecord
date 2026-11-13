@@ -115,8 +115,8 @@ object StatsCopy:
     day.map: recorded =>
       recorded.progress match
         case Some(progress) =>
-          s"Water today: ${litres(progress.totalMl, 2)} of ${litres(progress.goalMl, 2)} l (${progress.percent}%)"
-        case None => s"Water today: ${litres(recorded.totalMl, 2)} l"
+          s"Water today: ${dayLitres(progress.totalMl)} of ${dayLitres(progress.goalMl)} l (${progress.percent}%)"
+        case None => s"Water today: ${dayLitres(recorded.totalMl)} l"
 
   /** The mood line of a 7-day or 30-day period; `None` when the period has no check-in. Variability is a number with no
     * label (VISUALS section 7.6).
@@ -204,7 +204,16 @@ object StatsCopy:
 
   /** Litres with at most `decimals` places and at least one: "1.25", "0.5", "2.0". */
   private[copy] def litres(millilitres: Int, decimals: Int): String =
-    val rounded = java.math.BigDecimal.valueOf(millilitres.toLong, 3).setScale(decimals, RoundingMode.HALF_UP)
+    litresRounded(millilitres, decimals, RoundingMode.HALF_UP)
+
+  /** A day's water against its goal: two places at most, rounded down, so a day short of the goal never reads as the
+    * goal ("1.99 of 2.0 l", not "2.0 of 2.0 l") and the litres agree with the floored percentage. The water image uses
+    * the same rule.
+    */
+  private[copy] def dayLitres(millilitres: Int): String = litresRounded(millilitres, 2, RoundingMode.DOWN)
+
+  private def litresRounded(millilitres: Int, decimals: Int, mode: RoundingMode): String =
+    val rounded = java.math.BigDecimal.valueOf(millilitres.toLong, 3).setScale(decimals, mode)
     val stripped = rounded.stripTrailingZeros
     (if stripped.scale < 1 then stripped.setScale(1) else stripped).toPlainString
 

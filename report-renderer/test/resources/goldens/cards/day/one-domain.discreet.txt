@@ -1,0 +1,5 @@
+file: dosegram-day.png
+spoiler: true
+caption: Your day so far.
+alt: Thu 12 Nov. No mood entry today. Water: 1.45 of 2.0 l.
+full: Thu 12 Nov. No mood entry today. Water: 1.45 of 2.0 l.

@@ -26,8 +26,12 @@ object AdherenceCalendarCard:
   val TemplateId = "card.med.calendar.v1"
   private val SlotPx = 128.0
   private val GridLeft = 92.0
-  private val WeekdayBaseline = 184.0
-  private val GridTop = 204.0
+  // The weekday line, the grid and the legend sit on a panel, the well the heat steps were checked against.
+  private val PanelTop = 148.0
+  private val PanelPadPx = 28.0
+  private val PanelRadius = 40.0
+  private val WeekdayBaseline = 204.0
+  private val GridTop = 228.0
   private val CornerShare = 0.28
   private val GridToLegendPx = 24.0
   private val LegendToFactsPx = 50.0
@@ -65,21 +69,27 @@ object AdherenceCalendarCard:
     val classes = calendar.days.map(dayClass)
     val offset = Math.floorMod(calendar.month.atDay(1).getDayOfWeek.getValue - calendar.weekStart.getValue, 7)
     val label = filterLabel(calendar, context)
-    val legend = Legend.flow(legendItems(classes, frame.tokens, context), frame.width, context.fitter)
+    val legendWidth = frame.width - 2 * PanelPadPx
+    val legend = Legend.flow(legendItems(classes, frame.tokens, context), legendWidth, context.fitter)
     val facts = factLines(calendar, context)
-    val belowGrid = GridToLegendPx + legend.height + LegendToFactsPx + (facts.size - 1) * FactLinePx
+    val legendBlock = if legend.rows.isEmpty then 0.0 else GridToLegendPx + legend.height
+    val belowGrid = legendBlock + PanelPadPx + LegendToFactsPx + (facts.size - 1) * FactLinePx
     val grid = Grid.fitting(offset, (offset + calendar.days.size + 6) / 7, frame.bodyBottom - belowGrid)
     val legendTop = grid.bottom + GridToLegendPx
+    val panelBottom = grid.bottom + legendBlock + (if legend.rows.isEmpty then 16.0 else PanelPadPx - 16.0)
     val todayIndex = calendar.today.filter(date => YearMonth.from(date) == calendar.month).map(_.getDayOfMonth - 1)
+    val panel =
+      Node.filledRect(Box(frame.left, PanelTop, frame.width, panelBottom - PanelTop), PanelRadius, frame.tokens.panel)
     val nodes = frame.header(label.getOrElse(copy.calendarTitle), copy.monthYear(calendar.month))
+      ++ Vector(panel)
       ++ weekdays(calendar.weekStart, frame, context)
       ++ classes.zipWithIndex.flatMap { (dayClass, index) =>
         val origin = grid.origin(offset + index)
         day(dayClass, index + 1, Box(origin.x, origin.y, grid.cellPx, grid.cellPx), frame)
       }
       ++ todayIndex.map(index => todayOutline(grid, offset + index, frame))
-      ++ legend.nodes(Point(frame.left, legendTop), frame, context.fitter)
-      ++ drawFacts(facts, legendTop + legend.height + LegendToFactsPx, frame)
+      ++ legend.nodes(Point(frame.left + PanelPadPx, legendTop), frame, context.fitter)
+      ++ drawFacts(facts, panelBottom + LegendToFactsPx, frame)
       :+ frame.footer
     val text = TextEquivalent.of(copy.calendarText(lines(calendar, classes, label)), copy.calendarDiscreet, context)
     CardOutput(
@@ -132,8 +142,15 @@ object AdherenceCalendarCard:
 
   private def day(dayClass: Option[DayClass], number: Int, box: Box, frame: CardFrame): Vector[Node] =
     val numberLook = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
-    dayClass.map(cell(_, box, frame.tokens)).toVector
+    Vector(dayClass.fold(nothingScheduled(box, frame.tokens))(cell(_, box, frame.tokens)))
       :+ frame.text(number.toString, Point(box.center.x, box.bottom + NumberBaselinePx), numberLook, SlotPx)
+
+  // A day with nothing scheduled is an empty cell: the card's surface tone in the panel, a slot with nothing in it.
+  private def nothingScheduled(box: Box, tokens: Tokens): Node =
+    Node.Mark(
+      MarkMeta("calendar.none", Set(Channel.Shape, Channel.Label)),
+      Vector(Node.filledRect(box, box.width * CornerShare, tokens.surface))
+    )
 
   // Today is marked by an ink outline around its cell.
   private def todayOutline(grid: Grid, slot: Int, frame: CardFrame): Node =
@@ -147,8 +164,8 @@ object AdherenceCalendarCard:
       frame.text(name, Point(GridLeft + (column + 0.5) * SlotPx, WeekdayBaseline), look, SlotPx)
     }
 
-  // One entry per class present, in the fixed order of the class list, and a note when a day has no cell at all: an
-  // empty place has no glyph, so the legend says in words what it means.
+  // One entry per class present, in the fixed order of the class list, and the empty cell of a day with nothing
+  // scheduled when the month has one.
   private def legendItems(
       classes: Vector[Option[DayClass]],
       tokens: Tokens,
@@ -158,7 +175,9 @@ object AdherenceCalendarCard:
     val glyphs = DayClass.values.toVector.filter(present).map { dayClass =>
       LegendItem.of(box => cell(dayClass, box, tokens), context.copy.dayClassName(dayClass))
     }
-    val blank = Option.when(present.nonEmpty && classes.contains(None))(LegendItem.note(context.copy.blankDayNote))
+    val blank = Option.when(present.nonEmpty && classes.contains(None)) {
+      LegendItem.of(box => nothingScheduled(box, tokens), context.copy.blankDayNote)
+    }
     glyphs ++ blank
 
   // The fact lines: the total, and the doses that are not counted.

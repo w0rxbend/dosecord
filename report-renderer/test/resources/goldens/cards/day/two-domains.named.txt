@@ -1,0 +1,5 @@
+file: dosegram-day.png
+spoiler: false
+caption: Thu 12 Nov. Mood: Slightly pleasant. Energy: medium. Medication: 2 of 3 scheduled doses recorded as taken, 1 skipped. Sleep: 7 h 25 min, from your check-ins.
+alt: Thu 12 Nov. Mood: Slightly pleasant. Energy: medium. Medication: 2 of 3 scheduled doses recorded as taken, 1 skipped. Sleep: 7 h 25 min, from your check-ins.
+full: Thu 12 Nov. Mood: Slightly pleasant. Energy: medium. Medication: 2 of 3 scheduled doses recorded as taken, 1 skipped. Sleep: 7 h 25 min, from your check-ins.

@@ -100,6 +100,10 @@ trait ImageCopy:
   def checkInDays(count: Int): String
   def sleepAverage(minutes: Int): String
   def noRecordsThisWeek: String
+  def yourGoal: String
+  def noRecordMark: String
+  def estimateMark: String
+  def snackMark: String
   def weekText(week: WeekSummary): String
   def weekDiscreet: String
 
@@ -109,7 +113,9 @@ trait ImageCopy:
   def sleepRowDate(date: LocalDate): String
   def sleepAverageOf(minutes: Int, nights: Int): String
   def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String
-  def sleepLegend: String
+  def sleepEntriesMark: String
+  def sleepNapMark: String
+  def sleepTypicalMark: String
   def sleepGoal(minutes: Int): String
   def sleepNoNights: String
   def sleepText(sleep: SleepRegularityData): String
