@@ -31,26 +31,27 @@ import java.time.Duration
   */
 object TelegramAssembly:
 
-  /** The production adapter: the HTTP transport, closed with the scope. */
-  def production(settings: Settings, telegram: TelegramSettings, clock: Clock)(using Ox): TelegramAdapter =
+  /** The production adapter: the HTTP transport, closed with the scope. `media` holds the bytes of attachments. */
+  def production(settings: Settings, telegram: TelegramSettings, clock: Clock)(media: MediaStore)(using
+      Ox
+  ): TelegramAdapter =
     if telegram.updates == TelegramUpdates.Webhook then
       // The endpoint needs the durable inbox of ROADMAP G1.7; a bot that receives nothing must not start silently.
       throw IllegalArgumentException("TELEGRAM_UPDATES_MODE=webhook is not served by this build; use poll")
     val transport = useCloseableInScope(HttpTelegramTransport(BotToken(telegram.token)))
-    adapter(settings, telegram, transport, clock)
+    adapter(settings, telegram, transport, clock)(media)
 
-  def adapter(settings: Settings, telegram: TelegramSettings, transport: TelegramTransport, clock: Clock)(using
-      Ox
-  ): TelegramAdapter =
+  def adapter(settings: Settings, telegram: TelegramSettings, transport: TelegramTransport, clock: Clock)(
+      media: MediaStore
+  )(using Ox): TelegramAdapter =
     TelegramAdapter(
       BotApi(transport),
       config(settings, telegram),
       TelegramAdapter.Runtime(
         clock = clock,
         timer = OxTimer(),
-        // The asset store belongs to the render and media tracks; until it is wired an attachment is sent as its text
-        // equivalent.
-        media = MediaStore.empty,
+        // An attachment whose bytes the store does not hold is sent as its text equivalent.
+        media = media,
         fileIds = InMemoryFileIdCache(),
         log = line => scribe.info(line),
         metrics = MicrometerTelegramMetrics

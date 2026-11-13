@@ -53,6 +53,11 @@ final case class MiniAppSettings(
     hmacFallback: Boolean
 )
 
+/** The image renderer, present when `RESVG_PATH` and `RENDER_FONTS_DIR` are both set (ADR-022): the resvg binary and
+  * the directory of the pinned font pack. Without it every image is sent as its text equivalent.
+  */
+final case class RenderSettings(resvgPath: String, fontsDir: String)
+
 enum LogLevel(val envName: String):
   case Debug extends LogLevel("DEBUG")
   case Info extends LogLevel("INFO")
@@ -110,7 +115,8 @@ final case class Settings(
     miniApp: Option[MiniAppSettings] = None,
     // The bot token as configured, whether or not the adapter is enabled: the Mini App derives its HMAC key from it
     // (ARCHITECTURE API-03). The adapter reads its own copy from `telegram`.
-    telegramToken: Option[Secret] = None
+    telegramToken: Option[Secret] = None,
+    render: Option[RenderSettings] = None
 )
 
 object Settings:
@@ -273,6 +279,20 @@ object Settings:
       "true | false. Accepts launch data without a signature by its HMAC; needs TELEGRAM_TOKEN.",
       "false",
       Some("false")
+    ),
+    EnvSpec(
+      "RESVG_PATH",
+      required = false,
+      secret = false,
+      "The resvg binary that draws status images; set it together with RENDER_FONTS_DIR, or images are sent as text.",
+      "/usr/local/bin/resvg"
+    ),
+    EnvSpec(
+      "RENDER_FONTS_DIR",
+      required = false,
+      secret = false,
+      "Directory of the pinned font pack (report-renderer/fonts); required with RESVG_PATH.",
+      "report-renderer/fonts"
     )
   )
 
@@ -358,6 +378,10 @@ object Settings:
     val miniAppEnabled = flag("MINIAPP_ENABLED")
     val hmacFallback = flag("MINIAPP_HMAC_FALLBACK")
     val staticDir = lookup("MINIAPP_STATIC_DIR")
+    val render = (lookup("RESVG_PATH"), lookup("RENDER_FONTS_DIR")) match
+      case (Some(binary), Some(fonts)) => Some(RenderSettings(binary, fonts))
+      case (None, None)                => None
+      case _ => { errors = errors :+ "RESVG_PATH and RENDER_FONTS_DIR must be set together"; None }
 
     val databaseUrl = required("DATABASE_URL")
 
@@ -413,7 +437,8 @@ object Settings:
           miniAppUrl = miniAppUrl,
           httpPort = httpPort.getOrElse(DefaultHttpPort),
           miniApp = Option.when(miniAppEnabled)(MiniAppSettings(staticDir, botId, initDataPublicKey, hmacFallback)),
-          telegramToken = telegramToken.map(Secret(_))
+          telegramToken = telegramToken.map(Secret(_)),
+          render = render
         )
       )
 

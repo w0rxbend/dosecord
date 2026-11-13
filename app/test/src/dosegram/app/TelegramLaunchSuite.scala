@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.adapter.telegram.FakeTelegramTransport
+import dosegram.adapter.telegram.MediaStore
 import dosegram.adapter.telegram.WireReply
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
@@ -154,7 +155,7 @@ class TelegramLaunchSuite extends PgSuite:
     prepare(wire)
     supervised:
       val config = settings
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(MediaStore.empty)
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
       test(Bot(clock, wire))
 
@@ -360,7 +361,7 @@ class TelegramLaunchSuite extends PgSuite:
     launched(clock): bot =>
       eventually("the commands are registered")(bot.wire.calls("setMyCommands").nonEmpty)
       val registered = bot.wire.calls("setMyCommands").head.request.params("commands").arr.map(_("command").str).toList
-      assertEquals(registered, dosegram.core.application.CommandRegistry.all.map(_.name))
+      assertEquals(registered, dosegram.core.application.CommandRegistry.withCapture.map(_.name))
       assertEquals(
         bot.wire.calls("setChatMenuButton").map(_.request.params),
         List(ujson.Obj("menu_button" -> ujson.Obj("type" -> "commands")))

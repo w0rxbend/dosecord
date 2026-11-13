@@ -13,14 +13,24 @@ import javax.sql.DataSource
   */
 object Launch:
 
-  /** What the process is assembled from besides its settings and its pool. Production takes all three from
-    * [[Parts.production]]; a launch-path test passes its own clock, its own console streams and a shorter cadence.
+  /** What the process is assembled from besides its settings and its pool. Production takes all of it from
+    * [[Parts.production]]; a launch-path test passes its own clock, its own console streams and a shorter cadence, and
+    * its own images when it looks at them.
     */
-  final class Parts(val clock: Clock, val adapters: Map[String, ChatAdapter], val cadence: Workers.Cadence)
+  final class Parts(
+      val clock: Clock,
+      val adapters: Map[String, ChatAdapter],
+      val cadence: Workers.Cadence,
+      val images: StatusImages
+  ):
+    /** Without images: every attachment is its text equivalent. */
+    def this(clock: Clock, adapters: Map[String, ChatAdapter], cadence: Workers.Cadence) =
+      this(clock, adapters, cadence, StatusImages.textOnly)
 
   object Parts:
     def production(settings: Settings)(using Ox): Parts =
-      Parts(Clock.system, Adapters.build(settings, Clock.system), Workers.Cadence.Production)
+      val images = StatusImages.from(settings.render, line => scribe.info(line))
+      Parts(Clock.system, Adapters.build(settings, Clock.system, images), Workers.Cadence.Production, images)
 
   /** Starts, in the order of DESIGN.md section 12, the workers, then the adapters, then the HTTP edge, each only when
     * the role hosts it, and returns the drain that stops them on SIGTERM.
