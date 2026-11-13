@@ -30,5 +30,6 @@ object Copy:
       WaterCopy.entries ++
       CheckInCopy.entries ++
       StatsCardCopy.entries ++
-      InputCopy.entries
+      InputCopy.entries ++
+      PromptCopy.entries
 end Copy

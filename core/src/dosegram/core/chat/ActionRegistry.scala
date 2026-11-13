@@ -36,7 +36,20 @@ object ActionRegistry:
     ActionEntry(71, "mood.energy", requiresSession = false),
     ActionEntry(72, "mood.undo", requiresSession = false),
     ActionEntry(80, "stats.show", requiresSession = false),
-    ActionEntry(81, "stats.image", requiresSession = false)
+    ActionEntry(81, "stats.image", requiresSession = false),
+    // Prompts and the /reminders hub (ADR-023): direct mode on the prompt occurrence for the buttons of a prompt, on
+    // the account for the hub; the value carries the amount, the minutes, the kind, the preset or the hours.
+    ActionEntry(100, "prompt.water_add", requiresSession = false),
+    ActionEntry(101, "prompt.snooze", requiresSession = false),
+    ActionEntry(102, "prompt.pause_today", requiresSession = false),
+    ActionEntry(103, "prompt.sleep", requiresSession = false),
+    ActionEntry(110, "reminders.hub", requiresSession = false),
+    ActionEntry(111, "reminders.kind", requiresSession = false),
+    ActionEntry(112, "reminders.preview", requiresSession = false),
+    ActionEntry(113, "reminders.apply", requiresSession = false),
+    ActionEntry(114, "reminders.off", requiresSession = false),
+    ActionEntry(115, "reminders.pause_all", requiresSession = false),
+    ActionEntry(116, "reminders.day", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

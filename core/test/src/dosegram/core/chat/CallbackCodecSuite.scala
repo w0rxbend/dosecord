@@ -229,7 +229,19 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         71 -> "mood.energy",
         72 -> "mood.undo",
         80 -> "stats.show",
-        81 -> "stats.image"
+        81 -> "stats.image",
+        // Prompts and the /reminders hub (ADR-023).
+        100 -> "prompt.water_add",
+        101 -> "prompt.snooze",
+        102 -> "prompt.pause_today",
+        103 -> "prompt.sleep",
+        110 -> "reminders.hub",
+        111 -> "reminders.kind",
+        112 -> "reminders.preview",
+        113 -> "reminders.apply",
+        114 -> "reminders.off",
+        115 -> "reminders.pause_all",
+        116 -> "reminders.day"
       )
     )
 

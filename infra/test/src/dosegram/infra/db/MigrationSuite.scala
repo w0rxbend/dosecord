@@ -42,7 +42,10 @@ class MigrationSuite extends PgSuite:
       "idempotency_keys",
       "sleep_checkins",
       "sleep_episodes",
-      "sleep_goals"
+      "sleep_goals",
+      "day_profiles",
+      "prompt_schedules",
+      "prompt_occurrences"
     )
     withConnection { conn =>
       given Connection = conn

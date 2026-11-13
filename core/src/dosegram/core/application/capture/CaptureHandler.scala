@@ -6,6 +6,7 @@ import dosegram.contracts.InboundEvent
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.reminders.WaterOffer
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -155,14 +156,18 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def resume(turn: Turn, pending: Pending): Reply =
     val fresh = turn.copy(source = None)
     pending match
-      case Pending.WaterCard             => water.askGoal(fresh, pendingMl = 0)
-      case Pending.WaterAdd(millilitres) => water.askGoal(fresh, millilitres)
+      case Pending.WaterCard             => withWaterOffer(fresh, water.askGoal(fresh, pendingMl = 0))
+      case Pending.WaterAdd(millilitres) => withWaterOffer(fresh, water.askGoal(fresh, millilitres))
       case Pending.MoodPrompt            => mood.prompt(fresh)
       case Pending.MoodCheckIn(step)     => Valence.of(step).map(mood.checkIn(fresh, _)).getOrElse(stale(turn))
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
       case Pending.Medication(screen)    => openMedication(fresh, screen)
+
+  /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
+  private def withWaterOffer(turn: Turn, reply: Reply): Reply =
+    reply.copy(followUps = reply.followUps :+ WaterOffer.message(codec, turn.accountId, turn.clientKey))
 
   /** The medication screen the consent was asked for, as its own command answers it. */
   private def openMedication(turn: Turn, screen: MedicationScreen): Reply =

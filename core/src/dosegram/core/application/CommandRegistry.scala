@@ -133,7 +133,16 @@ object CommandRegistry:
   val withCapture: List[CommandSpec] =
     all.flatMap(spec => if spec == Menu then capture :+ spec else List(spec))
 
-  val withCaptureByName: Map[String, CommandSpec] = withCapture.map(spec => spec.name -> spec).toMap
+  /** `/reminders` (ADR-023): hidden, so the listed set stays at its limit (BOT_UX BUX-CMD-06); it is still declared, so
+    * the mediator acknowledges it before work.
+    */
+  val Reminders: CommandSpec = CommandSpec(
+    name = "reminders",
+    description = "Reminders, presets, work and quiet hours.",
+    args = List(CommandArg("setting", "e.g. wake 06:30, work mon-fri 09:00-18:00, pause 1", required = false))
+  )
+
+  val withCaptureByName: Map[String, CommandSpec] = (withCapture :+ Reminders).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =
