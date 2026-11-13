@@ -36,6 +36,11 @@ class WebhookSettingsSuite extends munit.FunSuite:
     assert(errors.contains("TELEGRAM_WEBHOOK_SECRET_TOKEN is required when TELEGRAM_UPDATES_MODE=webhook"), errors.toString)
     assert(errors.contains("PUBLIC_BASE_URL must be an https address when TELEGRAM_UPDATES_MODE=webhook"), errors.toString)
 
+  test("a PUBLIC_BASE_URL without a host is refused in webhook mode: setWebhook would get a URL Telegram rejects"):
+    for base <- List("https://", "https:///path", "https:x") do
+      val Left(errors) = parse(webhook + ("PUBLIC_BASE_URL" -> base)): @unchecked
+      assert(errors.contains("PUBLIC_BASE_URL must be an https address when TELEGRAM_UPDATES_MODE=webhook"), base)
+
   test("a secret shorter than 16 characters or with characters Telegram refuses is rejected, and never quoted"):
     val Left(errors) = parse(
       webhook ++ Map("TELEGRAM_WEBHOOK_PATH_SECRET" -> "CANARY-short", "TELEGRAM_WEBHOOK_SECRET_TOKEN" -> "CANARY secret/with space")

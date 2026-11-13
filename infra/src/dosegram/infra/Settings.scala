@@ -553,7 +553,7 @@ object Settings:
           s"$name must be 16 to 256 characters of A-Z, a-z, 0-9, _ and -"
         )
     val base = lookup("PUBLIC_BASE_URL")
-      .filter(_.startsWith("https://"))
+      .filter(isHttpsAddress)
       .toRight(s"PUBLIC_BASE_URL must be an https address $whenWebhook")
     val path = secret("TELEGRAM_WEBHOOK_PATH_SECRET")
     val header = secret("TELEGRAM_WEBHOOK_SECRET_TOKEN")
