@@ -14,7 +14,7 @@ import scala.io.Source
 import scala.util.Using
 
 /** M0.12d acceptance on `FakeAdapter(CapabilityProfiles.Console)` over the in-memory ports: the `/start` create flow
-  * (timezone pick, invalid zone, confirm), `/mood` with and without note/tags, `/help` from the registry, and the
+  * (timezone pick, invalid zone, confirm), `/help` from the registry, the refusal of `/mood`, and the
   * already-linked refusal — one transcript golden plus row-level assertions on the in-memory stores. The Postgres half
   * is `infra`'s `FirstFlowsPgSuite`; the real-console half is `adapter-console`'s `ConsoleFirstFlowsSuite`.
   */
@@ -41,23 +41,9 @@ class FirstFlowsSuite extends munit.FunSuite:
         "display name never copies the vendor nickname"
       )
 
-      // Acceptance 1/2: two mood rows, note only when supplied, trailing #tags into the tag list.
-      assertEquals(rig.uow.moodCheckins.all.size, 2)
-      val first = rig.uow.moodCheckins.all.head
-      assertEquals(first.moodLevel.value, 8)
-      assertEquals(first.note, Some("slept well"))
-      assertEquals(first.tags, List("sleep"))
-      val second = rig.uow.moodCheckins.all(1)
-      assertEquals(second.moodLevel.value, 8)
-      assertEquals(second.note, None)
-      assertEquals(second.tags, Nil)
-
-      // Acceptance 6: one account_created.v1 and one checkin_recorded.v1 per checkin, account_id = created account.
+      // Acceptance 6: one account_created.v1 with account_id = created account, and no event of another domain.
       val events = rig.uow.domainEvents.all
-      assertEquals(
-        events.map(_.eventType),
-        List(Event.AccountCreatedType, Event.MoodCheckinRecordedType, Event.MoodCheckinRecordedType)
-      )
+      assertEquals(events.map(_.eventType), List(Event.AccountCreatedType))
       events.foreach: e =>
         assertEquals(e.accountId, Some(account.accountId), s"${e.eventType} carries the created account id")
         assertEquals(e.source, e.eventType.split('.').take(2).mkString("."))
@@ -83,22 +69,19 @@ class FirstFlowsSuite extends munit.FunSuite:
       assert(out.exists(_.contains(IdentityCopy.welcome)), s"the picker: $out")
       assertEquals(rig.uow.sessions.all.size, 1, "a create session started")
 
-  test("/mood before an account points at /start and stores nothing"):
-    ox.supervised:
-      val rig = FirstFlowsRig()
-      val out = rig.line("/mood 8")
-      assert(out.exists(_.contains(IdentityCopy.createFirst)), s"got: $out")
-      assertEquals(rig.uow.moodCheckins.all, Nil)
-
-  test("/mood with an unparsable level answers the usage error and stores nothing (C18)"):
+  // BOT_UX BUX-CMD-08: no command of a domain exists before the domain has a consent purpose.
+  test("/mood is not a command: the registry and /help do not list it, and typing it records nothing"):
     ox.supervised:
       val rig = FirstFlowsRig()
       rig.line("/start")
       rig.line("13")
       rig.line("1")
-      val out = rig.line("/mood banana")
-      assert(out.exists(_.contains(dosegram.core.domain.copy.MoodCopy.invalidMood)), s"usage error: $out")
-      assertEquals(rig.uow.moodCheckins.all, Nil, "no row for junk input")
+      assert(!CommandRegistry.all.exists(_.name == "mood"), "the registry lists no mood command")
+      val help = rig.line("/help")
+      assert(!help.exists(_.contains("/mood")), s"help: $help")
+      val out = rig.line("/mood 8")
+      assert(out.exists(_.contains(dosegram.core.domain.copy.HelpCopy.unknownCommand)), s"got: $out")
+      assertEquals(rig.uow.domainEvents.all.map(_.eventType), List(Event.AccountCreatedType), "nothing recorded")
 
 /** The transcript rig: the real mediator, engine, flows and handlers over the in-memory ports and a
   * `FakeAdapter(CapabilityProfiles.Console)`. Drives console-grammar input lines and collects the printed chunks.
@@ -175,15 +158,14 @@ private object FirstFlowsRig:
   /** The vendor supplies a display name fixture; `users.display_name` must never copy it (K8). */
   val actor: PlatformIdentity = PlatformIdentity("fake", "user-1", Some("VendorNick123"))
 
-  /** The acceptance script: create with a wrong turn, two moods, help, and the refused second create. */
+  /** The acceptance script: create with a wrong turn, the refused /mood, help, and the refused second create. */
   val Script: List[String] = List(
     "/start",
     "22", // Other — type your timezone
     "Mars/Olympus_Mons", // invalid zone: the picker is re-shown, no row written
     "13", // UTC+03:00 — Europe/Kyiv
     "1", // Yes
-    "/mood 8 slept well #sleep",
-    "/mood 8",
+    "/mood 8", // no mood consent yet: not a command (BUX-CMD-08)
     "/help",
     "/start" // already linked: catalogue error, no row
   )

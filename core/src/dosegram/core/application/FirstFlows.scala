@@ -2,7 +2,6 @@ package dosegram.core.application
 
 import dosegram.contracts.*
 import dosegram.core.application.identity.AccountCreateFlow
-import dosegram.core.application.mood.MoodCommand
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.WizardEngine
@@ -30,7 +29,7 @@ object FirstFlows:
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,
-      inner = CommandHandlers(clock),
+      inner = CommandHandlers(),
       uow = uow,
       adapters = adapters
     )
@@ -49,16 +48,13 @@ object FirstFlows:
         Reply(followUps = List(FirstFlows.outbound(event, "identity.linked", IdentityCopy.alreadyLinked)))
       else engine.startFlow(event, principal, AccountCreateFlow.Id, tx)
 
-  /** The non-wizard commands of the slice: `/mood`, `/help` (rendered from the registry) and the fallbacks. `/menu`
-    * shows help on this legacy path; the M1.9 [[Application]] composition wires the real menu behind the engine's
-    * global interrupt.
+  /** The non-wizard commands of the slice: `/help` (rendered from the registry) and the fallbacks. `/menu` shows help
+    * on this legacy path; the M1.9 [[Application]] composition wires the real menu behind the engine's global
+    * interrupt.
     */
-  private[application] final class CommandHandlers(clock: Clock) extends ChatHandler:
-    private val mood = MoodCommand(clock)
-
+  private[application] final class CommandHandlers extends ChatHandler:
     override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
       event.body match
-        case Inbound.CommandInvoked(CommandRegistry.Mood.name, _, _) => mood.handle(event, principal, tx)
         case Inbound.CommandInvoked(CommandRegistry.Help.name, _, _) => help(event)
         case Inbound.CommandInvoked(CommandRegistry.Menu.name, _, _) => help(event)
         case Inbound.CommandInvoked(_, _, _)                         =>
@@ -88,10 +84,10 @@ object FirstFlows:
       correlationId = s"${event.vendor}:${event.vendorEventId}"
     )
 
-  /** The M1.9 composition's building blocks: the plain command handlers (`/mood`, `/help`, the fallbacks) as the inner
-    * handler behind the menu, and the identity gate in front of the engine.
+  /** The M1.9 composition's building blocks: the plain command handlers (`/help`, the fallbacks) as the inner handler
+    * behind the menu, and the identity gate in front of the engine.
     */
-  private[application] def innerHandlers(clock: Clock): ChatHandler = CommandHandlers(clock)
+  private[application] def innerHandlers: ChatHandler = CommandHandlers()
 
   private[application] def identityGate(engine: WizardEngine): ChatHandler = IdentityGate(engine)
 end FirstFlows

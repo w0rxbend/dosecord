@@ -40,7 +40,7 @@ class MedicationWizardPgSuite extends PgSuite:
         st.execute(
           "TRUNCATE inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
             "conversation_sessions, form_runs, callback_slots, dose_actions, dose_occurrences, schedule_revisions, " +
-            "medication_schedules, medications, mood_checkins, delivery_channels, platform_identities, users CASCADE"
+            "medication_schedules, medications, delivery_channels, platform_identities, users CASCADE"
         )
       finally st.close()
     }

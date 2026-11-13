@@ -14,9 +14,8 @@ import scala.language.implicitConversions
 
 /** M0.12d acceptance on Testcontainers Postgres 18 (the core in-memory half is `FirstFlowsSuite`): the `/start` create
   * flow writes `users` (display_name NULL, never the vendor nickname), links `platform_identities` and inserts the
-  * `delivery_channels` row in one transaction with `dosegram.identity.account_created.v1`; `/mood` rows store the note
-  * only when supplied with trailing `#tags` in `tags text[]` and append `dosegram.mood.checkin_recorded.v1`; an invalid
-  * zone and a second create write nothing.
+  * `delivery_channels` row in one transaction with `dosegram.identity.account_created.v1`; `/mood` is not a command and
+  * records nothing; an invalid zone and a second create write nothing.
   */
 class FirstFlowsPgSuite extends PgSuite:
 
@@ -32,7 +31,7 @@ class FirstFlowsPgSuite extends PgSuite:
       try
         st.execute(
           "TRUNCATE inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
-            "conversation_sessions, form_runs, callback_slots, mood_checkins, delivery_channels, " +
+            "conversation_sessions, form_runs, callback_slots, delivery_channels, " +
             "platform_identities, users CASCADE"
         )
       finally st.close()
@@ -117,15 +116,11 @@ class FirstFlowsPgSuite extends PgSuite:
   private given RowMapper[UserRow] = rs =>
     UserRow(rs.uuid("id"), rs.optString("handle"), rs.optString("display_name"), rs.getString("timezone"))
 
-  private final case class MoodRow(note: Option[String], tags: List[String], level: Int)
-  private given RowMapper[MoodRow] = rs =>
-    MoodRow(rs.optString("note"), rs.stringArray("tags").toList, rs.getInt("mood_level"))
-
-  // Acceptance 1: /start -> timezone pick -> confirm -> /mood 8 slept well #sleep -> one row, note + tags.
+  // Acceptance 1: /start -> timezone pick -> confirm -> one account, one domain event.
   // Acceptance 3: an invalid zone re-shows the picker and writes no row.
   // Acceptance 5: users.display_name is NULL and never the vendor nickname.
   // Acceptance 6: one account_created.v1 and one checkin_recorded.v1 with account_id = principal.
-  test("create flow, mood with note+tags, mood bare, domain events"):
+  test("create flow, the refused /mood, domain events"):
     ox.supervised:
       val rig = Rig()
 
@@ -174,17 +169,9 @@ class FirstFlowsPgSuite extends PgSuite:
         assertEquals(channels, 1L, "the delivery channel row exists")
       }
 
-      // Acceptance 1: /mood 8 slept well #sleep -> one row with note 'slept well' and tags {sleep}.
-      val moodReply = rig.line("/mood 8 slept well #sleep")
-      assert(moodReply.exists(_.contains("Mood recorded: 8/10.")), s"mood ack: $moodReply")
-      // Acceptance 2: /mood 8 -> note NULL, tags {}.
-      rig.line("/mood 8")
-
-      val moods = withConnection { conn =>
-        given Connection = conn
-        sql"SELECT note, tags, mood_level FROM mood_checkins ORDER BY note NULLS LAST".query[MoodRow]()
-      }
-      assertEquals(moods, List(MoodRow(Some("slept well"), List("sleep"), 8), MoodRow(None, Nil, 8)))
+      // BOT_UX BUX-CMD-08: /mood is not a command before the mood slice ships; it records nothing.
+      val moodReply = rig.line("/mood 8")
+      assert(moodReply.exists(_.contains(dosegram.core.domain.copy.HelpCopy.unknownCommand)), s"got: $moodReply")
 
       // Acceptance 6: domain events with account_id = the created account (the mediator re-resolves after the create).
       withConnection { conn =>
@@ -194,10 +181,7 @@ class FirstFlowsPgSuite extends PgSuite:
         // occurred_at is the fixed clock for all rows, so compare as a multiset.
         assertEquals(
           events.map((t, s, _) => (t, s)).groupBy(identity).view.mapValues(_.size).toMap,
-          Map(
-            (Event.AccountCreatedType, "dosegram.identity") -> 1,
-            (Event.MoodCheckinRecordedType, "dosegram.mood") -> 2
-          )
+          Map((Event.AccountCreatedType, "dosegram.identity") -> 1)
         )
         events.foreach((_, _, account) => assertEquals(account, user.id, "account_id = principal"))
         // The stored reply of the confirming event carries the created account id too (C2).

@@ -250,7 +250,6 @@ private object ConsoleMediatorFakes:
       override def delete(sessionId: UUID): Unit = ()
     val medications: MedicationRepository = ???
     val accounts: AccountRepository = ???
-    val moodCheckins: MoodCheckinRepository = ???
     val schedules: ScheduleRepository = ???
     val revisions: ScheduleRevisionRepository = ???
     val occurrences: OccurrenceRepository = ???
@@ -274,7 +273,6 @@ private object ConsoleMediatorFakes:
       override def domainEvents: DomainEventRepository = _ => ()
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
       override def accounts: AccountRepository = UnusedPorts.accounts
-      override def moodCheckins: MoodCheckinRepository = UnusedPorts.moodCheckins
       override def audit: AuditRepository = _ => ()
       override def slots: CallbackSlotRepository = UnusedPorts.slots
       override def formRuns: FormRunRepository = UnusedPorts.formRuns

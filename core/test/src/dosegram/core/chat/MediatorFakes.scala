@@ -112,11 +112,6 @@ object MediatorFakes:
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
 
-  final class InMemoryMoodCheckins extends MoodCheckinRepository:
-    private val rows = ListBuffer.empty[NewMoodCheckin]
-    def all: List[NewMoodCheckin] = this.synchronized(rows.toList)
-    override def insert(row: NewMoodCheckin): Unit = this.synchronized(rows += row)
-
   final class InMemoryAudit extends AuditRepository:
     private val entries = ListBuffer.empty[AuditEntry]
     def all: List[AuditEntry] = this.synchronized(entries.toList)
@@ -559,7 +554,6 @@ object MediatorFakes:
     val domainEvents = InMemoryDomainEvents()
     val identities = InMemoryIdentities()
     val accounts = InMemoryAccounts(identities)
-    val moodCheckins = InMemoryMoodCheckins()
     val audit = InMemoryAudit()
     val renderedMessages = InMemoryRenderedMessages()
     val outbox = InMemoryOutbox()
@@ -583,7 +577,6 @@ object MediatorFakes:
       override def domainEvents: DomainEventRepository = InMemoryUnitOfWork.this.domainEvents
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
       override def accounts: AccountRepository = InMemoryUnitOfWork.this.accounts
-      override def moodCheckins: MoodCheckinRepository = InMemoryUnitOfWork.this.moodCheckins
       override def audit: AuditRepository = InMemoryUnitOfWork.this.audit
       override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
       override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns

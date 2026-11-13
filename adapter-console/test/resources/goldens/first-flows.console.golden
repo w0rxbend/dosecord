@@ -27,13 +27,11 @@ Pick your timezone:
 
 3) Back 4) Cancel
 > 1
-[#5] You're all set — your account is ready. Try /mood or /help.
-> /mood 8 slept well #sleep
-[#6] Mood recorded: 8/10.
+[#5] You're all set — your account is ready. Try /menu or /help.
 > /mood 8
-[#7] Mood recorded: 8/10.
+[#6] I don't know that command — try /help.
 > /help
-[#8] Dosegram keeps track of your medications, reminders and mood.
+[#7] Dosegram keeps track of your medications and reminders.
 
 /start — Create your account and pick a timezone.
 
@@ -49,12 +47,10 @@ Pick your timezone:
 
 /log [medication] — Log a dose you already took.
 
-/mood <level> [note] [tags] — Log your mood.
-
 /menu — Open the main menu.
 
 /cancel — Cancel the current setup.
 
 /help — Show this help.
 > /start
-[#9] This account is already set up — no need to create it again.
+[#8] This account is already set up — no need to create it again.

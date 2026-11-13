@@ -11,7 +11,6 @@ trait Tx:
   def domainEvents: DomainEventRepository
   def identities: IdentityRepository
   def accounts: AccountRepository
-  def moodCheckins: MoodCheckinRepository
   def audit: AuditRepository
   def slots: CallbackSlotRepository
   def formRuns: FormRunRepository

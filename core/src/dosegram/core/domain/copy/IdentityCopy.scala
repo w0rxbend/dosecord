@@ -25,7 +25,7 @@ object IdentityCopy:
   val alreadyLinked = "This account is already set up — no need to create it again."
 
   /** Closing line of the Create flow. */
-  val accountCreated = "You're all set — your account is ready. Try /mood or /help."
+  val accountCreated = "You're all set — your account is ready. Try /menu or /help."
 
   /** Unlinked principals reach only identity flows and help (DESIGN.md section 6). */
   val createFirst = "Create your account first with /start."

@@ -29,7 +29,6 @@ final class InMemoryUnitOfWork extends UnitOfWork:
 
   private object UnusedPorts:
     val accounts: AccountRepository = ???
-    val moodCheckins: MoodCheckinRepository = ???
     val medications: MedicationRepository = ???
     val schedules: ScheduleRepository = ???
     val revisions: ScheduleRevisionRepository = ???
@@ -67,7 +66,6 @@ final class InMemoryUnitOfWork extends UnitOfWork:
     override def domainEvents: DomainEventRepository = _ => ()
     override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
     override def accounts: AccountRepository = UnusedPorts.accounts
-    override def moodCheckins: MoodCheckinRepository = UnusedPorts.moodCheckins
     override def audit: AuditRepository = InMemoryUnitOfWork.this.audit
     override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
     override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns

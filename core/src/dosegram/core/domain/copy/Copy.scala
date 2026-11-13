@@ -23,6 +23,5 @@ object Copy:
       HelpCopy.entries ++
       HabitCopy.entries ++
       IdentityCopy.entries ++
-      MoodCopy.entries ++
       AdapterCopy.entries
 end Copy

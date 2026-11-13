@@ -27,13 +27,11 @@ It is 03:00 for you now, right?
 
 3) Back 4) Cancel
 > 1
-You're all set — your account is ready. Try /mood or /help.
-> /mood 8 slept well #sleep
-Mood recorded: 8/10.
+You're all set — your account is ready. Try /menu or /help.
 > /mood 8
-Mood recorded: 8/10.
+I don't know that command — try /help.
 > /help
-Dosegram keeps track of your medications, reminders and mood.
+Dosegram keeps track of your medications and reminders.
 
 /start — Create your account and pick a timezone.
 
@@ -48,8 +46,6 @@ Dosegram keeps track of your medications, reminders and mood.
 /skip [medication] — Skip the latest dose.
 
 /log [medication] — Log a dose you already took.
-
-/mood <level> [note] [tags] — Log your mood.
 
 /menu — Open the main menu.
 

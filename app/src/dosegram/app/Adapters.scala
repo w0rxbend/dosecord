@@ -16,7 +16,7 @@ import javax.sql.DataSource
 /** Adapter wiring (ROADMAP M0.12c/d, M1.9, M2.1): builds the adapters named by `ENABLED_ADAPTERS`, wires them into the
   * mediator as their inbound sink and starts them inside the Ox root scope. The handler is the M1.9 [[Application]]
   * composition (account create, add-medication wizard, main menu, Today, History, pause/resume, Account -> Timezone,
-  * `/mood`, `/help`); the mediator's ack policy reads the [[CommandRegistry]].
+  * `/help`); the mediator's ack policy reads the [[CommandRegistry]].
   */
 object Adapters:
 

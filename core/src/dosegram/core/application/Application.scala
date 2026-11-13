@@ -34,7 +34,7 @@ object Application:
 
   def handler(uow: UnitOfWork, adapters: Map[String, ChatAdapter], codec: CallbackCodec, clock: Clock): ChatHandler =
     val lifecycle = ScheduleLifecycle(uow, clock)
-    val menu = new MenuHandler(codec, clock, lifecycle, inner = FirstFlows.innerHandlers(clock))
+    val menu = new MenuHandler(codec, clock, lifecycle, inner = FirstFlows.innerHandlers)
     val dose = new DoseIntakeHandler(codec, clock, inner = menu)
     val engine = WizardEngine(
       flows = flows(clock, lifecycle),

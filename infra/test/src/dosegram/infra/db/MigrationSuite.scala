@@ -35,9 +35,6 @@ class MigrationSuite extends PgSuite:
       "delivery_channels",
       "domain_events",
       "worker_heartbeat",
-      "mood_checkins",
-      "habits",
-      "habit_checkins",
       "reminders"
     )
     withConnection { conn =>
@@ -46,6 +43,15 @@ class MigrationSuite extends PgSuite:
       assert(expectedTables.subsetOf(tables), s"missing tables: ${expectedTables.diff(tables)}")
       val views = sql"SELECT viewname FROM pg_catalog.pg_views WHERE schemaname = 'public'".query[String]().toSet
       assert(views.contains("reminder_occurrences"), "reminder_occurrences view missing")
+    }
+
+  // ROADMAP G0.6, BOT_UX BUX-CMD-08: a domain has no table before it has a consent purpose. Mood returns with its
+  // own migration in G6.1; habits are a non-goal (PRODUCT_SPEC N20).
+  test("the baseline has no table of a domain without a consent purpose"):
+    withConnection { conn =>
+      given Connection = conn
+      val tables = sql"SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'".query[String]().toSet
+      assertEquals(tables.intersect(Set("mood_checkins", "habits", "habit_checkins")), Set.empty[String])
     }
 
   test("reminder_occurrences exposes dose rows only"):

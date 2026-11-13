@@ -11,7 +11,6 @@ import dosegram.core.ports.FormRunRepository
 import dosegram.core.ports.IdentityRepository
 import dosegram.core.ports.InboundEventRepository
 import dosegram.core.ports.MedicationRepository
-import dosegram.core.ports.MoodCheckinRepository
 import dosegram.core.ports.OccurrenceRepository
 import dosegram.core.ports.OutboxRepository
 import dosegram.core.ports.PolicyRepository
@@ -52,7 +51,6 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val domainEvents: DomainEventRepository = PgDomainEventRepository(conn)
     override lazy val identities: IdentityRepository = PgIdentityRepository(conn)
     override lazy val accounts: AccountRepository = PgAccountRepository(conn)
-    override lazy val moodCheckins: MoodCheckinRepository = PgMoodCheckinRepository(conn)
     override lazy val audit: AuditRepository = PgAuditRepository(conn, clock)
     override lazy val slots: CallbackSlotRepository = PgCallbackSlotRepository(conn)
     override lazy val formRuns: FormRunRepository = PgFormRunRepository(conn)

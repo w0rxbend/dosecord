@@ -54,17 +54,6 @@ class SchemaConstraintSuite extends PgSuite:
       assert(e.getMessage.contains("occ_status"), e.getMessage)
     }
 
-  test("mood_level = 11 is rejected"):
-    withConnection { conn =>
-      given Connection = conn
-      val userId = UUID.randomUUID()
-      sql"INSERT INTO users (id, timezone, status) VALUES ($userId, 'UTC', 'active')".execute()
-      val e = intercept[SQLException]:
-        sql"""INSERT INTO mood_checkins (id, user_id, mood_level)
-              VALUES (${UUID.randomUUID()}, $userId, 11)""".execute()
-      assert(e.getMessage.contains("mood_level"), e.getMessage)
-    }
-
   test("a second live occurrence for one slot is rejected across revisions"):
     withConnection { conn =>
       given Connection = conn

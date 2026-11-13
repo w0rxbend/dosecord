@@ -5,7 +5,7 @@ package dosegram.core.domain.copy
   */
 object HelpCopy:
 
-  val intro = "Dosegram keeps track of your medications, reminders and mood."
+  val intro = "Dosegram keeps track of your medications and reminders."
 
   /** Fallbacks for input that matches no command (the console is free-text). */
   val unknownCommand = "I don't know that command — try /help."
@@ -20,7 +20,6 @@ object HelpCopy:
     "/snooze <minutes>" -> "Snooze the current reminder.",
     "/skip [medication]" -> "Mark a dose as skipped.",
     "/log <medication>" -> "Log an as-needed dose.",
-    "/mood <1-10> [note] [#tag ...]" -> "Log your mood.",
     "/menu" -> "Open the main menu.",
     "/cancel" -> "Cancel the current setup.",
     "/help" -> "Show this help."

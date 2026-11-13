@@ -398,20 +398,9 @@ class InteractionRecoveryPgSuite extends PgSuite:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
         handled.incrementAndGet()
         val account = tx.accounts.createAccount(principal.identityId, "UTC", now)
-        tx.moodCheckins.insert(
-          NewMoodCheckin(
-            UUID.randomUUID(),
-            account.uuid,
-            MoodLevel.unsafe(8),
-            None,
-            Nil,
-            Some(principal.identityId.uuid),
-            now
-          )
-        )
         Reply(
           replace = Some(message("uncertain-commit")),
-          domainEvents = List(Event.MoodCheckinRecorded(account, MoodLevel.unsafe(8), None, Nil))
+          domainEvents = List(Event.AccountCreated(account, principal.identityId, "fake"))
         )
     ox.supervised:
       val mediator = ChatMediator(fault, Map("fake" -> adapter), codec, handler, clock)
@@ -428,5 +417,5 @@ class InteractionRecoveryPgSuite extends PgSuite:
     assertEquals(handled.get(), 1)
     assertEquals(count("inbound_events"), 1L)
     assertEquals(count("outbox_messages"), 1L)
-    assertEquals(count("mood_checkins"), 1L)
+    assertEquals(count("users"), 1L, "the handler's own row committed exactly once")
     assertEquals(count("domain_events"), 1L)

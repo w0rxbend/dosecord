@@ -19,7 +19,7 @@ import java.time.Instant
 import scala.io.Source
 import scala.util.Using
 
-/** M0.12d acceptance on the real console module: the `/start` -> timezone -> confirm -> `/mood` -> `/help` transcript
+/** M0.12d acceptance on the real console module: the `/start` -> timezone -> confirm -> `/help` transcript
   * through the actual `ConsoleAdapter` (its input grammar, its `[#n]` printing), golden-filed. The core-profile half is
   * `FirstFlowsSuite`; the Postgres half is `FirstFlowsPgSuite`.
   */
@@ -40,14 +40,7 @@ class ConsoleFirstFlowsSuite extends munit.FunSuite:
       assertEquals(rig.uow.accounts.all.size, 1, "exactly one account")
       assertEquals(rig.uow.accounts.all.head.currentTimezone, "Europe/Kyiv")
       assertEquals(rig.uow.accounts.all.head.displayName, None, "display name stays neutral")
-      assertEquals(
-        rig.uow.moodCheckins.all.map(r => (r.moodLevel.value, r.note, r.tags)),
-        List((8, Some("slept well"), List("sleep")), (8, None, Nil))
-      )
-      assertEquals(
-        rig.uow.domainEvents.all.map(_.eventType),
-        List(Event.AccountCreatedType, Event.MoodCheckinRecordedType, Event.MoodCheckinRecordedType)
-      )
+      assertEquals(rig.uow.domainEvents.all.map(_.eventType), List(Event.AccountCreatedType))
       rig.uow.domainEvents.all.foreach: e =>
         assertEquals(e.accountId, Some(rig.uow.accounts.all.head.accountId), s"${e.eventType} account_id")
       assertEquals(rig.uow.sessions.all, Nil, "no leftover sessions")
@@ -90,15 +83,14 @@ private object ConsoleFlowRig:
     override def now(): Instant = t0
   val codec = CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))
 
-  /** The acceptance script: create with a wrong turn, two moods, help, and the refused second create. */
+  /** The acceptance script: create with a wrong turn, the refused /mood, help, and the refused second create. */
   val Script: List[String] = List(
     "/start",
     "22", // Other — type your timezone
     "Mars/Olympus_Mons", // invalid zone: the picker is re-shown, no row written
     "13", // UTC+03:00 — Europe/Kyiv
     "1", // Yes
-    "/mood 8 slept well #sleep",
-    "/mood 8",
+    "/mood 8", // no mood consent yet: not a command (BUX-CMD-08)
     "/help",
     "/start" // already linked: catalogue error, no row
   )

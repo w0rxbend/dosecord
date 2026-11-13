@@ -9,7 +9,7 @@ import java.util.UUID
 import scala.collection.mutable.ListBuffer
 
 /** Working in-memory port fakes for the console first-flows golden (M0.12d): the wizard needs real sessions, slots and
-  * form runs, and the flows need accounts and mood check-ins. Mirrors core's `MediatorFakes` (test sources are not
+  * form runs, and the flows need accounts. Mirrors core's `MediatorFakes` (test sources are not
   * shared across modules).
   */
 private object ConsoleFlowFakes:
@@ -86,11 +86,6 @@ private object ConsoleFlowFakes:
       this.synchronized(rows.find(_.accountId == accountId).map(_.tz))
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
-
-  final class InMemoryMoodCheckins extends MoodCheckinRepository:
-    private val rows = ListBuffer.empty[NewMoodCheckin]
-    def all: List[NewMoodCheckin] = this.synchronized(rows.toList)
-    override def insert(row: NewMoodCheckin): Unit = this.synchronized(rows += row)
 
   final class InMemoryRenderedMessages extends RenderedMessageRepository:
     private val rows = ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean, Option[String], Option[UUID])]
@@ -506,7 +501,6 @@ private object ConsoleFlowFakes:
     val domainEvents = InMemoryDomainEvents()
     val identities = InMemoryIdentities()
     val accounts = InMemoryAccounts(identities)
-    val moodCheckins = InMemoryMoodCheckins()
     val renderedMessages = InMemoryRenderedMessages()
     val sessions = InMemorySessions()
     private val slots = InMemorySlots()
@@ -529,7 +523,6 @@ private object ConsoleFlowFakes:
       override def domainEvents: DomainEventRepository = InMemoryUnitOfWork.this.domainEvents
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
       override def accounts: AccountRepository = InMemoryUnitOfWork.this.accounts
-      override def moodCheckins: MoodCheckinRepository = InMemoryUnitOfWork.this.moodCheckins
       override def audit: AuditRepository = _ => ()
       override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
       override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns

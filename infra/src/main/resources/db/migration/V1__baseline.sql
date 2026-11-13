@@ -149,26 +149,8 @@ CREATE TABLE delivery_channels (id uuid PRIMARY KEY, account_id uuid NOT NULL, p
   role text NOT NULL, priority int NOT NULL, state text NOT NULL, last_ack_at timestamptz, last_error text, updated_at timestamptz NOT NULL DEFAULT now());
 
 -- ---------------------------------------------------------------------------
--- Satellites: mood, habits, generic reminders
+-- Satellites: generic reminders
 -- ---------------------------------------------------------------------------
-
-CREATE TABLE mood_checkins (id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users,
-  mood_level int NOT NULL CHECK (mood_level BETWEEN 1 AND 10), note text, tags text[] NOT NULL DEFAULT '{}',
-  platform_identity_id uuid, platform_message_id text,
-  recorded_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now());
-
-CREATE TABLE habits (id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users, name text NOT NULL,
-  habit_type text NOT NULL CHECK (habit_type IN ('boolean','count','duration','measurement','avoid')),
-  cadence jsonb NOT NULL DEFAULT '{}', streak_policy text NOT NULL DEFAULT 'flexible' CHECK (streak_policy IN ('flexible','strict','none')),
-  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
-  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
-CREATE UNIQUE INDEX uq_habit_name ON habits (user_id, lower(name)) WHERE status <> 'archived';
-
-CREATE TABLE habit_checkins (id uuid PRIMARY KEY, habit_id uuid NOT NULL REFERENCES habits, user_id uuid NOT NULL REFERENCES users,
-  local_date date NOT NULL, status text NOT NULL CHECK (status IN ('done','partial','planned_skip','missed')),
-  value numeric, note text, platform_identity_id uuid, platform_message_id text,
-  recorded_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now());
-CREATE INDEX ix_habit_checkins_habit_day ON habit_checkins (habit_id, local_date);
 
 CREATE TABLE reminders (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users, title text NOT NULL,
   repeat text NOT NULL DEFAULT 'none' CHECK (repeat IN ('none','daily','weekly')), next_due_at timestamptz NOT NULL,

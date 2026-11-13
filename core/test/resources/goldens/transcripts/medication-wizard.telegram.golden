@@ -5,7 +5,7 @@ Pick your timezone:
 > tap "UTC+03:00 — Europe/Kyiv"
 send: It is 03:00 for you now, right? | [Yes] [Change] [Back] [Cancel]
 > tap "Yes"
-send: You're all set — your account is ready. Try /mood or /help.
+send: You're all set — your account is ready. Try /menu or /help.
 > /menu
 What would you like to do?
 > tap "Medications"

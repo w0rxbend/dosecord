@@ -14,16 +14,6 @@ object CommandRegistry:
     description = "Create your account and pick a timezone."
   )
 
-  val Mood: CommandSpec = CommandSpec(
-    name = "mood",
-    description = "Log your mood.",
-    args = List(
-      CommandArg("level", "1-10 or a word like okay or great"),
-      CommandArg("note", "An optional note", required = false),
-      CommandArg("tags", "Optional #tags", required = false)
-    )
-  )
-
   val Today: CommandSpec = CommandSpec(
     name = "today",
     description = "Show today's doses and record them."
@@ -93,12 +83,14 @@ object CommandRegistry:
     description = "Show this help."
   )
 
-  /** Display order is the registration order. */
-  val all: List[CommandSpec] = List(Start, Today, History, Taken, Snooze, Skip, Log, Mood, Menu, Cancel, Help)
+  /** Display order is the registration order. A domain has no command here before it has a consent purpose and its
+    * capture slice has shipped (BOT_UX BUX-CMD-08).
+    */
+  val all: List[CommandSpec] = List(Start, Today, History, Taken, Snooze, Skip, Log, Menu, Cancel, Help)
 
   val byName: Map[String, CommandSpec] = all.map(spec => spec.name -> spec).toMap
 
-  /** `/mood <level> [note] [tags]` — usage from the spec's args so help cannot drift from the registry. */
+  /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =
     val args = spec.args.map(arg => if arg.required then s"<${arg.name}>" else s"[${arg.name}]")
     (("/" + spec.name) +: args).mkString(" ")
