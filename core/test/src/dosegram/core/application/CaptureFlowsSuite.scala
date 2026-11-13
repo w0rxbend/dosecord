@@ -273,6 +273,9 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.grant(ConsentPurpose.Mood)
       assertEquals(chat.rig.command("mood"), List(s"${CheckInCopy.prompt}\n\n${CheckInCopy.scale}"))
       val answer = chat.rig.tapOn(CheckInCopy.prompt, "4")
+      val edits = answer.collect { case VendorOp.Edit(_, message) => message }
+      assertEquals(edits.map(_.chunks), List(List("Pleasant · 03:00")), "the prompt shows the recorded level")
+      assertEquals(edits.flatMap(_.choiceMap), Nil, "and its 1 to 5 buttons are gone")
       val photo = answer.collect { case VendorOp.Send(_, message, _, _) => message }
       assertEquals(photo.map(_.attachment.map(_.assetKey)), List(Some("mood")))
       assertEquals(photo.flatMap(_.chunks), List("Pleasant · 03:00"))
@@ -307,6 +310,36 @@ class CaptureFlowsSuite extends munit.FunSuite:
       val answer = chat.rig.tapOn(CheckInCopy.prompt, "5")
       assertEquals(answer.collect { case VendorOp.Edit(_, message) => message.chunks }.flatten, List("Very pleasant · 03:00"))
       assertEquals(answer.collect { case VendorOp.Send(_, message, _, _) => message.attachment }.flatten, Nil)
+
+  test("one prompt is one check-in: later taps on it record nothing and say when it was recorded"):
+    for cards <- List(RecordingCards(), StatusCards.textOnly) do
+      withChat(Profile.Telegram, cards): chat =>
+        chat.grant(ConsentPurpose.Mood)
+        chat.rig.command("mood")
+        val (prompt, four) = chat.rig.controlOn(CheckInCopy.prompt, "4")
+        val two = chat.rig.controlOn(CheckInCopy.prompt, "2")._2
+        val (_, first) = chat.rig.tapFrom(prompt, four)
+        chat.rig.clock.at = chat.rig.clock.now().plusSeconds(60)
+        val (_, second) = chat.rig.tapFrom(prompt, four) // the old keyboard, before or after the edit lands
+        val (_, racing) = chat.rig.tapFrom(prompt, two) // another step of the same prompt
+        chat.rig.restartMediator()
+        val (_, afterRestart) = chat.rig.tapFrom(prompt, four)
+
+        assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList, List(4))
+        assertEquals(first.count(_.isInstanceOf[VendorOp.Edit]), 1, "the prompt is edited once")
+        assertEquals(chat.rig.messageAt(prompt).choiceMap.map(_.label).filter(_.length == 1), Nil, "no step left")
+        for stale <- List(second, racing, afterRestart) do
+          assertEquals(texts(stale), List("Already recorded at 03:00."), "a short self-deleting answer only")
+          assertEquals(stale.count(_.isInstanceOf[VendorOp.Edit]), 0)
+
+  test("a new prompt records another check-in the same day"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Mood)
+      chat.rig.command("mood")
+      chat.rig.tapOn(CheckInCopy.prompt, "4")
+      chat.rig.command("mood")
+      chat.rig.tapOn(CheckInCopy.prompt, "2")
+      assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList.sorted, List(2, 4))
 
   test("an invalid step records nothing"):
     withChat(Profile.Telegram): chat =>

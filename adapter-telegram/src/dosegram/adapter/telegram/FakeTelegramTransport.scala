@@ -15,7 +15,11 @@ final class FakeTelegramTransport(
     clock: Clock,
     bot: BotIdentity = FakeTelegramTransport.Bot,
     /** How long an empty `getUpdates` waits, in real time, so that a polling loop under test does not spin. */
-    idlePoll: Duration = Duration.ofMillis(20)
+    idlePoll: Duration = Duration.ofMillis(20),
+    /** The last `message_id` already used in the chat. Telegram never reuses one, so a fake for a restarted process
+      * continues after the ids the previous process was answered with.
+      */
+    lastMessageId: Long = 0L
 ) extends TelegramTransport:
 
   import FakeTelegramTransport.*
@@ -25,7 +29,7 @@ final class FakeTelegramTransport(
   private val scripted = mutable.Map.empty[String, mutable.Queue[WireReply]]
   private val pendingUpdates = mutable.ListBuffer.empty[ujson.Value]
   private var commands: ujson.Value = ujson.Arr()
-  private var messageSeq = 0L
+  private var messageSeq = lastMessageId
   private var floodLimits = Option.empty[FloodLimits]
   private val chatBuckets = mutable.Map.empty[Long, (Double, Instant)]
 

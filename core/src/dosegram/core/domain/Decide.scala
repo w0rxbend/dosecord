@@ -25,7 +25,8 @@ final case class LastUserAction(kind: DoseActionKind, seq: Int, occurredAt: Inst
 /** What `Decide.decide` needs beyond the row, the policy and quiet hours (DESIGN.md section 7.3): the event, whether
   * any outbox row for this occurrence was ever sent (`delivered`), the max of all workers' heartbeats
   * (`lastHealthyTick`, consulted only on `Tick`), the next occurrence of the same schedule (bounds snooze and the
-  * quiet-defer fallback), the latest undoable user action, and the chain interval (declared, inert until M7.2).
+  * quiet-defer fallback), the latest undoable user action, the chain interval (declared, inert until M7.2), and whether
+  * the row is a manual log (`origin = manual`), which has no schedule to return to.
   */
 final case class DecideContext(
     event: OccurrenceEvent,
@@ -33,7 +34,8 @@ final case class DecideContext(
     lastHealthyTick: Instant = Instant.EPOCH,
     nextOccurrenceScheduledFor: Option[Instant] = None,
     lastUndoableAction: Option[LastUserAction] = None,
-    chainIntervalMinutes: Option[Int] = None
+    chainIntervalMinutes: Option[Int] = None,
+    manualLog: Boolean = false
 )
 
 /** The pure, exhaustive occurrence FSM (ROADMAP M1.3, DESIGN.md section 7.3, ADR-012). Every `(status, event)` cell is
@@ -494,11 +496,12 @@ object Decide:
       case Some(action)
           if Duration.between(action.occurredAt, now).compareTo(Duration.ofMinutes(policy.undoWindowMinutes)) > 0 =>
         val refusal =
-          if occ.status == OccurrenceStatus.Taken || occ.status == OccurrenceStatus.Skipped
+          if !ctx.manualLog && (occ.status == OccurrenceStatus.Taken || occ.status == OccurrenceStatus.Skipped)
           then Refusal.UndoWindowPassedOfferCorrect
           else Refusal.UndoWindowPassed
         Transition.unchanged(occ, Feedback.Refused(refusal))
-      case Some(action) =>
+      case Some(action) if ctx.manualLog => undoManualLog(occ, now, action)
+      case Some(action)                  =>
         val next = now.plusSeconds(policy.repeatEveryMinutes.toLong * 60L)
         val row = occ.copy(
           status = OccurrenceStatus.Due,
@@ -517,6 +520,25 @@ object Decide:
           None,
           Feedback.Undone(next)
         )
+
+  /** Undo of a manual log (owner decision 2026-11-13): the row has no schedule to return to, so it is cancelled. It
+    * leaves every count, never becomes due and is never reminded; the `undone` row keeps the history.
+    */
+  private def undoManualLog(occ: Occurrence, now: Instant, action: LastUserAction): Transition =
+    val row = occ.copy(
+      status = OccurrenceStatus.Cancelled,
+      takenAt = None,
+      effectiveAt = None,
+      nextActionAt = None,
+      epoch = occ.epoch + 1
+    )
+    Transition(
+      row,
+      Some(userAction(DoseActionKind.Undone, occ, OccurrenceStatus.Cancelled, now, undoesSeq = Some(action.seq))),
+      Nil,
+      None,
+      Feedback.LogUndone
+    )
 
   /** `note_added` never changes status (ADR-012): the row is returned untouched (no epoch increment) and only the
     * action row is appended.

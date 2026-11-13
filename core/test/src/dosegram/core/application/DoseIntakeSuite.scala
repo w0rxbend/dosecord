@@ -8,7 +8,9 @@ import dosegram.core.domain.Actor as DomainActor
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.domain.Refusal
 import dosegram.core.domain.copy.DoseActionKind
+import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.DeliveryTarget
 import dosegram.core.ports.NewOutboxMessage
 import dosegram.core.ports.OccurrenceOrigin
@@ -357,6 +359,143 @@ class DoseIntakeSuite extends munit.FunSuite:
       assert(handle.calls.asScala.exists(_.contains("Recorded at 09:05.")), s"${handle.calls}")
       val manual = rig.uow.occurrences.all.filter(_.origin == OccurrenceOrigin.Manual)
       assertEquals(manual.map(_.status), List(OccurrenceStatus.Taken))
+
+  // ---------- One picker, one log (BUX-TAKE-02, C20) ----------
+
+  private def withTelegramRig(test: MedicationWizardRig => Unit): Unit =
+    ox.supervised:
+      test(MedicationWizardRig(Profile.Telegram))
+
+  /** An as-needed Vitamin C, the clock at 09:05 Kyiv, and the `/log` picker: its handle and its [Log Vitamin C] wire. */
+  private def openPicker(rig: MedicationWizardRig, others: String*): (MessageHandle, String) =
+    val account = rig.seedAccount()
+    channel(rig, account)
+    ("Vitamin C" +: others).foreach(rig.seedSchedule(account, _, Rule.AsNeeded(10, 0), kyiv))
+    rig.clock.at = due
+    rig.line("/log")
+    rig.controlOn("Log a dose of which medication?", "Log Vitamin C")
+
+  private def manualTakenRows(rig: MedicationWizardRig) =
+    rig.uow.occurrences.all
+      .filter(_.origin == OccurrenceOrigin.Manual)
+      .flatMap(occ => rig.uow.doseActions.listForOccurrence(occ.id))
+      .filter(_.action == DoseActionKind.Taken)
+
+  /** The toast the user sees for one tap: on the callback answer, or, once an early ack spent the answer, as a short
+    * self-deleting message.
+    */
+  private def toasts(tap: (MedicationWizardRig.CapturingInteractionHandle, List[VendorOp])): List[String] =
+    val (handle, ops) = tap
+    handle.calls.asScala.toList.collect { case s"answer($text)" if text.nonEmpty => text } ++
+      ops.collect { case VendorOp.Send(_, m, _, _) if m.deleteAfter.isDefined => m.chunks.mkString }
+
+  test("three taps on one log button record one dose, edit the picker once and answer the stale taps politely"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      val editsBefore = rig.ops.count(_.isInstanceOf[VendorOp.Edit])
+
+      val first = rig.tapFrom(picker, wire)
+      rig.clock.at = due.plusSeconds(60)
+      val second = rig.tapFrom(picker, wire)
+      rig.clock.at = due.plusSeconds(120)
+      val third = rig.tapFrom(picker, wire)
+
+      assertEquals(manualTakenRows(rig).size, 1, "one tapped picker is one record")
+      assertEquals(rig.uow.occurrences.all.count(_.origin == OccurrenceOrigin.Manual), 1)
+      assertEquals(rig.uow.domainEvents.all.count(_.eventType == Event.IntakeTakenType), 1)
+
+      val shown = rig.messageAt(picker)
+      assertEquals(shown.chunks.mkString, "Logged Vitamin C at 09:05.", "the picker became the confirmation")
+      assertEquals(shown.choiceMap.map(_.label), List("Undo", "Log another"), "no medication button left to tap")
+      assertEquals(rig.ops.count(_.isInstanceOf[VendorOp.Edit]) - editsBefore, 1, "one confirmation edit")
+
+      assertEquals(toasts(first), List("Recorded at 09:05."))
+      assertEquals(toasts(second), List("Already logged at 09:05."))
+      assertEquals(toasts(third), List("Already logged at 09:05."))
+
+  test("a second tap that races the confirmation edit records nothing, even on another button of the picker"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig, "Zinc")
+      val other = rig.controlOn("Log a dose of which medication?", "Log Zinc")._2
+      rig.tapFrom(picker, wire)
+      // The client still shows the old keyboard: any button of the same picker is the same intent (C20).
+      val racing = rig.tapFrom(picker, other)
+      assertEquals(manualTakenRows(rig).size, 1)
+      assertEquals(toasts(racing), List("Already logged at 09:05."))
+
+  test("a stale tap after a restart records nothing"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      rig.restartMediator()
+      rig.clock.at = due.plusSeconds(3600)
+      val stale = rig.tapFrom(picker, wire)
+      assertEquals(manualTakenRows(rig).size, 1)
+      assertEquals(toasts(stale), List("Already logged at 09:05."))
+
+  test("a fresh /log picker logs another dose"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      rig.clock.at = due.plusSeconds(4 * 3600)
+      rig.line("/log")
+      val (fresh, freshWire) = rig.controlOn("Log a dose of which medication?", "Log Vitamin C")
+      assertNotEquals(fresh, picker)
+      rig.tapFrom(fresh, freshWire)
+      assertEquals(manualTakenRows(rig).size, 2, "a new picker is a new intent")
+
+  test("Undo of a manual log cancels it, records the undo, and nothing is ever reminded"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      val manual = rig.uow.occurrences.all.find(_.origin == OccurrenceOrigin.Manual).get
+      rig.clock.at = due.plusSeconds(5 * 60)
+      val undoWire = rig.controlOn("Logged Vitamin C at 09:05.", "Undo")._2
+      rig.tapFrom(picker, undoWire)
+
+      val undone = rig.uow.occurrences.get(manual.id).get
+      assertEquals(undone.status, OccurrenceStatus.Cancelled)
+      assertEquals(undone.state.takenAt, None)
+      assertEquals(undone.state.nextActionAt, None)
+      val actions = rig.uow.doseActions.listForOccurrence(manual.id)
+      assertEquals(actions.map(_.action), List(DoseActionKind.Taken, DoseActionKind.Undone))
+      assertEquals(actions.last.newStatus, OccurrenceStatus.Cancelled)
+      assertEquals(actions.last.undoesSeq, Some(actions.head.seq))
+
+      val shown = rig.messageAt(picker)
+      assertEquals(shown.chunks.mkString, "Undone. Nothing is recorded for this dose.")
+      assertEquals(shown.choiceMap.map(_.label), List("Log another"), "the Undo button is gone")
+
+      // Hours later the loop finds nothing to remind, and the old picker still logs nothing.
+      val sendsBefore = rig.ops.count(_.isInstanceOf[VendorOp.Send])
+      rig.clock.at = due.plusSeconds(3 * 3600)
+      rig.tickLoop()
+      rig.dispatchOnce()
+      assertEquals(rig.ops.count(_.isInstanceOf[VendorOp.Send]), sendsBefore, "no reminder for an undone log")
+      assertEquals(toasts(rig.tapFrom(picker, wire)), List("Undone. Nothing is recorded for this dose."))
+      assertEquals(rig.uow.occurrences.get(manual.id).get.status, OccurrenceStatus.Cancelled)
+
+  test("Undo of a manual log after 15 minutes changes nothing"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      val manual = rig.uow.occurrences.all.find(_.origin == OccurrenceOrigin.Manual).get
+      rig.clock.at = due.plusSeconds(20 * 60)
+      val late = rig.tapFrom(picker, rig.controlOn("Logged Vitamin C at 09:05.", "Undo")._2)
+      assertEquals(toasts(late), List(ReminderCopy.refusal(Refusal.UndoWindowPassed)))
+      assertEquals(rig.uow.occurrences.get(manual.id).get.status, OccurrenceStatus.Taken)
+      assertEquals(rig.uow.doseActions.listForOccurrence(manual.id).map(_.action), List(DoseActionKind.Taken))
+
+  test("Log another on the confirmation sends a fresh picker that logs again"):
+    withTelegramRig: rig =>
+      val (picker, wire) = openPicker(rig)
+      rig.tapFrom(picker, wire)
+      rig.clock.at = due.plusSeconds(3600)
+      rig.tapFrom(picker, rig.controlOn("Logged Vitamin C at 09:05.", "Log another")._2)
+      val (fresh, freshWire) = rig.controlOn("Log a dose of which medication?", "Log Vitamin C")
+      assertNotEquals(fresh, picker)
+      rig.tapFrom(fresh, freshWire)
+      assertEquals(manualTakenRows(rig).size, 2)
 
   test("a repeat reminder finalizes the previous message"):
     withRig: rig =>

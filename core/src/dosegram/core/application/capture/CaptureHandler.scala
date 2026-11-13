@@ -138,6 +138,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def recordMood(turn: Turn, valence: Valence): Reply =
     consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodCheckIn(valence.step))(mood.checkIn(turn, valence))
 
+  /** A step on a mood prompt: one check-in per prompt message. */
+  private def moodButton(turn: Turn, valence: Valence): Reply =
+    consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodCheckIn(valence.step))(mood.checkInFromPrompt(turn, valence))
+
   private def onTap(turn: Turn, ref: CallbackRef): Reply =
     ActionRegistry.byId(ref.actionId) match
       case Some(CaptureActions.WaterUndo)      => water.undo(turn, ref.subject)
@@ -159,7 +163,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.WaterGoal       => water.setGoal(turn, value)
       case CaptureActions.WaterGoalAsk    => water.askGoal(turn, pendingMl = 0)
       case CaptureActions.WaterImage      => imageOf(turn, Pending.WaterImage)(water.image(turn))
-      case CaptureActions.MoodCheckIn     => Valence.of(value.toInt).map(recordMood(turn, _)).getOrElse(stale(turn))
+      case CaptureActions.MoodCheckIn     => Valence.of(value.toInt).map(moodButton(turn, _)).getOrElse(stale(turn))
       case CaptureActions.StatsShow       => stats.show(turn, value)
       case CaptureActions.SleepStart      => sleep.goingToSleep(turn)
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)

@@ -35,6 +35,7 @@ import dosegram.core.ports.StoredOccurrence
 import dosegram.core.ports.Tx
 import dosegram.core.scheduling.FinalizeDispatch
 
+import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -177,7 +178,8 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       event = userEvent,
       delivered = tx.outbox.deliveredFor(occ.id),
       nextOccurrenceScheduledFor = occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor)),
-      lastUndoableAction = lastUndoableAction(tx, occ.id)
+      lastUndoableAction = lastUndoableAction(tx, occ.id),
+      manualLog = occ.origin == OccurrenceOrigin.Manual
     )
     val transition = Decide.decide(occ.state, policy, quiet, now, ctx)
     if transition.row == occ.state then noTransitionReply(event, occ, transition.feedback)
@@ -204,7 +206,10 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
         case DispatchIntent.FinalizeControls(reason) =>
           FinalizeDispatch.enqueue(tx, occ.id, occ.accountId, transition.row.epoch, reason, now)
         case _ => () // a user event never sends a reminder of its own
-      feedbackReply(occ, transition, takenEvent(occ, userEvent, transition, now))
+      val reply = feedbackReply(occ, transition, takenEvent(occ, userEvent, transition, now))
+      if transition.feedback == Feedback.LogUndone then
+        reply.copy(replace = source.map(logUndoneCard(event, principal, occ, _, tx)))
+      else reply
     end if
   end applyUserEvent
 
@@ -406,11 +411,39 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
+    val account = principal.accountId.get.uuid
+    val occurrenceId = source.fold(UUID.randomUUID())(pickerIntent(account, _))
+    tx.occurrences.lockById(occurrenceId) match
+      case Some(logged) => alreadyLogged(logged)
+      case None         => recordLog(event, principal, medication, source, occurrenceId, tx)
+
+  /** One displayed picker is one intent (BUX-TAKE-02, C20): the occurrence id is derived from the picker message, so
+    * every tap on it, however fast and after any restart, names the same row and the primary key admits one.
+    */
+  private def pickerIntent(account: UUID, picker: MessageHandle): UUID =
+    UUID.nameUUIDFromBytes(
+      s"dose.log:$account:${picker.vendor}:${picker.chatId}:${picker.messageId}".getBytes(StandardCharsets.UTF_8)
+    )
+
+  /** A later tap on a picker that already logged: nothing changes. The first tap's edit, or its outbox retry, shows the
+    * confirmation (BUX-STALE-01).
+    */
+  private def alreadyLogged(logged: StoredOccurrence): Reply =
+    if logged.status == OccurrenceStatus.Cancelled then Reply(toast = Some(ReminderCopy.logUndone))
+    else Reply(toast = Some(ReminderCopy.alreadyLogged(formatTime(logged.state.scheduledFor, logged.tz))))
+
+  private def recordLog(
+      event: InboundEvent,
+      principal: Principal,
+      medication: StoredMedication,
+      source: Option[MessageHandle],
+      occurrenceId: UUID,
+      tx: Tx
+  ): Reply =
     val now = clock.now()
     val account = principal.accountId.get.uuid
     val zone = ZoneId.of(tx.accounts.timezoneOf(account).getOrElse("UTC"))
     val local = now.atZone(zone)
-    val occurrenceId = UUID.randomUUID()
     val state = Occurrence(
       status = OccurrenceStatus.Taken,
       scheduledFor = now,
@@ -437,12 +470,25 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       doseSnapshot = DoseSnapshot(medication.name, medication.doseAmount, medication.doseUnit, medication.instructions),
       state = state
     )
-    require(tx.occurrences.insertAll(List(row)) == 1, s"manual occurrence $occurrenceId conflicted")
+    // A concurrent tap on the same picker waits on the key and inserts nothing: it is the same intent, already logged.
+    if tx.occurrences.insertAll(List(row)) == 1 then recorded(event, principal, source, row, now, tx)
+    else tx.occurrences.lockById(occurrenceId).fold(Reply(toast = Some(ReminderCopy.staleControlToast)))(alreadyLogged)
+  end recordLog
+
+  /** The `taken` action row of a new manual occurrence, the picker's confirmation and the intake event. */
+  private def recorded(
+      event: InboundEvent,
+      principal: Principal,
+      source: Option[MessageHandle],
+      row: NewOccurrence,
+      now: Instant,
+      tx: Tx
+  ): Reply =
     tx.doseActions.append(
       NewDoseAction(
         id = UUID.randomUUID(),
-        occurrenceId = occurrenceId,
-        accountId = account,
+        occurrenceId = row.id,
+        accountId = row.accountId,
         action = DoseActionKind.Taken,
         actor = dosegram.core.domain.Actor.User,
         occurredAt = now,
@@ -456,11 +502,55 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
         platformMessageId = source.map(_.messageId)
       )
     )
+    val time = formatTime(now, row.tz)
     Reply(
-      toast = Some(ReminderCopy.takenConfirmation(formatTime(now, zone))),
-      domainEvents = List(Event.IntakeTaken(AccountId(account), occurrenceId, now, takenLate = false))
+      replace = source.map(confirmation(event, principal, row.doseSnapshot.medicationName, time, row.id, _, tx)),
+      toast = Some(ReminderCopy.takenConfirmation(time)),
+      domainEvents = List(Event.IntakeTaken(AccountId(row.accountId), row.id, now, takenLate = false))
     )
-  end logDose
+
+  /** The picker edited in place into the confirmation. Its medication buttons are gone; only [Undo] (15 minutes) and
+    * [Log another] remain (BUX-TAKE-01).
+    */
+  private def confirmation(
+      event: InboundEvent,
+      principal: Principal,
+      name: String,
+      time: String,
+      occurrenceId: UUID,
+      picker: MessageHandle,
+      tx: Tx
+  ): OutboundMessage =
+    val undo = Choice.callback(Labels.Undo, directToken("dose.undo", occurrenceId, 0))
+    logCard(event, principal, ReminderCopy.logged(name, time), List(undo), picker, s"dose:logged:$occurrenceId", tx)
+
+  /** The confirmation after Undo of a manual log: what was undone, and [Log another] (BUX-UNDO-03). */
+  private def logUndoneCard(
+      event: InboundEvent,
+      principal: Principal,
+      occ: StoredOccurrence,
+      card: MessageHandle,
+      tx: Tx
+  ): OutboundMessage =
+    logCard(event, principal, ReminderCopy.logUndone, Nil, card, s"dose:log-undone:${occ.id}", tx)
+
+  private def logCard(
+      event: InboundEvent,
+      principal: Principal,
+      text: String,
+      choices: List[Choice],
+      card: MessageHandle,
+      dedupeKey: String,
+      tx: Tx
+  ): OutboundMessage =
+    val another = LogDosePicker.anotherChoice(codec, event.chat, principal.accountId.get.uuid, tx)
+    OutboundMessage(
+      body = List(Node.Paragraph(List(Inline.Text(text)))),
+      blocks = List(Block.Choices(ChoiceSet(id = "dose.logged", choices = choices :+ another))),
+      replaces = Some(card),
+      dedupeKey = dedupeKey,
+      correlationId = s"${event.vendor}:${event.vendorEventId}"
+    )
 
   // ---------- Loaders ----------
 

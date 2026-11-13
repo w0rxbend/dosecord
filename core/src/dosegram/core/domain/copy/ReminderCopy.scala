@@ -75,6 +75,18 @@ object ReminderCopy:
   val logPickerPrompt: String = "Log a dose of which medication?"
   val logEmpty: String = "No medications to log yet."
 
+  /** The picker after its one tap (BUX-TAKE-01, BUX-TAKE-02): what was logged and when, with no button left. */
+  def logged(name: String, time: String): String = s"Logged $name at $time."
+
+  /** `toast.take.already`: a later tap on a picker that has logged its dose. */
+  def alreadyLogged(time: String): String = s"Already logged at $time."
+
+  /** The confirmation after Undo of a manual log (BUX-UNDO-03), and the answer to a later tap on its picker. */
+  val logUndone: String = "Undone. Nothing is recorded for this dose."
+
+  /** The button that opens a fresh picker (BUX-TAKE-01). */
+  val logAnother: String = "Log another"
+
   /** The one safety sentence (UX spec): the bot never advises, it defers to the clinician/pharmacist. */
   def unsureAdvice: String =
     "If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions."
@@ -121,6 +133,10 @@ object ReminderCopy:
     CopyEntry("reminder.unknown_medication", unknownMedication("Vitamin D")),
     CopyEntry("reminder.log_picker_prompt", logPickerPrompt),
     CopyEntry("reminder.log_empty", logEmpty),
+    CopyEntry("reminder.logged", logged("Vitamin D", "09:03")),
+    CopyEntry("reminder.already_logged", alreadyLogged("09:03")),
+    CopyEntry("reminder.log_undone", logUndone),
+    CopyEntry("reminder.log_another", logAnother),
     CopyEntry("reminder.unsure_advice", unsureAdvice),
     CopyEntry("reminder.failure_toast", failureToast),
     CopyEntry("reminder.checking_outcome", checkingOutcome),
