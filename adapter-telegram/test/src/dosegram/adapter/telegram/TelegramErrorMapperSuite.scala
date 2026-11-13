@@ -27,6 +27,13 @@ class TelegramErrorMapperSuite extends munit.FunSuite:
       TelegramError.RateLimited(TelegramErrorMapper.DefaultRetryAfter)
     )
 
+  test("a description is matched the same way under every default locale"):
+    DefaultLocale.turkish:
+      assertEquals(
+        TelegramErrorMapper.classify(400, "Bad Request: MESSAGE_ID_INVALID", None),
+        TelegramError.MissingTarget
+      )
+
   test("a blocked user is unreachable and fatal for the channel"):
     val error = TelegramErrorMapper.toChatError(TelegramError.Unreachable, "send")
     assert(error.exists(_.isInstanceOf[ChatError.Unreachable]), error.toString)

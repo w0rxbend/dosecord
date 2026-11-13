@@ -3,6 +3,7 @@ package dosegram.adapter.telegram
 import dosegram.contracts.ChatError
 
 import java.time.Duration
+import java.util.Locale
 
 /** The closed set of Bot API failures (ARCHITECTURE section 7.10). No case carries the description text: a description
   * can quote the request ("can't parse entities: ... tag ..."), and message text must not reach a log line or an
@@ -59,7 +60,7 @@ object TelegramErrorMapper:
     * reported ones and stay assumptions until a live spike records the real responses (ARCHITECTURE section 7.10).
     */
   def classify(status: Int, description: String, retryAfterSeconds: Option[Long]): TelegramError =
-    val text = description.toLowerCase
+    val text = description.toLowerCase(Locale.ROOT)
     def mentions(phrases: List[String]): Boolean = phrases.exists(text.contains)
     status match
       case 429                              => TelegramError.RateLimited(retryAfter(retryAfterSeconds))

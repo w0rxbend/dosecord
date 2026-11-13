@@ -65,6 +65,13 @@ class UpdateMapperSuite extends munit.FunSuite:
       Inbound.CommandInvoked("today", Map.empty, "/Today@dosegram_dev_bot")
     )
 
+  test("a command name is lower-cased the same way under every default locale"):
+    DefaultLocale.turkish:
+      assertEquals(
+        body("command-with-argument", withText("/SKIP")),
+        Inbound.CommandInvoked("skip", Map.empty, "/SKIP")
+      )
+
   test("a command addressed to another bot is not for us"):
     assertEquals(mapped("command-with-bot-suffix", withText("/today@some_other_bot")), Mapped.Ignore("command_for_another_bot"))
 

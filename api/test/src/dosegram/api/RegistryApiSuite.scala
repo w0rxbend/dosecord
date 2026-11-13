@@ -5,6 +5,7 @@ import dosegram.core.ports.ScheduleStatus
 
 import java.time.Duration
 import java.time.Instant
+import java.util.Locale
 import java.util.UUID
 
 /** ROADMAP G3.4 to G3.6, server side: the medication registry and its schedules over HTTP, with the conventions of
@@ -131,6 +132,17 @@ final class RegistryApiSuite extends ApiSuite:
     val token = login(telegramAccount())
     createMedication(token, "Omega 3")
     val reply = post("/api/v1/medications", medicationBody("  omega 3 "), token, newKey())
+    assertEquals(reply.fieldErrors, List("name" -> "duplicate"))
+
+  test("a duplicate name is found under a default locale with other case rules"):
+    val token = login(telegramAccount())
+    createMedication(token, "MAGNESIUM CITRATE")
+    val previous = Locale.getDefault
+    // In Turkish an upper-case I lower-cases to a dotless one, which the stored normal form does not hold.
+    Locale.setDefault(Locale.forLanguageTag("tr"))
+    val reply =
+      try post("/api/v1/medications", medicationBody("MAGNESIUM CITRATE"), token, newKey())
+      finally Locale.setDefault(previous)
     assertEquals(reply.fieldErrors, List("name" -> "duplicate"))
 
   test("PATCH needs If-Match: absent answers 428, malformed 422 (API-17)"):

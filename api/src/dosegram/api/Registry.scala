@@ -17,6 +17,7 @@ import dosegram.core.scheduling.ScheduleLifecycle
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 import java.util.UUID
 
 /** The medication registry and its schedules for one authenticated account (ARCHITECTURE section 9.5). Every method
@@ -311,7 +312,8 @@ object Registry:
     )
 
   private def nameIsFree(tx: Tx, accountId: UUID, name: String, except: Option[UUID]): Either[ApiFailure, Unit] =
-    val taken = tx.medications.findByNameNorm(accountId, name.toLowerCase).exists(row => !except.contains(row.id))
+    val taken =
+      tx.medications.findByNameNorm(accountId, name.toLowerCase(Locale.ROOT)).exists(row => !except.contains(row.id))
     Either.cond(!taken, (), ApiFailure.invalid("name", "duplicate"))
 
   /** The dates belong to the schedule row, which a revision does not rewrite. */

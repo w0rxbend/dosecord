@@ -9,6 +9,7 @@ import dosegram.contracts.StartPayload
 import dosegram.core.chat.CallbackPeek
 
 import java.time.Instant
+import java.util.Locale
 import java.util.UUID
 
 /** The pure mapping of ARCHITECTURE section 7.3: one update becomes at most one inbound event. Only private chats
@@ -100,7 +101,7 @@ private[telegram] object UpdateMapper:
     else
       val (head, rest) = text.drop(1).span(c => !c.isWhitespace)
       val (name, mention) = head.span(_ != '@')
-      val lowered = name.toLowerCase
+      val lowered = name.toLowerCase(Locale.ROOT)
       Option.when(isCommandName(lowered))(Command(lowered, Option(mention.drop(1)).filter(_.nonEmpty), rest.trim))
 
   private def isCommandName(name: String): Boolean =
