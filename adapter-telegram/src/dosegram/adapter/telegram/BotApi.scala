@@ -65,6 +65,16 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
 
   def deleteWebhook(): Either[TelegramError, Unit] = call("deleteWebhook", ujson.Obj()).map(_ => ())
 
+  /** Registers the webhook (ARCHITECTURE section 7.2.1) for the same update kinds that long polling asks for. */
+  def setWebhook(registration: WebhookRegistration): Either[TelegramError, Unit] =
+    val params = ujson.Obj(
+      "url" -> registration.url,
+      "secret_token" -> registration.secretToken,
+      "allowed_updates" -> ujson.Arr.from(AllowedUpdates),
+      "max_connections" -> registration.maxConnections
+    )
+    call("setWebhook", params).map(_ => ())
+
   def sendMessage(message: OutgoingText): Either[TelegramError, SentMessage] =
     val params = ujson.Obj("chat_id" -> message.chatId.toDouble, "text" -> message.html, "parse_mode" -> ParseMode)
     applyDelivery(params, message.delivery)

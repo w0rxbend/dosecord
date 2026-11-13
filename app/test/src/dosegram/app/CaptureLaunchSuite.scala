@@ -21,6 +21,7 @@ import dosegram.infra.Settings
 import dosegram.infra.TelegramSettings
 import dosegram.infra.TelegramUpdates
 import dosegram.infra.db.Fixtures
+import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.PgUnitOfWork
 import dosegram.infra.db.sql
@@ -67,7 +68,7 @@ class CaptureLaunchSuite extends PgSuite:
       val st = conn.createStatement()
       try
         st.execute(
-          "TRUNCATE render_assets, telegram_file_cache, " +
+          "TRUNCATE render_assets, telegram_file_cache, inbound_inbox, " +
             "hydration_entries, hydration_goals, hydration_presets, mood_checkins, daily_rollups, rollup_dirty, " +
             "consent_state, dose_actions, dose_occurrences, schedule_revisions, medication_schedules, " +
             "medications, inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
@@ -214,7 +215,7 @@ class CaptureLaunchSuite extends PgSuite:
       val config = settings
       val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock)
       val images = StatusImages.over(rasteriser, stores, _ => ())
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images)
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), idle, images), log = _ => ())
       test(Bot(clock, wire, rasteriser, firstUpdate))
 

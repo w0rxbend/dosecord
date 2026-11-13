@@ -1,10 +1,15 @@
 package dosegram.app
 
+import dosegram.adapter.telegram.TelegramAdapter
+import dosegram.adapter.telegram.WebhookConfig
 import dosegram.contracts.ChatAdapter
 import dosegram.core.ports.Clock
 import dosegram.infra.Role
 import dosegram.infra.Settings
+import dosegram.infra.db.PgInboundInbox
 import ox.Ox
+import sttp.shared.Identity
+import sttp.tapir.server.ServerEndpoint
 
 import javax.sql.DataSource
 
@@ -33,7 +38,8 @@ object Launch:
       val botId = settings.telegram.map(_.botId).getOrElse(0L)
       val stores = StatusImages.Stores.durable(dataSource, botId, Clock.system)
       val images = StatusImages.from(settings.render, stores, line => scribe.info(line))
-      Parts(Clock.system, Adapters.build(settings, Clock.system, images), Workers.Cadence.Production, images)
+      val adapters = Adapters.build(settings, Clock.system, images, PgInboundInbox(dataSource))
+      Parts(Clock.system, adapters, Workers.Cadence.Production, images)
 
   /** Starts, in the order of DESIGN.md section 12, the workers, then the adapters, then the HTTP edge, each only when
     * the role hosts it, and returns the drain that stops them on SIGTERM.
@@ -43,30 +49,41 @@ object Launch:
     val gate = ClaimGate(inFlight)
     if hostsWorkers(settings.role) then Workers(settings, dataSource, parts).start(gate, log)
     val adapters = if hostsGateway(settings.role) then Adapters.start(settings, dataSource, parts, log) else Nil
-    val miniApp = startMiniApp(settings, dataSource, parts, log)
+    val edge = startHttpEdge(settings, dataSource, parts, log)
     val health = Health.start(settings.healthPort)
     log(s"/healthz listening on :${settings.healthPort}")
     Drain(
-      inbound = ("health" -> (() => health.stop())) :: miniApp ::: adapters,
+      inbound = ("health" -> (() => health.stop())) :: edge ::: adapters,
       claiming = List("workers" -> (() => gate.stop())),
       inFlight = inFlight,
       budget = Shutdown.DrainBudget,
       log = log
     )
 
-  /** The public origin (`/app/`, `/api/v1/`) is part of the gateway half and exists only behind `MINIAPP_ENABLED`
-    * (ROADMAP G1.12); with the switch off no listener is opened.
+  /** The public origin is part of the gateway half: the Mini App (`/app/`, `/api/v1/`) behind `MINIAPP_ENABLED`
+    * (ROADMAP G1.12) and the Telegram webhook in webhook mode (G1.7). With neither, no listener is opened.
     */
-  private def startMiniApp(settings: Settings, dataSource: DataSource, parts: Parts, log: String => Unit)(using
+  private def startHttpEdge(settings: Settings, dataSource: DataSource, parts: Parts, log: String => Unit)(using
       Ox
   ): List[(String, () => Unit)] =
-    settings.miniApp
-      .filter(_ => hostsGateway(settings.role))
-      .toList
-      .map: miniApp =>
-        val edge = MiniAppEdge.start(settings, miniApp, dataSource, parts, log)
+    val webhook = if hostsGateway(settings.role) then webhookEndpoint(settings, parts) else None
+    settings.miniApp.filter(_ => hostsGateway(settings.role)) match
+      case Some(miniApp) =>
+        val edge = MiniAppEdge.start(settings, miniApp, dataSource, parts, log, webhook.toList)
         log(s"Mini App and API listening on :${settings.httpPort}")
-        "miniapp" -> (() => edge.stop())
+        List("miniapp" -> (() => edge.stop()))
+      case None =>
+        webhook.toList.map: endpoint =>
+          val edge = WebhookEdge.start(settings.httpPort, endpoint)
+          log(s"Telegram webhook listening on :${settings.httpPort}")
+          "webhook" -> (() => edge.stop())
+
+  /** The webhook endpoint, when the Telegram adapter receives its updates by webhook. */
+  private def webhookEndpoint(settings: Settings, parts: Parts): Option[ServerEndpoint[Any, Identity]] =
+    for
+      webhook <- settings.telegram.flatMap(_.webhook)
+      adapter <- parts.adapters.values.collectFirst { case telegram: TelegramAdapter => telegram }
+    yield WebhookEdge.endpoint(WebhookEdge.handler(webhook, adapter), WebhookConfig.DefaultMaxBodyBytes)
 
   // The role policy of docs/dosegram/ARCHITECTURE.md section 4.1. `/healthz` is served under every role: it is the
   // liveness probe of the container, whichever half the process hosts.

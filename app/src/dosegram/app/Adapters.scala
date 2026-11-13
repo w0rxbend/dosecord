@@ -10,10 +10,13 @@ import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatMediator
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.InboundInbox
 import dosegram.infra.Adapter
 import dosegram.infra.Settings
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
+import ox.discard
+import ox.fork
 
 import java.security.SecureRandom
 import javax.sql.DataSource
@@ -29,7 +32,9 @@ object Adapters:
   /** The adapters named by `ENABLED_ADAPTERS`, by vendor. Building one opens no connection: the gateway half starts it,
     * the worker half only sends through it.
     */
-  def build(settings: Settings, clock: Clock, images: StatusImages)(using Ox): Map[String, ChatAdapter] =
+  def build(settings: Settings, clock: Clock, images: StatusImages, inbox: InboundInbox)(using
+      Ox
+  ): Map[String, ChatAdapter] =
     settings.enabledAdapters.map {
       case Adapter.Console =>
         val userId = settings.consoleUserId.getOrElse(
@@ -40,7 +45,7 @@ object Adapters:
         val telegram = settings.telegram.getOrElse(
           throw IllegalArgumentException("TELEGRAM_TOKEN is required when the telegram adapter is enabled")
         )
-        TelegramAdapter.Vendor -> TelegramAssembly.production(settings, telegram, clock)(images)
+        TelegramAdapter.Vendor -> TelegramAssembly.production(settings, telegram, clock)(images, inbox)
     }.toMap
 
   /** Starts every adapter as a gateway; returns `(name, stop)` pairs for the drain. */
@@ -63,6 +68,14 @@ object Adapters:
       adapter.start(mediator, None)
       // The command surface is registered at startup (R53); a no-op on the text-only console profile.
       adapter.registerCommands(CommandRegistry.withCapture)
+      startInbox(adapter)
       log(s"adapter started: $name")
     )
     adapters.toList.map((name, adapter) => name -> (() => adapter.stop()))
+
+  /** The loop of an adapter's durable inbox (ROADMAP G1.7), in a fork of the root scope; the adapter's `stop` ends it.
+    */
+  private def startInbox(adapter: ChatAdapter)(using Ox): Unit =
+    adapter match
+      case telegram: TelegramAdapter => telegram.inboxProcessor.foreach(processor => fork(processor.run()).discard)
+      case _                         => ()

@@ -68,13 +68,16 @@ object MiniAppEdge:
   private val NoStore = Header("Cache-Control", "no-store")
   private val SweepPeriod = Duration.ofMinutes(1)
 
-  /** Starts the listener and the fork that deletes expired sessions and idempotency records. */
+  /** Starts the listener and the fork that deletes expired sessions and idempotency records. `extra` endpoints share
+    * the listener: the Telegram webhook in webhook mode (ROADMAP G1.7).
+    */
   def start(
       settings: Settings,
       miniApp: MiniAppSettings,
       dataSource: DataSource,
       parts: Launch.Parts,
-      log: String => Unit
+      log: String => Unit,
+      extra: List[ServerEndpoint[Any, Identity]] = Nil
   )(using
       Ox
   ): NettySyncServerBinding =
@@ -104,7 +107,7 @@ object MiniAppEdge:
     NettySyncServer(options, NettyConfig.default.copy(serverHeader = None))
       .host("0.0.0.0")
       .port(settings.httpPort)
-      .addEndpoints(api.endpoints :+ static.endpoint :+ elsewhere)
+      .addEndpoints(extra ++ api.endpoints :+ static.endpoint :+ elsewhere)
       .start()
 
   /** The launch-data checks of ARCHITECTURE API-02 and API-03. The HMAC key is derived here, so the `api` module never

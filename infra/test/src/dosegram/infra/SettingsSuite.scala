@@ -80,7 +80,10 @@ class SettingsSuite extends munit.FunSuite:
     "TELEGRAM_TOKEN"            -> "42:CANARY-token",
     "TELEGRAM_BOT_ID"           -> "42",
     "TELEGRAM_UPDATES_MODE"     -> "webhook",
-    "TELEGRAM_ALLOWED_USER_IDS" -> "7001"
+    "TELEGRAM_ALLOWED_USER_IDS" -> "7001",
+    "PUBLIC_BASE_URL"           -> "https://dosegram.example.com",
+    "TELEGRAM_WEBHOOK_PATH_SECRET" -> "path-secret-0123456789",
+    "TELEGRAM_WEBHOOK_SECRET_TOKEN" -> "header-secret-0123456789"
   )
 
   test("the telegram adapter needs its token, bot id and updates mode; all are reported together"):

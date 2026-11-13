@@ -22,6 +22,7 @@ import dosegram.infra.Settings
 import dosegram.infra.TelegramSettings
 import dosegram.infra.TelegramUpdates
 import dosegram.infra.db.Fixtures
+import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.sql
 import ox.supervised
@@ -66,7 +67,7 @@ class TelegramLaunchSuite extends PgSuite:
       val st = conn.createStatement()
       try
         st.execute(
-          "TRUNCATE dose_actions, dose_occurrences, schedule_revisions, medication_schedules, medications, " +
+          "TRUNCATE inbound_inbox, dose_actions, dose_occurrences, schedule_revisions, medication_schedules, medications, " +
             "inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
             "conversation_sessions, form_runs, callback_slots, delivery_channels, platform_identities, " +
             "worker_heartbeat, users CASCADE"
@@ -159,7 +160,7 @@ class TelegramLaunchSuite extends PgSuite:
     prepare(wire)
     supervised:
       val config = settings
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly)
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(PgInboundInbox(dataSource)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
       test(Bot(clock, wire))
 
@@ -330,8 +331,9 @@ class TelegramLaunchSuite extends PgSuite:
       eventually("the fixed reply is sent")(bot.sends.nonEmpty)
       settle()
       assertEquals(bot.sends.map(call => (call.number("chat_id"), call.text("text"))), List((Some(stranger), Some(AdapterCopy.notAvailable))))
-      List("inbound_events", "platform_identities", "users", "conversation_sessions", "outbox_messages").foreach: table =>
-        assertEquals(strings(s"SELECT 1 FROM $table").size, 0, s"$table must stay empty")
+      List("inbound_inbox", "inbound_events", "platform_identities", "users", "conversation_sessions", "outbox_messages")
+        .foreach: table =>
+          assertEquals(strings(s"SELECT 1 FROM $table").size, 0, s"$table must stay empty")
 
   test("/help, /today, /meds and /app are answered in the chat; /app carries a button that opens the Mini App"):
     val clock = SteppedClock(monday)

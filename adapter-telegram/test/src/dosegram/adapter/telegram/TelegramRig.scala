@@ -8,6 +8,7 @@ import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
 import dosegram.core.chat.CallbackMode
+import dosegram.core.ports.InboundInbox
 
 import java.time.Duration
 import java.time.Instant
@@ -19,7 +20,7 @@ import scala.jdk.CollectionConverters.*
   * mediator would get (`events`) and what the adapter logged (`logs`). Waiting never takes real time: a sleep of the
   * flood gate moves the manual clock.
   */
-final class TelegramRig(config: TelegramConfig = TelegramRig.webhook):
+final class TelegramRig(config: TelegramConfig = TelegramRig.webhook, inbox: Option[InboundInbox] = None):
 
   val timer: ManualTimer = ManualTimer(TelegramRig.T0)
   val wire: FakeTelegramTransport = FakeTelegramTransport(timer, idlePoll = Duration.ZERO)
@@ -53,7 +54,8 @@ final class TelegramRig(config: TelegramConfig = TelegramRig.webhook):
       log = line => { logged.add(line); () },
       metrics = metrics,
       sleep = wait => timer.advance(wait),
-      newEventId = () => UUID.randomUUID()
+      newEventId = () => UUID.randomUUID(),
+      inbox = inbox
     )
   )
 

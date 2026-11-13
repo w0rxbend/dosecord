@@ -39,21 +39,26 @@ object WebhookConfig:
 final class WebhookHandler(config: WebhookConfig, store: Update => Boolean):
 
   def handle(request: WebhookRequest): WebhookResponse =
-    if !authentic(request) then WebhookResponse.NotFound
-    else if request.contentLength.exists(_ > config.maxBodyBytes) then WebhookResponse.TooLarge
+    if !authentic(request.pathSecret, request.headerSecret) then WebhookResponse.NotFound
+    else receive(request.contentLength, request.body)
+
+  /** Steps 3 to 7 for a request whose secrets matched; an HTTP edge that checks [[authentic]] first calls this. */
+  def receive(contentLength: Option[Long], body: () => String): WebhookResponse =
+    if contentLength.exists(_ > config.maxBodyBytes) then WebhookResponse.TooLarge
     else
-      val body = request.body()
-      if body.getBytes(UTF_8).length > config.maxBodyBytes then WebhookResponse.TooLarge
-      else decode(body).fold(WebhookResponse.Accepted)(accept)
+      val text = body()
+      if text.getBytes(UTF_8).length > config.maxBodyBytes then WebhookResponse.TooLarge
+      else decode(text).fold(WebhookResponse.Accepted)(accept)
 
   private def accept(update: Update): WebhookResponse =
     if store(update) then WebhookResponse.Accepted else WebhookResponse.Unavailable
 
-  /** Both secrets are always compared, each in constant time, so a response time tells nothing about which was wrong.
+  /** Step 2. Both secrets are always compared, each in constant time, so a response time tells nothing about which was
+    * wrong.
     */
-  private def authentic(request: WebhookRequest): Boolean =
-    val pathMatches = sameText(request.pathSecret, config.pathSecret)
-    val presented = request.headerSecret.getOrElse("")
+  def authentic(pathSecret: String, headerSecret: Option[String]): Boolean =
+    val pathMatches = sameText(pathSecret, config.pathSecret)
+    val presented = headerSecret.getOrElse("")
     val headerMatches = config.headerSecrets.map(sameText(presented, _)).contains(true)
     pathMatches && headerMatches
 

@@ -21,6 +21,7 @@ import dosegram.infra.Metrics
 import dosegram.infra.MicrometerLoopMetrics
 import dosegram.infra.MicrometerOutboxMetrics
 import dosegram.infra.Settings
+import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgNotifyWake
 import dosegram.infra.db.PgRenderAssets
 import dosegram.infra.db.PgTelegramFileCache
@@ -63,6 +64,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startRollupWorker()
     startImagePurge()
     startPromptLoop(log)
+    startInboxPurge()
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
@@ -138,6 +140,17 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
         Thread.sleep(parts.cadence.imagePurgePeriod.toMillis)
     ()
 
+  /** The deleting job of the inbound stores (ROADMAP G1.7, ARCHITECTURE section 15.6): inbox bodies after 24 hours,
+    * inbox and `inbound_events` rows after 7 days. A processed body is deleted when it is processed.
+    */
+  private def startInboxPurge()(using Ox): Unit =
+    val inbox = PgInboundInbox(dataSource)
+    fork:
+      while true do
+        inbox.purge(clock.now())
+        Thread.sleep(parts.cadence.inboxPurgePeriod.toMillis)
+    ()
+
   /** The prompt loop (ADR-023): water, mood and sleep prompts through the outbox, at the reminder poll. A plan that
     * fails is logged by id and error class only, and the others go on.
     */
@@ -172,7 +185,9 @@ object Workers:
       outboxIdlePoll: Duration,
       sessionSweepPeriod: Duration,
       rollupIdlePoll: Duration,
-      imagePurgePeriod: Duration
+      imagePurgePeriod: Duration,
+      // The 24-hour and 7-day limits of the inbound stores hold to within this.
+      inboxPurgePeriod: Duration = Duration.ofMinutes(1)
   )
 
   object Cadence:
