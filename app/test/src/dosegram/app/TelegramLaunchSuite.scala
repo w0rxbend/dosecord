@@ -7,6 +7,9 @@ import dosegram.contracts.Weekday
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.AdapterCopy
+import dosegram.core.domain.copy.InputCopy
+import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.input.TimeOfDay
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.infra.Adapter
@@ -356,6 +359,32 @@ class TelegramLaunchSuite extends PgSuite:
           )
         )
       )
+
+  // The owner's report on the live bot (2026-11-13): "9:00" at the times question was refused without a reason. This
+  // drives the add-medication form through the Telegram adapter, the mediator and Postgres on the fake wire.
+  test("Add medication on Telegram: 9:75 is refused with the reason and examples, then 9:00 is read as 09:00"):
+    val clock = SteppedClock(monday)
+    seedOwner(clock)
+    launched(clock): bot =>
+      // The texts of every sent and edited message, in the order the wire received them.
+      def written: List[String] =
+        bot.wire.calls.filter(call => Set("sendMessage", "editMessageText")(call.method)).flatMap(_.text("text"))
+      def answer(clue: String)(act: => Unit)(expected: String): Unit =
+        val before = written.size
+        act
+        eventually(s"$clue: $expected")(written.drop(before).exists(_.contains(expected)))
+        // One message call per chat and second: let the buckets refill on the stepped clock.
+        clock.advance(Duration.ofSeconds(2))
+      answer("/meds")(bot.text(owner, "/meds"))("Vitamin D")
+      val meds = bot.sends.findLast(_.text("text").exists(_.contains("Vitamin D"))).getOrElse(fail("no /meds card"))
+      val messageId = meds.sentMessageId.getOrElse(fail("no message id"))
+      answer("Add medication")(bot.tap(tokenOf(bot, meds, "Add medication"), messageId))(WizardCopy.fieldName)
+      answer("the name")(bot.text(owner, "Vitamin C"))(WizardCopy.fieldDose)
+      answer("the dose")(bot.text(owner, "500 mg"))(WizardCopy.timesPrompt)
+      answer("a time that is not one")(bot.text(owner, "9:75"))(InputCopy.time(TimeOfDay.Rejection.NotATime("9:75")))
+      assert(written.last.contains(WizardCopy.timesPrompt), s"the times step stays open: ${written.last}")
+      answer("the owner's input")(bot.text(owner, "9:00"))(WizardCopy.timesEcho(List("09:00")))
+      assert(written.last.contains(WizardCopy.instructionsPrompt), s"the next step: ${written.last}")
 
   test("start-up registers the command list and leaves the command list as the default menu button"):
     val clock = SteppedClock(monday)
