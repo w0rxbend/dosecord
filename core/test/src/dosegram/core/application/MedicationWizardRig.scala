@@ -293,6 +293,12 @@ private final class MedicationWizardRig(
 
   def commandT(name: String): List[String] = s"> /$name" +: command(name)
 
+  /** A typed line with every resulting op, controls included (`lineT` shows the text only). */
+  def typeT(input: String): List[String] =
+    val before = ops.size
+    line(input)
+    s"> $input" +: ops.drop(before).map(formatOp)
+
   def tapT(containing: String, label: String): List[String] =
     val before = ops.size
     val wire = wireOf(containing, label)

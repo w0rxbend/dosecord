@@ -308,11 +308,11 @@ class MedicationWizardPgSuite extends PgSuite:
       rig.line("/menu")
       rig.line("2")
       rig.line("2")
-      assert(rig.sends.last.message.chunks.exists(_.contains("question 1 of 4")), "the form question is out")
+      assert(rig.sends.last.message.chunks.exists(_.contains("question 1 of 2")), "the form question is out")
 
       val restarted = rig.restartEngine()
       assertEquals(restarted.resumePending(), 1, "the stored form prompt is re-sent")
-      assert(rig.sends.last.message.chunks.exists(_.contains("question 1 of 4")), "the re-sent prompt is the form's")
+      assert(rig.sends.last.message.chunks.exists(_.contains("question 1 of 2")), "the re-sent prompt is the form's")
 
       rig.line("Vitamin D")
       rig.line("1000 IU")

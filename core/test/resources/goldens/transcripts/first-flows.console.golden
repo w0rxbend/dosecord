@@ -35,11 +35,11 @@ Pick your timezone:
 
 23) Back 24) Cancel
 > 22
-Type your timezone (an IANA name like Europe/Kyiv).
+Type your city, like Kyiv or New York, a zone like Europe/Kyiv, or an offset like UTC+2.
 
 Reply Back to go back or Cancel to stop.
 > Mars/Olympus_Mons
-I don't recognise that timezone — pick one from the list.
+I could not find a time zone for "Mars/Olympus_Mons". Pick one from the list, or tap Other and type a city like Kyiv, a zone like Europe/Kyiv, or an offset like UTC+2.
 
 Pick your timezone:
 
@@ -47,7 +47,7 @@ Pick your timezone:
 
 23) Back 24) Cancel
 > 13
-It is 03:00 for you now, right?
+It is 03:00 in Europe/Kyiv now. Correct?
 
 1) Yes 2) Change
 

@@ -144,7 +144,7 @@ class FirstFlowsPgSuite extends PgSuite:
       assertEquals(countSql("SELECT count(*) FROM domain_events"), 0L, "no event for an invalid zone")
 
       val confirm = rig.line("13") // UTC+03:00 — Europe/Kyiv
-      assert(confirm.exists(_.contains("It is 03:00 for you now, right?")), s"confirm echo: $confirm")
+      assert(confirm.exists(_.contains("It is 03:00 in Europe/Kyiv now. Correct?")), s"confirm echo: $confirm")
 
       val welcome = rig.line("1") // Yes
       assert(welcome.exists(_.contains(IdentityCopy.accountCreated)), s"welcome: $welcome")

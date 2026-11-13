@@ -24,6 +24,9 @@ object WizardEngine:
   /** The option keys currently on in a toggle keyboard, comma-joined; reset whenever the step changes. */
   private[chat] val SelectedKey = "_selected"
 
+  /** Rejected inputs in a row at the current step; dropped whenever the step changes. */
+  private[chat] val FailuresKey = "_failures"
+
   // Slot payload keys the engine dispatch matches on; everything else is a step choice key.
   private[chat] val BackKey = "engine.back"
   private[chat] val CancelKey = "engine.cancel"
@@ -58,6 +61,9 @@ object WizardEngine:
       .get(SelectedKey)
       .toList
       .flatMap(_.split(",").toList.filter(_.nonEmpty))
+
+  private[chat] def failuresOf(session: ConversationSession): Int =
+    WizardDocument.dataFromJson(session.data).get(FailuresKey).flatMap(_.toIntOption).getOrElse(0)
 
   private[chat] def isGrace(session: ConversationSession): Boolean =
     WizardDocument.dataFromJson(session.data).contains(GraceKey)
@@ -176,8 +182,8 @@ final class WizardEngine(
   /** A multi-select step on a vendor with buttons is one message whose keyboard is edited on each tap. */
   private def togglesInPlace(event: InboundEvent, step: Step): Boolean =
     step.kind match
-      case StepKind.Choices(_, _, maxSelect) => maxSelect > 1 && hasButtons(event.vendor)
-      case _                                 => false
+      case StepKind.Choices(_, _, maxSelect, _) => maxSelect > 1 && hasButtons(event.vendor)
+      case _                                    => false
 
   private def hasButtons(vendor: String): Boolean =
     adapters.get(vendor).exists(_.capabilities.buttons)
@@ -224,7 +230,7 @@ final class WizardEngine(
       tx: Tx
   ): Reply =
     stepOf(session) match
-      case Some((flow, step @ Step(_, StepKind.Choices(options, _, _), _, _, _))) =>
+      case Some((flow, step @ Step(_, StepKind.Choices(options, _, _, _), _, _, _, _))) =>
         val data = dataOf(session)
         val selected = selectedOf(session)
         val keys = options(data).map(_._1).filter(selected.contains)
@@ -267,16 +273,17 @@ final class WizardEngine(
             val navBack = text.equalsIgnoreCase(Labels.Back)
             val navCancel = text.equalsIgnoreCase(Labels.Cancel)
             step.kind match
-              case StepKind.Choices(_, _, maxSelect) if maxSelect > 1 =>
-                // A multi-select picker also takes typed selections ("1 3 5", "Mon, Wed") on the text tiers (M1.9).
+              case StepKind.Choices(_, _, maxSelect, acceptsText) if maxSelect > 1 || acceptsText =>
+                // A multi-select picker also takes typed selections ("1 3 5", "Mon, Wed") on the text tiers (M1.9);
+                // a step that accepts text takes typed input on every tier.
                 if navBack then goBack(event, session, None, tx)
                 else if navCancel then abort(session, None, tx)
                 else
                   step.accept(StepInput.TextEntered(text), dataOf(session)) match
                     case Left(reason)   => reprompt(event, session, step, reason, None, tx)
                     case Right(through) => transition(event, principal, session, flow, through, None, tx)
-              case StepKind.Choices(_, _, _) => inner.handle(event, principal, tx)
-              case StepKind.Text             =>
+              case StepKind.Choices(_, _, _, _) => inner.handle(event, principal, tx)
+              case StepKind.Text                =>
                 if navBack then goBack(event, session, None, tx)
                 else if navCancel then abort(session, None, tx)
                 else
@@ -474,21 +481,33 @@ final class WizardEngine(
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
-    val newSeq = session.stepSeq + 1
-    // A re-rendered form step starts a fresh run; the old one (if any) is superseded.
-    tx.formRuns.delete(session.id)
-    val base = renderStepPrompt(
-      event.chat,
-      event.principal.flatMap(_.accountId).map(_.uuid),
-      session.id,
-      step,
-      dataOf(session),
-      newSeq,
-      tx
-    )
-    val prompt = base.copy(body = paragraph(reason) +: base.body)
-    persist(session, step.id, dataOf(session), historyOf(session), newSeq, prompt, tx)
-    Reply(replace = Some(prompt.copy(replaces = source)))
+    val failures = failuresOf(session) + 1
+    val rescue = step.rescue
+      .filter(_ => failures >= Step.MaxFailures)
+      .flatMap(id => flows.get(session.flow).flatMap(_.steps.get(id)))
+    rescue match
+      // The user stays in the flow: the rescue step offers buttons of common choices, with the reason shown. The
+      // history is cut where Back would have cut it, so Back from there does not return to the failed step.
+      case Some(target) =>
+        val history = historyOf(session).takeWhile(_ != target.id)
+        advance(event, session, target, dataOf(session), history, source, tx, notice = Some(reason))
+      case None =>
+        val newSeq = session.stepSeq + 1
+        // A re-rendered form step starts a fresh run; the old one (if any) is superseded.
+        tx.formRuns.delete(session.id)
+        val base = renderStepPrompt(
+          event.chat,
+          event.principal.flatMap(_.accountId).map(_.uuid),
+          session.id,
+          step,
+          dataOf(session),
+          newSeq,
+          tx
+        )
+        val prompt = base.copy(body = paragraph(reason) +: base.body)
+        val counted = dataOf(session) + (FailuresKey -> failures.toString)
+        persist(session, step.id, counted, historyOf(session), newSeq, prompt, tx)
+        Reply(replace = Some(prompt.copy(replaces = source)))
 
   private def transition(
       event: InboundEvent,
@@ -522,7 +541,8 @@ final class WizardEngine(
       data: Map[String, String],
       history: List[String],
       source: Option[MessageHandle],
-      tx: Tx
+      tx: Tx,
+      notice: Option[String] = None
   ): Reply =
     val newSeq = session.stepSeq + 1
     val accountId = event.principal.flatMap(_.accountId).map(_.uuid)
@@ -530,7 +550,7 @@ final class WizardEngine(
     val entered = data ++ step.onEnter(data, accountId, tx)
     // A re-rendered form step starts a fresh run; the old one (if any) is superseded.
     tx.formRuns.delete(session.id)
-    val prompt = renderStepPrompt(
+    val rendered = renderStepPrompt(
       event.chat,
       accountId,
       session.id,
@@ -539,6 +559,7 @@ final class WizardEngine(
       newSeq,
       tx
     )
+    val prompt = rendered.copy(body = notice.map(paragraph).toList ++ rendered.body)
     persist(session, step.id, entered, history, newSeq, prompt, tx)
     Reply(replace = Some(prompt.copy(replaces = source)))
 
@@ -596,7 +617,7 @@ final class WizardEngine(
   ): OutboundMessage =
     val (blocks, extraBody) =
       step.kind match
-        case StepKind.Choices(options, minSelect, maxSelect) =>
+        case StepKind.Choices(options, minSelect, maxSelect, acceptsText) =>
           def slot(key: String): String = mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire
           // A toggle keyboard marks the options that are on and ends with the choice that submits them.
           val toggled = maxSelect > 1 && hasButtons(chat.vendor)
@@ -610,9 +631,10 @@ final class WizardEngine(
             id = s"wizard.${step.id}",
             choices = picks ++ done,
             minSelect = minSelect,
-            maxSelect = maxSelect
+            maxSelect = maxSelect,
+            numberHotkeys = !acceptsText
           )
-          (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, tx)), Nil)
+          (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, tx, !acceptsText)), Nil)
         case StepKind.Text =>
           (Nil, List(paragraph(WizardCopy.textNavHint)))
         case StepKind.Form(formId, title, fields) =>
@@ -638,11 +660,13 @@ final class WizardEngine(
       accountId: Option[UUID],
       sessionId: UUID,
       stepSeq: Int,
-      tx: Tx
+      tx: Tx,
+      numberHotkeys: Boolean
   ): Block =
     Block.Choices(
       ChoiceSet(
         id = "wizard.nav",
+        numberHotkeys = numberHotkeys,
         choices = List(
           Choice.callback(Labels.Back, mint(chat, accountId, sessionId, stepSeq, StepAction, BackKey, tx).wire),
           Choice.callback(

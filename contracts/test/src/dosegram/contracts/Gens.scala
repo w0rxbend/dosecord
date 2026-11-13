@@ -290,7 +290,8 @@ object Gens:
       maxSelect <- Gen.choose(1, choices.length)
       minSelect <- Gen.choose(0, maxSelect)
       ttl <- Gen.option(genDuration)
-    yield ChoiceSet(id, prompt, choices, minSelect, maxSelect, ttl)
+      numberHotkeys <- Arbitrary.arbitrary[Boolean]
+    yield ChoiceSet(id, prompt, choices, minSelect, maxSelect, ttl, numberHotkeys)
   )
   given Arbitrary[FieldType] = Arbitrary(Gen.oneOf(FieldType.values.toList))
   given Arbitrary[Field] = Arbitrary(
@@ -437,7 +438,7 @@ object Gens:
     )
   )
   given Arbitrary[ChoiceMapEntry] = Arbitrary(
-    Gen.zip(genText, Gen.choose(1, 25), genText, genOptText, genText).map(ChoiceMapEntry.apply)
+    Gen.zip(genText, Gen.choose(1, 25), genText, genOptText, genText, Arbitrary.arbitrary[Boolean]).map(ChoiceMapEntry.apply)
   )
   given Arbitrary[RenderedField] = Arbitrary(
     Gen

@@ -848,7 +848,7 @@ unit   = mg / mcg / g / ml / IU / drop(s) / tablet(s) / capsule(s) / puff(s) / u
          and the equivalents of each shipped locale;
          any other word of at most 16 characters is kept as a custom unit
 times  = time *( separator time )         ; 1 to 6 times in chat
-time   = H:MM / HH:MM / H.MM / H am / H pm / H:MM am / H:MM pm
+time   = any spelling of section 15.6, e.g. H:MM / HH:MM / H.MM / H am / H pm / H:MM am / H:MM pm
 days   = "daily" / "every day" / "weekdays" / "weekends" / day *( "," day )
 day    = mon / tue / wed / thu / fri / sat / sun    and locale equivalents
 ```
@@ -1333,6 +1333,46 @@ Telegram keeps undelivered updates for at most 24 hours `V[02 §4.1]`. That is a
 |---|---|
 | BUX-REL-01 | The notice card, the profile description, `/help` and `onb.reliability` each state that reminders are ordinary Telegram messages and can be late or silent. No copy uses "alarm", "guarantee", "never miss" or "always". |
 | BUX-REL-02 | `onb.reliability` offers "Send a test reminder". The card then says "Leave this chat or lock your phone now. A test reminder arrives in 60 seconds." The test is a sample reminder card, clearly labelled as a test, sent 60 seconds later with the sound setting of real reminders. A user who stays inside the open chat sees the message appear in place and gets no system notification whether the chat is muted or not (`A`, client behaviour, spike SP-16), which is why the user is asked to leave. The test card asks "Did your phone alert you?" with "Yes" and "No"; "No" shows the Telegram and device notification settings to check. The copy states that the test shows one device at one moment only and is not a guarantee for later reminders. It creates no record. |
+
+### 15.6 Typed input
+
+On 2026-11-13 the owner typed `9:00` at the times question of the add-medication form on the live bot. The form accepted the answer, asked the fourth question, and only then replied "Times must be HH:MM, comma-separated" and restarted the whole form at the name. Two causes: the contract type `HhMm` wanted two hour digits, and the form checked its answers only after the last question. This section replaces both.
+
+Every typed value in chat is read by one shared grammar in `core/domain/input`, used by every step that takes that kind of value. The grammars are lenient about spelling and strict about meaning: a value that cannot be read without guessing is refused.
+
+| ID | Requirement |
+|---|---|
+| BUX-IN-01 | Before reading, text is normalised: NFKC (full-width digits and colons, no-break spaces), invisible format characters removed, every Unicode decimal digit read as its ASCII digit, case ignored, trailing `.`, `!`, `?` and `…` removed. |
+| BUX-IN-02 | A value that is not understood is never dropped silently. The reply quotes the part that was not understood (at most 40 characters, control characters removed, escaped by the renderer), says what is expected with two or three examples, and keeps the user in the same step. Nothing is recorded. |
+| BUX-IN-03 | After two rejected inputs in a row at a text-only step, the user is moved to a step with buttons of common choices, with the reason shown. Where the step already shows such buttons, they stay. |
+| BUX-IN-04 | On a prompt that takes typed input and also shows choices, a typed number is input, never the number of a choice (ADR-015 addendum 2). The choices are tapped or typed by their label. |
+| BUX-IN-05 | A value that was understood is echoed back before it is saved, with a way to change it (the add-medication times step: "Reminder times: 08:00, 14:30 and 22:00." with "Change times"). |
+
+**Times of day** (`TimeOfDay`). Accepted: `9`, `9:00`, `09:00`, `9.00`, `9 00`, `900`, `0900`, `9h`, `9h00`, `21h`, `21h30`, `9am`, `9 am`, `9 a.m.`, `9:30pm`, `noon`, `midday`, `midnight`, surrounding words (`at 9`, `@ 9:15`, `around 7pm`, `9 o'clock`), and several times in one message separated by a comma, a semicolon, a slash, `&`, `+`, `and`, `then` or a new line (`8, 14:30 and 22`). The result is sorted, without repeats, at most 6 times (BUX-MED-03). The readings decided for ambiguous input:
+
+1. A number without am or pm is on the 24-hour clock: `7` is 07:00, never 19:00. The echo shows the reading.
+2. Three or four digits are hours and minutes: `930` is 09:30, `2130` is 21:30.
+3. Two numbers separated only by a space are one time when the second has two digits and starts with 0, is 15, 30 or 45, or cannot be an hour (24 to 59): `9 00`, `9 30`, `7 05`, `9 50`. Otherwise they are two times: `8 20` is 08:00 and 20:00.
+4. A comma always separates times, so `9,30` is refused with "30" named, not read as 09:30.
+5. `24:00` and `24` are midnight (00:00); `12am` is 00:00 and `12pm` is 12:00; `13pm` is refused.
+
+**Add-medication times step.** The form asks the name and the dose. The times step then shows "08:00", "09:00", "13:00", "20:00", "22:00", "Other time" and "As needed", and takes one or more typed times. "Other time" asks for typed times; two failures there return to the buttons. The instructions step echoes the times with "Change times" and takes optional text or "No instructions".
+
+**Audit of the other typed inputs in chat** (2026-11-13):
+
+| Input | Where | Accepted | Not understood |
+|---|---|---|---|
+| Snooze length (`SnoozeDuration`) | `/snooze <length>` | `10`, `10m`, `10 min`, `10 minutes`, `1h`, `1 hour`, `2 hours`, `1.5h`, `1,5 h`, `1h30`, `1h 30m`, `½h`, `half an hour`, `for 20 min`; 1 minute to 24 hours; a bare number is minutes | The part is named with examples and the usage line (BUX-CMD-04); no argument shows the usage alone |
+| Day list (`DayList`) | the add-medication day picker, typed | `mon wed fri`, `Monday, Wednesday and Friday`, `tues thurs`, `on Saturdays`, `1 3 5` (1 is Monday), `weekdays`, `weekends`, `every day`, `daily`, ranges `mon-fri`, `1-3`, and `fri-mon`, which wraps | The word is named with examples; the picker stays |
+| Dose (`DoseText`) | the add-medication form | `1000 IU`, `1 tab`, `0,5`, `.5 ml`, `½`, `1½ tablets`, `1/2 tablet`, `1 1/2 tablets`; a third is kept to 3 fraction digits; the unit is kept as typed | Never refused: text without a positive leading amount is kept whole as the unit (BUX-MED-03) |
+| Time zone (`ZoneText`) | onboarding, Account → Timezone, the wizard's Change timezone, after "Other" | a zone id in any case (`europe/kyiv`), a city as the last part of a zone id without case or diacritics (`Kyiv`, `sao paulo`, `new york`), a UTC offset (`UTC+2`, `GMT+02:00`, `+5:30`, `UTC`). An offset becomes the first picker zone that has it now, else the `Etc/GMT` zone of a whole hour; the stored value is always an IANA id (BUX-TZ-01). The confirmation names the zone and its local time: "It is 17:42 in Europe/Kyiv now. Correct?" (BUX-TZ-02) | The picker is shown again with a note that quotes the text (the M0.12d acceptance: an invalid zone re-shows the picker), so the buttons come after the first failure |
+| Medication name | `/taken`, `/skip`, `/log` | the stored normalised name: trimmed, case ignored | "I could not find <name>." Not changed here: a looser match would change `name_norm`, which find-or-create (R18) and the unique index rely on |
+| Water amount | quick capture and `/water` | the grammar of section 11.2 (`WaterTextParser`) | Not changed here |
+| Mood level | quick capture and `/mood` | the grammar of section 11.4 | Not changed here |
+| Dates | none | No step takes a typed date today; "taken at another time" (BUX-COR-02) is not built. When it is, it uses `TimeOfDay` for the time | — |
+| Quiet hours | none | No chat step sets quiet hours today (BUX-SET-03 is not built); when it is, it uses `TimeOfDay` | — |
+
+**Location.** The owner asked for "Share location" with automatic detection of the zone. It is not built: BUX-TZ-03, PRODUCT_SPEC R-IDC-12 and R-IDC-22 and research 06 section 7.1 forbid requesting or using the device location. The typed city, zone and offset above are the lenient alternative within those rules.
 
 ## 16. Groups, channels, inline mode and other surfaces
 

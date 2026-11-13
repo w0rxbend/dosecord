@@ -11,12 +11,12 @@ import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.input.ZoneText
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
 
-import java.time.DateTimeException
 import java.time.Instant
 import java.time.ZoneId
 
@@ -73,9 +73,8 @@ object AccountCreateFlow:
     "Pacific/Auckland"
   ).map(ZoneId.of)
 
-  def parseZone(text: String): Option[ZoneId] =
-    try Some(ZoneId.of(text.trim))
-    catch case _: DateTimeException => None
+  /** A typed city, zone id or UTC offset (the shared `ZoneText` grammar); an offset prefers a picker zone. */
+  def parseZone(text: String, now: Instant): Option[ZoneId] = ZoneText.parse(text, now, pickerZones)
 
   private def offsetLabel(zone: ZoneId, now: Instant): String =
     val offset = zone.getRules.getOffset(now).getTotalSeconds
@@ -165,11 +164,12 @@ object AccountCreateFlow:
       render = _ => List(paragraph(IdentityCopy.timezoneCustomPrompt)),
       accept = {
         case (StepInput.TextEntered(text), _) =>
-          parseZone(text) match
+          parseZone(text, clock.now()) match
             case Some(zone) =>
               Right(StepTransition.Next("confirm", Map(TimezoneKey -> zone.getId, ErrorKey -> "")))
-            // An invalid zone re-shows the picker (with the note), and writes no row (acceptance 3).
-            case None => Right(StepTransition.Next("timezone", Map(ErrorKey -> IdentityCopy.invalidZone)))
+            // An invalid zone re-shows the picker with a note naming what was typed, and writes no row
+            // (acceptance 3): the buttons of common choices come back after the first failure.
+            case None => Right(StepTransition.Next("timezone", Map(ErrorKey -> IdentityCopy.zoneNotFound(text))))
         case _ => Left(IdentityCopy.invalidZone)
       }
     ),
@@ -179,7 +179,7 @@ object AccountCreateFlow:
       render = data =>
         val zone = ZoneId.of(data(TimezoneKey))
         val local = clock.now().atZone(zone)
-        List(paragraph(WizardCopy.timezoneConfirm(f"${local.getHour}%02d:${local.getMinute}%02d")))
+        List(paragraph(WizardCopy.timezoneConfirm(f"${local.getHour}%02d:${local.getMinute}%02d", zone.getId)))
       ,
       accept = {
         case (StepInput.Chosen("yes"), _)    => Right(StepTransition.Complete)
