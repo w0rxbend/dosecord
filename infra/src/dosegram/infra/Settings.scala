@@ -29,6 +29,29 @@ enum Role(val envName: String):
 object Role:
   def parse(value: String): Option[Role] = values.find(_.envName == value)
 
+/** Where the process runs (ARCHITECTURE section 16.1). `production` is the default, so a forgotten variable never
+  * relaxes a start-up rule (CFG-01).
+  */
+enum Environment(val envName: String):
+  case Development extends Environment("development")
+  case Test extends Environment("test")
+  case Production extends Environment("production")
+
+object Environment:
+  def parse(value: String): Option[Environment] = values.find(_.envName == value)
+
+/** The Mini App surface, present only when `MINIAPP_ENABLED=true` (ROADMAP G1.12): the static files under `/app/` and
+  * every `/api/` route. Launch data is checked with Ed25519 for `botId` (Telegram's production key unless
+  * `initDataPublicKey` names another, which only a non-production environment may do), and with the HMAC of the bot
+  * token when `hmacFallback` is set (ARCHITECTURE API-02, API-03).
+  */
+final case class MiniAppSettings(
+    staticDir: Option[String],
+    botId: Option[Long],
+    initDataPublicKey: Option[String],
+    hmacFallback: Boolean
+)
+
 enum LogLevel(val envName: String):
   case Debug extends LogLevel("DEBUG")
   case Info extends LogLevel("INFO")
@@ -60,12 +83,18 @@ final case class Settings(
     consoleUserId: Option[String],
     telegramToken: Option[String],
     publicBaseUrl: Option[String],
-    healthPort: Int
+    healthPort: Int,
+    environment: Environment = Environment.Production,
+    httpPort: Int = Settings.DefaultHttpPort,
+    miniApp: Option[MiniAppSettings] = None
 )
 
 object Settings:
 
   val DefaultHealthPort: Int = 8080
+
+  /** The public listener of ARCHITECTURE section 9.1 (`/app/`, `/api/v1/`); `/healthz` stays on its own port. */
+  val DefaultHttpPort: Int = 8081
 
   /** Declarative description of one env var: the single source for parsing, validation and `.env.example` generation,
     * so the committed example cannot drift from the case class (DESIGN.md section 12).
@@ -146,6 +175,59 @@ object Settings:
       "TCP port of the /healthz listener.",
       DefaultHealthPort.toString,
       Some(DefaultHealthPort.toString)
+    ),
+    EnvSpec(
+      "ENVIRONMENT",
+      required = false,
+      secret = false,
+      "development | test | production. Start-up rules are strictest in production.",
+      "production",
+      Some("production")
+    ),
+    EnvSpec(
+      "HTTP_PORT",
+      required = false,
+      secret = false,
+      "TCP port of the public listener (/app/ and /api/v1/); opened only when MINIAPP_ENABLED=true.",
+      DefaultHttpPort.toString,
+      Some(DefaultHttpPort.toString)
+    ),
+    EnvSpec(
+      "MINIAPP_ENABLED",
+      required = false,
+      secret = false,
+      "true | false. Serves the Mini App and its API; refused in production until roadmap checkpoint CP3-a.",
+      "false",
+      Some("false")
+    ),
+    EnvSpec(
+      "MINIAPP_STATIC_DIR",
+      required = false,
+      secret = false,
+      "Directory of the built Mini App (miniapp/dist); without it /app/ answers 404 and only the API is served.",
+      "miniapp/dist"
+    ),
+    EnvSpec(
+      "TELEGRAM_BOT_ID",
+      required = false,
+      secret = false,
+      "Numeric id of the bot; launch data of the Mini App is verified for it (Ed25519).",
+      "7000000001"
+    ),
+    EnvSpec(
+      "MINIAPP_INITDATA_PUBLIC_KEY",
+      required = false,
+      secret = false,
+      "Ed25519 key (64 hex digits) that signs launch data, instead of Telegram's production key; never in production.",
+      "40055058a4ee38156a06562e52eece92a771bcd8346a8c4615cb7376eddf72ec"
+    ),
+    EnvSpec(
+      "MINIAPP_HMAC_FALLBACK",
+      required = false,
+      secret = false,
+      "true | false. Accepts launch data without a signature by its HMAC; needs TELEGRAM_TOKEN.",
+      "false",
+      Some("false")
     )
   )
 
@@ -209,6 +291,27 @@ object Settings:
       case Some(port) => port
       case None       => { errors = errors :+ "HEALTH_PORT must be a TCP port from 1 to 65535"; DefaultHealthPort })
 
+    def parsed[A](name: String, expected: String, fallback: A)(parse: String => Option[A]): Option[A] =
+      lookup(name).map(parse(_) match
+        case Some(value) => value
+        case None        => { errors = errors :+ s"$name must be $expected"; fallback })
+
+    def flag(name: String): Boolean =
+      parsed(name, "true or false", false)(_.toBooleanOption).getOrElse(false)
+
+    val environment =
+      parsed("ENVIRONMENT", "development, test or production", Environment.Production)(Environment.parse)
+    val httpPort = parsed("HTTP_PORT", "a TCP port from 1 to 65535", DefaultHttpPort)(
+      _.toIntOption.filter(port => port >= 1 && port <= 65535)
+    )
+    val botId = parsed("TELEGRAM_BOT_ID", "a positive number", 0L)(_.toLongOption.filter(_ > 0))
+    val initDataPublicKey = parsed("MINIAPP_INITDATA_PUBLIC_KEY", "64 hex digits", "")(key =>
+      Option.when(key.matches("[0-9a-fA-F]{64}"))(key.toLowerCase)
+    )
+    val miniAppEnabled = flag("MINIAPP_ENABLED")
+    val hmacFallback = flag("MINIAPP_HMAC_FALLBACK")
+    val staticDir = lookup("MINIAPP_STATIC_DIR")
+
     val databaseUrl = required("DATABASE_URL")
 
     val keys = required("CALLBACK_KEYS").flatMap(parseCallbackKeys(_) match
@@ -225,6 +328,16 @@ object Settings:
         errors = errors :+ "TELEGRAM_TOKEN is required when the telegram adapter is enabled"
     }
 
+    val inProduction = environment.getOrElse(Environment.Production) == Environment.Production
+    if miniAppEnabled then
+      if inProduction then
+        errors = errors :+ "MINIAPP_ENABLED=true is refused while ENVIRONMENT=production (ROADMAP checkpoint CP3-a)"
+      if botId.isEmpty && !hmacFallback then
+        errors = errors :+ "MINIAPP_ENABLED needs TELEGRAM_BOT_ID, or MINIAPP_HMAC_FALLBACK=true with TELEGRAM_TOKEN"
+      if hmacFallback && telegramToken.isEmpty then errors = errors :+ "MINIAPP_HMAC_FALLBACK=true needs TELEGRAM_TOKEN"
+      if inProduction && initDataPublicKey.isDefined then
+        errors = errors :+ "MINIAPP_INITDATA_PUBLIC_KEY is refused while ENVIRONMENT=production"
+
     if errors.nonEmpty then Left(errors)
     else
       Right(
@@ -239,7 +352,10 @@ object Settings:
           consoleUserId = consoleUserId,
           telegramToken = telegramToken,
           publicBaseUrl = lookup("PUBLIC_BASE_URL"),
-          healthPort = healthPort.getOrElse(DefaultHealthPort)
+          healthPort = healthPort.getOrElse(DefaultHealthPort),
+          environment = environment.getOrElse(Environment.Production),
+          httpPort = httpPort.getOrElse(DefaultHttpPort),
+          miniApp = Option.when(miniAppEnabled)(MiniAppSettings(staticDir, botId, initDataPublicKey, hmacFallback))
         )
       )
 

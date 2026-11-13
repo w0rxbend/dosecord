@@ -30,15 +30,30 @@ object Launch:
     val gate = ClaimGate(inFlight)
     if hostsWorkers(settings.role) then Workers(settings, dataSource, parts).start(gate, log)
     val adapters = if hostsGateway(settings.role) then Adapters.start(settings, dataSource, parts, log) else Nil
+    val miniApp = startMiniApp(settings, dataSource, parts, log)
     val health = Health.start(settings.healthPort)
     log(s"/healthz listening on :${settings.healthPort}")
     Drain(
-      inbound = ("health" -> (() => health.stop())) :: adapters,
+      inbound = ("health" -> (() => health.stop())) :: miniApp ::: adapters,
       claiming = List("workers" -> (() => gate.stop())),
       inFlight = inFlight,
       budget = Shutdown.DrainBudget,
       log = log
     )
+
+  /** The public origin (`/app/`, `/api/v1/`) is part of the gateway half and exists only behind `MINIAPP_ENABLED`
+    * (ROADMAP G1.12); with the switch off no listener is opened.
+    */
+  private def startMiniApp(settings: Settings, dataSource: DataSource, parts: Parts, log: String => Unit)(using
+      Ox
+  ): List[(String, () => Unit)] =
+    settings.miniApp
+      .filter(_ => hostsGateway(settings.role))
+      .toList
+      .map: miniApp =>
+        val edge = MiniAppEdge.start(settings, miniApp, dataSource, parts, log)
+        log(s"Mini App and API listening on :${settings.httpPort}")
+        "miniapp" -> (() => edge.stop())
 
   // The role policy of docs/dosegram/ARCHITECTURE.md section 4.1. `/healthz` is served under every role: it is the
   // liveness probe of the container, whichever half the process hosts.
