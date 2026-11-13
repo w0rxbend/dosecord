@@ -246,6 +246,21 @@ final class MiniAppEdgeSuite extends PgSuite:
       assertEquals(today.statusCode(), 200, today.body())
       assertEquals(header(today, "Cache-Control"), Some("no-store"))
 
+  test("the insights overview is served through the application's wiring, for the session's account"):
+    val on = shared
+    val telegramUserId = telegramAccount()
+    locally:
+      val initData = signedInitData(telegramUserId, Instant.now())
+      val session = call(on.httpPort, "/api/v1/session", "POST", Some(ujson.write(ujson.Obj("initData" -> initData))))
+      val token = ujson.read(session.body())("token").str
+      val overview = call(on.httpPort, "/api/v1/insights/overview?range=7", token = token)
+      assertEquals(overview.statusCode(), 200, overview.body())
+      assertEquals(header(overview, "Cache-Control"), Some("no-store"))
+      val document = ujson.read(overview.body())
+      assertEquals(document("ranges").arr.toList.map(_.num.toInt), List(7, 30))
+      assertEquals(document("blocks").arr.toList, Nil, "an account without a consent has no block")
+      assertEquals(call(on.httpPort, "/api/v1/insights/overview?range=7").statusCode(), 401)
+
   test("launch data signed with another token is refused"):
     val on = shared
     val telegramUserId = telegramAccount()

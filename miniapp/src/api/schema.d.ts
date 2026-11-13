@@ -230,6 +230,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/insights/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The statistics of a period, one block per domain whose consent is active. */
+        get: operations["getInsightsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -283,6 +300,37 @@ export interface components {
         FieldError: {
             field: string;
             code: string;
+        };
+        /** InsightBlock */
+        InsightBlock: {
+            id: components["schemas"]["InsightDomain"];
+            title: string;
+            lines?: string[];
+            noDataText?: string;
+            vessel?: components["schemas"]["InsightVessel"];
+        };
+        /**
+         * InsightDomain
+         * @enum {string}
+         */
+        InsightDomain: "hydration" | "medication" | "mood";
+        /** InsightVessel */
+        InsightVessel: {
+            /** Format: int32 */
+            valueMl: number;
+            /** Format: int32 */
+            goalMl: number;
+            label: string;
+        };
+        /** InsightsOverview */
+        InsightsOverview: {
+            /** Format: int32 */
+            rangeDays: number;
+            rangeLabel: string;
+            timeZone: string;
+            ranges?: number[];
+            blocks?: components["schemas"]["InsightBlock"][];
+            notice?: string;
         };
         /** Limits */
         Limits: {
@@ -1060,6 +1108,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Schedule"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInsightsOverview: {
+        parameters: {
+            query: {
+                /** @description The number of days the statistics cover: 7 or 30 */
+                range: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsOverview"];
                 };
             };
             default: {

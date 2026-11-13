@@ -221,3 +221,42 @@ final case class DayView(
     nowMinute: Option[Int] = None
 ) derives ReadWriter,
       Schema
+
+// ---------- insights-and-correlations ----------
+
+enum InsightDomain(val wire: String):
+  case Medication extends InsightDomain("medication")
+  case Hydration extends InsightDomain("hydration")
+  case Mood extends InsightDomain("mood")
+
+object InsightDomain:
+  given ReadWriter[InsightDomain] = ApiJson.wireEnum(values, _.wire)
+  given Schema[InsightDomain] = Schema.derivedEnumeration[InsightDomain](encode = Some(_.wire))
+
+/** Today's water against the user's own goal; `label` is the server's sentence for it. */
+final case class InsightVessel(valueMl: Int, goalMl: Int, label: String) derives ReadWriter, Schema
+
+/** The statistics of one domain in the server's words. `noDataText` is set when the period has no record of the domain;
+  * then there are no lines.
+  */
+final case class InsightBlock(
+    id: InsightDomain,
+    title: String,
+    lines: List[String],
+    noDataText: Option[String] = None,
+    vessel: Option[InsightVessel] = None
+) derives ReadWriter,
+      Schema
+
+/** One block per domain whose consent is active. `notice` is set when there is none. `ranges` are the periods the
+  * server computes, so the client offers no other (MINI_APP section 15.1).
+  */
+final case class InsightsOverview(
+    rangeDays: Int,
+    rangeLabel: String,
+    timeZone: String,
+    ranges: List[Int],
+    blocks: List[InsightBlock],
+    notice: Option[String] = None
+) derives ReadWriter,
+      Schema

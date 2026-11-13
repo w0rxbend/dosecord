@@ -156,6 +156,16 @@ object Endpoints:
       .out(jsonBody[Schedule])
       .name("changeScheduleState")
 
+  // ---------- insights-and-correlations ----------
+
+  val insightsOverview =
+    secured.get
+      .in("insights" / "overview")
+      .in(query[Int]("range").description("The number of days the statistics cover: 7 or 30"))
+      .out(jsonBody[InsightsOverview])
+      .name("getInsightsOverview")
+      .description("The statistics of a period, one block per domain whose consent is active.")
+
   /** Any other path under `/api` answers with the problem document for not-found, never with a bare status. */
   val unknown = endpoint.in("api" / paths).errorOut(failure)
 
@@ -178,5 +188,6 @@ object Endpoints:
     createSchedule,
     getSchedule,
     reviseSchedule,
-    changeScheduleState
+    changeScheduleState,
+    insightsOverview
   )

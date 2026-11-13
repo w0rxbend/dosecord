@@ -33,6 +33,7 @@ final class ApiModule(
     verifier: InitDataVerifier,
     sessionStore: SessionStore,
     idempotencyStore: IdempotencyStore,
+    tracking: TrackingReads,
     log: String => Unit
 ):
   import ApiModule.*
@@ -41,6 +42,7 @@ final class ApiModule(
   private val idempotency = Idempotency(idempotencyStore, clock)
   private val registry = Registry(uow, clock)
   private val days = DayViews(uow, clock)
+  private val insights = Insights(uow, tracking, clock)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
   def sweep(): Int = sessions.sweep() + idempotency.sweep()
@@ -157,9 +159,15 @@ final class ApiModule(
               .map(withRevisionTag)
   )
 
+  private val insightEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.insightsOverview
+      .handleSecurity(authenticate)
+      .handle(session => rangeDays => guarded(insights.overview(session.accountId, rangeDays)))
+  )
+
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
-    sessionEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints :+
+    sessionEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++ insightEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

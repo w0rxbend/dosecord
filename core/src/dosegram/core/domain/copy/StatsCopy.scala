@@ -51,12 +51,18 @@ object StatsCopy:
     * missed dose is "not confirmed", an unknown one "no record".
     */
   def doses(figures: MedicationFigures): List[String] =
+    doseFigures(figures) match
+      case first :: rest => s"Doses: $first" :: rest
+      case Nil           => Nil
+
+  /** The dose lines without the domain name in front, for a surface that shows the domain as a heading. */
+  def doseFigures(figures: MedicationFigures): List[String] =
     if figures.buckets.isEmpty then Nil
     else
       val buckets = figures.buckets
       val resolved = buckets.resolved
       List(
-        Some(s"Doses: ${headline(figures)}"),
+        Some(headline(figures)),
         Option.when(resolved.taken > 0)(s"${resolved.takenOnTime} of ${resolved.taken} taken doses on time"),
         Option.when(resolved.resolved > 0)(
           s"${resolved.taken + resolved.skipped} of ${resolved.resolved} answered"
@@ -83,7 +89,12 @@ object StatsCopy:
 
   /** The water line of a 7-day or 30-day period; `None` when the period has no entry. */
   def water(period: HydrationPeriod): Option[String] =
-    Option.when(period.recordedDays > 0):
+    Option.when(period.recordedDays > 0)(waterFigures(period).mkString("Water: ", " · ", ""))
+
+  /** The figures of the water line one by one; empty when the period has no entry. */
+  def waterFigures(period: HydrationPeriod): List[String] =
+    if period.recordedDays == 0 then Nil
+    else
       val goal = period.goalDays.map:
         case Stat.Shown(ratio, _, _, _) =>
           s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days"
@@ -94,7 +105,7 @@ object StatsCopy:
         case Stat.Shown(millilitres, _, _, _)  => s"average ${litres(millilitres, 1)} l a day"
         case Stat.Insufficient(n, required, _) => s"${more(required - n, "recorded day")} for an average"
         case Stat.NoVariation(_, _)            => NoData
-      (goal.toList ++ List(average, coverage(period.recordedDays, period.window))).mkString("Water: ", " · ", "")
+      goal.toList ++ List(average, coverage(period.recordedDays, period.window))
 
   /** The water line of one day: the total, and the progress toward the user's own goal when there is one. */
   def waterDay(day: Option[HydrationDay]): Option[String] =
@@ -108,17 +119,19 @@ object StatsCopy:
     * label (VISUALS section 7.6).
     */
   def mood(period: MoodPeriod): Option[String] =
-    Option.when(period.checkInDays > 0):
+    Option.when(period.checkInDays > 0)(moodFigures(period).mkString("Mood: ", " · ", ""))
+
+  /** The figures of the mood line one by one; empty when the period has no check-in. */
+  def moodFigures(period: MoodPeriod): List[String] =
+    if period.checkInDays == 0 then Nil
+    else
       val average = period.average match
         case Stat.Shown(mean, _, _, _)         => s"average ${meanWithLevel(mean)}"
         case Stat.Insufficient(n, required, _) => s"${more(required - n, "day")} with a check-in for an average"
         case Stat.NoVariation(_, _)            => NoData
       val change = period.dayToDayChange.shown.map(value => s"day-to-day change averaged ${oneDecimal(value)} levels")
-      (List(count(period.checkIns, "check-in"), average) ++ change.toList :+ coverage(
-        period.checkInDays,
-        period.window
-      ))
-        .mkString("Mood: ", " · ", "")
+      List(count(period.checkIns, "check-in"), average) ++ change.toList :+
+        coverage(period.checkInDays, period.window)
 
   /** The mood line of one day: the day value, which is the mean of the day's check-ins. */
   def moodDay(day: Option[MoodDay]): Option[String] =

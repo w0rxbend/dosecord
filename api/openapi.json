@@ -1065,6 +1065,61 @@
           }
         ]
       }
+    },
+    "/api/v1/insights/overview" : {
+      "get" : {
+        "description" : "The statistics of a period, one block per domain whose consent is active.",
+        "operationId" : "getInsightsOverview",
+        "parameters" : [
+          {
+            "name" : "range",
+            "in" : "query",
+            "description" : "The number of days the statistics cover: 7 or 30",
+            "required" : true,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightsOverview"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
     }
   },
   "components" : {
@@ -1225,6 +1280,102 @@
             "type" : "string"
           },
           "code" : {
+            "type" : "string"
+          }
+        }
+      },
+      "InsightBlock" : {
+        "title" : "InsightBlock",
+        "type" : "object",
+        "required" : [
+          "id",
+          "title"
+        ],
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/InsightDomain"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "noDataText" : {
+            "type" : "string"
+          },
+          "vessel" : {
+            "$ref" : "#/components/schemas/InsightVessel"
+          }
+        }
+      },
+      "InsightDomain" : {
+        "title" : "InsightDomain",
+        "type" : "string",
+        "enum" : [
+          "hydration",
+          "medication",
+          "mood"
+        ]
+      },
+      "InsightVessel" : {
+        "title" : "InsightVessel",
+        "type" : "object",
+        "required" : [
+          "valueMl",
+          "goalMl",
+          "label"
+        ],
+        "properties" : {
+          "valueMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "goalMl" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        }
+      },
+      "InsightsOverview" : {
+        "title" : "InsightsOverview",
+        "type" : "object",
+        "required" : [
+          "rangeDays",
+          "rangeLabel",
+          "timeZone"
+        ],
+        "properties" : {
+          "rangeDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rangeLabel" : {
+            "type" : "string"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "ranges" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "blocks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsightBlock"
+            }
+          },
+          "notice" : {
             "type" : "string"
           }
         }

@@ -6,6 +6,7 @@ import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.ScheduleStatus
 import dosegram.core.ports.StoredMedication
@@ -26,6 +27,7 @@ import java.util.Locale
   */
 object ApiCopy:
   private val DayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+  private val DayMonth = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
   private val Clock = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
   private val Workdays = List(Weekday.Mon, Weekday.Tue, Weekday.Wed, Weekday.Thu, Weekday.Fri)
 
@@ -35,6 +37,17 @@ object ApiCopy:
   def ended(summary: String): String = s"ended: $summary"
 
   def dayLabel(date: LocalDate): String = date.format(DayLabel)
+
+  /** `7 Nov to 13 Nov`: the days a statistics period covers. */
+  def rangeLabel(window: DateRange): String = s"${window.start.format(DayMonth)} to ${window.end.format(DayMonth)}"
+
+  val noDataInPeriod = "No data in this period"
+  val noConsentedDomain = "Statistics appear here for the records you turned on in the chat."
+
+  def insightTitle(domain: InsightDomain): String = domain match
+    case InsightDomain.Medication => "Medication"
+    case InsightDomain.Hydration  => "Water"
+    case InsightDomain.Mood       => "Mood"
   def clock(at: Instant, zone: ZoneId): String = Clock.format(at.atZone(zone))
 
   /** `every day 09:00, 21:00`, in the words of the chat wizard. */

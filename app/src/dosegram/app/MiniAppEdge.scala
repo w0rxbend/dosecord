@@ -2,6 +2,7 @@ package dosegram.app
 
 import dosegram.api.ApiModule
 import dosegram.api.InMemoryIdempotencyStore
+import dosegram.api.TrackingReads
 import dosegram.api.auth.Ed25519InitDataCheck
 import dosegram.api.auth.InMemorySessionStore
 import dosegram.api.auth.InitDataHmac
@@ -77,12 +78,14 @@ object MiniAppEdge:
   )(using
       Ox
   ): NettySyncServerBinding =
+    val tracking = TrackingServices.over(dataSource, parts.clock)
     val api = ApiModule(
       PgUnitOfWork(dataSource, parts.clock),
       parts.clock,
       verifier(settings, miniApp),
       InMemorySessionStore(),
       InMemoryIdempotencyStore(),
+      TrackingReads(tracking.stats, tracking.hydration),
       log
     )
     fork:
