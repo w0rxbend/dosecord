@@ -101,6 +101,8 @@ export async function launch(target: HTMLElement, found: Environment): Promise<v
 export async function start(target: HTMLElement): Promise<void> {
   const found = await environment();
   if (typeof found === 'string') {
+    // No Telegram theme arrives here; the gate follows the system's scheme.
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.scheme = 'dark';
     mount(Gate, { target, props: { kind: found } });
     return;
   }

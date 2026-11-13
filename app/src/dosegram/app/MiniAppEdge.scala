@@ -105,7 +105,7 @@ object MiniAppEdge:
       .serverLog(None)
       .options
     NettySyncServer(options, NettyConfig.default.copy(serverHeader = None))
-      .host("0.0.0.0")
+      .host(settings.httpAddress)
       .port(settings.httpPort)
       .addEndpoints(extra ++ api.endpoints :+ static.endpoint :+ elsewhere)
       .start()

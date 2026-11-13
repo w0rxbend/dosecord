@@ -7,6 +7,7 @@ export type Route =
   | { readonly screen: 'med-new' }
   | { readonly screen: 'med-edit'; readonly id: string }
   | { readonly screen: 'schedule-new'; readonly medicationId: string }
+  | { readonly screen: 'schedule-edit'; readonly id: string }
   | { readonly screen: 'log' }
   | { readonly screen: 'water' }
   | { readonly screen: 'water-settings' }
@@ -36,6 +37,7 @@ const PATHS: readonly (readonly [RegExp, (match: RegExpExecArray) => Route])[] =
   [/^\/meds\/new$/, () => ({ screen: 'med-new' })],
   [new RegExp(`^/meds/(${ID})/edit$`), (m) => ({ screen: 'med-edit', id: m[1]! })],
   [new RegExp(`^/meds/(${ID})/schedules/new$`), (m) => ({ screen: 'schedule-new', medicationId: m[1]! })],
+  [new RegExp(`^/schedules/(${ID})$`), (m) => ({ screen: 'schedule-edit', id: m[1]! })],
   [/^\/log$/, () => ({ screen: 'log' })],
   [/^\/log\/water$/, () => ({ screen: 'water' })],
   [/^\/log\/water\/settings$/, () => ({ screen: 'water-settings' })],
@@ -67,6 +69,7 @@ const START_PARAMS: readonly (readonly [RegExp, (match: RegExpExecArray) => stri
   [/^mednew$/, () => '/meds/new'],
   [new RegExp(`^medit_(${ID})$`), (m) => `/meds/${m[1]}/edit`],
   [new RegExp(`^schednew_(${ID})$`), (m) => `/meds/${m[1]}/schedules/new`],
+  [new RegExp(`^sched_(${ID})$`), (m) => `/schedules/${m[1]}`],
   [/^log$/, () => '/log'],
   [/^water$/, () => '/log/water'],
   [/^mood$/, () => '/log/mood'],
@@ -97,6 +100,7 @@ const TABS: Readonly<Record<Route['screen'], TabId | null>> = {
   'med-new': 'meds',
   'med-edit': 'meds',
   'schedule-new': 'meds',
+  'schedule-edit': 'meds',
   log: 'log',
   water: 'log',
   'water-settings': 'log',
@@ -127,6 +131,7 @@ const PARENTS: Readonly<Partial<Record<Route['screen'], string>>> = {
   'med-new': '/meds',
   'med-edit': '/meds',
   'schedule-new': '/meds',
+  'schedule-edit': '/meds',
   water: '/log',
   'water-settings': '/log/water',
   mood: '/log',

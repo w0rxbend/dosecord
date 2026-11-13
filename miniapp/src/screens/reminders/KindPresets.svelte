@@ -38,10 +38,10 @@
           ? en.reminders.preview(preview.preview.map((at) => dayAndClockIn(timeZone, at)).join(', '))
           : en.reminders.noPreview}
       </p>
-      <button class="button" type="button" disabled={busy} onclick={() => onTurnOn(preview.id)}>{en.reminders.turnOn}</button>
+      <button class="btn btn-filled" type="button" disabled={busy} onclick={() => onTurnOn(preview.id)}>{en.reminders.turnOn}</button>
     {/if}
     {#if kind.presetId}
-      <button class="button secondary" type="button" disabled={busy} onclick={() => onTurnOff(kind.kind)}>{en.reminders.turnOff}</button>
+      <button class="btn btn-tinted" type="button" disabled={busy} onclick={() => onTurnOff(kind.kind)}>{en.reminders.turnOff}</button>
     {/if}
   </div>
 </fieldset>

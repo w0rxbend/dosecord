@@ -14,8 +14,12 @@ object AdapterCopy:
   /** The one fixed reply to a sender who is not on the allowlist (ROADMAP G1.6): nothing is stored for them. */
   val notAvailable = "Dosegram is not open to new users yet."
 
+  /** The label of the chat menu button that opens the Mini App (BOT_UX BUX-MENU-02: one label, "App"). */
+  val menuButton = "App"
+
   val entries: List[CopyEntry] = List(
     CopyEntry("adapter.dm_only_redirect", dmOnlyRedirect),
-    CopyEntry("adapter.not_available", notAvailable)
+    CopyEntry("adapter.not_available", notAvailable),
+    CopyEntry("adapter.menu_button", menuButton)
   )
 end AdapterCopy

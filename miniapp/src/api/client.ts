@@ -150,6 +150,11 @@ export interface ApiClient {
   scheduleOptions(): Promise<ScheduleOptions>;
   previewSchedule(medicationId: string, draft: ScheduleDraft): Promise<SchedulePreview>;
   createSchedule(medicationId: string, draft: ScheduleDraft): Promise<Schedule>;
+  /** The medication's schedules, the ended ones included. */
+  schedules(medicationId: string): Promise<readonly Schedule[]>;
+  schedule(id: string): Promise<Schedule>;
+  /** An edit is a new revision on `revision`, the one the screen loaded (API-17). */
+  reviseSchedule(id: string, draft: ScheduleDraft, revision: number): Promise<Schedule>;
 
   insightsOverview(rangeDays: InsightRange): Promise<InsightsOverview>;
 }

@@ -43,10 +43,10 @@ object WebhookEdge:
       .maxRequestBodyLength(maxBodyBytes)
 
   /** The listener when the Mini App is off: the webhook alone; any other path is 404. */
-  def start(port: Int, endpoint: ServerEndpoint[Any, Identity])(using Ox): NettySyncServerBinding =
+  def start(address: String, port: Int, endpoint: ServerEndpoint[Any, Identity])(using Ox): NettySyncServerBinding =
     val options = NettySyncServerOptions.customiseInterceptors.serverLog(None).options
     NettySyncServer(options, NettyConfig.default.copy(serverHeader = None))
-      .host("0.0.0.0")
+      .host(address)
       .port(port)
       .addEndpoint(endpoint)
       .start()

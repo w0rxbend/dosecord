@@ -12,12 +12,15 @@
     "test": "vitest run",
     "build": "vite build && node scripts/check-budget.mjs",
     "api:generate": "node scripts/api-types.mjs",
-    "api:check": "node scripts/api-types.mjs --check"
+    "api:check": "node scripts/api-types.mjs --check",
+    "e2e": "vite build && playwright test --project=flows",
+    "e2e:screens": "vite build && playwright test --project=screens"
   },
   "dependencies": {
     "svelte": "^5.57.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@testing-library/svelte": "^5.4.2",
     "@testing-library/user-event": "^14.6.10",

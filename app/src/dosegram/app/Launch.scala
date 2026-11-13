@@ -50,8 +50,8 @@ object Launch:
     if hostsWorkers(settings.role) then Workers(settings, dataSource, parts).start(gate, log)
     val adapters = if hostsGateway(settings.role) then Adapters.start(settings, dataSource, parts, log) else Nil
     val edge = startHttpEdge(settings, dataSource, parts, log)
-    val health = Health.start(settings.healthPort)
-    log(s"/healthz listening on :${settings.healthPort}")
+    val health = Health.start(settings.healthAddress, settings.healthPort)
+    log(s"/healthz listening on ${settings.healthAddress}:${settings.healthPort}")
     Drain(
       inbound = ("health" -> (() => health.stop())) :: edge ::: adapters,
       claiming = List("workers" -> (() => gate.stop())),
@@ -70,12 +70,12 @@ object Launch:
     settings.miniApp.filter(_ => hostsGateway(settings.role)) match
       case Some(miniApp) =>
         val edge = MiniAppEdge.start(settings, miniApp, dataSource, parts, log, webhook.toList)
-        log(s"Mini App and API listening on :${settings.httpPort}")
+        log(s"Mini App and API listening on ${settings.httpAddress}:${settings.httpPort}")
         List("miniapp" -> (() => edge.stop()))
       case None =>
         webhook.toList.map: endpoint =>
-          val edge = WebhookEdge.start(settings.httpPort, endpoint)
-          log(s"Telegram webhook listening on :${settings.httpPort}")
+          val edge = WebhookEdge.start(settings.httpAddress, settings.httpPort, endpoint)
+          log(s"Telegram webhook listening on ${settings.httpAddress}:${settings.httpPort}")
           "webhook" -> (() => edge.stop())
 
   /** The webhook endpoint, when the Telegram adapter receives its updates by webhook. */

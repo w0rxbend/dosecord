@@ -4,10 +4,12 @@ import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
 
 import java.net.InetAddress
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Base64
 import java.util.UUID
+import scala.util.Try
 
 /** A chat vendor adapter that can be enabled through `ENABLED_ADAPTERS` (DESIGN.md sections 3 and 12).
   */
@@ -129,7 +131,11 @@ final case class Settings(
     // The bot token as configured, whether or not the adapter is enabled: the Mini App derives its HMAC key from it
     // (ARCHITECTURE API-03). The adapter reads its own copy from `telegram`.
     telegramToken: Option[Secret] = None,
-    render: Option[RenderSettings] = None
+    render: Option[RenderSettings] = None,
+    // The interfaces the two listeners bind to. Both default to the loopback interface: `/healthz` is for the host
+    // (ARCHITECTURE section 9.1), and the public origin is reached through a TLS proxy (docs/DEPLOY_MINIAPP.md).
+    healthAddress: String = Settings.DefaultBindAddress,
+    httpAddress: String = Settings.DefaultBindAddress
 )
 
 object Settings:
@@ -138,6 +144,9 @@ object Settings:
 
   /** The public listener of ARCHITECTURE section 9.1 (`/app/`, `/api/v1/`); `/healthz` stays on its own port. */
   val DefaultHttpPort: Int = 8081
+
+  /** The interface both listeners bind to unless `HEALTH_ADDRESS` or `HTTP_ADDRESS` names another. */
+  val DefaultBindAddress: String = "127.0.0.1"
 
   /** Declarative description of one env var: the single source for parsing, validation and `.env.example` generation,
     * so the committed example cannot drift from the case class (DESIGN.md section 12).
@@ -229,7 +238,7 @@ object Settings:
       "MINI_APP_URL",
       required = false,
       secret = false,
-      "https address of the Mini App that app buttons open; without it no app button is shown.",
+      "https address of the Mini App (menu button, app buttons); without it none is shown.",
       "https://dosegram.example.com/app/"
     ),
     EnvSpec(
@@ -267,7 +276,7 @@ object Settings:
       "MINIAPP_ENABLED",
       required = false,
       secret = false,
-      "true | false. Serves the Mini App and its API; refused in production until roadmap checkpoint CP3-a.",
+      "true | false. Serves the Mini App and its API; in production it needs MINI_APP_URL and an explicit HTTP_PORT.",
       "false",
       Some("false")
     ),
@@ -289,7 +298,7 @@ object Settings:
       "MINIAPP_HMAC_FALLBACK",
       required = false,
       secret = false,
-      "true | false. Accepts launch data without a signature by its HMAC; needs TELEGRAM_TOKEN.",
+      "true | false. Accepts launch data without a signature by its HMAC; needs TELEGRAM_TOKEN; never in production.",
       "false",
       Some("false")
     ),
@@ -320,6 +329,22 @@ object Settings:
       secret = true,
       "Header secret Telegram sends with each update; 16 to 256 of A-Z a-z 0-9 _ -. Required with the webhook.",
       "change-me-header-secret"
+    ),
+    EnvSpec(
+      "HEALTH_ADDRESS",
+      required = false,
+      secret = false,
+      "IP address the /healthz listener binds to; 0.0.0.0 inside a container whose health port is published.",
+      DefaultBindAddress,
+      Some(DefaultBindAddress)
+    ),
+    EnvSpec(
+      "HTTP_ADDRESS",
+      required = false,
+      secret = false,
+      "IP address the public listener (/app/, /api/v1/) binds to; the TLS proxy connects to it.",
+      DefaultBindAddress,
+      Some(DefaultBindAddress)
     )
   )
 
@@ -405,6 +430,13 @@ object Settings:
     val miniAppEnabled = flag("MINIAPP_ENABLED")
     val hmacFallback = flag("MINIAPP_HMAC_FALLBACK")
     val staticDir = lookup("MINIAPP_STATIC_DIR")
+    // A literal only: a host name would make start-up depend on a name lookup.
+    def address(name: String): String =
+      parsed(name, "an IPv4 or IPv6 address", DefaultBindAddress)(raw =>
+        Try(InetAddress.ofLiteral(raw)).toOption.map(_ => raw)
+      ).getOrElse(DefaultBindAddress)
+    val healthAddress = address("HEALTH_ADDRESS")
+    val httpAddress = address("HTTP_ADDRESS")
     val render = (lookup("RESVG_PATH"), lookup("RENDER_FONTS_DIR")) match
       case (Some(binary), Some(fonts)) => Some(RenderSettings(binary, fonts))
       case (None, None)                => None
@@ -419,7 +451,7 @@ object Settings:
     val consoleUserId = lookup("CONSOLE_USER_ID")
 
     val miniAppUrl = lookup("MINI_APP_URL").filter: url =>
-      val secure = url.startsWith("https://")
+      val secure = isHttpsAddress(url)
       if !secure then errors = errors :+ "MINI_APP_URL must be an https address"
       secure
 
@@ -437,13 +469,19 @@ object Settings:
 
     val inProduction = environment == Environment.Production
     if miniAppEnabled then
-      if inProduction then
-        errors = errors :+ "MINIAPP_ENABLED=true is refused while ENVIRONMENT=production (ROADMAP checkpoint CP3-a)"
+      // Lifted at checkpoint CP3-a (ADR-016 addendum): production serves the app only on a named https origin and an
+      // explicitly chosen public port, so a forgotten variable never opens a listener nobody meant to open.
+      if inProduction && (miniAppUrl.isEmpty || httpPort.isEmpty) then
+        errors = errors :+
+          "MINIAPP_ENABLED=true is refused while ENVIRONMENT=production without MINI_APP_URL and an explicit HTTP_PORT"
       if botId.isEmpty && !hmacFallback then
         errors = errors :+ "MINIAPP_ENABLED needs TELEGRAM_BOT_ID, or MINIAPP_HMAC_FALLBACK=true with TELEGRAM_TOKEN"
       if hmacFallback && telegramToken.isEmpty then errors = errors :+ "MINIAPP_HMAC_FALLBACK=true needs TELEGRAM_TOKEN"
       if inProduction && initDataPublicKey.isDefined then
         errors = errors :+ "MINIAPP_INITDATA_PUBLIC_KEY is refused while ENVIRONMENT=production"
+      // CFG-01: the fallback accepts launch data that anyone holding the bot token can mint (ADR-016).
+      if inProduction && hmacFallback then
+        errors = errors :+ "MINIAPP_HMAC_FALLBACK=true is refused while ENVIRONMENT=production"
 
     if errors.nonEmpty then Left(errors)
     else
@@ -465,7 +503,9 @@ object Settings:
           httpPort = httpPort.getOrElse(DefaultHttpPort),
           miniApp = Option.when(miniAppEnabled)(MiniAppSettings(staticDir, botId, initDataPublicKey, hmacFallback)),
           telegramToken = telegramToken.map(Secret(_)),
-          render = render
+          render = render,
+          healthAddress = healthAddress,
+          httpAddress = httpAddress
         )
       )
 
@@ -561,6 +601,10 @@ object Settings:
             catch case e: IllegalArgumentException => Left(s"CALLBACK_KEYS: ${e.getMessage}")
           case Nil => Left("CALLBACK_KEYS: at least one key is required")
           case _   => Left("CALLBACK_KEYS: at most two active keys (current + overlap)")
+
+  /** An absolute `https` address with a host: what Telegram opens a Mini App from. */
+  private def isHttpsAddress(url: String): Boolean =
+    Try(URI(url)).toOption.exists(uri => uri.getScheme == "https" && Option(uri.getHost).exists(_.nonEmpty))
 
   private def defaultInstanceId(): String =
     try InetAddress.getLocalHost.getHostName

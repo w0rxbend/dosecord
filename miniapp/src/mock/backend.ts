@@ -2,7 +2,15 @@
 import { ApiError, type ApiClient, type FieldError } from '../api/client';
 import type { Medication, MedicationDraft, OccurrenceActionResult, Schedule, ScheduleDraft } from '../api/types';
 import { parseDecimal, isPositive } from '../forms/decimal';
-import { MEDICATION_OPTIONS, SCHEDULE_PATTERNS, WEEKDAYS, seedMedications, toSummary, type MedicationRecord } from './data';
+import {
+  MEDICATION_OPTIONS,
+  SCHEDULE_PATTERNS,
+  WEEKDAYS,
+  seedMedications,
+  seedSchedules,
+  toSummary,
+  type MedicationRecord,
+} from './data';
 import { toLocalDate } from './dates';
 import { MockDay, otherDay } from './day';
 import { buildOverview, doseHistory } from './insights';
@@ -48,7 +56,7 @@ export class MockBackend implements ApiClient {
   tracking!: MockTracking;
   /** The reminders hub, the presets and the day profile (ADR-023). */
   reminderState!: MockReminders;
-  private readonly schedules: Schedule[] = [];
+  private storedSchedules: Schedule[] = [];
   private readonly answered = new Map<string, OccurrenceActionResult>();
   private readonly replies = new Map<string, unknown>();
   private nextId = 1;
@@ -64,6 +72,7 @@ export class MockBackend implements ApiClient {
   reset(): void {
     const empty = this.scenario === 'empty';
     this.records = empty ? [] : seedMedications();
+    this.storedSchedules = empty ? [] : seedSchedules(this.localToday());
     this.day = new MockDay(!empty);
     this.tracking = new MockTracking(() => this.localToday(), () => this.minute(), !empty);
     this.reminderState = new MockReminders();
@@ -269,10 +278,39 @@ export class MockBackend implements ApiClient {
     this.respond('medications/{id}/schedules:create', () => {
       const record = this.find(medicationId);
       record.scheduleSummary = this.preview(medicationId, draft).summary.replace(/, from .*$/, '');
-      const schedule: Schedule = { ...draft, id: `sch-${this.nextId++}`, medicationId, revision: 1 };
-      this.schedules.push(schedule);
+      const schedule: Schedule = {
+        ...draft,
+        id: `sch-${this.nextId++}`,
+        medicationId,
+        status: 'active',
+        revision: 1,
+        summary: record.scheduleSummary,
+      };
+      this.storedSchedules.push(schedule);
       return schedule;
     });
+
+  schedules: ApiClient['schedules'] = (medicationId) =>
+    this.respond('medications/{id}/schedules', () => this.storedSchedules.filter((s) => s.medicationId === medicationId));
+
+  schedule: ApiClient['schedule'] = (id) => this.respond('schedules/{id}', () => this.findSchedule(id));
+
+  reviseSchedule: ApiClient['reviseSchedule'] = (id, draft, revision) =>
+    this.respond('schedules/{id}/revisions', () => {
+      const current = this.findSchedule(id);
+      if (current.revision !== revision) throw new ApiError('version_conflict', 'MOCK-0412');
+      const summary = this.preview(current.medicationId, draft).summary.replace(/, from .*$/, '');
+      this.find(current.medicationId).scheduleSummary = summary;
+      const revised: Schedule = { ...current, ...draft, revision: revision + 1, summary };
+      this.storedSchedules = this.storedSchedules.map((s) => (s.id === id ? revised : s));
+      return revised;
+    });
+
+  private findSchedule(id: string): Schedule {
+    const found = this.storedSchedules.find((s) => s.id === id);
+    if (!found) throw new ApiError('not_found', 'MOCK-0404');
+    return found;
+  }
 
   insightsOverview: ApiClient['insightsOverview'] = (rangeDays) =>
     this.respond('insights/overview', () =>

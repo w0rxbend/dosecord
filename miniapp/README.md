@@ -16,6 +16,8 @@ pnpm --dir miniapp run build   # vite build, then scripts/check-budget.mjs
 pnpm --dir miniapp run api:check     # src/api/schema.d.ts must equal the types of api/openapi.json
 pnpm --dir miniapp run api:generate  # rewrite src/api/schema.d.ts after the OpenAPI document changed
 pnpm --dir miniapp run dev     # plain browser, http://localhost:5173/app/
+pnpm --dir miniapp run e2e     # browser suite against the real application (Docker and a JDK)
+pnpm --dir miniapp run e2e:screens   # every screen at 390 px, light and dark, into screenshots/
 ```
 
 ## Development mode
@@ -67,6 +69,20 @@ exchange, a later one by gate G-4.
 | `src/forms/` | Rule tables shared by the forms and the mock backend. |
 | `src/styles/tokens.css` | Semantic tokens; the only place for literal colours besides the theme adapter. |
 
+## Browser suite
+
+`e2e/` holds the Playwright suite of ROADMAP G3.12. `e2e/backend.mjs` asks Mill for the class path
+of `app.test` and starts `dosegram.app.e2eBackend`: the assembled application on a throwaway
+PostgreSQL (Testcontainers), serving the production build from `dist/`, with one account, its
+consents and one medication. The Telegram script is replaced in the browser by a stand-in that
+implements the part of `Telegram.WebApp` the app uses and carries launch data signed with the
+suite's own Ed25519 key, which the backend accepts only outside production. Every test fails on a
+content-security-policy violation, a page error or a request to any origin except the app's own
+and `telegram.org`. The session exchange is limited to six a minute per user, so a new test that
+launches the app counts against that budget; the screenshot run launches once per scheme and
+moves through the app's own router. One retry absorbs `ERR_NETWORK_CHANGED`, which Chromium raises
+when Docker changes the host's interfaces.
+
 ## Known limits
 
 - The server keeps a name, a dose and notes for a medication, and one dose per schedule. The
@@ -77,6 +93,7 @@ exchange, a later one by gate G-4.
 - Gate G-5 (a newer build is required) is not built: the bootstrap document carries no minimum
   build yet. The gate actions are "Close" and "Try again"; the links into the chat need the bot
   username, which does not exist yet.
-- The application has not been run in a Telegram client or under the production content security
-  policy in a browser; both belong to the live checks of ROADMAP G1.3 and G3.12.
+- The application has not been run in a Telegram client; that belongs to the live checks of ROADMAP
+  G1.3 and G3.12 (LS-6). The browser suite runs it under the production content security policy
+  in Chromium only.
 - The mock schedule preview knows calendar days only; clock-change notes come from the server.

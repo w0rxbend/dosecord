@@ -160,6 +160,9 @@ export const en = {
     disclaimer: 'These are your own records. Dosegram does not check doses or interactions.',
     doseChangeNote: 'The new dose applies to doses from now on. Past records keep the dose they had.',
     summaryTitle: (count: number) => (count === 1 ? 'Check 1 field' : `Check ${count} fields`),
+    times: 'Times',
+    changeTimes: 'Change times',
+    addTimes: 'Add times',
   },
 
   fieldErrors: {

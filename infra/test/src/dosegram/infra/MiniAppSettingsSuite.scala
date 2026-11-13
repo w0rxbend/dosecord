@@ -82,3 +82,63 @@ class MiniAppSettingsSuite extends munit.FunSuite:
   test("with the switch off the other Mini App variables are parsed and ignored"):
     val Right(settings) = parse(base ++ Map("TELEGRAM_BOT_ID" -> "7000000001", "MINIAPP_STATIC_DIR" -> "dist")): @unchecked
     assertEquals(settings.miniApp, None)
+
+  // ---------- production from checkpoint CP3-a (ADR-016 addendum, 2026-11-13) ----------
+
+  private val production = base ++ Map("MINIAPP_ENABLED" -> "true", "TELEGRAM_BOT_ID" -> "7000000001")
+
+  test("in production the Mini App needs an https MINI_APP_URL and an explicit HTTP_PORT; both are named"):
+    val errors = errorsOf(production)
+    assert(errors.exists(e => e.contains("MINI_APP_URL") && e.contains("HTTP_PORT")), errors)
+
+  test("in production an https MINI_APP_URL and an explicit HTTP_PORT switch the Mini App on with Telegram's key"):
+    val Right(settings) = parse(
+      production ++ Map("MINI_APP_URL" -> "https://dosegram.example.com/app/", "HTTP_PORT" -> "8081")
+    ): @unchecked
+    assertEquals(settings.environment, Environment.Production)
+    assertEquals(
+      settings.miniApp,
+      Some(MiniAppSettings(staticDir = None, botId = Some(7000000001L), initDataPublicKey = None, hmacFallback = false))
+    )
+
+  test("in production a MINI_APP_URL without a host is refused"):
+    val errors = errorsOf(production ++ Map("MINI_APP_URL" -> "https:///app/", "HTTP_PORT" -> "8081"))
+    assert(errors.exists(_.startsWith("MINI_APP_URL must be")), errors)
+
+  test("in production a test key stays refused when the Mini App is otherwise complete"):
+    val errors = errorsOf(
+      production ++ Map(
+        "MINI_APP_URL" -> "https://dosegram.example.com/app/",
+        "HTTP_PORT" -> "8081",
+        "MINIAPP_INITDATA_PUBLIC_KEY" -> testKey
+      )
+    )
+    assertEquals(errors, List("MINIAPP_INITDATA_PUBLIC_KEY is refused while ENVIRONMENT=production"))
+
+  // ---------- listen addresses ----------
+
+  test("both listeners bind to the loopback interface by default"):
+    val Right(settings) = parse(base): @unchecked
+    assertEquals(settings.healthAddress, "127.0.0.1")
+    assertEquals(settings.httpAddress, "127.0.0.1")
+
+  test("HEALTH_ADDRESS and HTTP_ADDRESS take an IPv4 or IPv6 literal"):
+    val Right(settings) = parse(base ++ Map("HEALTH_ADDRESS" -> "0.0.0.0", "HTTP_ADDRESS" -> "::")): @unchecked
+    assertEquals(settings.healthAddress, "0.0.0.0")
+    assertEquals(settings.httpAddress, "::")
+
+  test("a host name or a malformed address is refused for both listeners, without a lookup"):
+    val errors = errorsOf(base ++ Map("HEALTH_ADDRESS" -> "localhost", "HTTP_ADDRESS" -> "10.0.0.256"))
+    List("HEALTH_ADDRESS must be", "HTTP_ADDRESS must be").foreach: prefix =>
+      assert(errors.exists(_.startsWith(prefix)), s"$prefix missing in $errors")
+
+  test("in production the HMAC fallback is refused: launch data is checked with Ed25519 only (ARCHITECTURE CFG-01)"):
+    val errors = errorsOf(
+      production ++ Map(
+        "MINI_APP_URL" -> "https://dosegram.example.com/app/",
+        "HTTP_PORT" -> "8081",
+        "MINIAPP_HMAC_FALLBACK" -> "true",
+        "TELEGRAM_TOKEN" -> "t"
+      )
+    )
+    assertEquals(errors, List("MINIAPP_HMAC_FALLBACK=true is refused while ENVIRONMENT=production"))

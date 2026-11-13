@@ -1,6 +1,7 @@
 package dosegram.api
 
 import dosegram.api.auth.InitDataVerifier
+import dosegram.api.auth.RequestLimits
 import dosegram.api.auth.Session
 import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
@@ -8,6 +9,7 @@ import dosegram.core.application.Application
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.UnitOfWork
+import sttp.model.Method
 import sttp.model.StatusCode
 import sttp.shared.Identity
 import sttp.tapir.server.ServerEndpoint
@@ -44,6 +46,7 @@ final class ApiModule(
   import ApiModule.*
 
   private val sessions = SessionService(verifier, uow, sessionStore, clock)
+  private val limits = RequestLimits.default()
   private val idempotency = Idempotency(idempotencyStore, clock)
   private val registry = Registry(uow, clock)
   private val days = DayViews(uow, clock)
@@ -58,7 +61,14 @@ final class ApiModule(
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
   def sweep(): Int = sessions.sweep() + idempotency.sweep()
 
-  private def authenticate(bearer: String): Either[ApiFailure, Session] = guarded(sessions.authenticate(bearer))
+  /** The bearer check, then the request limits of API-18: an unknown token is 401 before it can spend a budget. */
+  private def authenticate(credentials: (String, Method)): Either[ApiFailure, Session] =
+    val (bearer, method) = credentials
+    guarded:
+      for
+        session <- sessions.authenticate(bearer)
+        _ <- limits.admit(session, method, clock.now())
+      yield session
 
   /** The medication routes (ARCHITECTURE API-19, PRODUCT_SPEC R-IDC-9): without an active `medication` consent a read
     * shows nothing and a write stores nothing; the answer is 403 `consent_required`.

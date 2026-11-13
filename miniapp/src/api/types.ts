@@ -157,10 +157,15 @@ export interface SchedulePreview {
   readonly moreCount: number;
 }
 
+export type ScheduleStatus = 'active' | 'paused' | 'ended';
+
 export interface Schedule extends ScheduleDraft {
   readonly id: string;
   readonly medicationId: string;
+  readonly status: ScheduleStatus;
   readonly revision: number;
+  /** The server's sentence for the rule, as the registry row shows it (MA-REG-2). */
+  readonly summary: string;
 }
 
 // Charts are scenes laid out by the server and painted by one client painter (MINI_APP 5.6).

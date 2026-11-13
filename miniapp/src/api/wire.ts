@@ -210,7 +210,9 @@ export function toSchedule(wire: Wire['Schedule']): Schedule {
   return {
     id: wire.id,
     medicationId: wire.medicationId,
+    status: wire.status,
     revision: wire.revision,
+    summary: wire.summary,
     pattern: wire.pattern === 'as_needed' ? 'as_needed' : timed,
     rows: (wire.times ?? []).map((time) => ({ time, dose: '' })),
     weekdays: everyDay ? [] : weekdays,
