@@ -77,8 +77,9 @@ final class ConsoleAdapter(
       body = interpret(line)
     )
 
-  /** The input grammar: `#<n> <reply>` quotes outbound message n; `/name ...` is a command (the console has no native
-    * commands; the raw line is carried for the handler); anything else is a plain message.
+  /** The input grammar: `#<n> <reply>` quotes outbound message n; `+photo <id> [caption]` and `+document <id>
+    * [caption]` stand for media the user sent; `/start <payload>` is a deep link; `/name ...` is a command (the console
+    * has no native commands; the raw line is carried for the handler); anything else is a plain message.
     */
   private[console] def interpret(line: String): Inbound =
     line.trim match
@@ -86,6 +87,11 @@ final class ConsoleAdapter(
         number.toIntOption match
           case Some(n) => Inbound.MessageReceived(reply.trim, Some(handle(n)), truncated = false)
           case None    => Inbound.MessageReceived(line.trim, None, truncated = false)
+      case ConsoleAdapter.Media(kind, mediaId, caption) =>
+        val mediaKind = if kind == "photo" then MediaKind.Photo else MediaKind.Document
+        Inbound.MediaReceived(mediaKind, MediaRef(mediaId), Option(caption).map(_.trim).filter(_.nonEmpty))
+      case ConsoleAdapter.DeepLink(payload) if StartPayload.parse(payload).isDefined =>
+        Inbound.ConversationStarted(StartPayload.parse(payload))
       case trimmed if trimmed.length > 1 && trimmed.startsWith("/") =>
         Inbound.CommandInvoked(trimmed.drop(1).takeWhile(c => !c.isWhitespace), Map.empty, trimmed)
       case trimmed =>
@@ -97,6 +103,7 @@ final class ConsoleAdapter(
   private def handle(n: Int): MessageHandle = MessageHandle(vendor, chat.chatId, n.toString)
 
   override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle =
+    if rendered.attachment.isDefined then throw ChatError.Unsupported("media")
     lock.synchronized:
       outSeq += 1
       val handle = MessageHandle(vendor, chat.chatId, outSeq.toString)
@@ -104,7 +111,7 @@ final class ConsoleAdapter(
       out.flush()
       handle
 
-  // Capability honesty: the console profile claims no edit and no delete, so these are Unsupported.
+  // Capability honesty: the console profile claims no media, no edit and no delete, so these are Unsupported.
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     throw ChatError.Unsupported("edit")
 
@@ -122,6 +129,8 @@ final class ConsoleAdapter(
 
 object ConsoleAdapter:
   private val Target: Regex = "^#(\\d+)\\s+(.+)$".r
+  private val Media: Regex = "^\\+(photo|document)\\s+(\\S+)(?:\\s+(.+))?$".r
+  private val DeepLink: Regex = "^/start\\s+(\\S+)$".r
 
   private def defaultSessionId(): String = Instant.now().toEpochMilli.toString
 

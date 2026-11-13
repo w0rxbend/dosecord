@@ -55,6 +55,26 @@ object GoldenScenarios:
       Importance.Reminder
     )
 
+  /** ADR-015: a photo with a caption, and one row that mixes a callback, a Mini App and a URL choice. */
+  private def photoCardMessage: OutboundMessage =
+    base(
+      text("Your week."),
+      List(
+        Block.Choices(
+          ChoiceSet(
+            id = "card.nav",
+            choices = List(
+              Choice.callback("Stats", token("menu.open", sessionSubject, 1).wire),
+              Choice.openApp("Open app", AppRoute("today")),
+              Choice.openUrl("Privacy notice", "https://example.org/privacy")
+            )
+          )
+        )
+      )
+    ).copy(attachment =
+      Some(AttachmentRef(MediaKind.Photo, "asset-week-45", "image/png", "Week 45: 12 of 14 doses taken."))
+    )
+
   private def menuMessage: OutboundMessage =
     base(
       text(MenuCopy.mainPrompt),
@@ -63,7 +83,7 @@ object GoldenScenarios:
           ChoiceSet(
             id = "menu.main",
             choices = MenuCopy.topLevel.zipWithIndex.map { (label, i) =>
-              Choice(label, token("menu.open", sessionSubject, i + 1).wire)
+              Choice.callback(label, token("menu.open", sessionSubject, i + 1).wire)
             }
           )
         )
@@ -79,7 +99,7 @@ object GoldenScenarios:
             id = "wizard.days",
             prompt = Some(text(WizardCopy.daysPrompt)),
             choices = WizardCopy.weekdayLabels.zipWithIndex.map { (label, i) =>
-              Choice(label, token("wizard.step", sessionSubject, i + 1).wire)
+              Choice.callback(label, token("wizard.step", sessionSubject, i + 1).wire)
             },
             minSelect = 1,
             maxSelect = 7
@@ -116,7 +136,7 @@ object GoldenScenarios:
       paragraphs.map(p => Node.Paragraph(List(Inline.Text(p)))),
       List(
         Block.Choices(
-          ChoiceSet(id = "ack.ok", choices = List(Choice("OK", token("menu.open", sessionSubject, 99).wire)))
+          ChoiceSet(id = "ack.ok", choices = List(Choice.callback("OK", token("menu.open", sessionSubject, 99).wire)))
         )
       )
     )
@@ -129,9 +149,9 @@ object GoldenScenarios:
           id = s"digest.item$i",
           prompt = Some(text(s"Dose $i")),
           choices = List(
-            Choice(Labels.Taken, token("dose.taken", itemSubject, 0).wire, ChoiceStyle.Success),
-            Choice(Labels.snooze(10), token("dose.snooze", itemSubject, 10).wire),
-            Choice(Labels.Skip, token("dose.skip", itemSubject, 0).wire)
+            Choice.callback(Labels.Taken, token("dose.taken", itemSubject, 0).wire, ChoiceStyle.Success),
+            Choice.callback(Labels.snooze(10), token("dose.snooze", itemSubject, 10).wire),
+            Choice.callback(Labels.Skip, token("dose.skip", itemSubject, 0).wire)
           )
         )
       )
@@ -170,6 +190,9 @@ object GoldenScenarios:
       ),
       "long-body" -> ((p: CapabilityProfile) => Renderer.render(longBodyMessage, chat(profileName), p, "long:1")),
       "digest" -> ((p: CapabilityProfile) => Renderer.render(digestMessage, chat(profileName), p, "digest:1")),
+      "photo-card" -> ((p: CapabilityProfile) =>
+        Renderer.render(photoCardMessage, chat(profileName), p, "photo:1")
+      ),
       "discreet-reminder" -> ((p: CapabilityProfile) =>
         Renderer.render(discreetMessage, chat(profileName), p, "discreet:1")
       )

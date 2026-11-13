@@ -1,0 +1,23 @@
+scenario: photo-card
+profile: console
+report:
+  rung attachment=attachment.text
+  rung card.nav=choices.numbered
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=console:dm:owner sendKey=photo:1 replyTo=-
+  flags silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (134 chars):
+  ---
+  [image: Week 45: 12 of 14 doses taken.]
+
+  Your week.
+
+  1) Stats [app: today] Open app [link: https://example.org/privacy] Privacy notice
+  ---
+  controls[0] numbered id=card.nav
+    [1] Stats -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA (Secondary)
+    [0] Open app -> app:today (Secondary)
+    [0] Privacy notice -> url:https://example.org/privacy (Secondary)
+  choiceMap:
+    card.nav 1 Stats emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA

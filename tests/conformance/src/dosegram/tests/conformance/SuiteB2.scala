@@ -107,7 +107,7 @@ object SuiteB2:
     OutboundMessage(
       body = List(paragraph(text)),
       blocks = List(
-        Block.Choices(ChoiceSet(id, None, tokens.zipWithIndex.map((t, i) => Choice(s"choice-${i + 1}", t))))
+        Block.Choices(ChoiceSet(id, None, tokens.zipWithIndex.map((t, i) => Choice.callback(s"choice-${i + 1}", t))))
       ),
       dedupeKey = s"b2:$id",
       correlationId = s"b2:$id"

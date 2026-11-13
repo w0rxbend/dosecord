@@ -39,7 +39,7 @@ class RendererSuite extends munit.FunSuite:
     val cs = ChoiceSet(
       id = "wizard.days",
       prompt = Some(List(Node.Paragraph(List(Inline.Text("Which days?"))))),
-      choices = days.map(d => Choice(d, s"cb:$d")),
+      choices = days.map(d => Choice.callback(d, s"cb:$d")),
       minSelect = 1,
       maxSelect = 7
     )
@@ -57,9 +57,9 @@ class RendererSuite extends munit.FunSuite:
           id = s"digest.item$i",
           prompt = Some(List(Node.Paragraph(List(Inline.Text(s"Dose $i"))))),
           choices = List(
-            Choice("Taken", s"cb:t$i", ChoiceStyle.Success),
-            Choice("Snooze 10m", s"cb:s$i"),
-            Choice("Skip", s"cb:k$i")
+            Choice.callback("Taken", s"cb:t$i", ChoiceStyle.Success),
+            Choice.callback("Snooze 10m", s"cb:s$i"),
+            Choice.callback("Skip", s"cb:k$i")
           )
         )
       )
@@ -100,7 +100,7 @@ class RendererSuite extends munit.FunSuite:
   test("a single-select of more than ten choices stays on the buttons rung up to the product limit"):
     val cs = ChoiceSet(
       id = "picker",
-      choices = (1 to ControlLimits.MaxButtonsPerMessage).toList.map(i => Choice(s"Zone $i", s"cb:$i"))
+      choices = (1 to ControlLimits.MaxButtonsPerMessage).toList.map(i => Choice.callback(s"Zone $i", s"cb:$i"))
     )
     val msg = OutboundMessage(body = List(Node.Paragraph(List(Inline.Text("Pick a zone.")))), blocks = List(Block.Choices(cs)), dedupeKey = "d", correlationId = "c")
     val (ops, report) = Renderer.render(msg, chat, CapabilityProfiles.Telegram, "k1")
@@ -210,11 +210,82 @@ class RendererSuite extends munit.FunSuite:
     val (coOps, _) = Renderer.render(msg, chat, CapabilityProfiles.Console, "k1")
     assert(sends(coOps).head.message.chunks.head.contains("09:03"))
 
+  private val weekPhoto =
+    AttachmentRef(MediaKind.Photo, "asset-week-45", "image/png", "Week 45: 12 of 14 doses taken.")
+
+  private def cardMessage: OutboundMessage =
+    val row = ChoiceSet(
+      id = "card.nav",
+      choices = List(
+        Choice.callback("Stats", "cb:stats"),
+        Choice.openApp("Open app", AppRoute("today")),
+        Choice.openUrl("Privacy notice", "https://example.org/privacy"),
+        Choice.callback("Menu", "cb:menu")
+      )
+    )
+    OutboundMessage(
+      body = List(Node.Paragraph(List(Inline.Text("Your week.")))),
+      blocks = List(Block.Choices(row)),
+      attachment = Some(weekPhoto),
+      dedupeKey = "d",
+      correlationId = "c"
+    )
+
+  test("an attachment on a media profile travels beside the caption (media rung)"):
+    val (ops, report) = Renderer.render(cardMessage, chat, CapabilityProfiles.Telegram, "k1")
+    val message = sends(ops).head.message
+    assertEquals(report.rungs("attachment"), Renderer.Rung.AttachmentMedia)
+    assertEquals(message.attachment, Some(weekPhoto))
+    assertEquals(message.chunks, List("Your week."))
+
+  test("an attachment without a caption renders with no text on a media profile"):
+    val bare = OutboundMessage(body = Nil, attachment = Some(weekPhoto), dedupeKey = "d", correlationId = "c")
+    val (ops, _) = Renderer.render(bare, chat, CapabilityProfiles.Telegram, "k1")
+    assertEquals(sends(ops).head.message.chunks, Nil)
+    assertEquals(sends(ops).head.message.attachment, Some(weekPhoto))
+
+  test("an attachment on the console becomes its text equivalent (text rung)"):
+    val (ops, report) = Renderer.render(cardMessage, chat, CapabilityProfiles.Console, "k1")
+    val message = sends(ops).head.message
+    assertEquals(report.rungs("attachment"), Renderer.Rung.AttachmentText)
+    assertEquals(message.attachment, None)
+    assert(message.chunks.head.startsWith("[image: Week 45: 12 of 14 doses taken.]\n\nYour week."), message.chunks.head)
+
+  test("a document on the console is named by its text equivalent"):
+    val csv =
+      AttachmentRef(MediaKind.Document, "asset-export", "text/csv", "Your export, 214 rows.", Some("export.csv"))
+    val msg = OutboundMessage(body = Nil, attachment = Some(csv), dedupeKey = "d", correlationId = "c")
+    val (ops, _) = Renderer.render(msg, chat, CapabilityProfiles.Console, "k1")
+    assertEquals(sends(ops).head.message.chunks, List("[document: Your export, 214 rows.]"))
+
+  test("link choices share a button row with callback choices and stay out of the choice map"):
+    val (ops, report) = Renderer.render(cardMessage, chat, CapabilityProfiles.Telegram, "k1")
+    val message = sends(ops).head.message
+    assertEquals(report.rungs("card.nav"), Renderer.Rung.Buttons)
+    val row = message.controls.collect { case RenderedControls.Buttons(rows) => rows.flatten }.flatten
+    assertEquals(
+      row.map(c => c.index -> c.action),
+      List(
+        1 -> ChoiceAction.Callback("cb:stats"),
+        0 -> ChoiceAction.OpenApp(AppRoute("today")),
+        0 -> ChoiceAction.OpenUrl("https://example.org/privacy"),
+        2 -> ChoiceAction.Callback("cb:menu")
+      )
+    )
+    assertEquals(message.choiceMap.map(e => e.index -> e.callback), List(1 -> "cb:stats", 2 -> "cb:menu"))
+
+  test("link choices on the console are shown, not numbered: [app: route] and [link: url]"):
+    val (ops, _) = Renderer.render(cardMessage, chat, CapabilityProfiles.Console, "k1")
+    val message = sends(ops).head.message
+    val legend = "1) Stats [app: today] Open app [link: https://example.org/privacy] Privacy notice 2) Menu"
+    assert(message.chunks.head.contains(legend), message.chunks.head)
+    assertEquals(message.choiceMap.map(_.index), List(1, 2))
+
   test("a real CallbackToken passes through rendering unchanged and still decodes"):
     val codec = CallbackCodec(CallbackKeys(CallbackKey(2, Array.fill(32)(9.toByte)), None))
     val subject = UUID.randomUUID()
     val token = codec.encode(CallbackMode.Direct, ActionRegistry.byName("dose.taken").get, subject, 0)
-    val cs = ChoiceSet(id = "s", choices = List(Choice("Taken", token.wire)))
+    val cs = ChoiceSet(id = "s", choices = List(Choice.callback("Taken", token.wire)))
     val msg = OutboundMessage(
       body = List(Node.Paragraph(List(Inline.Text("hi")))),
       blocks = List(Block.Choices(cs)),

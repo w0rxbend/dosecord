@@ -203,6 +203,7 @@ object Scenario:
         case "edit"           => profile.editOwn != EditCapability.NoEdit
         case "delete"         => profile.deleteOwn != DeleteCapability.NoDelete
         case "buttons"        => profile.buttons
+        case "media"          => profile.media
         case "nativeCommands" => profile.nativeCommands
         case "transientAck"   => profile.transientAck
         case "ackDeadline"    => profile.ackDeadline.isDefined

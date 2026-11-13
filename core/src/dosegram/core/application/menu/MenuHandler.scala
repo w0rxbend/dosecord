@@ -154,30 +154,31 @@ final class MenuHandler(
             Some(
               OutboundMessage(
                 body = List(paragraph(MenuCopy.archiveConfirmPrompt(medication.name))),
-                blocks = List(
-                  Block.Choices(
-                    ChoiceSet(
-                      id = "menu.archive.confirm",
-                      choices = List(
-                        Choice(
-                          Labels.Archive,
-                          mint(
-                            event.chat,
-                            principal.accountId.map(_.uuid),
-                            MenuOpenAction,
-                            KeyArchiveConfirmPrefix + medication.id,
-                            tx
-                          ).wire,
-                          ChoiceStyle.Danger
-                        ),
-                        Choice(
-                          Labels.Cancel,
-                          mint(event.chat, principal.accountId.map(_.uuid), MenuOpenAction, KeyMedications, tx).wire
+                blocks =
+                  List(
+                    Block.Choices(
+                      ChoiceSet(
+                        id = "menu.archive.confirm",
+                        choices = List(
+                          Choice.callback(
+                            Labels.Archive,
+                            mint(
+                              event.chat,
+                              principal.accountId.map(_.uuid),
+                              MenuOpenAction,
+                              KeyArchiveConfirmPrefix + medication.id,
+                              tx
+                            ).wire,
+                            ChoiceStyle.Danger
+                          ),
+                          Choice.callback(
+                            Labels.Cancel,
+                            mint(event.chat, principal.accountId.map(_.uuid), MenuOpenAction, KeyMedications, tx).wire
+                          )
                         )
                       )
                     )
-                  )
-                ),
+                  ),
                 dedupeKey = s"menu:archive:${medication.id}:${event.vendorEventId}",
                 correlationId = s"${event.vendor}:${event.vendorEventId}",
                 replaces = source
@@ -233,8 +234,9 @@ final class MenuHandler(
             Block.Choices(
               ChoiceSet(
                 id = "menu.main",
-                choices =
-                  entries.map((key, label) => Choice(label, mint(chat, accountId, MenuOpenAction, key, tx).wire))
+                choices = entries.map((key, label) =>
+                  Choice.callback(label, mint(chat, accountId, MenuOpenAction, key, tx).wire)
+                )
               )
             )
           ),
@@ -257,8 +259,8 @@ final class MenuHandler(
               ChoiceSet(
                 id = "menu.account",
                 choices = List(
-                  Choice(Labels.Timezone, mint(chat, accountId, MenuOpenAction, KeyTimezone, tx).wire),
-                  Choice(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire)
+                  Choice.callback(Labels.Timezone, mint(chat, accountId, MenuOpenAction, KeyTimezone, tx).wire),
+                  Choice.callback(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire)
                 )
               )
             )
@@ -295,13 +297,13 @@ final class MenuHandler(
       val paused = schedule.status == ScheduleStatus.Paused
       val toggle =
         if paused then
-          Choice(
+          Choice.callback(
             MenuCopy.medicationsResume,
             mint(chat, accountId, MenuOpenAction, KeyResumePrefix + medication.id, tx).wire,
             ChoiceStyle.Primary
           )
         else
-          Choice(
+          Choice.callback(
             MenuCopy.medicationsPause,
             mint(chat, accountId, MenuOpenAction, KeyPausePrefix + medication.id, tx).wire
           )
@@ -310,20 +312,23 @@ final class MenuHandler(
           id = s"menu.medications.toggle.${medication.id}",
           choices = List(
             toggle,
-            Choice(Labels.Archive, mint(chat, accountId, MenuOpenAction, KeyArchivePrefix + medication.id, tx).wire)
+            Choice.callback(
+              Labels.Archive,
+              mint(chat, accountId, MenuOpenAction, KeyArchivePrefix + medication.id, tx).wire
+            )
           )
         )
       )
     val actions = List(
-      Choice(MenuCopy.medicationsTodaysDoses, mint(chat, accountId, MenuOpenAction, KeyToday, tx).wire),
-      Choice(
+      Choice.callback(MenuCopy.medicationsTodaysDoses, mint(chat, accountId, MenuOpenAction, KeyToday, tx).wire),
+      Choice.callback(
         MenuCopy.medicationsAdd,
         mint(chat, accountId, MenuOpenFormAction, KeyAdd, tx).wire,
         ChoiceStyle.Primary
       ),
-      Choice(MenuCopy.medicationsLogDose, mint(chat, accountId, MenuOpenAction, KeyLogDose, tx).wire),
-      Choice(MenuCopy.medicationsSettings, mint(chat, accountId, MenuOpenAction, KeySettings, tx).wire),
-      Choice(MenuCopy.medicationsHistory, mint(chat, accountId, MenuOpenAction, KeyHistory, tx).wire)
+      Choice.callback(MenuCopy.medicationsLogDose, mint(chat, accountId, MenuOpenAction, KeyLogDose, tx).wire),
+      Choice.callback(MenuCopy.medicationsSettings, mint(chat, accountId, MenuOpenAction, KeySettings, tx).wire),
+      Choice.callback(MenuCopy.medicationsHistory, mint(chat, accountId, MenuOpenAction, KeyHistory, tx).wire)
     )
     val blocks =
       toggles ++ List(
@@ -331,7 +336,7 @@ final class MenuHandler(
         Block.Choices(
           ChoiceSet(
             id = "menu.nav",
-            choices = List(Choice(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire))
+            choices = List(Choice.callback(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire))
           )
         )
       )
@@ -388,8 +393,8 @@ final class MenuHandler(
         ChoiceSet(
           id = s"today.dose.${occ.id}",
           choices = List(
-            Choice(Labels.Taken, directToken("dose.taken", occ.id), ChoiceStyle.Success),
-            Choice(Labels.Skip, directToken("dose.skip", occ.id))
+            Choice.callback(Labels.Taken, directToken("dose.taken", occ.id), ChoiceStyle.Success),
+            Choice.callback(Labels.Skip, directToken("dose.skip", occ.id))
           )
         )
       )
@@ -398,7 +403,7 @@ final class MenuHandler(
         ChoiceSet(
           id = s"today.log.${medication.id}",
           choices = List(
-            Choice(
+            Choice.callback(
               ControlLimits.fitLabel(MenuCopy.logDoseLabel(medication.name)),
               directToken("dose.log", medication.id)
             )
@@ -518,7 +523,7 @@ final class MenuHandler(
       ChoiceSet(
         id = "menu.nav",
         choices = List(
-          Choice(
+          Choice.callback(
             MenuCopy.menuLabel,
             mint(event.chat, principal.accountId.map(_.uuid), MenuOpenAction, KeyRoot, tx).wire
           )

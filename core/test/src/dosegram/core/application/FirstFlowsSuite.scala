@@ -79,7 +79,7 @@ class FirstFlowsSuite extends munit.FunSuite:
   test("ConversationStarted begins the same create flow (DESIGN.md section 4: the vendor's DM-open event)"):
     ox.supervised:
       val rig = FirstFlowsRig()
-      val out = rig.push(Inbound.ConversationStarted)
+      val out = rig.push(Inbound.ConversationStarted(None))
       assert(out.exists(_.contains(IdentityCopy.welcome)), s"the picker: $out")
       assertEquals(rig.uow.sessions.all.size, 1, "a create session started")
 

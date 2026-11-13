@@ -81,7 +81,7 @@ final case class AdapterUnderTest(adapter: ChatAdapter, server: FakeVendorServer
 
 /** Per-adapter wiring: how to build the adapter against the fake wire, and which transport traits it has. Traits gate
   * scenario applicability: `redelivery` (the vendor can deliver the same wire event twice), `httpStatus` (the vendor
-  * answers status codes such as 429). Capability requirements (`edit`, `delete`, `buttons`, `nativeCommands`,
+  * answers status codes such as 429). Capability requirements (`edit`, `delete`, `buttons`, `media`, `nativeCommands`,
   * `transientAck`, `ackDeadline`, `silent`) are evaluated against the adapter's CapabilityProfile.
   */
 trait AdapterWiring:

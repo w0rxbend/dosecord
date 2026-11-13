@@ -1,0 +1,18 @@
+scenario: photo-card
+profile: telegram
+report:
+  rung attachment=attachment.media
+  rung card.nav=choices.buttons
+  splitInto=1 paged=false
+  warnings: -
+op 1: SEND chat=telegram:dm:owner sendKey=photo:1 replyTo=-
+  flags silent=false suppressPreview=false deleteAfter=-
+  chunk 1 (10 chars):
+  ---
+  Your week.
+  ---
+  attachment Photo asset=asset-week-45 mime=image/png file=- alt=Week 45: 12 of 14 doses taken.
+  controls[0] buttons:
+    row 1: [1] Stats -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA (Secondary) [0] Open app -> app:today (Secondary) [0] Privacy notice -> url:https://example.org/privacy (Secondary)
+  choiceMap:
+    card.nav 1 Stats emoji=- -> dc:EQAAFP8RIjNEVWZ3iJmqu8zd7v8AAAAAAAGcyb4PBW6azA

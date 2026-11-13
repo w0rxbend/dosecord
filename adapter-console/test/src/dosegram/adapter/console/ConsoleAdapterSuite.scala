@@ -76,6 +76,74 @@ class ConsoleAdapterSuite extends munit.FunSuite:
     assertEquals(adapter.eventFor("after restart").vendorEventId, "console:msg:s1:42")
     adapter.stop()
 
+  // ADR-015 CON-02: every new outbound shape has a console rendering.
+  test("a photo card with link choices prints its text equivalent, caption and legend"):
+    val (adapter, out) = newAdapter()
+    val card = OutboundMessage(
+      body = List(Node.Paragraph(List(Inline.Text("Your week.")))),
+      blocks = List(
+        Block.Choices(
+          ChoiceSet(
+            id = "card.nav",
+            choices = List(
+              Choice.callback("Stats", "dc:stats"),
+              Choice.openApp("Open app", AppRoute("today")),
+              Choice.openUrl("Privacy notice", "https://example.org/privacy")
+            )
+          )
+        )
+      ),
+      attachment =
+        Some(AttachmentRef(MediaKind.Photo, "asset-week-45", "image/png", "Week 45: 12 of 14 doses taken.")),
+      dedupeKey = "d",
+      correlationId = "c"
+    )
+    val (ops, _) = dosegram.core.chat.Renderer.render(card, chat, adapter.capabilities, "k1")
+    ops.foreach { case VendorOp.Send(to, rendered, key, _) => adapter.send(to, rendered, key); case _ => () }
+    assertEquals(
+      out.toString,
+      "[#1] [image: Week 45: 12 of 14 doses taken.]\n\nYour week.\n\n" +
+        "1) Stats [app: today] Open app [link: https://example.org/privacy] Privacy notice\n"
+    )
+
+  test("capability honesty: the console sends no media"):
+    val (adapter, _) = newAdapter()
+    val photo = AttachmentRef(MediaKind.Photo, "asset-1", "image/png", "A chart.")
+    intercept[ChatError.Unsupported](adapter.send(chat, RenderedMessage(chunks = Nil, attachment = Some(photo)), "k1"))
+
+  test("media input: `+photo <id> [caption]` and `+document <id> [caption]` are received media"):
+    val (adapter, _) = newAdapter()
+    assertEquals(
+      adapter.eventFor("+photo file-1 lunch with pasta").body,
+      Inbound.MediaReceived(MediaKind.Photo, MediaRef("file-1"), Some("lunch with pasta"))
+    )
+    assertEquals(
+      adapter.eventFor("+document file-2").body,
+      Inbound.MediaReceived(MediaKind.Document, MediaRef("file-2"), None)
+    )
+    assertEquals(
+      adapter.eventFor("+photo").body,
+      Inbound.MessageReceived("+photo", None, truncated = false),
+      "a media line without an id is plain text"
+    )
+
+  test("deep link input: `/start <payload>` starts the conversation with the payload"):
+    val (adapter, _) = newAdapter()
+    assertEquals(
+      adapter.eventFor("/start invite_abc-1").body,
+      Inbound.ConversationStarted(Some(StartPayload("invite_abc-1")))
+    )
+    assertEquals(
+      adapter.eventFor("/start").body,
+      Inbound.CommandInvoked("start", Map.empty, "/start"),
+      "a bare /start stays a command"
+    )
+    assertEquals(
+      adapter.eventFor("/start not a payload!").body,
+      Inbound.CommandInvoked("start", Map.empty, "/start not a payload!"),
+      "text outside the payload grammar is not a payload"
+    )
+
   test("numbered reply parsing: `#<n> <reply>` quotes the printed message n"):
     val (adapter, out) = newAdapter()
     val h1 = adapter.send(chat, RenderedMessage(chunks = List("one")), sendKey = "k1")

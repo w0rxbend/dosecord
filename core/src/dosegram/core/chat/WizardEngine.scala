@@ -297,7 +297,7 @@ final class WizardEngine(
               ChoiceSet(
                 id = "wizard.confirm_cancel",
                 choices = List(
-                  Choice(
+                  Choice.callback(
                     Labels.Yes,
                     mint(
                       event.chat,
@@ -310,7 +310,7 @@ final class WizardEngine(
                     ).wire,
                     ChoiceStyle.Danger
                   ),
-                  Choice(
+                  Choice.callback(
                     Labels.No,
                     mint(event.chat, accountId, session.id, session.stepSeq, StepAction, ConfirmKeepKey, tx).wire
                   )
@@ -522,7 +522,7 @@ final class WizardEngine(
           val choices = ChoiceSet(
             id = s"wizard.${step.id}",
             choices = options(data).map((key, label) =>
-              Choice(label, mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire)
+              Choice.callback(label, mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire)
             ),
             minSelect = minSelect,
             maxSelect = maxSelect
@@ -559,8 +559,8 @@ final class WizardEngine(
       ChoiceSet(
         id = "wizard.nav",
         choices = List(
-          Choice(Labels.Back, mint(chat, accountId, sessionId, stepSeq, StepAction, BackKey, tx).wire),
-          Choice(
+          Choice.callback(Labels.Back, mint(chat, accountId, sessionId, stepSeq, StepAction, BackKey, tx).wire),
+          Choice.callback(
             Labels.Cancel,
             mint(chat, accountId, sessionId, stepSeq, StepAction, CancelKey, tx).wire,
             ChoiceStyle.Danger

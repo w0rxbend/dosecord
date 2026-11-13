@@ -414,7 +414,7 @@ private object MedicationWizardRig:
           previous.copy(
             eventId = EventId(UUID.randomUUID()),
             vendorEventId = id,
-            body = Inbound.ConversationStarted,
+            body = Inbound.ConversationStarted(None),
             interaction = None
           )
         )

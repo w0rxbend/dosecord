@@ -122,8 +122,8 @@ final class SessionSweeper(
           ChoiceSet(
             id = "wizard.grace",
             choices = List(
-              Choice(Labels.Continue, mintSlot(WizardEngine.GraceContinueKey).wire, ChoiceStyle.Primary),
-              Choice(Labels.Cancel, mintSlot(WizardEngine.GraceCancelKey).wire, ChoiceStyle.Danger)
+              Choice.callback(Labels.Continue, mintSlot(WizardEngine.GraceContinueKey).wire, ChoiceStyle.Primary),
+              Choice.callback(Labels.Cancel, mintSlot(WizardEngine.GraceCancelKey).wire, ChoiceStyle.Danger)
             )
           )
         )

@@ -57,7 +57,7 @@ class ConsoleMediatorSuite extends munit.FunSuite:
       val prompt = OutboundMessage(
         body = List(Node.Paragraph(List(Inline.Text("Pick one:")))),
         blocks = List(
-          Block.Choices(ChoiceSet("cs", None, List(Choice("one", tokenOne), Choice("two", tokenTwo))))
+          Block.Choices(ChoiceSet("cs", None, List(Choice.callback("one", tokenOne), Choice.callback("two", tokenTwo))))
         ),
         dedupeKey = "prompt-1",
         correlationId = "c-prompt-1"

@@ -33,6 +33,14 @@ class SuiteARunnerSuite extends munit.FunSuite:
       )
     )
 
+  test("capability honesty fails an adapter that claims media but rejects an attachment"):
+    val wiring = StubWiring("liar", CapabilityProfiles.Console.copy(media = true), Set.empty, () =>
+      FakeAdapter(CapabilityProfiles.Console, "liar")
+    )
+    val honesty = SuiteARunner.run(wiring).collectFirst:
+      case f: ScenarioResult.Failed if f.name == "capability-honesty" => f
+    assert(honesty.exists(_.errors.exists(_.contains("'media'"))), s"media honesty must fail: $honesty")
+
   test("capability honesty passes an adapter that delivers what its profile claims"):
     val wiring = StubWiring("honest", CapabilityProfiles.Console.copy(buttons = true), Set.empty, () =>
       HonestButtonsAdapter()

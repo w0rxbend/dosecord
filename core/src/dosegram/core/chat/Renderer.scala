@@ -21,6 +21,8 @@ object Renderer:
     val Buttons = "choices.buttons"
     val Numbered = "choices.numbered"
     val FormRunner = "form.formRunner"
+    val AttachmentMedia = "attachment.media"
+    val AttachmentText = "attachment.text"
     val FinalizeNativeEdit = "finalize.nativeEdit"
     val FinalizeReplaceAndDelete = "finalize.replaceAndDelete"
     val FinalizeReplaceOnly = "finalize.replaceOnly"
@@ -56,51 +58,74 @@ object Renderer:
   private def buttonBudget(profile: CapabilityProfile): Int =
     math.min(profile.maxChoicesPerRow * profile.maxRows, ControlLimits.MaxButtonsPerMessage)
 
-  private def toRendered(index: Int)(c: Choice): RenderedChoice =
-    RenderedChoice(index, c.label, c.callback, c.style, c.emoji)
+  /** Numbers the callback choices of one set from `startIndex`; a link choice is not numbered (index 0). */
+  private def numbered(cs: ChoiceSet, startIndex: Int): List[RenderedChoice] =
+    val (_, rendered) = cs.choices.foldLeft((startIndex, Vector.empty[RenderedChoice])):
+      case ((next, done), c) =>
+        c.action match
+          case _: ChoiceAction.Callback => (next + 1, done :+ RenderedChoice(next, c.label, c.action, c.style, c.emoji))
+          case _                        => (next, done :+ RenderedChoice(0, c.label, c.action, c.style, c.emoji))
+    rendered.toList
 
-  private def choiceMapEntries(cs: ChoiceSet, startIndex: Int): List[ChoiceMapEntry] =
-    cs.choices.zipWithIndex.map((c, i) => ChoiceMapEntry(cs.id, startIndex + i, c.label, c.emoji, c.callback))
+  /** Only a callback choice resolves from a typed number or label, so only it gets a choice_map row. */
+  private def choiceMapEntries(setId: String, rendered: List[RenderedChoice]): List[ChoiceMapEntry] =
+    rendered.collect:
+      case RenderedChoice(index, label, ChoiceAction.Callback(token), _, emoji) =>
+        ChoiceMapEntry(setId, index, label, emoji, token)
 
   /** One ChoiceSet through the ladder: the controls, the rung name, the nodes to append to the message text (prompt,
-    * numbered legend, multi-select instruction) and the button count for paging.
+    * numbered legend, multi-select instruction), the choice_map rows and the button count for paging.
     */
   private final case class LadderResult(
       controls: RenderedControls,
       rung: String,
       extraNodes: List[Node],
+      choiceMap: List[ChoiceMapEntry],
       buttons: Int
   )
 
-  private def numberedLegend(cs: ChoiceSet, startIndex: Int): Node =
-    val items = cs.choices.zipWithIndex.map((c, i) => s"${startIndex + i}) ${c.label}").mkString(" ")
-    Node.Paragraph(List(Inline.Text(items)))
+  /** The text form of one choice (ADR-015 CON-02): a number to type for a callback, the target for a link. */
+  private def legendEntry(choice: RenderedChoice): String =
+    choice.action match
+      case ChoiceAction.Callback(_)    => s"${choice.index}) ${choice.label}"
+      case ChoiceAction.OpenApp(route) => s"[app: ${route.wire}] ${choice.label}"
+      case ChoiceAction.OpenUrl(url)   => s"[link: $url] ${choice.label}"
 
-  private def numberedExtras(cs: ChoiceSet, startIndex: Int): List[Node] =
-    val legend = numberedLegend(cs, startIndex)
+  private def numberedExtras(cs: ChoiceSet, rendered: List[RenderedChoice]): List[Node] =
+    val legend = Node.Paragraph(List(Inline.Text(rendered.map(legendEntry).mkString(" "))))
     val instruction =
       if cs.maxSelect > 1 then List(Node.Paragraph(List(Inline.Text(MultiSelectInstruction)))) else Nil
     legend +: instruction
 
   /** Ladder: buttons (single-shot sets that fit the budget) -> numbered legend answered by a typed number. */
   private def renderChoices(cs: ChoiceSet, profile: CapabilityProfile, startIndex: Int): LadderResult =
-    val rendered = cs.choices.zipWithIndex.map((c, i) => toRendered(startIndex + i)(c))
+    val rendered = numbered(cs, startIndex)
     val promptNodes = cs.prompt.toList.flatten
-    val buttonsFit = profile.buttons && cs.maxSelect == 1 && cs.choices.size <= buttonBudget(profile)
+    val choiceMap = choiceMapEntries(cs.id, rendered)
+    val buttonsFit = profile.buttons && cs.maxSelect == 1 && rendered.size <= buttonBudget(profile)
     if buttonsFit then
       LadderResult(
         RenderedControls.Buttons(rendered.grouped(profile.maxChoicesPerRow).toList),
         Rung.Buttons,
         promptNodes,
+        choiceMap,
         rendered.size
       )
     else
       LadderResult(
         RenderedControls.Numbered(cs.id, rendered),
         Rung.Numbered,
-        promptNodes ++ numberedExtras(cs, startIndex),
+        promptNodes ++ numberedExtras(cs, rendered),
+        choiceMap,
         0
       )
+
+  /** The text equivalent shown in place of an attachment (ADR-015 CON-02). */
+  private def textEquivalent(attachment: AttachmentRef): Node =
+    val label = attachment.kind match
+      case MediaKind.Photo    => "image"
+      case MediaKind.Document => "document"
+    Node.Paragraph(List(Inline.Text(s"[$label: ${attachment.altText}]")))
 
   private def renderForm(form: Form): RenderedForm =
     RenderedForm(
@@ -143,7 +168,12 @@ object Renderer:
       sendKey: String,
       ctx: RenderContext = RenderContext()
   ): (List[VendorOp], RenderReport) =
-    var rungs = Map.empty[String, String]
+    // Ladder: media (the attachment travels beside the caption) -> its text equivalent heads the text.
+    val media = msg.attachment.filter(_ => profile.media)
+    val body = msg.attachment.filterNot(_ => profile.media).map(textEquivalent).toList ++ msg.body
+    var rungs = msg.attachment
+      .map(_ => "attachment" -> (if profile.media then Rung.AttachmentMedia else Rung.AttachmentText))
+      .toMap
     var renderedForm = Option.empty[RenderedForm]
     var nextIndex = 1
     var buttons = 0
@@ -154,9 +184,9 @@ object Renderer:
     msg.blocks.foreach:
       case Block.Choices(cs) =>
         val result = renderChoices(cs, profile, nextIndex)
-        entries = entries :+ (Some(result.controls), result.extraNodes, choiceMapEntries(cs, nextIndex))
+        entries = entries :+ (Some(result.controls), result.extraNodes, result.choiceMap)
         rungs = rungs + (cs.id -> result.rung)
-        nextIndex = nextIndex + cs.choices.size
+        nextIndex = nextIndex + result.choiceMap.size
         buttons = buttons + result.buttons
       case Block.FormBlock(f) =>
         renderedForm = Some(renderForm(f))
@@ -169,15 +199,21 @@ object Renderer:
     def renderText(nodes: List[Node]): List[String] =
       VendorMarkup.split(VendorMarkup.render(nodes, profile.markup, discreetNames), profile.maxText)
 
-    def pageMessage(nodes: List[Node], controls: List[RenderedControls], map: List[ChoiceMapEntry]): RenderedMessage =
+    def pageMessage(
+        nodes: List[Node],
+        controls: List[RenderedControls],
+        map: List[ChoiceMapEntry],
+        attachment: Option[AttachmentRef]
+    ): RenderedMessage =
       RenderedMessage(
-        chunks = renderText(nodes),
+        chunks = renderText(nodes).filter(_.nonEmpty),
         controls = controls,
         form = renderedForm,
         deleteAfter = msg.deleteAfter,
         silent = msg.silent,
         suppressPreview = msg.discreet,
-        choiceMap = map
+        choiceMap = map,
+        attachment = attachment
       )
 
     // Digest paging: one message carries at most `buttonBudget` buttons; longer sets are paged.
@@ -186,18 +222,19 @@ object Renderer:
       val (noControls, withControls) = entries.partition(_._1.isEmpty)
       val pages = paginate(withControls, budget)
       val pageCount = pages.size
-      val headerNodes = msg.body ++ noControls.flatMap(_._2)
+      val headerNodes = body ++ noControls.flatMap(_._2)
       val ops = pages.zipWithIndex.map { (pageEntries, i) =>
         val nodes =
           if i == 0 then headerNodes ++ pageEntries.flatMap(_._2)
           else Node.Paragraph(List(Inline.Text(s"Page ${i + 1} of $pageCount"))) +: pageEntries.flatMap(_._2)
-        val message = pageMessage(nodes, pageEntries.flatMap(_._1), pageEntries.flatMap(_._3))
+        val message =
+          pageMessage(nodes, pageEntries.flatMap(_._1), pageEntries.flatMap(_._3), media.filter(_ => i == 0))
         VendorOp.Send(chat, message, s"$sendKey:p${i + 1}", msg.replaces)
       }
       (ops, RenderReport(rungs, splitInto = ops.size, paged = true))
     else
-      val nodes = msg.body ++ entries.flatMap(_._2)
-      val rendered = pageMessage(nodes, entries.flatMap(_._1), entries.flatMap(_._3))
+      val nodes = body ++ entries.flatMap(_._2)
+      val rendered = pageMessage(nodes, entries.flatMap(_._1), entries.flatMap(_._3), media)
       (
         List(VendorOp.Send(chat, rendered, sendKey, msg.replaces)),
         RenderReport(rungs, splitInto = rendered.chunks.size)
@@ -241,7 +278,7 @@ object Renderer:
     val outcome = RenderedMessage(
       chunks,
       controls = kept.toList.map(_._2.controls),
-      choiceMap = kept.toList.flatMap((cs, _) => choiceMapEntries(cs, 1))
+      choiceMap = kept.toList.flatMap(_._2.choiceMap)
     )
     val (ops, rung) =
       if editable(profile, ctx) then (List(VendorOp.Edit(handle, outcome)), Rung.FinalizeNativeEdit)

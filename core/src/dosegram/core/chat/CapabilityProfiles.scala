@@ -16,6 +16,7 @@ object CapabilityProfiles:
   val Telegram: CapabilityProfile = CapabilityProfile(
     nativeCommands = true,
     buttons = true,
+    media = true,
     editOwn = EditCapability.AnyAge,
     deleteOwn = DeleteCapability.Window(Duration.ofHours(48)),
     transientAck = true,
@@ -34,6 +35,7 @@ object CapabilityProfiles:
   val Console: CapabilityProfile = CapabilityProfile(
     nativeCommands = false,
     buttons = false,
+    media = false,
     editOwn = EditCapability.NoEdit,
     deleteOwn = DeleteCapability.NoDelete,
     transientAck = false,

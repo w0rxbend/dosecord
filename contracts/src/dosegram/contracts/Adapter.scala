@@ -38,14 +38,19 @@ object ChatError:
 
 // ---------- Renderer output (adapter-facing, all plain data) ----------
 
+/** One button or legend entry. A callback choice carries its 1-based number across the message; a link choice (app or
+  * URL) is never numbered and carries 0, because a typed number cannot open it.
+  */
 final case class RenderedChoice(
     index: Int,
     label: String,
-    callback: String,
+    action: ChoiceAction,
     style: ChoiceStyle = ChoiceStyle.Secondary,
     emoji: Option[String] = None
 ) derives ReadWriter:
-  require(index >= 1, "choice index is 1-based")
+  action match
+    case ChoiceAction.Callback(_) => require(index >= 1, "a callback choice is numbered from 1")
+    case _                        => require(index == 0, "a link choice is not numbered")
 
 enum RenderedControls derives ReadWriter:
   case NoControls
@@ -73,8 +78,8 @@ final case class RenderedField(
 final case class RenderedForm(id: String, title: String, fields: List[RenderedField], submit: String) derives ReadWriter
 
 /** The lowered message an adapter executes: vendor-markup text chunks (split at `maxText`, blocks attach to the last
-  * chunk) plus controls. `choiceMap` is recorded by the mediator right after the send so controls stay resolvable after
-  * a crash (DESIGN.md section 9).
+  * chunk) plus controls. With an `attachment` the first chunk is the caption and the text may be empty. `choiceMap` is
+  * recorded by the mediator right after the send so controls stay resolvable after a crash (DESIGN.md section 9).
   */
 final case class RenderedMessage(
     chunks: List[String],
@@ -83,9 +88,11 @@ final case class RenderedMessage(
     deleteAfter: Option[Duration] = None,
     silent: Boolean = false,
     suppressPreview: Boolean = false,
-    choiceMap: List[ChoiceMapEntry] = Nil
+    choiceMap: List[ChoiceMapEntry] = Nil,
+    attachment: Option[AttachmentRef] = None
 ) derives ReadWriter:
-  require(chunks.nonEmpty && chunks.forall(_.nonEmpty), "at least one non-empty text chunk")
+  require(chunks.forall(_.nonEmpty), "text chunks must not be empty")
+  require(chunks.nonEmpty || attachment.isDefined, "a message has text or an attachment")
 
 /** Which ladder rung each block resolved to (DESIGN.md section 4.3: the report names the rung). Keys: choice set / form
   * ids and `finalize`.

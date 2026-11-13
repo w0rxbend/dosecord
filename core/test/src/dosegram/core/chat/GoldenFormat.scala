@@ -48,6 +48,9 @@ object GoldenFormat:
       chunk.linesIterator.foreach(line => b ++= (if line.isEmpty then "\n" else s"  $line\n"))
       b ++= "  ---\n"
     }
+    m.attachment.foreach { a =>
+      b ++= s"  attachment ${a.kind} asset=${a.assetKey} mime=${a.mimeType} file=${a.fileName.getOrElse("-")} alt=${a.altText}\n"
+    }
     m.controls.zipWithIndex.foreach((c, i) => formatControls(b, i, c))
     m.form.foreach { f =>
       b ++= s"  form ${f.id} (${f.fields.size} fields, via FormRunner)\n"
@@ -73,5 +76,9 @@ object GoldenFormat:
         choices.foreach(ch => b ++= s"    ${formatChoice(ch)}\n")
 
   private def formatChoice(c: RenderedChoice): String =
-    s"[${c.index}] ${c.label} -> ${c.callback} (${c.style})${c.emoji.map(e => s" emoji=$e").getOrElse("")}"
+    val target = c.action match
+      case ChoiceAction.Callback(token) => token
+      case ChoiceAction.OpenApp(route)  => s"app:${route.wire}"
+      case ChoiceAction.OpenUrl(url)    => s"url:$url"
+    s"[${c.index}] ${c.label} -> $target (${c.style})${c.emoji.map(e => s" emoji=$e").getOrElse("")}"
 end GoldenFormat

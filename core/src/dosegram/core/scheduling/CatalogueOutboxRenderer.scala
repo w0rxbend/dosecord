@@ -103,8 +103,8 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
             ChoiceSet(
               id = "reminder.main",
               choices = List(
-                Choice(Labels.Taken, taken, ChoiceStyle.Success),
-                Choice(Labels.Skip, skip)
+                Choice.callback(Labels.Taken, taken, ChoiceStyle.Success),
+                Choice.callback(Labels.Skip, skip)
               )
             )
           )
@@ -131,9 +131,9 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
           ChoiceSet(
             id = "missed_notice",
             choices = List(
-              Choice(Labels.ITookIt, token("dose.taken", facts.occ.id, 0), ChoiceStyle.Success),
-              Choice(Labels.Skip, token("dose.skip", facts.occ.id, 0)),
-              Choice(Labels.KeepMissed, token("dose.keep_missed", facts.occ.id, 0))
+              Choice.callback(Labels.ITookIt, token("dose.taken", facts.occ.id, 0), ChoiceStyle.Success),
+              Choice.callback(Labels.Skip, token("dose.skip", facts.occ.id, 0)),
+              Choice.callback(Labels.KeepMissed, token("dose.keep_missed", facts.occ.id, 0))
             )
           )
         )
@@ -213,19 +213,19 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     val choices = occ.state.status match
       case OccurrenceStatus.Unknown =>
         List(
-          Choice(Labels.ITookIt, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
-          Choice(Labels.Skip, token("dose.skip", occ.id, 0))
+          Choice.callback(Labels.ITookIt, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
+          Choice.callback(Labels.Skip, token("dose.skip", occ.id, 0))
         )
       case OccurrenceStatus.Missed =>
         List(
-          Choice(Labels.ITookIt, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
-          Choice(Labels.Skip, token("dose.skip", occ.id, 0)),
-          Choice(Labels.KeepMissed, token("dose.keep_missed", occ.id, 0))
+          Choice.callback(Labels.ITookIt, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
+          Choice.callback(Labels.Skip, token("dose.skip", occ.id, 0)),
+          Choice.callback(Labels.KeepMissed, token("dose.keep_missed", occ.id, 0))
         )
       case _ =>
         List(
-          Choice(Labels.Taken, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
-          Choice(Labels.Skip, token("dose.skip", occ.id, 0))
+          Choice.callback(Labels.Taken, token("dose.taken", occ.id, 0), ChoiceStyle.Success),
+          Choice.callback(Labels.Skip, token("dose.skip", occ.id, 0))
         )
     DigestItemFacts(occ.id, line, choices)
 
@@ -272,8 +272,8 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
             ChoiceSet(
               id = "post_taken.followup",
               choices = List(
-                Choice(Labels.Undo, token("dose.undo", occ.id, 0)),
-                Choice(Labels.Correct, token("dose.correct", occ.id, 0))
+                Choice.callback(Labels.Undo, token("dose.undo", occ.id, 0)),
+                Choice.callback(Labels.Correct, token("dose.correct", occ.id, 0))
               )
             )
           )

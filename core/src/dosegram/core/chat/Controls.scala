@@ -28,9 +28,9 @@ object Controls:
       ChoiceSet(
         id = "reminder.main",
         choices = List(
-          Choice(Labels.Taken, taken.wire, ChoiceStyle.Success),
-          Choice(Labels.snooze(snooze.head._1), snooze.head._2.wire),
-          Choice(Labels.Skip, skip.wire)
+          Choice.callback(Labels.Taken, taken.wire, ChoiceStyle.Success),
+          Choice.callback(Labels.snooze(snooze.head._1), snooze.head._2.wire),
+          Choice.callback(Labels.Skip, skip.wire)
         )
       )
     )
@@ -39,7 +39,9 @@ object Controls:
       case rest =>
         List(
           row1,
-          Block.Choices(ChoiceSet(id = "reminder.more", choices = rest.map((m, t) => Choice(Labels.snooze(m), t.wire))))
+          Block.Choices(
+            ChoiceSet(id = "reminder.more", choices = rest.map((m, t) => Choice.callback(Labels.snooze(m), t.wire)))
+          )
         )
 
   /** Wire overload for callers outside `core.chat` (the outbox dispatcher's catalogue renderer mints `dc:` strings
@@ -52,6 +54,6 @@ object Controls:
   def postTaken(undo: CallbackToken, correct: CallbackToken): ChoiceSet =
     ChoiceSet(
       id = "post_taken.followup",
-      choices = List(Choice(Labels.Undo, undo.wire), Choice(Labels.Correct, correct.wire))
+      choices = List(Choice.callback(Labels.Undo, undo.wire), Choice.callback(Labels.Correct, correct.wire))
     )
 end Controls

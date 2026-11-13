@@ -275,9 +275,9 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
               ChoiceSet(
                 id = "dose.correct",
                 choices = List(
-                  Choice(Labels.Now, directToken("dose.correct", occ.id, 1), ChoiceStyle.Success),
-                  Choice(Labels.AtScheduledTime, directToken("dose.correct", occ.id, 2)),
-                  Choice(Labels.Cancel, directToken("dose.correct", occ.id, 3))
+                  Choice.callback(Labels.Now, directToken("dose.correct", occ.id, 1), ChoiceStyle.Success),
+                  Choice.callback(Labels.AtScheduledTime, directToken("dose.correct", occ.id, 2)),
+                  Choice.callback(Labels.Cancel, directToken("dose.correct", occ.id, 3))
                 )
               )
             )

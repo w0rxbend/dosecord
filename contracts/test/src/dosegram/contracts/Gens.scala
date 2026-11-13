@@ -199,6 +199,21 @@ object Gens:
       )
   )
 
+  given Arbitrary[StartPayload] = Arbitrary(genText.map(StartPayload.apply))
+  given Arbitrary[AppRoute] = Arbitrary(genText.map(AppRoute.apply))
+  given Arbitrary[MediaKind] = Arbitrary(Gen.oneOf(MediaKind.values.toList))
+  given Arbitrary[MediaRef] = Arbitrary(genText.map(MediaRef.apply))
+  given Arbitrary[AttachmentRef] = Arbitrary(
+    Gen.zip(Arbitrary.arbitrary[MediaKind], genText, genText, genText, genOptText).map(AttachmentRef.apply)
+  )
+  given Arbitrary[ChoiceAction] = Arbitrary(
+    Gen.oneOf(
+      genRawToken.map(ChoiceAction.Callback.apply),
+      Arbitrary.arbitrary[AppRoute].map(ChoiceAction.OpenApp.apply),
+      genText.map(path => ChoiceAction.OpenUrl(s"https://example.org/$path"))
+    )
+  )
+
   given Arbitrary[Inbound] = Arbitrary(
     Gen.oneOf(
       Gen
@@ -215,7 +230,10 @@ object Gens:
         .map(
           Inbound.FormSubmitted.apply
         ),
-      Gen.const(Inbound.ConversationStarted),
+      Gen.option(Arbitrary.arbitrary[StartPayload]).map(Inbound.ConversationStarted.apply),
+      Gen
+        .zip(Arbitrary.arbitrary[MediaKind], Arbitrary.arbitrary[MediaRef], genOptText)
+        .map(Inbound.MediaReceived.apply),
       Gen.zip(genUuid, genUuid).map(Inbound.AccountLinkCompleted.apply),
       Gen.zip(Arbitrary.arbitrary[LifecycleState], genOptText).map(Inbound.AdapterLifecycle.apply)
     )
@@ -260,7 +278,9 @@ object Gens:
 
   given Arbitrary[ChoiceStyle] = Arbitrary(Gen.oneOf(ChoiceStyle.values.toList))
   given Arbitrary[Choice] = Arbitrary(
-    Gen.zip(genText, genText, Arbitrary.arbitrary[ChoiceStyle], genOptText, smallList(genText)).map(Choice.apply)
+    Gen
+      .zip(genText, Arbitrary.arbitrary[ChoiceAction], Arbitrary.arbitrary[ChoiceStyle], genOptText, smallList(genText))
+      .map(Choice.apply)
   )
   given Arbitrary[ChoiceSet] = Arbitrary(
     for
@@ -315,6 +335,7 @@ object Gens:
       deleteAfter <- Gen.option(genDuration)
       discreet <- Gen.oneOf(true, false)
       silent <- Gen.oneOf(true, false)
+      attachment <- Gen.option(Arbitrary.arbitrary[AttachmentRef])
       dedupe <- genText
       correlation <- genText
     yield OutboundMessage(
@@ -325,6 +346,7 @@ object Gens:
       deleteAfter,
       discreet,
       silent,
+      attachment,
       dedupe,
       correlation
     )
@@ -352,6 +374,7 @@ object Gens:
     for
       nativeCommands <- Gen.oneOf(true, false)
       buttons <- Gen.oneOf(true, false)
+      media <- Gen.oneOf(true, false)
       editOwn <- Arbitrary.arbitrary[EditCapability]
       deleteOwn <- Arbitrary.arbitrary[DeleteCapability]
       transientAck <- Gen.oneOf(true, false)
@@ -368,6 +391,7 @@ object Gens:
     yield CapabilityProfile(
       nativeCommands,
       buttons,
+      media,
       editOwn,
       deleteOwn,
       transientAck,
@@ -399,7 +423,11 @@ object Gens:
   )
 
   given Arbitrary[RenderedChoice] = Arbitrary(
-    Gen.zip(Gen.choose(1, 25), genText, genText, Arbitrary.arbitrary[ChoiceStyle], genOptText).map(RenderedChoice.apply)
+    Gen.zip(Gen.choose(1, 25), genText, Arbitrary.arbitrary[ChoiceAction], Arbitrary.arbitrary[ChoiceStyle], genOptText).map {
+      (index, label, action, style, emoji) =>
+        val numbered = if action.isInstanceOf[ChoiceAction.Callback] then index else 0
+        RenderedChoice(numbered, label, action, style, emoji)
+    }
   )
   given Arbitrary[RenderedControls] = Arbitrary(
     Gen.oneOf(
@@ -429,7 +457,8 @@ object Gens:
       silent <- Gen.oneOf(true, false)
       suppressPreview <- Gen.oneOf(true, false)
       choiceMap <- smallList(Arbitrary.arbitrary[ChoiceMapEntry], 5)
-    yield RenderedMessage(chunks, controls, form, deleteAfter, silent, suppressPreview, choiceMap)
+      attachment <- Gen.option(Arbitrary.arbitrary[AttachmentRef])
+    yield RenderedMessage(chunks, controls, form, deleteAfter, silent, suppressPreview, choiceMap, attachment)
   )
   given Arbitrary[RenderReport] = Arbitrary(
     Gen

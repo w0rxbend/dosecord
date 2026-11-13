@@ -41,12 +41,41 @@ final case class CallbackRef(actionId: Int, subject: UUID, value: Long, slot: Bo
   require(value >= 0, "value is unsigned")
   require(raw.nonEmpty, "raw token must not be empty")
 
+/** The shared grammar of deep-link payloads and Mini App routes: 1 to 64 characters of `A-Z a-z 0-9 _ -`. */
+private[contracts] object LinkGrammar:
+  val MaxChars = 64
+
+  def fits(text: String): Boolean =
+    text.nonEmpty && text.length <= MaxChars && text.forall(allowed)
+
+  private def allowed(c: Char): Boolean =
+    (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
+
+/** The payload of the deep link that started a conversation (ADR-015). It is attacker-controlled: it selects a screen
+  * or carries an opaque single-use token, never an identifier that grants access.
+  */
+final case class StartPayload(value: String) derives ReadWriter:
+  require(LinkGrammar.fits(value), "start payload must be 1-64 chars of A-Z a-z 0-9 _ -")
+
+object StartPayload:
+  /** For untrusted vendor text: `None` when it is outside the grammar. */
+  def parse(text: String): Option[StartPayload] =
+    Option.when(LinkGrammar.fits(text))(StartPayload(text))
+
+enum MediaKind derives ReadWriter:
+  case Photo, Document
+
+/** An opaque handle to media a user sent; the bytes stay with the vendor until an adapter fetches them. */
+final case class MediaRef(mediaId: String) derives ReadWriter:
+  require(mediaId.nonEmpty, "mediaId must not be empty")
+
 enum Inbound derives ReadWriter:
   case MessageReceived(text: String, replyTo: Option[MessageHandle], truncated: Boolean)
   case CommandInvoked(name: String, args: Map[String, String], raw: String)
   case InteractionSubmitted(callback: CallbackRef, source: Option[MessageHandle])
   case FormSubmitted(formId: String, callback: CallbackRef, fields: Map[String, String])
-  case ConversationStarted
+  case ConversationStarted(payload: Option[StartPayload])
+  case MediaReceived(kind: MediaKind, media: MediaRef, caption: Option[String])
   case AccountLinkCompleted(linkId: UUID, accountId: UUID)
   case AdapterLifecycle(state: LifecycleState, fromCursor: Option[String])
 
@@ -143,7 +172,9 @@ enum Node derives ReadWriter:
   case BulletList(items: List[List[Inline]])
   case CodeBlock(s: String)
 
-/** An AST, never a vendor string (DESIGN.md section 4.2); no headings, tables or images. */
+/** An AST, never a vendor string (DESIGN.md section 4.2); no headings, tables or images. An image travels beside the
+  * text as an [[AttachmentRef]].
+  */
 type RichText = List[Node]
 
 /** Product limits on tappable controls (ADR-015). They are our own bounds, not platform maxima. */
@@ -159,12 +190,26 @@ object ControlLimits:
 enum ChoiceStyle derives ReadWriter:
   case Primary, Secondary, Danger, Success
 
-/** `callback` is the wire form of a CallbackToken (core/chat) — a 49-char `dc:` string, kept as a plain string here so
-  * contracts never depends on core.
+/** A Mini App route (MINI_APP section 3.4): `<screen>` or `<screen>_<argument>`. The contract checks the grammar only;
+  * the screen codes belong to the Mini App.
   */
+final case class AppRoute(wire: String) derives ReadWriter:
+  require(LinkGrammar.fits(wire), "app route must be 1-64 chars of A-Z a-z 0-9 _ -")
+
+/** What a tapped choice does (ADR-015). Only `Callback` comes back as an inbound event; the other two open something on
+  * the user's device and the bot never hears of the tap.
+  */
+enum ChoiceAction derives ReadWriter:
+  /** `token` is the wire form of a CallbackToken (core/chat) — a 49-char `dc:` string, kept as a plain string here so
+    * contracts never depends on core.
+    */
+  case Callback(token: String)
+  case OpenApp(route: AppRoute)
+  case OpenUrl(url: String)
+
 final case class Choice(
     label: String,
-    callback: String,
+    action: ChoiceAction,
     style: ChoiceStyle = ChoiceStyle.Secondary,
     emoji: Option[String] = None,
     hotkeys: List[String] = Nil
@@ -173,6 +218,17 @@ final case class Choice(
     label.nonEmpty && label.length <= ControlLimits.MaxLabelChars,
     s"choice label must be 1-${ControlLimits.MaxLabelChars} chars"
   )
+  action match
+    case ChoiceAction.OpenUrl(url) => require(url.startsWith("https://"), "a URL choice opens https links only")
+    case _                         => ()
+
+object Choice:
+  def callback(label: String, token: String, style: ChoiceStyle = ChoiceStyle.Secondary): Choice =
+    Choice(label, ChoiceAction.Callback(token), style)
+
+  def openApp(label: String, route: AppRoute): Choice = Choice(label, ChoiceAction.OpenApp(route))
+
+  def openUrl(label: String, url: String): Choice = Choice(label, ChoiceAction.OpenUrl(url))
 
 final case class ChoiceSet(
     id: String,
@@ -220,6 +276,27 @@ enum Block derives ReadWriter:
   case FormBlock(f: Form)
   case NoticeBlock(n: Notice)
 
+/** Bytes the core never holds, sent with a message (ADR-015). `assetKey` is opaque: the adapter resolves it through the
+  * asset store and keys its upload cache by it. `altText` is the text equivalent that every image has; a profile
+  * without media shows it in place of the image.
+  */
+final case class AttachmentRef(
+    kind: MediaKind,
+    assetKey: String,
+    mimeType: String,
+    altText: String,
+    fileName: Option[String] = None
+) derives ReadWriter:
+  require(assetKey.nonEmpty, "assetKey must not be empty")
+  require(mimeType.nonEmpty, "mimeType must not be empty")
+  require(
+    altText.nonEmpty && altText.length <= AttachmentRef.MaxAltTextChars,
+    s"altText must be 1-${AttachmentRef.MaxAltTextChars} chars"
+  )
+
+object AttachmentRef:
+  val MaxAltTextChars = 1024
+
 enum Importance derives ReadWriter:
   case InteractionReply, Reminder, Info, Bulk
 
@@ -231,6 +308,8 @@ final case class OutboundMessage(
     deleteAfter: Option[Duration] = None,
     discreet: Boolean = false,
     silent: Boolean = false,
+    /** The message body is the caption. A message with an attachment is always a new message, never an edit. */
+    attachment: Option[AttachmentRef] = None,
     dedupeKey: String,
     correlationId: String
 ) derives ReadWriter:
@@ -263,6 +342,8 @@ enum Markup derives ReadWriter:
 final case class CapabilityProfile(
     nativeCommands: Boolean,
     buttons: Boolean,
+    /** Photo and document messages; without it the renderer shows the attachment's text equivalent. */
+    media: Boolean,
     editOwn: EditCapability,
     deleteOwn: DeleteCapability,
     transientAck: Boolean,

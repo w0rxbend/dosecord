@@ -40,7 +40,7 @@ object FirstFlows:
   private[application] final class IdentityGate(engine: WizardEngine) extends ChatHandler:
     override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
       event.body match
-        case Inbound.ConversationStarted                              => startCreate(event, principal, tx)
+        case Inbound.ConversationStarted(_)                           => startCreate(event, principal, tx)
         case Inbound.CommandInvoked(CommandRegistry.Start.name, _, _) => startCreate(event, principal, tx)
         case _                                                        => engine.handle(event, principal, tx)
 

@@ -116,7 +116,7 @@ object SuiteARunner:
     MessageHandle(wiring.vendor, chatRef(wiring, chat).chatId, resolved)
 
   private def controlsOf(kind: String): RenderedControls =
-    val choice = RenderedChoice(index = 1, label = "One", callback = "dc:conformance")
+    val choice = RenderedChoice(index = 1, label = "One", action = ChoiceAction.Callback("dc:conformance"))
     kind match
       case "buttons" => RenderedControls.Buttons(List(List(choice)))
       case other     => throw Scenario.ScenarioFormatException("scenario", s"unknown controls kind '$other'")
@@ -141,6 +141,11 @@ object SuiteARunner:
           RenderedMessage(chunks = List("Pick"), controls = List(controlsOf("buttons"))),
           "conformance:buttons"
         )
+        ()
+    if profile.media then
+      attempt("media"):
+        val photo = AttachmentRef(MediaKind.Photo, "conformance-asset", "image/png", "A conformance probe image.")
+        aut.adapter.send(chat, RenderedMessage(chunks = List("Caption"), attachment = Some(photo)), "conformance:media")
         ()
     if profile.silentDelivery then
       attempt("silentDelivery"):

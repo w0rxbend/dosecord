@@ -291,7 +291,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       )
     )
     val updated = message("updated-map").copy(blocks =
-      List(Block.Choices(ChoiceSet("current", choices = List(Choice("Current", callback)))))
+      List(Block.Choices(ChoiceSet("current", choices = List(Choice.callback("Current", callback)))))
     )
     val handler = new ChatHandler:
       override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply = Reply(replace = Some(updated))

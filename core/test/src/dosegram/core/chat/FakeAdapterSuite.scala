@@ -26,6 +26,16 @@ class FakeAdapterSuite extends munit.FunSuite:
     adapter.delete(handle)
     assertEquals(adapter.sent.size, 0)
 
+  test("media honesty: an attachment needs a media profile, and an edit never carries one"):
+    val photo = AttachmentRef(MediaKind.Photo, "asset-1", "image/png", "A chart.")
+    val withPhoto = RenderedMessage(chunks = List("Your week."), attachment = Some(photo))
+    val telegram = FakeAdapter(CapabilityProfiles.Telegram, "telegram")
+    val handle = telegram.send(ChatRef("telegram", "dm:u1"), withPhoto, "k1")
+    assertEquals(telegram.sent.map(_._2.attachment), List(Some(photo)))
+    intercept[ChatError.Unsupported](telegram.edit(handle, withPhoto))
+    val console = FakeAdapter(CapabilityProfiles.Console, "console")
+    intercept[ChatError.Unsupported](console.send(ChatRef("console", "dm:u1"), withPhoto, "k1"))
+
   test("capability honesty: ops the profile does not claim raise Unsupported"):
     val console = FakeAdapter(CapabilityProfiles.Console, "console")
     intercept[ChatError.Unsupported](console.edit(MessageHandle("console", "dm:u1", "m1"), rendered))

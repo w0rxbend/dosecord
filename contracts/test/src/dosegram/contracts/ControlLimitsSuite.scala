@@ -7,12 +7,12 @@ import Gens.given
 /** The product limits on tappable controls (ADR-015): our own bounds, enforced where the values are constructed. */
 class ControlLimitsSuite extends munit.FunSuite:
 
-  private def choices(count: Int): List[Choice] = (1 to count).toList.map(i => Choice(s"c$i", s"cb:$i"))
+  private def choices(count: Int): List[Choice] = (1 to count).toList.map(i => Choice.callback(s"c$i", s"cb:$i"))
 
   test("a choice label holds 1 to 32 characters"):
-    assertEquals(Choice("x" * 32, "cb").label.length, 32)
-    intercept[IllegalArgumentException](Choice("x" * 33, "cb"))
-    intercept[IllegalArgumentException](Choice("", "cb"))
+    assertEquals(Choice.callback("x" * 32, "cb").label.length, 32)
+    intercept[IllegalArgumentException](Choice.callback("x" * 33, "cb"))
+    intercept[IllegalArgumentException](Choice.callback("", "cb"))
 
   test("a choice set holds 1 to 24 choices"):
     assertEquals(ChoiceSet("set", choices = choices(24)).choices.size, 24)

@@ -151,7 +151,7 @@ final class WizardHarness:
       .flatMap(_.blocks)
       .collect { case Block.Choices(cs) => cs.choices }
       .flatten
-      .collectFirst { case c if c.label == label => c.callback }
+      .collectFirst { case Choice(`label`, ChoiceAction.Callback(token), _, _, _) => token }
       .getOrElse(throw new NoSuchElementException(s"no choice labelled '$label'"))
 
   def formBlock(reply: Reply): Form =

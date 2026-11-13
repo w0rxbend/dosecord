@@ -116,7 +116,7 @@ class OutboxDispatcherSuite extends PgSuite:
 
   private def renderer(withControls: Boolean): OutboxRenderer = new OutboxRenderer:
     override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
-      val choice = RenderedChoice(index = 1, label = "choice 1", callback = "dc:cb0")
+      val choice = RenderedChoice(index = 1, label = "choice 1", action = dosegram.contracts.ChoiceAction.Callback("dc:cb0"))
       val rendered = RenderedMessage(
         chunks = List(s"body for ${row.sendKey}"),
         controls = if withControls then List(RenderedControls.Numbered("cs1", List(choice))) else Nil,

@@ -40,6 +40,7 @@ final class FakeAdapter(val capabilities: CapabilityProfile, val vendor: String 
 
   override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle =
     maybeFail()
+    if rendered.attachment.isDefined && !capabilities.media then throw ChatError.Unsupported("media")
     messageSeq += 1
     val handle = MessageHandle(vendor, chat.chatId, s"m$messageSeq")
     recorded += VendorOp.Send(chat, rendered, sendKey, None)
@@ -49,6 +50,8 @@ final class FakeAdapter(val capabilities: CapabilityProfile, val vendor: String 
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     maybeFail()
     if capabilities.editOwn == EditCapability.NoEdit then throw ChatError.Unsupported("edit")
+    // ADR-015: a message with an attachment is always a new message, so an edit never carries one.
+    if rendered.attachment.isDefined then throw ChatError.Unsupported("editMedia")
     val revised = handle.copy(revision = handle.revision + 1)
     recorded += VendorOp.Edit(revised, rendered)
     messages += (s"${handle.chatId}:${handle.messageId}" -> (revised, rendered))

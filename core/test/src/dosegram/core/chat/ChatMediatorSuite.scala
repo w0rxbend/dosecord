@@ -118,6 +118,39 @@ class ChatMediatorSuite extends munit.FunSuite:
       assertEquals(uow.inboundEvents.all.size, 1, "one inbound_events row")
       assertEquals(sendsOf(adapter).map(_.message.chunks), List(List("hello"), List("hello")))
 
+  // ADR-015: a message with an attachment is always a new message.
+  test("a reply with an attachment is sent as a new message even when it replaces its source"):
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
+      val source = MessageHandle("fake", "chat-1", "m-source")
+      val photo = AttachmentRef(MediaKind.Photo, "asset-week", "image/png", "Week 45: 12 of 14 doses taken.")
+      val card = outbound("Your week.", "reply-photo").copy(replaces = Some(source), attachment = Some(photo))
+      val handler = RecordingHandler(_ => Reply(replace = Some(card)))
+      val m = mediator(uow, adapter, handler)
+
+      m.push(event(Inbound.MessageReceived("week", None, truncated = false), "evt-photo"))
+      await(sendsOf(adapter).size == 1, "the card was sent")
+      assertEquals(sendsOf(adapter).map(_.message.attachment), List(Some(photo)))
+      assertEquals(adapter.inner.synchronized(adapter.inner.ops).count(_.isInstanceOf[VendorOp.Edit]), 0)
+      assertEquals(uow.outbox.allEnqueued.map(_.op.db), List("send"), "the safety row is a send, not an edit")
+
+  // ADR-015: user media and deep-link payloads reach the handler stamped, like any other inbound event.
+  test("a received photo and a start payload reach the handler with their content"):
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
+      val handler = RecordingHandler(_ => Reply.empty)
+      val m = mediator(uow, adapter, handler)
+      val photo = Inbound.MediaReceived(MediaKind.Photo, MediaRef("file-1"), Some("lunch"))
+      val started = Inbound.ConversationStarted(Some(StartPayload("invite_abc")))
+
+      m.push(event(photo, "evt-media"))
+      m.push(event(started, "evt-start"))
+      await(handler.handled == 2, "both events handled")
+      assertEquals(handler.calls.map(_._1.body), List(photo, started))
+      assert(handler.calls.forall(_._1.principal.isDefined), "both are stamped")
+
   // Acceptance 2: per-chat order preserved under interleaved Ox forks.
   test("per-chat order preserved under interleaved forks"):
     ox.supervised:

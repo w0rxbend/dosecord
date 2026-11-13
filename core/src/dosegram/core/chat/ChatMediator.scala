@@ -180,23 +180,25 @@ final class ChatMediator(
       val effectivePrincipal = tx.identities.resolve(event.actor, now)
       val appendedEvents =
         reply.domainEvents.map(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
-      val sends = (reply.replace.toList ++ reply.followUps).map: message =>
-        val outboxId = UUID.randomUUID()
-        val enqueued = tx.outbox.enqueue(
-          NewOutboxMessage(
-            id = outboxId,
-            sendKey = message.dedupeKey,
-            op = if message.replaces.isDefined then OutboxOp.Edit else OutboxOp.Send,
-            kind = "interaction_reply",
-            vendor = event.vendor,
-            accountId = effectivePrincipal.accountId.map(_.uuid),
-            payload = InteractionReplyPayload.encode(message, event.chat),
-            target = message.replaces.map(OutboxDispatcher.encodeHandle),
-            importance = "interaction_reply",
-            nextAttemptAt = now.plus(SyncSafetyDelay)
+      val sends = (reply.replace.toList ++ reply.followUps)
+        .map(asDelivered)
+        .map: message =>
+          val outboxId = UUID.randomUUID()
+          val enqueued = tx.outbox.enqueue(
+            NewOutboxMessage(
+              id = outboxId,
+              sendKey = message.dedupeKey,
+              op = if message.replaces.isDefined then OutboxOp.Edit else OutboxOp.Send,
+              kind = "interaction_reply",
+              vendor = event.vendor,
+              accountId = effectivePrincipal.accountId.map(_.uuid),
+              payload = InteractionReplyPayload.encode(message, event.chat),
+              target = message.replaces.map(OutboxDispatcher.encodeHandle),
+              importance = "interaction_reply",
+              nextAttemptAt = now.plus(SyncSafetyDelay)
+            )
           )
-        )
-        PlannedSend(message, Option.when(enqueued)(outboxId))
+          PlannedSend(message, Option.when(enqueued)(outboxId))
       tx.inboundEvents.complete(
         event.vendor,
         event.vendorEventId,
@@ -207,6 +209,10 @@ final class ChatMediator(
       Outcome.Processed(
         DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast, appendedEvents)
       )
+
+  /** ADR-015: a message with an attachment is always a new message, so it never edits the message it replaces. */
+  private def asDelivered(message: OutboundMessage): OutboundMessage =
+    if message.attachment.isDefined then message.copy(replaces = None) else message
 
   /** The core boundary: only stamped events reach a handler (R8). */
   private[chat] def dispatchCore(event: InboundEvent, tx: Tx): Reply =
@@ -405,14 +411,16 @@ final class ChatMediator(
         .flatMap: row =>
           row.reply.map: json =>
             val reply = Reply.fromJson(json)
-            val sends = (reply.replace.toList ++ reply.followUps).map: message =>
-              val delivered = tx.outbox.recordedHandle(event.vendor, message.dedupeKey)
-              val replay = if message.replaces.isDefined then
-                message.copy(replaces =
-                  delivered.map(OutboxDispatcher.decodeHandle(event.vendor, _)).orElse(message.replaces)
-                )
-              else message
-              PlannedSend(replay, tx.outbox.replyId(event.vendor, message.dedupeKey))
+            val sends = (reply.replace.toList ++ reply.followUps)
+              .map(asDelivered)
+              .map: message =>
+                val delivered = tx.outbox.recordedHandle(event.vendor, message.dedupeKey)
+                val replay = if message.replaces.isDefined then
+                  message.copy(replaces =
+                    delivered.map(OutboxDispatcher.decodeHandle(event.vendor, _)).orElse(message.replaces)
+                  )
+                else message
+                PlannedSend(replay, tx.outbox.replyId(event.vendor, message.dedupeKey))
             DeliveryPlan(row.accountId, sends, reply.toast, Nil)
 
   /** The catalogue failure notice when the database is unavailable (R68: visibly fails): the single-shot answer while
