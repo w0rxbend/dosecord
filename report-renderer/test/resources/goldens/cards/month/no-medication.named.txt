@@ -1,0 +1,5 @@
+file: dosegram-month.png
+spoiler: false
+caption: October 2026. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. 27 days with records.
+alt: October 2026. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. 27 days with records.
+full: October 2026. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. 27 days with records.

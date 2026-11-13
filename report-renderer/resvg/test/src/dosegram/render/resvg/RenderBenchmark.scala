@@ -12,7 +12,19 @@ import dosegram.render.tokens.Theme
   * `./mill report-renderer.resvg.test.runMain dosegram.render.resvg.measureRenders 100`.
   */
 object RenderBenchmark:
-  val Templates: Vector[String] = Vector("mood/pleasant-high", "day/partial", "calendar/typical", "strip/fortnight", "water/partial", "week/typical", "milestone/50-mood")
+  val Templates: Vector[String] = Vector(
+    "mood/pleasant-high",
+    "day/partial",
+    "day/two-domains",
+    "calendar/typical",
+    "strip/fortnight",
+    "water/partial",
+    "week/typical",
+    "sleep/typical",
+    "month/typical",
+    "insight/water-goal-mood",
+    "milestone/50-mood"
+  )
 
   final case class Timing(name: String, sceneMillis: Vector[Double], rasterMillis: Vector[Double], svgBytes: Int, pngBytes: Int)
 

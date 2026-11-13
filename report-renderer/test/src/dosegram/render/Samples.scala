@@ -6,6 +6,7 @@ import dosegram.render.card.*
 import dosegram.render.chart.DoseStatus
 import dosegram.render.chart.DoseStatus.*
 import dosegram.render.copy.EnglishImageCopy
+import dosegram.render.copy.GoalDays as GoalDaysOf
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
 import dosegram.render.tokens.Theme
@@ -282,4 +283,55 @@ object Samples:
     )
   )
 
-  val all: Vector[Fixture] = moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps
+  private def doses(taken: Int, skipped: Int, missed: Int): DoseCounts = DoseCounts(taken, skipped, missed, 0, 0, 0)
+
+  private val octoberWeeks: Vector[MonthWeek] = Vector(
+    MonthWeek(Some(doses(15, 1, 0)), Some(2100), Some(MoodState(6, 4)), Some(440)),
+    MonthWeek(Some(doses(26, 1, 1)), Some(1850), Some(MoodState(5, 3)), Some(415)),
+    MonthWeek(Some(doses(25, 2, 1)), None, Some(MoodState(4, 3)), Some(395)),
+    MonthWeek(Some(doses(27, 0, 1)), Some(2300), None, Some(450)),
+    MonthWeek(Some(doses(19, 0, 1)), Some(1950), Some(MoodState(6, 3)), None)
+  )
+
+  private val october2026 = MonthData(
+    YearMonth.of(2026, 10),
+    daysWithRecords = 29,
+    weeks = octoberWeeks,
+    doses = Some(doses(112, 4, 3)),
+    water = Some(GoalDaysOf(18, 26)),
+    moodCheckInDays = Some(22),
+    sleep = Some((425, 24)),
+    previousAdherence = Some(91)
+  )
+
+  val months: Vector[Fixture] = Vector(
+    Fixture("month/typical", context => Vector(MonthCard.render(october2026, context))),
+    Fixture(
+      "month/no-medication",
+      context =>
+        val withoutMedication = october2026.copy(
+          weeks = octoberWeeks.map(_.copy(doses = None, sleepMeanMinutes = None)),
+          doses = None,
+          sleep = None,
+          daysWithRecords = 27
+        )
+        Vector(MonthCard.render(withoutMedication, context))
+    )
+  )
+
+  val insights: Vector[Fixture] = Vector(
+    Fixture(
+      "insight/water-goal-mood",
+      context =>
+        val data = InsightData(InsightRule.WaterGoalMood, LocalDate.of(2026, 10, 13), LocalDate.of(2026, 11, 9), InsightGroup(18, 3.7), InsightGroup(9, 3.2))
+        Vector(InsightCard.render(data, context))
+    ),
+    Fixture(
+      "insight/sleep-goal-mood",
+      context =>
+        val data = InsightData(InsightRule.SleepGoalMood, LocalDate.of(2026, 10, 13), LocalDate.of(2026, 11, 9), InsightGroup(18, 3.7), InsightGroup(9, 3.0))
+        Vector(InsightCard.render(data, context))
+    )
+  )
+
+  val all: Vector[Fixture] = moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights

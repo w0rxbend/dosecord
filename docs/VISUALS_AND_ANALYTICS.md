@@ -919,6 +919,8 @@ Example caption: "Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded
 
 The hero number on page 1 is the adherence percentage only when medication is tracked and the denominator is at least 5; otherwise the hero is the number of days with any record ("27 days with records").
 
+Page 1 is drawn by `card.month.v1`: the hero with its counts beside it, then one row per domain that met the gate, each with its headline and one mark per week on the row's own scale (a bar for medication, water and sleep, the week's blob for mood, a dotted slot for a week without a record), and the previous month's adherence stated in a line. Pages 2 and 3 reuse IMG-06, IMG-11 and IMG-12 and are not drawn yet.
+
 Example caption on the first photo: "October 2026. Details below." Text equivalent message: the same content as IMG-04 for the month, one paragraph per domain.
 
 ### 6.7 IMG-06 Adherence calendar heatmap
@@ -1223,7 +1225,7 @@ Form: two horizontal dumbbell rows on one shared scale, one hue (the outcome dom
 
 Example caption: "A pattern in your records, 13 Oct to 9 Nov. On the 18 days after a night at or above your 7 h 30 min goal, your average mood was 3.7 (pleasant). On the 9 other days it was 3.0 (neutral). This compares your own days. It does not show a cause."
 
-The grouping threshold is always the user's own goal or the user's own median, never a general norm (VA-PR-07).
+The grouping threshold is always the user's own goal or the user's own median, never a general norm (VA-PR-07). The template words IR-04 and IR-01 today; a rule without wording cannot be drawn. The fixed sentence is never cut: it takes one line when it fits and one line per sentence otherwise.
 
 ### 6.15 IMG-14 Milestone card (Later, opt-in)
 
