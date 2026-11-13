@@ -1747,6 +1747,8 @@ MA-SET-8. The access history lists exports, caregiver reads, operator access and
 
 MA-SET-9. A link to the privacy policy is reachable from S-15 in two taps and from every gate screen that involves an account (G-3). [M]
 
+MA-SET-10. Reminders (ADR-023, route `/settings/reminders`, start parameter `reminders`), reached from S-15. One block per prompt kind that can be turned on (water, mood, bedtime, morning) with its preset and next time; the presets of the kind as a choice with nothing preselected, whose preview of the next five times shows before anything is saved, and "Turn on" and "Turn off". "Pause 1 h" and "Pause 3 h", or "Resume", with the sentence that medication reminders are not affected. Tomorrow's reminders across every domain as a timeline, medication reminders without a name. The medication schedule count links to S-02. The day profile (wake, breakfast, lunch, dinner, bedtime, work days, work start and end, quiet hours) saves on the version read; work that ends before it starts is refused before the request. Routes: `GET /reminders`, `GET /reminders/presets` (with the medication presets as schedule drafts), `POST /reminders/plans`, `DELETE /reminders/plans/{kind}`, `POST /reminders/pause`, `GET` and `PATCH /reminders/day`, `GET /reminders/timeline`. [M]
+
 ### 7.16 S-16 Sharing with a caregiver (wave V2, if adopted)
 
 PRODUCT_SPEC.md places `sharing-and-caregivers` in wave V2, and R06 section 5.2 defines the rules. This section fixes only what the Mini App shows, so that the grant model and the screens agree.
