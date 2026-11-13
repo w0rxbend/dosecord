@@ -4,3 +4,22 @@ out/
 .bsp
 .mypy_cache
 .pytest_cache
+
+# Secrets never enter the build context: `COPY . .` would bake them into an
+# image layer. `.env.example` is generated, holds placeholders only, and stays.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/secrets/
+
+# Frontend dependencies and build output are not inputs of the image.
+miniapp/node_modules
+miniapp/dist
