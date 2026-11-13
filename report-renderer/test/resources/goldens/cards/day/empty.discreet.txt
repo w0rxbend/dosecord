@@ -1,0 +1,5 @@
+file: dosegram-day.png
+spoiler: true
+caption: Your day so far.
+alt: Thu 12 Nov. No mood entry today. Medication: 0 of 3 scheduled doses recorded as taken, 3 still open. Water: nothing logged yet. Food: 0 of 3 meals logged. Sleep: no record yet.
+full: Thu 12 Nov. No mood entry today. Medication: 0 of 3 scheduled doses recorded as taken, 3 still open. Water: nothing logged yet. Food: 0 of 3 meals logged. Sleep: no record yet.

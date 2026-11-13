@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<rect width="1080" height="1350" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Your week</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">2 to 8 Nov</text>
+<text x="132" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
+<text x="268" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="404" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
+<text x="540" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="676" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
+<text x="812" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="948" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<g>
+  <rect x="73.33" y="233.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="252" x2="101.33" y2="252" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="266" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Medication</text>
+<text x="1016" y="266" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e" text-anchor="end">26 of 28 taken · 93%</text>
+<g>
+  <rect x="84" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="136" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="84" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="136" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="220" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="272" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="220" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="272" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="356" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <path d="M420.32 292 L438.8 292 L452 305.2 L452 323.68 A12.32 12.32 0 0 1 439.68 336 L420.32 336 A12.32 12.32 0 0 1 408 323.68 L408 304.32 A12.32 12.32 0 0 1 420.32 292 Z" fill="#78c3a9"/>
+</g>
+<g>
+  <rect x="359" y="347" width="38" height="38" rx="9.32" fill="none" stroke="#435561" stroke-width="6"/>
+</g>
+<g>
+  <rect x="408" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="492" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="544" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="492" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="544" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="628" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="680" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="628" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="680" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="764" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="818" y="294" width="40" height="40" rx="10.32" fill="none" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <line x1="829.2" y1="314" x2="846.8" y2="314" stroke="#5e6e78" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <rect x="764" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="816" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="900" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="952" y="292" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="900" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="952" y="344" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

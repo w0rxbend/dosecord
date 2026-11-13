@@ -1,0 +1,5 @@
+file: dosegram-medication-days.png
+spoiler: true
+caption: By medication.
+alt: 27 Oct to 9 Nov. Item 1: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 still open. Item 2: 7 of 7 scheduled doses recorded as taken (100%). Item 3 (as needed): 3 logs on 3 days.
+full: 27 Oct to 9 Nov. Item 1: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 still open. Item 2: 7 of 7 scheduled doses recorded as taken (100%). Item 3 (as needed): 3 logs on 3 days.

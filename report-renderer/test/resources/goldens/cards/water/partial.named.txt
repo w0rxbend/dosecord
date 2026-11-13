@@ -1,0 +1,5 @@
+file: dosegram-water.png
+spoiler: false
+caption: Water on Thu 12 Nov: 1.4 of 2.0 l (70%). 5 entries, last at 15:20. The goal is the one you set.
+alt: Water on Thu 12 Nov: 1.4 of 2.0 l (70%). 5 entries, last at 15:20. The goal is the one you set.
+full: Water on Thu 12 Nov: 1.4 of 2.0 l (70%). 5 entries, last at 15:20. The goal is the one you set.

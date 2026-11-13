@@ -1,0 +1,5 @@
+file: dosegram-medication-month.png
+spoiler: false
+caption: February 2026, all medications. No data. Nothing scheduled on 28 days.
+alt: February 2026, all medications. No data. Nothing scheduled on 28 days.
+full: February 2026, all medications. No data. Nothing scheduled on 28 days.

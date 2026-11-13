@@ -1,0 +1,5 @@
+file: dosegram-week.png
+spoiler: false
+caption: Week 2 to 8 Nov. Medication: 10 of 12 scheduled doses recorded as taken (83%), 1 skipped, 1 not confirmed. Water: no records this week. Mood: 1 check-in day. Sleep: no records this week. 7 nights are estimates from bot activity and are not included in the average.
+alt: Week 2 to 8 Nov. Medication: 10 of 12 scheduled doses recorded as taken (83%), 1 skipped, 1 not confirmed. Water: no records this week. Mood: 1 check-in day. Sleep: no records this week. 7 nights are estimates from bot activity and are not included in the average.
+full: Week 2 to 8 Nov. Medication: 10 of 12 scheduled doses recorded as taken (83%), 1 skipped, 1 not confirmed. Water: no records this week. Mood: 1 check-in day. Sleep: no records this week. 7 nights are estimates from bot activity and are not included in the average.

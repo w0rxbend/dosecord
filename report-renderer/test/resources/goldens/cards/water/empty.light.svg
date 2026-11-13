@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Water</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Thu 12 Nov</text>
+<g>
+  <rect x="67" y="187" width="354" height="634" rx="93" fill="none" stroke="#435561" stroke-width="6"/>
+</g>
+<line x1="436" y1="657" x2="456" y2="657" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="468" y="671" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">0.5</text>
+<line x1="436" y1="504" x2="456" y2="504" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="468" y="518" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">1.0</text>
+<line x1="436" y1="351" x2="456" y2="351" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="468" y="365" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">1.5</text>
+<line x1="436" y1="198" x2="456" y2="198" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="468" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">2.0 l</text>
+<text x="1016" y="472" font-family="Geologica" font-weight="600" font-size="160" fill="#13242e" text-anchor="end">0%</text>
+<text x="1016" y="568" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">0.0 of 2.0 l</text>
+<text x="1016" y="652" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="end">Nothing logged yet</text>
+<text x="64" y="916" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">The goal is the one you set.</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

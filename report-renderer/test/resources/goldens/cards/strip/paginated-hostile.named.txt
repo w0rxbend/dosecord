@@ -1,0 +1,17 @@
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2 to 8 Nov. Zyqoxanil-Canary 500 mg: 14 of 21 scheduled doses recorded as taken (67%), 7 not confirmed. <script>alert("x")</script> & 'Ωmega' evil 🚀 שלום مرحبا — a name that goes on and on and on and on: 21 of 35 scheduled doses recorded as taken (60%), 7 skipped, 7 not confirmed, 7 with no record, not counted.
+alt: 2 to 8 Nov. Zyqoxanil-Canary 500 mg: 14 of 21 scheduled doses recorded as taken (67%), 7 not confirmed. <script>alert("x")</script> & 'Ωmega' evil 🚀 שלום مرحبا — a name that goes on and on and on and on: 21 of 35 scheduled doses recorded as taken (60%), 7 skipped, 7 not confirmed, 7 with no record, not counted.
+full: 2 to 8 Nov. Zyqoxanil-Canary 500 mg: 14 of 21 scheduled doses recorded as taken (67%), 7 not confirmed. <script>alert("x")</script> & 'Ωmega' evil 🚀 שלום مرحبا — a name that goes on and on and on and on: 21 of 35 scheduled doses recorded as taken (60%), 7 skipped, 7 not confirmed, 7 with no record, not counted.
+
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2 to 8 Nov. Medication number 3: 7 of 7 scheduled doses recorded as taken (100%). Medication number 4: 7 of 7 scheduled doses recorded as taken (100%). Medication number 5: 7 of 7 scheduled doses recorded as taken (100%). Medication number 6: 7 of 7 scheduled doses recorded as taken (100%). Medication number 7: 7 of 7 scheduled doses recorded as taken (100%).
+alt: 2 to 8 Nov. Medication number 3: 7 of 7 scheduled doses recorded as taken (100%). Medication number 4: 7 of 7 scheduled doses recorded as taken (100%). Medication number 5: 7 of 7 scheduled doses recorded as taken (100%). Medication number 6: 7 of 7 scheduled doses recorded as taken (100%). Medication number 7: 7 of 7 scheduled doses recorded as taken (100%).
+full: 2 to 8 Nov. Medication number 3: 7 of 7 scheduled doses recorded as taken (100%). Medication number 4: 7 of 7 scheduled doses recorded as taken (100%). Medication number 5: 7 of 7 scheduled doses recorded as taken (100%). Medication number 6: 7 of 7 scheduled doses recorded as taken (100%). Medication number 7: 7 of 7 scheduled doses recorded as taken (100%).
+
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2 to 8 Nov. Medication number 8: 7 of 7 scheduled doses recorded as taken (100%). Medication number 9 (as needed): 7 logs on 7 days.
+alt: 2 to 8 Nov. Medication number 8: 7 of 7 scheduled doses recorded as taken (100%). Medication number 9 (as needed): 7 logs on 7 days.
+full: 2 to 8 Nov. Medication number 8: 7 of 7 scheduled doses recorded as taken (100%). Medication number 9 (as needed): 7 logs on 7 days.

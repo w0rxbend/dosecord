@@ -1,0 +1,5 @@
+file: dosegram-water.png
+spoiler: true
+caption: Water today.
+alt: Water on Thu 12 Nov: 2.0 of 2.0 l (100%). 8 entries, last at 19:40. The goal is the one you set.
+full: Water on Thu 12 Nov: 2.0 of 2.0 l (100%). 8 entries, last at 19:40. The goal is the one you set.

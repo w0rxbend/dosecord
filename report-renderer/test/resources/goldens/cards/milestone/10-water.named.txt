@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 10 water entries recorded.
+alt: 10 water entries recorded.
+full: 10 water entries recorded.

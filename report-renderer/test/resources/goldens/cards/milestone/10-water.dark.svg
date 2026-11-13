@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#0f222b"/>
+<g>
+  <rect x="148" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="228" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="308" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="388" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="468" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="548" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="628" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="708" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="788" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+  <rect x="868" y="364" width="64" height="64" rx="17.92" fill="#e8f0f4"/>
+</g>
+<text x="540" y="636" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4" text-anchor="middle">10</text>
+<text x="540" y="716" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="middle">water entries recorded</text>
+</svg>

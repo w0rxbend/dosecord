@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#0f222b"/>
+<g>
+  <rect x="226" y="298" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="334" y="298" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="442" y="298" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="550" y="298" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="658" y="298" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="766" y="298" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="226" y="406" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="334" y="406" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="442" y="406" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="550" y="406" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="658" y="406" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+  <rect x="766" y="406" width="88" height="88" rx="24.64" fill="#e8f0f4"/>
+</g>
+<text x="540" y="702" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4" text-anchor="middle">1</text>
+<text x="540" y="782" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="middle">year of records</text>
+</svg>
