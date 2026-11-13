@@ -91,6 +91,42 @@ describe('Insights', () => {
     expect(screen.queryByRole('img')).toBeNull();
   });
 
+  it('offers the periods the server computes and no other', async () => {
+    const harness = createHarness();
+    const typical = harness.api.insightsOverview;
+    harness.api.insightsOverview = async (rangeDays) => ({ ...(await typical(rangeDays)), ranges: [7, 30] });
+    open(harness);
+    await block('Medication');
+
+    expect(screen.getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual(['7', '30']);
+  });
+
+  it('shows a mood block in the words of the server, without a chart', async () => {
+    const harness = createHarness();
+    harness.api.insightsOverview = async () => ({
+      rangeDays: 7,
+      rangeLabel: '7 Nov to 13 Nov',
+      ranges: [7, 30],
+      blocks: [{ id: 'mood', title: 'Mood', lines: ['3 check-ins', '2 of 7 days have data'], charts: [] }],
+    });
+    open(harness);
+
+    const mood = await block('Mood');
+    expect(within(mood).getByText('3 check-ins')).toBeTruthy();
+    expect(within(mood).getByText('2 of 7 days have data')).toBeTruthy();
+    expect(within(mood).queryByRole('img')).toBeNull();
+  });
+
+  it('shows the notice of the server when no domain is turned on', async () => {
+    const harness = createHarness();
+    const notice = 'Statistics appear here for the records you turned on in the chat.';
+    harness.api.insightsOverview = async () => ({ rangeDays: 30, rangeLabel: '15 Oct to 13 Nov', ranges: [7, 30], blocks: [], notice });
+    open(harness);
+
+    expect(await screen.findByText(notice)).toBeTruthy();
+    expect(screen.queryByRole('region')).toBeNull();
+  });
+
   it('shows the error state with a retry', async () => {
     const harness = createHarness('error');
     const user = open(harness);

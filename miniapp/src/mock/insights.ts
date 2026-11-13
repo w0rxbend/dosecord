@@ -100,6 +100,7 @@ export function buildOverview(
   return {
     rangeDays,
     rangeLabel: `${formatDate(dates[0]!, short)} to ${formatDate(today, short)}`,
+    ranges: [7, 30, 90],
     blocks: hasHistory
       ? [
           medicationBlock(doseHistory(dates), rangeDays),

@@ -313,12 +313,64 @@ describe('HTTP API client', () => {
     await api.open();
 
     const failures = await Promise.all([
-      api.client.insightsOverview(7).catch((cause: unknown) => cause),
       api.client.addHydration(250, 'key').catch((cause: unknown) => cause),
       api.client.actOnOccurrence('o1', { kind: 'taken' }, 'key').catch((cause: unknown) => cause),
     ]);
 
-    expect(failures.map((failure) => (failure as ApiError).code)).toEqual(['unavailable', 'unavailable', 'unavailable']);
+    expect(failures.map((failure) => (failure as ApiError).code)).toEqual(['unavailable', 'unavailable']);
     expect(calls).toHaveLength(1);
+  });
+
+  it('reads the insights of a period: the blocks as the server worded them, the vessel and the periods on offer', async () => {
+    const overview = {
+      rangeDays: 7,
+      rangeLabel: '7 Nov to 13 Nov',
+      timeZone: 'UTC',
+      ranges: [7, 30],
+      blocks: [
+        { id: 'medication', title: 'Medication', lines: [], noDataText: 'No data in this period' },
+        {
+          id: 'hydration',
+          title: 'Water',
+          lines: ['2 more recorded days for an average', '1 of 7 days have data'],
+          vessel: { valueMl: 1250, goalMl: 2000, label: 'Water today: 1.25 of 2.0 l (62%)' },
+        },
+        { id: 'mood', title: 'Mood', lines: ['1 check-in', '1 of 7 days have data'] },
+      ],
+    };
+    const calls = serve({
+      'POST /api/v1/session': [session('t')],
+      'GET /api/v1/insights/overview?range=7': [{ status: 200, body: overview }],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const read = await api.client.insightsOverview(7);
+
+    expect(calls[1]?.headers.Authorization).toBe('Bearer t');
+    expect(read.rangeLabel).toBe('7 Nov to 13 Nov');
+    expect(read.ranges).toEqual([7, 30]);
+    expect(read.blocks.map((block) => block.id)).toEqual(['medication', 'hydration', 'mood']);
+    expect(read.blocks[0]).toEqual({ id: 'medication', title: 'Medication', lines: [], noDataText: 'No data in this period', charts: [] });
+    expect(read.blocks[1]?.vessel).toEqual(overview.blocks[1]?.vessel);
+    expect(read.blocks[2]?.lines).toEqual(['1 check-in', '1 of 7 days have data']);
+    expect(read.notice).toBeUndefined();
+  });
+
+  it('passes on the notice of an account that has turned no domain on', async () => {
+    const notice = 'Statistics appear here for the records you turned on in the chat.';
+    serve({
+      'POST /api/v1/session': [session('t')],
+      'GET /api/v1/insights/overview?range=30': [
+        { status: 200, body: { rangeDays: 30, rangeLabel: '15 Oct to 13 Nov', timeZone: 'UTC', ranges: [7, 30], blocks: [], notice } },
+      ],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const read = await api.client.insightsOverview(30);
+
+    expect(read.blocks).toEqual([]);
+    expect(read.notice).toBe(notice);
   });
 });

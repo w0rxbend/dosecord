@@ -3,6 +3,7 @@
 import { ApiError, newIdempotencyKey, type ApiClient, type ApiErrorCode } from './client';
 import {
   toFieldError,
+  toInsightsOverview,
   toMedication,
   toMedicationInput,
   toMedicationOptions,
@@ -176,7 +177,8 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
         }),
       ),
 
-    insightsOverview: unavailable,
+    insightsOverview: async (rangeDays) =>
+      toInsightsOverview(await request<Wire['InsightsOverview']>(`insights/overview?range=${rangeDays}`), rangeDays),
   };
 
   return { open, client };

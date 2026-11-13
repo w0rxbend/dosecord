@@ -231,7 +231,7 @@ export interface Chart {
 }
 
 export interface InsightBlock {
-  readonly id: 'medication' | 'hydration';
+  readonly id: 'medication' | 'hydration' | 'mood';
   readonly title: string;
   /** Headline, comparison and other lines, all in the server's words. */
   readonly lines: readonly string[];
@@ -246,5 +246,10 @@ export type InsightRange = 7 | 30 | 90;
 export interface InsightsOverview {
   readonly rangeDays: InsightRange;
   readonly rangeLabel: string;
+  /** The periods the backend computes; the screen offers these and no other. */
+  readonly ranges: readonly InsightRange[];
+  /** One block per domain the account has turned on. */
   readonly blocks: readonly InsightBlock[];
+  /** The server's sentence for an account with no block at all. */
+  readonly notice?: string;
 }

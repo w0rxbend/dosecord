@@ -5,6 +5,8 @@ import { en } from '../i18n/en';
 import type { FieldError } from './client';
 import type { components } from './schema';
 import type {
+  InsightRange,
+  InsightsOverview,
   Medication,
   MedicationDraft,
   MedicationOptions,
@@ -196,5 +198,26 @@ export function toSchedule(wire: Wire['Schedule']): Schedule {
     weekdays: everyDay ? [] : weekdays,
     startDate: wire.startDate,
     endDate: wire.endDate ?? null,
+  };
+}
+
+const RANGES: readonly InsightRange[] = [7, 30, 90];
+const isRange = (days: number): days is InsightRange => (RANGES as readonly number[]).includes(days);
+
+/** The server sends sentences and today's vessel; it has no chart scenes yet, so a block has none. */
+export function toInsightsOverview(wire: Wire['InsightsOverview'], asked: InsightRange): InsightsOverview {
+  return {
+    rangeDays: isRange(wire.rangeDays) ? wire.rangeDays : asked,
+    rangeLabel: wire.rangeLabel,
+    ranges: (wire.ranges ?? []).filter(isRange),
+    blocks: (wire.blocks ?? []).map((block) => ({
+      id: block.id,
+      title: block.title,
+      lines: block.lines ?? [],
+      noDataText: block.noDataText,
+      charts: [],
+      vessel: block.vessel,
+    })),
+    notice: wire.notice,
   };
 }

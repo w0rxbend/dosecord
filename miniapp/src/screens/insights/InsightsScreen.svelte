@@ -8,11 +8,13 @@
   import AsyncView from '../../ui/AsyncView.svelte';
   import Screen from '../../ui/Screen.svelte';
 
-  const RANGES: readonly InsightRange[] = [7, 30, 90];
+  /** Offered until the first answer names the periods the backend computes. */
+  const FIRST_RANGES: readonly InsightRange[] = [7, 30];
 
   const { api, tg } = useApp();
   let range = $state<InsightRange>(30);
   const overview = new Resource<InsightsOverview>(() => api.insightsOverview(30));
+  const ranges = $derived(overview.data?.ranges ?? FIRST_RANGES);
 
   $effect(() => tg.onActivated(() => void overview.load()));
 
@@ -27,7 +29,7 @@
   <fieldset class="section">
     <legend class="visually-hidden">{en.insights.range}</legend>
     <div class="chips">
-      {#each RANGES as option (option)}
+      {#each ranges as option (option)}
         <label class="chip">
           <input type="radio" name="insights-range" value={option} bind:group={range} onchange={changeRange} />
           <span class="numeric">{en.insights.days(option)}</span>
@@ -38,6 +40,7 @@
 
   <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
     {#snippet children(data)}
+      {#if data.notice}<p class="muted">{data.notice}</p>{/if}
       <div class="blocks" aria-busy={overview.loading}>
         {#each data.blocks as block (block.id)}
           <section class="section" aria-labelledby="insight-{block.id}">
