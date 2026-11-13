@@ -395,6 +395,32 @@ CREATE TRIGGER users_zone_rollup_dirty AFTER UPDATE OF timezone ON users
   EXECUTE FUNCTION dosegram_zone_rollup_dirty();
 
 -- ---------------------------------------------------------------------------
+-- Consent ledger (docs/ARCHITECTURE.md section 10.2). consent_events is
+-- append-only; consent_state is its projection and is written in the same
+-- transaction. The purposes are exactly those of PRODUCT_SPEC R-IDC-6, plus
+-- the ledger kind 'attestation'. notice_hash is the SHA-256 of the statement
+-- the user confirmed; the statement itself is copy, not data. The Mini App
+-- never records a consent, so 'bot' is the only channel.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE consent_events (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  purpose text NOT NULL CHECK (purpose IN ('medication','hydration','mood','sleep','nutrition','vitals','images_in_chat',
+    'sleep_passive_estimate','export_to_chat','photo_storage','cross_domain_patterns','caregiver_sharing','import','attestation')),
+  action text NOT NULL CHECK (action IN ('granted','withdrawn','attested')),
+  policy_version int NOT NULL CHECK (policy_version > 0), notice_hash bytea,
+  channel text NOT NULL CHECK (channel = 'bot'), subject_ref uuid, occurred_at timestamptz NOT NULL);
+CREATE INDEX consent_events_account_purpose_idx ON consent_events (account_id, purpose, occurred_at);
+
+CREATE TABLE consent_state (account_id uuid NOT NULL REFERENCES users,
+  purpose text NOT NULL CHECK (purpose IN ('medication','hydration','mood','sleep','nutrition','vitals','images_in_chat',
+    'sleep_passive_estimate','export_to_chat','photo_storage','cross_domain_patterns','caregiver_sharing','import')),
+  granted boolean NOT NULL, policy_version int NOT NULL CHECK (policy_version > 0), updated_at timestamptz NOT NULL,
+  PRIMARY KEY (account_id, purpose));
+
+CREATE TRIGGER consent_events_append_only BEFORE UPDATE OR DELETE ON consent_events
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
+
+-- ---------------------------------------------------------------------------
 -- Grants
 -- ---------------------------------------------------------------------------
 
@@ -405,5 +431,6 @@ GRANT SELECT, DELETE ON dose_actions, auth_audit_log TO dosegram_erasure;
 -- Derived rows and the quick-add settings are replaced by deleting them. Entries are deleted by erasure only.
 GRANT DELETE ON daily_rollups, rollup_dirty, hydration_presets TO dosegram_app;
 GRANT SELECT, DELETE ON hydration_entries, mood_checkins TO dosegram_erasure;
+GRANT SELECT, DELETE ON consent_events, consent_state TO dosegram_erasure;
 -- Deleting an entry queues its day through the rollup trigger, and erasure removes the derived rows as well.
 GRANT SELECT, INSERT, UPDATE, DELETE ON rollup_dirty, daily_rollups TO dosegram_erasure;

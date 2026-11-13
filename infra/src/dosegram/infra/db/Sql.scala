@@ -37,6 +37,7 @@ object SqlBind:
   given Conversion[LocalDate, SqlBind] = v => (ps, i, _, _) => ps.setObject(i, v)
   given Conversion[LocalTime, SqlBind] = v => (ps, i, _, _) => ps.setObject(i, v)
   given Conversion[BigDecimal, SqlBind] = v => (ps, i, _, _) => ps.setBigDecimal(i, v.bigDecimal)
+  given bytes: Conversion[Array[Byte], SqlBind] = v => (ps, i, _, _) => ps.setBytes(i, v)
   given Conversion[Jsonb, SqlBind] = v =>
     (ps, i, _, _) =>
       val pg = PGobject()
