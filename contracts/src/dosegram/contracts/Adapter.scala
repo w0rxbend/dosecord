@@ -59,10 +59,16 @@ enum RenderedControls derives ReadWriter:
   case Numbered(id: String, choices: List[RenderedChoice])
 
 /** One row of `rendered_messages.choice_map` (DESIGN.md section 4.3): index, label and emoji all resolve to the
-  * callback.
+  * callback; the index only when `byNumber` (false for a set with `ChoiceSet.numberHotkeys = false`).
   */
-final case class ChoiceMapEntry(setId: String, index: Int, label: String, emoji: Option[String], callback: String)
-    derives ReadWriter
+final case class ChoiceMapEntry(
+    setId: String,
+    index: Int,
+    label: String,
+    emoji: Option[String],
+    callback: String,
+    byNumber: Boolean = true
+) derives ReadWriter
 
 final case class RenderedField(
     key: String,

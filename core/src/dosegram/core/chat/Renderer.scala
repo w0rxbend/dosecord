@@ -68,11 +68,13 @@ object Renderer:
           case _                        => (next, done :+ RenderedChoice(0, c.label, c.action, c.style, c.emoji))
     rendered.toList
 
-  /** Only a callback choice resolves from a typed number or label, so only it gets a choice_map row. */
-  private def choiceMapEntries(setId: String, rendered: List[RenderedChoice]): List[ChoiceMapEntry] =
+  /** Only a callback choice resolves from a typed number or label, so only it gets a choice_map row; on a set that
+    * takes typed input only the label resolves (ADR-015 addendum 2).
+    */
+  private def choiceMapEntries(cs: ChoiceSet, rendered: List[RenderedChoice]): List[ChoiceMapEntry] =
     rendered.collect:
       case RenderedChoice(index, label, ChoiceAction.Callback(token), _, emoji) =>
-        ChoiceMapEntry(setId, index, label, emoji, token)
+        ChoiceMapEntry(cs.id, index, label, emoji, token, byNumber = cs.numberHotkeys)
 
   /** One ChoiceSet through the ladder: the controls, the rung name, the nodes to append to the message text (prompt,
     * numbered legend, multi-select instruction), the choice_map rows and the button count for paging.
@@ -86,14 +88,15 @@ object Renderer:
   )
 
   /** The text form of one choice (ADR-015 CON-02): a number to type for a callback, the target for a link. */
-  private def legendEntry(choice: RenderedChoice): String =
+  private def legendEntry(byNumber: Boolean)(choice: RenderedChoice): String =
     choice.action match
-      case ChoiceAction.Callback(_)    => s"${choice.index}) ${choice.label}"
-      case ChoiceAction.OpenApp(route) => s"[app: ${route.wire}] ${choice.label}"
-      case ChoiceAction.OpenUrl(url)   => s"[link: $url] ${choice.label}"
+      case ChoiceAction.Callback(_) if !byNumber => s"[${choice.label}]"
+      case ChoiceAction.Callback(_)              => s"${choice.index}) ${choice.label}"
+      case ChoiceAction.OpenApp(route)           => s"[app: ${route.wire}] ${choice.label}"
+      case ChoiceAction.OpenUrl(url)             => s"[link: $url] ${choice.label}"
 
   private def numberedExtras(cs: ChoiceSet, rendered: List[RenderedChoice]): List[Node] =
-    val legend = Node.Paragraph(List(Inline.Text(rendered.map(legendEntry).mkString(" "))))
+    val legend = Node.Paragraph(List(Inline.Text(rendered.map(legendEntry(cs.numberHotkeys)).mkString(" "))))
     val instruction =
       if cs.maxSelect > 1 then List(Node.Paragraph(List(Inline.Text(MultiSelectInstruction)))) else Nil
     legend +: instruction
@@ -104,7 +107,7 @@ object Renderer:
   private def renderChoices(cs: ChoiceSet, profile: CapabilityProfile, startIndex: Int): LadderResult =
     val rendered = numbered(cs, startIndex)
     val promptNodes = cs.prompt.toList.flatten
-    val choiceMap = choiceMapEntries(cs.id, rendered)
+    val choiceMap = choiceMapEntries(cs, rendered)
     val buttonsFit = profile.buttons && rendered.size <= buttonBudget(profile)
     if buttonsFit then
       LadderResult(

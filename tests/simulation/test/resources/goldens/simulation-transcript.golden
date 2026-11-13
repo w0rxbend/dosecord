@@ -760,12 +760,12 @@
   choices: 1) UTC-10:00 — Pacific/Honolulu -> wizard.step(-,0); 2) UTC-08:00 — America/Anchorage -> wizard.step(-,0); 3) UTC-07:00 — America/Los_Angeles -> wizard.step(-,0); 4) UTC-06:00 — America/Denver -> wizard.step(-,0); 5) UTC-05:00 — America/Chicago -> wizard.step(-,0); 6) UTC-04:00 — America/New_York -> wizard.step(-,0); 7) UTC-03:00 — America/Sao_Paulo -> wizard.step(-,0); 8) UTC+00:00 — Atlantic/Azores -> wizard.step(-,0); 9) UTC+00:00 — UTC -> wizard.step(-,0); 10) UTC+01:00 — Europe/London -> wizard.step(-,0); 11) UTC+02:00 — Europe/Berlin -> wizard.step(-,0); 12) UTC+02:00 — Europe/Paris -> wizard.step(-,0); 13) UTC+03:00 — Europe/Kyiv -> wizard.step(-,0); 14) UTC+03:00 — Europe/Moscow -> wizard.step(-,0); 15) UTC+04:00 — Asia/Dubai -> wizard.step(-,0); 16) UTC+05:30 — Asia/Kolkata -> wizard.step(-,0); 17) UTC+07:00 — Asia/Bangkok -> wizard.step(-,0); 18) UTC+08:00 — Asia/Shanghai -> wizard.step(-,0); 19) UTC+09:00 — Asia/Tokyo -> wizard.step(-,0); 20) UTC+11:00 — Australia/Sydney -> wizard.step(-,0); 21) UTC+13:00 — Pacific/Auckland -> wizard.step(-,0); 22) Other — type your timezone -> wizard.step(-,0); 23) Back -> wizard.step(-,0); 24) Cancel -> wizard.step(-,0)
 2026-10-13T12:30:00Z >> p1 #82 22 (Other — type your timezone)
 2026-10-13T12:30:00Z p1 send/reply wizard:session-1:1
-  Type your timezone (an IANA name like Europe/Kyiv).
+  Type your city, like Kyiv or New York, a zone like Europe/Kyiv, or an offset like UTC+2.
   
   Reply Back to go back or Cancel to stop.
 2026-10-13T12:30:00Z >> p1 "Africa/Lagos"
 2026-10-13T12:30:00Z p1 send/reply wizard:session-1:2
-  It is 13:30 for you now, right?
+  It is 13:30 in Africa/Lagos now. Correct?
   
   1) Yes 2) Change
   
@@ -1572,12 +1572,12 @@
   choices: 1) UTC-10:00 — Pacific/Honolulu -> wizard.step(-,0); 2) UTC-08:00 — America/Anchorage -> wizard.step(-,0); 3) UTC-07:00 — America/Los_Angeles -> wizard.step(-,0); 4) UTC-06:00 — America/Denver -> wizard.step(-,0); 5) UTC-05:00 — America/Chicago -> wizard.step(-,0); 6) UTC-04:00 — America/New_York -> wizard.step(-,0); 7) UTC-03:00 — America/Sao_Paulo -> wizard.step(-,0); 8) UTC-01:00 — Atlantic/Azores -> wizard.step(-,0); 9) UTC+00:00 — Europe/London -> wizard.step(-,0); 10) UTC+00:00 — UTC -> wizard.step(-,0); 11) UTC+01:00 — Europe/Berlin -> wizard.step(-,0); 12) UTC+01:00 — Europe/Paris -> wizard.step(-,0); 13) UTC+02:00 — Europe/Kyiv -> wizard.step(-,0); 14) UTC+03:00 — Europe/Moscow -> wizard.step(-,0); 15) UTC+04:00 — Asia/Dubai -> wizard.step(-,0); 16) UTC+05:30 — Asia/Kolkata -> wizard.step(-,0); 17) UTC+07:00 — Asia/Bangkok -> wizard.step(-,0); 18) UTC+08:00 — Asia/Shanghai -> wizard.step(-,0); 19) UTC+09:00 — Asia/Tokyo -> wizard.step(-,0); 20) UTC+11:00 — Australia/Sydney -> wizard.step(-,0); 21) UTC+13:00 — Pacific/Auckland -> wizard.step(-,0); 22) Other — type your timezone -> wizard.step(-,0); 23) Back -> wizard.step(-,0); 24) Cancel -> wizard.step(-,0)
 2026-10-25T12:30:00Z >> p1 #149 22 (Other — type your timezone)
 2026-10-25T12:30:00Z p1 send/reply wizard:session-2:1
-  Type your timezone (an IANA name like Europe/Kyiv).
+  Type your city, like Kyiv or New York, a zone like Europe/Kyiv, or an offset like UTC+2.
   
   Reply Back to go back or Cancel to stop.
 2026-10-25T12:30:00Z >> p1 "America/Phoenix"
 2026-10-25T12:30:00Z p1 send/reply wizard:session-2:2
-  It is 05:30 for you now, right?
+  It is 05:30 in America/Phoenix now. Correct?
   
   1) Yes 2) Change
   

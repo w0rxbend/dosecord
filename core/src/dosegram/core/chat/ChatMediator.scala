@@ -258,14 +258,19 @@ final class ChatMediator(
             case Some(target) =>
               resolveFrom(
                 tx.renderedMessages.choiceMapFor(target),
-                _.index == index,
+                entry => entry.byNumber && entry.index == index,
                 Some(target),
                 Resolution.PassThrough
               )
             // Bare digits resolve against the latest pending prompt only.
             case None =>
               val prompt = tx.renderedMessages.latestPendingPrompt(event.vendor, event.chat.chatId)
-              resolveFrom(prompt, _.index == index, prompt.map(_.handle), Resolution.PassThrough)
+              resolveFrom(
+                prompt,
+                entry => entry.byNumber && entry.index == index,
+                prompt.map(_.handle),
+                Resolution.PassThrough
+              )
         else if replyTo.isEmpty then
           // Bare hotkeys (the choice label) resolve against the latest pending prompt only.
           val prompt = tx.renderedMessages.latestPendingPrompt(event.vendor, event.chat.chatId)

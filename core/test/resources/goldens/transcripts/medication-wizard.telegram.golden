@@ -19,7 +19,7 @@ send: Please confirm: Dosegram may store and process your medication records: me
 > tap "Confirm"
 send: Pick your timezone: | [UTC-10:00 — Pacific/Honolulu] [UTC-08:00 — America/Anchorage] [UTC-07:00 — America/Los_Angeles] [UTC-06:00 — America/Denver] | [UTC-05:00 — America/Chicago] [UTC-04:00 — America/New_York] [UTC-03:00 — America/Sao_Paulo] [UTC+00:00 — Atlantic/Azores] | [UTC+00:00 — UTC] [UTC+01:00 — Europe/London] [UTC+02:00 — Europe/Berlin] [UTC+02:00 — Europe/Paris] | [UTC+03:00 — Europe/Kyiv] [UTC+03:00 — Europe/Moscow] [UTC+04:00 — Asia/Dubai] [UTC+05:30 — Asia/Kolkata] | [UTC+07:00 — Asia/Bangkok] [UTC+08:00 — Asia/Shanghai] [UTC+09:00 — Asia/Tokyo] [UTC+10:00 — Australia/Sydney] | [UTC+12:00 — Pacific/Auckland] [Other — type your timezone] [Back] [Cancel]
 > tap "UTC+03:00 — Europe/Kyiv"
-send: It is 03:00 for you now, right? | [Yes] [Change] [Back] [Cancel]
+send: It is 03:00 in Europe/Kyiv now. Correct? | [Yes] [Change] [Back] [Cancel]
 > tap "Yes"
 send: Consent recorded on 21 Sep 2026: medication records. Privacy notice version 1. Withdraw at any time with /privacy.
 send: You're all set — your account is ready. Try /menu or /help.
@@ -34,21 +34,16 @@ send: Let's add a medication.
 
 Reply Back to go back or Cancel to stop.
 
-Add medication — question 1 of 4:
+Add medication — question 1 of 2:
 
 Name (e.g. Vitamin D)
 > Vitamin D
-Add medication — question 2 of 4:
+Add medication — question 2 of 2:
 
 Dose (e.g. 1000 IU)
 > 1000 IU
-Add medication — question 3 of 4:
-
-Times (HH:MM, comma-separated) (e.g. 09:00 or 09:00, 21:00 — empty for as-needed)
+When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm.
 > 09:00
-Add medication — question 4 of 4:
-
-Instructions (e.g. with breakfast)
 > with breakfast
 Which days?
 > tap "Every day"

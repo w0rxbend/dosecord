@@ -331,10 +331,14 @@ class DoseIntakeSuite extends munit.FunSuite:
       val noOpenOut = rig.line("/skip vitamin d")
       assert(noOpenOut.contains("No open dose for Vitamin D."), s"$noOpenOut")
 
-      val usageOut = rig.line("/snooze abc")
-      assert(usageOut.contains("/snooze <minutes>"), s"$usageOut")
+      // A length that is not understood is named back with examples and the command's grammar; nothing is recorded.
+      val usageOut = rig.line("/snooze abc").mkString("\n")
+      assert(usageOut.contains("I could not read \"abc\" as a length of time."), usageOut)
+      assert(usageOut.contains("/snooze <minutes>"), usageOut)
+      assertEquals(rig.uow.occurrences.all.count(_.status == OccurrenceStatus.Snoozed), 0)
+      assert(rig.line("/snooze").contains("/snooze <minutes>"), "no argument: the usage alone")
 
-      val snoozeOut = rig.line("/snooze 10") // the only open dose left is Vitamin B12
+      val snoozeOut = rig.line("/snooze 10m") // the only open dose left is Vitamin B12; "10m" is the shared grammar
       assert(snoozeOut.contains("Okay, I'll remind you again at 09:15."), s"$snoozeOut")
       assertEquals(rig.uow.occurrences.all.count(_.status == OccurrenceStatus.Snoozed), 1)
 

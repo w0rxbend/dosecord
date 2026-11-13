@@ -35,7 +35,7 @@ Pick your timezone:
 
 23) Back 24) Cancel
 > 13
-It is 03:00 for you now, right?
+It is 03:00 in Europe/Kyiv now. Correct?
 
 1) Yes 2) Change
 
@@ -60,21 +60,27 @@ Let's add a medication.
 
 Reply Back to go back or Cancel to stop.
 
-Add medication — question 1 of 4:
+Add medication — question 1 of 2:
 
 Name (e.g. Vitamin D)
 > Vitamin D
-Add medication — question 2 of 4:
+Add medication — question 2 of 2:
 
 Dose (e.g. 1000 IU)
 > 1000 IU
-Add medication — question 3 of 4:
+When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm.
 
-Times (HH:MM, comma-separated) (e.g. 09:00 or 09:00, 21:00 — empty for as-needed)
+[08:00] [09:00] [13:00] [20:00] [22:00] [Other time] [As needed]
+
+[Back] [Cancel]
 > 09:00
-Add medication — question 4 of 4:
+Reminder time: 09:00.
 
-Instructions (e.g. with breakfast)
+Any instructions to show with the reminder? Type them, like with breakfast.
+
+[No instructions] [Change times]
+
+[Back] [Cancel]
 > with breakfast
 Which days?
 

@@ -47,9 +47,15 @@ enum StepKind:
   /** Tappable options as (payload key, label), computed from the accumulated data at render time so steps like the
     * timezone picker can group by the current offset; `[Back]`/`[Cancel]` are appended by the engine. `maxSelect > 1`
     * makes it a multi-select picker (M1.9's day picker): on the numbered rung a space/comma reply reaches the step as
-    * [[StepInput.TextEntered]].
+    * [[StepInput.TextEntered]]. `acceptsText` makes a single-select step also take typed input (the add-medication
+    * times step: "9" is a time); its typed numbers are then input, never choice numbers (ADR-015 addendum 2).
     */
-  case Choices(options: Map[String, String] => List[(String, String)], minSelect: Int = 1, maxSelect: Int = 1)
+  case Choices(
+      options: Map[String, String] => List[(String, String)],
+      minSelect: Int = 1,
+      maxSelect: Int = 1,
+      acceptsText: Boolean = false
+  )
 
   /** Free text; Back/Cancel render as a typed hint so bare digits stay wizard input (DESIGN.md section 4.6 step 5). */
   case Text
@@ -75,8 +81,16 @@ final case class Step(
       * merge into the session data before the prompt renders. Steps that must read the database to render — the M1.9
       * wizard's find-or-create offer and its timezone default — compute them here, so `render` stays pure.
       */
-    onEnter: (Map[String, String], Option[UUID], Tx) => Map[String, String] = (_, _, _) => Map.empty
+    onEnter: (Map[String, String], Option[UUID], Tx) => Map[String, String] = (_, _, _) => Map.empty,
+    /** Where the engine sends the user after [[Step.MaxFailures]] rejected inputs in a row, with the last reason shown:
+      * a step with buttons of common choices (BOT_UX section 15.6). None keeps the user here.
+      */
+    rescue: Option[String] = None
 )
+
+object Step:
+  /** Rejected inputs in a row before a step's rescue takes over. */
+  val MaxFailures = 2
 
 /** What a flow sees at completion (M0.12d): the triggering event, the stamped principal and the per-event transaction,
   * so a completing flow can write its rows (account create inserts `users`/`platform_identities`/`delivery_channels`)

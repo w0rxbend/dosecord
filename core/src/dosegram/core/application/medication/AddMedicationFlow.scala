@@ -14,8 +14,12 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
+import dosegram.core.domain.copy.InputCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.input.DayList
+import dosegram.core.domain.input.DoseText
+import dosegram.core.domain.input.TimeOfDay
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ScheduleStatus
 import dosegram.core.ports.Tx
@@ -25,13 +29,15 @@ import dosegram.core.scheduling.ScheduleLifecycle
 import java.time.ZoneId
 import java.util.Locale
 import java.util.UUID
-import scala.util.matching.Regex
 
 /** The add-medication wizard (ROADMAP M1.9, R11/R13/R17/R18; flow per docs/MEDICATION_REMINDER_UX.md): a declarative
   * `Flow` over the M0.12b engine.
   *
-  *   - step 1 `Form(name, dose, times, instructions)` — four FormRunner questions; times is an `HH:MM` list, empty =
-  *     as-needed; instructions optional.
+  *   - step 1 `Form(name, dose)` — two FormRunner questions.
+  *   - the times step (BOT_UX section 15.6): quick times `[08:00][09:00][13:00][20:00][22:00][Other time][As needed]`,
+  *     or one or more times typed in any spelling the shared grammar reads (`TimeOfDay`); a time that is not understood
+  *     is named back with examples and the step stays open; two failures at `[Other time]` return to the buttons.
+  *   - the instructions step echoes the times understood (`[Change times]` goes back) and takes optional text.
   *   - step 2 (only when times were given) days `[Every day][Weekdays][Choose days...]`, the multi-select day picker
   *     behind the last.
   *   - step 3 one confirm card `Vitamin D 1000 IU, every day 09:00 Europe/Kyiv [Create][Change days][Change timezone]
@@ -68,6 +74,11 @@ object AddMedicationFlow:
   private val ChangeTimezoneKey = "change_tz"
   private val CancelKey = "cancel"
   private val TzOtherKey = "tz.other"
+  private val QuickTimePrefix = "time."
+  private val OtherTimeKey = "times.other"
+  private val AsNeededKey = "times.as_needed"
+  private val NoInstructionsKey = "instructions.none"
+  private val ChangeTimesKey = "times.change"
 
   private val allDays: List[Weekday] = Weekday.values.toList
   private val weekDays: List[Weekday] = allDays.take(5)
@@ -83,46 +94,15 @@ object AddMedicationFlow:
       FieldType.Text,
       required = false,
       placeholder = Some(WizardCopy.dosePlaceholder)
-    ),
-    Field(
-      TimesKey,
-      WizardCopy.fieldTimes,
-      FieldType.Text,
-      required = false,
-      placeholder = Some(WizardCopy.timesPlaceholder)
-    ),
-    Field(
-      InstructionsKey,
-      WizardCopy.fieldInstructions,
-      FieldType.Text,
-      required = false,
-      placeholder = Some(WizardCopy.instructionsPlaceholder)
     )
   )
 
-  /** `HH:MM` comma-separated list; empty means as-needed (the wizard's as-needed branch). */
-  def parseTimes(text: String): Either[String, List[HhMm]] =
-    val trimmed = text.trim
-    if trimmed.isEmpty then Right(Nil)
-    else
-      val parts = trimmed.split(",").toList.map(_.trim)
-      val parsed = parts.map(HhMm.parse)
-      parsed.collectFirst { case Left(_) => () } match
-        case Some(_) => Left(WizardCopy.invalidTimes)
-        case None    => Right(parsed.collect { case Right(t) => t }.distinct)
+  /** The times as the session keeps them: canonical `HH:MM, HH:MM`; empty means as-needed. */
+  def parseTimes(text: String): List[HhMm] =
+    if text.trim.isEmpty then Nil else TimeOfDay.parseList(text).getOrElse(Nil)
 
-  private val DosePattern: Regex = "^([0-9]+(?:[.,][0-9]+)?)\\s*(.*)$".r
-
-  /** "1000 IU" -> (Some(1000), Some("IU")); a leading number is the amount, the rest the unit; anything else is kept as
-    * the unit text alone.
-    */
-  def parseDose(text: String): (Option[BigDecimal], Option[String]) =
-    text.trim match
-      case ""                        => (None, None)
-      case DosePattern(number, rest) =>
-        val unit = rest.trim
-        (Some(BigDecimal(number.replace(',', '.'))), if unit.isEmpty then None else Some(unit))
-      case other => (None, Some(other))
+  /** "1000 IU" -> (Some(1000), Some("IU")); the shared dose grammar (`DoseText`). */
+  def parseDose(text: String): (Option[BigDecimal], Option[String]) = DoseText.parse(text)
 
   private def normalizeName(name: String): String = name.trim.toLowerCase(Locale.ROOT)
 
@@ -139,19 +119,27 @@ object AddMedicationFlow:
       case Some(value) if value.nonEmpty => value.split(",").toList.map(Weekday.valueOf)
       case _                             => allDays
 
-  /** "1 3 5", "1,3,5" or "Mon, Wed" on the text tiers; None when any token is not a day. */
-  def parseDaySelection(text: String): Option[List[String]] =
-    val tokens = text.trim.split("[\\s,]+").toList.filter(_.nonEmpty)
-    if tokens.isEmpty then None
-    else
-      val days = tokens.map: token =>
-        token.toIntOption
-          .filter(i => i >= 1 && i <= 7)
-          .map(i => allDays(i - 1))
-          .orElse(
-            allDays.find(_.toString.equalsIgnoreCase(token))
-          )
-      if days.exists(_.isEmpty) then None else Some(canonicalDays(days.flatten.map(_.toString)))
+  /** "1 3 5", "Mon, Wed", "weekdays" or "mon-fri" on the text tiers (the shared `DayList` grammar). */
+  def parseDaySelection(text: String): Either[String, List[String]] =
+    DayList.parse(text).left.map(InputCopy.days).map(_.map(_.toString))
+
+  private def quickTimeOptions: List[(String, String)] =
+    WizardCopy.quickTimes.map(t => s"$QuickTimePrefix$t" -> t) ++
+      List(OtherTimeKey -> WizardCopy.otherTime, AsNeededKey -> WizardCopy.asNeeded)
+
+  /** Typed times: the canonical list for the session, or the reply that names what was not understood. */
+  private def typedTimes(text: String): Either[String, StepTransition] =
+    TimeOfDay
+      .parseList(text)
+      .left
+      .map(InputCopy.time)
+      .map(times => StepTransition.Next("instructions", Map(TimesKey -> times.map(_.value).mkString(", "))))
+
+  private def timesOf(data: Map[String, String]): List[String] =
+    parseTimes(data.getOrElse(TimesKey, "")).map(_.value)
+
+  private def afterInstructions(data: Map[String, String]): String =
+    if timesOf(data).isEmpty then "confirm" else "days"
 
   def flow(clock: Clock, lifecycle: ScheduleLifecycle): Flow = Flow(
     id = Id,
@@ -166,23 +154,57 @@ object AddMedicationFlow:
             val name = fields.getOrElse(NameKey, "").trim
             if name.isEmpty then Left(WizardCopy.nameRequired)
             else
-              parseTimes(fields.getOrElse(TimesKey, "")) match
-                case Left(reason) => Left(reason)
-                case Right(times) =>
-                  Right(
-                    StepTransition.Next(
-                      if times.isEmpty then "confirm" else "days",
-                      Map(
-                        NameKey -> name,
-                        DoseKey -> fields.getOrElse(DoseKey, "").trim,
-                        TimesKey -> fields.getOrElse(TimesKey, "").trim,
-                        InstructionsKey -> fields.getOrElse(InstructionsKey, "").trim,
-                        // Cleared on every form submit; the confirm step's onEnter recomputes the offer.
-                        ExistingKey -> ""
-                      )
-                    )
+              Right(
+                StepTransition.Next(
+                  "times",
+                  Map(
+                    NameKey -> name,
+                    DoseKey -> fields.getOrElse(DoseKey, "").trim,
+                    // Cleared on every form submit; the confirm step's onEnter recomputes the offer.
+                    ExistingKey -> ""
                   )
+                )
+              )
           case _ => Left(WizardCopy.nameRequired)
+        }
+      ),
+      "times" -> Step(
+        id = "times",
+        kind = StepKind.Choices(_ => quickTimeOptions, acceptsText = true),
+        render = _ => List(paragraph(WizardCopy.timesPrompt)),
+        accept = {
+          case (StepInput.Chosen(OtherTimeKey), _) => Right(StepTransition.Next("times_other"))
+          case (StepInput.Chosen(AsNeededKey), _)  => Right(StepTransition.Next("instructions", Map(TimesKey -> "")))
+          case (StepInput.Chosen(key), _) if key.startsWith(QuickTimePrefix) =>
+            typedTimes(key.drop(QuickTimePrefix.length))
+          case (StepInput.TextEntered(text), _) => typedTimes(text)
+          case _                                => Left(InputCopy.time(TimeOfDay.Rejection.Empty))
+        }
+      ),
+      "times_other" -> Step(
+        id = "times_other",
+        kind = StepKind.Text,
+        render = _ => List(paragraph(WizardCopy.timesOtherPrompt)),
+        accept = {
+          case (StepInput.TextEntered(text), _) => typedTimes(text)
+          case _                                => Left(InputCopy.time(TimeOfDay.Rejection.Empty))
+        },
+        rescue = Some("times")
+      ),
+      "instructions" -> Step(
+        id = "instructions",
+        kind = StepKind.Choices(
+          _ => List(NoInstructionsKey -> WizardCopy.noInstructions, ChangeTimesKey -> WizardCopy.changeTimes),
+          acceptsText = true
+        ),
+        render = data => List(paragraph(WizardCopy.timesEcho(timesOf(data))), paragraph(WizardCopy.instructionsPrompt)),
+        accept = {
+          case (StepInput.Chosen(ChangeTimesKey), _)       => Right(StepTransition.Next("times"))
+          case (StepInput.Chosen(NoInstructionsKey), data) =>
+            Right(StepTransition.Next(afterInstructions(data), Map(InstructionsKey -> "")))
+          case (StepInput.TextEntered(text), data) =>
+            Right(StepTransition.Next(afterInstructions(data), Map(InstructionsKey -> text.trim)))
+          case _ => Left(WizardCopy.instructionsPrompt)
         }
       ),
       "days" -> Step(
@@ -219,9 +241,7 @@ object AddMedicationFlow:
           case (StepInput.Chosen(key), _) if isDayKey(key) =>
             Right(StepTransition.Next("confirm", Map(DaysKey -> key)))
           case (StepInput.TextEntered(text), _) =>
-            parseDaySelection(text) match
-              case Some(days) => Right(StepTransition.Next("confirm", Map(DaysKey -> days.mkString(","))))
-              case None       => Left(WizardCopy.invalidDays)
+            parseDaySelection(text).map(days => StepTransition.Next("confirm", Map(DaysKey -> days.mkString(","))))
           case _ => Left(WizardCopy.invalidDays)
         }
       ),
@@ -244,10 +264,10 @@ object AddMedicationFlow:
         render = _ => List(paragraph(IdentityCopy.timezoneCustomPrompt)),
         accept = {
           case (StepInput.TextEntered(text), _) =>
-            AccountCreateFlow.parseZone(text) match
+            AccountCreateFlow.parseZone(text, clock.now()) match
               case Some(zone) =>
                 Right(StepTransition.Next("confirm", Map(TimezoneKey -> zone.getId, TzErrorKey -> "")))
-              case None => Right(StepTransition.Next("tz", Map(TzErrorKey -> IdentityCopy.invalidZone)))
+              case None => Right(StepTransition.Next("tz", Map(TzErrorKey -> IdentityCopy.zoneNotFound(text))))
           case _ => Left(IdentityCopy.invalidZone)
         }
       ),
@@ -321,7 +341,7 @@ object AddMedicationFlow:
       case Some(account) =>
         val now = clock.now()
         val zone = ZoneId.of(data.getOrElse(TimezoneKey, "UTC"))
-        val times = parseTimes(data.getOrElse(TimesKey, "")).getOrElse(Nil)
+        val times = parseTimes(data.getOrElse(TimesKey, ""))
         val rule =
           if times.isEmpty then Rule.AsNeeded(maxPerDay = 10, minGapMinutes = 0)
           else Rule.FixedTimes(List(SlotGroup(daysOf(data), times)))

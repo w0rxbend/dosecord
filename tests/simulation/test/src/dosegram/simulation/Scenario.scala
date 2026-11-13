@@ -28,7 +28,7 @@ enum Selector:
       case AccountMenu      => chunks.exists(_.contains("Account")) && labels.contains("Timezone")
       case MedicationsMenu  => labels.contains("Add medication")
       case TimezonePicker   => chunks.exists(_.contains("Pick your timezone:"))
-      case TimezoneConfirm  => chunks.exists(_.contains("right?")) && labels.contains("Yes")
+      case TimezoneConfirm  => chunks.exists(_.contains("Correct?")) && labels.contains("Yes")
 
 /** One scripted user/worker action; all user behaviour goes through the real mediator as console wire events. */
 enum Step:

@@ -5,9 +5,11 @@ import dosegram.core.application.MedicationWizardRig.Profile
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.domain.copy.InputCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.input.DayList
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -93,11 +95,11 @@ class MedicationWizardSuite extends munit.FunSuite:
       rig.line("/menu")
       rig.line("2")
       rig.line("2") // Add medication: the form step's first question is out
-      assert(rig.lastChunks.exists(_.contains("question 1 of 4")), s"form question out: ${rig.lastChunks}")
+      assert(rig.lastChunks.exists(_.contains("question 1 of 2")), s"form question out: ${rig.lastChunks}")
 
       val restarted = rig.restartEngine()
       assertEquals(restarted.resumePending(), 1, "the stored form prompt is re-sent")
-      assert(rig.lastChunks.exists(_.contains("question 1 of 4")), "the re-sent prompt is the form's")
+      assert(rig.lastChunks.exists(_.contains("question 1 of 2")), "the re-sent prompt is the form's")
 
       // The flow completes after the restart.
       rig.line("Vitamin D")
@@ -186,20 +188,23 @@ class MedicationWizardSuite extends munit.FunSuite:
       assertEquals(rig.uow.medications.all.size, 1)
       assertEquals(rig.uow.schedules.all.head.tz.getId, "America/New_York")
 
-  test("[Back] from step 2 returns to a pre-filled form"):
+  test("[Back] from step 2 walks back through instructions and times to a pre-filled form"):
     ox.supervised:
       val rig = MedicationWizardRig(Profile.Console)
       rig.bootstrapConsole()
       rig.startWizardConsole()
       rig.answerFormConsole()
-      rig.line("4") // Back (nav row)
+      rig.line("4") // Back (nav row) -> the instructions step, which echoes the times understood
+      assert(rig.lastChunks.exists(_.contains(WizardCopy.timesEcho(List("09:00")))), s"echo: ${rig.lastChunks}")
+      rig.line("Back") // -> the times step
+      assert(rig.lastChunks.exists(_.contains(WizardCopy.timesPrompt)), s"times step: ${rig.lastChunks}")
+      rig.line("Back") // -> the form
       // The re-rendered form carries the previous answers: the RenderedForm (FormRunner rung) shows them as values
       // and the seeded run keeps them.
       val form = rig.lastForm.get
       assertEquals(
         form.fields.map(f => f.key -> f.value),
-        List("name" -> Some("Vitamin D"), "dose" -> Some("1000 IU"), "times" -> Some("09:00"),
-          "instructions" -> Some("with breakfast"))
+        List("name" -> Some("Vitamin D"), "dose" -> Some("1000 IU"))
       )
       assert(rig.lastChunks.exists(_.contains("[current: Vitamin D]")), s"the current value is shown: ${rig.lastChunks}")
       // Re-answering with the same values lands back on the days step with the data intact.
@@ -286,11 +291,11 @@ class MedicationWizardSuite extends munit.FunSuite:
           .unsafe("21:00")))))
       )
 
-  test("as-needed: empty times skips the days step and creates an AsNeeded schedule"):
+  test("as-needed: [As needed] skips the days step and creates an AsNeeded schedule"):
     ox.supervised:
       val rig = MedicationWizardRig(Profile.Telegram)
       rig.bootstrapTelegram()
-      rig.startWizardTelegram(times = "", instructions = "")
+      rig.startWizardTelegram(times = WizardCopy.asNeeded, instructions = "")
       // No days step: the confirm card is the as-needed variant.
       assert(rig.lastChunks.exists(_.contains("as needed")), s"as-needed card: ${rig.lastChunks}")
       assert(rig.lastChunks.exists(_.contains(WizardCopy.asNeededNote)), s"the note: ${rig.lastChunks}")
@@ -372,7 +377,7 @@ class MedicationWizardSuite extends munit.FunSuite:
       rig.answerFormConsole()
       rig.line("3") // Choose days...
       val out = rig.line("8 9")
-      assert(out.exists(_.contains(WizardCopy.invalidDays)), s"re-prompt: $out")
+      assert(out.exists(_.contains(InputCopy.days(DayList.Rejection.NotADay("8")))), s"re-prompt: $out")
       rig.line("Mon, Wed")
       assert(rig.lastChunks.exists(_.contains("on Mon, Wed 09:00")), s"name selection: ${rig.lastChunks}")
 

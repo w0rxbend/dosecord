@@ -10,16 +10,29 @@ object WizardCopy:
 
   val fieldName = "Name"
   val fieldDose = "Dose"
-  val fieldTimes = "Times (HH:MM, comma-separated)"
-  val fieldInstructions = "Instructions"
   val namePlaceholder = "e.g. Vitamin D"
   val dosePlaceholder = "e.g. 1000 IU"
-  val timesPlaceholder = "e.g. 09:00 or 09:00, 21:00 — empty for as-needed"
-  val instructionsPlaceholder = "e.g. with breakfast"
+
+  /** The times step after the form (BOT_UX section 10.1, section 15.6): quick times, Other time, As needed. */
+  val timesPrompt = "When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm."
+  val quickTimes: List[String] = List("08:00", "09:00", "13:00", "20:00", "22:00")
+  val otherTime = "Other time"
+  val asNeeded = "As needed"
+  val timesOtherPrompt = "Type the time or times, like 7:30, 9pm or 8, 14:30 and 22."
+
+  /** The echo of what the times step understood, shown above the instructions question with its Change path. */
+  def timesEcho(times: List[String]): String =
+    times match
+      case Nil         => "No reminder times: you log it yourself when you take it."
+      case List(first) => s"Reminder time: $first."
+      case several     => s"Reminder times: ${several.init.mkString(", ")} and ${several.last}."
+
+  val instructionsPrompt = "Any instructions to show with the reminder? Type them, like with breakfast."
+  val noInstructions = "No instructions"
+  val changeTimes = "Change times"
 
   /** Step 1 validation failures (re-shown with the form). */
   val nameRequired = "Please give a name."
-  val invalidTimes = "Times must be HH:MM, comma-separated — or leave empty for as-needed."
   val invalidDays = "Pick days by number (1-7) or name, like 1 3 5 or Mon, Wed."
 
   /** Step 2 days picker: [Every day][Weekdays][Choose days...] with the multi-select day picker behind the last. */
@@ -72,7 +85,7 @@ object WizardCopy:
 
   /** Timezone echo on create and on Account -> Timezone (R10). */
   def timezoneEcho(time: String): String = s"It is $time for you now."
-  def timezoneConfirm(time: String): String = s"It is $time for you now, right?"
+  def timezoneConfirm(time: String, zone: String): String = s"It is $time in $zone now. Correct?"
 
   /** Session sweeper (M0.12b): one grace prompt at 30 min idle, abort after a further 30 min. */
   val stillThere = "Still there?"
@@ -93,14 +106,19 @@ object WizardCopy:
     CopyEntry("wizard.add.title", addMedicationTitle),
     CopyEntry("wizard.add.field.name", fieldName),
     CopyEntry("wizard.add.field.dose", fieldDose),
-    CopyEntry("wizard.add.field.times", fieldTimes),
-    CopyEntry("wizard.add.field.instructions", fieldInstructions),
     CopyEntry("wizard.add.placeholder.name", namePlaceholder),
     CopyEntry("wizard.add.placeholder.dose", dosePlaceholder),
-    CopyEntry("wizard.add.placeholder.times", timesPlaceholder),
-    CopyEntry("wizard.add.placeholder.instructions", instructionsPlaceholder),
     CopyEntry("wizard.add.name_required", nameRequired),
-    CopyEntry("wizard.add.invalid_times", invalidTimes),
+    CopyEntry("wizard.times.prompt", timesPrompt),
+    CopyEntry("wizard.times.other", otherTime),
+    CopyEntry("wizard.times.as_needed", asNeeded),
+    CopyEntry("wizard.times.other_prompt", timesOtherPrompt),
+    CopyEntry("wizard.times.echo.none", timesEcho(Nil)),
+    CopyEntry("wizard.times.echo.one", timesEcho(List("09:00"))),
+    CopyEntry("wizard.times.echo.several", timesEcho(List("08:00", "14:30", "22:00"))),
+    CopyEntry("wizard.instructions.prompt", instructionsPrompt),
+    CopyEntry("wizard.instructions.none", noInstructions),
+    CopyEntry("wizard.times.change", changeTimes),
     CopyEntry("wizard.add.invalid_days", invalidDays),
     CopyEntry("wizard.days.intro", scheduleSetupIntro),
     CopyEntry("wizard.days.prompt", daysPrompt),
@@ -129,7 +147,7 @@ object WizardCopy:
     CopyEntry("wizard.policy.five_before", policyFiveMinutesBefore),
     CopyEntry("wizard.policy.ten_after", policyTenMinutesAfter),
     CopyEntry("wizard.timezone.echo", timezoneEcho("14:32")),
-    CopyEntry("wizard.timezone.confirm", timezoneConfirm("14:32")),
+    CopyEntry("wizard.timezone.confirm", timezoneConfirm("17:42", "Europe/Kyiv")),
     CopyEntry("wizard.still_there", stillThere),
     CopyEntry("wizard.setup_cancelled", setupCancelled),
     CopyEntry("wizard.cancel_current_setup", cancelCurrentSetup),

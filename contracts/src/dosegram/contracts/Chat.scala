@@ -230,13 +230,17 @@ object Choice:
 
   def openUrl(label: String, url: String): Choice = Choice(label, ChoiceAction.OpenUrl(url))
 
+/** `numberHotkeys = false` marks a set on a prompt that takes typed input (ADR-015 addendum 2): a typed number there is
+  * the user's input ("9" is a time), never the number of a choice. Its choices are still tapped, or typed by label.
+  */
 final case class ChoiceSet(
     id: String,
     prompt: Option[RichText] = None,
     choices: List[Choice],
     minSelect: Int = 1,
     maxSelect: Int = 1,
-    ttl: Option[Duration] = None
+    ttl: Option[Duration] = None,
+    numberHotkeys: Boolean = true
 ) derives ReadWriter:
   require(id.nonEmpty, "choice set id must not be empty")
   require(

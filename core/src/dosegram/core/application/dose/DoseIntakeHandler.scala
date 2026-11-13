@@ -22,8 +22,10 @@ import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Refusal
 import dosegram.core.domain.copy.DoseActionKind
 import dosegram.core.domain.copy.IdentityCopy
+import dosegram.core.domain.copy.InputCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.input.SnoozeDuration
 import dosegram.core.ports.Clock
 import dosegram.core.ports.NewDoseAction
 import dosegram.core.ports.NewOccurrence
@@ -310,9 +312,11 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
             occ => applyUserEvent(event, principal, occ, OccurrenceEvent.Skipped(reason = None), None, tx)
           )
       case CommandRegistry.Snooze.name =>
-        snoozeMinutesArg(event) match
-          case None          => Reply(followUps = List(usage(event, CommandRegistry.Snooze)))
-          case Some(minutes) =>
+        SnoozeDuration.parse(snoozeArg(event)) match
+          case Left(SnoozeDuration.Rejection.Empty) => Reply(followUps = List(usage(event, CommandRegistry.Snooze)))
+          case Left(rejection)                      =>
+            Reply(followUps = List(notUnderstood(event, CommandRegistry.Snooze, InputCopy.duration(rejection))))
+          case Right(minutes) =>
             // `/snooze <min>` carries no medication: it always targets the latest open dose (M1.10).
             resolveOpen(principal, tx, None)
               .fold(identity, occ => applyUserEvent(event, principal, occ, OccurrenceEvent.Snoozed(minutes), None, tx))
@@ -339,8 +343,9 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
             Option.when(rest.nonEmpty)(rest)
       case _ => None
 
-  private def snoozeMinutesArg(event: InboundEvent): Option[Int] =
-    val raw = event.body match
+  /** The typed `/snooze` length, read by the shared duration grammar ("10", "10m", "1h", "1.5h"). */
+  private def snoozeArg(event: InboundEvent): String =
+    event.body match
       case Inbound.CommandInvoked(_, args, raw) =>
         args
           .get("minutes")
@@ -349,11 +354,20 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
           .getOrElse:
             raw.trim.drop(1).dropWhile(c => !c.isWhitespace).trim
       case _ => ""
-    raw.toIntOption.filter(minutes => minutes > 0)
 
   private def usage(event: InboundEvent, spec: CommandSpec): OutboundMessage =
     OutboundMessage(
       body = List(Node.Paragraph(List(Inline.Text(CommandRegistry.usage(spec))))),
+      dedupeKey = s"usage:${spec.name}:${event.vendor}:${event.vendorEventId}",
+      correlationId = s"${event.vendor}:${event.vendorEventId}"
+    )
+
+  /** An argument that was typed but not understood: what was not understood, the examples and the command's grammar
+    * (BUX-CMD-04); nothing is recorded.
+    */
+  private def notUnderstood(event: InboundEvent, spec: CommandSpec, reason: String): OutboundMessage =
+    OutboundMessage(
+      body = List(reason, CommandRegistry.usage(spec)).map(text => Node.Paragraph(List(Inline.Text(text)))),
       dedupeKey = s"usage:${spec.name}:${event.vendor}:${event.vendorEventId}",
       correlationId = s"${event.vendor}:${event.vendorEventId}"
     )
