@@ -35,7 +35,22 @@ final case class StoredMedication(
     doseUnit: Option[String],
     instructions: Option[String],
     status: MedicationStatus,
-    createdAt: Instant
+    createdAt: Instant,
+    updatedAt: Instant
+)
+
+/** A full replacement of the editable fields and the status of one medication, applied only while the row still carries
+  * `expectedUpdatedAt` (ARCHITECTURE API-17: `updated_at` is the version until a version column exists).
+  */
+final case class MedicationEdit(
+    id: UUID,
+    accountId: UUID,
+    expectedUpdatedAt: Instant,
+    name: String,
+    doseAmount: Option[BigDecimal],
+    doseUnit: Option[String],
+    instructions: Option[String],
+    status: MedicationStatus
 )
 
 /** `medications` (R11/R18): one medication per `(user_id, name_norm)` while not archived — enforced by
@@ -57,3 +72,12 @@ trait MedicationRepository:
     * `lower(btrim(...))`-style normalisation to the prefix.
     */
   def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication]
+
+  /** Every medication of the account, archived ones included, oldest first (the Mini App list, MINI_APP S-02). */
+  def listAllForAccount(accountId: UUID): List[StoredMedication]
+
+  /** Applies `edit` when the row belongs to the account and still carries `expectedUpdatedAt`, and returns the row as
+    * written; `None` when the row is unknown, foreign or was changed since. `updated_at` moves forward by at least one
+    * microsecond, so two edits never carry the same version.
+    */
+  def replace(edit: MedicationEdit, now: Instant): Option[StoredMedication]

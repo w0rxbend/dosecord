@@ -324,7 +324,7 @@ object MediatorFakes:
     def all: List[StoredMedication] = this.synchronized(rows.toList)
     override def insert(row: NewMedication, now: Instant): Unit = this.synchronized:
       rows += StoredMedication(row.id, row.accountId, row.name, row.name.trim.toLowerCase, row.doseAmount,
-        row.doseUnit, row.instructions, MedicationStatus.Active, now)
+        row.doseUnit, row.instructions, MedicationStatus.Active, now, now)
     override def get(id: UUID): Option[StoredMedication] = this.synchronized(rows.find(_.id == id))
     override def findByNameNorm(accountId: UUID, nameNorm: String): Option[StoredMedication] =
       this.synchronized(
@@ -334,6 +334,24 @@ object MediatorFakes:
       this.synchronized(
         rows.filter(r => r.accountId == accountId && r.status != MedicationStatus.Archived).toList
       )
+    override def listAllForAccount(accountId: UUID): List[StoredMedication] =
+      this.synchronized(rows.filter(_.accountId == accountId).toList)
+    override def replace(edit: MedicationEdit, now: Instant): Option[StoredMedication] = this.synchronized:
+      val index = rows.indexWhere(r =>
+        r.id == edit.id && r.accountId == edit.accountId && r.updatedAt == edit.expectedUpdatedAt
+      )
+      Option.when(index >= 0):
+        val written = rows(index).copy(
+          name = edit.name,
+          nameNorm = edit.name.trim.toLowerCase,
+          doseAmount = edit.doseAmount,
+          doseUnit = edit.doseUnit,
+          instructions = edit.instructions,
+          status = edit.status,
+          updatedAt = if now.isAfter(edit.expectedUpdatedAt) then now else edit.expectedUpdatedAt.plusNanos(1000)
+        )
+        rows(index) = written
+        written
     override def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication] =
       this.synchronized(
         rows

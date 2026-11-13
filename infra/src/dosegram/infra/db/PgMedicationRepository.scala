@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.core.ports.MedicationEdit
 import dosegram.core.ports.MedicationRepository
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.NewMedication
@@ -23,7 +24,8 @@ final class PgMedicationRepository(conn: Connection) extends MedicationRepositor
       doseUnit = rs.optString("dose_unit"),
       instructions = rs.optString("instructions"),
       status = MedicationStatus.fromDbValue(rs.getString("status")),
-      createdAt = rs.instant("created_at")
+      createdAt = rs.instant("created_at"),
+      updatedAt = rs.instant("updated_at")
     )
 
   override def insert(row: NewMedication, now: Instant): Unit =
@@ -33,25 +35,40 @@ final class PgMedicationRepository(conn: Connection) extends MedicationRepositor
                   ${row.instructions}, 'active', $now, $now)""".execute()
 
   override def get(id: UUID): Option[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
           FROM medications WHERE id = $id""".queryOne[StoredMedication]()
 
   override def findByNameNorm(accountId: UUID, nameNorm: String): Option[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
           FROM medications
           WHERE user_id = $accountId AND name_norm = $nameNorm AND status <> 'archived'"""
       .queryOne[StoredMedication]()
 
   override def listForAccount(accountId: UUID): List[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
           FROM medications
           WHERE user_id = $accountId AND status <> 'archived'
           ORDER BY created_at, id""".query[StoredMedication]()
 
   // strpos rather than LIKE: a prefix containing LIKE wildcards must stay literal.
   override def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
           FROM medications
           WHERE user_id = $accountId AND status <> 'archived' AND strpos(name_norm, $prefix) = 1
           ORDER BY name_norm
           LIMIT $limit""".query[StoredMedication]()
+
+  override def listAllForAccount(accountId: UUID): List[StoredMedication] =
+    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
+          FROM medications
+          WHERE user_id = $accountId
+          ORDER BY created_at, id""".query[StoredMedication]()
+
+  override def replace(edit: MedicationEdit, now: Instant): Option[StoredMedication] =
+    sql"""UPDATE medications
+          SET name = ${edit.name}, dose_amount = ${edit.doseAmount}, dose_unit = ${edit.doseUnit},
+              instructions = ${edit.instructions}, status = ${edit.status.dbValue},
+              updated_at = GREATEST($now, updated_at + interval '1 microsecond')
+          WHERE id = ${edit.id} AND user_id = ${edit.accountId} AND updated_at = ${edit.expectedUpdatedAt}
+          RETURNING id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at,
+                    updated_at""".queryOne[StoredMedication]()
