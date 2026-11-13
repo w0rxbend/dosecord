@@ -101,7 +101,8 @@ private[capture] object ConsentRequest:
     ConsentPurpose.Hydration -> 2,
     ConsentPurpose.Mood -> 3,
     ConsentPurpose.CrossDomainPatterns -> 4,
-    ConsentPurpose.ImagesInChat -> 5
+    ConsentPurpose.ImagesInChat -> 5,
+    ConsentPurpose.Sleep -> 6
   )
 
   def codeOf(purpose: ConsentPurpose): Int = purposeCodes(purpose)

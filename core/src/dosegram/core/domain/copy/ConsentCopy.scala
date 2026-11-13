@@ -70,6 +70,14 @@ object ConsentCopy:
           "Mood check-ins stay off. Send /mood to turn them on later.",
           s"Nothing new is recorded, and mood records are not shown in this chat or in the app. $RecordsKept"
         )
+      case ConsentPurpose.Sleep =>
+        Wording(
+          "stores and processes my sleep records: the times and ratings I enter",
+          "may store and process your sleep records: the times and ratings you enter",
+          "sleep records",
+          "Sleep tracking stays off. Send /sleep to turn it on later.",
+          s"Nothing new is recorded, and sleep records are not shown in this chat or in the app. $RecordsKept"
+        )
       case ConsentPurpose.CrossDomainPatterns =>
         Wording(
           "compares my records across domains, for example water and mood",
@@ -123,7 +131,8 @@ object ConsentCopy:
   /** `onb.notice` (BOT_UX BUX-CONS-01), the first card of onboarding. */
   val notice: List[String] = List(
     "Welcome to Dosegram. Before you start, please read this.",
-    "Dosegram stores what you record here: medications, schedules and doses, water, mood. This is health data.",
+    "Dosegram stores what you record here: medications, schedules and doses, water, mood, sleep. This is health " +
+      "data.",
     "This chat is not end-to-end encrypted: the messenger can read the messages and images the bot sends.",
     "Your records are kept on the Dosegram server. Only you see them here; the people who run the service can " +
       "access the database.",
@@ -139,10 +148,11 @@ object ConsentCopy:
 
   def onboardingLabel(purpose: ConsentPurpose): String =
     purpose match
-      case ConsentPurpose.Medication                                        => "Medication"
-      case ConsentPurpose.Hydration                                         => "Water"
-      case ConsentPurpose.Mood                                              => "Mood"
-      case ConsentPurpose.CrossDomainPatterns | ConsentPurpose.ImagesInChat => wording(purpose).short.capitalize
+      case ConsentPurpose.Medication                                                               => "Medication"
+      case ConsentPurpose.Hydration                                                                => "Water"
+      case ConsentPurpose.Mood                                                                     => "Mood"
+      case ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns | ConsentPurpose.ImagesInChat =>
+        wording(purpose).short.capitalize
 
   val onboardingChoiceHint = "Choose one of the buttons."
   val agreeHint = "Tap \"I agree\" to go on, or go back."

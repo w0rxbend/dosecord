@@ -173,7 +173,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def stop(turn: Turn, purpose: ConsentPurpose): Unit =
     purpose match
       case ConsentPurpose.Medication => parts.withdrawal.stop(turn.tx, turn.accountId, clock.now())
-      case ConsentPurpose.Hydration | ConsentPurpose.Mood | ConsentPurpose.CrossDomainPatterns |
+      case ConsentPurpose.Hydration | ConsentPurpose.Mood | ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns |
           ConsentPurpose.ImagesInChat =>
         ()
 

@@ -10,6 +10,7 @@ enum ConsentPurpose(val id: String):
   case Medication extends ConsentPurpose("medication")
   case Hydration extends ConsentPurpose("hydration")
   case Mood extends ConsentPurpose("mood")
+  case Sleep extends ConsentPurpose("sleep")
   case CrossDomainPatterns extends ConsentPurpose("cross_domain_patterns")
 
   /** Delivery of personal report images into the chat (BOT_UX BUX-IMG-04). */
