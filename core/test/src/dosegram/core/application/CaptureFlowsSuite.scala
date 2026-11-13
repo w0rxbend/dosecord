@@ -354,6 +354,36 @@ class CaptureFlowsSuite extends munit.FunSuite:
           assertEquals(texts(stale), List("Already recorded at 03:00."), "a short self-deleting answer only")
           assertEquals(stale.count(_.isInstanceOf[VendorOp.Edit]), 0)
 
+  test("after Undo the prompt no longer shows the level, and a later tap on it says the check-in was undone"):
+    for cards <- List(RecordingCards(), StatusCards.textOnly) do
+      withChat(Profile.Telegram, cards): chat =>
+        chat.grant(ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+        chat.rig.command("mood")
+        val (prompt, four) = chat.rig.controlOn(CheckInCopy.prompt, "4")
+        chat.rig.tapFrom(prompt, four)
+        chat.rig.tapOn("Pleasant · 03:00", "Undo")
+        assertEquals(chat.rig.messageAt(prompt).chunks, List(CheckInCopy.undone), "the level is gone from the prompt")
+        val (_, stale) = chat.rig.tapFrom(prompt, four)
+        assertEquals(texts(stale), List(CheckInCopy.promptUndone))
+        assertEquals(stale.count(_.isInstanceOf[VendorOp.Edit]), 0)
+        assertEquals(chat.world.tracking.checkins.values.count(_.isLive), 0, "the stale tap records nothing")
+
+  test("Undo after Add energy clears the prompt too, and a later tap on it says the check-in was undone"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+      chat.rig.command("mood")
+      val (prompt, four) = chat.rig.controlOn(CheckInCopy.prompt, "4")
+      chat.rig.tapFrom(prompt, four)
+      chat.rig.tapOn("Pleasant · 03:00", CheckInCopy.AddEnergy)
+      chat.rig.tapOn(CheckInCopy.energyAsk, "2")
+      val (_, kept) = chat.rig.tapFrom(prompt, four)
+      assertEquals(texts(kept), List("Already recorded at 03:00."), "the check-in with its energy still stands")
+      chat.rig.tapOn("Pleasant. Energy: low. · 03:00", "Undo")
+      assertEquals(chat.rig.messageAt(prompt).chunks, List(CheckInCopy.undone))
+      val (_, stale) = chat.rig.tapFrom(prompt, four)
+      assertEquals(texts(stale), List(CheckInCopy.promptUndone))
+      assertEquals(chat.world.tracking.checkins.values.count(_.isLive), 0)
+
   test("a new prompt records another check-in the same day"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Mood)

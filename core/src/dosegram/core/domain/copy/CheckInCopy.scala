@@ -24,6 +24,9 @@ object CheckInCopy:
     */
   def alreadyRecorded(time: String): String = s"Already recorded at $time."
 
+  /** A later tap on a prompt whose check-in was undone or deleted: it records nothing. */
+  val promptUndone = "This check-in was undone."
+
   /** The caption of a check-in and its complete text equivalent (BUX-MOOD-04): "Pleasant · 21:04", or with the energy
     * step "Pleasant. Energy: low. · 21:04".
     */
@@ -47,7 +50,8 @@ object CheckInCopy:
       CopyEntry("checkin.usage", usage),
       CopyEntry("checkin.unknown", unknownCheckin),
       CopyEntry("checkin.undo_window_passed", undoWindowPassed),
-      CopyEntry("checkin.already_recorded", alreadyRecorded("21:04"))
+      CopyEntry("checkin.already_recorded", alreadyRecorded("21:04")),
+      CopyEntry("checkin.prompt_undone", promptUndone)
     ) ++ Valence.steps.map(step => CopyEntry(s"checkin.recorded.${step.step}", recorded(step, None, "21:04"))) ++
       Energy.steps.map(step =>
         CopyEntry(s"checkin.recorded.energy.${step.step}", recorded(Valence.steps(3), Some(step), "21:04"))

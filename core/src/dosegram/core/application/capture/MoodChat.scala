@@ -2,6 +2,7 @@ package dosegram.core.application.capture
 
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.Choice
+import dosegram.contracts.MessageHandle
 import dosegram.contracts.Reply
 import dosegram.core.application.mood.CheckIn
 import dosegram.core.application.mood.MoodRecorded
@@ -13,6 +14,7 @@ import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.domain.mood.Valence
@@ -46,15 +48,14 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
 
   /** A tap on a prompt (owner decision 2026-11-13: one prompt, one check-in). The check-in's key is the prompt message,
     * so a later, racing or post-restart tap on it replays the first check-in: it records nothing and answers "Already
-    * recorded at 21:04". The first tap edits the prompt into the recorded level with its 1 to 5 buttons gone; with an
-    * image, the image follows as its own message and carries Add energy and Undo.
+    * recorded at 21:04", or that the check-in was undone. The first tap edits the prompt into the recorded level with
+    * its 1 to 5 buttons gone; with an image, the image follows as its own message and carries Add energy and Undo.
     */
   def checkInFromPrompt(turn: Turn, valence: Valence): Reply =
     turn.source match
       case None         => checkIn(turn, valence)
       case Some(prompt) =>
-        val key = s"mood.prompt:${prompt.vendor}:${prompt.chatId}:${prompt.messageId}"
-        record(turn, valence, key): recorded =>
+        record(turn, valence, MoodChat.promptKey(prompt)): recorded =>
           val caption = captionOf(turn, recorded.checkin)
           image(turn, valence) match
             case None             => turn.show(turn.message("mood.recorded", List(caption), followUpRows(recorded)))
@@ -72,9 +73,22 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
   private def record(turn: Turn, valence: Valence, key: String)(reply: MoodRecorded => Reply): Reply =
     val command = CheckIn(turn.accountId, valence, None, Nil, EntryDay.Today, EntrySource.Bot, key)
     answered(turn, mood.checkIn(turn.tx, command)): recorded =>
-      if recorded.replayed && key != turn.clientKey then
+      if !recorded.replayed || key == turn.clientKey then reply(recorded)
+      else if standing(turn, recorded.checkin) then
         turn.toast(CheckInCopy.alreadyRecorded(turn.localTime(recorded.checkin.occurredAt)))
-      else reply(recorded)
+      else turn.toast(CheckInCopy.promptUndone)
+
+  /** Whether a check-in still counts: it is live, or a live correction (the energy step) descends from it. */
+  private def standing(turn: Turn, checkin: MoodCheckin): Boolean =
+    def descends(candidate: MoodCheckin): Boolean =
+      candidate.supersedesId.exists: id =>
+        id == checkin.id || turn.tx.tracking.mood.get(turn.accountId, id).exists(descends)
+    checkin.isLive ||
+    turn.tx.tracking.mood.listLive(turn.accountId, DateRange.single(checkin.localDate)).exists(descends)
+
+  /** The first check-in of a correction chain: the one the tap recorded, with its key. */
+  private def origin(turn: Turn, checkin: MoodCheckin): MoodCheckin =
+    checkin.supersedesId.flatMap(turn.tx.tracking.mood.get(turn.accountId, _)).fold(checkin)(origin(turn, _))
 
   /** "Add energy": value 0 asks, 1 to 5 answer. The caption carries the energy label; the picture is not replaced. */
   def energyStep(turn: Turn, checkinId: UUID, value: Long): Reply =
@@ -88,9 +102,23 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
               val rows = List(List(undoButton(recorded.checkin.id)))
               turn.show(turn.message("mood.energy", List(captionOf(turn, recorded.checkin)), rows))
 
+  /** Undo answers on the message it was tapped on. A check-in from a prompt also takes its level off the prompt, which
+    * shows it apart from the image message that carries the Undo.
+    */
   def undo(turn: Turn, checkinId: UUID): Reply =
     answered(turn, mood.undo(turn.tx, turn.accountId, checkinId)): _ =>
-      turn.show(turn.message("mood.undone", List(CheckInCopy.undone), Nil))
+      val undone = turn.show(turn.message("mood.undone", List(CheckInCopy.undone), Nil))
+      promptOf(turn, checkinId).filterNot(prompt => turn.source.exists(MoodChat.sameMessage(_, prompt))) match
+        case None         => undone
+        case Some(prompt) =>
+          val cleared = turn.message("mood.prompt.undone", List(CheckInCopy.undone), Nil).copy(replaces = Some(prompt))
+          undone.copy(followUps = undone.followUps :+ cleared)
+
+  private def promptOf(turn: Turn, checkinId: UUID): Option[MessageHandle] =
+    turn.tx.tracking.mood
+      .get(turn.accountId, checkinId)
+      .flatMap(checkin => origin(turn, checkin).clientKey)
+      .flatMap(MoodChat.promptOf)
 
   private def energyAsk(turn: Turn, checkinId: UUID) =
     val steps = Energy.steps.map: step =>
@@ -123,3 +151,24 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
         ReminderCopy.staleControlToast
 
   private val AskEnergy = 0L
+
+private object MoodChat:
+  private val Prefix = "mood.prompt:"
+
+  /** The client key of a check-in from a prompt: the prompt message itself, so one prompt records once. */
+  def promptKey(prompt: MessageHandle): String = s"$Prefix${prompt.vendor}:${prompt.chatId}:${prompt.messageId}"
+
+  /** The prompt a client key names; `None` for the key of a typed check-in. The vendor has no colon and the message id
+    * is the last part, so a chat id with a colon (`dm:user-1`) is read whole.
+    */
+  def promptOf(key: String): Option[MessageHandle] =
+    Option
+      .when(key.startsWith(Prefix))(key.drop(Prefix.length))
+      .flatMap: handle =>
+        val vendorEnd = handle.indexOf(':')
+        val idStart = handle.lastIndexOf(':')
+        Option.when(vendorEnd > 0 && idStart > vendorEnd + 1 && idStart < handle.length - 1):
+          MessageHandle(handle.take(vendorEnd), handle.slice(vendorEnd + 1, idStart), handle.drop(idStart + 1))
+
+  def sameMessage(a: MessageHandle, b: MessageHandle): Boolean =
+    a.vendor == b.vendor && a.chatId == b.chatId && a.messageId == b.messageId
