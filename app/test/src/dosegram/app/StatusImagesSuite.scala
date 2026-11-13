@@ -66,6 +66,32 @@ class StatusImagesSuite extends munit.FunSuite:
       val (shown, goal) = (BigDecimal(inAlt.get.head), BigDecimal(inAlt.get(1)))
       assertEquals(shown >= goal, totalMl >= view.goalMl, s"$totalMl ml shows $shown of $goal")
 
+  /** Answers after `delayMillis`, like a rasteriser on a loaded host. */
+  private final class SlowRasteriser(delayMillis: Long) extends Rasteriser:
+    override def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
+      Thread.sleep(delayMillis)
+      Right(PngImage(IArray.unsafeFromArray(s"png:${svg.hashCode}".getBytes(UTF_8))))
+
+  private val chat = dosegram.contracts.ChatRef("telegram", "7001")
+
+  test("a drawing that runs past a second shows the photo upload status in its chat, once (VISUALS VA-FB-02)"):
+    val shown = java.util.concurrent.ConcurrentLinkedQueue[dosegram.contracts.ChatRef]()
+    val images = StatusImages.over(SlowRasteriser(1400), StatusImages.Stores.inMemory, _ => ())
+    images.notices.attach("telegram", chat => { shown.add(chat); () })
+    assert(images.cards.water(water, light, Some(chat)).isDefined)
+    assertEquals(shown.toArray.toList, List(chat))
+
+  test("a quick drawing shows no status, and a drawing for no chat or another vendor shows none either"):
+    val shown = java.util.concurrent.ConcurrentLinkedQueue[dosegram.contracts.ChatRef]()
+    val quick = StatusImages.over(CountingRasteriser(), StatusImages.Stores.inMemory, _ => ())
+    quick.notices.attach("telegram", chat => { shown.add(chat); () })
+    assert(quick.cards.water(water, light, Some(chat)).isDefined)
+    val slow = StatusImages.over(SlowRasteriser(1400), StatusImages.Stores.inMemory, _ => ())
+    slow.notices.attach("telegram", chat => { shown.add(chat); () })
+    assert(slow.cards.water(water, light, None).isDefined)
+    assert(slow.cards.water(water.copy(totalMl = 700), light, Some(dosegram.contracts.ChatRef("console", "owner"))).isDefined)
+    assertEquals(shown.toArray.toList, Nil)
+
   test("a mood state is drawn once and its key names the state, not a person"):
     val rasteriser = CountingRasteriser()
     val rig = Rig(rasteriser)

@@ -82,7 +82,7 @@ private[capture] final class WaterChat(hydration: HydrationService, cards: Statu
         case None       => turn.toast(WaterCopy.imageNeedsGoal)
         case Some(goal) =>
           val day = dayOf(view)
-          cards.water(WaterCardView(view.date, day.totalMl, goal, day.entries), turn.look) match
+          cards.water(WaterCardView(view.date, day.totalMl, goal, day.entries), turn.look, Some(turn.event.chat)) match
             case Some(attachment) => Reply(followUps = List(captioned(turn, day).copy(attachment = Some(attachment))))
             case None             => turn.toast(WaterCopy.imageUnavailable)
 

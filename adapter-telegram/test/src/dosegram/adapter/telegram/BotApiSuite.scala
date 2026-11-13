@@ -133,6 +133,12 @@ class BotApiSuite extends munit.FunSuite:
     assertEquals(api.deleteMessage(target), Right(()))
     assertEquals(lastParams(wire), ujson.Obj("chat_id" -> 7001, "message_id" -> 60))
 
+  test("sendChatAction names the chat and the action"):
+    val (wire, api) = wired()
+    assertEquals(api.sendChatAction(7001, ChatAction.UploadPhoto), Right(()))
+    assertEquals(wire.calls.last.method, "sendChatAction")
+    assertEquals(lastParams(wire), ujson.Obj("chat_id" -> 7001, "action" -> "upload_photo"))
+
   test("answerCallbackQuery clips a toast to 200 characters and omits an empty one"):
     val (wire, api) = wired()
     api.answerCallbackQuery("q1", Some("x" * 250))

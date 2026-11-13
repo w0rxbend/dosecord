@@ -73,9 +73,9 @@ final class FakeTelegramTransport(
       case "setMyCommands" =>
         commands = request.params.obj.getOrElse("commands", ujson.Arr())
         ok(ujson.True)
-      case "getMyCommands"                                               => ok(commands)
-      case "answerCallbackQuery" | "setChatMenuButton" | "deleteWebhook" => ok(ujson.True)
-      case _                                                             =>
+      case "getMyCommands"                                                                  => ok(commands)
+      case "answerCallbackQuery" | "setChatMenuButton" | "deleteWebhook" | "sendChatAction" => ok(ujson.True)
+      case _                                                                                =>
         WireReply.Http(404, ujson.write(ujson.Obj("ok" -> false, "error_code" -> 404, "description" -> "Not Found")))
 
   private def identityJson: ujson.Obj =

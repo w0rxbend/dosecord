@@ -174,6 +174,15 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
 
   // ---------- Outbound ----------
 
+  /** "Sending a photo" in the chat while its image is drawn (VISUALS VA-FB-02). A status, not a message: a refusal is
+    * logged by its kind and the drawing goes on.
+    */
+  def showUploadingPhoto(chat: ChatRef): Unit =
+    chat.chatId.toLongOption.foreach: chatId =>
+      api.sendChatAction(chatId, ChatAction.UploadPhoto) match
+        case Right(())   => ()
+        case Left(error) => runtime.log(s"telegram sendChatAction failed: ${error.productPrefix}")
+
   /** One message per part: the attachment with its caption, then each further text chunk. The keyboard goes on the last
     * part, and the returned handle names that part, because it is the one a tap comes from.
     */

@@ -4,6 +4,7 @@ import dosegram.adapter.telegram.FileIdCache
 import dosegram.adapter.telegram.InMemoryFileIdCache
 import dosegram.adapter.telegram.MediaStore
 import dosegram.contracts.AttachmentRef
+import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.CardLook
@@ -46,6 +47,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.HexFormat
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import javax.sql.DataSource
 
 /** Where the bytes behind an `AttachmentRef.assetKey` live (ADR-015: the asset store owns the bytes): the card side
@@ -73,18 +78,36 @@ final class InMemoryAssetStore(maximumImages: Int) extends AssetStore:
 
   override def load(assetKey: String): Option[Array[Byte]] = images.synchronized(Option(images.get(assetKey)))
 
+/** Who shows "sending a photo" in a chat while its image is drawn (VISUALS VA-FB-02): the adapter of the chat's vendor,
+  * attached once it is built, because the adapter itself is built over the image stores. A vendor without one shows
+  * nothing.
+  */
+final class DrawingNotices:
+  private val byVendor = ConcurrentHashMap[String, ChatRef => Unit]()
+
+  def attach(vendor: String, notice: ChatRef => Unit): Unit =
+    byVendor.put(vendor, notice)
+    ()
+
+  def drawing(chat: ChatRef): Unit = Option(byVendor.get(chat.vendor)).foreach(_(chat))
+
 /** The status cards of the chat flows, drawn by the report renderer (ADR-022): a core view becomes the renderer's view
   * model, the card is rasterised, the PNG goes into the asset store, and the reference carries the card's own text
   * equivalent as its alt text. A card that cannot be drawn is logged by its template and the kind of failure only, and
   * the flow sends its text (VISUALS VA-FB-01).
   */
-final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: String => Unit) extends StatusCards:
+final class RenderedStatusCards(
+    renderer: CardRenderer,
+    store: AssetStore,
+    log: String => Unit,
+    notices: DrawingNotices
+) extends StatusCards:
 
   import RenderedStatusCards.*
 
   /** A mood state is the same picture for everyone (VISUALS VA-BL-11), so its key names the state and it is drawn once.
     */
-  override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] =
+  override def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
     val state = MoodState.captured(view.valence.step, view.energy.map(_.step))
     val reading = MoodReading(state, isEnergyGiven = view.energy.isDefined)
     val drawing = contextOf(look)
@@ -92,14 +115,14 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
     val card = MoodCard.render(Some(reading), drawing)
     if store.holds(key) then Some(reference(key, card))
     else
-      rasterised(card).map: png =>
+      rasterised(card, chat).map: png =>
         store.put(key, png)
         reference(key, card)
 
-  override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] =
-    personal(WaterCard.render(waterData(view), contextOf(look)))
+  override def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+    personal(WaterCard.render(waterData(view), contextOf(look)), chat)
 
-  override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] =
+  override def day(view: DayCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
     val data = DayData(
       date = view.date,
       mood = view.mood.map: mood =>
@@ -111,9 +134,9 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
         sleep.minutes.fold(SleepEvidence.NoRecord)(SleepEvidence.Recorded(_, sleep.goalMinutes))
       )
     )
-    personal(DayCard.render(data, contextOf(look)))
+    personal(DayCard.render(data, contextOf(look)), chat)
 
-  override def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef] =
+  override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
     val data = SleepRegularityData(
       from = view.window.start,
       to = view.window.end,
@@ -126,26 +149,39 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
       typicalWake = view.typicalWake,
       goalMinutes = view.goalMinutes
     )
-    personal(SleepRegularityCard.render(data, contextOf(look)))
+    personal(SleepRegularityCard.render(data, contextOf(look)), chat)
 
   /** A personal card is keyed by its own bytes: the same picture is stored once, and the key says nothing. */
-  private def personal(card: CardOutput): Option[AttachmentRef] =
-    rasterised(card).map: png =>
+  private def personal(card: CardOutput, chat: Option[ChatRef]): Option[AttachmentRef] =
+    rasterised(card, chat).map: png =>
       val key = s"card.${HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(png))}"
       store.put(key, png)
       reference(key, card)
 
-  private def rasterised(card: CardOutput): Option[Array[Byte]] =
-    renderer.render(card) match
-      case Right(image)  => Some(image.png.toArray)
-      case Left(failure) =>
-        log(s"status image not drawn: template=${card.scene.templateId} reason=${failure.productPrefix}")
-        None
+  // A drawing that is still running after a second shows the upload status in its chat (VISUALS VA-FB-02); the
+  // rasteriser's own deadline ends it at five seconds, and the flow then sends the text (VA-FB-01).
+  private def rasterised(card: CardOutput, chat: Option[ChatRef]): Option[Array[Byte]] =
+    val notice = chat.map(target =>
+      Slow.schedule((() => notices.drawing(target)): Runnable, SlowAfterMillis, TimeUnit.MILLISECONDS)
+    )
+    try
+      renderer.render(card) match
+        case Right(image)  => Some(image.png.toArray)
+        case Left(failure) =>
+          log(s"status image not drawn: template=${card.scene.templateId} reason=${failure.productPrefix}")
+          None
+    finally notice.foreach(_.cancel(false))
 
   private def reference(key: String, card: CardOutput): AttachmentRef =
     AttachmentRef(MediaKind.Photo, key, "image/png", card.text.altText, Some(card.fileName), card.hasSpoiler)
 
 object RenderedStatusCards:
+
+  /** VISUALS VA-FB-02: the status is shown when a drawing is expected to exceed one second. */
+  private val SlowAfterMillis = 1000L
+
+  // One timer thread for every drawing of the process; it only ever sends a status.
+  private val Slow: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory())
 
   private val fitter = TextFitter(TableTextMeasurer)
 
@@ -186,7 +222,12 @@ object RenderedStatusCards:
   * the cards the chat flows ask for. Both halves share the store, so an image a flow made is the image the adapter
   * uploads.
   */
-final class StatusImages(val store: AssetStore, val fileIds: FileIdCache, val cards: StatusCards)
+final class StatusImages(
+    val store: AssetStore,
+    val fileIds: FileIdCache,
+    val cards: StatusCards,
+    val notices: DrawingNotices = DrawingNotices()
+)
 
 object StatusImages:
 
@@ -216,7 +257,9 @@ object StatusImages:
     StatusImages(stores.assets, stores.fileIds, StatusCards.textOnly)
 
   def over(rasteriser: Rasteriser, stores: Stores, log: String => Unit): StatusImages =
-    StatusImages(stores.assets, stores.fileIds, RenderedStatusCards(CardRenderer(rasteriser), stores.assets, log))
+    val notices = DrawingNotices()
+    val cards = RenderedStatusCards(CardRenderer(rasteriser), stores.assets, log, notices)
+    StatusImages(stores.assets, stores.fileIds, cards, notices)
 
   /** The renderer the settings name, or text only without them. A binary that cannot run fails the start: a bot that
     * silently never draws is worse than one that does not start.

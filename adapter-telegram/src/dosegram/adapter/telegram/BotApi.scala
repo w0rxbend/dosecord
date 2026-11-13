@@ -19,6 +19,10 @@ object InlineKeyboard:
 /** A message of the bot, addressed the way every edit and delete method takes it. */
 final case class MessageTarget(chatId: Long, messageId: Long)
 
+/** The chat statuses the bot shows (`sendChatAction`); only the photo upload is used, while an image is drawn. */
+enum ChatAction(val wire: String):
+  case UploadPhoto extends ChatAction("upload_photo")
+
 /** How a message is delivered: silently, and with link previews switched off. */
 final case class Delivery(silent: Boolean, noPreview: Boolean)
 
@@ -115,6 +119,10 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
 
   def deleteMessage(target: MessageTarget): Either[TelegramError, Unit] =
     call("deleteMessage", targetParams(target)).map(_ => ())
+
+  /** Shows a status in the chat for 5 seconds or until the next message arrives (VISUALS P20). */
+  def sendChatAction(chatId: Long, action: ChatAction): Either[TelegramError, Unit] =
+    call("sendChatAction", ujson.Obj("chat_id" -> chatId.toDouble, "action" -> action.wire)).map(_ => ())
 
   /** The single answer to a callback query; `text` shows as a toast of at most 200 characters. */
   def answerCallbackQuery(queryId: String, text: Option[String]): Either[TelegramError, Unit] =

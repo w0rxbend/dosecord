@@ -60,7 +60,7 @@ private[capture] final class SleepChat(sleep: SleepService, cards: StatusCards, 
       StatsCopy.sleep(SleepStats.period(SleepStats.byDay(episodes), window)) match
         case None          => turn.toast(SleepCopy.imageEmpty)
         case Some(caption) =>
-          cards.sleep(figures, turn.look) match
+          cards.sleep(figures, turn.look, Some(turn.event.chat)) match
             case Some(attachment) =>
               Reply(followUps =
                 List(turn.message("sleep.image", List(caption), Nil).copy(attachment = Some(attachment)))

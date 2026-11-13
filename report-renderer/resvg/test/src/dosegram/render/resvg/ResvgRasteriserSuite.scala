@@ -127,6 +127,19 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     assertEquals(result.left.toOption, Some(RasterFailure.TimedOut))
     assert(elapsedMillis < 5000, s"the caller waited $elapsedMillis ms")
 
+  test("a render that waits for a busy slot ends within its own deadline, waiting included (VISUALS VA-FB-01)"):
+    val busy = ResvgRasteriser(ResvgConfig(fakeBinary("sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 600, 1024, 1))
+    val first = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()
+    val holding = first.submit(() => busy.rasterise(waterSvg(Theme.Dark), 1))
+    Thread.sleep(200)
+    val started = System.nanoTime()
+    val second = busy.rasterise(waterSvg(Theme.Dark), 1)
+    val elapsedMillis = (System.nanoTime() - started) / 1000000
+    assert(second.isLeft, s"$second")
+    assert(elapsedMillis < 900, s"the second caller waited $elapsedMillis ms against a 600 ms deadline")
+    assertEquals(holding.get().left.toOption, Some(RasterFailure.TimedOut))
+    first.shutdown()
+
   test("a rasteriser that never reads its input cannot block the caller"):
     val large = "<svg>" + "x" * (4 * 1024 * 1024) + "</svg>"
     assertEquals(withFake("sleep 30", 400, 1024).rasterise(large, 1).left.toOption, Some(RasterFailure.TimedOut))
