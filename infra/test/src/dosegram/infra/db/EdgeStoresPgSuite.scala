@@ -27,6 +27,14 @@ class EdgeStoresPgSuite extends PgSuite:
       rows.next()
       rows.getInt(1)
 
+  // The suites connect as the owner of the schema; production connects as a member of dosegram_app.
+  test("the application role may run the deleting job of each store"):
+    withFreshConnection: conn =>
+      val statement = conn.createStatement()
+      statement.execute("SET ROLE dosegram_app")
+      List("render_assets", "telegram_file_cache", "miniapp_sessions", "idempotency_keys").foreach: table =>
+        statement.execute(s"DELETE FROM $table WHERE false") // a table name of this suite
+
   // ---------- render_assets ----------
 
   test("an image is read back by another store object until its hour has passed, and not after"):

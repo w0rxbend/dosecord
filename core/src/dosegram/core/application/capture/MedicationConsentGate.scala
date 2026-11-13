@@ -9,6 +9,7 @@ import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.Tx
 
 import java.time.ZoneId
+import java.util.UUID
 
 /** PRODUCT_SPEC R-IDC-9 for the medication domain in chat: without an active `medication` consent a medication command
   * or button answers with the consent prompt, records nothing and shows no record (BOT_UX BUX-CMD-03, BUX-CONS-04). The
@@ -34,4 +35,4 @@ final class MedicationConsentGate(codec: CallbackCodec, clock: Clock):
 object MedicationConsentGate:
 
   /** Whether the medication records of the account may be written and shown now. */
-  def isOpen(tx: Tx, accountId: java.util.UUID): Boolean = tx.consents.isGranted(accountId, ConsentPurpose.Medication)
+  def isOpen(tx: Tx, accountId: UUID): Boolean = tx.consents.isGranted(accountId, ConsentPurpose.Medication)
