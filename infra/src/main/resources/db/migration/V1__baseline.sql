@@ -467,6 +467,67 @@ CREATE TABLE idempotency_keys (account_id uuid NOT NULL REFERENCES users, key uu
 CREATE INDEX ix_idempotency_keys_created_at ON idempotency_keys (created_at);
 
 -- ---------------------------------------------------------------------------
+-- Sleep (docs/ARCHITECTURE.md sections 10.9 and 14, ADR-025). Sleep is what
+-- the user says it was: two taps, or times entered afterwards. No table holds
+-- Telegram presence and none holds a passive estimate. sleep_checkins keeps
+-- each tap as it happened; a tap alone is never a sleep record. A
+-- sleep_episodes row has the entry shape of the tracking area: occurred_at is
+-- the wake instant and local_date is the sleep day, the local date of the wake
+-- instant in tz, the zone in force at that instant. Tier 1 (a quiet window) is
+-- never an episode, so the tier is 2 (explicit) or 3 (sensor). The duration
+-- bounds are input guards, not guidance.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE sleep_checkins (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  occurred_at timestamptz NOT NULL, local_date date NOT NULL, tz text NOT NULL,
+  source text NOT NULL CHECK (source IN ('bot','miniapp','import','integration','system')),
+  client_key text, kind text NOT NULL CHECK (kind IN ('going_to_sleep','im_up')),
+  created_at timestamptz NOT NULL, voided_at timestamptz,
+  void_reason text CHECK (void_reason IS NULL OR void_reason IN ('undone','deleted','superseded')),
+  CONSTRAINT sleep_checkins_void CHECK ((voided_at IS NULL) = (void_reason IS NULL)));
+CREATE UNIQUE INDEX uq_sleep_checkins_account_client_key ON sleep_checkins (account_id, client_key);   -- one tap records once
+CREATE INDEX ix_sleep_checkins_account_occurred_at ON sleep_checkins (account_id, occurred_at);
+
+CREATE TABLE sleep_episodes (id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES users,
+  occurred_at timestamptz NOT NULL, local_date date NOT NULL, tz text NOT NULL,
+  source text NOT NULL CHECK (source IN ('bot','miniapp','import','integration','system')),
+  client_key text, import_job_id uuid, external_ref_hmac bytea, supersedes_id uuid REFERENCES sleep_episodes,
+  kind text NOT NULL CHECK (kind IN ('main','nap')),
+  onset_at timestamptz NOT NULL, wake_at timestamptz NOT NULL, tz_onset text NOT NULL,
+  tier smallint NOT NULL CHECK (tier IN (2, 3)),
+  origin text NOT NULL CHECK (origin IN ('checkin','retrospective','passive_confirmed','self_report_corrected')),
+  onset_source text NOT NULL CHECK (onset_source IN ('checkin','retrospective','passive','sensor')),
+  wake_source text NOT NULL CHECK (wake_source IN ('checkin','retrospective','passive','sensor')),
+  confidence numeric(3,2) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+  quality smallint CHECK (quality BETWEEN 1 AND 5),
+  created_at timestamptz NOT NULL, voided_at timestamptz,
+  void_reason text CHECK (void_reason IS NULL OR void_reason IN ('undone','deleted','superseded')),
+  CONSTRAINT sleep_episodes_void CHECK ((voided_at IS NULL) = (void_reason IS NULL)),
+  CONSTRAINT sleep_episodes_wake_is_entry_time CHECK (occurred_at = wake_at),
+  CONSTRAINT sleep_episodes_wake_after_onset CHECK (wake_at > onset_at),
+  CONSTRAINT sleep_episodes_length CHECK (wake_at - onset_at <= interval '18 hours'));
+CREATE UNIQUE INDEX uq_sleep_episodes_account_client_key ON sleep_episodes (account_id, client_key);
+-- One night per sleep day; naps are not limited.
+CREATE UNIQUE INDEX uq_sleep_episodes_main_per_day ON sleep_episodes (account_id, local_date)
+  WHERE voided_at IS NULL AND kind = 'main';
+CREATE INDEX ix_sleep_episodes_account_local_date ON sleep_episodes (account_id, local_date);
+CREATE INDEX ix_sleep_episodes_account_wake_at ON sleep_episodes (account_id, wake_at);
+
+-- The user's own goal. target_minutes NULL means "no goal from that day". No reference duration exists.
+CREATE TABLE sleep_goals (account_id uuid NOT NULL REFERENCES users, effective_from date NOT NULL,
+  target_minutes int CHECK (target_minutes BETWEEN 60 AND 1080), created_at timestamptz NOT NULL,
+  PRIMARY KEY (account_id, effective_from));
+
+CREATE TRIGGER sleep_checkins_immutable BEFORE UPDATE ON sleep_checkins
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_entry_immutable();
+CREATE TRIGGER sleep_checkins_no_delete BEFORE DELETE ON sleep_checkins
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
+CREATE TRIGGER sleep_episodes_immutable BEFORE UPDATE ON sleep_episodes
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_entry_immutable();
+CREATE TRIGGER sleep_episodes_no_delete BEFORE DELETE ON sleep_episodes
+  FOR EACH ROW EXECUTE FUNCTION dosegram_guard_append_only();
+
+-- ---------------------------------------------------------------------------
 -- Grants
 -- ---------------------------------------------------------------------------
 
@@ -483,3 +544,5 @@ GRANT DELETE ON render_assets, telegram_file_cache, miniapp_sessions, idempotenc
 GRANT SELECT, DELETE ON miniapp_sessions, idempotency_keys TO dosegram_erasure;
 -- Deleting an entry queues its day through the rollup trigger, and erasure removes the derived rows as well.
 GRANT SELECT, INSERT, UPDATE, DELETE ON rollup_dirty, daily_rollups TO dosegram_erasure;
+-- Sleep: taps and episodes are deleted by erasure only; a goal of a day is replaced by an upsert.
+GRANT SELECT, DELETE ON sleep_checkins, sleep_episodes, sleep_goals TO dosegram_erasure;

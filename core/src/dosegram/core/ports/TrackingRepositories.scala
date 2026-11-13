@@ -9,3 +9,4 @@ trait TrackingRepositories:
   def mood: MoodRepository
   def rollups: RollupRepository
   def doseHistory: DoseHistoryRepository
+  def sleep: SleepRepository

@@ -39,7 +39,10 @@ class MigrationSuite extends PgSuite:
       "render_assets",
       "telegram_file_cache",
       "miniapp_sessions",
-      "idempotency_keys"
+      "idempotency_keys",
+      "sleep_checkins",
+      "sleep_episodes",
+      "sleep_goals"
     )
     withConnection { conn =>
       given Connection = conn
