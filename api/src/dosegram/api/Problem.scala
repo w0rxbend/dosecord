@@ -69,6 +69,10 @@ object ApiFailure:
   def malformed(): ApiFailure =
     of(StatusCode.BadRequest, ErrorCode.ValidationFailed, "The request could not be read.")
 
+  /** ARCHITECTURE section 9.4, body limits. */
+  def payloadTooLarge(): ApiFailure =
+    of(StatusCode.PayloadTooLarge, ErrorCode.PayloadTooLarge, "The request is too large.")
+
   def unauthenticated(): ApiFailure =
     of(StatusCode.Unauthorized, ErrorCode.Unauthenticated, "Authentication is required.")
 

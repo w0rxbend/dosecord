@@ -165,14 +165,18 @@ final class ApiModule(
 object ApiModule:
   private val VersionTag = """^"v(\d{1,18})"$""".r
 
-  /** A request the endpoints could not decode: a missing or malformed bearer is 401, anything else is the problem
-    * document for an unreadable request. The failure text of the decoder is dropped: it can quote the input.
+  /** A request the endpoints could not decode: a missing or malformed bearer is 401, a body over the limit is 413,
+    * anything else is the problem document for an unreadable request. The failure text of the decoder is dropped: it
+    * can quote the input.
     */
   val decodeFailureHandler: DecodeFailureHandler[Identity] = DecodeFailureHandler.pure: context =>
     DefaultDecodeFailureHandler
       .respond(context)
       .map: (status, _) =>
-        val failure = if status == StatusCode.Unauthorized then ApiFailure.unauthenticated() else ApiFailure.malformed()
+        val failure = status match
+          case StatusCode.Unauthorized    => ApiFailure.unauthenticated()
+          case StatusCode.PayloadTooLarge => ApiFailure.payloadTooLarge()
+          case _                          => ApiFailure.malformed()
         ValuedEndpointOutput(Endpoints.failure, failure)
 
   private def withEtag(medication: Medication): (String, Medication) = (Rendering.etag(medication.version), medication)

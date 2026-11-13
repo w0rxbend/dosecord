@@ -138,6 +138,12 @@ final class SessionApiSuite extends ApiSuite:
     assert(!broken.body.contains("canary"), broken.body)
     assertProblem(post("/api/v1/session", ujson.Obj()), 400, "validation_failed")
 
+  test("a body over 64 kB is refused with 413 before it is read as JSON"):
+    val oversized = ujson.Obj("initData" -> ("a" * 70000))
+    val reply = post("/api/v1/session", oversized)
+    assertProblem(reply, 413, "payload_too_large")
+    assert(!reply.body.contains("aaaa"), "the answer echoes the body")
+
   test("an unknown path under /api answers the not_found problem for every method"):
     val token = login(telegramAccount())
     assertProblem(get("/api/v1/nothing-here", token), 404, "not_found")
