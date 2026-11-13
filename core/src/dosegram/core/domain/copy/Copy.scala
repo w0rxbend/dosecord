@@ -29,5 +29,6 @@ object Copy:
       ConsentCopy.entries ++
       WaterCopy.entries ++
       CheckInCopy.entries ++
-      StatsCardCopy.entries
+      StatsCardCopy.entries ++
+      InputCopy.entries
 end Copy
