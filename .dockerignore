@@ -23,3 +23,10 @@ out/
 # Frontend dependencies and build output are not inputs of the image.
 miniapp/node_modules
 miniapp/dist
+miniapp/screenshots
+miniapp/test-results
+
+# Local working state outside Git: the owner's live run and agent worktrees hold
+# their own builds, databases and settings, none of which belongs in an image.
+.live/
+.claude/

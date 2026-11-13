@@ -5,7 +5,8 @@
 # The Mini App (MINI_APP 13.1): built from the frozen lockfile with lifecycle scripts off; the
 # build fails when the bundle exceeds its budget. Served under /app/ when MINIAPP_ENABLED=true.
 FROM node:22-alpine AS miniapp
-RUN npm install --global pnpm@10
+# The version CI uses and that wrote miniapp/pnpm-lock.yaml (.github/workflows/ci.yml).
+RUN npm install --global pnpm@12.18.0
 WORKDIR /build/miniapp
 COPY miniapp/package.json miniapp/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
