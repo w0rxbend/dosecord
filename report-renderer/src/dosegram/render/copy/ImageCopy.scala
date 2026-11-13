@@ -4,6 +4,7 @@ import dosegram.render.blob.MoodReading
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
 import dosegram.render.card.MilestoneData
+import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
 import dosegram.render.chart.DoseStatus
@@ -101,6 +102,18 @@ trait ImageCopy:
   def noRecordsThisWeek: String
   def weekText(week: WeekSummary): String
   def weekDiscreet: String
+
+  // Sleep regularity (IMG-12).
+  def sleepTitle: String
+  def sleepAxisHour(hour: Int): String
+  def sleepRowDate(date: LocalDate): String
+  def sleepAverageOf(minutes: Int, nights: Int): String
+  def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String
+  def sleepLegend: String
+  def sleepGoal(minutes: Int): String
+  def sleepNoNights: String
+  def sleepText(sleep: SleepRegularityData): String
+  def sleepDiscreet: String
 
   // Milestone (IMG-14).
   def milestoneLabel(milestone: MilestoneData): String

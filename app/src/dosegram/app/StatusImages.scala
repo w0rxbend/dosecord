@@ -5,6 +5,7 @@ import dosegram.adapter.telegram.InMemoryFileIdCache
 import dosegram.adapter.telegram.MediaStore
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.MediaKind
+import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
@@ -27,6 +28,9 @@ import dosegram.render.card.DayData
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
 import dosegram.render.card.SleepEvidence
+import dosegram.render.card.SleepNightBar
+import dosegram.render.card.SleepRegularityCard
+import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterCard
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -108,6 +112,21 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
       )
     )
     personal(DayCard.render(data, contextOf(look)))
+
+  override def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef] =
+    val data = SleepRegularityData(
+      from = view.window.start,
+      to = view.window.end,
+      bars = view.bars.map(bar => SleepNightBar(bar.date, bar.fromMinute, bar.toMinute, bar.isNap)).toVector,
+      nights = view.nights,
+      averageMinutes = view.averageMinutes,
+      bedtimeSpreadMinutes = view.bedtimeSpreadMinutes,
+      wakeSpreadMinutes = view.wakeSpreadMinutes,
+      typicalBedtime = view.typicalBedtime,
+      typicalWake = view.typicalWake,
+      goalMinutes = view.goalMinutes
+    )
+    personal(SleepRegularityCard.render(data, contextOf(look)))
 
   /** A personal card is keyed by its own bytes: the same picture is stored once, and the key says nothing. */
   private def personal(card: CardOutput): Option[AttachmentRef] =

@@ -6,6 +6,7 @@ import dosegram.render.card.DoseCounts
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MilestoneKind
 import dosegram.render.card.SleepEvidence
+import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
 import dosegram.render.chart.DoseStatus
@@ -213,6 +214,45 @@ object EnglishImageCopy extends ImageCopy:
   def mealsLogged(count: Int): String = if count == 1 then "1 meal logged" else s"$count meals logged"
   def checkInDays(count: Int): String = if count == 1 then "1 check-in day" else s"$count check-in days"
   def sleepAverage(minutes: Int): String = s"${duration(minutes)} average"
+
+  def sleepTitle: String = "Sleep"
+  def sleepAxisHour(hour: Int): String = f"$hour%02d"
+  def sleepRowDate(date: LocalDate): String = s"${weekday(date.getDayOfWeek)} ${date.getDayOfMonth}"
+
+  def sleepAverageOf(minutes: Int, nights: Int): String =
+    s"${duration(minutes)} average (${if nights == 1 then "1 night" else s"$nights nights"})"
+
+  def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String =
+    s"Bedtime varied about $bedtimeMinutes min, wake $wakeMinutes min"
+
+  def sleepLegend: String = "Your entries · n nap · dotted: typical"
+  def sleepGoal(minutes: Int): String = s"Your goal: ${duration(minutes)}"
+  def sleepNoNights: String = "No night logged in these days."
+
+  def sleepText(sleep: SleepRegularityData): String =
+    val period = s"Sleep, ${dateRange(sleep.from, sleep.to)}."
+    val days = (sleep.to.toEpochDay - sleep.from.toEpochDay).toInt + 1
+    val nights =
+      if sleep.nights == 0 then sleepNoNights
+      else
+        val count = if sleep.nights == 1 then "1 night" else s"${sleep.nights} nights"
+        val average = sleep.averageMinutes.fold("")(minutes => s": ${duration(minutes)} on average")
+        val spread = (sleep.bedtimeSpreadMinutes, sleep.wakeSpreadMinutes) match
+          case (Some(bed), Some(wake)) =>
+            s"; bedtime varied by about $bed min and wake time by about $wake min"
+          case _ => ""
+        s"$count from your check-ins and entries$average$spread."
+    val gaps = days - sleep.nights
+    val missing = Option.when(sleep.nights > 0 && gaps > 0)(
+      if gaps == 1 then "1 night has no record." else s"$gaps nights have no record."
+    )
+    val naps = sleep.bars.count(_.isNap)
+    val napLine =
+      Option.when(naps > 0)(if naps == 1 then "1 nap, not in the average." else s"$naps naps, not in the average.")
+    val goal = sleep.goalMinutes.map(minutes => s"Your goal is ${duration(minutes)}.")
+    (Vector(period, nights) ++ missing ++ napLine ++ goal).mkString(" ")
+
+  def sleepDiscreet: String = "Sleep, recent nights."
   def noRecordsThisWeek: String = "No records this week"
 
   def weekText(week: WeekSummary): String =

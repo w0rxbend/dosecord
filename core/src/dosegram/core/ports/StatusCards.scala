@@ -1,6 +1,7 @@
 package dosegram.core.ports
 
 import dosegram.contracts.AttachmentRef
+import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
 
@@ -48,6 +49,9 @@ trait StatusCards:
   def water(view: WaterCardView, look: CardLook): Option[AttachmentRef]
   def day(view: DayCardView, look: CardLook): Option[AttachmentRef]
 
+  /** IMG-12, the sleep regularity chart of the recent nights. */
+  def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef]
+
 object StatusCards:
 
   /** No renderer is wired: every flow answers with its text. */
@@ -55,3 +59,4 @@ object StatusCards:
     override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] = None
     override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] = None
     override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] = None
+    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef] = None

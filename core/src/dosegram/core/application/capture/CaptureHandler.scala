@@ -50,7 +50,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val water = WaterChat(parts.hydration, parts.cards, tokens)
   private val mood = MoodChat(parts.mood, parts.cards, tokens)
   private val stats = StatsChat(parts, tokens)
-  private val sleep = SleepChat(parts.sleep, clock, tokens)
+  private val sleep = SleepChat(parts.sleep, parts.cards, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -163,6 +163,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsShow       => stats.show(turn, value)
       case CaptureActions.SleepStart      => sleep.goingToSleep(turn)
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
+      case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
       case _                              => stale(turn)
 
@@ -188,6 +189,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.Medication(screen)    => openMedication(fresh, screen)
       case Pending.SleepCard             => sleep.card(fresh)
       case Pending.SleepTyped            => sleep.card(fresh)
+      case Pending.SleepImage            => sleep.image(fresh)
 
   /** The medication screen the consent was asked for, as its own command answers it. */
   private def openMedication(turn: Turn, screen: MedicationScreen): Reply =

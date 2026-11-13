@@ -9,6 +9,9 @@ import dosegram.core.domain.sleep.SleepKind
   */
 object SleepCopy:
   val GoingToSleep = "Going to sleep"
+  val ShowAsImage = "Show as image"
+  val imageUnavailable = "The image is not available right now. The figures above are complete."
+  val imageEmpty = "No night logged in the last 14 days, so there is nothing to draw yet."
   val ImUp = "I'm up"
   val noNight = "No night logged yet."
   val ask = "When did you sleep? Send bedtime and wake time, for example: slept 23:30 7:10."
@@ -54,5 +57,8 @@ object SleepCopy:
       CopyEntry("sleep.overlap", overlaps),
       CopyEntry("sleep.night_exists", nightExists),
       CopyEntry("sleep.invalid", invalid),
-      CopyEntry("sleep.too_short", tooShort)
+      CopyEntry("sleep.too_short", tooShort),
+      CopyEntry("sleep.image.button", ShowAsImage),
+      CopyEntry("sleep.image.unavailable", imageUnavailable),
+      CopyEntry("sleep.image.empty", imageEmpty)
     )

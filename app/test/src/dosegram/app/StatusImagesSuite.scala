@@ -4,6 +4,9 @@ import dosegram.contracts.MediaKind
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
 import dosegram.core.ports.CardLook
+import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.SleepBar
+import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.ImageTheme
@@ -71,6 +74,18 @@ class StatusImagesSuite extends munit.FunSuite:
     assert(card.altText.contains("4 entries"), card.altText)
     assertEquals(rig.images.cards.water(water, light).map(_.assetKey), Some(card.assetKey), "the same day is the same key")
     assertNotEquals(rig.images.cards.water(water.copy(totalMl = 1500), light).map(_.assetKey), Some(card.assetKey))
+
+  test("the sleep regularity card is personal, behind a spoiler in discreet mode, and states its source"):
+    val rig = Rig(CountingRasteriser())
+    val window = DateRange.endingOn(today, 14)
+    val figures = SleepRegularityFigures(window, List(SleepBar(today, 330, 780, isNap = false)), 1, None, None, None, None, None, Some(450))
+    val card = rig.images.cards.sleep(figures, light).get
+    assert(card.assetKey.matches("card\\.[0-9a-f]{64}"), card.assetKey)
+    assertEquals(card.hasSpoiler, false)
+    assert(card.altText.startsWith("Sleep, 31 Oct to 13 Nov. 1 night from your check-ins and entries."), card.altText)
+    assert(card.altText.contains("Your goal is 7 h 30 min."), card.altText)
+    val discreet = CardLook(ImageTheme.Dark, isDiscreet = true)
+    assertEquals(rig.images.cards.sleep(figures, discreet).map(_.hasSpoiler), Some(true))
 
   test("the daily summary states the doses with the product's status words, and leaves out an absent domain"):
     val rig = Rig(CountingRasteriser())

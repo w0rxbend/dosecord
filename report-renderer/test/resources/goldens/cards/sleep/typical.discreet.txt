@@ -1,0 +1,5 @@
+file: dosegram-sleep.png
+spoiler: true
+caption: Sleep, recent nights.
+alt: Sleep, 30 Oct to 12 Nov. 12 nights from your check-ins and entries: 7 h 05 min on average; bedtime varied by about 35 min and wake time by about 22 min. 2 nights have no record. 1 nap, not in the average. Your goal is 7 h 30 min.
+full: Sleep, 30 Oct to 12 Nov. 12 nights from your check-ins and entries: 7 h 05 min on average; bedtime varied by about 35 min and wake time by about 22 min. 2 nights have no record. 1 nap, not in the average. Your goal is 7 h 30 min.

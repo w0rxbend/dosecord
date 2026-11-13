@@ -19,6 +19,7 @@ import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.sleep.SleepKind
+import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
@@ -53,6 +54,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
     val moods: mutable.ListBuffer[MoodCardView] = mutable.ListBuffer.empty
     val waters: mutable.ListBuffer[WaterCardView] = mutable.ListBuffer.empty
     val days: mutable.ListBuffer[DayCardView] = mutable.ListBuffer.empty
+    val sleeps: mutable.ListBuffer[SleepRegularityFigures] = mutable.ListBuffer.empty
     val looks: mutable.ListBuffer[CardLook] = mutable.ListBuffer.empty
 
     private def image(key: String): Option[AttachmentRef] =
@@ -72,6 +74,11 @@ class CaptureFlowsSuite extends munit.FunSuite:
       days += view
       looks += look
       image("day")
+
+    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[AttachmentRef] =
+      sleeps += view
+      looks += look
+      image("sleep")
 
   /** The tables behind the rig's transaction, as the tests inspect them. */
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
@@ -372,6 +379,22 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.tapOn(SleepCopy.started("03:00"), "Undo")
       assertEquals(chat.rig.command("sleep"), List(SleepCopy.noNight))
       chat.world.tracking.sleep.live.foreach(night => fail(s"no night: $night"))
+
+  test("Show as image sends the regularity chart of 14 days, after the image consent, with the figures as caption"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Sleep, ConsentPurpose.ImagesInChat)
+      assertEquals(chat.rig.command("sleep"), List(SleepCopy.noNight), "no image before a night exists")
+      chat.rig.line("slept 23:30 7:10")
+      val card = "Slept 23:30 to 07:10, 7 h 40 min (your entry)."
+      assertEquals(chat.rig.command("sleep"), List(card))
+      val sent = chat.rig.tapOn(card, SleepCopy.ShowAsImage)
+      val figures = cards.sleeps.toList
+      assertEquals(figures.map(view => (view.window.days, view.nights, view.bars.size)), List((14, 1, 1)))
+      assertEquals(
+        texts(sent),
+        List("Sleep: 1 night logged · 9 more nights for an average · your check-ins · 1 of 14 days have data")
+      )
 
   test("a typed night is the latest night with those clock times; a typed length is not guessed"):
     withChat(Profile.Telegram): chat =>

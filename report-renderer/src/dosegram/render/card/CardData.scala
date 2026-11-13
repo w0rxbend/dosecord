@@ -98,3 +98,22 @@ enum MilestoneKind:
 
 /** IMG-14. */
 final case class MilestoneData(kind: MilestoneKind, count: Int)
+
+/** IMG-12: one episode on the 18:00 to 18:00 axis of its sleep day, in minutes after 18:00 of the evening before. */
+final case class SleepNightBar(date: LocalDate, fromMinute: Int, toMinute: Int, isNap: Boolean)
+
+/** IMG-12, `card.sleep.regularity.v1`: the episodes of a window and the figures under them. A figure is absent below
+  * its gate. The typical times are clock minutes after local midnight. Every episode here is the user's own entry.
+  */
+final case class SleepRegularityData(
+    from: LocalDate,
+    to: LocalDate,
+    bars: Vector[SleepNightBar],
+    nights: Int,
+    averageMinutes: Option[Int],
+    bedtimeSpreadMinutes: Option[Int],
+    wakeSpreadMinutes: Option[Int],
+    typicalBedtime: Option[Int],
+    typicalWake: Option[Int],
+    goalMinutes: Option[Int]
+)

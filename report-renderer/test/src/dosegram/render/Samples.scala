@@ -217,4 +217,59 @@ object Samples:
     Fixture("milestone/first-year", context => Vector(MilestoneCard.render(MilestoneData(MilestoneKind.FirstYear, 1), context)))
   )
 
-  val all: Vector[Fixture] = moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones
+  private val SleepFrom = Today.minusDays(13)
+
+  // Bedtimes from 22:45 to 00:30 and wake times from 06:30 to 07:45 (330 to 435 and 750 to 825 on the axis), two
+  // nights without a record and one nap.
+  private val sleepBars: Vector[SleepNightBar] =
+    Vector.tabulate(14)(index => index).filterNot(Set(4, 9)).map { index =>
+      SleepNightBar(SleepFrom.plusDays(index.toLong), 285 + (index * 37) % 105, 750 + (index * 23) % 75, isNap = false)
+    } :+ SleepNightBar(Today.minusDays(2), 1200, 1230, isNap = true)
+
+  private val sleepTypical = SleepRegularityData(
+    SleepFrom,
+    Today,
+    sleepBars,
+    nights = 12,
+    averageMinutes = Some(425),
+    bedtimeSpreadMinutes = Some(35),
+    wakeSpreadMinutes = Some(22),
+    typicalBedtime = Some(23 * 60 + 30),
+    typicalWake = Some(7 * 60 + 5),
+    goalMinutes = Some(450)
+  )
+
+  val sleeps: Vector[Fixture] = Vector(
+    Fixture("sleep/typical", context => Vector(SleepRegularityCard.render(sleepTypical, context))),
+    Fixture(
+      "sleep/few",
+      context =>
+        Vector(
+          SleepRegularityCard.render(
+            sleepTypical.copy(
+              bars = sleepBars.takeRight(3),
+              nights = 2,
+              averageMinutes = None,
+              bedtimeSpreadMinutes = None,
+              wakeSpreadMinutes = None,
+              typicalBedtime = None,
+              typicalWake = None,
+              goalMinutes = None
+            ),
+            context
+          )
+        )
+    ),
+    Fixture(
+      "sleep/empty",
+      context =>
+        Vector(
+          SleepRegularityCard.render(
+            SleepRegularityData(SleepFrom, Today, Vector.empty, 0, None, None, None, None, None, None),
+            context
+          )
+        )
+    )
+  )
+
+  val all: Vector[Fixture] = moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps

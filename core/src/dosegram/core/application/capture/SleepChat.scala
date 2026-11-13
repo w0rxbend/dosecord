@@ -13,6 +13,10 @@ import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
+import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.SleepRegularity
+import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.sleep.ClockNights
 import dosegram.core.domain.sleep.Quality
 import dosegram.core.domain.sleep.SleepEpisode
@@ -20,7 +24,9 @@ import dosegram.core.domain.sleep.SleepInvalid
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.domain.sleep.SleepText
 import dosegram.core.ports.Clock
+import dosegram.core.ports.StatusCards
 
+import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
 
@@ -28,7 +34,7 @@ import java.util.UUID
   * the typed night or nap. Sleep is what the user said it was: an "I'm up" without an open night records no night and
   * asks for the times. Nothing here reads Telegram presence.
   */
-private[capture] final class SleepChat(sleep: SleepService, clock: Clock, tokens: Tokens):
+private[capture] final class SleepChat(sleep: SleepService, cards: StatusCards, clock: Clock, tokens: Tokens):
 
   /** Where sleep stands: the open check-in or the latest night, and the one button that fits. */
   def card(turn: Turn): Reply =
@@ -39,8 +45,27 @@ private[capture] final class SleepChat(sleep: SleepService, clock: Clock, tokens
           turn.show(turn.message("sleep.card", List(SleepCopy.started(turn.localTime(open.occurredAt))), rows))
         case None =>
           val line = status.latestNight.fold(SleepCopy.noNight)(sleptLine(turn, _))
-          val rows = List(List(button(turn, CaptureActions.SleepStart, SleepCopy.GoingToSleep)))
+          val image =
+            Option.when(status.latestNight.nonEmpty)(button(turn, CaptureActions.SleepImage, SleepCopy.ShowAsImage))
+          val rows = List(button(turn, CaptureActions.SleepStart, SleepCopy.GoingToSleep) :: image.toList)
           turn.show(turn.message("sleep.card", List(line), rows))
+
+  /** IMG-12 for the last 14 sleep days, sent as a new photo with the figures of `/stats` as its caption. */
+  def image(turn: Turn): Reply =
+    answered(turn, sleep.status(turn.tx, turn.accountId)): status =>
+      val today = LocalDate.ofInstant(clock.now(), status.zone)
+      val window = DateRange.endingOn(today, SleepRegularity.WindowDays)
+      val episodes = turn.tx.tracking.sleep.liveEpisodes(turn.accountId, window)
+      val figures = SleepRegularity.view(episodes, window, status.goalMinutes)
+      StatsCopy.sleep(SleepStats.period(SleepStats.byDay(episodes), window)) match
+        case None          => turn.toast(SleepCopy.imageEmpty)
+        case Some(caption) =>
+          cards.sleep(figures, turn.look) match
+            case Some(attachment) =>
+              Reply(followUps =
+                List(turn.message("sleep.image", List(caption), Nil).copy(attachment = Some(attachment)))
+              )
+            case None => turn.toast(SleepCopy.imageUnavailable)
 
   def goingToSleep(turn: Turn): Reply =
     answered(turn, sleep.goingToSleep(turn.tx, input(turn))): started =>
