@@ -39,8 +39,9 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-13, after two rounds of parallel tracks were
-merged and wired together (the second: input, sleep, images, Mini App).
+State of `main` on 2026-11-14, after three rounds of parallel tracks were
+merged and wired together (the third: durable inbox, images in the container,
+Mini App production).
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -48,14 +49,18 @@ Appendix B and its status notes are the record; this is the short form.
   and `scripts/traceability-check.sh` do not exist.
 - Telegram (`adapter-telegram`, ADR-019): a hand-written Bot API client behind
   a transport seam, a fake wire, long polling, flood control. `app` selects it
-  from the settings. No webhook endpoint and no durable inbox (G1.7).
+  from the settings. Long polling and the webhook endpoint
+  `POST /tg/webhook/{path_secret}` (`TELEGRAM_UPDATES_MODE=webhook`) both
+  store each update in `inbound_inbox` (V3, ADR-017) before acknowledging it;
+  `InboxProcessor` applies each chat's updates in order (G1.7).
 - Images (`report-renderer`, `report-renderer.resvg`, ADR-022): cards are drawn
   from a scene tree through SVG and a resvg child process, each with a text
   equivalent. `app` draws the mood, water and daily summary cards and keeps
   their bytes in `render_assets` for at most one hour and their file ids in
   `telegram_file_cache`; it needs `RESVG_PATH` and `RENDER_FONTS_DIR`, and
   without them every image is sent as its text. The container image has
-  resvg and the fonts (built from the pinned 0.49.0 source). Chat images follow the image theme and discreet
+  resvg 0.49.0 (built from its pinned source) and the font pack, checked by
+  `scripts/image-render-check.sh`. Chat images follow the image theme and discreet
   mode set in the Mini App; a discreet personal card goes behind a spoiler.
   The sleep regularity card (IMG-12) is sent from `/sleep`.
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep
@@ -83,7 +88,9 @@ Appendix B and its status notes are the record; this is the short form.
   Sessions and idempotency records are rows of `miniapp_sessions` and
   `idempotency_keys`. Screens: Today, medications, Log, water, mood, sleep,
   Insights, history and day detail, settings. The app records and withdraws
-  no consent; dose actions over HTTP do not exist.
+  no consent; dose actions over HTTP do not exist. The container image
+  serves the built Mini App, `docs/DEPLOY_MINIAPP.md` is the deploy guide,
+  and `pnpm --dir miniapp run e2e` is the browser suite (G3.12).
 
 Every slice these touch is `building`, none is `green`. No Telegram bot token
 exists: everything is built and tested against the fake wire and hand-written
@@ -94,10 +101,10 @@ Useful next, in this order:
 
 1. Owner: a staging bot (OA-4). Then G1.1 (replace the hand-written fixtures
    and error strings with recordings), live smoke LS-1 for G1.6, and G1.3.
-2. `docker/Dockerfile`: the resvg build stage, the font pack and the built
-   Mini App, then the image gate with rendering on (G1.2, G1.9).
-3. G1.7: the durable inbox and the webhook endpoint. It also closes the window
-   in which a polled update is lost when the process dies.
+2. The image gate with rendering on, now that the Dockerfile has the resvg
+   stage, the font pack and the built Mini App (G1.2, G1.9).
+3. What G1.7 left open: live smoke LS-2 after G1.8 and OA-6, OA-7; TG-05
+   under load; rotation with two header secrets.
 4. Sleep: the bedtime and morning touchpoints (G7.2), "Adjust times", nap
    check-ins, and the weekly card (G9.1, G9.2), which sleep would join.
 5. What the consent and store work of 2026-11-13 left open: the rest of
