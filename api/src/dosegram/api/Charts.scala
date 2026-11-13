@@ -1,5 +1,6 @@
 package dosegram.api
 
+import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DayPoint
@@ -7,6 +8,7 @@ import dosegram.core.domain.insights.DoseBuckets
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MoodDay
+import dosegram.core.domain.insights.SleepNight
 
 /** The chart layouts of the Mini App (MINI_APP section 7.11, "Chart choice per metric"): water as bars from zero with
   * the user's own goal as a dashed line, mood as the line of the daily mean with gaps, dose outcomes as one stacked bar
@@ -84,6 +86,46 @@ object Charts:
     points.flatMap(_.value).map(_.goalMl).distinct match
       case List(Some(goal)) => Some(goal)
       case _                => None
+
+  /** Sleep as bars of duration from zero per sleep day, with the user's own goal as a dashed line when there is one. No
+    * reference duration is drawn (MINI_APP MA-SLEEP-4); every figure names its source (MA-SLEEP-1).
+    */
+  def sleepByDay(points: List[DayPoint[SleepNight]], window: DateRange, goalMinutes: Option[Int]): Chart =
+    val top = (goalMinutes.toList ++ points.flatMap(_.value.map(_.minutes))).maxOption.getOrElse(1) * 1.1
+    val columns = Columns(AxisWidth, points.size)
+    def yOf(minutes: Int): Double = PlotHeight - minutes / top * PlotHeight
+    val bars = points.zipWithIndex.collect { case (DayPoint(_, Some(night)), index) =>
+      val box = Box(columns.barStart(index), yOf(night.minutes), columns.barWidth, PlotHeight - yOf(night.minutes))
+      rect(box, SceneTone.Sleep)
+        .copy(radius = Some(rounded(Math.min(2.0, columns.barWidth / 4))), mark = Some(index))
+    }
+    val goalLine = goalMinutes.toList.flatMap: minutes =>
+      List(
+        line(Point(AxisWidth, yOf(minutes)), Point(Width, yOf(minutes)), SceneTone.Muted)
+          .copy(style = Some(SceneStyle.Dashed)),
+        label(Point(0, yOf(minutes) + 4), f"${minutes / 60} h ${minutes % 60}%02d", SceneAnchor.Start)
+      )
+    val recorded = points.flatMap(_.value)
+    val goal = goalMinutes.fold("")(minutes => s" Your goal: ${StatsCopy.duration(minutes)}.")
+    def nightOf(point: DayPoint[SleepNight]): String =
+      point.value.fold("no night logged")(night => StatsCopy.duration(night.minutes))
+    Chart(
+      id = "sleep-by-day",
+      title = "Sleep per night",
+      summary = s"Sleep per night, ${ApiCopy.rangeLabel(window)}, from your check-ins. " +
+        s"Nights logged on ${recorded.size} of ${points.size} days.$goal",
+      scene = Scene(
+        Width,
+        PlotHeight + LabelRoom,
+        bars ++ goalLine ++ frame(points, AxisWidth) ++ points.indices.map(columns.hit)
+      ),
+      table = ChartTable(
+        "Sleep per night",
+        List("Day", "Sleep"),
+        points.map(point => List(ApiCopy.dayLabel(point.date), nightOf(point).capitalize))
+      ),
+      marks = points.map(point => s"${ApiCopy.dayLabel(point.date)}: ${nightOf(point)}")
+    )
 
   def moodByDay(points: List[DayPoint[MoodDay]], window: DateRange): Chart =
     val columns = Columns(MoodLabelWidth, points.size)

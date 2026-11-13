@@ -117,6 +117,25 @@ export class MockBackend implements ApiClient {
       return result;
     });
 
+  sleepSummary: ApiClient['sleepSummary'] = () => this.respond('sleep/summary', () => this.tracking.sleep.summary());
+
+  sleepEpisodes: ApiClient['sleepEpisodes'] = (from, to) =>
+    this.respond('sleep/episodes', () => this.tracking.sleep.episodesIn(from, to));
+
+  addSleep: ApiClient['addSleep'] = (input, key) =>
+    this.respond('sleep/episodes:create', () => this.once(key, () => this.tracking.sleep.add(input)));
+
+  removeSleep: ApiClient['removeSleep'] = (id) =>
+    this.respond('sleep/episodes/{id}:delete', () => this.tracking.sleep.remove(id));
+
+  sleepCheckIn: ApiClient['sleepCheckIn'] = (kind, key) =>
+    this.respond('sleep/checkins:create', () => this.once(key, () => this.tracking.sleep.checkIn(kind)));
+
+  sleepSettings: ApiClient['sleepSettings'] = () => this.respond('sleep/settings', () => this.tracking.sleep.settings());
+
+  saveSleepSettings: ApiClient['saveSleepSettings'] = (goalMinutes, version) =>
+    this.respond('sleep/settings:update', () => this.tracking.sleep.saveSettings(goalMinutes, version));
+
   waterSummary: ApiClient['waterSummary'] = () => this.respond('hydration/summary', () => this.tracking.waterSummary());
 
   waterEntries: ApiClient['waterEntries'] = (from, to) =>

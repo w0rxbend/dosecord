@@ -137,6 +137,10 @@
     background: var(--dg-domain-hydration);
   }
 
+  .cell.value.sleep::before {
+    background: var(--dg-domain-sleep);
+  }
+
   .cell.value.mood {
     color: var(--cell-ink, var(--dg-text));
   }

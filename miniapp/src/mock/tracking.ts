@@ -29,6 +29,7 @@ import blobAsset from './blob-states.json';
 import { HYDRATION_GOAL_ML, HYDRATION_PRESETS_ML, WATER_SEED } from './data';
 import { addDays, formatDate, toTime } from './dates';
 import { lastDays, moodLine, seeded, waterBars } from './scenes';
+import { duration, MockSleep } from './sleep';
 
 const VALENCE = ['Very unpleasant', 'Unpleasant', 'Neutral', 'Pleasant', 'Very pleasant'];
 const ENERGY = ['Very low', 'Low', 'Medium', 'High', 'Very high'];
@@ -71,7 +72,8 @@ interface StoredMood extends MoodCheckin {
 }
 
 export class MockTracking {
-  private readonly consented = new Set<Domain>(['medication', 'hydration', 'mood']);
+  private readonly consented = new Set<Domain>(['medication', 'hydration', 'mood', 'sleep']);
+  readonly sleep: MockSleep;
   private water: StoredWater[] = [];
   private moods: StoredMood[] = [];
   private goals: { from: LocalDate; goalMl: number | undefined }[] = [];
@@ -96,6 +98,7 @@ export class MockTracking {
     private readonly minute: () => number,
     withHistory: boolean,
   ) {
+    this.sleep = new MockSleep(today, minute, () => this.gate('sleep'), withHistory);
     if (withHistory) this.seed();
   }
 
@@ -353,12 +356,12 @@ export class MockTracking {
       monthLabel: formatDate(first, { month: 'long', year: 'numeric' }),
       previousMonth: previous,
       nextMonth: next <= today.slice(0, 7) ? next : undefined,
-      steps: domain === 'medication' ? 3 : domain === 'hydration' ? 4 : 5,
+      steps: STEPS[domain],
       weekStart: 1,
       days,
       legend: LEGENDS[domain],
       summary: `${monthName}${shown === today.slice(0, 7) ? ' so far' : ''}: ${valued.length === 0 ? 'nothing recorded' : `records on ${count(valued.length, 'day')}`}.`,
-      domains: (['medication', 'hydration', 'mood'] as const).filter((candidate) => this.consented.has(candidate)),
+      domains: (['medication', 'hydration', 'mood', 'sleep'] as const).filter((candidate) => this.consented.has(candidate)),
     };
   }
 
@@ -376,6 +379,16 @@ export class MockTracking {
       if (day.entries === 0) return empty('no entry');
       const step = day.percent === undefined ? undefined : Math.max(1, Math.min(4, Math.floor((day.percent + 24) / 25)));
       return { date, swatch: { state: 'value', step, hasNoRecord: false }, name: `${prefix}, ${day.text}`, value: litres(day.totalMl) };
+    }
+    if (domain === 'sleep') {
+      const minutes = this.sleep.minutesOn(date);
+      if (minutes === undefined) return empty('no night logged');
+      return {
+        date,
+        swatch: { state: 'value', step: 1, hasNoRecord: false },
+        name: `${prefix}, ${duration(minutes)}, your check-ins`,
+        value: `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
+      };
     }
     if (domain === 'mood') {
       const checkins = this.moodsOn(date);
@@ -445,6 +458,7 @@ export class MockTracking {
       ['medication', 'Medication', '/meds'],
       ['hydration', 'Water', '/water'],
       ['mood', 'Mood', '/mood'],
+      ['sleep', 'Sleep', '/sleep'],
     ];
     return {
       items: [
@@ -468,7 +482,13 @@ export class MockTracking {
   }
 }
 
+const STEPS: Readonly<Record<Domain, number>> = { medication: 3, hydration: 4, mood: 5, sleep: 1 };
+
 const LEGENDS: Readonly<Record<Domain, InsightCalendar['legend']>> = {
+  sleep: [
+    { label: 'Night logged', swatch: { state: 'value', step: 1, hasNoRecord: false } },
+    { label: 'No night logged', swatch: { state: 'empty', hasNoRecord: false } },
+  ],
   medication: [
     { label: 'All taken', swatch: { state: 'value', step: 3, hasNoRecord: false } },
     { label: 'Some taken', swatch: { state: 'value', step: 2, hasNoRecord: false } },

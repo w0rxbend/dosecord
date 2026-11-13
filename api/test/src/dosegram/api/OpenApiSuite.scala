@@ -46,6 +46,13 @@ final class OpenApiSuite extends munit.FunSuite:
     "POST /api/v1/mood/checkins",
     "DELETE /api/v1/mood/checkins/{id}",
     "GET /api/v1/mood/summary",
+    "GET /api/v1/sleep/episodes",
+    "POST /api/v1/sleep/episodes",
+    "DELETE /api/v1/sleep/episodes/{id}",
+    "POST /api/v1/sleep/checkins",
+    "GET /api/v1/sleep/settings",
+    "PATCH /api/v1/sleep/settings",
+    "GET /api/v1/sleep/summary",
     "GET /api/v1/insights/calendar",
     "GET /api/v1/insights/overview"
   )

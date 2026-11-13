@@ -21,6 +21,10 @@ import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodRemoved
 import dosegram.core.application.mood.MoodService
 import dosegram.core.application.mood.SetEnergy
+import dosegram.core.application.sleep.EnterSleep
+import dosegram.core.application.sleep.SleepRecorded
+import dosegram.core.application.sleep.SleepRefusal
+import dosegram.core.application.sleep.SleepService
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.StatsPeriod
@@ -46,6 +50,7 @@ final class TransactionalTracking(val uow: UnitOfWork, clock: Clock, ids: IdSour
   val hydrationService: HydrationService = HydrationService(clock, ids)
   val moodService: MoodService = MoodService(clock, ids)
   val statsService: StatsQueryService = StatsQueryService(rollups, clock)
+  val sleepService: SleepService = SleepService(clock, ids)
 
   object water:
     def log(command: LogWater): Either[HydrationRefusal, WaterLogged] =
@@ -68,6 +73,12 @@ final class TransactionalTracking(val uow: UnitOfWork, clock: Clock, ids: IdSour
       uow.transaction(moodService.day(_, accountId, day))
     def undo(accountId: UUID, checkinId: UUID): Either[MoodRefusal, MoodRemoved] =
       uow.transaction(moodService.undo(_, accountId, checkinId))
+
+  object sleeps:
+    def enter(command: EnterSleep): Either[SleepRefusal, SleepRecorded] =
+      uow.transaction(sleepService.enter(_, command))
+    def setGoal(accountId: UUID, targetMinutes: Option[Int]): Either[SleepRefusal, Option[Int]] =
+      uow.transaction(sleepService.setGoal(_, accountId, targetMinutes))
 
   object stats:
     def medication(accountId: UUID, period: StatsPeriod): Either[StatsRefusal, MedicationPeriodView] =

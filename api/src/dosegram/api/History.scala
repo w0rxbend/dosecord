@@ -1,6 +1,7 @@
 package dosegram.api
 
 import dosegram.core.domain.copy.MoodLabels
+import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseBuckets
@@ -8,6 +9,7 @@ import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MoodDay
+import dosegram.core.domain.insights.SleepNight
 import dosegram.core.domain.mood.MoodLevel
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -64,6 +66,8 @@ final class History(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
         read(tracking.stats.hydrationCalendar(tx, accountId, _).left.map(Refusals.of)).map(WaterCells(_))
       case InsightDomain.Mood =>
         read(tracking.stats.moodCalendar(tx, accountId, _).left.map(Refusals.of)).map(MoodCells(_))
+      case InsightDomain.Sleep =>
+        read(tracking.stats.sleepCalendar(tx, accountId, _).left.map(Refusals.of)).map(SleepCells(_))
 
   private def consented(tx: Tx, accountId: UUID): List[InsightDomain] =
     InsightDomain.values.toList.filter(domain => tx.consents.isGranted(accountId, purposeOf(domain)))
@@ -75,6 +79,7 @@ object History:
     case InsightDomain.Medication => ConsentPurpose.Medication
     case InsightDomain.Hydration  => ConsentPurpose.Hydration
     case InsightDomain.Mood       => ConsentPurpose.Mood
+    case InsightDomain.Sleep      => ConsentPurpose.Sleep
 
   /** `YYYY-MM`, not after the current month; absent is the current month. */
   private def monthOf(month: Option[String], current: YearMonth): Either[ApiFailure, YearMonth] =
@@ -206,4 +211,25 @@ object History:
       else
         val checkins = days.values.map(_.n).sum
         s"${period(month, isCurrent)}: ${ApiCopy.count(checkins, "check-in")} on ${ApiCopy.count(days.size, "day")}."
+
+  // One step only: a ramp of durations would be a reference value, and none exists for sleep (MINI_APP MA-SLEEP-4).
+  private final case class SleepCells(days: Map[LocalDate, SleepNight]) extends Cells:
+    val steps = 1
+    protected val emptyWords = "no night logged"
+
+    protected def recorded(date: LocalDate): Option[(CalendarSwatch, String, String)] =
+      days
+        .get(date)
+        .map: night =>
+          val words = s"${StatsCopy.duration(night.minutes)}, ${StatsCopy.SleepSource}"
+          (CalendarSwatch(CalendarCellState.Value, Some(1)), words, f"${night.minutes / 60}:${night.minutes % 60}%02d")
+
+    val legend: List[CalendarLegendEntry] = List(
+      CalendarLegendEntry("Night logged", CalendarSwatch(CalendarCellState.Value, Some(1))),
+      CalendarLegendEntry("No night logged", Empty)
+    )
+
+    def summary(month: YearMonth, isCurrent: Boolean): String =
+      if days.isEmpty then s"${period(month, isCurrent)}: no night logged."
+      else s"${period(month, isCurrent)}: ${ApiCopy.count(days.size, "night")} logged, from your check-ins."
 end History

@@ -170,6 +170,7 @@ export type SceneColour =
   | 'domain-medication'
   | 'domain-hydration'
   | 'domain-mood'
+  | 'domain-sleep'
   | 'recorded'
   | 'text'
   | 'text-muted'
@@ -248,7 +249,7 @@ export interface Chart {
 }
 
 export interface InsightBlock {
-  readonly id: 'medication' | 'hydration' | 'mood';
+  readonly id: Domain;
   readonly title: string;
   /** Headline, comparison and other lines, all in the server's words. */
   readonly lines: readonly string[];
@@ -274,7 +275,7 @@ export interface InsightsOverview {
 // ---------- tracking domains (MINI_APP 7.7, 7.9, 7.12) ----------
 // Amounts are whole millilitres, the stored unit (MA-HYD-3). Every sentence is the server's.
 
-export type Domain = 'medication' | 'hydration' | 'mood';
+export type Domain = 'medication' | 'hydration' | 'mood' | 'sleep';
 
 /** A read of a domain whose consent is missing: the screen shows "turned off", not an error. */
 export const OFF = 'off';
@@ -420,6 +421,68 @@ export interface MoodSummaryDay {
 export interface MoodSummary {
   readonly today: MoodDay;
   readonly days: readonly MoodSummaryDay[];
+}
+
+// ---------- sleep (MINI_APP 7.10) ----------
+// Every value carries its source in words (MA-SLEEP-1); no score and no reference duration (MA-SLEEP-3, MA-SLEEP-4).
+
+export type SleepKind = 'night' | 'nap';
+
+export interface SleepEpisode {
+  readonly id: string;
+  readonly kind: SleepKind;
+  /** The sleep day: the local date on which the episode ended. */
+  readonly date: LocalDate;
+  readonly onsetAt: string;
+  readonly wakeAt: string;
+  readonly bedtime: LocalTime;
+  readonly wakeTime: LocalTime;
+  readonly minutes: number;
+  readonly duration: string;
+  readonly source: string;
+  readonly text: string;
+  readonly quality?: number;
+}
+
+export interface SleepEpisodeInput {
+  readonly kind: SleepKind;
+  /** Instants, ISO 8601 with offset. */
+  readonly onsetAt: string;
+  readonly wakeAt: string;
+}
+
+export type SleepCheckinKind = 'going_to_sleep' | 'awake';
+
+export interface SleepStatus {
+  readonly text: string;
+  /** The clock time of an open "Going to sleep"; the primary button is then "I'm up". */
+  readonly openSince?: LocalTime;
+  readonly lastNight?: SleepEpisode;
+  readonly goalMinutes?: number;
+  readonly goalText?: string;
+  /** "I'm up" found no open night: nothing is guessed, the night is asked (R-SLP-4). */
+  readonly needsBedtime: boolean;
+}
+
+export interface SleepSettings {
+  readonly goalMinutes?: number;
+  readonly limits: { readonly goalMinMinutes: number; readonly goalMaxMinutes: number };
+  readonly version: number;
+}
+
+export interface SleepSummaryDay {
+  readonly date: LocalDate;
+  readonly label: string;
+  readonly name: string;
+  readonly minutes?: number;
+}
+
+export interface SleepSummary {
+  readonly status: SleepStatus;
+  readonly lines: readonly string[];
+  readonly days: readonly SleepSummaryDay[];
+  readonly chart?: Chart;
+  readonly noDataText?: string;
 }
 
 export interface CalendarSwatch {

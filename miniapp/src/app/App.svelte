@@ -34,6 +34,7 @@
   const waterSettings = () => import('../screens/water/WaterSettingsScreen.svelte');
   const mood = () => import('../screens/mood/MoodScreen.svelte');
   const moodNew = () => import('../screens/mood/MoodCheckInScreen.svelte');
+  const sleep = () => import('../screens/sleep/SleepScreen.svelte');
   const history = () => import('../screens/history/HistoryScreen.svelte');
   const settings = () => import('../screens/settings/SettingsScreen.svelte');
   const timeZone = () => import('../screens/settings/TimeZoneScreen.svelte');
@@ -72,6 +73,8 @@
         <Lazy load={mood} props={{}} />
       {:else if route.screen === 'mood-new'}
         <Lazy load={moodNew} props={{}} />
+      {:else if route.screen === 'sleep'}
+        <Lazy load={sleep} props={{}} />
       {:else if route.screen === 'history'}
         <Lazy load={history} props={{}} />
       {:else if route.screen === 'day'}

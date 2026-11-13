@@ -16,7 +16,7 @@
     readonly assets?: MoodAssets;
   }
 
-  const DOMAINS: readonly Domain[] = ['medication', 'hydration', 'mood'];
+  const DOMAINS: readonly Domain[] = ['medication', 'hydration', 'mood', 'sleep'];
   const { api, tg, router } = useApp();
 
   let domain = $state<Domain | null>(null);

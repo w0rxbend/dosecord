@@ -50,6 +50,7 @@ final class ApiModule(
   private val history = History(uow, tracking, clock)
   private val hydration = Hydration(uow, tracking)
   private val mood = Mood(uow, tracking, blobStates)
+  private val sleep = Sleep(uow, tracking, clock)
   private val accountSettings = AccountSettingsApi(uow, clock)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
@@ -297,6 +298,54 @@ final class ApiModule(
       .handle(session => (from, to) => guarded(mood.summary(session.accountId, from, to)))
   )
 
+  private val sleepEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.listSleepEpisodes
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(sleep.episodes(session.accountId, from, to))),
+    Endpoints.createSleepEpisode
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              recorded <- idempotency.once(session.accountId, parsedKey, hashOf("sleep/episodes", input)):
+                sleep.enter(session.accountId, parsedKey, input)
+            yield recorded
+    ,
+    Endpoints.deleteSleepEpisode
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(sleep.remove(session.accountId, id))),
+    Endpoints.createSleepCheckin
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              status <- idempotency.once(session.accountId, parsedKey, hashOf("sleep/checkins", input)):
+                sleep.checkIn(session.accountId, parsedKey, input)
+            yield status
+    ,
+    Endpoints.getSleepSettings
+      .handleSecurity(authenticate)
+      .handle(session =>
+        _ => guarded(sleep.settings(session.accountId).map(view => (Rendering.etag(view.version), view)))
+      ),
+    Endpoints.updateSleepSettings
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (ifMatch, input) =>
+          guarded:
+            versionOf(ifMatch)
+              .flatMap(sleep.saveSettings(session.accountId, _, input))
+              .map(view => (Rendering.etag(view.version), view))
+    ,
+    Endpoints.getSleepSummary
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(sleep.summary(session.accountId, from, to)))
+  )
+
   private val calendarEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.getInsightCalendar
       .handleSecurity(authenticate)
@@ -306,7 +355,7 @@ final class ApiModule(
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
-      hydrationEndpoints ++ moodEndpoints ++ calendarEndpoints ++ insightEndpoints :+
+      hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ calendarEndpoints ++ insightEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

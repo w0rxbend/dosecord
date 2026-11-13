@@ -84,6 +84,19 @@ function moodBlock(tracking: MockTracking, dates: readonly LocalDate[]): Insight
     : emptyBlock('mood', 'Mood');
 }
 
+function sleepBlock(tracking: MockTracking, dates: readonly LocalDate[]): InsightBlock {
+  const nights = dates.map((date) => ({ date, minutes: tracking.sleep.minutesOn(date) }));
+  const logged = nights.filter((night) => night.minutes !== undefined).length;
+  return logged > 0
+    ? {
+        id: 'sleep',
+        title: 'Sleep',
+        lines: [`${logged} nights logged`, 'your check-ins', `${logged} of ${dates.length} days have data`],
+        charts: [tracking.sleep.chart(nights)],
+      }
+    : emptyBlock('sleep', 'Sleep');
+}
+
 function emptyBlock(id: InsightBlock['id'], title: string): InsightBlock {
   return { id, title, lines: [], noDataText: 'No data in this period', charts: [] };
 }
@@ -104,6 +117,7 @@ export function buildOverview(
     blocks.push(hasHistory ? hydrationBlock(tracking, dates, rangeDays) : emptyBlock('hydration', 'Water'));
   }
   if (tracking.isOn('mood')) blocks.push(moodBlock(tracking, dates));
+  if (tracking.isOn('sleep')) blocks.push(sleepBlock(tracking, dates));
   return {
     rangeDays,
     rangeLabel: `${formatDate(dates[0]!, short)} to ${formatDate(today, short)}`,

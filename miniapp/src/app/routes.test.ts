@@ -35,6 +35,7 @@ describe('pathFromStartParam', () => {
     ['water', '/log/water'],
     ['mood', '/log/mood'],
     ['moodnew', '/log/mood/new'],
+    ['sleep', '/log/sleep'],
     ['hist', '/insights/history'],
     ['hist_20261112', '/insights/history/20261112'],
     ['settings', '/settings'],
@@ -44,8 +45,8 @@ describe('pathFromStartParam', () => {
     expect(pathFromStartParam(param)).toBe(path);
   });
 
-  // `food` and `sleep` name screens that are not enabled (MA-ROUTE-2).
-  it.each(['', 'food', 'sleep', 'water_1', 'medit_', 'medit_a/b', 'today_2026', 'hist_2026', '../meds'])('rejects %j', (param) => {
+  // `food` names a screen that is not enabled (MA-ROUTE-2).
+  it.each(['', 'food', 'water_1', 'medit_', 'medit_a/b', 'today_2026', 'hist_2026', '../meds'])('rejects %j', (param) => {
     expect(pathFromStartParam(param)).toBeNull();
   });
 });

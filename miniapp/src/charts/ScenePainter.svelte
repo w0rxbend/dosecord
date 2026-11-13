@@ -84,6 +84,7 @@
   [data-fill='domain-medication'] { fill: var(--dg-domain-medication); }
   [data-fill='domain-hydration'] { fill: var(--dg-domain-hydration); }
   [data-fill='domain-mood'] { fill: var(--dg-domain-mood); }
+  [data-fill='domain-sleep'] { fill: var(--dg-domain-sleep); }
   [data-fill='recorded'] { fill: var(--dg-recorded); }
   [data-fill='text'] { fill: var(--dg-text); }
   [data-fill='text-muted'] { fill: var(--dg-text-muted); }

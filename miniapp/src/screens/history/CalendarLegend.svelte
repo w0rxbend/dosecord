@@ -87,6 +87,10 @@
     background: var(--dg-domain-hydration);
   }
 
+  .swatch.value.sleep::before {
+    background: var(--dg-domain-sleep);
+  }
+
   .swatch.value.mood::before {
     background: var(--cell-colour, var(--dg-domain-mood));
     opacity: 1;

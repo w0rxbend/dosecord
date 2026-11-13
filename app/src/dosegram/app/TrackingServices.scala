@@ -4,6 +4,7 @@ import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.insights.RollupService
 import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.sleep.SleepService
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.UnitOfWork
@@ -17,6 +18,7 @@ import java.security.SecureRandom
 final class TrackingServices(
     val hydration: HydrationService,
     val mood: MoodService,
+    val sleep: SleepService,
     val stats: StatsQueryService,
     val rollups: RollupService
 )
@@ -29,6 +31,7 @@ object TrackingServices:
     TrackingServices(
       HydrationService(clock, ids),
       MoodService(clock, ids),
+      SleepService(clock, ids),
       StatsQueryService(rollups, clock),
       rollups
     )

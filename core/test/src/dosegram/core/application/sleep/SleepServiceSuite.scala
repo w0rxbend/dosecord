@@ -223,6 +223,15 @@ class SleepServiceSuite extends munit.FunSuite:
     assertEquals(rig.service.undoEpisode(rig.tx, account, night.id), Right(true))
     assertEquals(rig.live, Nil)
 
+  test("a delete removes a night of any age; a second delete changes nothing, an unknown night is refused"):
+    val rig = Rig()
+    val night = rig.night()
+    rig.clock.advance(Duration.ofDays(3))
+    assertEquals(rig.service.delete(rig.tx, account, night.id), Right(true))
+    assertEquals(rig.live, Nil)
+    assertEquals(rig.service.delete(rig.tx, account, night.id), Right(false))
+    assertEquals(rig.service.delete(rig.tx, account, UUID.randomUUID()), Left(SleepRefusal.UnknownEpisode))
+
   test("the goal is the user's own number inside the input bounds; it can be removed"):
     val rig = Rig()
     assertEquals(rig.service.setGoal(rig.tx, account, Some(450)), Right(Some(450)))

@@ -180,6 +180,24 @@ describe('Today screen', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('shows where sleep stands, with its source', async () => {
+    const harness = createHarness();
+    open(harness);
+
+    const sleep = await section('Sleep');
+    expect(sleep.textContent).toMatch(/Last: \d\d:\d\d to \d\d:\d\d, \d h \d\d min\./);
+    expect(within(sleep).getByText('From your check-ins')).toBeTruthy();
+  });
+
+  it('leaves sleep out when its consent is missing', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('sleep');
+    open(harness);
+
+    await screen.findByText('1.2 of 2.0 l (60%)');
+    expect(screen.queryByRole('region', { name: 'Sleep' })).toBeNull();
+  });
+
   it('carries a visible settings control', async () => {
     const harness = createHarness();
     const user = open(harness);

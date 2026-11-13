@@ -1,11 +1,23 @@
 import { unlessOff, type ApiClient } from '../../api/client';
-import { OFF, type DayLineMark, type MoodCheckin, type MoodDay, type Off, type WaterDay, type WaterEntry } from '../../api/types';
+import {
+  OFF,
+  type DayLineMark,
+  type MoodCheckin,
+  type MoodDay,
+  type Off,
+  type SleepEpisode,
+  type SleepStatus,
+  type WaterDay,
+  type WaterEntry,
+} from '../../api/types';
 import { moodAssets, type MoodAssets } from '../../state/mood-assets';
 
 /** Water and mood of one local day, next to its doses (MINI_APP 7.1, 7.13). */
 export interface DayTracking {
   readonly water: { readonly day?: WaterDay; readonly entries: readonly WaterEntry[]; readonly presetsMl: readonly number[] } | Off;
   readonly mood: { readonly day?: MoodDay; readonly checkins: readonly MoodCheckin[] } | Off;
+  /** The nights and naps whose sleep day this is; on Today, also where sleep stands now. */
+  readonly sleep: { readonly status?: SleepStatus; readonly episodes: readonly SleepEpisode[] } | Off;
   readonly assets?: MoodAssets;
 }
 
@@ -14,8 +26,20 @@ export interface DayTracking {
  * day reads its entries. A domain whose consent is missing reads as off.
  */
 export async function readTracking(api: ApiClient, date: string | undefined): Promise<DayTracking> {
-  const [water, mood] = await Promise.all([readWater(api, date), readMood(api, date)]);
-  return { water, mood, assets: mood === OFF ? undefined : await moodAssets(api) };
+  const [water, mood, sleep] = await Promise.all([readWater(api, date), readMood(api, date), readSleep(api, date)]);
+  return { water, mood, sleep, assets: mood === OFF ? undefined : await moodAssets(api) };
+}
+
+async function readSleep(api: ApiClient, date: string | undefined): Promise<DayTracking['sleep']> {
+  if (date !== undefined) {
+    const episodes = await unlessOff(api.sleepEpisodes(date, date));
+    return episodes === OFF ? OFF : { episodes };
+  }
+  const summary = await unlessOff(api.sleepSummary());
+  if (summary === OFF) return OFF;
+  const today = summary.days.at(-1)?.date;
+  const lastNight = summary.status.lastNight;
+  return { status: summary.status, episodes: lastNight && lastNight.date === today ? [lastNight] : [] };
 }
 
 async function readWater(api: ApiClient, date: string | undefined): Promise<DayTracking['water']> {

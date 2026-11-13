@@ -6,6 +6,7 @@ import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.insights.StatsRefusal
 import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.sleep.SleepService
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.MoodLevel
@@ -19,7 +20,12 @@ import java.util.zip.CRC32
 /** The use cases of the tracking domains that the API calls (ARCHITECTURE section 11.4). The composition root builds
   * them; this module never sees their storage (DEP-05). Each one checks the consent of its domain itself.
   */
-final case class TrackingUseCases(stats: StatsQueryService, hydration: HydrationService, mood: MoodService)
+final case class TrackingUseCases(
+    stats: StatsQueryService,
+    hydration: HydrationService,
+    mood: MoodService,
+    sleep: SleepService
+)
 
 /** A refusal of a use case as the problem document of ARCHITECTURE section 9.4. An account that is gone and a record of
   * another account answer like a record that does not exist (API-11).

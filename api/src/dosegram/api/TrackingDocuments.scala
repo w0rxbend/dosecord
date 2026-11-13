@@ -268,3 +268,91 @@ final case class InsightCalendar(
     nextMonth: Option[String] = None
 ) derives ReadWriter,
       Schema
+
+// ---------- sleep (MINI_APP section 7.10) ----------
+//
+// Every sleep value carries its source in words (MA-SLEEP-1). Sleep is what the user said it was: no score, no stage, no
+// efficiency and no reference duration exist here (MA-SLEEP-3, MA-SLEEP-4). A duration is the difference of instants.
+
+enum SleepEpisodeKind(val wire: String):
+  case Night extends SleepEpisodeKind("night")
+  case Nap extends SleepEpisodeKind("nap")
+
+object SleepEpisodeKind:
+  given ReadWriter[SleepEpisodeKind] = ApiJson.wireEnum(values, _.wire)
+  given Schema[SleepEpisodeKind] = Schema.derivedEnumeration[SleepEpisodeKind](encode = Some(_.wire))
+
+/** One night or nap. `date` is its sleep day, the local date on which it ended; `text` says it in one line. */
+final case class SleepEpisodeView(
+    id: UUID,
+    kind: SleepEpisodeKind,
+    date: LocalDate,
+    onsetAt: Instant,
+    wakeAt: Instant,
+    bedtime: String,
+    wakeTime: String,
+    minutes: Int,
+    duration: String,
+    source: String,
+    text: String,
+    quality: Option[Int] = None
+) derives ReadWriter,
+      Schema
+
+final case class SleepEpisodes(from: LocalDate, to: LocalDate, items: List[SleepEpisodeView]) derives ReadWriter, Schema
+
+/** A night or a nap entered after the fact, as two instants. */
+final case class SleepEpisodeInput(kind: SleepEpisodeKind, onsetAt: Instant, wakeAt: Instant) derives ReadWriter, Schema
+
+enum SleepCheckinKind(val wire: String):
+  case GoingToSleep extends SleepCheckinKind("going_to_sleep")
+  case Awake extends SleepCheckinKind("awake")
+
+object SleepCheckinKind:
+  given ReadWriter[SleepCheckinKind] = ApiJson.wireEnum(values, _.wire)
+  given Schema[SleepCheckinKind] = Schema.derivedEnumeration[SleepCheckinKind](encode = Some(_.wire))
+
+/** "Going to sleep" or "I'm up" at the moment of the request. */
+final case class SleepCheckinInput(kind: SleepCheckinKind) derives ReadWriter, Schema
+
+/** Where sleep stands now. `openSince` is the clock time of an open "Going to sleep"; `needsBedtime` is set after an
+  * "I'm up" that had no open night: nothing is guessed, the client asks for the night (R-SLP-4).
+  */
+final case class SleepStatusView(
+    text: String,
+    openSince: Option[String] = None,
+    lastNight: Option[SleepEpisodeView] = None,
+    goalMinutes: Option[Int] = None,
+    goalText: Option[String] = None,
+    needsBedtime: Boolean = false
+) derives ReadWriter,
+      Schema
+
+/** The bounds of the user's own goal; they guard input and recommend nothing. */
+final case class SleepLimits(goalMinMinutes: Int, goalMaxMinutes: Int) derives ReadWriter, Schema
+
+final case class SleepSettings(limits: SleepLimits, version: Long, goalMinutes: Option[Int] = None)
+    derives ReadWriter,
+      Schema
+
+/** The editable set: an absent goal removes the goal from today on. */
+final case class SleepSettingsInput(goalMinutes: Option[Int] = None) derives ReadWriter, Schema
+
+/** One sleep day of a range: its night in words, or that there is none. */
+final case class SleepSummaryDay(date: LocalDate, label: String, name: String, minutes: Option[Int] = None)
+    derives ReadWriter,
+      Schema
+
+/** Now, the figures of the range in the server's words, its days and their chart. `noDataText` is set, and the chart is
+  * absent, when the range has no night.
+  */
+final case class SleepSummary(
+    from: LocalDate,
+    to: LocalDate,
+    status: SleepStatusView,
+    lines: List[String],
+    days: List[SleepSummaryDay],
+    chart: Option[Chart] = None,
+    noDataText: Option[String] = None
+) derives ReadWriter,
+      Schema

@@ -17,7 +17,7 @@ import java.util.UUID
   * is active. Every line is written by the statistics copy of the core, so the app shows the sentences of the chat and
   * composes none of its own (MINI_APP section 15.1). A domain without consent is absent, not empty (PRODUCT_SPEC
   * R-IDC-9). Each block carries the charts of its days, laid out by [[Charts]]: dose outcomes and doses by day, water
-  * by day, mood by day.
+  * by day, mood by day, sleep by night.
   */
 final class Insights(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
 
@@ -34,7 +34,8 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
     val blocks = List(
       medication(tx, accountId, period, window),
       hydration(tx, accountId, period, window),
-      mood(tx, accountId, period, window)
+      mood(tx, accountId, period, window),
+      sleep(tx, accountId, period, window)
     ).flatten
     InsightsOverview(
       rangeDays = period.days,
@@ -70,6 +71,14 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
       .map: view =>
         val chart = DaySeries.of(view.days, window).shown.map(Charts.moodByDay(_, window))
         block(InsightDomain.Mood, StatsCopy.moodFigures(view.period), vessel = None, chart.toList)
+
+  private def sleep(tx: Tx, accountId: UUID, period: StatsPeriod, window: DateRange): Option[InsightBlock] =
+    for
+      view <- tracking.stats.sleep(tx, accountId, period).toOption
+      goal = tracking.sleep.status(tx, accountId).toOption.flatMap(_.goalMinutes)
+    yield
+      val chart = DaySeries.of(view.days, window).shown.map(Charts.sleepByDay(_, window, goal))
+      block(InsightDomain.Sleep, StatsCopy.sleepFigures(view.period), vessel = None, chart.toList)
 
   /** Today against the user's own goal; without a goal there is nothing to fill. */
   private def vesselOf(tx: Tx, accountId: UUID): Option[InsightVessel] =

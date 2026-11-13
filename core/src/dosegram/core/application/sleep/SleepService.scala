@@ -189,6 +189,14 @@ final class SleepService(clock: Clock, ids: IdSource):
           Left(SleepRefusal.UndoWindowPassed)
         case Some(_) => Right(tx.tracking.sleep.voidEpisode(accountId, episodeId, VoidReason.Undone, now))
 
+  /** A delete from a screen that lists nights: voids an episode of any age; `false` when it was already voided. */
+  def delete(tx: Tx, accountId: UUID, episodeId: UUID): Either[SleepRefusal, Boolean] =
+    consented(tx, accountId): _ =>
+      tx.tracking.sleep.episode(accountId, episodeId) match
+        case None          => Left(SleepRefusal.UnknownEpisode)
+        case Some(episode) =>
+          Right(episode.isLive && tx.tracking.sleep.voidEpisode(accountId, episodeId, VoidReason.Deleted, clock.now()))
+
   def status(tx: Tx, accountId: UUID): Either[SleepRefusal, SleepStatus] =
     consented(tx, accountId): zone =>
       val now = clock.now()

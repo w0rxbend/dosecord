@@ -298,6 +298,52 @@ object Endpoints:
   val getMoodSummary =
     secured.get.in("mood" / "summary").in(from).in(to).out(jsonBody[MoodSummary]).name("getMoodSummary")
 
+  // ---------- sleep ----------
+
+  val listSleepEpisodes =
+    secured.get.in("sleep" / "episodes").in(from).in(to).out(jsonBody[SleepEpisodes]).name("listSleepEpisodes")
+
+  val createSleepEpisode =
+    secured.post
+      .in("sleep" / "episodes")
+      .in(idempotencyKey)
+      .in(jsonBody[SleepEpisodeInput])
+      .out(created)
+      .out(jsonBody[SleepEpisodeView])
+      .name("createSleepEpisode")
+      .description("A night or a nap entered after the fact.")
+
+  val deleteSleepEpisode =
+    secured.delete
+      .in("sleep" / "episodes" / id)
+      .out(jsonBody[SleepStatusView])
+      .name("deleteSleepEpisode")
+      .description("Voids the episode and answers where sleep stands; a second delete answers the same.")
+
+  val createSleepCheckin =
+    secured.post
+      .in("sleep" / "checkins")
+      .in(idempotencyKey)
+      .in(jsonBody[SleepCheckinInput])
+      .out(jsonBody[SleepStatusView])
+      .name("createSleepCheckin")
+      .description("Going to sleep or I'm up, now.")
+
+  val getSleepSettings =
+    secured.get.in("sleep" / "settings").out(etag).out(jsonBody[SleepSettings]).name("getSleepSettings")
+
+  val updateSleepSettings =
+    secured.patch
+      .in("sleep" / "settings")
+      .in(ifMatch)
+      .in(jsonBody[SleepSettingsInput])
+      .out(etag)
+      .out(jsonBody[SleepSettings])
+      .name("updateSleepSettings")
+
+  val getSleepSummary =
+    secured.get.in("sleep" / "summary").in(from).in(to).out(jsonBody[SleepSummary]).name("getSleepSummary")
+
   // ---------- insights calendar ----------
 
   private given Codec[String, InsightDomain, CodecFormat.TextPlain] =
@@ -360,6 +406,13 @@ object Endpoints:
     createMoodCheckin,
     deleteMoodCheckin,
     getMoodSummary,
+    listSleepEpisodes,
+    createSleepEpisode,
+    deleteSleepEpisode,
+    createSleepCheckin,
+    getSleepSettings,
+    updateSleepSettings,
+    getSleepSummary,
     getInsightCalendar,
     insightsOverview
   )

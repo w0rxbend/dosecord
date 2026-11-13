@@ -83,6 +83,31 @@
   </section>
 {/if}
 
+{#if tracking.sleep !== OFF}
+  {@const sleep = tracking.sleep}
+  <section class="section" aria-labelledby="day-sleep">
+    <h2 class="section-title" id="day-sleep">{en.log.sleep}</h2>
+    <div class="section-body pad card">
+      {#if isToday && sleep.status}
+        <p class="figure">{sleep.status.text}</p>
+        {#if sleep.status.lastNight && sleep.status.openSince === undefined}<p class="muted">{sleep.status.lastNight.source}</p>{/if}
+      {:else if sleep.episodes.length === 0}
+        <p class="muted">{en.day.noSleep}</p>
+      {/if}
+      {#if !isToday}
+        <ul class="entries">
+          {#each sleep.episodes as episode (episode.id)}
+            <li>{episode.text} <span class="muted">({episode.source})</span></li>
+          {/each}
+        </ul>
+      {/if}
+      <div class="btn-row">
+        <a class="btn btn-tinted" href={router.hrefFor('/log/sleep')} onclick={(event) => go(event, '/log/sleep')}>{en.insights.more} ›</a>
+      </div>
+    </div>
+  </section>
+{/if}
+
 <style>
   .card {
     display: grid;

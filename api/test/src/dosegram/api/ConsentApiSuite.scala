@@ -110,4 +110,4 @@ object ConsentApiSuite:
       "getNotificationSettings",
       "updateNotificationSettings",
       "getInsightCalendar"
-    ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood"))
+    ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

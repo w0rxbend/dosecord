@@ -208,7 +208,7 @@ final class TrackingApiSuite extends ApiSuite:
     assertEquals(october.json("days").arr.count(_("swatch")("state").str == "empty"), 31)
     assertProblem(get("/api/v1/insights/calendar?domain=hydration&month=2026-12", token), 422, "validation_failed")
     assertProblem(get("/api/v1/insights/calendar?domain=hydration&month=soon", token), 422, "validation_failed")
-    assertProblem(get("/api/v1/insights/calendar?domain=sleep", token), 400, "validation_failed")
+    assertProblem(get("/api/v1/insights/calendar?domain=food", token), 400, "validation_failed")
 
   test("the mood calendar steps by the rounded daily mean with the colour of its drawn state"):
     val (_, token) = tracker(ConsentPurpose.Mood)

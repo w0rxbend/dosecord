@@ -19,8 +19,10 @@ final class CrossAccountSuite extends ApiSuite:
       medication: Reply,
       schedule: Reply,
       water: Reply,
-      checkin: Reply
+      checkin: Reply,
+      night: Reply
   ):
+    val nightId: String = night.json("id").str
     val waterId: String = water.json("entry")("id").str
     val checkinId: String = checkin.json("checkin")("id").str
     val medicationId: String = medication.json("id").str
@@ -36,28 +38,33 @@ final class CrossAccountSuite extends ApiSuite:
     assertEquals(schedule.status, 201, schedule.body)
     val water = post("/api/v1/hydration/entries", ujson.Obj("amountMl" -> 321), ownerToken, newKey())
     val checkin = post("/api/v1/mood/checkins", ujson.Obj("valence" -> 2), ownerToken, newKey())
-    assertEquals((water.status, checkin.status), (201, 201), water.body + checkin.body)
+    val onset = clock.now().minus(java.time.Duration.ofHours(9))
+    val nightBody = ujson.Obj("kind" -> "night", "onsetAt" -> onset.toString, "wakeAt" -> clock.now().minusSeconds(3600).toString)
+    val night = post("/api/v1/sleep/episodes", nightBody, ownerToken, newKey())
+    assertEquals((water.status, checkin.status, night.status), (201, 201, 201), water.body + checkin.body + night.body)
     World(
       ownerToken,
       login(trackingAccount()),
       get(s"/api/v1/medications/${medication.json("id").str}", ownerToken),
       schedule,
       water,
-      checkin
+      checkin,
+      night
     )
 
   /** An account with every consent of the routes under test, so a refusal can only come from the identifier. */
   private def trackingAccount(): ApiSuite.TelegramAccount =
     val account = telegramAccount()
-    fixtures.grant(account.accountId, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    fixtures.grant(account.accountId, ConsentPurpose.Hydration, ConsentPurpose.Mood, ConsentPurpose.Sleep)
     account
 
-  private def ownerView(): (ujson.Value, ujson.Value, ujson.Value, ujson.Value) =
+  private def ownerView(): (ujson.Value, ujson.Value, ujson.Value, ujson.Value, ujson.Value) =
     (
       get(s"/api/v1/medications/${world.medicationId}", world.ownerToken).json,
       get(s"/api/v1/schedules/${world.scheduleId}", world.ownerToken).json,
       get("/api/v1/hydration/entries", world.ownerToken).json,
-      get("/api/v1/mood/checkins", world.ownerToken).json
+      get("/api/v1/mood/checkins", world.ownerToken).json,
+      get("/api/v1/sleep/episodes", world.ownerToken).json
     )
 
   /** One case per route with an identifier: the route name and the request account B sends. */
@@ -81,7 +88,8 @@ final class CrossAccountSuite extends ApiSuite:
       post(s"/api/v1/schedules/${w.scheduleId}/state-changes", ujson.Obj("change" -> "end"), w.strangerToken, w.scheduleTag)
     ),
     "deleteHydrationEntry" -> (w => delete(s"/api/v1/hydration/entries/${w.waterId}", w.strangerToken)),
-    "deleteMoodCheckin" -> (w => delete(s"/api/v1/mood/checkins/${w.checkinId}", w.strangerToken))
+    "deleteMoodCheckin" -> (w => delete(s"/api/v1/mood/checkins/${w.checkinId}", w.strangerToken)),
+    "deleteSleepEpisode" -> (w => delete(s"/api/v1/sleep/episodes/${w.nightId}", w.strangerToken))
   )
 
   cases.foreach: (route, request) =>
@@ -106,6 +114,7 @@ final class CrossAccountSuite extends ApiSuite:
     assertEquals(get("/api/v1/medications", world.strangerToken).json("items").arr.toList, Nil)
     assertEquals(get("/api/v1/hydration/entries", world.strangerToken).json("items").arr.toList, Nil)
     assertEquals(get("/api/v1/mood/checkins", world.strangerToken).json("items").arr.toList, Nil)
+    assertEquals(get("/api/v1/sleep/episodes", world.strangerToken).json("items").arr.toList, Nil)
     assertEquals(get("/api/v1/hydration/summary", world.strangerToken).json("today")("totalMl").num.toInt, 0)
     assertEquals(get("/api/v1/mood/summary", world.strangerToken).json("today")("checkIns").num.toInt, 0)
     val calendar = get("/api/v1/insights/calendar?domain=hydration", world.strangerToken).json("days").arr

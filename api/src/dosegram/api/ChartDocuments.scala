@@ -23,6 +23,7 @@ enum SceneTone(val wire: String):
   case Medication extends SceneTone("domain-medication")
   case Hydration extends SceneTone("domain-hydration")
   case Mood extends SceneTone("domain-mood")
+  case Sleep extends SceneTone("domain-sleep")
   case Recorded extends SceneTone("recorded")
   case Ink extends SceneTone("text")
   case Muted extends SceneTone("text-muted")

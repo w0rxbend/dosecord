@@ -12,6 +12,8 @@ import {
   toMoodSummary,
   toNotificationSettings,
   toWaterSettings,
+  toSleepStatus,
+  toSleepSummary,
   toWaterSummary,
   toMedication,
   toMedicationInput,
@@ -185,6 +187,27 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       return request<Wire['MoodRecordedView']>('mood/checkins', { method: 'POST', body, headers: command(key) });
     },
     removeCheckin: (checkinId) => request<Wire['MoodDayView']>(`mood/checkins/${id(checkinId)}`, { method: 'DELETE' }),
+
+    sleepSummary: async () => toSleepSummary(await request<Wire['SleepSummary']>('sleep/summary')),
+    sleepEpisodes: async (from, to) =>
+      (await request<Wire['SleepEpisodes']>(`sleep/episodes?${range(from, to)}`)).items ?? [],
+    addSleep: (input, key) => {
+      const body: Wire['SleepEpisodeInput'] = { ...input };
+      return request<Wire['SleepEpisodeView']>('sleep/episodes', { method: 'POST', body, headers: command(key) });
+    },
+    removeSleep: async (episodeId) =>
+      toSleepStatus(await request<Wire['SleepStatusView']>(`sleep/episodes/${id(episodeId)}`, { method: 'DELETE' })),
+    sleepCheckIn: async (kind, key) => {
+      const body: Wire['SleepCheckinInput'] = { kind };
+      return toSleepStatus(
+        await request<Wire['SleepStatusView']>('sleep/checkins', { method: 'POST', body, headers: command(key) }),
+      );
+    },
+    sleepSettings: () => request<Wire['SleepSettings']>('sleep/settings'),
+    saveSleepSettings: (goalMinutes, version) => {
+      const body: Wire['SleepSettingsInput'] = { goalMinutes };
+      return request<Wire['SleepSettings']>('sleep/settings', { method: 'PATCH', body, headers: versionTag(version) });
+    },
 
     calendar: async (domain, month) => {
       const query = month === undefined ? '' : `&month=${id(month)}`;

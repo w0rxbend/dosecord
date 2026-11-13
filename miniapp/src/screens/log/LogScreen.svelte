@@ -1,6 +1,6 @@
 <script lang="ts">
   import { unlessOff } from '../../api/client';
-  import { OFF, type MoodSummary, type Off, type WaterSummary } from '../../api/types';
+  import { OFF, type MoodSummary, type Off, type SleepSummary, type WaterSummary } from '../../api/types';
   import { useApp } from '../../app/context';
   import MoodBlob from '../../charts/MoodBlob.svelte';
   import Vessel from '../../charts/Vessel.svelte';
@@ -14,6 +14,7 @@
   interface Hub {
     readonly water: WaterSummary | Off;
     readonly mood: MoodSummary | Off;
+    readonly sleep: SleepSummary | Off;
     readonly assets?: MoodAssets;
   }
 
@@ -21,23 +22,30 @@
 
   // The same reads as the domain screens; a domain whose consent is missing reads as off.
   async function read(): Promise<Hub> {
-    const [water, mood] = await Promise.all([unlessOff(api.waterSummary()), unlessOff(api.moodSummary())]);
-    return { water, mood, assets: mood === OFF ? undefined : await moodAssets(api) };
+    const [water, mood, sleep] = await Promise.all([
+      unlessOff(api.waterSummary()),
+      unlessOff(api.moodSummary()),
+      unlessOff(api.sleepSummary()),
+    ]);
+    return { water, mood, sleep, assets: mood === OFF ? undefined : await moodAssets(api) };
   }
 
   const hub = new Resource<Hub>(read);
   $effect(() => tg.onActivated(() => void hub.load()));
 
-  const off = (data: Hub): ('hydration' | 'mood')[] => [
+  const NAMES = { hydration: en.log.water, mood: en.log.mood, sleep: en.log.sleep } as const;
+
+  const off = (data: Hub): ('hydration' | 'mood' | 'sleep')[] => [
     ...(data.water === OFF ? (['hydration'] as const) : []),
     ...(data.mood === OFF ? (['mood'] as const) : []),
+    ...(data.sleep === OFF ? (['sleep'] as const) : []),
   ];
 </script>
 
 <Screen title={en.log.title}>
   <AsyncView resource={hub} loadingLabel={en.log.loading} skeletonRows={2}>
     {#snippet children(data)}
-      {#if data.water === OFF && data.mood === OFF}
+      {#if data.water === OFF && data.mood === OFF && data.sleep === OFF}
         <!-- MA-LOG-2: no optional domain is on. -->
         <div class="section">
           <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} />
@@ -67,13 +75,22 @@
               </a>
             </li>
           {/if}
+          {#if data.sleep !== OFF}
+            {@const sleep = data.sleep}
+            <li>
+              <a class="row" href={router.hrefFor('/log/sleep')} onclick={(event) => { event.preventDefault(); void router.navigate('/log/sleep'); }}>
+                <span class="text"><span class="name">{en.log.sleep}</span><span class="muted">{sleep.status.text}</span></span>
+                <span class="chevron" aria-hidden="true">›</span>
+              </a>
+            </li>
+          {/if}
         </ul>
         {#if off(data).length > 0}
           <section class="section" aria-labelledby="log-off">
             <h2 class="section-title" id="log-off">{en.log.notOn}</h2>
             <div class="section-body pad off">
               {#each off(data) as domain (domain)}
-                <p><span class="name">{domain === 'hydration' ? en.log.water : en.log.mood}</span> <span class="muted">{en.off.howTo[domain]}</span></p>
+                <p><span class="name">{NAMES[domain]}</span> <span class="muted">{en.off.howTo[domain]}</span></p>
               {/each}
               <button type="button" class="btn btn-tinted" onclick={() => router.navigate('/settings/privacy')}>{en.log.choose}</button>
             </div>

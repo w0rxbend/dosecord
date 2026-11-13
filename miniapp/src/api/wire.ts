@@ -17,6 +17,8 @@ import type {
   MoodSummary,
   NotificationSettings,
   SceneNode,
+  SleepStatus,
+  SleepSummary,
   WaterSettings,
   WaterSummary,
   Medication,
@@ -325,6 +327,22 @@ export function toBlobAsset(wire: Wire['MoodBlobStates']): BlobAsset {
 
 export function toMoodSummary(wire: Wire['MoodSummary']): MoodSummary {
   return { today: wire.today, days: wire.days ?? [] };
+}
+
+// ---------- sleep ----------
+
+export function toSleepStatus(wire: Wire['SleepStatusView']): SleepStatus {
+  return { ...wire, needsBedtime: Boolean(wire.needsBedtime) };
+}
+
+export function toSleepSummary(wire: Wire['SleepSummary']): SleepSummary {
+  return {
+    status: toSleepStatus(wire.status),
+    lines: wire.lines ?? [],
+    days: wire.days ?? [],
+    chart: wire.chart && toChart(wire.chart),
+    noDataText: wire.noDataText,
+  };
 }
 
 // ---------- calendar ----------

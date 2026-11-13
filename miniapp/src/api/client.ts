@@ -16,6 +16,12 @@ import type {
   NotificationSettings,
   NotificationSettingsInput,
   Off,
+  SleepCheckinKind,
+  SleepEpisode,
+  SleepEpisodeInput,
+  SleepSettings,
+  SleepStatus,
+  SleepSummary,
   TimeZoneChoice,
   TimeZonePreview,
   WaterDay,
@@ -99,6 +105,15 @@ export interface ApiClient {
   moodCheckins(from: LocalDate, to: LocalDate): Promise<readonly MoodCheckin[]>;
   checkIn(input: MoodCheckinInput, idempotencyKey: string): Promise<MoodRecorded>;
   removeCheckin(id: string): Promise<MoodDay>;
+
+  // sleep (MINI_APP 7.10): a write carries the key made when the person acted.
+  sleepSummary(): Promise<SleepSummary>;
+  sleepEpisodes(from: LocalDate, to: LocalDate): Promise<readonly SleepEpisode[]>;
+  addSleep(input: SleepEpisodeInput, idempotencyKey: string): Promise<SleepEpisode>;
+  removeSleep(id: string): Promise<SleepStatus>;
+  sleepCheckIn(kind: SleepCheckinKind, idempotencyKey: string): Promise<SleepStatus>;
+  sleepSettings(): Promise<SleepSettings>;
+  saveSleepSettings(goalMinutes: number | undefined, version: number): Promise<SleepSettings>;
 
   // history calendar (MINI_APP 7.12): one month of one domain; `month` is YYYY-MM.
   calendar(domain: Domain, month?: string): Promise<InsightCalendar>;

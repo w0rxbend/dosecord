@@ -476,6 +476,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sleep/episodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSleepEpisodes"];
+        put?: never;
+        /** @description A night or a nap entered after the fact. */
+        post: operations["createSleepEpisode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sleep/episodes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Voids the episode and answers where sleep stands; a second delete answers the same. */
+        delete: operations["deleteSleepEpisode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sleep/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Going to sleep or I'm up, now. */
+        post: operations["createSleepCheckin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sleep/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSleepSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateSleepSettings"];
+        trace?: never;
+    };
+    "/api/v1/sleep/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSleepSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/insights/calendar": {
         parameters: {
             query?: never;
@@ -771,7 +854,7 @@ export interface components {
          * InsightDomain
          * @enum {string}
          */
-        InsightDomain: "hydration" | "medication" | "mood";
+        InsightDomain: "hydration" | "medication" | "mood" | "sleep";
         /** InsightVessel */
         InsightVessel: {
             /** Format: int32 */
@@ -1043,7 +1126,7 @@ export interface components {
          * SceneTone
          * @enum {string}
          */
-        SceneTone: "domain-hydration" | "text" | "domain-medication" | "domain-mood" | "text-muted" | "recorded" | "separator";
+        SceneTone: "domain-hydration" | "text" | "domain-medication" | "domain-mood" | "text-muted" | "recorded" | "separator" | "domain-sleep";
         /** Schedule */
         Schedule: {
             /** Format: uuid */
@@ -1157,6 +1240,108 @@ export interface components {
             imageTheme: components["schemas"]["ImageThemeChoice"];
             /** Format: int64 */
             version: number;
+        };
+        /** SleepCheckinInput */
+        SleepCheckinInput: {
+            kind: components["schemas"]["SleepCheckinKind"];
+        };
+        /**
+         * SleepCheckinKind
+         * @enum {string}
+         */
+        SleepCheckinKind: "awake" | "going_to_sleep";
+        /** SleepEpisodeInput */
+        SleepEpisodeInput: {
+            kind: components["schemas"]["SleepEpisodeKind"];
+            /** Format: date-time */
+            onsetAt: string;
+            /** Format: date-time */
+            wakeAt: string;
+        };
+        /**
+         * SleepEpisodeKind
+         * @enum {string}
+         */
+        SleepEpisodeKind: "nap" | "night";
+        /** SleepEpisodeView */
+        SleepEpisodeView: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["SleepEpisodeKind"];
+            /** Format: date */
+            date: string;
+            /** Format: date-time */
+            onsetAt: string;
+            /** Format: date-time */
+            wakeAt: string;
+            bedtime: string;
+            wakeTime: string;
+            /** Format: int32 */
+            minutes: number;
+            duration: string;
+            source: string;
+            text: string;
+            /** Format: int32 */
+            quality?: number;
+        };
+        /** SleepEpisodes */
+        SleepEpisodes: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            items?: components["schemas"]["SleepEpisodeView"][];
+        };
+        /** SleepLimits */
+        SleepLimits: {
+            /** Format: int32 */
+            goalMinMinutes: number;
+            /** Format: int32 */
+            goalMaxMinutes: number;
+        };
+        /** SleepSettings */
+        SleepSettings: {
+            limits: components["schemas"]["SleepLimits"];
+            /** Format: int64 */
+            version: number;
+            /** Format: int32 */
+            goalMinutes?: number;
+        };
+        /** SleepSettingsInput */
+        SleepSettingsInput: {
+            /** Format: int32 */
+            goalMinutes?: number;
+        };
+        /** SleepStatusView */
+        SleepStatusView: {
+            text: string;
+            openSince?: string;
+            lastNight?: components["schemas"]["SleepEpisodeView"];
+            /** Format: int32 */
+            goalMinutes?: number;
+            goalText?: string;
+            needsBedtime: boolean;
+        };
+        /** SleepSummary */
+        SleepSummary: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            status: components["schemas"]["SleepStatusView"];
+            lines?: string[];
+            days?: components["schemas"]["SleepSummaryDay"][];
+            chart?: components["schemas"]["Chart"];
+            noDataText?: string;
+        };
+        /** SleepSummaryDay */
+        SleepSummaryDay: {
+            /** Format: date */
+            date: string;
+            label: string;
+            name: string;
+            /** Format: int32 */
+            minutes?: number;
         };
         /** TimeZoneChoice */
         TimeZoneChoice: {
@@ -2398,6 +2583,239 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MoodSummary"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listSleepEpisodes: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepEpisodes"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createSleepEpisode: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SleepEpisodeInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepEpisodeView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteSleepEpisode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepStatusView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createSleepCheckin: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SleepCheckinInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepStatusView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSleepSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepSettings"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateSleepSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; required */
+                "If-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SleepSettingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepSettings"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSleepSummary: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepSummary"];
                 };
             };
             default: {
