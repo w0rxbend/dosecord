@@ -962,6 +962,41 @@ BIL-01. Reminders, logging, export and deletion never check an entitlement.
 | Settings, goals, registry attributes | Mutable rows with `version`; changes are audited by field name, not value | History has no user value |
 | Cross-module triggers | `domain_events` consumed by cursor, payloads with identifiers only | Keeps modules decoupled without a broker (ADR-003) |
 
+### 10.17 Schema areas present in the baseline, and how a track adds its own
+
+State of `V1__baseline.sql` on 2026-11-13. The baseline is one file that is edited in place until checkpoint CP2-f (ROADMAP section 3, "Order inside G2"). It is laid out in areas, each under its own banner comment, and the rules below let parallel tracks add tables without touching the area of another track.
+
+| Area (banner in the file) | Tables | Owner module and code | Reached through |
+|---|---|---|---|
+| Identity | `users`, `platform_identities`, `user_credentials`, `auth_challenges`, `recovery_codes`, `auth_audit_log` | identity-and-consent; `PgAccountRepository`, `PgIdentityRepository`, `PgAuditRepository` | `Tx.accounts`, `Tx.identities`, `Tx.audit` |
+| Medications, schedules, occurrences | `medications`, `medication_schedules`, `schedule_revisions`, `dose_occurrences`, `dose_actions` | medication-registry, schedule-and-reminders, intake-log | `Tx.medications`, `Tx.schedules`, `Tx.revisions`, `Tx.occurrences`, `Tx.doseActions`, `Tx.policies` |
+| Async edges | `outbox_messages`, `rendered_messages`, `inbound_events`, `domain_events`, `worker_heartbeat` | the chat kernel and the workers | `Tx.outbox`, `Tx.renderedMessages`, `Tx.inboundEvents`, `Tx.domainEvents`, `Tx.heartbeat` |
+| Conversation state | `callback_slots`, `conversation_sessions`, `form_runs`, `delivery_channels` | the chat kernel | `Tx.slots`, `Tx.sessions`, `Tx.formRuns`, `Tx.channels` |
+| Satellites | `reminders`, view `reminder_occurrences` | not used by any code yet | none |
+| Tracking entries | `hydration_entries`, `hydration_goals`, `hydration_presets`, `account_tags`, `mood_checkins` | hydration, mood | `Tx.tracking.hydration`, `Tx.tracking.mood` |
+| Daily rollups | `daily_rollups`, `rollup_dirty` and the triggers that fill the queue | insights-and-correlations; drained by the rollup worker of `app` | `Tx.tracking.rollups`, `Tx.tracking.doseHistory` |
+| Consent ledger | `consent_events`, `consent_state` | identity-and-consent; `PgConsentLedger` | `Tx.consents` |
+| Stores of the edges | `render_assets`, `telegram_file_cache`, `miniapp_sessions`, `idempotency_keys` | visual-reports, the Telegram adapter, the API; `PgRenderAssets`, `PgTelegramFileCache`, `PgMiniAppSessions`, `PgIdempotencyKeys` | their own short statements on the pool, never the transaction of a chat event |
+| Grants | the role grants of every table above | the track that owns the table | n/a |
+
+Differences from the tables of sections 10.2 and 10.11 that this state has, each to be closed by the named slice:
+
+- `consent_events` has `locale` and `agreed_at` (the first of the two taps; `occurred_at` is the confirming one), which PRODUCT_SPEC R-IDC-8 and BOT_UX section 5.3 require and section 10.2 did not list. A grant without them is refused by a check constraint. `region` of R-IDC-8 is not stored: no region step exists (G2.8).
+- `dose_occurrences.cancel_reason` has the value `consent_withdrawn` for the doses a withdrawal of the `medication` consent cancels.
+- `render_assets` holds `asset_key` (text, primary key), `mime`, `byte_size`, `bytes`, `created_at`, `purge_after`; a check constraint caps the life of a row at one hour. It has no `account_id`, `class`, template columns or text equivalent, and the bytes are not encrypted (G2.4b, G4.3).
+- `telegram_file_cache` holds `file_id` for every asset; the encrypted column for personal images arrives with the account keys (G2.4b). A row not used for 30 days is deleted.
+- `miniapp_sessions` holds the hashes as hexadecimal text and no expiry or revocation columns: the session policy computes expiry from `created_at` and `last_used_at`.
+- `idempotency_keys` holds `request_hash`, `response_json` (not encrypted, G2.4b) and `created_at`; a row without a response is a request in flight.
+
+Rules for a track that adds tables:
+
+1. Add a new banner section for the area immediately above the `Grants` banner. Do not insert into, reorder or reformat the section of another area.
+2. Every table that holds a record of a user has `account_id uuid NOT NULL REFERENCES users`. An entry table follows the shape of section 10.1 and gets the two triggers of the tracking area (immutable rows, and the rollup queue when the domain has a rollup).
+3. Append the grants of the new tables at the end of the `Grants` section, in one block with a comment that names the area. The blanket `GRANT SELECT, INSERT, UPDATE ON ALL TABLES` covers a new table; `DELETE` is granted per table and only where a job or a replacement needs it.
+4. A new value of a `CHECK` list or of an enum in the area of another track (a new `domain` of `daily_rollups`, a new consent purpose, a new `cancel_reason`) is a one-line edit of that line and nothing else in that section.
+5. Repositories of a new area join `Tx` as one repository group (one member, like `tracking`), implemented in `PgUnitOfWork`. An in-memory double that does not use the group answers it with a failure that names the group.
+6. `MigrationSuite` lists the tables of the baseline: add the new ones there. Run `scripts/flyway-validate.sh` against a throwaway database, and recreate any local database: an edited baseline changes its checksum.
+
 ## 11. Analytics and insights computation
 
 Metric definitions and card designs belong to `VISUALS_AND_ANALYTICS.md`. This section fixes how numbers are computed and how honesty is enforced in code.
@@ -1063,7 +1098,7 @@ The write side of the two new domains has the same shape: `core.application.hydr
 
 Rollup `metrics` as stored, replacing the shapes of section 11.1 for these three domains: medication `{perMedication: [{medicationId, takenOnTime, takenLate, skipped, missed, unknown, open, asNeeded}]}`; hydration `{totalMl, entries, goalMl}` with `goalMl` null on a day without a goal; mood `{n, valenceSum, valenceMin, valenceMax, energyN, energySum}`.
 
-The repositories are reached through `TrackingUnitOfWork` (`PgTrackingUnitOfWork` in `infra`), a transaction handle beside `Tx` until slice G2.1 builds the repository groups of DEP-10.
+The repositories are reached through `Tx.tracking`, a repository group on the one transaction handle (DEP-10; the fold of ROADMAP G2.1 was made on 2026-11-13). The use cases take the `Tx` of their caller: a chat handler passes the transaction of the inbound event, the API opens one per request. The consent ledger is `Tx.consents` on the same handle.
 
 ## 12. Image render service
 

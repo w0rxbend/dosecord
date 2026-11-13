@@ -52,12 +52,20 @@ short form.
 - Images (`report-renderer`, `report-renderer.resvg`, ADR-022): cards are drawn
   from a scene tree through SVG and a resvg child process, each with a text
   equivalent. `app` draws the mood, water and daily summary cards and keeps
-  them in an in-memory asset store; it needs `RESVG_PATH` and
-  `RENDER_FONTS_DIR`, and without them every image is sent as its text. The
-  container image has no resvg and no fonts yet.
+  their bytes in `render_assets` for at most one hour and their file ids in
+  `telegram_file_cache`; it needs `RESVG_PATH` and `RENDER_FONTS_DIR`, and
+  without them every image is sent as its text. The container image has no
+  resvg and no fonts yet.
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, daily
-  rollups, the `Stat` type, text statistics, one comparison rule, and the
-  consent ledger (`consent_events`, `consent_state`).
+  rollups with a worker that drains their queue, the `Stat` type, text
+  statistics, one comparison rule, and the consent ledger (`consent_events`,
+  `consent_state`). The tracking repositories and the ledger are groups of
+  the one transaction handle (`Tx.tracking`, `Tx.consents`).
+- Consent: `/start` asks the two-stage consent for the one domain the user
+  chose before the account exists. Without the `medication` consent no
+  medication command, button or API route records or shows anything, and
+  withdrawing it pauses every schedule and cancels every open dose in the
+  same transaction. `Application.handler` is the one handler composition.
 - Chat: besides the medication flows, `/water`, `/mood`, `/stats` and
   `/privacy` with the two-stage consent at first use, quick-capture text
   ("250 ml", "mood 4"), the mood image as the answer to a check-in, and the
@@ -65,6 +73,8 @@ short form.
 - API and Mini App (`api`, `miniapp`, ADR-016, ADR-020): session exchange,
   Today read, the medication and schedule registry and
   `GET /insights/overview` behind `MINIAPP_ENABLED`, which production refuses.
+  Sessions and idempotency records are rows of `miniapp_sessions` and
+  `idempotency_keys`.
   The Insights screen reads the overview; dose actions over HTTP do not exist.
 
 Every slice these touch is `building`, none is `green`. No Telegram bot token
@@ -80,9 +90,11 @@ Useful next, in this order:
    Mini App, then the image gate with rendering on (G1.2, G1.9).
 3. G1.7: the durable inbox and the webhook endpoint. It also closes the window
    in which a polled update is lost when the process dies.
-4. Durable stores where the process still holds state in memory: the asset
-   store and `file_id` cache (G1.10), Mini App sessions and idempotency
-   records (G3.1).
+4. What the consent and store work of 2026-11-13 left open: the rest of
+   onboarding (adult attestation, region, discreet choice, G2.8), deletion
+   of a domain's data (G2.17), encryption of the stores of the edges
+   (G2.4b), and the `StorageError` port of G2.1. ARCHITECTURE section 10.17
+   lists the schema areas and the rules for adding a table.
 5. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
    are eligible by dependency and untouched.
 
