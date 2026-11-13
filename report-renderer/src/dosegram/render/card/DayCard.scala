@@ -25,8 +25,10 @@ object DayCard:
   val TemplateId = "card.day.v1"
   private val Center = Point(540, 410)
   private val BlobRadius = 190.0
+  private val LoneBlobRadius = 260.0
   private val HaloRadius = 300.0
   private val LabelBelowPx = 58.0
+  private val LabelDescentPx = 12.0
   private val LabelToRowsPx = 30.0
   private val LinePx = 68.0
   private val RowGapPx = 12.0
@@ -53,31 +55,54 @@ object DayCard:
         case _: Glyphs => GlyphPx + GlyphGapPx
         case _: Note   => NoteLinePx
 
+  /** Where the picture sits: the blob, the halo and its icons when a domain is tracked, and the mood label under them.
+    * Without a halo the blob takes the room of the ring (VA-BL-05).
+    */
+  final private case class Picture(halo: HaloFrame, segmentCount: Int):
+    private def hasHalo: Boolean = segmentCount > 0
+    def center: Point = halo.center
+    def blobFrame: BlobFrame = BlobFrame(center, if hasHalo then BlobRadius else LoneBlobRadius)
+    def iconCenters: Vector[Point] = if hasHalo then Halo.iconCenters(segmentCount, halo) else Vector.empty
+    def top: Double = if hasHalo then center.y - HaloRadius - Halo.StrokePx / 2 else center.y - LoneBlobRadius
+
+    def labelBaseline: Double =
+      val ringBottom = center.y + HaloRadius + Halo.StrokePx / 2
+      val bottom =
+        if hasHalo then (iconCenters.map(_.y + Icons.SizePx / 2) :+ ringBottom).max
+        else center.y + LoneBlobRadius * BlobFigure.GroundBottomShare
+      bottom + LabelBelowPx
+
+    def movedDown(distance: Double): Picture = copy(halo = halo.copy(center = center.moved(0, distance)))
+
   def render(day: DayData, context: CardContext): CardOutput =
     val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
     val copy = context.copy
     val rows = Vector(medication(day, context), water(day, context), food(day, context), sleep(day, context)).flatten
-    val haloFrame = HaloFrame(Center, HaloRadius, frame.background)
-    val iconCenters = if rows.isEmpty then Vector.empty else Halo.iconCenters(rows.size, haloFrame)
-    val pictureBottom = (iconCenters.map(_.y + Icons.SizePx / 2) :+ (Center.y + HaloRadius + Halo.StrokePx / 2)).max
-    val labelBaseline = pictureBottom + LabelBelowPx
-    val blobAt = BlobFrame(Center, BlobRadius)
+    // A day with one or two domains leaves room under its rows: the picture and the rows move down together, so the
+    // room is shared above and below them and the card does not end in an empty half.
+    val natural = Picture(HaloFrame(Center, HaloRadius, frame.background), rows.size)
+    val belowLabel = if rows.isEmpty then LabelDescentPx else LabelToRowsPx + rows.map(rowHeight).sum
+    val picture = natural.movedDown(frame.balance(natural.top, natural.labelBaseline + belowLabel))
     val blob = day.mood
-      .map(reading => BlobFigure.of(reading.state, blobAt, frame.tokens))
-      .getOrElse(BlobFigure.noEntry(blobAt, frame.tokens))
+      .map(reading => BlobFigure.of(reading.state, picture.blobFrame, frame.tokens))
+      .getOrElse(BlobFigure.noEntry(picture.blobFrame, frame.tokens))
     val moodLabel = day.mood.map(copy.moodLabel).getOrElse(copy.noMoodEntry)
     val labelLook = TextLook(TextStyle.BodyMedium, frame.tokens.ink, Align.Middle, TextKind.Label)
+    val halo =
+      if rows.isEmpty then Vector.empty
+      else Halo.of(rows.map(row => HaloSegment(row.domain, row.halo)), picture.halo, frame.tokens)
     val nodes = frame.header(copy.todayTitle, copy.dayDate(day.date))
-      ++ (if rows.isEmpty then Vector.empty
-          else Halo.of(rows.map(row => HaloSegment(row.domain, row.halo)), haloFrame, frame.tokens))
-      ++ rows.zip(iconCenters).map { (row, center) =>
+      ++ halo
+      ++ rows.zip(picture.iconCenters).map { (row, center) =>
         Icons.of(row.domain, center.moved(-Icons.SizePx / 2, -Icons.SizePx / 2), frame.tokens.hue(row.domain))
       }
-      ++ Vector(blob, frame.text(moodLabel, Point(Center.x, labelBaseline), labelLook, frame.width))
-      ++ drawRows(rows, labelBaseline + LabelToRowsPx, frame, context)
+      ++ Vector(blob, frame.text(moodLabel, Point(picture.center.x, picture.labelBaseline), labelLook, frame.width))
+      ++ drawRows(rows, picture.labelBaseline + LabelToRowsPx, frame, context)
       :+ frame.footer
     val text = TextEquivalent.of(copy.dayText(day), copy.dayDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-day.png", context.privacy == Privacy.Discreet)
+
+  private def rowHeight(row: Row): Double = LinePx + row.detail.height + RowGapPx
 
   private def medication(day: DayData, context: CardContext): Option[Row] =
     day.medication.map { statuses =>
@@ -118,7 +143,7 @@ object DayCard:
     Row(domain, context.copy.nothingLoggedYet, HaloState.NothingRecorded, Detail.Nothing)
 
   private def drawRows(rows: Vector[Row], top: Double, frame: CardFrame, context: CardContext): Vector[Node] =
-    val tops = rows.scanLeft(top)((y, row) => y + LinePx + row.detail.height + RowGapPx)
+    val tops = rows.scanLeft(top)((y, row) => y + rowHeight(row))
     rows.zip(tops).flatMap { (row, y) =>
       val nameLook = frame.look(TextStyle.BodyMedium, frame.tokens.ink)
       Vector(

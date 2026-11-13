@@ -75,6 +75,7 @@ trait ImageCopy:
   // Adherence calendar (IMG-06).
   def calendarTitle: String
   def dayClassName(dayClass: DayClass): String
+  def blankDayNote: String
   def resolvedDosesTaken(taken: Int, resolved: Int): String
   def unknownDosesNotCounted(count: Int): String
   def calendarText(lines: CalendarLines): String

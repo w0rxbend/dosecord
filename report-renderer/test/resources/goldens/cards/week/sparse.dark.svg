@@ -1,141 +1,158 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="256" cy="652" r="44"><stop offset="0" stop-color="#6f90ad"/><stop offset="1" stop-color="#477398"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="256" cy="866" r="44"><stop offset="0" stop-color="#6f90ad"/><stop offset="1" stop-color="#477398"/></radialGradient>
 </defs>
 <rect width="1080" height="1350" fill="#0f222b"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Your week</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">2 to 8 Nov</text>
-<text x="132" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
-<text x="268" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
-<text x="404" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
-<text x="540" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
-<text x="676" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
-<text x="812" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
-<text x="948" y="196" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="132" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
+<text x="268" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="404" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
+<text x="540" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="676" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
+<text x="812" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="948" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
 <g>
-  <rect x="73.33" y="233.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <line x1="82.67" y1="252" x2="101.33" y2="252" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="73.33" y="333.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="352" x2="101.33" y2="352" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="136" y="266" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication</text>
-<text x="1016" y="266" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">10 of 12 taken · 83%</text>
+<text x="136" y="366" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Medication</text>
+<text x="1016" y="366" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">10 of 12 taken · 83%</text>
 <g>
-  <rect x="110" y="318" width="44" height="44" rx="12.32" fill="#2cab88"/>
-</g>
-<g>
-  <rect x="246" y="318" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="110" y="416" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="382" y="318" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="246" y="416" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="492" y="324" width="96" height="64" rx="12" fill="#2cab88"/>
-  <line x1="495" y1="308" x2="585" y2="308" stroke="#b1c0c8" stroke-width="6"/>
-  <rect x="495" y="295" width="90" height="90" rx="9" fill="none" stroke="#b1c0c8" stroke-width="6"/>
+  <rect x="382" y="416" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="654" y="318" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="492" y="422" width="96" height="64" rx="12" fill="#2cab88"/>
+  <line x1="495" y1="406" x2="585" y2="406" stroke="#b1c0c8" stroke-width="6"/>
+  <rect x="495" y="393" width="90" height="90" rx="9" fill="none" stroke="#b1c0c8" stroke-width="6"/>
 </g>
 <g>
-  <rect x="790" y="318" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="654" y="416" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <rect x="926" y="318" width="44" height="44" rx="12.32" fill="#2cab88"/>
+  <rect x="790" y="416" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <path d="M92 443 C85.93 451.4 76.83 461.67 76.83 469.83 A15.17 15.17 0 0 0 107.17 469.83 C107.17 461.67 98.07 451.4 92 443 Z" fill="none" stroke="#0072be" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<text x="136" y="478" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Water</text>
-<text x="1016" y="478" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="end">No records this week</text>
-<g>
-  <path d="M92 563.93 C96.45 563.93 102.24 572.33 105.34 577.7 C108.44 583.07 112.81 592.28 110.59 596.13 C108.37 599.98 98.2 600.8 92 600.8 C85.8 600.8 75.63 599.98 73.41 596.13 C71.19 592.28 75.56 583.07 78.66 577.7 C81.76 572.33 87.55 563.93 92 563.93 Z" fill="none" stroke="#bf3f75" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<text x="136" y="598" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Mood</text>
-<text x="1016" y="598" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">1 check-in day</text>
-<g>
-  <circle cx="132" cy="668" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="926" y="416" width="44" height="44" rx="12.32" fill="#2cab88"/>
 </g>
 <g>
-  <ellipse cx="268" cy="715.2" rx="26" ry="2" fill="#2f434d"/>
-  <path d="M306.37 668 C306.46 675.74 304.44 684.72 300.22 691.41 C296 698.1 288.42 705.81 281.03 708.11 C273.65 710.41 263.55 707.92 255.91 705.22 C248.26 702.51 239.67 698.06 235.16 691.86 C230.65 685.65 228.6 675.77 228.85 668 C229.1 660.23 232.26 651.76 236.66 645.23 C241.06 638.69 247.89 631.59 255.26 628.79 C262.63 625.98 273.46 625.7 280.87 628.4 C288.27 631.1 295.42 638.39 299.67 644.99 C303.92 651.59 306.28 660.26 306.37 668 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="256.8" cy="663.2" rx="3" ry="1.65" fill="#e8f0f4"/>
-  <ellipse cx="279.2" cy="663.2" rx="3" ry="1.65" fill="#e8f0f4"/>
-  <path d="M260 676.8 Q268 675.4 276 676.8" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="64" y="496" width="44" height="44" rx="12.32" fill="#2cab88"/>
+</g>
+<text x="120" y="532" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
+<g>
+  <path d="M272.68 496 L291.16 496 L304.36 509.2 L304.36 527.68 A12.32 12.32 0 0 1 292.04 540 L272.68 540 A12.32 12.32 0 0 1 260.36 527.68 L260.36 508.32 A12.32 12.32 0 0 1 272.68 496 Z" fill="#038265"/>
+</g>
+<text x="316.36" y="532" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
+<g>
+  <rect x="539.36" y="499" width="38" height="38" rx="9.32" fill="none" stroke="#b1c0c8" stroke-width="6"/>
+</g>
+<text x="592.36" y="532" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Skipped</text>
+<g>
+  <rect x="66" y="554" width="40" height="40" rx="10.32" fill="none" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <line x1="77.2" y1="574" x2="94.8" y2="574" stroke="#8b9ba3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="120" y="588" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Not confirmed</text>
+<g>
+  <path d="M92 659 C85.93 667.4 76.83 677.67 76.83 685.83 A15.17 15.17 0 0 0 107.17 685.83 C107.17 677.67 98.07 667.4 92 659 Z" fill="none" stroke="#0072be" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="694" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Water</text>
+<text x="1016" y="694" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="end">No records this week</text>
+<g>
+  <path d="M92 779.93 C96.45 779.93 102.24 788.33 105.34 793.7 C108.44 799.07 112.81 808.28 110.59 812.13 C108.37 815.98 98.2 816.8 92 816.8 C85.8 816.8 75.63 815.98 73.41 812.13 C71.19 808.28 75.56 799.07 78.66 793.7 C81.76 788.33 87.55 779.93 92 779.93 Z" fill="none" stroke="#bf3f75" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="814" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Mood</text>
+<text x="1016" y="814" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">1 check-in day</text>
+<g>
+  <circle cx="132" cy="882" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <circle cx="404" cy="668" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <ellipse cx="268" cy="929.2" rx="26" ry="2" fill="#2f434d"/>
+  <path d="M306.37 882 C306.46 889.74 304.44 898.72 300.22 905.41 C296 912.1 288.42 919.81 281.03 922.11 C273.65 924.41 263.55 921.92 255.91 919.22 C248.26 916.51 239.67 912.06 235.16 905.86 C230.65 899.65 228.6 889.77 228.85 882 C229.1 874.23 232.26 865.76 236.66 859.23 C241.06 852.69 247.89 845.59 255.26 842.79 C262.63 839.98 273.46 839.7 280.87 842.4 C288.27 845.1 295.42 852.39 299.67 858.99 C303.92 865.59 306.28 874.26 306.37 882 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="256.8" cy="877.2" rx="3" ry="1.65" fill="#e8f0f4"/>
+  <ellipse cx="279.2" cy="877.2" rx="3" ry="1.65" fill="#e8f0f4"/>
+  <path d="M260 890.8 Q268 889.4 276 890.8" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
-  <circle cx="540" cy="668" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <circle cx="404" cy="882" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <circle cx="676" cy="668" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <circle cx="540" cy="882" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <circle cx="812" cy="668" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <circle cx="676" cy="882" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <circle cx="948" cy="668" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <circle cx="812" cy="882" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <path d="M109.5 801.13 A19.13 19.13 0 1 1 86.87 778.5 A15.4 15.4 0 0 0 109.5 801.13 Z" fill="none" stroke="#9d7aef" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<text x="136" y="810" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Sleep</text>
-<text x="1016" y="810" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">Estimate only</text>
-<g>
-  <rect x="78" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="82" y1="885.31" x2="93.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="95.94" y1="894" x2="115.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="118.57" y1="894" x2="138.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="141.2" y1="894" x2="161.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="163.82" y1="894" x2="182" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <circle cx="948" cy="882" r="36" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <rect x="214" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="218" y1="885.31" x2="229.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="231.94" y1="894" x2="251.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="254.57" y1="894" x2="274.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="277.2" y1="894" x2="297.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="299.82" y1="894" x2="318" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <path d="M109.5 1013.13 A19.13 19.13 0 1 1 86.87 990.5 A15.4 15.4 0 0 0 109.5 1013.13 Z" fill="none" stroke="#9d7aef" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="1022" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Sleep</text>
+<text x="1016" y="1022" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">Estimate only</text>
+<g>
+  <rect x="78" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="82" y1="1081.31" x2="93.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="95.94" y1="1090" x2="115.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="118.57" y1="1090" x2="138.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="141.2" y1="1090" x2="161.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="163.82" y1="1090" x2="182" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
 </g>
 <g>
-  <rect x="350" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="354" y1="885.31" x2="365.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="367.94" y1="894" x2="387.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="390.57" y1="894" x2="410.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="413.2" y1="894" x2="433.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="435.82" y1="894" x2="454" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <rect x="214" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="218" y1="1081.31" x2="229.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="231.94" y1="1090" x2="251.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="254.57" y1="1090" x2="274.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="277.2" y1="1090" x2="297.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="299.82" y1="1090" x2="318" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
 </g>
 <g>
-  <rect x="486" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="490" y1="885.31" x2="501.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="503.94" y1="894" x2="523.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="526.57" y1="894" x2="546.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="549.2" y1="894" x2="569.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="571.82" y1="894" x2="590" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <rect x="350" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="354" y1="1081.31" x2="365.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="367.94" y1="1090" x2="387.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="390.57" y1="1090" x2="410.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="413.2" y1="1090" x2="433.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="435.82" y1="1090" x2="454" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
 </g>
 <g>
-  <rect x="622" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="626" y1="885.31" x2="637.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="639.94" y1="894" x2="659.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="662.57" y1="894" x2="682.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="685.2" y1="894" x2="705.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="707.82" y1="894" x2="726" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <rect x="486" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="490" y1="1081.31" x2="501.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="503.94" y1="1090" x2="523.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="526.57" y1="1090" x2="546.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="549.2" y1="1090" x2="569.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="571.82" y1="1090" x2="590" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
 </g>
 <g>
-  <rect x="758" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="762" y1="885.31" x2="773.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="775.94" y1="894" x2="795.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="798.57" y1="894" x2="818.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="821.2" y1="894" x2="841.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="843.82" y1="894" x2="862" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <rect x="622" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="626" y1="1081.31" x2="637.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="639.94" y1="1090" x2="659.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="662.57" y1="1090" x2="682.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="685.2" y1="1090" x2="705.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="707.82" y1="1090" x2="726" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
 </g>
 <g>
-  <rect x="894" y="870" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="898" y1="885.31" x2="909.31" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="911.94" y1="894" x2="931.94" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="934.57" y1="894" x2="954.57" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="957.2" y1="894" x2="977.2" y2="874" stroke="#8b9ba3" stroke-width="4"/>
-  <line x1="979.82" y1="894" x2="998" y2="875.82" stroke="#8b9ba3" stroke-width="4"/>
+  <rect x="758" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="762" y1="1081.31" x2="773.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="775.94" y1="1090" x2="795.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="798.57" y1="1090" x2="818.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="821.2" y1="1090" x2="841.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="843.82" y1="1090" x2="862" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
+</g>
+<g>
+  <rect x="894" y="1066" width="108" height="28" rx="10" fill="none" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="898" y1="1081.31" x2="909.31" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="911.94" y1="1090" x2="931.94" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="934.57" y1="1090" x2="954.57" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="957.2" y1="1090" x2="977.2" y2="1070" stroke="#8b9ba3" stroke-width="4"/>
+  <line x1="979.82" y1="1090" x2="998" y2="1071.82" stroke="#8b9ba3" stroke-width="4"/>
 </g>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
 </svg>

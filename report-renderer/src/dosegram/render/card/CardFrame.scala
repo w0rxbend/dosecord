@@ -62,6 +62,18 @@ final class CardFrame(context: CardContext, val size: Size, val background: Rgb)
   val width: Double = right - left
   val footerBaseline: Double = size.height - CardFrame.MarginPx
 
+  /** The lowest point of the body: one line of room above the footer. */
+  val bodyBottom: Double = footerBaseline - CardFrame.FooterClearancePx
+
+  /** How far a body that would span `top` to `bottom` moves down so that the room the card has left is shared above
+    * and below it. A body that already reaches the footer stays where it is.
+    */
+  def balance(top: Double, bottom: Double): Double =
+    val below = bodyBottom - bottom
+    val above = top - CardFrame.BodyTop
+    val shift = StrictMath.max(0.0, StrictMath.min(below, (below - above) / 2))
+    StrictMath.floor(shift / CardFrame.GridPx) * CardFrame.GridPx
+
   def look(style: TextStyle, ink: Rgb): TextLook = TextLook(style, ink, Align.Start, TextKind.Label)
 
   /** One fitted line of text. */
@@ -85,5 +97,12 @@ final class CardFrame(context: CardContext, val size: Size, val background: Rgb)
 object CardFrame:
   val MarginPx: Double = 64
   val HeaderBaseline: Double = 120
+
+  /** Where the body may start under the header. */
+  val BodyTop: Double = 160
+  private val FooterClearancePx = 64.0
+
+  /** Positions are multiples of 4 px (VISUALS section 3.5). */
+  private val GridPx = 4.0
   val Square: Size = Size(1080, 1080)
   val Portrait: Size = Size(1080, 1350)

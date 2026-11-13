@@ -37,6 +37,7 @@ object Halo:
   private val HatchStepDegrees = 3.4
   private val IconClearancePx = 54.0
   private val MinimumSweepDegrees = 0.5
+  private val PillGapPx = 8.0
 
   def of(segments: Vector[HaloSegment], frame: HaloFrame, tokens: Tokens): Vector[Node] =
     spans(segments.size).zip(segments).map { (span, segment) =>
@@ -68,17 +69,28 @@ object Halo:
       case HaloState.Estimate        => estimate(frame, span, tokens)
       case HaloState.Progress(filledShare, hollowShare) =>
         val filledEnd = span.until(filledShare)
-        val hollowEnd = span.until(filledShare + hollowShare)
         val track = arc(frame, span.from, span.to, Stroke.solid(tokens.grid, StrokePx))
-        val hollow =
-          if hollowEnd - filledEnd < MinimumSweepDegrees then Vector.empty
-          else outlined(frame, filledEnd, hollowEnd, Stroke.solid(tokens.ink2, StrokePx), HollowOutlinePx)
         val filled =
           if filledShare <= 0 then Vector.empty
           else
             val end = StrictMath.max(filledEnd, span.from + MinimumSweepDegrees)
             Vector(arc(frame, span.from, end, Stroke.solid(tokens.hue(segment.domain), StrokePx)))
-        (track +: hollow) ++ filled
+        val skipped =
+          if span.until(filledShare + hollowShare) - filledEnd < MinimumSweepDegrees then Vector.empty
+          else skippedPill(frame, span, Shares(filledShare, hollowShare), tokens)
+        (track +: filled) ++ skipped
+
+  final private case class Shares(filled: Double, hollow: Double)
+
+  // The skipped share is a hollow pill of its own on the track, one gap after the round end of the filled arc: the
+  // shape of the skipped cell, not a sleeve that grows out of the fill. Its centre line starts a full cap and the gap
+  // later, so its visible end sits where the share ends, as the visible end of the fill does.
+  private def skippedPill(frame: HaloFrame, span: Span, shares: Shares, tokens: Tokens): Vector[Node] =
+    val capDegrees = StrictMath.toDegrees(StrictMath.asin(StrokePx / 2 / frame.radius))
+    val afterFill = span.until(shares.filled) + 2 * capDegrees + StrictMath.toDegrees(PillGapPx / frame.radius)
+    val from = StrictMath.min(span.to - MinimumSweepDegrees, if shares.filled <= 0 then span.from else afterFill)
+    val to = StrictMath.max(from + MinimumSweepDegrees, span.until(shares.filled + shares.hollow))
+    outlined(frame, from, to, Stroke.solid(tokens.ink2, StrokePx), HollowOutlinePx)
 
   // An outlined band: the full stroke, then the background over its middle.
   private def outlined(frame: HaloFrame, from: Double, to: Double, outer: Stroke, outlinePx: Double): Vector[Node] =

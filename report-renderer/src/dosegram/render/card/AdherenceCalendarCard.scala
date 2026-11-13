@@ -32,36 +32,54 @@ object AdherenceCalendarCard:
   private val GridToLegendPx = 24.0
   private val LegendToFactsPx = 50.0
   private val FactLinePx = 48.0
+  private val MaximumCellPx = 96.0
+  // From the bottom edge of a cell to the baseline of its day number: 12 px of air, which also clears the outline
+  // around today, and the 28 px digits.
+  private val NumberBaselinePx = 40.0
+  // From a day number to the next row of cells: twice the air above the number.
+  private val RowGapPx = 24.0
+  private val GridUnitPx = 4.0
 
-  /** Cell side and row pitch: 96 px cells, or 80 px in a month that spans six weeks so the legend still fits. */
-  final private case class Grid(offset: Int, weekCount: Int):
-    def cellPx: Double = if weekCount > 5 then 80 else 96
-    def numberBelowPx: Double = if weekCount > 5 then 36 else 40
-    def rowPx: Double = cellPx + numberBelowPx + (if weekCount > 5 then 8 else 12)
-    def bottom: Double = GridTop + (weekCount - 1) * rowPx + cellPx + numberBelowPx
+  /** The grid of a month. A day number sits close under its own cell and clear of the next row, so it is never read
+    * as the label of the cell below it.
+    */
+  final private case class Grid(offset: Int, weekCount: Int, cellPx: Double):
+    def rowPx: Double = cellPx + NumberBaselinePx + RowGapPx
+    def bottom: Double = GridTop + (weekCount - 1) * rowPx + cellPx + NumberBaselinePx
 
     def origin(slot: Int): Point =
       Point(GridLeft + (slot % 7) * SlotPx + (SlotPx - cellPx) / 2, GridTop + (slot / 7) * rowPx)
+
+  private object Grid:
+    /** The largest cells, up to 96 px, with which the grid ends at `lowestBottom` at the latest: a month of six weeks
+      * or a taller legend gets smaller cells, never under the minimum cell side.
+      */
+    def fitting(offset: Int, weekCount: Int, lowestBottom: Double): Grid =
+      val perRow = (lowestBottom - GridTop + RowGapPx) / weekCount - NumberBaselinePx - RowGapPx
+      val onGrid = StrictMath.floor(perRow / GridUnitPx) * GridUnitPx
+      Grid(offset, weekCount, StrictMath.max(DoseGlyph.MinimumSidePx, StrictMath.min(MaximumCellPx, onGrid)))
 
   def render(calendar: CalendarData, context: CardContext): CardOutput =
     val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
     val copy = context.copy
     val classes = calendar.days.map(dayClass)
     val offset = Math.floorMod(calendar.month.atDay(1).getDayOfWeek.getValue - calendar.weekStart.getValue, 7)
-    val grid = Grid(offset, (offset + calendar.days.size + 6) / 7)
     val label = filterLabel(calendar, context)
-    val legend = Legend.flow(legendItems(classes.flatten, frame.tokens, context), frame.width, context.fitter)
+    val legend = Legend.flow(legendItems(classes, frame.tokens, context), frame.width, context.fitter)
+    val facts = factLines(calendar, context)
+    val belowGrid = GridToLegendPx + legend.height + LegendToFactsPx + (facts.size - 1) * FactLinePx
+    val grid = Grid.fitting(offset, (offset + calendar.days.size + 6) / 7, frame.bodyBottom - belowGrid)
     val legendTop = grid.bottom + GridToLegendPx
     val todayIndex = calendar.today.filter(date => YearMonth.from(date) == calendar.month).map(_.getDayOfMonth - 1)
     val nodes = frame.header(label.getOrElse(copy.calendarTitle), copy.monthYear(calendar.month))
       ++ weekdays(calendar.weekStart, frame, context)
       ++ classes.zipWithIndex.flatMap { (dayClass, index) =>
         val origin = grid.origin(offset + index)
-        day(dayClass, index + 1, Box(origin.x, origin.y, grid.cellPx, grid.cellPx), grid.numberBelowPx, frame)
+        day(dayClass, index + 1, Box(origin.x, origin.y, grid.cellPx, grid.cellPx), frame)
       }
       ++ todayIndex.map(index => todayOutline(grid, offset + index, frame))
       ++ legend.nodes(Point(frame.left, legendTop), frame, context.fitter)
-      ++ facts(calendar, legendTop + legend.height + LegendToFactsPx, frame, context)
+      ++ drawFacts(facts, legendTop + legend.height + LegendToFactsPx, frame)
       :+ frame.footer
     val text = TextEquivalent.of(copy.calendarText(lines(calendar, classes, label)), copy.calendarDiscreet, context)
     CardOutput(
@@ -112,16 +130,10 @@ object AdherenceCalendarCard:
       case DayClass.NoRecord     => DoseGlyph.of(DoseStatus.Unknown, box, tokens)
       case DayClass.StillOpen    => DoseGlyph.of(DoseStatus.Open, box, tokens)
 
-  private def day(
-      dayClass: Option[DayClass],
-      number: Int,
-      box: Box,
-      numberBelowPx: Double,
-      frame: CardFrame
-  ): Vector[Node] =
+  private def day(dayClass: Option[DayClass], number: Int, box: Box, frame: CardFrame): Vector[Node] =
     val numberLook = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
     dayClass.map(cell(_, box, frame.tokens)).toVector
-      :+ frame.text(number.toString, Point(box.center.x, box.bottom + numberBelowPx), numberLook, SlotPx)
+      :+ frame.text(number.toString, Point(box.center.x, box.bottom + NumberBaselinePx), numberLook, SlotPx)
 
   // Today is marked by an ink outline around its cell.
   private def todayOutline(grid: Grid, slot: Int, frame: CardFrame): Node =
@@ -135,24 +147,30 @@ object AdherenceCalendarCard:
       frame.text(name, Point(GridLeft + (column + 0.5) * SlotPx, WeekdayBaseline), look, SlotPx)
     }
 
-  // One entry per class present, in the fixed order of the class list.
-  private def legendItems(present: Vector[DayClass], tokens: Tokens, context: CardContext): Vector[LegendItem] =
-    DayClass.values.toVector.filter(present.contains).map { dayClass =>
-      LegendItem(box => cell(dayClass, box, tokens), context.copy.dayClassName(dayClass))
+  // One entry per class present, in the fixed order of the class list, and a note when a day has no cell at all: an
+  // empty place has no glyph, so the legend says in words what it means.
+  private def legendItems(
+      classes: Vector[Option[DayClass]],
+      tokens: Tokens,
+      context: CardContext
+  ): Vector[LegendItem] =
+    val present = classes.flatten.toSet
+    val glyphs = DayClass.values.toVector.filter(present).map { dayClass =>
+      LegendItem.of(box => cell(dayClass, box, tokens), context.copy.dayClassName(dayClass))
     }
+    val blank = Option.when(present.nonEmpty && classes.contains(None))(LegendItem.note(context.copy.blankDayNote))
+    glyphs ++ blank
 
   // The fact lines: the total, and the doses that are not counted.
-  private def facts(
-      calendar: CalendarData,
-      firstBaseline: Double,
-      frame: CardFrame,
-      context: CardContext
-  ): Vector[Node] =
+  private def factLines(calendar: CalendarData, context: CardContext): Vector[String] =
     val (taken, resolved) = totals(calendar)
     val total = if resolved == 0 then context.copy.noData else context.copy.resolvedDosesTaken(taken, resolved)
-    val notCounted =
-      Option.when(calendar.unknownDoseCount > 0)(context.copy.unknownDosesNotCounted(calendar.unknownDoseCount))
-    (total +: notCounted.toVector).zipWithIndex.map { (line, index) =>
+    total +: Option
+      .when(calendar.unknownDoseCount > 0)(context.copy.unknownDosesNotCounted(calendar.unknownDoseCount))
+      .toVector
+
+  private def drawFacts(lines: Vector[String], firstBaseline: Double, frame: CardFrame): Vector[Node] =
+    lines.zipWithIndex.map { (line, index) =>
       val look = TextLook(TextStyle.Label, frame.tokens.ink, Align.Start, TextKind.Value)
       frame.text(line, Point(frame.left, firstBaseline + index * FactLinePx), look, frame.width)
     }

@@ -31,11 +31,16 @@ import dosegram.render.tokens.Tokens
 object WeekCard:
   val TemplateId = "card.week.v1"
   private val DayCount = 7
-  private val WeekdayBaseline = 196.0
-  private val RowsTop = 224.0
+  private val WeekdayBaseline = 184.0
+  private val RowsTop = 212.0
   private val HeadlinePx = 64.0
-  private val StripPx = 104.0
+  // Each strip is as tall as its own marks need, so five domains and the dose legend fit one card.
+  private val GlyphStripPx = 100.0
+  private val MealStripPx = 76.0
+  private val SleepStripPx = 72.0
   private val EmptyRowPx = 76.0
+  private val WeekdayHeightPx = 32.0
+  private val StripToLegendPx = 8.0
   private val MaximumRowGapPx = 44.0
   private val TextLeft = 136.0
   private val CellPx = DoseGlyph.MinimumSidePx
@@ -45,12 +50,24 @@ object WeekCard:
   private val MealDotPx = 14.0
   private val MiniBlobPx = 40.0
 
-  /** A domain row: its headline and, when the week has records, how to draw its strip in a day slot. */
-  final private case class Row(domain: Domain, headline: String, strip: Option[(Int, Box) => Vector[Node]]):
+  /** A domain row: its headline, when the week has records how to draw its strip in a day slot, and the entries of the
+    * legend under the strip.
+    */
+  final private case class Row(
+      domain: Domain,
+      headline: String,
+      strip: Option[Strip],
+      legendItems: Vector[LegendItem] = Vector.empty
+  ):
+    def stripBottom: Double = strip.fold(EmptyRowPx)(HeadlinePx + _.heightPx)
+
     // A domain without records states that quietly: regular weight and secondary ink, not the weight of a value.
     def headlineLook(frame: CardFrame): TextLook =
       if strip.isDefined then TextLook(TextStyle.BodyStrong, frame.tokens.ink, Align.End, TextKind.Value)
       else TextLook(TextStyle.Body, frame.tokens.ink2, Align.End, TextKind.Label)
+
+  /** The seven-day strip of a domain: its height, and how to draw one day in its slot. */
+  final private case class Strip(heightPx: Double, draw: (Int, Box) => Vector[Node])
 
   def render(week: WeekData, context: CardContext): CardOutput =
     val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
@@ -64,8 +81,7 @@ object WeekCard:
       sleep(week, summary, context)
     ).flatten
     val nodes = frame.header(copy.weekTitle, copy.dateRange(summary.from, summary.to))
-      ++ weekdays(week, frame, context)
-      ++ drawRows(rows, frame, context)
+      ++ body(week, rows, frame, context)
       :+ frame.footer
     val text = TextEquivalent.of(copy.weekText(summary), copy.weekDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-week.png", context.privacy == Privacy.Discreet)
@@ -100,7 +116,8 @@ object WeekCard:
         Row(
           Domain.Medication,
           context.copy.weekDoses(counts),
-          Some((day, slot) => doses(days(day), slot, context.tokens))
+          Some(Strip(GlyphStripPx, (day, slot) => doses(days(day), slot, context.tokens))),
+          doseLegend(days.flatten, context)
         )
 
   private def water(week: WeekData, summary: WeekSummary, context: CardContext): Option[Row] =
@@ -114,7 +131,7 @@ object WeekCard:
         Row(
           Domain.Water,
           context.copy.goalReachedDays(goalDays),
-          Some((day, slot) => waterBar(days(day), scaleMl, slot, context.tokens))
+          Some(Strip(GlyphStripPx, (day, slot) => waterBar(days(day), scaleMl, slot, context.tokens)))
         )
 
   private def food(week: WeekData, summary: WeekSummary, context: CardContext): Option[Row] =
@@ -127,7 +144,7 @@ object WeekCard:
         Row(
           Domain.Food,
           context.copy.mealsLogged(meals),
-          Some((day, slot) => mealDots(days(day), slot, context.tokens))
+          Some(Strip(MealStripPx, (day, slot) => mealDots(days(day), slot, context.tokens)))
         )
 
   private def mood(week: WeekData, summary: WeekSummary, context: CardContext): Option[Row] =
@@ -140,7 +157,7 @@ object WeekCard:
         Row(
           Domain.Mood,
           context.copy.checkInDays(checkIns),
-          Some((day, slot) => miniBlob(days(day), slot, context.tokens))
+          Some(Strip(GlyphStripPx, (day, slot) => miniBlob(days(day), slot, context.tokens)))
         )
 
   private def sleep(week: WeekData, summary: WeekSummary, context: CardContext): Option[Row] =
@@ -154,36 +171,55 @@ object WeekCard:
         val scaleMinutes =
           (nights.collect { case SleepEvidence.Recorded(minutes, goal) => StrictMath.max(minutes, goal) } :+ 1).max
         val headline = sleepWeek.averageMinutes.map(context.copy.sleepAverage).getOrElse(context.copy.estimateOnly)
-        Row(Domain.Sleep, headline, Some((day, slot) => sleepBar(nights(day), scaleMinutes, slot, context.tokens)))
+        val strip = Strip(SleepStripPx, (day, slot) => sleepBar(nights(day), scaleMinutes, slot, context.tokens))
+        Row(Domain.Sleep, headline, Some(strip))
 
-  // Rows share the space between the weekday line and the footer; the gap between rows is capped so a card with few
-  // domains stays compact at the top.
-  private def drawRows(rows: Vector[Row], frame: CardFrame, context: CardContext): Vector[Node] =
-    val heights = rows.map(row => if row.strip.isDefined then HeadlinePx + StripPx else EmptyRowPx)
-    val available = frame.footerBaseline - 60 - RowsTop
-    val gap =
-      if rows.size < 2 then 0.0 else StrictMath.min(MaximumRowGapPx, (available - heights.sum) / (rows.size - 1))
-    val tops = heights.scanLeft(RowsTop)((top, height) => top + height + gap)
-    rows.zip(tops).flatMap { (row, top) =>
-      val nameLook = frame.look(TextStyle.BodyMedium, frame.tokens.ink)
-      val slotWidth = frame.width / DayCount
-      val strip = row.strip.toVector.flatMap { draw =>
-        (0 until DayCount)
-          .flatMap(day => draw(day, Box(frame.left + day * slotWidth, top + HeadlinePx, slotWidth, StripPx)))
-      }
-      Vector(
-        Icons.of(row.domain, Point(frame.left, top), frame.tokens.hue(row.domain)),
-        frame.text(context.copy.domainName(row.domain), Point(TextLeft, top + 42), nameLook, 280),
-        frame.text(row.headline, Point(frame.right, top + 42), row.headlineLook(frame), frame.width - 380)
-      ) ++ strip
+  // The weekday line and the rows. Rows share the room down to the footer with a capped gap; what a week with few
+  // domains leaves over is shared above and below the body.
+  private def body(week: WeekData, rows: Vector[Row], frame: CardFrame, context: CardContext): Vector[Node] =
+    val legends = rows.map(row => Legend.flow(row.legendItems, frame.width, context.fitter))
+    val heights = rows.zip(legends).map { (row, legend) =>
+      row.stripBottom + (if legend.rows.isEmpty then 0.0 else StripToLegendPx + legend.height)
     }
+    val gaps = StrictMath.max(1, rows.size - 1)
+    val gap = StrictMath.min(MaximumRowGapPx, (frame.bodyBottom - RowsTop - heights.sum) / gaps)
+    val natural = heights.scanLeft(RowsTop)((top, height) => top + height + gap)
+    val shift = frame.balance(WeekdayBaseline - WeekdayHeightPx, natural.last - gap)
+    weekdays(week, WeekdayBaseline + shift, frame, context) ++
+      rows.zip(legends).zip(natural.map(_ + shift)).flatMap { case ((row, legend), top) =>
+        drawRow(row, top, frame, context) ++
+          legend.nodes(Point(frame.left, top + row.stripBottom + StripToLegendPx), frame, context.fitter)
+      }
 
-  private def weekdays(week: WeekData, frame: CardFrame, context: CardContext): Vector[Node] =
+  private def drawRow(row: Row, top: Double, frame: CardFrame, context: CardContext): Vector[Node] =
+    val nameLook = frame.look(TextStyle.BodyMedium, frame.tokens.ink)
+    val slotWidth = frame.width / DayCount
+    val strip = row.strip.toVector.flatMap { strip =>
+      (0 until DayCount).flatMap { day =>
+        strip.draw(day, Box(frame.left + day * slotWidth, top + HeadlinePx, slotWidth, strip.heightPx))
+      }
+    }
+    Vector(
+      Icons.of(row.domain, Point(frame.left, top), frame.tokens.hue(row.domain)),
+      frame.text(context.copy.domainName(row.domain), Point(TextLeft, top + 42), nameLook, 280),
+      frame.text(row.headline, Point(frame.right, top + 42), row.headlineLook(frame), frame.width - 380)
+    ) ++ strip
+
+  // The dose glyphs are named under their strip whenever the week shows more than one status (VA-ID-07).
+  private def doseLegend(statuses: Vector[DoseStatus], context: CardContext): Vector[LegendItem] =
+    val present = DoseStatus.values.toVector.filter(statuses.toSet)
+    if present.size < 2 then Vector.empty
+    else
+      present.map { status =>
+        LegendItem.of(box => DoseGlyph.of(status, box, context.tokens), context.copy.statusName(status))
+      }
+
+  private def weekdays(week: WeekData, baseline: Double, frame: CardFrame, context: CardContext): Vector[Node] =
     val look = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
     val slotWidth = frame.width / DayCount
     (0 until DayCount).toVector.map { day =>
       val initial = context.copy.weekdayInitial(week.from.plusDays(day.toLong).getDayOfWeek)
-      frame.text(initial, Point(frame.left + (day + 0.5) * slotWidth, WeekdayBaseline), look, slotWidth)
+      frame.text(initial, Point(frame.left + (day + 0.5) * slotWidth, baseline), look, slotWidth)
     }
 
   // Up to four doses as glyphs: one or two side by side, three or four in a two-by-two block; more as one block

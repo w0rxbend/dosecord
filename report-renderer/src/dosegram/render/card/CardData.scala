@@ -17,8 +17,10 @@ final case class WaterProgress(volumeMl: Int, goalMl: Int):
   def share: Double = if goalMl <= 0 then 0.0 else StrictMath.min(1.0, volumeMl.toDouble / goalMl)
   def isGoalReached: Boolean = goalMl > 0 && volumeMl >= goalMl
 
-  /** Floored, and 100 only when the goal is reached (VISUALS section 6.9). */
-  def percent: Int = if goalMl <= 0 then 0 else StrictMath.min(100, volumeMl * 100 / goalMl)
+  /** Floored, so it is 100 only when the goal is reached; above the goal it is the true number, while the vessel is
+    * drawn full at `share` (PRODUCT_SPEC R-HYD-5, ROADMAP conflict X-40).
+    */
+  def percent: Int = if goalMl <= 0 then 0 else (volumeMl.toLong * 100 / goalMl).toInt
 
 final case class MealProgress(logged: Int, planned: Int):
   def share: Double = if planned <= 0 then 0.0 else StrictMath.min(1.0, logged.toDouble / planned)

@@ -39,6 +39,9 @@ object BlobFigure:
 
   val Mark: MarkMeta = MarkMeta("blob", Set(Channel.Colour, Channel.Shape, Channel.Label))
 
+  /** How far under the centre the ground mark ends, in units of the radius. */
+  val GroundBottomShare: Double = GroundY + GroundHalfHeight
+
   def mouthCurve(valence: Int): Double = MouthCurve(valence - 1)
   def eyeOpening(energy: Int): Double = EyeOpening(energy - 1)
   def hasBrows(state: MoodState): Boolean = state.valence <= 2 && state.energy >= 4
