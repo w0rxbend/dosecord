@@ -328,6 +328,33 @@ class TelegramLaunchSuite extends PgSuite:
       List("inbound_events", "platform_identities", "users", "conversation_sessions", "outbox_messages").foreach: table =>
         assertEquals(strings(s"SELECT 1 FROM $table").size, 0, s"$table must stay empty")
 
+  test("/help, /today, /meds and /app are answered in the chat; /app carries a button that opens the Mini App"):
+    val clock = SteppedClock(monday)
+    seedOwner(clock)
+    launched(clock): bot =>
+      def answerTo(command: String): FakeTelegramTransport.RecordedCall =
+        val before = bot.sends.size
+        bot.text(owner, command)
+        eventually(s"$command is answered")(bot.sends.size > before)
+        // One message call per chat and second: let the buckets refill on the stepped clock.
+        clock.advance(Duration.ofSeconds(2))
+        bot.sends(before)
+      val help = answerTo("/help").text("text").getOrElse(fail("/help has text"))
+      List("/today", "/meds", "/app", "/help").foreach(command => assert(help.contains(command), help))
+      assert(answerTo("/today").text("text").exists(_.contains("Vitamin D")), "today lists the scheduled dose")
+      val meds = answerTo("/meds")
+      assert(meds.text("text").exists(_.contains("Vitamin D — every day 09:00")), meds.text("text").toString)
+      assert(bot.buttons(meds).map(_._1).contains("Add medication"))
+      val app = answerTo("/app")
+      assertEquals(
+        app.request.params("reply_markup"),
+        ujson.Obj(
+          "inline_keyboard" -> ujson.Arr(
+            ujson.Arr(ujson.Obj("text" -> "Open app", "web_app" -> ujson.Obj("url" -> "https://app.example/?route=today")))
+          )
+        )
+      )
+
   test("start-up registers the command list and leaves the command list as the default menu button"):
     val clock = SteppedClock(monday)
     launched(clock): bot =>

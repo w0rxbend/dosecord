@@ -79,6 +79,10 @@ final class MenuHandler(
         guardLinked(event, principal)(todayView(event, principal, tx, source = None))
       case Inbound.CommandInvoked(CommandHistory, _, _) =>
         guardLinked(event, principal)(historyView(event, principal, tx, source = None))
+      case Inbound.CommandInvoked(CommandMeds, _, _) =>
+        guardLinked(event, principal)(medicationsMenu(event, principal, tx, source = None, notice = None))
+      case Inbound.CommandInvoked(CommandApp, _, _) =>
+        guardLinked(event, principal)(appCard(event))
       case Inbound.InteractionSubmitted(ref, source) => onTap(event, principal, ref, source, tx)
       case _                                         => inner.handle(event, principal, tx)
 
@@ -243,6 +247,20 @@ final class MenuHandler(
           dedupeKey = s"menu:main:${event.vendor}:${event.vendorEventId}",
           correlationId = s"${event.vendor}:${event.vendorEventId}",
           replaces = source
+        )
+      )
+    )
+
+  /** `/app`: a link choice, so no token is minted and nothing comes back from the tap (ADR-015). */
+  private def appCard(event: InboundEvent): Reply =
+    Reply(followUps =
+      List(
+        OutboundMessage(
+          body = List(paragraph(MenuCopy.appPrompt)),
+          blocks =
+            List(Block.Choices(ChoiceSet(id = "menu.app", choices = List(Choice.openApp(MenuCopy.openApp, AppHome))))),
+          dedupeKey = s"menu:app:${event.vendor}:${event.vendorEventId}",
+          correlationId = s"${event.vendor}:${event.vendorEventId}"
         )
       )
     )
@@ -607,6 +625,11 @@ private object MenuHandler:
   val CommandMenu = "menu"
   val CommandToday = "today"
   val CommandHistory = "history"
+  val CommandMeds = "meds"
+  val CommandApp = "app"
+
+  /** The Mini App route of its Today screen (MINI_APP section 3.4). */
+  val AppHome: AppRoute = AppRoute("today")
 
   val MenuOpenAction: ActionEntry = ActionRegistry.byName("menu.open").get
   val MenuOpenFormAction: ActionEntry = ActionRegistry.byName("menu.open_form").get

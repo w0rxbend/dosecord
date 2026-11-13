@@ -15,12 +15,14 @@ object HelpCopy:
   val commands: List[(String, String)] = List(
     "/start" -> "Create your account and pick a timezone.",
     "/today" -> "Show today's doses and record them.",
+    "/meds" -> "Show your medications.",
     "/history" -> "Show the last 7 days.",
     "/taken [medication]" -> "Record a dose as taken.",
     "/snooze <minutes>" -> "Snooze the current reminder.",
     "/skip [medication]" -> "Mark a dose as skipped.",
     "/log <medication>" -> "Log an as-needed dose.",
     "/menu" -> "Open the main menu.",
+    "/app" -> "Open the app.",
     "/cancel" -> "Cancel the current setup.",
     "/help" -> "Show this help."
   )

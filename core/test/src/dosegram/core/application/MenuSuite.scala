@@ -8,7 +8,9 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.UnknownReason
 import dosegram.core.domain.copy.DoseActionKind
+import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.ports.OccurrenceOrigin
 import dosegram.core.ports.ScheduleStatus
 
@@ -254,6 +256,25 @@ class MenuSuite extends munit.FunSuite:
       val otherOpen = rig.uow.occurrences.listBySchedule(other.id).filter(_.status.isOpen)
       assertEquals(otherOpen.map(_.scheduledFor), List(Instant.parse("2026-09-21T09:00:00Z"),
         Instant.parse("2026-09-22T09:00:00Z")))
+
+  test("/meds opens the medication list without going through the menu"):
+    withRig: rig =>
+      val account = rig.seedAccount()
+      rig.seedSchedule(account, "Vitamin D", dailyAt("09:00"), kyiv, dose = (Some(BigDecimal(1000)), Some("IU")))
+      val chunks = rig.line("/meds")
+      assert(chunks.exists(_.contains("Vitamin D 1000 IU — every day 09:00")), s"the schedule line: $chunks")
+      val labels = rig.lastChoiceMap("Medications").map(_.label)
+      assert(labels.contains("Add medication"), labels.toString)
+      assert(labels.contains("Pause"), labels.toString)
+
+  test("/meds before an account exists asks to create one and shows nothing"):
+    withRig: rig =>
+      assertEquals(rig.line("/meds"), List(IdentityCopy.createFirst))
+
+  test("/app answers with one button that opens the Mini App on Today; on the console it is the app legend"):
+    withRig: rig =>
+      rig.seedAccount()
+      assertEquals(rig.line("/app"), List(s"${MenuCopy.appPrompt}\n\n[app: today] ${MenuCopy.openApp}"))
 
   test("/help lists every command including /today, /history and itself"):
     withRig: rig =>

@@ -37,6 +37,8 @@ Pick your timezone:
 
 /today — Show today's doses and record them.
 
+/meds — Show your medications.
+
 /history — Show the last 7 days.
 
 /taken [medication] — Record the latest dose as taken.
@@ -48,6 +50,8 @@ Pick your timezone:
 /log [medication] — Log a dose you already took.
 
 /menu — Open the main menu.
+
+/app — Open the app.
 
 /cancel — Cancel the current setup.
 

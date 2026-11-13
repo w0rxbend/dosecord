@@ -22,6 +22,10 @@ object MenuCopy:
   val accountPrompt = "Account"
   val menuLabel = "Menu"
   val medicationsEmpty = "No medications yet."
+
+  /** `/app` (BOT_UX section 6.1): one card whose button opens the Mini App. */
+  val appPrompt = "Your records and settings are in the app."
+  val openApp = "Open app"
   val todayEmpty = "Nothing scheduled for today."
   def todayMore(count: Int): String = s"+$count more — see /history."
   val historyTitle = "Last 7 days"
@@ -72,6 +76,8 @@ object MenuCopy:
         CopyEntry("menu.medications.paused_since", pausedSince("Tue")),
         CopyEntry("menu.medications.prompt", medicationsPrompt),
         CopyEntry("menu.account.prompt", accountPrompt),
+        CopyEntry("menu.app.prompt", appPrompt),
+        CopyEntry("menu.app.open", openApp),
         CopyEntry("menu.nav.label", menuLabel),
         CopyEntry("menu.medications.empty", medicationsEmpty),
         CopyEntry("menu.today.empty", todayEmpty),
