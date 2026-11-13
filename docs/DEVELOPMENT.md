@@ -27,6 +27,7 @@ executed test count per module and compare it with the previous run.
 ./mill __.compile
 ./mill __.test
 ./mill app.test.runMain dosegram.app.envExampleCheck .env.example
+./mill api.test.runMain dosegram.api.openApiCheck api/openapi.json
 scripts/flyway-validate.sh
 scripts/check-vendor-symbols.sh
 scripts/check-sql-now.sh
@@ -57,8 +58,8 @@ a failure is real. `./mill app.test.runMain` fails now and then with
 ./mill --no-server -j 1 <module>.test
 ```
 
-`<module>` is one of `contracts`, `core`, `infra`, `adapter-console`, `app`,
-`tests.conformance`, `tests.simulation`.
+`<module>` is one of `contracts`, `core`, `infra`, `adapter-console`, `api`,
+`app`, `tests.conformance`, `tests.simulation`.
 
 ## Frontend gate
 
@@ -69,10 +70,10 @@ pnpm --dir miniapp install --frozen-lockfile
 pnpm --dir miniapp run check   # svelte-check, then scripts/lint-source.mjs
 pnpm --dir miniapp run test    # component tests against the fake TelegramPort
 pnpm --dir miniapp run build   # vite build, then the bundle budget
+pnpm --dir miniapp run api:check  # client types must equal those of api/openapi.json
 ```
 
-`api:check` and `e2e` of ROADMAP section 0.6 do not exist yet; slices G3.1 and
-G3.12 create them.
+`e2e` of ROADMAP section 0.6 does not exist yet; slice G3.12 creates it.
 
 ## Image gate
 
@@ -94,6 +95,35 @@ docker compose -f docker/compose.yml down -v
 ```sh
 ./mill app.test.runMain dosegram.app.envExampleGenerate .env.example
 ```
+
+`api/openapi.json` is generated from the Tapir definitions of the `api` module,
+and `miniapp/src/api/schema.d.ts` from that document
+([ADR-020](adr/ADR-020.md)). After a change to a route or a document type, run
+both, in this order:
+
+```sh
+./mill api.test.runMain dosegram.api.openApiGenerate api/openapi.json
+pnpm --dir miniapp run api:generate
+```
+
+## Mini App and API on a developer machine
+
+The Mini App surface is off by default and start-up refuses it in production
+(ROADMAP G1.12). To serve the built app and the API from the application, build
+the app with `pnpm --dir miniapp run build` and add these variables to the ones
+of [QUICKSTART.md](../QUICKSTART.md):
+
+| Variable | Value |
+|---|---|
+| `ENVIRONMENT` | `development` |
+| `MINIAPP_ENABLED` | `true` |
+| `MINIAPP_STATIC_DIR` | `miniapp/dist` |
+| `MINIAPP_HMAC_FALLBACK` | `true` |
+| `TELEGRAM_TOKEN` | A development value, never the token of a real bot |
+
+`/app/` and `/api/v1/` are then on `HTTP_PORT` (default 8081). Outside Telegram
+the app shows the gate "Dosegram runs inside Telegram"; `miniapp/README.md`
+describes how the development server signs its own launch data instead.
 
 ## Rules that hold everywhere
 
