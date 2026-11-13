@@ -24,6 +24,7 @@ import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.WaterCardView
 
 import java.time.ZoneId
@@ -60,18 +61,16 @@ class CaptureFlowsSuite extends munit.FunSuite:
       days += view
       image("day")
 
-  private final class World(val cards: StatusCards):
-    val tracking = InMemoryTracking(Map.empty)
-    val consents = InMemoryConsentLedger()
+  /** The tables behind the rig's transaction, as the tests inspect them. */
+  private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
 
-    def parts(clock: Clock): CaptureParts =
-      CaptureParts(
-        HydrationService(tracking, consents, clock, SequentialIds()),
-        MoodService(tracking, consents, clock, SequentialIds()),
-        StatsQueryService(tracking, RollupService(tracking, clock), consents, clock),
-        consents,
-        cards
-      )
+  private def parts(uow: UnitOfWork, cards: StatusCards)(clock: Clock): CaptureParts =
+    CaptureParts(
+      HydrationService(clock, SequentialIds()),
+      MoodService(clock, SequentialIds()),
+      StatsQueryService(RollupService(uow, clock), clock),
+      cards
+    )
 
   private final class Chat(val rig: MedicationWizardRig, val world: World, val account: UUID):
     def grant(purposes: ConsentPurpose*): Unit =
@@ -81,11 +80,9 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
   private def withChat(profile: Profile, cards: StatusCards = RecordingCards())(test: Chat => Unit): Unit =
     ox.supervised:
-      val world = World(cards)
-      val rig = MedicationWizardRig(profile, captureParts = Some(world.parts))
+      val rig = MedicationWizardRig(profile, captureParts = Some(uow => parts(uow, cards)))
       val account = rig.seedAccount()
-      world.tracking.setZone(account, kyiv)
-      test(Chat(rig, world, account))
+      test(Chat(rig, World(rig.uow.tracking, rig.uow.consents), account))
 
   private def texts(ops: List[VendorOp]): List[String] =
     ops.flatMap:
@@ -355,8 +352,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
   test("without an account a capture command points at /start"):
     ox.supervised:
-      val world = World(StatusCards.textOnly)
-      val rig = MedicationWizardRig(Profile.Console, captureParts = Some(world.parts))
+      val rig = MedicationWizardRig(Profile.Console, captureParts = Some(uow => parts(uow, StatusCards.textOnly)))
       assertEquals(rig.line("/water 300"), List(IdentityCopy.createFirst))
 
   test("/help lists the capture commands in the composition that has them"):

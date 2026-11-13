@@ -3,11 +3,10 @@ package dosegram.infra.db
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.GrantedConsent
-import dosegram.core.ports.IdSource
 
 import java.sql.SQLException
 import java.time.Instant
-import java.util.random.RandomGenerator
+import java.util.UUID
 import scala.language.implicitConversions
 
 /** The consent ledger of ARCHITECTURE section 10.2 on Testcontainers Postgres 18: `consent_events` is append-only and
@@ -18,9 +17,18 @@ class ConsentLedgerPgSuite extends PgSuite:
   private val t0 = Instant.parse("2026-11-13T09:00:00Z")
   private val notice = ConsentNotice(1, "I agree that Dosegram stores and processes my water intake records.")
   private lazy val fixtures = Fixtures(dataSource)
-  private lazy val ledger = PgConsentLedger(dataSource, IdSource.uuidV7(RandomGenerator.getDefault))
+  private lazy val uow = PgUnitOfWork(dataSource, () => t0)
 
-  private def events(account: java.util.UUID): List[String] =
+  /** The ledger of the unit of work, one transaction per call. */
+  private object ledger:
+    def isGranted(account: UUID, purpose: ConsentPurpose): Boolean = uow.transaction(_.consents.isGranted(account, purpose))
+    def grant(account: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+      uow.transaction(_.consents.grant(account, purpose, notice, at))
+    def withdraw(account: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
+      uow.transaction(_.consents.withdraw(account, purpose, at))
+    def granted(account: UUID): List[GrantedConsent] = uow.transaction(_.consents.granted(account))
+
+  private def events(account: UUID): List[String] =
     withConnection: conn =>
       given java.sql.Connection = conn
       sql"SELECT purpose || ':' || action FROM consent_events WHERE account_id = $account ORDER BY occurred_at, id"

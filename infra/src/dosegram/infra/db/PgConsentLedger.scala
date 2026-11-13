@@ -11,13 +11,14 @@ import java.security.MessageDigest
 import java.sql.Connection
 import java.time.Instant
 import java.util.UUID
-import javax.sql.DataSource
 import scala.language.implicitConversions
 
-/** Postgres consent ledger: `consent_events` (append-only) and its projection `consent_state`, written in one
-  * transaction per change. Every query names the account, so one account never reads the consent of another.
+/** Postgres consent ledger: `consent_events` (append-only) and its projection `consent_state`, both written on the
+  * connection of the surrounding transaction. Every query names the account, so one account never reads the consent of
+  * another.
   */
-final class PgConsentLedger(dataSource: DataSource, ids: IdSource) extends ConsentLedger:
+final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedger:
+  private given Connection = conn
 
   private given RowMapper[GrantedConsent] = rs =>
     val stored = rs.getString("purpose")
@@ -29,38 +30,34 @@ final class PgConsentLedger(dataSource: DataSource, ids: IdSource) extends Conse
     GrantedConsent(purpose, rs.instant("updated_at"), rs.getInt("policy_version"))
 
   override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean =
-    transaction:
-      sql"""SELECT granted FROM consent_state WHERE account_id = $accountId AND purpose = ${purpose.id}"""
-        .queryOne[Boolean]()
-        .contains(true)
+    sql"""SELECT granted FROM consent_state WHERE account_id = $accountId AND purpose = ${purpose.id}"""
+      .queryOne[Boolean]()
+      .contains(true)
 
   override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
-    transaction:
-      val changed =
-        sql"""INSERT INTO consent_state (account_id, purpose, granted, policy_version, updated_at)
-              VALUES ($accountId, ${purpose.id}, true, ${notice.policyVersion}, $at)
-              ON CONFLICT (account_id, purpose) DO UPDATE
-                SET granted = true, policy_version = EXCLUDED.policy_version, updated_at = EXCLUDED.updated_at
-                WHERE NOT consent_state.granted OR consent_state.policy_version <> EXCLUDED.policy_version"""
-          .execute() == 1
-      if changed then
-        val event = ConsentEvent(accountId, purpose, "granted", notice.policyVersion, Some(hashOf(notice.statement)))
-        append(event, at)
-      changed
+    val changed =
+      sql"""INSERT INTO consent_state (account_id, purpose, granted, policy_version, updated_at)
+            VALUES ($accountId, ${purpose.id}, true, ${notice.policyVersion}, $at)
+            ON CONFLICT (account_id, purpose) DO UPDATE
+              SET granted = true, policy_version = EXCLUDED.policy_version, updated_at = EXCLUDED.updated_at
+              WHERE NOT consent_state.granted OR consent_state.policy_version <> EXCLUDED.policy_version"""
+        .execute() == 1
+    if changed then
+      val event = ConsentEvent(accountId, purpose, "granted", notice.policyVersion, Some(hashOf(notice.statement)))
+      append(event, at)
+    changed
 
   override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
-    transaction:
-      val version =
-        sql"""UPDATE consent_state SET granted = false, updated_at = $at
-              WHERE account_id = $accountId AND purpose = ${purpose.id} AND granted
-              RETURNING policy_version""".queryOne[Int]()
-      version.foreach(v => append(ConsentEvent(accountId, purpose, "withdrawn", v, noticeHash = None), at))
-      version.isDefined
+    val version =
+      sql"""UPDATE consent_state SET granted = false, updated_at = $at
+            WHERE account_id = $accountId AND purpose = ${purpose.id} AND granted
+            RETURNING policy_version""".queryOne[Int]()
+    version.foreach(v => append(ConsentEvent(accountId, purpose, "withdrawn", v, noticeHash = None), at))
+    version.isDefined
 
   override def granted(accountId: UUID): List[GrantedConsent] =
-    transaction:
-      sql"""SELECT purpose, updated_at, policy_version FROM consent_state
-            WHERE account_id = $accountId AND granted ORDER BY updated_at, purpose""".query[GrantedConsent]()
+    sql"""SELECT purpose, updated_at, policy_version FROM consent_state
+          WHERE account_id = $accountId AND granted ORDER BY updated_at, purpose""".query[GrantedConsent]()
 
   private final case class ConsentEvent(
       accountId: UUID,
@@ -70,7 +67,7 @@ final class PgConsentLedger(dataSource: DataSource, ids: IdSource) extends Conse
       noticeHash: Option[Array[Byte]]
   )
 
-  private def append(event: ConsentEvent, at: Instant)(using Connection): Unit =
+  private def append(event: ConsentEvent, at: Instant): Unit =
     sql"""INSERT INTO consent_events (id, account_id, purpose, action, policy_version, notice_hash, channel, occurred_at)
           VALUES (${ids.next(at)}, ${event.accountId}, ${event.purpose.id}, ${event.action}, ${event.policyVersion},
                   ${event.noticeHash}, 'bot', $at)""".execute()
@@ -78,16 +75,3 @@ final class PgConsentLedger(dataSource: DataSource, ids: IdSource) extends Conse
 
   private def hashOf(statement: String): Array[Byte] =
     MessageDigest.getInstance("SHA-256").digest(statement.getBytes(UTF_8))
-
-  private def transaction[A](body: Connection ?=> A): A =
-    val conn = dataSource.getConnection
-    conn.setAutoCommit(false)
-    try
-      val result = body(using conn)
-      conn.commit()
-      result
-    catch
-      case e: Throwable =>
-        conn.rollback()
-        throw e
-    finally conn.close()

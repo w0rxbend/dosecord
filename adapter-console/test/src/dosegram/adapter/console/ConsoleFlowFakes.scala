@@ -514,6 +514,21 @@ private object ConsoleFlowFakes:
         rows(instance) = now
     override def maxLastTick(): Option[Instant] = this.synchronized(rows.values.toList.maxOption)
 
+  /** The consent ledger in memory: the purposes granted now, per account. */
+  final class InMemoryConsents extends ConsentLedger:
+    private val state = scala.collection.mutable.LinkedHashMap.empty[(UUID, ConsentPurpose), GrantedConsent]
+    override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean =
+      this.synchronized(state.contains((accountId, purpose)))
+    override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, at: Instant): Boolean =
+      this.synchronized:
+        val changed = !state.get((accountId, purpose)).exists(_.policyVersion == notice.policyVersion)
+        if changed then state((accountId, purpose)) = GrantedConsent(purpose, at, notice.policyVersion)
+        changed
+    override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
+      this.synchronized(state.remove((accountId, purpose)).isDefined)
+    override def granted(accountId: UUID): List[GrantedConsent] =
+      this.synchronized(state.collect { case ((`accountId`, _), consent) => consent }.toList)
+
   final class InMemoryUnitOfWork extends UnitOfWork:
     val inboundEvents = InMemoryInboundEvents()
     val domainEvents = InMemoryDomainEvents()
@@ -532,6 +547,7 @@ private object ConsoleFlowFakes:
     val policies = InMemoryPolicies(revisions)
     val channels = InMemoryChannels()
     val heartbeat = InMemoryHeartbeat()
+    val consents = InMemoryConsents()
 
     private val tx: Tx = new Tx:
       override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions
@@ -553,5 +569,9 @@ private object ConsoleFlowFakes:
       override def policies: PolicyRepository = InMemoryUnitOfWork.this.policies
       override def channels: DeliveryChannelRepository = InMemoryUnitOfWork.this.channels
       override def heartbeat: WorkerHeartbeatRepository = InMemoryUnitOfWork.this.heartbeat
+      override def consents: ConsentLedger = InMemoryUnitOfWork.this.consents
+      // ROADMAP G2.1: a call on a group this double does not implement names the group.
+      override def tracking: TrackingRepositories =
+        throw UnsupportedOperationException("this double has no repository group 'tracking'")
 
     override def transaction[A](f: Tx => A): A = f(tx)

@@ -6,19 +6,19 @@ import dosegram.contracts.Reply
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.Clock
-import dosegram.core.ports.ConsentLedger
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 
 /** The two-stage consent of BOT_UX section 5.5 and the `/privacy` card of section 20.1. A consent is recorded only on
   * the "Confirm" tap; the card then becomes the receipt and is not edited again, and the input that opened the card
-  * runs as a new message. Nothing is kept in a session: the pending input travels in the signed buttons.
+  * runs as a new message. Nothing is kept in a session: the pending input travels in the signed buttons. The ledger is
+  * the one on the transaction of the event, so a consent and what it allows commit together.
   */
-private[capture] final class ConsentFlow(ledger: ConsentLedger, tokens: Tokens, clock: Clock):
+private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
 
   /** Runs `granted` when the purpose is on; otherwise shows stage 1 with `pending` in its buttons. */
   def guarded(turn: Turn, purpose: ConsentPurpose, pending: Pending)(granted: => Reply): Reply =
-    if ledger.isGranted(turn.accountId, purpose) then granted
+    if turn.tx.consents.isGranted(turn.accountId, purpose) then granted
     else turn.show(stageOne(turn, ConsentRequest(ConsentStage.Ask, purpose, pending)))
 
   /** One tap on a consent card. `resume` runs the pending input once the consent is recorded. */
@@ -34,7 +34,8 @@ private[capture] final class ConsentFlow(ledger: ConsentLedger, tokens: Tokens, 
     val now = clock.now()
     val notice = ConsentNotice(ConsentCopy.NoticeVersion, ConsentCopy.statement(request.purpose))
     // A second tap on an old card records nothing and must not run the pending input a second time.
-    if !ledger.grant(turn.accountId, request.purpose, notice, now) then turn.toast(ReminderCopy.staleControlToast)
+    if !turn.tx.consents.grant(turn.accountId, request.purpose, notice, now) then
+      turn.toast(ReminderCopy.staleControlToast)
     else
       val receipt = List(ConsentCopy.receipt(request.purpose, turn.localDate(now)))
       val resumed = resume(request.pending)
@@ -65,7 +66,7 @@ private[capture] final class ConsentFlow(ledger: ConsentLedger, tokens: Tokens, 
 
   /** `/privacy`: every granted consent with its date and a "Withdraw" button (BUX-CONS-06). */
   def privacy(turn: Turn): Reply =
-    val granted = ledger.granted(turn.accountId)
+    val granted = turn.tx.consents.granted(turn.accountId)
     val lines =
       if granted.isEmpty then List(ConsentCopy.privacyNone)
       else
@@ -84,6 +85,6 @@ private[capture] final class ConsentFlow(ledger: ConsentLedger, tokens: Tokens, 
   /** Withdrawal takes effect at once: the domain's commands return to the consent prompt. */
   def withdraw(turn: Turn, purposeCode: Long): Reply =
     ConsentRequest.purposeOf(purposeCode) match
-      case Some(purpose) if ledger.withdraw(turn.accountId, purpose, clock.now()) =>
+      case Some(purpose) if turn.tx.consents.withdraw(turn.accountId, purpose, clock.now()) =>
         turn.show(turn.message("privacy.withdrawn", List(ConsentCopy.withdrawn(purpose)), Nil))
       case _ => turn.toast(ReminderCopy.staleControlToast)

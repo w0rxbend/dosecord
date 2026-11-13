@@ -31,14 +31,14 @@ private[capture] final class WaterChat(hydration: HydrationService, cards: Statu
   import WaterChat.*
 
   def card(turn: Turn): Reply =
-    answered(turn, hydration.day(turn.accountId, EntryDay.Today)): view =>
+    answered(turn, hydration.day(turn.tx, turn.accountId, EntryDay.Today)): view =>
       turn.show(turn.message("water.card", List(WaterCopy.card(dayOf(view))), cardRows(turn, view, undo = None)))
 
   /** A typed amount. A count of glasses is sized by the user's own first preset, not by the default one. */
   def typed(turn: Turn, parsed: WaterAmount): Reply =
     if parsed.entered.unit != HydrationUnit.Glass then add(turn, parsed)
     else
-      answered(turn, hydration.presets(turn.accountId)): presets =>
+      answered(turn, hydration.presets(turn.tx, turn.accountId)): presets =>
         WaterAmount.of(parsed.entered, presets.head) match
           case Right(sized)            => add(turn, sized)
           case Left(AmountOutOfBounds) => turn.toast(WaterCopy.tooMuch)
@@ -50,12 +50,12 @@ private[capture] final class WaterChat(hydration: HydrationService, cards: Statu
 
   def add(turn: Turn, amount: WaterAmount): Reply =
     val command = LogWater(turn.accountId, amount, EntryDay.Today, EntrySource.Bot, turn.clientKey)
-    answered(turn, hydration.log(command)): logged =>
+    answered(turn, hydration.log(turn.tx, command)): logged =>
       val text = WaterCopy.added(amount.millilitres, dayOf(logged.day), logged.goalReachedNow)
       turn.show(turn.message("water.added", List(text), cardRows(turn, logged.day, undo = Some(logged.entry.id))))
 
   def undo(turn: Turn, entryId: UUID): Reply =
-    answered(turn, hydration.undo(turn.accountId, entryId)): removed =>
+    answered(turn, hydration.undo(turn.tx, turn.accountId, entryId)): removed =>
       val text = WaterCopy.undone(dayOf(removed.day))
       turn.show(turn.message("water.undone", List(text), cardRows(turn, removed.day, undo = None)))
 
@@ -72,12 +72,12 @@ private[capture] final class WaterChat(hydration: HydrationService, cards: Statu
     val goalMl = (value & GoalMask).toInt
     val pendingMl = (value >> PendingShift).toInt
     val target = Option.when(goalMl != NoGoalValue)(goalMl)
-    answered(turn, hydration.setGoal(turn.accountId, target)): _ =>
+    answered(turn, hydration.setGoal(turn.tx, turn.accountId, target)): _ =>
       if pendingMl > 0 then addMillilitres(turn, pendingMl) else card(turn)
 
   /** "Show as image" (BUX-WATER-06): the vessel card with the day's figures as its caption, as a new message. */
   def image(turn: Turn): Reply =
-    answered(turn, hydration.day(turn.accountId, EntryDay.Today)): view =>
+    answered(turn, hydration.day(turn.tx, turn.accountId, EntryDay.Today)): view =>
       view.goalMl match
         case None       => turn.toast(WaterCopy.imageNeedsGoal)
         case Some(goal) =>
@@ -106,7 +106,7 @@ private[capture] final class WaterChat(hydration: HydrationService, cards: Statu
 
   /** Undo for the entry just made, the quick-add amounts, then the image and the goal. */
   private def cardRows(turn: Turn, view: WaterDayView, undo: Option[UUID]): List[List[Choice]] =
-    val presets = hydration.presets(turn.accountId).getOrElse(Nil)
+    val presets = hydration.presets(turn.tx, turn.accountId).getOrElse(Nil)
     val undoRow =
       undo.toList.map(entry => Choice.callback(Labels.Undo, tokens.direct(CaptureActions.WaterUndo, entry, 0)))
     val addRow = presets.map: millilitres =>

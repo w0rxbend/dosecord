@@ -48,9 +48,8 @@ object Adapters:
     val adapters = parts.adapters
     val uow = PgUnitOfWork(dataSource, parts.clock)
     val codec = CallbackCodec(settings.callbackKeys)
-    val tracking = TrackingServices.over(dataSource, parts.clock)
-    val capture =
-      CaptureParts(tracking.hydration, tracking.mood, tracking.stats, tracking.consents, parts.images.cards)
+    val tracking = TrackingServices.over(uow, parts.clock)
+    val capture = CaptureParts(tracking.hydration, tracking.mood, tracking.stats, parts.images.cards)
     val mediator = ChatMediator(
       uow,
       adapters,

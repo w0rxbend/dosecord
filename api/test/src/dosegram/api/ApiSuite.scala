@@ -4,16 +4,11 @@ import dosegram.api.auth.InMemorySessionStore
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataSuite
 import dosegram.api.auth.TelegramInitDataVerifier
-import dosegram.core.application.hydration.HydrationService
-import dosegram.core.application.insights.RollupService
-import dosegram.core.application.insights.StatsQueryService
-import dosegram.core.application.mood.MoodService
 import dosegram.core.ports.IdSource
 import dosegram.infra.db.Fixtures
 import dosegram.infra.db.MutableClock
-import dosegram.infra.db.PgConsentLedger
 import dosegram.infra.db.PgSuite
-import dosegram.infra.db.PgTrackingUnitOfWork
+import dosegram.infra.db.TransactionalTracking
 import dosegram.infra.db.PgUnitOfWork
 import dosegram.infra.db.sql
 import ox.supervised
@@ -58,12 +53,8 @@ trait ApiSuite extends PgSuite:
   protected lazy val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock)
 
   // The tracking use cases over the same database: the module reads through them, a test seeds through them.
-  private lazy val trackingUow = PgTrackingUnitOfWork(dataSource)
-  private lazy val ids = IdSource.uuidV7(RandomGenerator.getDefault)
-  protected lazy val consents: PgConsentLedger = PgConsentLedger(dataSource, ids)
-  protected lazy val hydration: HydrationService = HydrationService(trackingUow, consents, clock, ids)
-  protected lazy val mood: MoodService = MoodService(trackingUow, consents, clock, ids)
-  private lazy val stats = StatsQueryService(trackingUow, RollupService(trackingUow, clock), consents, clock)
+  protected lazy val tracking: TransactionalTracking =
+    TransactionalTracking(uow, clock, IdSource.uuidV7(RandomGenerator.getDefault))
 
   private val stopped = CountDownLatch(1)
   private val bound = CompletableFuture[Int]()
@@ -77,7 +68,7 @@ trait ApiSuite extends PgSuite:
     TelegramInitDataVerifier(ed25519 = None, hmacSecret = Some(InitDataHmac.secretKeyFor(BotToken))),
     sessionStore,
     InMemoryIdempotencyStore(),
-    TrackingReads(stats, hydration),
+    TrackingReads(tracking.statsService, tracking.hydrationService),
     line => logged.synchronized { logged += line; () }
   )
 

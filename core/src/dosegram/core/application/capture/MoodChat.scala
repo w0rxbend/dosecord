@@ -6,6 +6,7 @@ import dosegram.core.application.mood.CheckIn
 import dosegram.core.application.mood.MoodRecorded
 import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.mood.SetEnergy
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.CheckInCopy
@@ -34,7 +35,7 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
     */
   def checkIn(turn: Turn, valence: Valence): Reply =
     val command = CheckIn(turn.accountId, valence, None, Nil, EntryDay.Today, EntrySource.Bot, turn.clientKey)
-    answered(turn, mood.checkIn(command)): recorded =>
+    answered(turn, mood.checkIn(turn.tx, command)): recorded =>
       val confirmation = turn.message("mood.recorded", List(captionOf(turn, recorded.checkin)), followUpRows(recorded))
       cards.mood(MoodCardView(valence, None)) match
         case Some(attachment) => Reply(followUps = List(confirmation.copy(attachment = Some(attachment))))
@@ -47,12 +48,13 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
       Energy.of(value.toInt) match
         case None         => turn.toast(ReminderCopy.staleControlToast)
         case Some(energy) =>
-          answered(turn, mood.setEnergy(turn.accountId, checkinId, energy, turn.clientKey)): recorded =>
-            val rows = List(List(undoButton(recorded.checkin.id)))
-            turn.show(turn.message("mood.energy", List(captionOf(turn, recorded.checkin)), rows))
+          answered(turn, mood.setEnergy(turn.tx, SetEnergy(turn.accountId, checkinId, energy, turn.clientKey))):
+            recorded =>
+              val rows = List(List(undoButton(recorded.checkin.id)))
+              turn.show(turn.message("mood.energy", List(captionOf(turn, recorded.checkin)), rows))
 
   def undo(turn: Turn, checkinId: UUID): Reply =
-    answered(turn, mood.undo(turn.accountId, checkinId)): _ =>
+    answered(turn, mood.undo(turn.tx, turn.accountId, checkinId)): _ =>
       turn.show(turn.message("mood.undone", List(CheckInCopy.undone), Nil))
 
   private def energyAsk(turn: Turn, checkinId: UUID) =

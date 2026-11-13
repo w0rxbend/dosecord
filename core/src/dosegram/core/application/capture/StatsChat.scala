@@ -19,7 +19,7 @@ import java.time.LocalDate
 private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
 
   def card(turn: Turn, period: StatsPeriod): Reply =
-    parts.stats.summary(turn.accountId, period) match
+    parts.stats.summary(turn.tx, turn.accountId, period) match
       case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
       case Right(summary) => turn.show(turn.message("stats.card", summary.lines, rows(turn, period)))
 
@@ -33,7 +33,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
     * the medication records are not shown.
     */
   def dayImage(turn: Turn, doses: Option[List[DoseMark]]): Reply =
-    parts.stats.summary(turn.accountId, StatsPeriod.Today) match
+    parts.stats.summary(turn.tx, turn.accountId, StatsPeriod.Today) match
       case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
       case Right(summary) =>
         val view = DayCardView(summary.window.end, latestMood(turn), doses, waterToday(turn, summary.window.end))
@@ -46,7 +46,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
   // A domain without consent answers with a refusal and is left out of the picture, as it is left out of the text.
   private def latestMood(turn: Turn): Option[MoodCardView] =
     parts.mood
-      .day(turn.accountId, EntryDay.Today)
+      .day(turn.tx, turn.accountId, EntryDay.Today)
       .toOption
       .flatMap(_.latest)
       .map(checkin => MoodCardView(checkin.valence, checkin.energy))
@@ -54,7 +54,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
   /** Water has a line on the card only against the user's own goal. */
   private def waterToday(turn: Turn, today: LocalDate): Option[WaterCardView] =
     for
-      view <- parts.hydration.day(turn.accountId, EntryDay.Today).toOption
+      view <- parts.hydration.day(turn.tx, turn.accountId, EntryDay.Today).toOption
       goal <- view.goalMl
     yield
       val day = WaterChat.dayOf(view)

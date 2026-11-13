@@ -4,6 +4,7 @@ import dosegram.core.application.FakeConsent
 import dosegram.core.application.InMemoryTracking
 import dosegram.core.application.ManualClock
 import dosegram.core.application.SequentialIds
+import dosegram.core.application.TrackingTxDouble
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.mood.CheckIn
@@ -51,10 +52,11 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
   private final class Rig(consent: FakeConsent = FakeConsent.all(account)):
     val clock = ManualClock(now)
     val tables = InMemoryTracking(Map(account -> kyiv))
-    val rollups = RollupService(tables, clock)
-    val stats = StatsQueryService(tables, rollups, consent, clock)
-    val water = HydrationService(tables, consent, clock, SequentialIds())
-    val moods = MoodService(tables, consent, clock, SequentialIds())
+    val tx = TrackingTxDouble(tables, consent)
+    val rollups = RollupService(tx, clock)
+    val stats = StatsQueryService(rollups, clock)
+    val water = HydrationService(clock, SequentialIds())
+    val moods = MoodService(clock, SequentialIds())
 
     /** Moves the clock to 12:00 UTC of `daysAgo` days before today, records, and returns to now. */
     def on(daysAgo: Int)(record: => Unit): Unit =
@@ -64,11 +66,11 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
 
     def drink(millilitres: Int, key: String): Unit =
       val amount = WaterAmount.ofMillilitres(millilitres).toOption.get
-      assert(water.log(LogWater(account, amount, EntryDay.Today, EntrySource.Bot, key)).isRight)
+      assert(water.log(tx, LogWater(account, amount, EntryDay.Today, EntrySource.Bot, key)).isRight)
 
     def feel(valence: Int, key: String): Unit =
       val command = CheckIn(account, Valence.of(valence).get, None, Nil, EntryDay.Today, EntrySource.Bot, key)
-      assert(moods.checkIn(command).isRight)
+      assert(moods.checkIn(tx, command).isRight)
 
     def dose(daysAgo: Int, status: OccurrenceStatus): Unit =
       val scheduledFor = now.minus(Duration.ofDays(daysAgo.toLong)).minus(Duration.ofHours(8))
@@ -93,11 +95,11 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     rig.dose(3, OccurrenceStatus.Unknown)
     rig.dose(3, OccurrenceStatus.Unknown)
     rig.dose(3, OccurrenceStatus.Cancelled)
-    val view = rig.stats.medication(account, StatsPeriod.Last7Days).toOption.get
+    val view = rig.stats.medication(rig.tx, account, StatsPeriod.Last7Days).toOption.get
     assertEquals(view.period.total.adherence.shown, Some(Ratio(8, 10)))
     assertEquals(view.period.total.buckets.unknown, 2)
     assertEquals(view.period.perMedication.keySet, Set(medication))
-    val text = rig.stats.summary(account, StatsPeriod.Last7Days).toOption.get.lines
+    val text = rig.stats.summary(rig.tx, account, StatsPeriod.Last7Days).toOption.get.lines
     assertEquals(
       text,
       List(
@@ -112,26 +114,27 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
   test("only unknown rows print No data, never a percentage"):
     val rig = Rig()
     rig.dose(1, OccurrenceStatus.Unknown)
-    val summary = rig.stats.summary(account, StatsPeriod.Last30Days).toOption.get
+    val summary = rig.stats.summary(rig.tx, account, StatsPeriod.Last30Days).toOption.get
     assertEquals(summary.lines.tail, List("Doses: No data", "1 with no record, not counted"))
     assertEquals(summary.window, DateRange.endingOn(today, 30))
 
   test("a period with nothing recorded says so"):
-    val summary = Rig().stats.summary(account, StatsPeriod.Last7Days).toOption.get
+    val rig = Rig()
+    val summary = rig.stats.summary(rig.tx, account, StatsPeriod.Last7Days).toOption.get
     assertEquals(summary.lines, List("Last 7 days · Europe/Kyiv", StatsCopy.Empty))
 
   test("a dose outside the window is not counted"):
     val rig = Rig()
     rig.dose(9, OccurrenceStatus.Taken)
-    assertEquals(rig.stats.medication(account, StatsPeriod.Last7Days).toOption.get.period.total.buckets.isEmpty, true)
-    assertEquals(rig.stats.medication(account, StatsPeriod.Last30Days).toOption.get.period.total.buckets.takenOnTime, 1)
+    assertEquals(rig.stats.medication(rig.tx, account, StatsPeriod.Last7Days).toOption.get.period.total.buckets.isEmpty, true)
+    assertEquals(rig.stats.medication(rig.tx, account, StatsPeriod.Last30Days).toOption.get.period.total.buckets.takenOnTime, 1)
 
   test("water and mood print their figures with coverage from the minimum on, and the data gate below it"):
     val rig = Rig()
-    rig.on(20)(rig.water.setGoal(account, Some(2000)))
+    rig.on(20)(rig.water.setGoal(rig.tx, account, Some(2000)))
     rig.on(1) { rig.drink(2100, "w1"); rig.feel(4, "m1") }
     rig.on(2) { rig.drink(900, "w2"); rig.feel(3, "m2") }
-    val gated = rig.stats.summary(account, StatsPeriod.Last7Days).toOption.get.lines.tail
+    val gated = rig.stats.summary(rig.tx, account, StatsPeriod.Last7Days).toOption.get.lines.tail
     assertEquals(
       gated,
       List(
@@ -141,7 +144,7 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
       )
     )
     rig.on(3) { rig.drink(3000, "w3"); rig.feel(5, "m3") }
-    val shown = rig.stats.summary(account, StatsPeriod.Last7Days).toOption.get.lines.tail
+    val shown = rig.stats.summary(rig.tx, account, StatsPeriod.Last7Days).toOption.get.lines.tail
     assertEquals(
       shown,
       List(
@@ -152,11 +155,11 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
 
   test("today's summary shows the day's water against the user's own goal and the day's mood"):
     val rig = Rig()
-    rig.water.setGoal(account, Some(2000))
+    rig.water.setGoal(rig.tx, account, Some(2000))
     rig.drink(1250, "w1")
     rig.feel(2, "m1")
     rig.feel(5, "m2")
-    val lines = rig.stats.summary(account, StatsPeriod.Today).toOption.get.lines
+    val lines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
     assertEquals(
       lines,
       List(
@@ -172,33 +175,33 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     rig.drink(500, "w1")
     rig.feel(3, "m1")
     consent.withdraw(account, ConsentPurpose.Mood)
-    assertEquals(rig.stats.mood(account, StatsPeriod.Last7Days), Left(StatsRefusal.ConsentMissing(ConsentPurpose.Mood)))
-    assert(rig.stats.hydration(account, StatsPeriod.Last7Days).isRight)
-    val lines = rig.stats.summary(account, StatsPeriod.Today).toOption.get.lines
+    assertEquals(rig.stats.mood(rig.tx, account, StatsPeriod.Last7Days), Left(StatsRefusal.ConsentMissing(ConsentPurpose.Mood)))
+    assert(rig.stats.hydration(rig.tx, account, StatsPeriod.Last7Days).isRight)
+    val lines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
     assertEquals(lines, List("Today · Europe/Kyiv", "Water today: 0.5 l"))
 
   test("an unknown account is refused"):
     val unknown = UUID.fromString("00000000-0000-7000-8000-0000000000c9")
     val rig = Rig(FakeConsent.all(unknown))
-    assertEquals(rig.stats.summary(unknown, StatsPeriod.Today), Left(StatsRefusal.UnknownAccount))
-    assertEquals(rig.stats.medication(unknown, StatsPeriod.Today), Left(StatsRefusal.UnknownAccount))
+    assertEquals(rig.stats.summary(rig.tx, unknown, StatsPeriod.Today), Left(StatsRefusal.UnknownAccount))
+    assertEquals(rig.stats.medication(rig.tx, unknown, StatsPeriod.Today), Left(StatsRefusal.UnknownAccount))
 
   test("a read refreshes the day that a write changed, and a void changes the figure back"):
     val rig = Rig()
     rig.drink(500, "w1")
-    assertEquals(rig.stats.hydration(account, StatsPeriod.Today).toOption.get.days(today).totalMl, 500)
+    assertEquals(rig.stats.hydration(rig.tx, account, StatsPeriod.Today).toOption.get.days(today).totalMl, 500)
     assert(rig.tables.dirty.isEmpty)
     val entry = rig.tables.entries.keys.head
-    rig.water.delete(account, entry)
-    assertEquals(rig.stats.hydration(account, StatsPeriod.Today).toOption.get.days.get(today), None)
+    rig.water.delete(rig.tx, account, entry)
+    assertEquals(rig.stats.hydration(rig.tx, account, StatsPeriod.Today).toOption.get.days.get(today), None)
     assert(rig.tables.stored.isEmpty)
 
   test("a goal change is seen by the next read of the same day"):
     val rig = Rig()
     rig.drink(1500, "w1")
-    assertEquals(rig.stats.hydration(account, StatsPeriod.Today).toOption.get.days(today).goalMl, None)
-    rig.water.setGoal(account, Some(1000))
-    val day = rig.stats.hydration(account, StatsPeriod.Today).toOption.get.days(today)
+    assertEquals(rig.stats.hydration(rig.tx, account, StatsPeriod.Today).toOption.get.days(today).goalMl, None)
+    rig.water.setGoal(rig.tx, account, Some(1000))
+    val day = rig.stats.hydration(rig.tx, account, StatsPeriod.Today).toOption.get.days(today)
     assertEquals((day.goalMl, day.isGoalDay), (Some(1000), true))
 
   test("the worker step takes dirty keys off the queue and leaves the same rollups as a read"):
@@ -218,13 +221,13 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     val rig = Rig(consent)
     consent.withdraw(account, ConsentPurpose.CrossDomainPatterns)
     assertEquals(
-      rig.stats.waterGoalAndMood(account, ComparisonWindow.Days28),
+      rig.stats.waterGoalAndMood(rig.tx, account, ComparisonWindow.Days28),
       Left(StatsRefusal.ConsentMissing(ConsentPurpose.CrossDomainPatterns))
     )
 
   test("the comparison says how many days are still needed, then shows both groups with their sizes"):
     val rig = Rig()
-    rig.on(27)(rig.water.setGoal(account, Some(2000)))
+    rig.on(27)(rig.water.setGoal(rig.tx, account, Some(2000)))
     def day(daysAgo: Int): Unit =
       val reached = daysAgo % 2 == 0
       rig.on(daysAgo):
@@ -232,11 +235,11 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
         rig.feel(if reached then 4 else 3, s"m$daysAgo")
     (1 to 13).foreach(day)
     val window = DateRange.endingOn(today, 28)
-    val early = rig.stats.waterGoalAndMood(account, ComparisonWindow.Days28).toOption.get
+    val early = rig.stats.waterGoalAndMood(rig.tx, account, ComparisonWindow.Days28).toOption.get
     assertEquals(early, Comparison.TooFewDays(InsightRule.WaterGoalAndMood, 13, 14, window))
     assertEquals(StatsCopy.comparison(early), Some("1 more day with both water and mood records for this comparison."))
     (14 to 16).foreach(day)
-    val shown = rig.stats.waterGoalAndMood(account, ComparisonWindow.Days28).toOption.get
+    val shown = rig.stats.waterGoalAndMood(rig.tx, account, ComparisonWindow.Days28).toOption.get
     val sentence = StatsCopy.comparison(shown).get
     assertEquals(
       sentence,
@@ -258,7 +261,7 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
       history.foreach(rig.tables.addDose(account, _))
       val window = period.window(today)
       val inWindow = history.map(_.input).filter(MedicationStats.dayOf(_, kyiv).exists(window.contains))
-      val view = rig.stats.medication(account, period).toOption.get.period
+      val view = rig.stats.medication(rig.tx, account, period).toOption.get.period
       assertEquals(view.total.buckets.resolved, Adherence.counts(inWindow))
       assertEquals(view.total.adherence.shown.map(_.fraction), Adherence.adherence(inWindow).filter(_ => inWindow.nonEmpty && Adherence.counts(inWindow).resolved >= 5))
       assertEquals(view.delay.shown, Adherence.delayStats(inWindow).filter(_.samples >= 5))
@@ -275,7 +278,7 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
         }
         def settled(): Map[LocalDate, Any] =
           while rig.rollups.drain(50) > 0 do ()
-          rig.tables.transaction(_.rollups.list(account, RollupDomain.Medication, month))
+          rig.tables.rollups.list(account, RollupDomain.Medication, month)
         val incremental = settled()
         assertEquals(incremental.view.mapValues(_.toString).toMap, fromScratch(history, kyiv, month))
         rig.tables.setZone(account, ZoneId.of(otherZone))
@@ -293,6 +296,6 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
   test("no figure of a statistic is a bare number: a period below five doses is Insufficient"):
     val rig = Rig()
     (0 until 4).foreach(_ => rig.dose(1, OccurrenceStatus.Taken))
-    val total = rig.stats.medication(account, StatsPeriod.Last7Days).toOption.get.period.total
+    val total = rig.stats.medication(rig.tx, account, StatsPeriod.Last7Days).toOption.get.period.total
     assertEquals(total.adherence, Stat.Insufficient(4, 5, DateRange.endingOn(today, 7)))
 end StatsQueryServiceSuite

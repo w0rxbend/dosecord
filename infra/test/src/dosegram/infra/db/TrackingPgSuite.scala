@@ -1,13 +1,10 @@
 package dosegram.infra.db
 
 import dosegram.core.application.hydration.HydrationRefusal
-import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.insights.ComparisonWindow
 import dosegram.core.application.insights.RollupService
-import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.mood.CheckIn
-import dosegram.core.application.mood.MoodService
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.hydration.EnteredAmount
@@ -24,7 +21,6 @@ import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
-import dosegram.core.ports.ConsentCheck
 import dosegram.core.ports.IdSource
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
@@ -49,18 +45,15 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
 
   private val now = Instant.parse("2026-06-30T15:00:00Z")
   private val today = LocalDate.parse("2026-06-30")
-  private val everyone: ConsentCheck = (_, _) => true
   private lazy val fixtures = Fixtures(dataSource)
 
   private final class Rig(zone: String = "Europe/Kyiv"):
     val account: UUID = fixtures.account(zone)
     val clock = MutableClock(now)
-    val uow = PgTrackingUnitOfWork(dataSource)
+    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock))
     val ids: IdSource = IdSource.uuidV7(RandomGenerator.getDefault)
-    val water = HydrationService(uow, everyone, clock, ids)
-    val moods = MoodService(uow, everyone, clock, ids)
-    val rollups = RollupService(uow, clock)
-    val stats = StatsQueryService(uow, rollups, everyone, clock)
+    val tracking = TransactionalTracking(uow, clock, ids)
+    export tracking.{water, moods, rollups, stats}
 
     def on(daysAgo: Int)(record: => Unit): Unit =
       clock.at = now.minus(Duration.ofDays(daysAgo.toLong)).minus(Duration.ofHours(3))
@@ -85,14 +78,14 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
       }
 
     def stored(domain: RollupDomain): Map[LocalDate, RollupMetrics] =
-      uow.transaction(_.rollups.list(account, domain, DateRange.endingOn(today, 60)))
+      uow.transaction(_.tracking.rollups.list(account, domain, DateRange.endingOn(today, 60)))
 
   test("an entry is stored with the value and unit as entered, and read back the same (AC-HYD-3)"):
     val rig = Rig()
     val entered = EnteredAmount(BigDecimal(12), HydrationUnit.FluidOunce)
     val amount = WaterAmount.of(entered, glassMl = 250).toOption.get
     val logged = rig.water.log(LogWater(rig.account, amount, EntryDay.Today, EntrySource.MiniApp, "k1")).toOption.get
-    val read = rig.uow.transaction(_.hydration.get(rig.account, logged.entry.id)).get
+    val read = rig.uow.transaction(_.tracking.hydration.get(rig.account, logged.entry.id)).get
     assertEquals((read.amount.millilitres, read.amount.entered), (355, entered))
     assertEquals((read.localDate, read.zone.getId, read.source), (today, "Europe/Kyiv", EntrySource.MiniApp))
     assertEquals(read.id.version(), 7)
@@ -118,7 +111,7 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
     assertEquals(rig.water.undo(rig.account, second).map(r => (r.changed, r.day.recorded.map(_.totalMl))), Right((true, Some(300))))
     assertEquals(rig.water.undo(rig.account, second).map(r => (r.changed, r.day.recorded.map(_.totalMl))), Right((false, Some(300))))
     rig.clock.advance(Duration.ofMinutes(16))
-    val first = rig.uow.transaction(_.hydration.findByClientKey(rig.account, "k1")).get.id
+    val first = rig.uow.transaction(_.tracking.hydration.findByClientKey(rig.account, "k1")).get.id
     assertEquals(rig.water.undo(rig.account, first), Left(HydrationRefusal.UndoWindowPassed))
 
   test("an entry of one account is invisible to another"):
@@ -156,7 +149,7 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
     rig.drink(400, "k1")
     intercept[IllegalStateException]:
       rig.uow.transaction: tx =>
-        assertEquals(tx.rollups.claimDirtyIn(rig.account, RollupDomain.Hydration, DateRange.single(today)), List(today))
+        assertEquals(tx.tracking.rollups.claimDirtyIn(rig.account, RollupDomain.Hydration, DateRange.single(today)), List(today))
         throw IllegalStateException("crash between claim and recompute")
     assertEquals(rig.dirty(RollupDomain.Hydration), Set(today))
     assertEquals(rig.stored(RollupDomain.Hydration), Map.empty)
@@ -172,12 +165,12 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
           val entry = dosegram.core.domain.hydration.HydrationEntry(
             rig.ids.next(now), rig.account, now, today, java.time.ZoneId.of("Europe/Kyiv"), amount, EntrySource.Bot,
             Some("in-flight"), now, None)
-          assert(tx.hydration.insert(entry))
+          assert(tx.tracking.hydration.insert(entry))
           written.countDown()
           release.await()
       written.await()
       val key = RollupKey(rig.account, today, RollupDomain.Hydration)
-      val claimedEarly = rig.uow.transaction(_.rollups.claimDirty(1000)).filter(_ == key)
+      val claimedEarly = rig.uow.transaction(_.tracking.rollups.claimDirty(1000)).filter(_ == key)
       assertEquals(claimedEarly, Nil)
       release.countDown()
       writer.join()
@@ -201,7 +194,7 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
     val tags = List(UUID.randomUUID(), UUID.randomUUID())
     val command = CheckIn(rig.account, Valence.of(4).get, None, tags, EntryDay.Today, EntrySource.Bot, "k1")
     val recorded = rig.moods.checkIn(command).toOption.get
-    val read = rig.uow.transaction(_.mood.get(rig.account, recorded.checkin.id)).get
+    val read = rig.uow.transaction(_.tracking.mood.get(rig.account, recorded.checkin.id)).get
     assertEquals((read.valence.step, read.energy, read.tagIds, read.supersedesId), (4, None, tags, None))
     val amended = rig.moods.setEnergy(rig.account, read.id, Energy.of(2).get, "k1-energy").toOption.get
     assertEquals(amended.checkin.supersedesId, Some(read.id))
@@ -287,7 +280,7 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
           case Step.Drink(daysAgo, millilitres) => rig.on(daysAgo)(rig.drink(millilitres, s"w$index"))
           case Step.Feel(daysAgo, valence, energy) => rig.on(daysAgo)(rig.feel(valence, s"m$index", energy))
           case Step.Remove(pick) =>
-            val entries = rig.uow.transaction(_.hydration.listLive(rig.account, range))
+            val entries = rig.uow.transaction(_.tracking.hydration.listLive(rig.account, range))
             if entries.nonEmpty then rig.water.delete(rig.account, entries(pick % entries.size).id)
           case Step.Goal(daysAgo, target) => rig.on(daysAgo)(rig.water.setGoal(rig.account, target))
           case Step.Drain(limit)          => rig.rollups.drain(limit)
@@ -296,7 +289,7 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
       val water = rig.stats.hydration(rig.account, StatsPeriod.Last30Days).toOption.get
       val mood = rig.stats.mood(rig.account, StatsPeriod.Last30Days).toOption.get
       val (entries, goals, checkins) = rig.uow.transaction: tx =>
-        (tx.hydration.listLive(rig.account, range), tx.hydration.goals(rig.account, today), tx.mood.listLive(rig.account, range))
+        (tx.tracking.hydration.listLive(rig.account, range), tx.tracking.hydration.goals(rig.account, today), tx.tracking.mood.listLive(rig.account, range))
       assertEquals(water.days, HydrationStats.byDay(entries, goals))
       assertEquals(water.period, HydrationStats.period(HydrationStats.byDay(entries, goals), range))
       assertEquals(mood.days, MoodStats.byDay(checkins))

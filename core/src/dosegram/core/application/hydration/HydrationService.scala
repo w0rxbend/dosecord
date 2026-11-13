@@ -12,11 +12,9 @@ import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.HydrationStats
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.ports.Clock
-import dosegram.core.ports.ConsentCheck
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
-import dosegram.core.ports.TrackingTx
-import dosegram.core.ports.TrackingUnitOfWork
+import dosegram.core.ports.Tx
 
 import java.time.Duration
 import java.time.LocalDate
@@ -59,66 +57,68 @@ final case class WaterRemoved(day: WaterDayView, changed: Boolean)
 /** The hydration use cases (PRODUCT_SPEC section 8.8; ROADMAP G5.3, G5.3b, G5.3c). The chat flows and the Mini App API
   * call these; every write and every read needs the `hydration` consent. The product stores what the user logged and
   * the user's own goal. It computes no goal and comments on no total.
+  *
+  * Every use case runs on the caller's transaction: in chat that is the transaction of the inbound event, so an entry
+  * and its event commit together.
   */
-final class HydrationService(uow: TrackingUnitOfWork, consent: ConsentCheck, clock: Clock, ids: IdSource):
+final class HydrationService(clock: Clock, ids: IdSource):
 
-  def log(command: LogWater): Either[HydrationRefusal, WaterLogged] =
-    consented(command.accountId): (tx, zone) =>
-      tx.hydration.findByClientKey(command.accountId, command.clientKey) match
+  def log(tx: Tx, command: LogWater): Either[HydrationRefusal, WaterLogged] =
+    consented(tx, command.accountId): zone =>
+      tx.tracking.hydration.findByClientKey(command.accountId, command.clientKey) match
         case Some(existing) => Right(replay(tx, existing))
         case None           => record(tx, zone, command)
 
   /** Undo on the outcome message: voids the entry while it is younger than 15 minutes. A second Undo changes nothing.
     */
-  def undo(accountId: UUID, entryId: UUID): Either[HydrationRefusal, WaterRemoved] =
-    remove(accountId, entryId, VoidReason.Undone, Some(HydrationBounds.UndoWindow))
+  def undo(tx: Tx, accountId: UUID, entryId: UUID): Either[HydrationRefusal, WaterRemoved] =
+    remove(tx, EntryRef(accountId, entryId), VoidReason.Undone, Some(HydrationBounds.UndoWindow))
 
   /** Deletes an entry of any age (the entry list of the Mini App; "void of an entry of today" in chat). */
-  def delete(accountId: UUID, entryId: UUID): Either[HydrationRefusal, WaterRemoved] =
-    remove(accountId, entryId, VoidReason.Deleted, None)
+  def delete(tx: Tx, accountId: UUID, entryId: UUID): Either[HydrationRefusal, WaterRemoved] =
+    remove(tx, EntryRef(accountId, entryId), VoidReason.Deleted, None)
 
   /** Sets the user's own goal from today on, or removes it with `None`. Past days keep their goal. */
-  def setGoal(accountId: UUID, targetMl: Option[Int]): Either[HydrationRefusal, WaterDayView] =
+  def setGoal(tx: Tx, accountId: UUID, targetMl: Option[Int]): Either[HydrationRefusal, WaterDayView] =
     if targetMl.exists(!HydrationBounds.isGoal(_)) then
       Left(HydrationRefusal.GoalOutOfBounds(HydrationBounds.MinGoalMl, HydrationBounds.MaxGoalMl))
     else
-      consented(accountId): (tx, zone) =>
+      consented(tx, accountId): zone =>
         val now = clock.now()
         val today = LocalDays.dateOf(now, zone)
-        tx.hydration.setGoal(accountId, GoalChange(today, targetMl), now)
+        tx.tracking.hydration.setGoal(accountId, GoalChange(today, targetMl), now)
         Right(dayView(tx, accountId, today, zone))
 
-  def day(accountId: UUID, day: EntryDay): Either[HydrationRefusal, WaterDayView] =
-    consented(accountId): (tx, zone) =>
+  def day(tx: Tx, accountId: UUID, day: EntryDay): Either[HydrationRefusal, WaterDayView] =
+    consented(tx, accountId): zone =>
       val (date, _) = day.resolve(clock.now(), zone)
       Right(dayView(tx, accountId, date, zone))
 
   /** The quick-add amounts: the user's own, or the defaults until the user sets them (R-HYD-3). */
-  def presets(accountId: UUID): Either[HydrationRefusal, List[Int]] =
-    consented(accountId): (tx, _) =>
-      val own = tx.hydration.presets(accountId)
+  def presets(tx: Tx, accountId: UUID): Either[HydrationRefusal, List[Int]] =
+    consented(tx, accountId): _ =>
+      val own = tx.tracking.hydration.presets(accountId)
       Right(if own.isEmpty then HydrationBounds.DefaultPresetsMl else own)
 
-  def setPresets(accountId: UUID, amountsMl: List[Int]): Either[HydrationRefusal, List[Int]] =
+  def setPresets(tx: Tx, accountId: UUID, amountsMl: List[Int]): Either[HydrationRefusal, List[Int]] =
     val valid =
       amountsMl.nonEmpty && amountsMl.size <= HydrationBounds.MaxPresets && amountsMl.forall(HydrationBounds.isEntry)
     if !valid then Left(HydrationRefusal.PresetsInvalid)
     else
-      consented(accountId): (tx, _) =>
-        tx.hydration.replacePresets(accountId, amountsMl)
+      consented(tx, accountId): _ =>
+        tx.tracking.hydration.replacePresets(accountId, amountsMl)
         Right(amountsMl)
 
-  private def consented[A](accountId: UUID)(
-      f: (TrackingTx, ZoneId) => Either[HydrationRefusal, A]
+  private def consented[A](tx: Tx, accountId: UUID)(
+      f: ZoneId => Either[HydrationRefusal, A]
   ): Either[HydrationRefusal, A] =
-    if !consent.isGranted(accountId, ConsentPurpose.Hydration) then Left(HydrationRefusal.ConsentMissing)
+    if !tx.consents.isGranted(accountId, ConsentPurpose.Hydration) then Left(HydrationRefusal.ConsentMissing)
     else
-      uow.transaction: tx =>
-        tx.accountZone(accountId) match
-          case Some(zone) => f(tx, zone)
-          case None       => Left(HydrationRefusal.UnknownAccount)
+      tx.accounts.timezoneOf(accountId) match
+        case Some(zone) => f(ZoneId.of(zone))
+        case None       => Left(HydrationRefusal.UnknownAccount)
 
-  private def record(tx: TrackingTx, zone: ZoneId, command: LogWater): Either[HydrationRefusal, WaterLogged] =
+  private def record(tx: Tx, zone: ZoneId, command: LogWater): Either[HydrationRefusal, WaterLogged] =
     val now = clock.now()
     val (date, occurredAt) = command.day.resolve(now, zone)
     val before = dayView(tx, command.accountId, date, zone)
@@ -137,42 +137,46 @@ final class HydrationService(uow: TrackingUnitOfWork, consent: ConsentCheck, clo
         createdAt = now,
         voidedAt = None
       )
-      if tx.hydration.insert(entry) then
+      if tx.tracking.hydration.insert(entry) then
         val after = dayView(tx, command.accountId, date, zone)
         val reachedNow = !before.recorded.exists(_.isGoalDay) && after.recorded.exists(_.isGoalDay)
         Right(WaterLogged(entry, after, goalReachedNow = reachedNow, replayed = false))
       else
         // A concurrent request with the same client key won the insert: answer with its entry.
-        val winner = tx.hydration
+        val winner = tx.tracking.hydration
           .findByClientKey(command.accountId, command.clientKey)
           .getOrElse(throw IllegalStateException(s"hydration entry ${entry.id} conflicted without a client-key twin"))
         Right(replay(tx, winner))
 
-  private def replay(tx: TrackingTx, existing: HydrationEntry): WaterLogged =
+  private def replay(tx: Tx, existing: HydrationEntry): WaterLogged =
     val day = dayView(tx, existing.accountId, existing.localDate, existing.zone)
     WaterLogged(existing, day, goalReachedNow = false, replayed = true)
 
   private def remove(
-      accountId: UUID,
-      entryId: UUID,
+      tx: Tx,
+      ref: EntryRef,
       reason: VoidReason,
       window: Option[Duration]
   ): Either[HydrationRefusal, WaterRemoved] =
-    consented(accountId): (tx, _) =>
+    val EntryRef(accountId, entryId) = ref
+    consented(tx, accountId): _ =>
       val now = clock.now()
-      tx.hydration.get(accountId, entryId) match
+      tx.tracking.hydration.get(accountId, entryId) match
         case None                         => Left(HydrationRefusal.UnknownEntry)
         case Some(entry) if !entry.isLive =>
           Right(WaterRemoved(dayView(tx, accountId, entry.localDate, entry.zone), changed = false))
         case Some(entry) if window.exists(limit => Duration.between(entry.createdAt, now).compareTo(limit) > 0) =>
           Left(HydrationRefusal.UndoWindowPassed)
         case Some(entry) =>
-          val changed = tx.hydration.void(accountId, entryId, reason, now)
+          val changed = tx.tracking.hydration.void(accountId, entryId, reason, now)
           Right(WaterRemoved(dayView(tx, accountId, entry.localDate, entry.zone), changed))
 
   /** The day from its source rows, so the view equals the database after any sequence of entries, voids and Undo. */
-  private def dayView(tx: TrackingTx, accountId: UUID, date: LocalDate, zone: ZoneId): WaterDayView =
-    val entries = tx.hydration.listLive(accountId, DateRange.single(date))
-    val goals = tx.hydration.goals(accountId, date)
+  private def dayView(tx: Tx, accountId: UUID, date: LocalDate, zone: ZoneId): WaterDayView =
+    val entries = tx.tracking.hydration.listLive(accountId, DateRange.single(date))
+    val goals = tx.tracking.hydration.goals(accountId, date)
     WaterDayView(date, zone, HydrationStats.byDay(entries, goals).get(date), HydrationStats.goalOn(date, goals))
+
+  /** An entry and the account it must belong to. */
+  private final case class EntryRef(accountId: UUID, entryId: UUID)
 end HydrationService

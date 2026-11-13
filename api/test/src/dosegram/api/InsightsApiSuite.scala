@@ -20,12 +20,12 @@ import java.time.Duration
 final class InsightsApiSuite extends ApiSuite:
 
   private def grant(account: TelegramAccount, purposes: ConsentPurpose*): Unit =
-    purposes.foreach(consents.grant(account.accountId, _, ConsentNotice(1, "seeded for the test"), clock.now()))
+    purposes.foreach(tracking.consents.grant(account.accountId, _, ConsentNotice(1, "seeded for the test"), clock.now()))
 
   private def drink(account: TelegramAccount, millilitres: Int): Unit =
     val amount = WaterAmount.ofMillilitres(millilitres).toOption.get
     val key = s"test:${java.util.UUID.randomUUID()}"
-    assert(hydration.log(LogWater(account.accountId, amount, EntryDay.Today, EntrySource.MiniApp, key)).isRight)
+    assert(tracking.water.log(LogWater(account.accountId, amount, EntryDay.Today, EntrySource.MiniApp, key)).isRight)
 
   private def checkIn(account: TelegramAccount, step: Int): Unit =
     val command = CheckIn(
@@ -37,7 +37,7 @@ final class InsightsApiSuite extends ApiSuite:
       EntrySource.MiniApp,
       s"test:${java.util.UUID.randomUUID()}"
     )
-    assert(mood.checkIn(command).isRight)
+    assert(tracking.moods.checkIn(command).isRight)
 
   private def blocks(reply: Reply): List[ujson.Value] = reply.json("blocks").arr.toList
 
@@ -63,7 +63,7 @@ final class InsightsApiSuite extends ApiSuite:
   test("water, mood and doses are reported in the words of the statistics, with today's vessel against the own goal"):
     val account = telegramAccount()
     grant(account, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.Mood)
-    assert(hydration.setGoal(account.accountId, Some(2000)).isRight)
+    assert(tracking.water.setGoal(account.accountId, Some(2000)).isRight)
     drink(account, 500)
     drink(account, 750)
     checkIn(account, 4)
@@ -118,6 +118,6 @@ final class InsightsApiSuite extends ApiSuite:
     val token = login(account)
     assertEquals(blocks(get("/api/v1/insights/overview?range=7", token)).map(_("id").str), List("mood"))
     clock.advance(Duration.ofSeconds(1))
-    assert(consents.withdraw(account.accountId, ConsentPurpose.Mood, clock.now()))
+    assert(tracking.consents.withdraw(account.accountId, ConsentPurpose.Mood, clock.now()))
     assertEquals(blocks(get("/api/v1/insights/overview?range=7", token)), Nil)
 end InsightsApiSuite

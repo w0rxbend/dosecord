@@ -7,6 +7,7 @@ import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.ports.Clock
+import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
 import java.time.ZoneId
@@ -27,12 +28,15 @@ final class Insights(uow: UnitOfWork, tracking: TrackingReads, clock: Clock):
   import Insights.*
 
   def overview(accountId: UUID, rangeDays: Int): Either[ApiFailure, InsightsOverview] =
-    periodOf(rangeDays).toRight(ApiFailure.invalid("range", "invalid")).map(overviewOf(accountId, _))
+    periodOf(rangeDays)
+      .toRight(ApiFailure.invalid("range", "invalid"))
+      .map(period => uow.transaction(overviewOf(_, accountId, period)))
 
-  private def overviewOf(accountId: UUID, period: StatsPeriod): InsightsOverview =
-    val zone = ZoneId.of(uow.transaction(_.accounts.timezoneOf(accountId)).getOrElse("UTC"))
+  private def overviewOf(tx: Tx, accountId: UUID, period: StatsPeriod): InsightsOverview =
+    val zone = ZoneId.of(tx.accounts.timezoneOf(accountId).getOrElse("UTC"))
     val window = period.window(LocalDays.dateOf(clock.now(), zone))
-    val blocks = List(medication(accountId, period), hydration(accountId, period), mood(accountId, period)).flatten
+    val blocks =
+      List(medication(tx, accountId, period), hydration(tx, accountId, period), mood(tx, accountId, period)).flatten
     InsightsOverview(
       rangeDays = period.days,
       rangeLabel = ApiCopy.rangeLabel(window),
@@ -43,28 +47,28 @@ final class Insights(uow: UnitOfWork, tracking: TrackingReads, clock: Clock):
     )
 
   // A refusal is a missing consent (or an account that is gone): the block is left out.
-  private def medication(accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
+  private def medication(tx: Tx, accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
     tracking.stats
-      .medication(accountId, period)
+      .medication(tx, accountId, period)
       .toOption
       .map(view => block(InsightDomain.Medication, StatsCopy.doseFigures(view.period.total), vessel = None))
 
-  private def hydration(accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
+  private def hydration(tx: Tx, accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
     tracking.stats
-      .hydration(accountId, period)
+      .hydration(tx, accountId, period)
       .toOption
-      .map(view => block(InsightDomain.Hydration, StatsCopy.waterFigures(view.period), vesselOf(accountId)))
+      .map(view => block(InsightDomain.Hydration, StatsCopy.waterFigures(view.period), vesselOf(tx, accountId)))
 
-  private def mood(accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
+  private def mood(tx: Tx, accountId: UUID, period: StatsPeriod): Option[InsightBlock] =
     tracking.stats
-      .mood(accountId, period)
+      .mood(tx, accountId, period)
       .toOption
       .map(view => block(InsightDomain.Mood, StatsCopy.moodFigures(view.period), vessel = None))
 
   /** Today against the user's own goal; without a goal there is nothing to fill. */
-  private def vesselOf(accountId: UUID): Option[InsightVessel] =
+  private def vesselOf(tx: Tx, accountId: UUID): Option[InsightVessel] =
     for
-      today <- tracking.hydration.day(accountId, EntryDay.Today).toOption
+      today <- tracking.hydration.day(tx, accountId, EntryDay.Today).toOption
       goal <- today.goalMl
       recorded <- today.recorded
       label <- StatsCopy.waterDay(Some(recorded))

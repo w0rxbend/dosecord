@@ -20,6 +20,7 @@ import dosegram.infra.TelegramSettings
 import dosegram.infra.TelegramUpdates
 import dosegram.infra.db.Fixtures
 import dosegram.infra.db.PgSuite
+import dosegram.infra.db.PgUnitOfWork
 import dosegram.infra.db.sql
 import dosegram.render.PngImage
 import dosegram.render.RasterFailure
@@ -213,8 +214,8 @@ class CaptureLaunchSuite extends PgSuite:
     accountId
 
   private def grant(accountId: UUID, purposes: ConsentPurpose*): Unit =
-    val ledger = TrackingServices.over(dataSource, () => monday).consents
-    purposes.foreach(ledger.grant(accountId, _, ConsentNotice(1, "seeded for the test"), monday))
+    val notice = ConsentNotice(1, "seeded for the test")
+    PgUnitOfWork(dataSource, () => monday).transaction(tx => purposes.foreach(tx.consents.grant(accountId, _, notice, monday)))
 
   private def strings(query: String): List[String] = withConnection { conn =>
     val st = conn.createStatement()

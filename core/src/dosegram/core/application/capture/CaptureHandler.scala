@@ -33,8 +33,9 @@ import java.time.ZoneId
   * their buttons, and the quick-capture text of the water and mood grammars. Every domain is behind its consent: the
   * first use shows the two-stage consent and then runs the input that opened it. Anything else goes to `inner`.
   *
-  * The tracking use cases commit in their own transaction (`TrackingUnitOfWork`), not in the mediator's: the client key
-  * of an entry is the inbound event, so a redelivered update records nothing twice (ARCHITECTURE section 11.4).
+  * The tracking use cases run on the mediator's transaction (ROADMAP G2.1): an entry commits with its inbound event or
+  * not at all, and a capture event holds one connection. The client key of an entry is still the inbound event, so a
+  * redelivered update records nothing twice (ARCHITECTURE section 11.4).
   */
 final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CaptureParts, inner: ChatHandler)
     extends ChatHandler:
@@ -42,7 +43,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   import CaptureHandler.*
 
   private val tokens = Tokens(codec)
-  private val consent = ConsentFlow(parts.consents, tokens, clock)
+  private val consent = ConsentFlow(tokens, clock)
   private val water = WaterChat(parts.hydration, parts.cards, tokens)
   private val mood = MoodChat(parts.mood, parts.cards, tokens)
   private val stats = StatsChat(parts, tokens)
@@ -51,7 +52,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
     val answer = principal.accountId match
       case Some(account) =>
         val zone = ZoneId.of(tx.accounts.timezoneOf(account.uuid).getOrElse("UTC"))
-        route(Turn(event, account.uuid, zone, source = None), tx)
+        route(Turn(event, account.uuid, zone, source = None, tx))
       case None => unlinked(event)
     answer.getOrElse(inner.handle(event, principal, tx))
 
@@ -65,11 +66,11 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case _ => None
 
   /** `None` when the event is not a capture input: the next handler takes it. */
-  private def route(turn: Turn, tx: Tx): Option[Reply] =
+  private def route(turn: Turn): Option[Reply] =
     turn.event.body match
       case Inbound.CommandInvoked(name, _, raw) if commandNames(name) => Some(onCommand(turn, name, argumentOf(raw)))
       case Inbound.InteractionSubmitted(ref, source) if isCaptureAction(ref) =>
-        Some(onTap(turn.copy(source = source), ref, tx))
+        Some(onTap(turn.copy(source = source), ref))
       case Inbound.MessageReceived(text, _, _) => onText(turn, text)
       case _                                   => None
 
@@ -119,19 +120,19 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def recordMood(turn: Turn, valence: Valence): Reply =
     consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodCheckIn(valence.step))(mood.checkIn(turn, valence))
 
-  private def onTap(turn: Turn, ref: CallbackRef, tx: Tx): Reply =
+  private def onTap(turn: Turn, ref: CallbackRef): Reply =
     ActionRegistry.byId(ref.actionId) match
       case Some(CaptureActions.WaterUndo)  => water.undo(turn, ref.subject)
       case Some(CaptureActions.MoodEnergy) => mood.energyStep(turn, ref.subject, ref.value)
       case Some(CaptureActions.MoodUndo)   => mood.undo(turn, ref.subject)
       // Every other button names the account it was made for: a tap from another account is a stale button.
-      case Some(action) if ref.subject == turn.accountId => onAccountTap(turn, action, ref.value, tx)
+      case Some(action) if ref.subject == turn.accountId => onAccountTap(turn, action, ref.value)
       case _                                             => stale(turn)
 
-  private def onAccountTap(turn: Turn, action: ActionEntry, value: Long, tx: Tx): Reply =
+  private def onAccountTap(turn: Turn, action: ActionEntry, value: Long): Reply =
     action match
       case CaptureActions.ConsentStep =>
-        ConsentRequest.of(value).map(consent.step(turn, _)(resume(turn, _, tx))).getOrElse(stale(turn))
+        ConsentRequest.of(value).map(consent.step(turn, _)(resume(turn, _))).getOrElse(stale(turn))
       case CaptureActions.ConsentWithdraw => consent.withdraw(turn, value)
       case CaptureActions.WaterAdd        => waterButton(turn, value)
       case CaptureActions.WaterGoal       => water.setGoal(turn, value)
@@ -139,7 +140,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.WaterImage      => imageOf(turn, Pending.WaterImage)(water.image(turn))
       case CaptureActions.MoodCheckIn     => Valence.of(value.toInt).map(recordMood(turn, _)).getOrElse(stale(turn))
       case CaptureActions.StatsShow       => stats.show(turn, value)
-      case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn, tx)))
+      case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
       case _                              => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
@@ -151,7 +152,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   /** The input that opened a consent card, run after the confirming tap. Turning water on asks for the goal first
     * (BUX-WATER-02), with the typed amount kept for after the choice.
     */
-  private def resume(turn: Turn, pending: Pending, tx: Tx): Reply =
+  private def resume(turn: Turn, pending: Pending): Reply =
     val fresh = turn.copy(source = None)
     pending match
       case Pending.WaterCard             => water.askGoal(fresh, pendingMl = 0)
@@ -160,7 +161,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.MoodCheckIn(step)     => Valence.of(step).map(mood.checkIn(fresh, _)).getOrElse(stale(turn))
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
       case Pending.WaterImage            => water.image(fresh)
-      case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh, tx))
+      case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
     * of its own, so the card the request came from stays as it is.
@@ -168,9 +169,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def imageOf(turn: Turn, pending: Pending)(image: => Reply): Reply =
     consent.guarded(turn.copy(source = None), ConsentPurpose.ImagesInChat, pending)(image)
 
-  private def dosesToday(turn: Turn, tx: Tx): Option[List[DoseMark]] =
-    Option.when(parts.consents.isGranted(turn.accountId, ConsentPurpose.Medication)):
-      DoseMarks.of(tx, turn.accountId, clock.now().atZone(turn.zone).toLocalDate)
+  private def dosesToday(turn: Turn): Option[List[DoseMark]] =
+    Option.when(turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.Medication)):
+      DoseMarks.of(turn.tx, turn.accountId, clock.now().atZone(turn.zone).toLocalDate)
 
   private def stale(turn: Turn): Reply = turn.toast(ReminderCopy.staleControlToast)
 

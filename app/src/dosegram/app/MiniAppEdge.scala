@@ -78,9 +78,10 @@ object MiniAppEdge:
   )(using
       Ox
   ): NettySyncServerBinding =
-    val tracking = TrackingServices.over(dataSource, parts.clock)
+    val uow = PgUnitOfWork(dataSource, parts.clock)
+    val tracking = TrackingServices.over(uow, parts.clock)
     val api = ApiModule(
-      PgUnitOfWork(dataSource, parts.clock),
+      uow,
       parts.clock,
       verifier(settings, miniApp),
       InMemorySessionStore(),

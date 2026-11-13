@@ -11,11 +11,9 @@ import dosegram.core.domain.mood.MoodBounds
 import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.domain.mood.Valence
 import dosegram.core.ports.Clock
-import dosegram.core.ports.ConsentCheck
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
-import dosegram.core.ports.TrackingTx
-import dosegram.core.ports.TrackingUnitOfWork
+import dosegram.core.ports.Tx
 
 import java.time.Duration
 import java.time.LocalDate
@@ -32,6 +30,10 @@ final case class CheckIn(
     source: EntrySource,
     clientKey: String
 )
+
+/** The optional second step of a check-in: the energy for `checkinId`. `clientKey` is the idempotency key of the tap.
+  */
+final case class SetEnergy(accountId: UUID, checkinId: UUID, energy: Energy, clientKey: String)
 
 /** Why a mood request changed nothing. No refusal depends on the value of a check-in. */
 enum MoodRefusal:
@@ -54,16 +56,16 @@ final case class MoodRemoved(day: MoodDayView, changed: Boolean)
 
 /** The mood use cases (PRODUCT_SPEC section 8.9; ROADMAP G6.1, domain part). Every write and every read needs the
   * `mood` consent. The response to a check-in never depends on its value: no advice, concern or praise is derived from
-  * it, and nothing here reads a note.
+  * it, and nothing here reads a note. Every use case runs on the caller's transaction, like the hydration use cases.
   */
-final class MoodService(uow: TrackingUnitOfWork, consent: ConsentCheck, clock: Clock, ids: IdSource):
+final class MoodService(clock: Clock, ids: IdSource):
 
-  def checkIn(command: CheckIn): Either[MoodRefusal, MoodRecorded] =
+  def checkIn(tx: Tx, command: CheckIn): Either[MoodRefusal, MoodRecorded] =
     val tags = command.tagIds.distinct
     if tags.size > MoodBounds.MaxTags then Left(MoodRefusal.TooManyTags(MoodBounds.MaxTags))
     else
-      consented(command.accountId): (tx, zone) =>
-        tx.mood.findByClientKey(command.accountId, command.clientKey) match
+      consented(tx, command.accountId): zone =>
+        tx.tracking.mood.findByClientKey(command.accountId, command.clientKey) match
           case Some(existing) => Right(recorded(tx, existing, replayed = true))
           case None           =>
             val now = clock.now()
@@ -88,29 +90,25 @@ final class MoodService(uow: TrackingUnitOfWork, consent: ConsentCheck, clock: C
   /** The optional second step: the check-in is replaced by a copy that carries the energy. Entries are immutable, so
     * the old row is voided as superseded and the new row points at it.
     */
-  def setEnergy(
-      accountId: UUID,
-      checkinId: UUID,
-      energy: Energy,
-      clientKey: String
-  ): Either[MoodRefusal, MoodRecorded] =
-    consented(accountId): (tx, _) =>
-      tx.mood.findByClientKey(accountId, clientKey) match
+  def setEnergy(tx: Tx, command: SetEnergy): Either[MoodRefusal, MoodRecorded] =
+    consented(tx, command.accountId): _ =>
+      tx.tracking.mood.findByClientKey(command.accountId, command.clientKey) match
         case Some(existing) => Right(recorded(tx, existing, replayed = true))
         case None           =>
-          tx.mood.get(accountId, checkinId).filter(_.isLive) match
+          tx.tracking.mood.get(command.accountId, command.checkinId).filter(_.isLive) match
             case None           => Left(MoodRefusal.UnknownCheckin)
-            case Some(original) => supersede(tx, original, energy, clientKey)
+            case Some(original) => supersede(tx, original, command.energy, command.clientKey)
 
   private def supersede(
-      tx: TrackingTx,
+      tx: Tx,
       original: MoodCheckin,
       energy: Energy,
       clientKey: String
   ): Either[MoodRefusal, MoodRecorded] =
     val now = clock.now()
     // The void is the fence: of two concurrent energy steps on one check-in, only the one that voids it may replace it.
-    if !tx.mood.void(original.accountId, original.id, VoidReason.Superseded, now) then Left(MoodRefusal.UnknownCheckin)
+    if !tx.tracking.mood.void(original.accountId, original.id, VoidReason.Superseded, now) then
+      Left(MoodRefusal.UnknownCheckin)
     else
       val amended = original.copy(
         id = ids.next(now),
@@ -122,45 +120,44 @@ final class MoodService(uow: TrackingUnitOfWork, consent: ConsentCheck, clock: C
       Right(store(tx, amended))
 
   /** Undo on the outcome message: voids the check-in while it is younger than 15 minutes (R-MOO-10). */
-  def undo(accountId: UUID, checkinId: UUID): Either[MoodRefusal, MoodRemoved] =
-    consented(accountId): (tx, _) =>
+  def undo(tx: Tx, accountId: UUID, checkinId: UUID): Either[MoodRefusal, MoodRemoved] =
+    consented(tx, accountId): _ =>
       val now = clock.now()
-      tx.mood.get(accountId, checkinId) match
+      tx.tracking.mood.get(accountId, checkinId) match
         case None                             => Left(MoodRefusal.UnknownCheckin)
         case Some(checkin) if !checkin.isLive =>
           Right(MoodRemoved(dayView(tx, accountId, checkin.localDate, checkin.zone), changed = false))
         case Some(checkin) if Duration.between(checkin.createdAt, now).compareTo(MoodBounds.UndoWindow) > 0 =>
           Left(MoodRefusal.UndoWindowPassed)
         case Some(checkin) =>
-          val changed = tx.mood.void(accountId, checkinId, VoidReason.Undone, now)
+          val changed = tx.tracking.mood.void(accountId, checkinId, VoidReason.Undone, now)
           Right(MoodRemoved(dayView(tx, accountId, checkin.localDate, checkin.zone), changed))
 
-  def day(accountId: UUID, day: EntryDay): Either[MoodRefusal, MoodDayView] =
-    consented(accountId): (tx, zone) =>
+  def day(tx: Tx, accountId: UUID, day: EntryDay): Either[MoodRefusal, MoodDayView] =
+    consented(tx, accountId): zone =>
       val (date, _) = day.resolve(clock.now(), zone)
       Right(dayView(tx, accountId, date, zone))
 
-  private def consented[A](accountId: UUID)(f: (TrackingTx, ZoneId) => Either[MoodRefusal, A]): Either[MoodRefusal, A] =
-    if !consent.isGranted(accountId, ConsentPurpose.Mood) then Left(MoodRefusal.ConsentMissing)
+  private def consented[A](tx: Tx, accountId: UUID)(f: ZoneId => Either[MoodRefusal, A]): Either[MoodRefusal, A] =
+    if !tx.consents.isGranted(accountId, ConsentPurpose.Mood) then Left(MoodRefusal.ConsentMissing)
     else
-      uow.transaction: tx =>
-        tx.accountZone(accountId) match
-          case Some(zone) => f(tx, zone)
-          case None       => Left(MoodRefusal.UnknownAccount)
+      tx.accounts.timezoneOf(accountId) match
+        case Some(zone) => f(ZoneId.of(zone))
+        case None       => Left(MoodRefusal.UnknownAccount)
 
-  private def store(tx: TrackingTx, checkin: MoodCheckin): MoodRecorded =
-    if tx.mood.insert(checkin) then recorded(tx, checkin, replayed = false)
+  private def store(tx: Tx, checkin: MoodCheckin): MoodRecorded =
+    if tx.tracking.mood.insert(checkin) then recorded(tx, checkin, replayed = false)
     else
       // A concurrent request with the same client key won the insert: answer with its check-in.
       val winner = checkin.clientKey
-        .flatMap(tx.mood.findByClientKey(checkin.accountId, _))
+        .flatMap(tx.tracking.mood.findByClientKey(checkin.accountId, _))
         .getOrElse(throw IllegalStateException(s"mood check-in ${checkin.id} conflicted without a client-key twin"))
       recorded(tx, winner, replayed = true)
 
-  private def recorded(tx: TrackingTx, checkin: MoodCheckin, replayed: Boolean): MoodRecorded =
+  private def recorded(tx: Tx, checkin: MoodCheckin, replayed: Boolean): MoodRecorded =
     MoodRecorded(checkin, dayView(tx, checkin.accountId, checkin.localDate, checkin.zone), replayed)
 
-  private def dayView(tx: TrackingTx, accountId: UUID, date: LocalDate, zone: ZoneId): MoodDayView =
-    val checkins = tx.mood.listLive(accountId, DateRange.single(date))
+  private def dayView(tx: Tx, accountId: UUID, date: LocalDate, zone: ZoneId): MoodDayView =
+    val checkins = tx.tracking.mood.listLive(accountId, DateRange.single(date))
     MoodDayView(date, zone, MoodStats.byDay(checkins).get(date), checkins.maxByOption(_.occurredAt.toEpochMilli))
 end MoodService

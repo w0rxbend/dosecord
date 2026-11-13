@@ -284,6 +284,12 @@ private object ConsoleMediatorFakes:
       override def policies: PolicyRepository = UnusedPorts.policies
       override def channels: DeliveryChannelRepository = UnusedPorts.channels
       override def heartbeat: WorkerHeartbeatRepository = UnusedPorts.heartbeat
+      override def consents: ConsentLedger = absent("consents")
+      override def tracking: TrackingRepositories = absent("tracking")
       override def savepoint[A](f: => A): A = f
+
+    // ROADMAP G2.1: a call on a group this double does not implement names the group.
+    private def absent(group: String): Nothing =
+      throw UnsupportedOperationException(s"this double has no repository group '$group'")
 
     override def transaction[A](f: Tx => A): A = f(tx)

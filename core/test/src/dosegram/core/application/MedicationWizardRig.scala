@@ -34,7 +34,7 @@ import scala.util.Using
 private final class MedicationWizardRig(
     profile: MedicationWizardRig.Profile,
     beforeSend: RenderedMessage => Unit = _ => (),
-    captureParts: Option[Clock => dosegram.core.application.capture.CaptureParts] = None
+    captureParts: Option[UnitOfWork => Clock => dosegram.core.application.capture.CaptureParts] = None
 )(using Ox):
   import MedicationWizardRig.*
 
@@ -47,7 +47,7 @@ private final class MedicationWizardRig(
   // With capture parts the rig runs the product composition; without them, the composition of the earlier slices.
   private val mediator = captureParts match
     case Some(partsFor) =>
-      val handler = Application.withCapture(uow, adapters, codec, clock)(partsFor(clock))
+      val handler = Application.withCapture(uow, adapters, codec, clock)(partsFor(uow)(clock))
       ChatMediator(barrier.uow, adapters, codec, handler, clock, CommandRegistry.withCaptureByName)
     case None =>
       ChatMediator(

@@ -4,31 +4,43 @@ import dosegram.core.ports.AccountRepository
 import dosegram.core.ports.AuditRepository
 import dosegram.core.ports.CallbackSlotRepository
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentLedger
 import dosegram.core.ports.DeliveryChannelRepository
 import dosegram.core.ports.DomainEventRepository
 import dosegram.core.ports.DoseActionRepository
+import dosegram.core.ports.DoseHistoryRepository
 import dosegram.core.ports.FormRunRepository
+import dosegram.core.ports.HydrationRepository
+import dosegram.core.ports.IdSource
 import dosegram.core.ports.IdentityRepository
 import dosegram.core.ports.InboundEventRepository
 import dosegram.core.ports.MedicationRepository
+import dosegram.core.ports.MoodRepository
 import dosegram.core.ports.OccurrenceRepository
 import dosegram.core.ports.OutboxRepository
 import dosegram.core.ports.PolicyRepository
 import dosegram.core.ports.RenderedMessageRepository
+import dosegram.core.ports.RollupRepository
 import dosegram.core.ports.ScheduleRepository
 import dosegram.core.ports.ScheduleRevisionRepository
 import dosegram.core.ports.SessionRepository
+import dosegram.core.ports.TrackingRepositories
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.WorkerHeartbeatRepository
 
+import java.security.SecureRandom
 import java.sql.Connection
 import javax.sql.DataSource
 
 /** Postgres [[UnitOfWork]]: one pooled connection, `f` runs against it, commit on success, rollback on any exception
-  * (ADR-002/003: one transaction per event).
+  * (ADR-002/003: one transaction per event). Every repository group, the tracking domains and the consent ledger
+  * included, is bound to that one connection (ROADMAP G2.1).
   */
 final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWork:
+
+  // The ids of consent events: time-ordered, so the ledger reads back in the order it was written.
+  private val consentEventIds = IdSource.uuidV7(SecureRandom())
 
   override def transaction[A](f: Tx => A): A =
     val conn = dataSource.getConnection
@@ -62,6 +74,12 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val policies: PolicyRepository = PgPolicyRepository(conn)
     override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
     override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
+    override lazy val consents: ConsentLedger = PgConsentLedger(conn, consentEventIds)
+    override lazy val tracking: TrackingRepositories = new TrackingRepositories:
+      override lazy val hydration: HydrationRepository = PgHydrationRepository(conn)
+      override lazy val mood: MoodRepository = PgMoodRepository(conn)
+      override lazy val rollups: RollupRepository = PgRollupRepository(conn)
+      override lazy val doseHistory: DoseHistoryRepository = PgDoseHistoryRepository(conn)
 
     override def savepoint[A](f: => A): A =
       val sp = conn.setSavepoint()

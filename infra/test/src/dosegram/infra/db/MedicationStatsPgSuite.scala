@@ -3,7 +3,6 @@ package dosegram.infra.db
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.application.insights.RollupService
-import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.domain.Adherence
 import dosegram.core.domain.AdherenceInput
 import dosegram.core.domain.Actor
@@ -20,7 +19,7 @@ import dosegram.core.domain.insights.MedicationStats
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.StatsPeriod
-import dosegram.core.ports.ConsentCheck
+import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewDoseAction
 import dosegram.core.ports.OccurrenceOrigin
 import dosegram.core.ports.StoredOccurrence
@@ -46,7 +45,6 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
 
   private val kyiv = ZoneId.of("Europe/Kyiv")
   private val start = Instant.parse("2026-10-20T06:00:00Z")
-  private val everyone: ConsentCheck = (_, _) => true
   private lazy val fixtures = Fixtures(dataSource)
 
   private def dailyAt(time: String): Rule.FixedTimes =
@@ -56,12 +54,12 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
     val clock = MutableClock(start)
     val account: UUID = fixtures.account("Europe/Kyiv")
     val schedule = fixtures.schedule(clock, account, "Medication A", dailyAt("09:00"), kyiv)
-    val tracking = PgTrackingUnitOfWork(dataSource)
-    val rollups = RollupService(tracking, clock)
-    val stats = StatsQueryService(tracking, rollups, everyone, clock)
+    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock))
+    val tracking = TransactionalTracking(uow, clock, IdSource.uuidV7(java.util.random.RandomGenerator.getDefault))
+    export tracking.{rollups, stats}
     val range: DateRange = DateRange.between(LocalDate.parse("2026-09-01"), LocalDate.parse("2026-12-31"))
 
-    def zone: ZoneId = tracking.transaction(_.accountZone(account)).get
+    def zone: ZoneId = uow.transaction(_.accounts.timezoneOf(account)).map(ZoneId.of).get
 
     def occurrences: List[StoredOccurrence] =
       fixtures.uow.transaction(_.occurrences.listBySchedule(schedule.scheduleId))
@@ -74,8 +72,8 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
 
     def settled(): Map[LocalDate, MedicationDay] =
       while rollups.drain(40) > 0 do ()
-      tracking
-        .transaction(_.rollups.list(account, RollupDomain.Medication, range))
+      uow
+        .transaction(_.tracking.rollups.list(account, RollupDomain.Medication, range))
         .collect { case (date, RollupMetrics.Medication(day)) => date -> day }
 
     def resolve(occ: StoredOccurrence, status: OccurrenceStatus, delaySeconds: Long): Unit =

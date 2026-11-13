@@ -23,6 +23,16 @@ trait Tx:
   def channels: DeliveryChannelRepository
   def heartbeat: WorkerHeartbeatRepository
 
+  /** The consent ledger on this transaction: a consent check, a grant and a withdrawal commit or roll back with the
+    * records they gate (PRODUCT_SPEC R-IDC-9, R-IDC-10).
+    */
+  def consents: ConsentLedger
+
+  /** Hydration, mood, the daily rollups and the dose history, on this transaction: an entry is atomic with the inbound
+    * event that recorded it, and a capture event holds one connection.
+    */
+  def tracking: TrackingRepositories
+
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
     * the reminder loop).

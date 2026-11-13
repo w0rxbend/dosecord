@@ -13,6 +13,7 @@ import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
+import dosegram.core.ports.Tx
 
 import java.time.Instant
 import java.time.ZoneId
@@ -20,14 +21,16 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 
-/** One inbound event of a linked account as the capture flows see it: who, in which zone, and the message a tap came
-  * from. It builds the messages of the answer, so every flow keys and correlates them the same way.
+/** One inbound event of a linked account as the capture flows see it: who, in which zone, the message a tap came from,
+  * and the transaction of the event, on which every flow reads and records. It builds the messages of the answer, so
+  * every flow keys and correlates them the same way.
   */
 private[capture] final case class Turn(
     event: InboundEvent,
     accountId: UUID,
     zone: ZoneId,
-    source: Option[MessageHandle]
+    source: Option[MessageHandle],
+    tx: Tx
 ):
 
   /** The idempotency key of whatever this event records: one update records at most once. */
