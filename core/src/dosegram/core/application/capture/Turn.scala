@@ -15,6 +15,8 @@ import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
 import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.ports.AccountSettings
+import dosegram.core.ports.CardLook
 import dosegram.core.ports.Tx
 
 import java.time.Instant
@@ -57,6 +59,9 @@ private[capture] final case class Turn(
       case None         => Reply(followUps = List(message))
 
   def toast(text: String): Reply = Reply(toast = Some(text))
+
+  /** The theme and discreet mode the account set for its images, read on this event's transaction. */
+  def look: CardLook = CardLook.of(tx.accounts.settingsOf(accountId).getOrElse(AccountSettings.Default))
 
   def localTime(at: Instant): String = Turn.Clock.withZone(zone).format(at)
 

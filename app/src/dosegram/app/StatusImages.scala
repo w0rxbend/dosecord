@@ -5,9 +5,11 @@ import dosegram.adapter.telegram.InMemoryFileIdCache
 import dosegram.adapter.telegram.MediaStore
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.MediaKind
+import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WaterCardView
@@ -77,21 +79,22 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
 
   /** A mood state is the same picture for everyone (VISUALS VA-BL-11), so its key names the state and it is drawn once.
     */
-  override def mood(view: MoodCardView): Option[AttachmentRef] =
+  override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] =
     val state = MoodState.captured(view.valence.step, view.energy.map(_.step))
     val reading = MoodReading(state, isEnergyGiven = view.energy.isDefined)
-    val key = s"mood.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.light"
-    val card = MoodCard.render(Some(reading), context)
+    val drawing = contextOf(look)
+    val key = s"mood.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.${keyOf(drawing)}"
+    val card = MoodCard.render(Some(reading), drawing)
     if store.holds(key) then Some(reference(key, card))
     else
       rasterised(card).map: png =>
         store.put(key, png)
         reference(key, card)
 
-  override def water(view: WaterCardView): Option[AttachmentRef] =
-    personal(WaterCard.render(waterData(view), context))
+  override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] =
+    personal(WaterCard.render(waterData(view), contextOf(look)))
 
-  override def day(view: DayCardView): Option[AttachmentRef] =
+  override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] =
     val data = DayData(
       date = view.date,
       mood = view.mood.map: mood =>
@@ -101,7 +104,7 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
       food = None,
       sleep = None
     )
-    personal(DayCard.render(data, context))
+    personal(DayCard.render(data, contextOf(look)))
 
   /** A personal card is keyed by its own bytes: the same picture is stored once, and the key says nothing. */
   private def personal(card: CardOutput): Option[AttachmentRef] =
@@ -118,12 +121,26 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
         None
 
   private def reference(key: String, card: CardOutput): AttachmentRef =
-    AttachmentRef(MediaKind.Photo, key, "image/png", card.text.altText, Some(card.fileName))
+    AttachmentRef(MediaKind.Photo, key, "image/png", card.text.altText, Some(card.fileName), card.hasSpoiler)
 
 object RenderedStatusCards:
 
-  /** Light theme and no names: the account settings for the image theme and discreet mode do not exist yet. */
-  private val context = CardContext(Theme.Light, Privacy.Aggregate, EnglishImageCopy, TextFitter(TableTextMeasurer))
+  private val fitter = TextFitter(TableTextMeasurer)
+
+  /** The account's look as the renderer draws it. No name is ever drawn in the chat (L1); discreet mode is L1 with its
+    * neutral labels (VA-PV-03). `auto` follows the colour scheme the Mini App last reported, and no report is kept yet,
+    * so it is the default, dark (VISUALS section 3.3.3).
+    */
+  private def contextOf(look: CardLook): CardContext =
+    val theme = look.theme match
+      case ImageTheme.Light                  => Theme.Light
+      case ImageTheme.Dark | ImageTheme.Auto => Theme.Dark
+    CardContext(theme, if look.isDiscreet then Privacy.Discreet else Privacy.Aggregate, EnglishImageCopy, fitter)
+
+  /** Theme and privacy are part of every cache key (VISUALS section 3.3.3). */
+  private def keyOf(context: CardContext): String =
+    val theme = context.theme.toString.toLowerCase(java.util.Locale.ROOT)
+    if context.privacy == Privacy.Discreet then s"$theme.discreet" else theme
 
   private def waterData(view: WaterCardView): WaterData =
     WaterData(

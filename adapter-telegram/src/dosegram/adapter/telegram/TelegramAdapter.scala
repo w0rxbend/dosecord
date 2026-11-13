@@ -232,7 +232,15 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   ): Either[TelegramError, SentMessage] =
     gate.beforeMessageCall(envelope.chatId)
     api.sendMedia(
-      OutgoingMedia(envelope.chatId, attachment.kind, payload, caption, envelope.keyboard, envelope.delivery)
+      OutgoingMedia(
+        envelope.chatId,
+        attachment.kind,
+        payload,
+        caption,
+        envelope.keyboard,
+        envelope.delivery,
+        attachment.hasSpoiler
+      )
     )
 
   private def mediaRef(sent: SentMessage): MessageRef = MessageRef(sent.messageId, carriesMedia = true)

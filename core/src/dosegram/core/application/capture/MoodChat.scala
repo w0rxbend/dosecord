@@ -37,7 +37,7 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
     val command = CheckIn(turn.accountId, valence, None, Nil, EntryDay.Today, EntrySource.Bot, turn.clientKey)
     answered(turn, mood.checkIn(turn.tx, command)): recorded =>
       val confirmation = turn.message("mood.recorded", List(captionOf(turn, recorded.checkin)), followUpRows(recorded))
-      cards.mood(MoodCardView(valence, None)) match
+      cards.mood(MoodCardView(valence, None), turn.look) match
         case Some(attachment) => Reply(followUps = List(confirmation.copy(attachment = Some(attachment))))
         case None             => turn.show(confirmation)
 

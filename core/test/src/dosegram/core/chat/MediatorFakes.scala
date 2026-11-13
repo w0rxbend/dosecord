@@ -96,6 +96,7 @@ object MediatorFakes:
     val displayName: Option[String] = None
     val handle: Option[String] = None
     @volatile var tz: String = timezone
+    @volatile var settings: AccountSettings = AccountSettings.Default
     def currentTimezone: String = tz
 
   final class InMemoryAccounts(identities: InMemoryIdentities) extends AccountRepository:
@@ -111,11 +112,10 @@ object MediatorFakes:
       this.synchronized(rows.find(_.accountId == accountId).map(_.tz))
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
-    // No suite on this double reads or writes the settings of an account.
     override def settingsOf(accountId: UUID): Option[AccountSettings] =
-      throw UnsupportedOperationException("this double keeps no account settings")
+      this.synchronized(rows.find(_.accountId == accountId).map(_.settings))
     override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
-      throw UnsupportedOperationException("this double keeps no account settings")
+      this.synchronized(rows.find(_.accountId == accountId).foreach(_.settings = settings))
 
   final class InMemoryAudit extends AuditRepository:
     private val entries = ListBuffer.empty[AuditEntry]

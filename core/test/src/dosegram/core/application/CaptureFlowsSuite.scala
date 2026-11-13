@@ -13,12 +13,15 @@ import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.WaterCopy
+import dosegram.core.ports.AccountSettings
+import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.UnitOfWork
@@ -42,20 +45,24 @@ class CaptureFlowsSuite extends munit.FunSuite:
     val moods: mutable.ListBuffer[MoodCardView] = mutable.ListBuffer.empty
     val waters: mutable.ListBuffer[WaterCardView] = mutable.ListBuffer.empty
     val days: mutable.ListBuffer[DayCardView] = mutable.ListBuffer.empty
+    val looks: mutable.ListBuffer[CardLook] = mutable.ListBuffer.empty
 
     private def image(key: String): Option[AttachmentRef] =
       Some(AttachmentRef(MediaKind.Photo, key, "image/png", s"alt of $key"))
 
-    override def mood(view: MoodCardView): Option[AttachmentRef] =
+    override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] =
       moods += view
+      looks += look
       image("mood")
 
-    override def water(view: WaterCardView): Option[AttachmentRef] =
+    override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] =
       waters += view
+      looks += look
       image("water")
 
-    override def day(view: DayCardView): Option[AttachmentRef] =
+    override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] =
       days += view
+      looks += look
       image("day")
 
   /** The tables behind the rig's transaction, as the tests inspect them. */
@@ -325,6 +332,21 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(view.doses, Some(List(DoseMark.Open)))
       assertEquals(view.water.map(water => (water.totalMl, water.goalMl)), Some((500, 2000)))
       assertEquals(view.mood.map(_.valence.step), Some(4))
+
+  test("every image is drawn in the image theme and the discreet mode the account set, the default before any change"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+      chat.rig.line("mood 4")
+      val chosen = AccountSettings.Default.copy(isDiscreet = true, imageTheme = ImageTheme.Light)
+      chat.rig.uow.accounts.saveSettings(chat.account, chosen, chat.rig.clock.now())
+      chat.rig.line("mood 2")
+      chat.rig.line("/stats today")
+      chat.rig.tapOn("Today · Europe/Kyiv", "Show as image")
+      assertEquals(
+        cards.looks.toList,
+        List(CardLook(ImageTheme.Auto, isDiscreet = false), CardLook.of(chosen), CardLook.of(chosen))
+      )
 
   test("an unknown period is answered with the usage"):
     withChat(Profile.Telegram): chat =>

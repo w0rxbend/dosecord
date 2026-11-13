@@ -29,6 +29,11 @@ final case class AccountSettings(
     imageTheme: ImageTheme
 )
 
+object AccountSettings:
+
+  /** The column defaults of a new `users` row. */
+  val Default: AccountSettings = AccountSettings(None, None, isDiscreet = false, ImageTheme.Auto)
+
 /** `users` / `platform_identities` / `delivery_channels` (DESIGN.md section 6, ROADMAP M0.12d): account creation is one
   * transactional write — the `users` row (handle and display name left NULL: generated/neutral, never the vendor
   * nickname, K8), the link on the current platform identity, and the primary delivery channel.

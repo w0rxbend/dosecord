@@ -37,7 +37,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
       case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
       case Right(summary) =>
         val view = DayCardView(summary.window.end, latestMood(turn), doses, waterToday(turn, summary.window.end))
-        parts.cards.day(view) match
+        parts.cards.day(view, turn.look) match
           case Some(attachment) =>
             val caption = turn.message("stats.image", summary.lines, Nil)
             Reply(followUps = List(caption.copy(attachment = Some(attachment))))

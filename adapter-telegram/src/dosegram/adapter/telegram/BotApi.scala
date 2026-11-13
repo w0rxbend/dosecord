@@ -35,7 +35,8 @@ final case class OutgoingMedia(
     payload: MediaPayload,
     captionHtml: Option[String],
     keyboard: InlineKeyboard,
-    delivery: Delivery
+    delivery: Delivery,
+    hasSpoiler: Boolean = false
 )
 
 enum MenuButton:
@@ -82,6 +83,8 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
       params("parse_mode") = ParseMode
     applyDelivery(params, media.delivery)
     applyKeyboard(params, media.keyboard)
+    // Only a photo can be blurred; a document has no spoiler.
+    if media.hasSpoiler && media.kind == MediaKind.Photo then params("has_spoiler") = true
     val file = media.payload match
       case MediaPayload.Cached(fileId) =>
         params(fieldName) = fileId

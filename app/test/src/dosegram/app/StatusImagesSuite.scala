@@ -3,8 +3,10 @@ package dosegram.app
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
+import dosegram.core.ports.CardLook
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.infra.RenderSettings
@@ -27,6 +29,7 @@ class StatusImagesSuite extends munit.FunSuite:
   private val today = LocalDate.parse("2026-11-13")
   private val pleasant = Valence.of(4).get
   private val water = WaterCardView(today, totalMl = 1250, goalMl = 2000, entries = 4)
+  private val light = CardLook(ImageTheme.Light, isDiscreet = false)
 
   /** Answers every document with bytes that depend on it, and remembers the documents. */
   private final class CountingRasteriser extends Rasteriser:
@@ -43,8 +46,8 @@ class StatusImagesSuite extends munit.FunSuite:
   test("a mood state is drawn once and its key names the state, not a person"):
     val rasteriser = CountingRasteriser()
     val rig = Rig(rasteriser)
-    val first = rig.images.cards.mood(MoodCardView(pleasant, None)).get
-    val again = rig.images.cards.mood(MoodCardView(pleasant, None)).get
+    val first = rig.images.cards.mood(MoodCardView(pleasant, None), light).get
+    val again = rig.images.cards.mood(MoodCardView(pleasant, None), light).get
     assertEquals(first, again)
     assertEquals(first.assetKey, "mood.blob.v6.e3.plain.light")
     assertEquals(first.kind, MediaKind.Photo)
@@ -55,35 +58,59 @@ class StatusImagesSuite extends munit.FunSuite:
 
   test("the energy step is part of the mood state"):
     val rig = Rig(CountingRasteriser())
-    val withEnergy = rig.images.cards.mood(MoodCardView(pleasant, Energy.of(2))).get
+    val withEnergy = rig.images.cards.mood(MoodCardView(pleasant, Energy.of(2)), light).get
     assertEquals(withEnergy.assetKey, "mood.blob.v6.e2.energy.light")
     assert(withEnergy.altText.contains("Energy"), withEnergy.altText)
 
   test("a water card is keyed by its bytes and carries the day's figures as its text equivalent"):
     val rig = Rig(CountingRasteriser())
-    val card = rig.images.cards.water(water).get
+    val card = rig.images.cards.water(water, light).get
     assert(card.assetKey.matches("card\\.[0-9a-f]{64}"), card.assetKey)
     assert(card.altText.contains("1.3 of 2.0 l (62%)"), card.altText)
     assert(card.altText.contains("4 entries"), card.altText)
-    assertEquals(rig.images.cards.water(water).map(_.assetKey), Some(card.assetKey), "the same day is the same key")
-    assertNotEquals(rig.images.cards.water(water.copy(totalMl = 1500)).map(_.assetKey), Some(card.assetKey))
+    assertEquals(rig.images.cards.water(water, light).map(_.assetKey), Some(card.assetKey), "the same day is the same key")
+    assertNotEquals(rig.images.cards.water(water.copy(totalMl = 1500), light).map(_.assetKey), Some(card.assetKey))
 
   test("the daily summary states the doses with the product's status words, and leaves out an absent domain"):
     val rig = Rig(CountingRasteriser())
     val marks = List(DoseMark.TakenOnTime, DoseMark.TakenLate, DoseMark.Skipped, DoseMark.NotConfirmed, DoseMark.Open)
-    val full = rig.images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(marks), Some(water))).get
+    val full = rig.images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(marks), Some(water)), light).get
     assert(full.altText.contains("2 of 5 scheduled doses recorded as taken"), full.altText)
     assert(full.altText.contains("1 skipped, 1 not confirmed, 1 still open"), full.altText)
     assert(full.altText.contains("Water: 1.3 of 2.0 l."), full.altText)
-    val bare = rig.images.cards.day(DayCardView(today, None, None, None)).get
+    val bare = rig.images.cards.day(DayCardView(today, None, None, None), light).get
     assert(!bare.altText.contains("Medication") && !bare.altText.contains("Water"), bare.altText)
     assert(bare.altText.contains("No mood entry today."), bare.altText)
+
+  test("the image theme the account chose draws the card; auto is dark while no colour scheme is known (VISUALS 3.3.3)"):
+    val rasteriser = CountingRasteriser()
+    val rig = Rig(rasteriser)
+    val dark = CardLook(ImageTheme.Dark, isDiscreet = false)
+    assertEquals(rig.images.cards.mood(MoodCardView(pleasant, None), dark).map(_.assetKey), Some("mood.blob.v6.e3.plain.dark"))
+    val auto = CardLook(ImageTheme.Auto, isDiscreet = false)
+    assertEquals(rig.images.cards.mood(MoodCardView(pleasant, None), auto).map(_.assetKey), Some("mood.blob.v6.e3.plain.dark"))
+    assertEquals(rasteriser.documents.size, 1, "auto and dark are the same picture")
+    val onLight = rig.images.cards.water(water, light).get
+    val onDark = rig.images.cards.water(water, dark).get
+    assertNotEquals(onDark.assetKey, onLight.assetKey)
+
+  test("discreet mode sends a personal card behind a spoiler, and the mood key says which mode drew it"):
+    val rig = Rig(CountingRasteriser())
+    val discreet = light.copy(isDiscreet = true)
+    assertEquals(
+      rig.images.cards.mood(MoodCardView(pleasant, None), discreet).map(_.assetKey),
+      Some("mood.blob.v6.e3.plain.light.discreet")
+    )
+    assertEquals(rig.images.cards.water(water, light).map(_.hasSpoiler), Some(false))
+    assertEquals(rig.images.cards.water(water, discreet).map(_.hasSpoiler), Some(true))
+    val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water))
+    assertEquals(rig.images.cards.day(day, discreet).map(_.hasSpoiler), Some(true))
 
   test("a card that cannot be drawn gives no image, and the log names the template and the failure only"):
     val failing: Rasteriser = (_, _) => Left(RasterFailure.TimedOut)
     val rig = Rig(failing)
-    assertEquals(rig.images.cards.water(water), None)
-    assertEquals(rig.images.cards.mood(MoodCardView(pleasant, None)), None)
+    assertEquals(rig.images.cards.water(water, light), None)
+    assertEquals(rig.images.cards.mood(MoodCardView(pleasant, None), light), None)
     assertEquals(
       rig.log.toList,
       List(
@@ -101,7 +128,7 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals(List("a", "b", "c").filter(store.holds), List("a", "c"))
 
   test("without renderer settings there is no image, and a binary that does not exist fails the start"):
-    assertEquals(StatusImages.from(None, StatusImages.Stores.inMemory, _ => ()).cards.water(water), None)
+    assertEquals(StatusImages.from(None, StatusImages.Stores.inMemory, _ => ()).cards.water(water, light), None)
     val missing = RenderSettings("/nonexistent/resvg", sys.env("DOSEGRAM_FONTS_DIR"))
     val error = intercept[IllegalArgumentException](StatusImages.from(Some(missing), StatusImages.Stores.inMemory, _ => ()))
     assertEquals(error.getMessage, "RESVG_PATH does not name an executable")
@@ -118,9 +145,9 @@ class StatusImagesSuite extends munit.FunSuite:
     val log = mutable.ListBuffer.empty[String]
     val images = StatusImages.from(Some(RenderSettings(binary.get.toString, sys.env("DOSEGRAM_FONTS_DIR"))), StatusImages.Stores.inMemory, log += _)
     val drawn = List(
-      images.cards.mood(MoodCardView(pleasant, Energy.of(2))),
-      images.cards.water(water),
-      images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(List(DoseMark.Open)), Some(water)))
+      images.cards.mood(MoodCardView(pleasant, Energy.of(2)), light),
+      images.cards.water(water, light),
+      images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(List(DoseMark.Open)), Some(water)), light)
     )
     assertEquals(log.toList, Nil)
     drawn.foreach: card =>

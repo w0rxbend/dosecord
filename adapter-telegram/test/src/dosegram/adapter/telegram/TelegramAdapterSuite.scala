@@ -253,6 +253,19 @@ class TelegramAdapterSuite extends munit.FunSuite:
     assertEquals(resend.text("photo"), Some("fake-photo-1"))
     assertEquals(resend.request.file, None)
 
+  test("a photo marked as a spoiler is sent with has_spoiler, upload and cached alike (BOT_UX BUX-IMG-05)"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("asset-week", Array[Byte](1))
+    val hidden = RenderedMessage(chunks = List("Your week"), attachment = Some(photo.copy(hasSpoiler = true)))
+    rig.adapter.send(chat, hidden, "k1")
+    assertEquals(rig.messageCalls.last.request.params("has_spoiler"), ujson.True)
+    rig.timer.advance(Duration.ofSeconds(5))
+    rig.adapter.send(chat, hidden, "k2")
+    assertEquals(rig.messageCalls.last.request.params("has_spoiler"), ujson.True)
+    rig.timer.advance(Duration.ofSeconds(5))
+    rig.adapter.send(chat, hidden.copy(attachment = Some(photo)), "k3")
+    assert(!rig.messageCalls.last.request.params.obj.contains("has_spoiler"))
+
   test("a cached file id the API rejects is forgotten and the bytes are uploaded once"):
     val rig = TelegramRig().started()
     rig.storeAsset("asset-week", Array[Byte](1))

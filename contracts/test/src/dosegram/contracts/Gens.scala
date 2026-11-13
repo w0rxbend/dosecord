@@ -204,7 +204,9 @@ object Gens:
   given Arbitrary[MediaKind] = Arbitrary(Gen.oneOf(MediaKind.values.toList))
   given Arbitrary[MediaRef] = Arbitrary(genText.map(MediaRef.apply))
   given Arbitrary[AttachmentRef] = Arbitrary(
-    Gen.zip(Arbitrary.arbitrary[MediaKind], genText, genText, genText, genOptText).map(AttachmentRef.apply)
+    Gen
+      .zip(Arbitrary.arbitrary[MediaKind], genText, genText, genText, genOptText, Arbitrary.arbitrary[Boolean])
+      .map(AttachmentRef.apply)
   )
   given Arbitrary[ChoiceAction] = Arbitrary(
     Gen.oneOf(

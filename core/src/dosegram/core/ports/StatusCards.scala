@@ -26,20 +26,28 @@ final case class DayCardView(
     water: Option[WaterCardView]
 )
 
+/** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
+  * (VA-PV-03). Both are account settings the Mini App changes.
+  */
+final case class CardLook(theme: ImageTheme, isDiscreet: Boolean)
+
+object CardLook:
+  def of(settings: AccountSettings): CardLook = CardLook(settings.imageTheme, settings.isDiscreet)
+
 /** The status images of VISUALS_AND_ANALYTICS as the chat flows ask for them (ARCHITECTURE DEP-02: the core never holds
   * image bytes). An implementation renders the card, keeps the bytes where the adapter's asset lookup finds them and
-  * returns the reference with the text equivalent as its alt text. `None` means there is no image now: the caller sends
-  * its text alone (VISUALS VA-FB-01).
+  * returns the reference with the text equivalent as its alt text, drawn in the account's [[CardLook]]. `None` means
+  * there is no image now: the caller sends its text alone (VISUALS VA-FB-01).
   */
 trait StatusCards:
-  def mood(view: MoodCardView): Option[AttachmentRef]
-  def water(view: WaterCardView): Option[AttachmentRef]
-  def day(view: DayCardView): Option[AttachmentRef]
+  def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef]
+  def water(view: WaterCardView, look: CardLook): Option[AttachmentRef]
+  def day(view: DayCardView, look: CardLook): Option[AttachmentRef]
 
 object StatusCards:
 
   /** No renderer is wired: every flow answers with its text. */
   val textOnly: StatusCards = new StatusCards:
-    override def mood(view: MoodCardView): Option[AttachmentRef] = None
-    override def water(view: WaterCardView): Option[AttachmentRef] = None
-    override def day(view: DayCardView): Option[AttachmentRef] = None
+    override def mood(view: MoodCardView, look: CardLook): Option[AttachmentRef] = None
+    override def water(view: WaterCardView, look: CardLook): Option[AttachmentRef] = None
+    override def day(view: DayCardView, look: CardLook): Option[AttachmentRef] = None
