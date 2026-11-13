@@ -15,6 +15,9 @@ import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.MoodPeriod
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.PairedDay
+import dosegram.core.domain.insights.SleepNight
+import dosegram.core.domain.insights.SleepPeriod
+import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.Stat
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.mood.MoodLevel
@@ -137,6 +140,33 @@ object StatsCopy:
   def moodDay(day: Option[MoodDay]): Option[String] =
     day.map(recorded => s"Mood today: ${meanWithLevel(recorded.mean)} · ${count(recorded.n, "check-in")}")
 
+  /** The sleep line of a 7-day or 30-day period; `None` when the period has no night (BOT_UX section 12.5). */
+  def sleep(period: SleepPeriod): Option[String] =
+    Option.when(period.nights > 0)(sleepFigures(period).mkString("Sleep: ", " · ", ""))
+
+  /** The figures of the sleep line one by one; empty when the period has no night. Every figure names its source
+    * (MINI_APP MA-SLEEP-1), and no reference duration is ever given (MA-SLEEP-4).
+    */
+  def sleepFigures(period: SleepPeriod): List[String] =
+    if period.nights == 0 then Nil
+    else
+      val average = period.averageMinutes match
+        case Stat.Shown(minutes, _, _, _)      => s"average ${duration(Math.round(minutes).toInt)}"
+        case Stat.Insufficient(n, required, _) => s"${more(required - n, "night")} for an average"
+        case Stat.NoVariation(_, _)            => NoData
+      List(s"${count(period.nights, "night")} logged", average, SleepSource, coverage(period.nights, period.window))
+
+  /** The sleep line of one day: the night that ended on it. */
+  def sleepDay(night: Option[SleepNight]): Option[String] =
+    night.map(recorded => s"Sleep last night: ${duration(recorded.minutes)} ($SleepSource)")
+
+  /** Where every sleep figure comes from: what the user entered (MA-SLEEP-1). */
+  val SleepSource: String = "your check-ins"
+
+  /** Hours and minutes, "7 h 05 min", as the images write a duration. */
+  def duration(minutes: Int): String =
+    if minutes < 60 then s"$minutes min" else f"${minutes / 60} h ${minutes % 60}%02d min"
+
   /** The text of a comparison: the sentence with both group sizes and the fixed closing sentence, or what is still
     * needed. A comparison that is withheld or has no variation yields nothing: it is omitted, not explained away.
     */
@@ -203,6 +233,9 @@ object StatsCopy:
         )
         .toMap
 
+    private def sleepDays(count: Int): Map[LocalDate, SleepNight] =
+      List.tabulate(count)(back => end.minusDays(back.toLong) -> SleepNight(400 + 10 * back, None)).toMap
+
     /** The two groups on alternating days, so that both halves of the window see both groups. */
     private def pairs(first: Int, second: Int): List[PairedDay] =
       List.tabulate(first)(index => PairedDay(month.start.plusDays(2L * index), inFirstGroup = true, 4.0)) ++
@@ -232,6 +265,9 @@ object StatsCopy:
         sample("stats.mood", mood(MoodStats.period(moodDays(6), week))),
         sample("stats.mood.gate", mood(MoodStats.period(moodDays(1), week))),
         sample("stats.mood.day", moodDay(Some(MoodDay(2, 7, 2, 5, energyN = 0, energySum = 0)))),
+        sample("stats.sleep", sleep(SleepStats.period(sleepDays(5), week))),
+        sample("stats.sleep.gate", sleep(SleepStats.period(sleepDays(2), week))),
+        sample("stats.sleep.day", sleepDay(Some(SleepNight(430, None)))),
         sample("insight.ir04", comparison(compared(8, 9))),
         sample("insight.ir04.gate.days", comparison(compared(5, 4))),
         sample("insight.ir04.gate.group", comparison(compared(12, 3)))

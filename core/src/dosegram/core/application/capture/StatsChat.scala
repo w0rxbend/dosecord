@@ -5,10 +5,12 @@ import dosegram.contracts.Reply
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.StatsCardCopy
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.WaterCardView
 
 import java.time.LocalDate
@@ -36,7 +38,8 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
     parts.stats.summary(turn.tx, turn.accountId, StatsPeriod.Today) match
       case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
       case Right(summary) =>
-        val view = DayCardView(summary.window.end, latestMood(turn), doses, waterToday(turn, summary.window.end))
+        val today = summary.window.end
+        val view = DayCardView(today, latestMood(turn), doses, waterToday(turn, today), sleepToday(turn, today))
         parts.cards.day(view, turn.look) match
           case Some(attachment) =>
             val caption = turn.message("stats.image", summary.lines, Nil)
@@ -59,6 +62,16 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
     yield
       val day = WaterChat.dayOf(view)
       WaterCardView(today, day.totalMl, goal, day.entries)
+
+  /** Sleep, like water, has a line on the card only against the user's own goal: its halo segment is the last night
+    * divided by that goal (VISUALS section 4.7).
+    */
+  private def sleepToday(turn: Turn, today: LocalDate): Option[SleepCardView] =
+    for
+      status <- parts.sleep.status(turn.tx, turn.accountId).toOption
+      goal <- status.goalMinutes
+      nights <- parts.stats.sleepCalendar(turn.tx, turn.accountId, DateRange.single(today)).toOption
+    yield SleepCardView(nights.get(today).map(_.minutes), goal)
 
   private def rows(turn: Turn, period: StatsPeriod): List[List[Choice]] =
     val periods = StatsPeriod.values.toList.map: value =>

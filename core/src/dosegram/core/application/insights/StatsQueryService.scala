@@ -17,6 +17,9 @@ import dosegram.core.domain.insights.MoodPeriod
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
+import dosegram.core.domain.insights.SleepNight
+import dosegram.core.domain.insights.SleepPeriod
+import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -38,6 +41,10 @@ final case class HydrationPeriodView(zone: ZoneId, period: HydrationPeriod, days
 
 /** The mood view of a period: the figures and the check-in days behind them (a day without a check-in is absent). */
 final case class MoodPeriodView(zone: ZoneId, period: MoodPeriod, days: Map[LocalDate, MoodDay])
+
+/** The sleep view of a period: the figures and the nights behind them, by sleep day (a day without a night is absent).
+  */
+final case class SleepPeriodView(zone: ZoneId, period: SleepPeriod, days: Map[LocalDate, SleepNight])
 
 /** The medication view of a period in the account zone. Medications are identified by id only: the caller resolves a
   * name or a discreet label for its own surface.
@@ -77,6 +84,16 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       val days = moodDays(tx, accountId, range)
       MoodPeriodView(zone, MoodStats.period(days, range), days)
 
+  def sleep(tx: Tx, accountId: UUID, period: StatsPeriod): Either[StatsRefusal, SleepPeriodView] =
+    answer(tx, accountId, ConsentPurpose.Sleep): zone =>
+      val range = window(period, zone)
+      val days = sleepDays(tx, accountId, range)
+      SleepPeriodView(zone, SleepStats.period(days, range), days)
+
+  /** The nights of a range of sleep days, for a calendar or a chart of days: a day without a night is absent. */
+  def sleepCalendar(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, Map[LocalDate, SleepNight]] =
+    answer(tx, accountId, ConsentPurpose.Sleep)(_ => sleepDays(tx, accountId, range))
+
   /** The recorded days of a range of local days, for a calendar or a chart of days: a day without a dose is absent. */
   def medicationCalendar(
       tx: Tx,
@@ -108,7 +125,8 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       val blocks =
         block(ConsentPurpose.Medication)(doseLines(tx, accountId, range)) ++
           block(ConsentPurpose.Hydration)(waterLines(tx, accountId, period, range)) ++
-          block(ConsentPurpose.Mood)(moodLines(tx, accountId, period, range))
+          block(ConsentPurpose.Mood)(moodLines(tx, accountId, period, range)) ++
+          block(ConsentPurpose.Sleep)(sleepLines(tx, accountId, period, range))
       val body = if blocks.isEmpty then List(StatsCopy.Empty) else blocks
       PeriodSummary(zone, range, StatsCopy.header(period, zone) :: body)
 
@@ -151,6 +169,17 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       case StatsPeriod.Today                              => StatsCopy.moodDay(days.get(range.end))
       case StatsPeriod.Last7Days | StatsPeriod.Last30Days => StatsCopy.mood(MoodStats.period(days, range))
     line.toList
+
+  private def sleepLines(tx: Tx, accountId: UUID, period: StatsPeriod, range: DateRange): List[String] =
+    val days = sleepDays(tx, accountId, range)
+    val line = period match
+      case StatsPeriod.Today                              => StatsCopy.sleepDay(days.get(range.end))
+      case StatsPeriod.Last7Days | StatsPeriod.Last30Days => StatsCopy.sleep(SleepStats.period(days, range))
+    line.toList
+
+  // Sleep has no rollup: a sleep day holds one night, read straight from the episodes.
+  private def sleepDays(tx: Tx, accountId: UUID, range: DateRange): Map[LocalDate, SleepNight] =
+    SleepStats.byDay(tx.tracking.sleep.liveEpisodes(accountId, range))
 
   private def medicationPeriod(tx: Tx, accountId: UUID, zone: ZoneId, range: DateRange): MedicationPeriod =
     MedicationStats.period(medicationDays(tx, accountId, range), dosesOf(tx, accountId, zone, range), range)

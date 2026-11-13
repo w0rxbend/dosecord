@@ -5,6 +5,10 @@ import dosegram.core.application.MedicationWizardRig.Profile
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackMode
+import dosegram.core.application.sleep.EnterSleep
+import dosegram.core.application.sleep.SleepInput
+import dosegram.core.application.sleep.SleepService
+import dosegram.core.domain.EntrySource
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
@@ -13,9 +17,11 @@ import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.WaterCopy
+import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
+import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
@@ -27,6 +33,7 @@ import dosegram.core.ports.StatusCards
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.WaterCardView
 
+import java.time.Duration
 import java.time.ZoneId
 import java.util.UUID
 import scala.collection.mutable
@@ -332,6 +339,34 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(view.doses, Some(List(DoseMark.Open)))
       assertEquals(view.water.map(water => (water.totalMl, water.goalMl)), Some((500, 2000)))
       assertEquals(view.mood.map(_.valence.step), Some(4))
+
+  test("with the sleep consent and a sleep goal the daily summary carries last night, in the text and on the card"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Sleep, ConsentPurpose.ImagesInChat)
+      val sleep = SleepService(chat.rig.clock, SequentialIds())
+      val now = chat.rig.clock.now()
+      val night = EnterSleep(
+        SleepInput(chat.account, EntrySource.Bot, "night"),
+        SleepKind.Main,
+        now.minus(Duration.ofMinutes(6 * 60 + 10)),
+        now.minus(Duration.ofMinutes(30))
+      )
+      assert(chat.rig.uow.transaction(tx => sleep.enter(tx, night)).isRight)
+      chat.rig.uow.transaction(tx => sleep.setGoal(tx, chat.account, Some(7 * 60)))
+
+      val today = chat.rig.line("/stats today")
+      assert(today.exists(_.contains("Sleep last night: 5 h 40 min (your check-ins)")), s"got: $today")
+      chat.rig.tapOn("Today · Europe/Kyiv", "Show as image")
+      assertEquals(cards.days.head.sleep, Some(SleepCardView(Some(340), 420)))
+
+  test("without a sleep goal the daily summary card has no sleep line, as water has none without its goal"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Sleep, ConsentPurpose.ImagesInChat)
+      chat.rig.line("/stats today")
+      chat.rig.tapOn("Today · Europe/Kyiv", "Show as image")
+      assertEquals(cards.days.head.sleep, None)
 
   test("every image is drawn in the image theme and the discreet mode the account set, the default before any change"):
     val cards = RecordingCards()

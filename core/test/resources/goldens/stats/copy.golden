@@ -54,6 +54,15 @@ Mood: 2 check-ins · 2 more days with a check-in for an average · 1 of 7 days h
 # stats.mood.day
 Mood today: 3.5 (slightly pleasant) · 2 check-ins
 
+# stats.sleep
+Sleep: 5 nights logged · average 7 h 00 min · your check-ins · 5 of 7 days have data
+
+# stats.sleep.gate
+Sleep: 2 nights logged · 1 more night for an average · your check-ins · 2 of 7 days have data
+
+# stats.sleep.day
+Sleep last night: 7 h 10 min (your check-ins)
+
 # insight.ir04
 On the 8 days you reached your water goal, your average mood was 4.0 (pleasant). On the 9 other days it was 3.0 (neutral). This compares your own days. It does not show a cause.
 

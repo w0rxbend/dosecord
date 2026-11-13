@@ -26,6 +26,7 @@ import dosegram.render.card.DayCard
 import dosegram.render.card.DayData
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
+import dosegram.render.card.SleepEvidence
 import dosegram.render.card.WaterCard
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -102,7 +103,9 @@ final class RenderedStatusCards(renderer: CardRenderer, store: AssetStore, log: 
       medication = view.doses.map(_.map(statusOf).toVector),
       water = view.water.map(water => WaterProgress(water.totalMl, water.goalMl)),
       food = None,
-      sleep = None
+      sleep = view.sleep.map(sleep =>
+        sleep.minutes.fold(SleepEvidence.NoRecord)(SleepEvidence.Recorded(_, sleep.goalMinutes))
+      )
     )
     personal(DayCard.render(data, contextOf(look)))
 

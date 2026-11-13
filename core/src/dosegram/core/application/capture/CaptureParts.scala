@@ -5,6 +5,7 @@ import dosegram.core.application.insights.RollupService
 import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.medication.MedicationWithdrawal
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.sleep.SleepService
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.StatusCards
@@ -18,6 +19,7 @@ import dosegram.core.scheduling.ScheduleLifecycle
 final case class CaptureParts(
     hydration: HydrationService,
     mood: MoodService,
+    sleep: SleepService,
     stats: StatsQueryService,
     cards: StatusCards,
     withdrawal: MedicationWithdrawal
@@ -30,6 +32,7 @@ object CaptureParts:
     CaptureParts(
       HydrationService(clock, ids),
       MoodService(clock, ids),
+      SleepService(clock, ids),
       StatsQueryService(RollupService(uow, clock), clock),
       cards,
       MedicationWithdrawal(ScheduleLifecycle(uow, clock))

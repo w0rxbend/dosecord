@@ -8,6 +8,7 @@ import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.infra.RenderSettings
 import dosegram.render.PngImage
@@ -74,11 +75,15 @@ class StatusImagesSuite extends munit.FunSuite:
   test("the daily summary states the doses with the product's status words, and leaves out an absent domain"):
     val rig = Rig(CountingRasteriser())
     val marks = List(DoseMark.TakenOnTime, DoseMark.TakenLate, DoseMark.Skipped, DoseMark.NotConfirmed, DoseMark.Open)
-    val full = rig.images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(marks), Some(water)), light).get
+    val full = rig.images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(marks), Some(water), None), light).get
     assert(full.altText.contains("2 of 5 scheduled doses recorded as taken"), full.altText)
     assert(full.altText.contains("1 skipped, 1 not confirmed, 1 still open"), full.altText)
     assert(full.altText.contains("Water: 1.3 of 2.0 l."), full.altText)
-    val bare = rig.images.cards.day(DayCardView(today, None, None, None), light).get
+    val bare = rig.images.cards.day(DayCardView(today, None, None, None, None), light).get
+    val slept = rig.images.cards.day(DayCardView(today, None, None, None, Some(SleepCardView(Some(430), 450))), light).get
+    assert(slept.altText.contains("Sleep: 7 h 10 min, from your check-ins."), slept.altText)
+    val unslept = rig.images.cards.day(DayCardView(today, None, None, None, Some(SleepCardView(None, 450))), light).get
+    assert(unslept.altText.contains("Sleep: no record yet."), unslept.altText)
     assert(!bare.altText.contains("Medication") && !bare.altText.contains("Water"), bare.altText)
     assert(bare.altText.contains("No mood entry today."), bare.altText)
 
@@ -103,7 +108,7 @@ class StatusImagesSuite extends munit.FunSuite:
     )
     assertEquals(rig.images.cards.water(water, light).map(_.hasSpoiler), Some(false))
     assertEquals(rig.images.cards.water(water, discreet).map(_.hasSpoiler), Some(true))
-    val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water))
+    val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water), None)
     assertEquals(rig.images.cards.day(day, discreet).map(_.hasSpoiler), Some(true))
 
   test("a card that cannot be drawn gives no image, and the log names the template and the failure only"):
@@ -147,7 +152,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val drawn = List(
       images.cards.mood(MoodCardView(pleasant, Energy.of(2)), light),
       images.cards.water(water, light),
-      images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(List(DoseMark.Open)), Some(water)), light)
+      images.cards.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(List(DoseMark.Open)), Some(water), None), light)
     )
     assertEquals(log.toList, Nil)
     drawn.foreach: card =>

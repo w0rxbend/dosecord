@@ -12,18 +12,22 @@ final case class MoodCardView(valence: Valence, energy: Option[Energy])
 /** The water of one local day against the user's own goal. */
 final case class WaterCardView(date: LocalDate, totalMl: Int, goalMl: Int, entries: Int)
 
+/** The night that ended on a day against the user's own sleep goal; `minutes` is absent when no night is recorded. */
+final case class SleepCardView(minutes: Option[Int], goalMinutes: Int)
+
 /** How one dose of a day is drawn. The names are the status vocabulary of BOT_UX section 22.4. */
 enum DoseMark:
   case TakenOnTime, TakenLate, Skipped, NotConfirmed, NoRecord, Open
 
-/** The daily summary. `doses` and `water` are absent for a domain that is not shown; `mood` is absent on a day with no
-  * check-in.
+/** The daily summary. `doses`, `water` and `sleep` are absent for a domain that is not shown; `mood` is absent on a day
+  * with no check-in.
   */
 final case class DayCardView(
     date: LocalDate,
     mood: Option[MoodCardView],
     doses: Option[List[DoseMark]],
-    water: Option[WaterCardView]
+    water: Option[WaterCardView],
+    sleep: Option[SleepCardView]
 )
 
 /** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
