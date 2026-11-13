@@ -278,7 +278,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
   test("/mood asks; a tap records and is answered with the mood image, captioned with the label and the time"):
     val cards = RecordingCards()
     withChat(Profile.Telegram, cards): chat =>
-      chat.grant(ConsentPurpose.Mood)
+      chat.grant(ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
       assertEquals(chat.rig.command("mood"), List(s"${CheckInCopy.prompt}\n\n${CheckInCopy.scale}"))
       val answer = chat.rig.tapOn(CheckInCopy.prompt, "4")
       val edits = answer.collect { case VendorOp.Edit(_, message) => message }
@@ -290,6 +290,20 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(labels(answer), List(CheckInCopy.AddEnergy, "Undo"))
       assertEquals(cards.moods.toList.map(view => (view.valence.step, view.energy)), List((4, None)))
       assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList, List(4))
+
+  // Owner decision 2026-11-13: the mood image follows the images consent like every other personal image (BUX-MOOD-03).
+  test("without the images consent the check-in is answered as text in place of the prompt, and nothing is drawn"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Mood)
+      chat.rig.command("mood")
+      val answer = chat.rig.tapOn(CheckInCopy.prompt, "4")
+      assertEquals(answer.collect { case VendorOp.Edit(_, message) => message.chunks }.flatten, List("Pleasant · 03:00"))
+      assertEquals(answer.collect { case VendorOp.Send(_, message, _, _) => message.attachment }.flatten, Nil)
+      assertEquals(labels(answer), List(CheckInCopy.AddEnergy, "Undo"))
+      assertEquals(chat.rig.line("mood 2"), List("Unpleasant · 03:00"), "a typed check-in is text as well")
+      assertEquals(cards.moods.toList, Nil, "no mood card is drawn without the consent")
+      assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList.sorted, List(2, 4))
 
   test("Add energy asks on the same message and the answer names the energy label"):
     withChat(Profile.Telegram): chat =>
@@ -322,7 +336,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
   test("one prompt is one check-in: later taps on it record nothing and say when it was recorded"):
     for cards <- List(RecordingCards(), StatusCards.textOnly) do
       withChat(Profile.Telegram, cards): chat =>
-        chat.grant(ConsentPurpose.Mood)
+        chat.grant(ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
         chat.rig.command("mood")
         val (prompt, four) = chat.rig.controlOn(CheckInCopy.prompt, "4")
         val two = chat.rig.controlOn(CheckInCopy.prompt, "2")._2
@@ -518,6 +532,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
   test("on a text-only profile the consent is answered by number and the image is its text equivalent"):
     withChat(Profile.Console): chat =>
+      chat.grant(ConsentPurpose.ImagesInChat)
       val asked = chat.rig.line("/mood 3")
       assert(asked.exists(text => text.contains("1) I agree") && text.contains("2) Not now")), s"got: $asked")
       chat.rig.line("1")

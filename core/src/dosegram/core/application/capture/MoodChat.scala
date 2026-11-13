@@ -1,5 +1,6 @@
 package dosegram.core.application.capture
 
+import dosegram.contracts.AttachmentRef
 import dosegram.contracts.Choice
 import dosegram.contracts.Reply
 import dosegram.core.application.mood.CheckIn
@@ -15,13 +16,16 @@ import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.domain.mood.Valence
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 
 import java.util.UUID
 
 /** The mood check-in in chat (BOT_UX section 11.4): one tap records, the answer is the mood image with the labels and
-  * the time as its caption, and energy is an optional second step. The answer has the same shape for every value.
+  * the time as its caption, and energy is an optional second step. The answer has the same shape for every value. The
+  * image needs the `images_in_chat` consent like every personal image (owner decision 2026-11-13, BUX-MOOD-03); without
+  * it the answer is the text alone, and the consent is not asked here.
   */
 private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tokens: Tokens):
 
@@ -36,7 +40,7 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
   def checkIn(turn: Turn, valence: Valence): Reply =
     record(turn, valence, turn.clientKey): recorded =>
       val confirmation = turn.message("mood.recorded", List(captionOf(turn, recorded.checkin)), followUpRows(recorded))
-      cards.mood(MoodCardView(valence, None), turn.look) match
+      image(turn, valence) match
         case Some(attachment) => Reply(followUps = List(confirmation.copy(attachment = Some(attachment))))
         case None             => turn.show(confirmation)
 
@@ -52,13 +56,18 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, tok
         val key = s"mood.prompt:${prompt.vendor}:${prompt.chatId}:${prompt.messageId}"
         record(turn, valence, key): recorded =>
           val caption = captionOf(turn, recorded.checkin)
-          cards.mood(MoodCardView(valence, None), turn.look) match
+          image(turn, valence) match
             case None             => turn.show(turn.message("mood.recorded", List(caption), followUpRows(recorded)))
             case Some(attachment) =>
               val photo = turn.message("mood.recorded", List(caption), followUpRows(recorded))
               turn
                 .show(turn.message("mood.prompt.recorded", List(caption), Nil))
                 .copy(followUps = List(photo.copy(attachment = Some(attachment))))
+
+  private def image(turn: Turn, valence: Valence): Option[AttachmentRef] =
+    if turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.ImagesInChat) then
+      cards.mood(MoodCardView(valence, None), turn.look)
+    else None
 
   private def record(turn: Turn, valence: Valence, key: String)(reply: MoodRecorded => Reply): Reply =
     val command = CheckIn(turn.accountId, valence, None, Nil, EntryDay.Today, EntrySource.Bot, key)

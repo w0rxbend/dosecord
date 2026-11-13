@@ -301,7 +301,7 @@ class CaptureLaunchSuite extends PgSuite:
 
   test("a mood check-in is answered with the mood image; the same state is uploaded once and then sent by file id"):
     val accountId = seedOwner()
-    grant(accountId, ConsentPurpose.Mood)
+    grant(accountId, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
     launched: bot =>
       val List(prompt) = bot.say("/mood", expected = 1): @unchecked
       assertEquals(bot.body(prompt), s"${CheckInCopy.prompt}\n\n${CheckInCopy.scale}")
@@ -376,7 +376,7 @@ class CaptureLaunchSuite extends PgSuite:
 
   test("after a restart a mood image is sent by its stored file id: no second upload and no second drawing"):
     val accountId = seedOwner()
-    grant(accountId, ConsentPurpose.Mood)
+    grant(accountId, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
     launched: bot =>
       val List(prompt) = bot.say("/mood", expected = 1): @unchecked
       val List(_, first) = bot.tap(prompt, "4", expected = 2): @unchecked // the prompt's edit, then the image
