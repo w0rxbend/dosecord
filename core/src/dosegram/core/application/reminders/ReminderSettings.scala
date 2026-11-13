@@ -1,5 +1,6 @@
 package dosegram.core.application.reminders
 
+import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.QuietHours
 import dosegram.core.domain.reminders.Anchor
 import dosegram.core.domain.reminders.DayAnchors
@@ -20,6 +21,7 @@ import dosegram.core.ports.Tx
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
@@ -43,6 +45,11 @@ final case class HubView(
     medicationSchedules: Int,
     pausedUntil: Option[Instant]
 )
+
+/** One reminder of a day as the timeline shows it: a prompt of a plan, or a medication reminder (`kind` absent). The
+  * medication name is never part of it.
+  */
+final case class TimelineItem(at: Instant, kind: Option[PromptKind], presetId: Option[String])
 
 /** The settings use cases of the prompts (ADR-023): the day profile, the preset catalogue with its preview, turning a
   * plan on and off, and the pauses. They run on the caller's transaction, like the tracking use cases.
@@ -117,6 +124,10 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
   ): Either[ReminderRefusal, DayProfile] =
     saved(tx, accountId)(profile(tx, accountId).workHours(days, start, end))
 
+  /** Replaces the whole day: the anchors, the work hours and the quiet hours (the editor of the Mini App). */
+  def saveProfile(tx: Tx, accountId: UUID, profile: DayProfile): Either[ReminderRefusal, DayProfile] =
+    setQuiet(tx, accountId, profile.quiet).flatMap(_ => saved(tx, accountId)(Right(profile)))
+
   def setQuiet(tx: Tx, accountId: UUID, quiet: QuietHours): Either[ReminderRefusal, DayProfile] =
     tx.accounts.settingsOf(accountId) match
       case None           => Left(ReminderRefusal.UnknownAccount)
@@ -129,6 +140,26 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
     tx.reminders.prompts.pause(scheduleId, Some(until), clock.now())
 
   /** The start of the next local day: the end of "Pause for today". */
+  /** Every reminder a local day holds with the plans as they are: the prompt slots outside quiet hours, and the dose
+    * reminders of the materialised schedules when the medication consent is given. In time order.
+    */
+  def timeline(tx: Tx, accountId: UUID, date: LocalDate): List[TimelineItem] =
+    val zone = this.zone(tx, accountId)
+    val profile = this.profile(tx, accountId)
+    val prompts = for
+      plan <- tx.reminders.prompts.schedules(accountId) if plan.enabled && PromptPresets.wired(plan.kind)
+      slot <- NudgeSlots.on(plan.plan, profile, date, zone, seedOf(accountId))
+      if !profile.quiet.contains(slot.local.toLocalTime)
+    yield TimelineItem(slot.at, Some(plan.kind), Some(plan.presetId))
+    val doses =
+      if !tx.consents.isGranted(accountId, ConsentPurpose.Medication) then Nil
+      else
+        tx.occurrences
+          .listForAccountBetween(accountId, date, date)
+          .filter(o => o.scheduleId.isDefined && o.status != OccurrenceStatus.Cancelled)
+          .map(o => TimelineItem(o.scheduledFor, None, None))
+    (prompts ++ doses).sortBy(_.at)
+
   def endOfToday(zone: ZoneId): Instant =
     clock.now().atZone(zone).toLocalDate.plusDays(1).atStartOfDay(zone).toInstant
 

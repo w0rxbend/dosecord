@@ -17,6 +17,11 @@ import type {
   NotificationSettingsInput,
   Off,
   SleepCheckinKind,
+  DayProfile,
+  DayProfileInput,
+  ReminderPresets,
+  Reminders,
+  ReminderTimeline,
   SleepEpisode,
   SleepEpisodeInput,
   SleepSettings,
@@ -114,6 +119,15 @@ export interface ApiClient {
   sleepCheckIn(kind: SleepCheckinKind, idempotencyKey: string): Promise<SleepStatus>;
   sleepSettings(): Promise<SleepSettings>;
   saveSleepSettings(goalMinutes: number | undefined, version: number): Promise<SleepSettings>;
+
+  // reminders (ADR-023): a write carries the key made when the person acted.
+  reminders(): Promise<Reminders>;
+  reminderPresets(): Promise<ReminderPresets>;
+  turnOnReminder(presetId: string, idempotencyKey: string): Promise<Reminders>;
+  turnOffReminder(kind: string): Promise<Reminders>;
+  pauseReminders(hours: number, idempotencyKey: string): Promise<Reminders>;
+  saveDayProfile(input: DayProfileInput, version: number): Promise<DayProfile>;
+  reminderTimeline(): Promise<ReminderTimeline>;
 
   // history calendar (MINI_APP 7.12): one month of one domain; `month` is YYYY-MM.
   calendar(domain: Domain, month?: string): Promise<InsightCalendar>;

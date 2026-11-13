@@ -573,3 +573,63 @@ export interface Consents {
   readonly items: readonly ConsentItem[];
   readonly notes: readonly string[];
 }
+
+// ---------- reminders (ADR-023) ----------
+
+/** The day the presets refer to: anchors, work hours (ISO weekdays, Monday 1) and quiet hours. */
+export interface DayProfile {
+  readonly version: number;
+  readonly wake: LocalTime;
+  readonly breakfast: LocalTime;
+  readonly lunch: LocalTime;
+  readonly dinner: LocalTime;
+  readonly bedtime: LocalTime;
+  readonly workDays: readonly number[];
+  readonly workStart: LocalTime;
+  readonly workEnd: LocalTime;
+  readonly quietStart: LocalTime;
+  readonly quietEnd: LocalTime;
+}
+
+export type DayProfileInput = Omit<DayProfile, 'version'>;
+
+/** One prompt kind; `presetId` is present when a plan is on. */
+export interface ReminderKind {
+  readonly kind: string;
+  readonly name: string;
+  readonly available: boolean;
+  readonly presetId?: string;
+  readonly presetName?: string;
+  readonly nextAt?: string;
+}
+
+export interface Reminders {
+  readonly timeZone: string;
+  readonly kinds: readonly ReminderKind[];
+  readonly medicationSchedules: number;
+  readonly day: DayProfile;
+  readonly pausedUntil?: string;
+}
+
+export interface PromptPreset {
+  readonly id: string;
+  readonly kind: string;
+  readonly name: string;
+  readonly available: boolean;
+  readonly preview: readonly string[];
+}
+
+export interface ReminderPresets {
+  readonly prompts: readonly PromptPreset[];
+}
+
+export interface ReminderTimelineEntry {
+  readonly at: string;
+  readonly kind: string;
+  readonly name: string;
+}
+
+export interface ReminderTimeline {
+  readonly date: LocalDate;
+  readonly entries: readonly ReminderTimelineEntry[];
+}

@@ -101,6 +101,10 @@
         <LinkRow path="/settings/privacy" label={en.settings.privacy} hint={en.settings.privacyHint} />
       </div>
 
+      <div class="section section-body">
+        <LinkRow path="/settings/reminders" label={en.settings.reminders} hint={en.settings.remindersHint} />
+      </div>
+
       <fieldset class="section">
         <legend class="section-title">{en.settings.imageTheme}</legend>
         <div class="section-body pad">

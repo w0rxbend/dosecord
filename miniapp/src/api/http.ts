@@ -13,6 +13,10 @@ import {
   toNotificationSettings,
   toWaterSettings,
   toSleepStatus,
+  toDayProfile,
+  toReminderPresets,
+  toReminders,
+  toReminderTimeline,
   toSleepSummary,
   toWaterSummary,
   toMedication,
@@ -208,6 +212,30 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       const body: Wire['SleepSettingsInput'] = { goalMinutes };
       return request<Wire['SleepSettings']>('sleep/settings', { method: 'PATCH', body, headers: versionTag(version) });
     },
+
+    reminders: async () => toReminders(await request<Wire['RemindersView']>('reminders')),
+    reminderPresets: async () => toReminderPresets(await request<Wire['ReminderPresets']>('reminders/presets')),
+    turnOnReminder: async (presetId, key) => {
+      const body: Wire['ReminderPlanInput'] = { presetId };
+      return toReminders(
+        await request<Wire['RemindersView']>('reminders/plans', { method: 'POST', body, headers: command(key) }),
+      );
+    },
+    turnOffReminder: async (kind) =>
+      toReminders(await request<Wire['RemindersView']>(`reminders/plans/${id(kind)}`, { method: 'DELETE' })),
+    pauseReminders: async (hours, key) => {
+      const body: Wire['ReminderPauseInput'] = { hours };
+      return toReminders(
+        await request<Wire['RemindersView']>('reminders/pause', { method: 'POST', body, headers: command(key) }),
+      );
+    },
+    saveDayProfile: async (input, version) => {
+      const body: Wire['DayProfileInput'] = { ...input, workDays: [...input.workDays] };
+      return toDayProfile(
+        await request<Wire['DayProfileView']>('reminders/day', { method: 'PATCH', body, headers: versionTag(version) }),
+      );
+    },
+    reminderTimeline: async () => toReminderTimeline(await request<Wire['ReminderTimeline']>('reminders/timeline')),
 
     calendar: async (domain, month) => {
       const query = month === undefined ? '' : `&month=${id(month)}`;

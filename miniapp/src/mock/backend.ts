@@ -7,6 +7,7 @@ import { toLocalDate } from './dates';
 import { MockDay, otherDay } from './day';
 import { buildOverview, doseHistory } from './insights';
 import { buildPreview } from './preview';
+import { MockReminders } from './reminders';
 import { MockTracking } from './tracking';
 
 export const MOCK_BACKEND_MARKER = 'dosegram-mock-backend';
@@ -45,6 +46,8 @@ export class MockBackend implements ApiClient {
   private day = new MockDay(true);
   /** Water, mood, calendar, settings and consents. Tests reach in, for example to withdraw a consent. */
   tracking!: MockTracking;
+  /** The reminders hub, the presets and the day profile (ADR-023). */
+  reminderState!: MockReminders;
   private readonly schedules: Schedule[] = [];
   private readonly answered = new Map<string, OccurrenceActionResult>();
   private readonly replies = new Map<string, unknown>();
@@ -63,6 +66,7 @@ export class MockBackend implements ApiClient {
     this.records = empty ? [] : seedMedications();
     this.day = new MockDay(!empty);
     this.tracking = new MockTracking(() => this.localToday(), () => this.minute(), !empty);
+    this.reminderState = new MockReminders();
   }
 
   resolveInChat(occurrenceId: string): void {
@@ -135,6 +139,26 @@ export class MockBackend implements ApiClient {
 
   saveSleepSettings: ApiClient['saveSleepSettings'] = (goalMinutes, version) =>
     this.respond('sleep/settings:update', () => this.tracking.sleep.saveSettings(goalMinutes, version));
+
+  reminders: ApiClient['reminders'] = () => this.respond('reminders', () => this.reminderState.view());
+
+  reminderPresets: ApiClient['reminderPresets'] = () =>
+    this.respond('reminders/presets', () => this.reminderState.presets());
+
+  turnOnReminder: ApiClient['turnOnReminder'] = (presetId, key) =>
+    this.respond('reminders/plans:create', () => this.once(key, () => this.reminderState.turnOn(presetId)));
+
+  turnOffReminder: ApiClient['turnOffReminder'] = (kind) =>
+    this.respond('reminders/plans/{kind}:delete', () => this.reminderState.turnOff(kind));
+
+  pauseReminders: ApiClient['pauseReminders'] = (hours, key) =>
+    this.respond('reminders/pause:create', () => this.once(key, () => this.reminderState.pause(hours)));
+
+  saveDayProfile: ApiClient['saveDayProfile'] = (input, version) =>
+    this.respond('reminders/day:update', () => this.reminderState.saveDay(input, version));
+
+  reminderTimeline: ApiClient['reminderTimeline'] = () =>
+    this.respond('reminders/timeline', () => this.reminderState.timeline());
 
   waterSummary: ApiClient['waterSummary'] = () => this.respond('hydration/summary', () => this.tracking.waterSummary());
 
