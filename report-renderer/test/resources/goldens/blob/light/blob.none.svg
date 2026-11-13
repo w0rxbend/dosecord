@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<g>
+  <ellipse cx="540" cy="834" rx="195" ry="9" fill="#cdd6db"/>
+  <path d="M841.77 480 C841.13 538.51 815.34 609.16 779.65 654.11 C743.96 699.06 683.94 728.34 627.63 749.69 C571.32 771.04 497.83 797.08 441.8 782.23 C385.77 767.38 324.06 710.96 291.44 660.59 C258.82 610.22 243.56 538.37 246.08 480 C248.6 421.63 273.15 358.34 306.56 310.39 C339.96 262.45 391.79 212.82 446.54 192.35 C501.28 171.88 578.85 169.11 635.02 187.57 C691.18 206.02 749.06 254.33 783.52 303.07 C817.98 351.81 842.42 421.49 841.77 480 Z" fill="#d8dfe3" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="540" y="936" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">No mood entry</text>
+</svg>

@@ -1,0 +1,17 @@
+file: dosegram-medication-days.png
+spoiler: true
+caption: By medication.
+alt: 2 to 8 Nov. Item 1: 14 of 21 scheduled doses recorded as taken (67%), 7 not confirmed. Item 2: 21 of 35 scheduled doses recorded as taken (60%), 7 skipped, 7 not confirmed, 7 with no record, not counted. Item 3: 7 of 7 scheduled doses recorded as taken (100%).
+full: 2 to 8 Nov. Item 1: 14 of 21 scheduled doses recorded as taken (67%), 7 not confirmed. Item 2: 21 of 35 scheduled doses recorded as taken (60%), 7 skipped, 7 not confirmed, 7 with no record, not counted. Item 3: 7 of 7 scheduled doses recorded as taken (100%).
+
+file: dosegram-medication-days.png
+spoiler: true
+caption: By medication.
+alt: 2 to 8 Nov. Item 4: 7 of 7 scheduled doses recorded as taken (100%). Item 5: 7 of 7 scheduled doses recorded as taken (100%). Item 6: 7 of 7 scheduled doses recorded as taken (100%). Item 7: 7 of 7 scheduled doses recorded as taken (100%). Item 8: 7 of 7 scheduled doses recorded as taken (100%).
+full: 2 to 8 Nov. Item 4: 7 of 7 scheduled doses recorded as taken (100%). Item 5: 7 of 7 scheduled doses recorded as taken (100%). Item 6: 7 of 7 scheduled doses recorded as taken (100%). Item 7: 7 of 7 scheduled doses recorded as taken (100%). Item 8: 7 of 7 scheduled doses recorded as taken (100%).
+
+file: dosegram-medication-days.png
+spoiler: true
+caption: By medication.
+alt: 2 to 8 Nov. Item 9 (as needed): 7 logs on 7 days.
+full: 2 to 8 Nov. Item 9 (as needed): 7 logs on 7 days.

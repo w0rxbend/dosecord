@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#98acaf"/><stop offset="1" stop-color="#758f92"/></radialGradient>
+</defs>
+<rect width="1080" height="1080" fill="#e3f4f6"/>
+<g>
+  <ellipse cx="540" cy="834" rx="195" ry="9" fill="#cdd6db"/>
+  <path d="M849.76 480 C849.32 538.56 817.23 608.97 780.47 654.71 C743.71 700.46 684.53 736.62 629.19 754.49 C573.84 772.36 505.44 777.03 448.4 761.92 C391.35 746.82 323.4 710.86 286.92 663.87 C250.44 616.89 225.41 538.29 229.53 480 C233.66 421.71 275.35 361.57 311.67 314.11 C347.99 266.65 393.84 215.54 447.47 195.23 C501.11 174.93 577.55 174.26 633.48 192.29 C689.42 210.31 747.06 255.42 783.11 303.37 C819.15 351.33 850.2 421.44 849.76 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="456" cy="444" rx="16.5" ry="12.38" fill="#13242e"/>
+  <ellipse cx="624" cy="444" rx="16.5" ry="12.38" fill="#13242e"/>
+  <path d="M480 546 Q540 546 600 546" fill="none" stroke="#13242e" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="540" y="936" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">Neutral</text>
+<text x="540" y="1000" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="middle">Energy: medium</text>
+</svg>

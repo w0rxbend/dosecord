@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 1 year of records.
+alt: 1 year of records.
+full: 1 year of records.

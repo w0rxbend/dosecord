@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 50 mood check-ins recorded.
+alt: 50 mood check-ins recorded.
+full: 50 mood check-ins recorded.

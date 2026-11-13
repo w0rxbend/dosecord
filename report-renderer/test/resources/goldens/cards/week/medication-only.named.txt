@@ -1,0 +1,5 @@
+file: dosegram-week.png
+spoiler: false
+caption: Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 not confirmed.
+alt: Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 not confirmed.
+full: Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 not confirmed.

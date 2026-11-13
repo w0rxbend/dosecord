@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 100 meals logged.
+alt: 100 meals logged.
+full: 100 meals logged.

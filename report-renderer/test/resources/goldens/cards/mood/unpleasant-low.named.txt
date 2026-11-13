@@ -1,0 +1,5 @@
+file: dosegram-mood.png
+spoiler: false
+caption: Mood: Unpleasant. Energy: low.
+alt: Mood: Unpleasant. Energy: low.
+full: Mood: Unpleasant. Energy: low.

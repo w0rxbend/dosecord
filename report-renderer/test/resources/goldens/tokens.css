@@ -1,0 +1,40 @@
+/* Generated from dosegram.render.tokens.Tokens. Do not edit. */
+:root {
+  --dg-surface: #eef5f8;
+  --dg-panel: #ffffff;
+  --dg-grid: #cdd6db;
+  --dg-ink: #13242e;
+  --dg-ink-2: #435561;
+  --dg-ink-3: #5e6e78;
+  --dg-attention: #c9690a;
+  --dg-spruce: #0d9675;
+  --dg-tide: #02558f;
+  --dg-rye: #955907;
+  --dg-beet: #940f52;
+  --dg-dusk: #8a66d9;
+  --dg-spruce-late: #78c3a9;
+  --dg-spruce-heat-1: #78c3a9;
+  --dg-spruce-heat-2: #32b08d;
+  --dg-spruce-heat-3: #007c60;
+  --dg-spruce-heat-4: #004937;
+}
+
+[data-scheme="dark"] {
+  --dg-surface: #0f222b;
+  --dg-panel: #071820;
+  --dg-grid: #2f434d;
+  --dg-ink: #e8f0f4;
+  --dg-ink-2: #b1c0c8;
+  --dg-ink-3: #8b9ba3;
+  --dg-attention: #ea942f;
+  --dg-spruce: #2cab88;
+  --dg-tide: #0072be;
+  --dg-rye: #9e5d00;
+  --dg-beet: #bf3f75;
+  --dg-dusk: #9d7aef;
+  --dg-spruce-late: #038265;
+  --dg-spruce-heat-1: #04614b;
+  --dg-spruce-heat-2: #038265;
+  --dg-spruce-heat-3: #29a987;
+  --dg-spruce-heat-4: #8bd6bc;
+}

@@ -1,0 +1,5 @@
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2 to 8 Nov. No medication records for these days.
+alt: 2 to 8 Nov. No medication records for these days.
+full: 2 to 8 Nov. No medication records for these days.

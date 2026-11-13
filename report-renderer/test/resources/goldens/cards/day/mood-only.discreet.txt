@@ -1,0 +1,5 @@
+file: dosegram-day.png
+spoiler: true
+caption: Your day so far.
+alt: Thu 12 Nov. Mood: Neutral. Energy: medium.
+full: Thu 12 Nov. Mood: Neutral. Energy: medium.

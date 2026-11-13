@@ -1,0 +1,5 @@
+file: dosegram-mood.png
+spoiler: false
+caption: Mood: Pleasant. Energy: high.
+alt: Mood: Pleasant. Energy: high.
+full: Mood: Pleasant. Energy: high.

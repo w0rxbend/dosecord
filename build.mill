@@ -102,3 +102,22 @@ object tests extends Module:
         mvn"com.dimafeng::testcontainers-scala-postgresql:0.44.1",
         mvn"com.dimafeng::testcontainers-scala-munit:0.44.1"
       )
+
+// G1.9 / G4.1 / G4.2: the pure render pipeline (view model -> scene -> SVG profile 1 -> Rasteriser port). The main
+// module has no dependency and no file, network or AWT access (DEP-03); `resvg` is the child-process adapter and is
+// the only place that starts a process. The pinned font pack lives in report-renderer/fonts.
+object `report-renderer` extends DosegramModule:
+  def fontsDir = Task.Source("fonts")
+  object test extends DosegramTests:
+    def forkEnv = super.forkEnv() ++ Map("DOSEGRAM_FONTS_DIR" -> fontsDir().path.toString)
+  object resvg extends DosegramModule:
+    def moduleDeps = Seq(`report-renderer`)
+    def mvnDeps = Seq(mvn"com.softwaremill.ox::core:1.0.6")
+    object test extends DosegramTests:
+      def moduleDeps = super.moduleDeps ++ Seq(`report-renderer`.test)
+      def forkEnv = super.forkEnv() ++ Map("DOSEGRAM_FONTS_DIR" -> fontsDir().path.toString)
+      // The review sheet: every fixture as a PNG plus contact-sheet.png, written to out/report-renderer/preview, which
+      // git ignores. Needs resvg on the PATH or DOSEGRAM_RESVG.
+      def contactSheet() = Task.Command {
+        runMain("dosegram.render.resvg.renderContactSheet", "out/report-renderer/preview")()
+      }

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<rect width="1080" height="1350" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">By medication</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">2 to 8 Nov</text>
+<text x="96" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
+<text x="172" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="248" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
+<text x="324" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="400" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
+<text x="476" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="552" y="212" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="64" y="280" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Medication number 8</text>
+<text x="1016" y="280" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="end">7 of 7 taken</text>
+<g>
+  <rect x="64" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="140" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="216" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="292" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="368" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="444" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="520" y="308" width="64" height="64" rx="17.92" fill="#0d9675"/>
+</g>
+<text x="64" y="440" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="44" fill="#13242e">Medication number 9 (as</text>
+<text x="64" y="492" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="44" fill="#13242e">needed)</text>
+<text x="1016" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="end">7 logs on 7 days</text>
+<g>
+  <circle cx="96" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <circle cx="172" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <circle cx="248" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <circle cx="324" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <circle cx="400" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <circle cx="476" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <circle cx="552" cy="552" r="32" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="64" y="640" width="44" height="44" rx="12.32" fill="#0d9675"/>
+</g>
+<text x="120" y="676" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Taken</text>
+<g>
+  <path d="M280.68 640 L299.16 640 L312.36 653.2 L312.36 671.68 A12.32 12.32 0 0 1 300.04 684 L280.68 684 A12.32 12.32 0 0 1 268.36 671.68 L268.36 652.32 A12.32 12.32 0 0 1 280.68 640 Z" fill="#78c3a9"/>
+</g>
+<text x="324.36" y="676" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Taken late</text>
+<g>
+  <rect x="555.36" y="643" width="38" height="38" rx="9.32" fill="none" stroke="#435561" stroke-width="6"/>
+</g>
+<text x="608.36" y="676" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Skipped</text>
+<g>
+  <rect x="66" y="698" width="40" height="40" rx="10.32" fill="none" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <line x1="77.2" y1="718" x2="94.8" y2="718" stroke="#5e6e78" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="120" y="732" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Not confirmed</text>
+<g>
+  <line x1="423.32" y1="712.59" x2="434.63" y2="701.28" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="423.82" y1="734.72" x2="456.76" y2="701.78" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="446.45" y1="734.72" x2="456.76" y2="724.41" stroke="#5e6e78" stroke-width="4"/>
+</g>
+<text x="474.04" y="732" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">No record</text>
+<g>
+  <circle cx="712.12" cy="718" r="22" fill="#0d9675"/>
+</g>
+<text x="746.12" y="732" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">As needed</text>
+<text x="1016" y="166" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="end">page 3 of 3</text>
+<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

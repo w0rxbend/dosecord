@@ -1,0 +1,5 @@
+file: dosegram-medication-month.png
+spoiler: true
+caption: Medication by day.
+alt: August 2026, Item 1. All scheduled doses recorded as taken on 21 days, most on 1 day, some on 1 day, few on 1 day, all skipped on 1 day, none taken on 1 day, no record on 1 day, still open on 3 days. Nothing scheduled on 1 day. 2 doses have no record and are not counted. 90 of 104 resolved doses taken (87%).
+full: August 2026, Item 1. All scheduled doses recorded as taken on 21 days, most on 1 day, some on 1 day, few on 1 day, all skipped on 1 day, none taken on 1 day, no record on 1 day, still open on 3 days. Nothing scheduled on 1 day. 2 doses have no record and are not counted. 90 of 104 resolved doses taken (87%).

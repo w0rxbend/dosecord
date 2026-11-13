@@ -1,0 +1,5 @@
+file: dosegram-day.png
+spoiler: true
+caption: Your day so far.
+alt: Thu 12 Nov. Mood: Unpleasant. Energy: low. Medication: 1 of 2 scheduled doses recorded as taken, 1 not confirmed. Water: 0.6 of 2.5 l. Sleep: an estimate from bot activity only, not a duration.
+full: Thu 12 Nov. Mood: Unpleasant. Energy: low. Medication: 1 of 2 scheduled doses recorded as taken, 1 not confirmed. Water: 0.6 of 2.5 l. Sleep: an estimate from bot activity only, not a duration.
