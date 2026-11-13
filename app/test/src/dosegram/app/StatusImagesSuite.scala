@@ -1,9 +1,16 @@
 package dosegram.app
 
+import dosegram.adapter.telegram.BotApi
+import dosegram.adapter.telegram.ChatAction
+import dosegram.adapter.telegram.FakeTelegramTransport
+import dosegram.adapter.telegram.TelegramTransport
+import dosegram.adapter.telegram.WireReply
+import dosegram.adapter.telegram.WireRequest
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
 import dosegram.core.ports.CardLook
+import dosegram.core.ports.Clock
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.SleepBar
 import dosegram.core.domain.insights.SleepRegularityFigures
@@ -17,6 +24,7 @@ import dosegram.infra.RenderSettings
 import dosegram.render.PngImage
 import dosegram.render.RasterFailure
 import dosegram.render.Rasteriser
+import ox.discard
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
@@ -91,6 +99,74 @@ class StatusImagesSuite extends munit.FunSuite:
     assert(slow.cards.water(water, light, None).isDefined)
     assert(slow.cards.water(water.copy(totalMl = 700), light, Some(dosegram.contracts.ChatRef("console", "owner"))).isDefined)
     assertEquals(shown.toArray.toList, Nil)
+
+  /** The fake wire, with every `sendChatAction` held at the wire until `release` opens: a Bot API that hangs. */
+  private final class HeldStatusWire(release: java.util.concurrent.CountDownLatch) extends TelegramTransport:
+    val fake: FakeTelegramTransport = FakeTelegramTransport(Clock.system)
+    val arrived: java.util.concurrent.ConcurrentLinkedQueue[String] = java.util.concurrent.ConcurrentLinkedQueue()
+
+    override def call(request: WireRequest): WireReply =
+      if request.method == "sendChatAction" then
+        arrived.add(request.params("chat_id").num.toLong.toString)
+        release.await()
+      fake.call(request)
+
+  /** Evaluates `condition` until it holds or the deadline passes, and never once more after it held. */
+  private def until(deadlineMillis: Long)(condition: => Boolean): Boolean =
+    val end = System.currentTimeMillis() + deadlineMillis
+    var met = condition
+    while !met && System.currentTimeMillis() < end do
+      Thread.sleep(20)
+      met = condition
+    met
+
+  test("a status that hangs on the wire holds up neither its drawing nor the status of the next drawing (VA-FB-02)"):
+    val release = java.util.concurrent.CountDownLatch(1)
+    val wire = HeldStatusWire(release)
+    val api = BotApi(wire)
+    val images = StatusImages.over(SlowRasteriser(1400), StatusImages.Stores.inMemory, _ => ())
+    images.notices.attach("telegram", target => api.sendChatAction(target.chatId.toLong, ChatAction.UploadPhoto).discard)
+    val other = dosegram.contracts.ChatRef("telegram", "7002")
+    try
+      val started = System.nanoTime()
+      assert(images.cards.water(water, light, Some(chat)).isDefined)
+      assert(images.cards.water(water.copy(totalMl = 700), light, Some(other)).isDefined)
+      val tookMillis = (System.nanoTime() - started) / 1000000
+      assert(tookMillis < 4000, s"two drawings took $tookMillis ms behind a hanging status")
+      assert(until(2000)(wire.arrived.size == 2), s"both statuses reach the wire: ${wire.arrived}")
+      assertEquals(wire.arrived.toArray.toList.map(_.toString).sorted, List("7001", "7002"))
+    finally release.countDown()
+    assert(until(2000)(wire.fake.calls("sendChatAction").size == 2), "the held statuses complete once the wire answers")
+
+  test("statuses underway are bounded: one more is dropped and logged by kind, and a free slot takes the next"):
+    val release = java.util.concurrent.CountDownLatch(1)
+    val arrived = java.util.concurrent.atomic.AtomicInteger()
+    val log = java.util.concurrent.ConcurrentLinkedQueue[String]()
+    val notices = DrawingNotices(line => log.add(line).discard, maxUnderway = 2)
+    notices.attach("telegram", _ => { arrived.incrementAndGet(); release.await() })
+    try
+      val caller = Thread.ofVirtual().start(() => (1 to 3).foreach(i => notices.drawing(dosegram.contracts.ChatRef("telegram", s"700$i"))))
+      caller.join(2000)
+      assert(!caller.isAlive, "a held status never holds up its caller")
+      assert(until(2000)(arrived.get() == 2), s"two statuses underway, ${arrived.get()} arrived")
+      assertEquals(log.toArray.toList, List("drawing status dropped: 2 underway"))
+    finally release.countDown()
+    // The held statuses free their slots just after they return: a status asked for before that is dropped (one more
+    // line), and the first one asked for after it is sent (no new line).
+    val accepted = until(2000):
+      val dropped = log.size
+      notices.drawing(chat)
+      log.size == dropped
+    assert(accepted, "a freed slot takes the next status")
+    assert(until(2000)(arrived.get() == 3), s"the next status is sent once, ${arrived.get()} arrived")
+
+  test("a status that throws is logged by its kind, and the drawing goes on"):
+    val log = java.util.concurrent.ConcurrentLinkedQueue[String]()
+    val notices = DrawingNotices(line => log.add(line).discard)
+    notices.attach("telegram", _ => throw IllegalStateException("chat 7001 is gone"))
+    notices.drawing(chat)
+    assert(until(2000)(!log.isEmpty), "the failure is logged")
+    assertEquals(log.toArray.toList, List("drawing status failed: IllegalStateException"))
 
   test("a mood state is drawn once and its key names the state, not a person"):
     val rasteriser = CountingRasteriser()

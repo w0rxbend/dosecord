@@ -50,8 +50,10 @@ import java.util.HexFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import javax.sql.DataSource
+import scala.util.control.NonFatal
 
 /** Where the bytes behind an `AttachmentRef.assetKey` live (ADR-015: the asset store owns the bytes): the card side
   * puts an image, the adapter loads it. An image that is gone is sent as its text equivalent by the adapter.
@@ -81,15 +83,40 @@ final class InMemoryAssetStore(maximumImages: Int) extends AssetStore:
 /** Who shows "sending a photo" in a chat while its image is drawn (VISUALS VA-FB-02): the adapter of the chat's vendor,
   * attached once it is built, because the adapter itself is built over the image stores. A vendor without one shows
   * nothing.
+  *
+  * A status is a network call, so it runs on a virtual thread of its own and [[drawing]] returns at once: a slow or
+  * hanging Bot API holds up neither the drawing nor the status of another chat. At most `maxUnderway` statuses are
+  * underway; one more is dropped, because a status is only a courtesy, and each call is bounded by the vendor client's
+  * own timeout. A failure is logged by its kind.
   */
-final class DrawingNotices:
+final class DrawingNotices(log: String => Unit, maxUnderway: Int = DrawingNotices.MaxUnderway):
+  require(maxUnderway > 0, "at least one status can be underway")
+
   private val byVendor = ConcurrentHashMap[String, ChatRef => Unit]()
+  private val underway = Semaphore(maxUnderway)
 
   def attach(vendor: String, notice: ChatRef => Unit): Unit =
     byVendor.put(vendor, notice)
     ()
 
-  def drawing(chat: ChatRef): Unit = Option(byVendor.get(chat.vendor)).foreach(_(chat))
+  def drawing(chat: ChatRef): Unit =
+    Option(byVendor.get(chat.vendor)).foreach: notice =>
+      if underway.tryAcquire() then
+        Thread
+          .ofVirtual()
+          .start: () =>
+            try notice(chat)
+            catch case NonFatal(error) => log(s"drawing status failed: ${error.getClass.getSimpleName}")
+            finally underway.release()
+        ()
+      else log(s"drawing status dropped: $maxUnderway underway")
+
+object DrawingNotices:
+
+  /** Twice the two rasterisers of ARCHITECTURE RND-07: a status per drawing underway, and room for the ones whose
+    * drawing has ended but whose call has not returned yet.
+    */
+  val MaxUnderway = 4
 
 /** The status cards of the chat flows, drawn by the report renderer (ADR-022): a core view becomes the renderer's view
   * model, the card is rasterised, the PNG goes into the asset store, and the reference carries the card's own text
@@ -226,7 +253,7 @@ final class StatusImages(
     val store: AssetStore,
     val fileIds: FileIdCache,
     val cards: StatusCards,
-    val notices: DrawingNotices = DrawingNotices()
+    val notices: DrawingNotices = DrawingNotices(_ => ())
 )
 
 object StatusImages:
@@ -257,7 +284,7 @@ object StatusImages:
     StatusImages(stores.assets, stores.fileIds, StatusCards.textOnly)
 
   def over(rasteriser: Rasteriser, stores: Stores, log: String => Unit): StatusImages =
-    val notices = DrawingNotices()
+    val notices = DrawingNotices(log)
     val cards = RenderedStatusCards(CardRenderer(rasteriser), stores.assets, log, notices)
     StatusImages(stores.assets, stores.fileIds, cards, notices)
 
