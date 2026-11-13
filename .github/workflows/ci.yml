@@ -70,6 +70,8 @@ jobs:
       - run: ./mill __.test
       # M0.5: the committed .env.example must equal the generated one.
       - run: ./mill app.test.runMain dosegram.app.envExampleCheck .env.example
+      # G3.1: the committed OpenAPI document must equal the one generated from the Tapir endpoints.
+      - run: ./mill api.test.runMain dosegram.api.openApiCheck api/openapi.json
       - name: flyway validate
         run: scripts/flyway-validate.sh
 

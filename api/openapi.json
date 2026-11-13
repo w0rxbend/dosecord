@@ -1,0 +1,1792 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "Dosegram Mini App API",
+    "version" : "1"
+  },
+  "paths" : {
+    "/api/v1/session" : {
+      "post" : {
+        "description" : "Exchanges Telegram launch data for a short-lived session. No cookie is set.",
+        "operationId" : "createSession",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SessionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionCreated"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "operationId" : "deleteSession",
+        "responses" : {
+          "204" : {
+            "description" : ""
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/session/keepalive" : {
+      "post" : {
+        "operationId" : "keepSessionAlive",
+        "responses" : {
+          "204" : {
+            "description" : ""
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/today" : {
+      "get" : {
+        "operationId" : "getToday",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DayView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/days/{date}" : {
+      "get" : {
+        "operationId" : "getDay",
+        "parameters" : [
+          {
+            "name" : "date",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DayView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/medication-options" : {
+      "get" : {
+        "operationId" : "getMedicationOptions",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MedicationOptions"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/medications" : {
+      "get" : {
+        "operationId" : "listMedications",
+        "parameters" : [
+          {
+            "name" : "status",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "$ref" : "#/components/schemas/MedicationState"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MedicationList"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "post" : {
+        "operationId" : "createMedication",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MedicationInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "headers" : {
+              "Location" : {
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              },
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Medication"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/medications/{id}" : {
+      "get" : {
+        "operationId" : "getMedication",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Medication"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "patch" : {
+        "description" : "Replaces the editable set; an absent optional member clears the value.",
+        "operationId" : "updateMedication",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MedicationInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Medication"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/medications/{id}/state-changes" : {
+      "post" : {
+        "operationId" : "changeMedicationState",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MedicationStateChange"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Medication"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/schedule-options" : {
+      "get" : {
+        "operationId" : "getScheduleOptions",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScheduleOptions"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/schedule-previews" : {
+      "post" : {
+        "description" : "A pure evaluation of an unsaved draft over the next seven days; nothing is written.",
+        "operationId" : "previewSchedule",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SchedulePreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SchedulePreview"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/medications/{id}/schedules" : {
+      "get" : {
+        "operationId" : "listSchedules",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScheduleList"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "post" : {
+        "operationId" : "createSchedule",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ScheduleDraft"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "headers" : {
+              "Location" : {
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              },
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/schedules/{id}" : {
+      "get" : {
+        "operationId" : "getSchedule",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/schedules/{id}/revisions" : {
+      "post" : {
+        "description" : "An edit is a new revision on the revision named by If-Match.",
+        "operationId" : "reviseSchedule",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ScheduleDraft"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/schedules/{id}/state-changes" : {
+      "post" : {
+        "operationId" : "changeScheduleState",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ScheduleStateChange"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "Bootstrap" : {
+        "title" : "Bootstrap",
+        "type" : "object",
+        "required" : [
+          "timeZone",
+          "limits"
+        ],
+        "properties" : {
+          "timeZone" : {
+            "type" : "string"
+          },
+          "limits" : {
+            "$ref" : "#/components/schemas/Limits"
+          }
+        }
+      },
+      "DayView" : {
+        "title" : "DayView",
+        "type" : "object",
+        "required" : [
+          "date",
+          "dateLabel",
+          "timeZone",
+          "isToday",
+          "previousDate",
+          "nextDate"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "dateLabel" : {
+            "type" : "string"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "isToday" : {
+            "type" : "boolean"
+          },
+          "previousDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "nextDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "occurrences" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DoseOccurrence"
+            }
+          },
+          "nowMinute" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "DoseOccurrence" : {
+        "title" : "DoseOccurrence",
+        "type" : "object",
+        "required" : [
+          "id",
+          "medicationId",
+          "medicationName",
+          "scheduledTime",
+          "scheduledAt",
+          "state"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "medicationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "medicationName" : {
+            "type" : "string"
+          },
+          "scheduledTime" : {
+            "type" : "string"
+          },
+          "scheduledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "state" : {
+            "$ref" : "#/components/schemas/DoseState"
+          },
+          "doseText" : {
+            "type" : "string"
+          },
+          "resolvedTime" : {
+            "type" : "string"
+          },
+          "snoozedUntil" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DoseState" : {
+        "title" : "DoseState",
+        "type" : "string",
+        "enum" : [
+          "due",
+          "missed",
+          "pending",
+          "skipped",
+          "snoozed",
+          "taken",
+          "taken_late",
+          "unknown"
+        ]
+      },
+      "ErrorCode" : {
+        "title" : "ErrorCode",
+        "type" : "string",
+        "enum" : [
+          "account_required",
+          "client_outdated",
+          "client_too_old",
+          "consent_required",
+          "feature_disabled",
+          "idempotency_key_reuse",
+          "internal",
+          "not_found",
+          "payload_too_large",
+          "precondition_required",
+          "quota_exceeded",
+          "rate_limited",
+          "session_expired",
+          "stepup_pending",
+          "stepup_required",
+          "unauthenticated",
+          "upstream_unavailable",
+          "validation_failed",
+          "version_conflict"
+        ]
+      },
+      "FieldError" : {
+        "title" : "FieldError",
+        "type" : "object",
+        "required" : [
+          "field",
+          "code"
+        ],
+        "properties" : {
+          "field" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Limits" : {
+        "title" : "Limits",
+        "type" : "object",
+        "required" : [
+          "medicationNameMax",
+          "instructionsMax",
+          "doseUnitMax",
+          "scheduleTimesMax"
+        ],
+        "properties" : {
+          "medicationNameMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "instructionsMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "doseUnitMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "scheduleTimesMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "Medication" : {
+        "title" : "Medication",
+        "type" : "object",
+        "required" : [
+          "id",
+          "name",
+          "status",
+          "version",
+          "createdAt"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "$ref" : "#/components/schemas/MedicationState"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "schedules" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Schedule"
+            }
+          },
+          "doseAmount" : {
+            "type" : "string"
+          },
+          "doseUnit" : {
+            "type" : "string"
+          },
+          "instructions" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MedicationChange" : {
+        "title" : "MedicationChange",
+        "type" : "string",
+        "enum" : [
+          "archive",
+          "pause",
+          "resume"
+        ]
+      },
+      "MedicationInput" : {
+        "title" : "MedicationInput",
+        "type" : "object",
+        "required" : [
+          "name"
+        ],
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "doseAmount" : {
+            "type" : "string"
+          },
+          "doseUnit" : {
+            "type" : "string"
+          },
+          "instructions" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MedicationList" : {
+        "title" : "MedicationList",
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MedicationSummary"
+            }
+          }
+        }
+      },
+      "MedicationOptions" : {
+        "title" : "MedicationOptions",
+        "type" : "object",
+        "required" : [
+          "limits"
+        ],
+        "properties" : {
+          "doseUnits" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "limits" : {
+            "$ref" : "#/components/schemas/Limits"
+          }
+        }
+      },
+      "MedicationState" : {
+        "title" : "MedicationState",
+        "type" : "string",
+        "enum" : [
+          "active",
+          "archived",
+          "paused"
+        ]
+      },
+      "MedicationStateChange" : {
+        "title" : "MedicationStateChange",
+        "type" : "object",
+        "required" : [
+          "change"
+        ],
+        "properties" : {
+          "change" : {
+            "$ref" : "#/components/schemas/MedicationChange"
+          }
+        }
+      },
+      "MedicationSummary" : {
+        "title" : "MedicationSummary",
+        "type" : "object",
+        "required" : [
+          "id",
+          "name",
+          "status",
+          "version",
+          "scheduleSummary"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "$ref" : "#/components/schemas/MedicationState"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "scheduleSummary" : {
+            "type" : "string"
+          },
+          "doseText" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PreviewDay" : {
+        "title" : "PreviewDay",
+        "type" : "object",
+        "required" : [
+          "date",
+          "label"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "occurrences" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PreviewOccurrence"
+            }
+          }
+        }
+      },
+      "PreviewOccurrence" : {
+        "title" : "PreviewOccurrence",
+        "type" : "object",
+        "required" : [
+          "time",
+          "at"
+        ],
+        "properties" : {
+          "time" : {
+            "type" : "string"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "note" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Problem" : {
+        "title" : "Problem",
+        "type" : "object",
+        "required" : [
+          "type",
+          "title",
+          "status",
+          "code",
+          "requestId"
+        ],
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "code" : {
+            "$ref" : "#/components/schemas/ErrorCode"
+          },
+          "requestId" : {
+            "type" : "string"
+          },
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FieldError"
+            }
+          },
+          "medication" : {
+            "$ref" : "#/components/schemas/Medication"
+          },
+          "schedule" : {
+            "$ref" : "#/components/schemas/Schedule"
+          }
+        }
+      },
+      "Schedule" : {
+        "title" : "Schedule",
+        "type" : "object",
+        "required" : [
+          "id",
+          "medicationId",
+          "status",
+          "revision",
+          "pattern",
+          "timeZone",
+          "startDate",
+          "summary"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "medicationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "$ref" : "#/components/schemas/ScheduleState"
+          },
+          "revision" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pattern" : {
+            "$ref" : "#/components/schemas/SchedulePattern"
+          },
+          "times" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "maxPerDay" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minGapMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "endDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "ScheduleChange" : {
+        "title" : "ScheduleChange",
+        "type" : "string",
+        "enum" : [
+          "end",
+          "pause",
+          "resume"
+        ]
+      },
+      "ScheduleDraft" : {
+        "title" : "ScheduleDraft",
+        "type" : "object",
+        "required" : [
+          "pattern"
+        ],
+        "properties" : {
+          "pattern" : {
+            "$ref" : "#/components/schemas/SchedulePattern"
+          },
+          "times" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "maxPerDay" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minGapMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "endDate" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "ScheduleList" : {
+        "title" : "ScheduleList",
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Schedule"
+            }
+          }
+        }
+      },
+      "ScheduleOptions" : {
+        "title" : "ScheduleOptions",
+        "type" : "object",
+        "required" : [
+          "timesMax",
+          "previewDays",
+          "timeZone",
+          "today"
+        ],
+        "properties" : {
+          "patterns" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SchedulePattern"
+            }
+          },
+          "timesMax" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "previewDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "today" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "SchedulePattern" : {
+        "title" : "SchedulePattern",
+        "type" : "string",
+        "enum" : [
+          "as_needed",
+          "fixed_times"
+        ]
+      },
+      "SchedulePreview" : {
+        "title" : "SchedulePreview",
+        "type" : "object",
+        "required" : [
+          "summary",
+          "timeZone"
+        ],
+        "properties" : {
+          "summary" : {
+            "type" : "string"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "days" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PreviewDay"
+            }
+          }
+        }
+      },
+      "SchedulePreviewRequest" : {
+        "title" : "SchedulePreviewRequest",
+        "type" : "object",
+        "required" : [
+          "draft"
+        ],
+        "properties" : {
+          "draft" : {
+            "$ref" : "#/components/schemas/ScheduleDraft"
+          }
+        }
+      },
+      "ScheduleState" : {
+        "title" : "ScheduleState",
+        "type" : "string",
+        "enum" : [
+          "active",
+          "ended",
+          "paused"
+        ]
+      },
+      "ScheduleStateChange" : {
+        "title" : "ScheduleStateChange",
+        "type" : "object",
+        "required" : [
+          "change"
+        ],
+        "properties" : {
+          "change" : {
+            "$ref" : "#/components/schemas/ScheduleChange"
+          }
+        }
+      },
+      "SessionCreated" : {
+        "title" : "SessionCreated",
+        "type" : "object",
+        "required" : [
+          "token",
+          "expiresAt",
+          "idleTimeoutSeconds",
+          "bootstrap"
+        ],
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "idleTimeoutSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "bootstrap" : {
+            "$ref" : "#/components/schemas/Bootstrap"
+          }
+        }
+      },
+      "SessionRequest" : {
+        "title" : "SessionRequest",
+        "type" : "object",
+        "required" : [
+          "initData"
+        ],
+        "properties" : {
+          "initData" : {
+            "type" : "string"
+          },
+          "deviceTimeZone" : {
+            "type" : "string"
+          },
+          "build" : {
+            "type" : "string"
+          },
+          "platform" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "colorScheme" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "httpAuth" : {
+        "type" : "http",
+        "scheme" : "bearer"
+      }
+    }
+  }
+}
