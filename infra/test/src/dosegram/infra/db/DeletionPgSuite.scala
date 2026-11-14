@@ -2,13 +2,18 @@ package dosegram.infra.db
 
 import dosegram.contracts.*
 import dosegram.core.application.Application
+import dosegram.core.application.exports.ExportMessages
 import dosegram.core.application.exports.ExportRequests
+import dosegram.core.application.exports.ExportWorker
+import dosegram.core.application.exports.RecordSummaries
+import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.PrivacyCopy
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DataDomain
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.RecordSummaryRenderer
 import dosegram.core.ports.SealedField
 import dosegram.core.scheduling.CreateSchedule
 import dosegram.core.scheduling.ScheduleLifecycle
@@ -217,10 +222,27 @@ class DeletionPgSuite extends PgSuite:
         sql"""INSERT INTO daily_rollups (account_id, local_date, domain, metrics, rollup_version, computed_at)
               VALUES ($account, '2026-09-21', 'hydration', '{}', 1, ${rig.clock.now()}),
                      ($account, '2026-09-21', 'mood', '{}', 1, ${rig.clock.now()})""".execute()
+      // An export made before the deletion holds the water records.
+      rig.line("/export")
+      rig.tap("Export all your records", "Export my data")
+      val worker = ExportWorker(rig.uow, rig.clock, IdSource.uuidV7(SecureRandom()),
+        RecordSummaries(RollupService(rig.uow, rig.clock)), (_ => Right("%PDF".getBytes)): RecordSummaryRenderer,
+        ExportMessages(rig.codec), _ => ())
+      assert(worker.runOnce(), "the export is made")
+      val exportKey = withConnection: conn =>
+        given Connection = conn
+        sql"SELECT 'export.' || id FROM export_jobs WHERE account_id = $account".queryOne[String]().get
+      withConnection: conn =>
+        given Connection = conn
+        val now = rig.clock.now()
+        sql"""INSERT INTO telegram_file_cache (asset_key, bot_id, media_kind, file_id, created_at, last_used_at)
+              VALUES ($exportKey, 1, 'document', 'file-export', $now, $now)""".execute()
       rig.line("/privacy")
       rig.tap("Your consents", PrivacyCopy.DeleteData)
       rig.tap("What do you want to delete?", PrivacyCopy.domainLabel(DataDomain.Hydration))
       val done = rig.tap("Delete your water records?", PrivacyCopy.DeleteThisData)
+      assertEquals(rows("export_jobs", account), 0, "no export file that holds the water records is kept")
+      assertEquals(count(s"SELECT count(*) FROM telegram_file_cache WHERE asset_key = '$exportKey'"), 0)
       assert(done.exists(_.contains(PrivacyCopy.domainDeleted(DataDomain.Hydration))), done.toString)
       assertEquals(rows("hydration_entries", account), 0)
       assertEquals(

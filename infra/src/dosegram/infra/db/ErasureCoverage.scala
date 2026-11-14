@@ -44,6 +44,13 @@ object ErasureCoverage:
     """SELECT unnest(asset_keys) FROM outbox_messages WHERE account_id = ?
        UNION SELECT 'export.' || id FROM export_jobs WHERE account_id = ?"""
 
+  /** The upload handles of the account's export files. */
+  private val ExportKeys = "SELECT 'export.' || id FROM export_jobs WHERE account_id = ?"
+
+  /** Rows that hold the records of every domain: an account deletion and every domain deletion delete them. */
+  private def everyDomain(predicate: String): Erasure =
+    Erasure.Domain(predicate, DataDomain.values.map(_ -> predicate).toMap)
+
   /** Rows of the account, and rows of its chats written before the account existed (the onboarding), whose `column`
     * names the chat.
     */
@@ -60,10 +67,15 @@ object ErasureCoverage:
     // the database, its WAL or a backup, whatever the deletes after this one find.
     "account_keys" -> Erasure.AccountWide(Own, "the account's wrapped data keys: destroyed first"),
     // The stores of the edges that name no account: found through the account's messages before those go.
-    "telegram_file_cache" -> Erasure.AccountWide(s"asset_key IN ($AssetKeys)", "upload handles of images sent"),
+    // An export file holds every domain it was made with, so a domain deletion deletes the account's exports, their
+    // tickets and the upload handle of each file (supervisor decision, 2026-11-14).
+    "telegram_file_cache" -> Erasure.Domain(
+      s"asset_key IN ($AssetKeys)",
+      DataDomain.values.map(_ -> s"asset_key IN ($ExportKeys)").toMap
+    ),
     "render_assets" -> Erasure.AccountWide(s"asset_key IN ($AssetKeys)", "drawn images, at most one hour"),
-    "export_download_tickets" -> Erasure.AccountWide(Own, "download tickets of the account's exports"),
-    "export_jobs" -> Erasure.AccountWide(Own, "the account's exports"),
+    "export_download_tickets" -> everyDomain(Own),
+    "export_jobs" -> everyDomain(Own),
     "report_requests" -> Erasure.AccountWide(Own, "images waiting to be drawn"),
     // Medication.
     "inventory_events" -> only(DataDomain.Medication),
