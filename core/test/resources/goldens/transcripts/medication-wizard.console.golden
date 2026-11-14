@@ -70,7 +70,7 @@ Dose (e.g. 1000 IU)
 > 1000 IU
 When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm.
 
-[08:00] [09:00] [13:00] [20:00] [22:00] [Other time] [As needed]
+[08:00] [09:00] [13:00] [20:00] [22:00] [Other time] [As needed] [Presets]
 
 [Back] [Cancel]
 > 09:00
@@ -89,6 +89,8 @@ Which days?
 4) Back 5) Cancel
 > 1
 Vitamin D 1000 IU, every day 09:00 Europe/Kyiv
+
+Next reminders: Mon 21 Sep 09:00, Tue 22 Sep 09:00, Wed 23 Sep 09:00.
 
 1) Create 2) Change days 3) Change timezone
 

@@ -885,6 +885,7 @@ Every day · 09:00 · Europe/Kyiv
 | BUX-MED-06 | "Edit in app" opens the Mini App form pre-filled with the draft. The draft is suspended, not discarded (C17). |
 | BUX-MED-07 | From "Add medication" to `med.saved` the flow needs 2 taps and 1 typed message when the default cadence is accepted. |
 | BUX-MED-08 | Interval, cycle and taper schedules are not offered in chat. The prompt mentions "For other schedules, use the app form." |
+| BUX-MED-09 | Supervisor decision, 2026-11-14, owner asleep; amends BUX-MED-08 for the presets of ADR-023. The times step adds "Presets", which lists every medication preset the engine reminds as one tap each: Morning, Evening, Twice a day, With meals, Every 8 h, Every 12 h, Weekdays, Weekly (today's weekday), Every other day (from today), 21 days on, 7 off (from today) and As needed. A preset takes its times from the day profile of `/reminders`, skips the days step, and goes to the instructions step and the review card, which has no "Change days". Every review card with reminder times ends with `med.add.next`, the next three reminders as dates and clock times (PRODUCT_SPEC R-SCH-5). Other N, other days on and off, interval and taper schedules stay in the app. |
 
 ### 10.2 Medication list and card
 
