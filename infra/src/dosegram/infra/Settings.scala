@@ -135,8 +135,16 @@ final case class Settings(
     // The interfaces the two listeners bind to. Both default to the loopback interface: `/healthz` is for the host
     // (ARCHITECTURE section 9.1), and the public origin is reached through a TLS proxy (docs/DEPLOY_MINIAPP.md).
     healthAddress: String = Settings.DefaultBindAddress,
-    httpAddress: String = Settings.DefaultBindAddress
-)
+    httpAddress: String = Settings.DefaultBindAddress,
+    // The chat that gets the owner alerts (OPS-A2); without it, the one user of the Telegram allowlist.
+    ownerAlertChat: Option[String] = None
+):
+  /** Where the owner alerts go (supervisor decision, 2026-11-14, ARCHITECTURE section 18.4): `OWNER_ALERT_CHAT`, else
+    * the private chat of the only allowlisted Telegram user (a private chat's id is the user's id). With several
+    * allowlisted users and no setting there is no owner chat, and no alert is sent.
+    */
+  def ownerChat: Option[String] =
+    ownerAlertChat.orElse(telegram.map(_.allowedUserIds.toList).collect { case List(only) => only.toString })
 
 object Settings:
 
@@ -345,6 +353,13 @@ object Settings:
       "IP address the public listener (/app/, /api/v1/) binds to; the TLS proxy connects to it.",
       DefaultBindAddress,
       Some(DefaultBindAddress)
+    ),
+    EnvSpec(
+      "OWNER_ALERT_CHAT",
+      required = false,
+      secret = false,
+      "Telegram chat id for owner alerts (dead outbox rows, quarantined updates); default: the only allowlisted user.",
+      "123456789"
     )
   )
 
@@ -443,6 +458,9 @@ object Settings:
       case _ => { errors = errors :+ "RESVG_PATH and RENDER_FONTS_DIR must be set together"; None }
 
     val databaseUrl = required("DATABASE_URL")
+    val ownerAlertChat = parsed("OWNER_ALERT_CHAT", "a Telegram chat id (an integer)", "")(chat =>
+      Option.when(chat.matches("-?[0-9]{1,20}"))(chat)
+    )
 
     val keys = required("CALLBACK_KEYS").flatMap(parseCallbackKeys(_) match
       case Right(ks) => Some(ks)
@@ -505,7 +523,8 @@ object Settings:
           telegramToken = telegramToken.map(Secret(_)),
           render = render,
           healthAddress = healthAddress,
-          httpAddress = httpAddress
+          httpAddress = httpAddress,
+          ownerAlertChat = ownerAlertChat
         )
       )
 

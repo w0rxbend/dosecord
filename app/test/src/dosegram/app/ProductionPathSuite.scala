@@ -58,7 +58,8 @@ class ProductionPathSuite extends PgSuite:
     outboxIdlePoll = Duration.ofMillis(50),
     sessionSweepPeriod = Duration.ofMillis(100),
     rollupIdlePoll = Duration.ofMillis(100),
-    imagePurgePeriod = Duration.ofMillis(100)
+    imagePurgePeriod = Duration.ofMillis(100),
+    ownerAlertPeriod = Duration.ofMillis(100)
   )
 
   override def beforeEach(context: BeforeEach): Unit =
@@ -102,7 +103,7 @@ class ProductionPathSuite extends PgSuite:
     )
 
   /** The owner's chat on the fake wire: what the owner types and taps, and what the bot wrote back. */
-  private final class Chat(val clock: SteppedClock, val wire: FakeTelegramTransport):
+  private final class Chat(val clock: SteppedClock, val wire: FakeTelegramTransport, val healthPort: Int):
     private var updateSeq = 500L
     private val messageMethods = Set("sendMessage", "editMessageText")
 
@@ -181,7 +182,7 @@ class ProductionPathSuite extends PgSuite:
       val adapter =
         TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(PgInboundInbox(dataSource)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
-      test(Chat(clock, wire))
+      test(Chat(clock, wire, config.healthPort))
 
   private def strings(query: String): List[String] = withConnection { conn =>
     val st = conn.createStatement()
@@ -341,4 +342,50 @@ class ProductionPathSuite extends PgSuite:
         catch case error: Exception => fail(s"${row.kind} does not render: ${error.getClass.getSimpleName} ${error.getMessage}")
       assertEquals(target.chatId, owner.toString, s"${row.kind} goes to the owner's chat")
       assert(rendered.chunks.exists(_.nonEmpty), s"${row.kind} renders text")
+
+  // ---------- Operations on the launched process ----------
+
+  private def get(port: Int, path: String): (Int, String) =
+    val conn = java.net.URI(s"http://127.0.0.1:$port$path").toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
+    try
+      val status = conn.getResponseCode
+      val stream = if status < 400 then conn.getInputStream else conn.getErrorStream
+      (status, String(stream.readAllBytes()))
+    finally conn.disconnect()
+
+  test("/readyz of the launched process is ready with an empty outbox and exposes /metrics"):
+    launched(SteppedClock(start)): chat =>
+      assertEquals(
+        get(chat.healthPort, "/readyz"),
+        (200, """{"status":"ready","database":"up","outbox_pending":0,"outbox_oldest_pending_seconds":0}""")
+      )
+      assertEquals(get(chat.healthPort, "/metrics")._1, 200)
+
+  test("a dead outbox row and a quarantined update each reach the allowlisted owner's chat as one alert"):
+    val clock = SteppedClock(start)
+    launched(clock): chat =>
+      clock.advance(Duration.ofMinutes(1))
+      withConnection { conn =>
+        val st = conn.prepareStatement(
+          "INSERT INTO outbox_messages (id, send_key, op, kind, vendor, importance, payload, status, next_attempt_at, " +
+            "attempted_at) VALUES (gen_random_uuid(), 'dead-1', 'send', 'reminder', 'telegram', 'reminder', '{}', " +
+            "'dead', ?, ?); " +
+            "INSERT INTO inbound_inbox (vendor, vendor_event_id, chat_key, sequence, status, attempts, received_at, " +
+            "finished_at) VALUES ('telegram', 'q-1', '7001', 1, 'quarantined', 5, ?, ?)"
+        )
+        try
+          val at = java.sql.Timestamp.from(clock.now())
+          (1 to 4).foreach(st.setTimestamp(_, at))
+          st.execute()
+        finally st.close()
+      }
+      val dead = dosegram.core.domain.copy.OpsCopy.outboxDead(1)
+      val quarantined = dosegram.core.domain.copy.OpsCopy.inboxQuarantined(1)
+      eventually("both alerts are sent"):
+        clock.advance(Duration.ofSeconds(2))
+        Set(dead, quarantined).subsetOf(chat.messages.map(chat.body).toSet)
+      val alerts = chat.messages.filter(call => Set(dead, quarantined)(chat.body(call)))
+      assertEquals(alerts.map(_.number("chat_id")), List(Some(owner), Some(owner)))
+      Thread.sleep(500)
+      assertEquals(chat.messages.count(call => Set(dead, quarantined)(chat.body(call))), 2, "one alert per condition")
 end ProductionPathSuite

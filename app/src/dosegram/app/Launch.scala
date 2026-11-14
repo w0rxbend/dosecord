@@ -7,6 +7,7 @@ import dosegram.core.ports.Clock
 import dosegram.infra.Role
 import dosegram.infra.Settings
 import dosegram.infra.db.PgInboundInbox
+import dosegram.infra.db.PgOpsHealth
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
 import sttp.shared.Identity
@@ -54,8 +55,9 @@ object Launch:
     if hostsWorkers(settings.role) then Workers(settings, dataSource, parts).start(gate, log)
     val adapters = if hostsGateway(settings.role) then Adapters.start(settings, dataSource, parts, log) else Nil
     val edge = startHttpEdge(settings, dataSource, parts, log)
-    val health = Health.start(settings.healthAddress, settings.healthPort)
-    log(s"/healthz listening on ${settings.healthAddress}:${settings.healthPort}")
+    val probes = PgOpsHealth(dataSource)
+    val health = Health.start(settings.healthAddress, settings.healthPort, () => Readiness.check(probes, parts.clock))
+    log(s"/healthz, /readyz and /metrics listening on ${settings.healthAddress}:${settings.healthPort}")
     Drain(
       inbound = ("health" -> (() => health.stop())) :: edge ::: adapters,
       claiming = List("workers" -> (() => gate.stop())),

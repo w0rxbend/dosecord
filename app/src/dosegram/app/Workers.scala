@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.contracts.ChatAdapter
+import dosegram.contracts.ChatRef
 import dosegram.core.application.Application
 import dosegram.core.application.exports.ExportMessages
 import dosegram.core.application.exports.ExportRequests
@@ -36,6 +37,7 @@ import dosegram.infra.MicrometerOutboxMetrics
 import dosegram.infra.Settings
 import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgNotifyWake
+import dosegram.infra.db.PgOpsHealth
 import dosegram.infra.db.PgRenderAssets
 import dosegram.infra.db.PgTelegramFileCache
 import dosegram.infra.db.PgUnitOfWork
@@ -85,6 +87,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startInboxPurge(passes)
     startExportWorker(log, passes)
     startReportWorkers(log, passes)
+    startOwnerAlerts(gate, log, passes)
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
@@ -271,7 +274,27 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
           true
     ()
 
+  /** The owner alerts of OPS-A2 ([[OwnerAlerts]]), when the settings name an owner chat and the Telegram adapter runs
+    * in this process. They call the vendor, so they stop with the other claiming forks.
+    */
+  private def startOwnerAlerts(gate: ClaimGate, log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
+    val target = for
+      chat <- settings.ownerChat
+      adapter <- parts.adapters.get(Workers.AlertVendor)
+    yield (chat, adapter)
+    target match
+      case None                  => log("owner alerts off: no owner chat or no telegram adapter")
+      case Some((chat, adapter)) =>
+        val alerts =
+          OwnerAlerts(PgOpsHealth(dataSource), adapter, ChatRef(Workers.AlertVendor, chat), clock, log)
+        fork:
+          passes.repeat("owner alerts")(Workers.whileClaiming(gate, parts.cadence.ownerAlertPeriod)(alerts.checkOnce))
+        ()
+
 object Workers:
+
+  /** The vendor whose chat receives the owner alerts. */
+  private val AlertVendor = "telegram"
 
   /** The renderer every outbox dispatcher of the process uses: the finished messages of the prompt loop and the
     * exports, then the catalogue for the loop rows and the safety rows of replies.
@@ -315,7 +338,9 @@ object Workers:
       // An export is ready within 10 minutes (AC-IMX-2); its file is deleted to within this after 15 minutes.
       exportIdlePoll: Duration = Duration.ofSeconds(5),
       // A queued image waits at most this long for a free report worker, well inside its 5-second deadline (VA-FB-01).
-      reportIdlePoll: Duration = Duration.ofMillis(250)
+      reportIdlePoll: Duration = Duration.ofMillis(250),
+      // A dead row or a quarantined update is reported to the owner within this, at most once an hour per condition.
+      ownerAlertPeriod: Duration = Duration.ofMinutes(1)
   )
 
   object Cadence:

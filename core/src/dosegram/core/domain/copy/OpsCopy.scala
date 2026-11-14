@@ -22,6 +22,9 @@ object OpsCopy:
   def quarantined(count: Long): String =
     alert(s"$count occurrence(s) are quarantined after repeated errors.")
 
+  def inboxQuarantined(count: Long): String =
+    alert(s"$count inbound update(s) are quarantined after repeated errors.")
+
   def adapterDisconnected(vendor: String, minutes: Long): String =
     alert(s"the $vendor adapter has been disconnected for ${minutes}m.")
 
@@ -30,6 +33,7 @@ object OpsCopy:
     CopyEntry("ops.outbox_dead", outboxDead(2)),
     CopyEntry("ops.materialized_lag", materializedLag(300)),
     CopyEntry("ops.quarantined", quarantined(1)),
+    CopyEntry("ops.inbox_quarantined", inboxQuarantined(1)),
     CopyEntry("ops.adapter_disconnected", adapterDisconnected("telegram", 7))
   )
 end OpsCopy
