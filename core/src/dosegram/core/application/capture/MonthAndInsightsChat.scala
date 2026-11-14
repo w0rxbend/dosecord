@@ -49,17 +49,18 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
       case Left(_)                                   => turn.toast(ReminderCopy.staleControlToast)
       case Right(view) if !view.figures.isReportable => turn.toast(ReportCopy.imageUnavailable)
       case Right(view)                               =>
-        val pages = parts.cards.month(
-          views.month(turn.tx, turn.accountId, view.figures, today(turn)),
-          turn.look,
-          Some(turn.event.chat)
-        )
+        val pages = parts.cards.month(views.month(turn.tx, turn.accountId, view.figures, today(turn)), turn.look)
         if pages.isEmpty then turn.toast(ReportCopy.imageUnavailable)
         else
-          Reply(followUps = pages.zipWithIndex.map { (page, number) =>
-            val caption = turn.message(s"stats.month.page${number + 1}", Nil, Nil)
-            caption.copy(body = List(Node.Paragraph(List(Inline.Text(page.altText)))), attachment = Some(page))
-          })
+          Reply(followUps =
+            turn.images(
+              parts.delivery,
+              pages.zipWithIndex.map { (page, number) =>
+                val caption = turn.message(s"stats.month.page${number + 1}", Nil, Nil)
+                page -> caption.copy(body = List(Node.Paragraph(List(Inline.Text(page.altText)))))
+              }
+            )
+          )
 
   /** `/insights`: the patterns that passed, the rules close to their data, and the controls. */
   def insights(turn: Turn): Reply =
@@ -89,13 +90,12 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
   /** The pattern card of the first pattern in rank order that the card can draw. */
   def insightImage(turn: Turn): Reply =
     parts.stats.insights(turn.tx, turn.accountId, ComparisonWindow.Days28).toOption.flatMap { view =>
-      drawable(view.list.shown).iterator.flatMap(parts.cards.insight(_, turn.look, Some(turn.event.chat))).nextOption()
+      drawable(view.list.shown).iterator.flatMap(parts.cards.insight(_, turn.look)).nextOption()
     } match
       case Some(card) =>
         val caption = turn.message("insights.image", Nil, Nil)
-        Reply(followUps =
-          List(caption.copy(body = List(Node.Paragraph(List(Inline.Text(card.altText)))), attachment = Some(card)))
-        )
+        val page = card -> caption.copy(body = List(Node.Paragraph(List(Inline.Text(card.altText)))))
+        Reply(followUps = turn.images(parts.delivery, List(page)))
       case None => turn.toast(InsightCopy.imageUnavailable)
 
   private def today(turn: Turn): LocalDate = clock.now().atZone(turn.zone).toLocalDate

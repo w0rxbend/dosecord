@@ -9,6 +9,7 @@ import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.nutrition.MealRefusal
 import dosegram.core.application.nutrition.NutritionService
+import dosegram.core.application.reports.CardDelivery
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.Labels
@@ -28,7 +29,13 @@ import java.util.UUID
   * quick-log `lunch: soup`, and Undo. A tap records the meal at the current time; the words of a meal are stored as
   * typed and never echoed or interpreted. A photo is not a meal in this wave: it is answered and never downloaded.
   */
-private[capture] final class FoodChat(nutrition: NutritionService, cards: StatusCards, clock: Clock, tokens: Tokens):
+private[capture] final class FoodChat(
+    nutrition: NutritionService,
+    cards: StatusCards,
+    delivery: CardDelivery,
+    clock: Clock,
+    tokens: Tokens
+):
 
   /** The meals logged today and the four meal buttons, the one that fits the time of day marked; with a meal logged,
     * also "Show as image".
@@ -53,9 +60,9 @@ private[capture] final class FoodChat(nutrition: NutritionService, cards: Status
       else
         val logged = day.entries.map(entry => entry.mealType -> turn.localTime(entry.occurredAt))
         val caption = List(FoodCopy.today(logged), FoodCopy.day(FoodViews.regular(day, plan)))
-        cards.food(FoodViews.card(day, plan), turn.look, Some(turn.event.chat)) match
-          case Some(attachment) =>
-            Reply(followUps = List(turn.message("food.image", caption, Nil).copy(attachment = Some(attachment))))
+        cards.food(FoodViews.card(day, plan), turn.look) match
+          case Some(card) =>
+            Reply(followUps = turn.images(delivery, List(card -> turn.message("food.image", caption, Nil))))
           case None => turn.toast(FoodCopy.imageUnavailable)
 
   /** Typed text or the argument of `/food`: a meal line records at once, anything else asks which meal. */

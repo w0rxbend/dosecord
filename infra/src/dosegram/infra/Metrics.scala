@@ -29,6 +29,20 @@ object Metrics:
   private val unknownCounters =
     new java.util.concurrent.ConcurrentHashMap[String, Counter]()
 
+  private val imageFallbackCounters =
+    new java.util.concurrent.ConcurrentHashMap[String, Counter]()
+
+  /** `dosegram_image_text_fallback_total{template}` (VISUALS VA-FB-01): images sent as their text equivalent because
+    * they could not be drawn, or not in time; the template identifier is the only label.
+    */
+  def imageTextFallback(templateId: String): Unit =
+    imageFallbackCounters
+      .computeIfAbsent(
+        templateId,
+        t => Counter.builder("dosegram_image_text_fallback_total").tag("template", t).register(registry)
+      )
+      .increment()
+
   /** `dosegram_unknown_total{reason}` (DESIGN.md section 10, ROADMAP M1.8): occurrences marked `unknown`, tagged by
     * reason (`outage` when no worker was healthy across the due window, `undelivered` when workers were healthy but no
     * reminder was confirmed sent); incremented by the reminder loop's catch-up collapse and the materialiser's outage
@@ -93,6 +107,10 @@ object Metrics:
     ()
 
   def scrape(): String = registry.scrape()
+
+/** The report worker's count of images sent as text (ROADMAP G4.3, VISUALS VA-FB-01). */
+object MicrometerImageMetrics:
+  def textFallback(templateId: String): Unit = Metrics.imageTextFallback(templateId)
 
 /** The dispatcher's metrics port over the shared registry (ROADMAP M1.7). */
 final class MicrometerOutboxMetrics extends OutboxMetrics:

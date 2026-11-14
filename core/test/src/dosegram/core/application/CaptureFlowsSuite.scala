@@ -39,7 +39,9 @@ import dosegram.core.domain.copy.InsightCopy
 import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.ports.AccountSettings
+import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.ConsentNotice
@@ -70,8 +72,10 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
   private val kyiv = ZoneId.of("Europe/Kyiv")
 
-  /** Records every view it was asked to draw and answers with a reference named after the card. */
-  private final class RecordingCards extends StatusCards:
+  /** Records every view it was asked to lay out, and draws each card as a reference named after it, recording the chat
+    * it was drawn for (ROADMAP G4.3: the report worker draws for the chat of the event).
+    */
+  private final class RecordingCards extends StatusCards, CardDrawing:
     val moods: mutable.ListBuffer[MoodCardView] = mutable.ListBuffer.empty
     val waters: mutable.ListBuffer[WaterCardView] = mutable.ListBuffer.empty
     val days: mutable.ListBuffer[DayCardView] = mutable.ListBuffer.empty
@@ -80,29 +84,29 @@ class CaptureFlowsSuite extends munit.FunSuite:
     val looks: mutable.ListBuffer[CardLook] = mutable.ListBuffer.empty
     val chats: mutable.ListBuffer[Option[ChatRef]] = mutable.ListBuffer.empty
 
-    private def image(key: String): Option[AttachmentRef] =
-      Some(AttachmentRef(MediaKind.Photo, key, "image/png", s"alt of $key"))
+    private def image(key: String): Option[CardPage] =
+      Some(CardPage(key, s"<svg id='$key'/>", s"alt of $key", s"$key.png", hasSpoiler = false))
 
-    override def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+    override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
       chats += chat
+      Right(AttachmentRef(MediaKind.Photo, page.templateId, "image/png", page.altText))
+
+    override def mood(view: MoodCardView, look: CardLook): Option[CardPage] =
       moods += view
       looks += look
       image("mood")
 
-    override def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-      chats += chat
+    override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
       waters += view
       looks += look
       image("water")
 
-    override def day(view: DayCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-      chats += chat
+    override def day(view: DayCardView, look: CardLook): Option[CardPage] =
       days += view
       looks += look
       image("day")
 
-    override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-      chats += chat
+    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[CardPage] =
       sleeps += view
       looks += look
       image("sleep")
@@ -110,15 +114,14 @@ class CaptureFlowsSuite extends munit.FunSuite:
     val months: mutable.ListBuffer[MonthCardView] = mutable.ListBuffer.empty
     val insights: mutable.ListBuffer[Comparison.Shown] = mutable.ListBuffer.empty
 
-    override def month(view: MonthCardView, look: CardLook, chat: Option[ChatRef]): List[AttachmentRef] =
+    override def month(view: MonthCardView, look: CardLook): List[CardPage] =
       months += view
       List(image("month-1"), image("month-2")).flatten
 
-    override def insight(view: Comparison.Shown, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+    override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
       insights += view
       image("insight")
-    override def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-      chats += chat
+    override def food(view: FoodCardView, look: CardLook): Option[CardPage] =
       foods += view
       looks += look
       image("food")
@@ -136,8 +139,11 @@ class CaptureFlowsSuite extends munit.FunSuite:
     def liveWater: List[Int] = world.tracking.entries.values.filter(_.isLive).map(_.amount.millilitres).toList
 
   private def withChat(profile: Profile, cards: StatusCards = RecordingCards())(test: Chat => Unit): Unit =
+    val drawing = cards match
+      case recording: RecordingCards => recording
+      case _                         => CardDrawing.unavailable
     ox.supervised:
-      val rig = MedicationWizardRig(profile, captureParts = Some(uow => parts(uow, cards)))
+      val rig = MedicationWizardRig(profile, captureParts = Some(uow => parts(uow, cards)), drawing = drawing)
       val account = rig.seedAccount(consents = Nil)
       test(Chat(rig, World(rig.uow.tracking, rig.uow.consents), account))
 

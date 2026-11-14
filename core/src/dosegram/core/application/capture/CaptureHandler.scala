@@ -53,12 +53,12 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
 
   private val tokens = Tokens(codec)
   private val consent = ConsentFlow(tokens, clock)
-  private val water = WaterChat(parts.hydration, parts.cards, tokens)
-  private val mood = MoodChat(parts.mood, parts.cards, clock, tokens)
+  private val water = WaterChat(parts.hydration, parts.cards, parts.delivery, tokens)
+  private val mood = MoodChat(parts.mood, parts.cards, parts.delivery, clock, tokens)
   private val stats = StatsChat(parts, tokens)
-  private val sleep = SleepChat(parts.sleep, parts.cards, clock, tokens)
+  private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
-  private val food = FoodChat(parts.nutrition, parts.cards, clock, tokens)
+  private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match

@@ -7,6 +7,7 @@ import dosegram.core.application.hydration.HydrationRefusal
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.hydration.WaterDayView
+import dosegram.core.application.reports.CardDelivery
 import dosegram.core.chat.ActionEntry
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
@@ -26,7 +27,12 @@ import java.util.UUID
 /** Water in chat (BOT_UX section 11.2): the card of `/water`, one entry per button press or typed amount, the user's
   * own goal, Undo, and the vessel image on request. The answer to a tap takes the place of the card it came from.
   */
-private[capture] final class WaterChat(hydration: HydrationService, cards: StatusCards, tokens: Tokens):
+private[capture] final class WaterChat(
+    hydration: HydrationService,
+    cards: StatusCards,
+    delivery: CardDelivery,
+    tokens: Tokens
+):
 
   import WaterChat.*
 
@@ -82,9 +88,9 @@ private[capture] final class WaterChat(hydration: HydrationService, cards: Statu
         case None       => turn.toast(WaterCopy.imageNeedsGoal)
         case Some(goal) =>
           val day = dayOf(view)
-          cards.water(WaterCardView(view.date, day.totalMl, goal, day.entries), turn.look, Some(turn.event.chat)) match
-            case Some(attachment) => Reply(followUps = List(captioned(turn, day).copy(attachment = Some(attachment))))
-            case None             => turn.toast(WaterCopy.imageUnavailable)
+          cards.water(WaterCardView(view.date, day.totalMl, goal, day.entries), turn.look) match
+            case Some(card) => Reply(followUps = turn.images(delivery, List(card -> captioned(turn, day))))
+            case None       => turn.toast(WaterCopy.imageUnavailable)
 
   private def captioned(turn: Turn, day: HydrationDay): OutboundMessage =
     turn.message("water.image", StatsCopy.waterDay(Some(day)).toList, Nil)

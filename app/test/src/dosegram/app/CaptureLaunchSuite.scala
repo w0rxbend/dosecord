@@ -68,7 +68,7 @@ class CaptureLaunchSuite extends PgSuite:
       val st = conn.createStatement()
       try
         st.execute(
-          "TRUNCATE render_assets, telegram_file_cache, inbound_inbox, " +
+          "TRUNCATE render_assets, telegram_file_cache, report_requests, inbound_inbox, " +
             "hydration_entries, hydration_goals, hydration_presets, mood_checkins, daily_rollups, rollup_dirty, " +
             "consent_state, dose_actions, dose_occurrences, schedule_revisions, medication_schedules, " +
             "medications, inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
@@ -207,14 +207,19 @@ class CaptureLaunchSuite extends PgSuite:
   /** One process over the suite's database: the image bytes and the file ids are in its tables, as in production. A
     * second launch in one test is the process after a restart; its updates continue after the first one's.
     */
-  private def launchedFrom[A](firstUpdate: Long, lastMessageId: Long = 0L)(test: Bot => A): A =
-    val clock = SteppedClock(monday)
+  private def launchedFrom[A](
+      firstUpdate: Long,
+      lastMessageId: Long = 0L,
+      drawingWith: Option[Rasteriser] = None,
+      at: Instant = monday
+  )(test: Bot => A): A =
+    val clock = SteppedClock(at)
     val wire = FakeTelegramTransport(clock, lastMessageId = lastMessageId)
     val rasteriser = NumberingRasteriser()
     supervised:
       val config = settings
       val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock)
-      val images = StatusImages.over(rasteriser, stores, _ => ())
+      val images = StatusImages.over(drawingWith.getOrElse(rasteriser), stores, _ => ())
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), idle, images), log = _ => ())
       test(Bot(clock, wire, rasteriser, firstUpdate))
@@ -403,4 +408,88 @@ class CaptureLaunchSuite extends PgSuite:
       while !drained && System.nanoTime() < deadline do Thread.sleep(50)
       assertEquals(strings("SELECT domain FROM rollup_dirty"), Nil, "the worker took the dirty day")
       assertEquals(strings("SELECT domain || ':' || (metrics ->> 'totalMl') FROM daily_rollups"), List("hydration:300"))
+
+  // ---------- The report queue (ROADMAP G4.3) ----------
+
+  /** A rasteriser that never answers until the process stops: a drawing that hangs, or one cut off by a crash. */
+  private final class HangingRasteriser extends Rasteriser:
+    val started = java.util.concurrent.atomic.AtomicInteger()
+    override def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
+      started.incrementAndGet()
+      java.util.concurrent.CountDownLatch(1).await()
+      Left(RasterFailure.Unavailable)
+
+  private def eventually(clue: => String)(condition: => Boolean): Unit =
+    val deadline = System.nanoTime() + 30.seconds.toNanos
+    while !condition && System.nanoTime() < deadline do Thread.sleep(25)
+    assert(condition, s"not within 30 s: $clue")
+
+  private def withStats(accountId: UUID): Unit =
+    grant(accountId, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+
+  test("the image of a tap is drawn by the report worker after the event's transaction, and its request reads sent"):
+    withStats(seedOwner())
+    launched: bot =>
+      bot.say("300 ml", expected = 1)
+      val List(stats) = bot.say("/stats today", expected = 1): @unchecked
+      val List(photo) = bot.tap(stats, "Show as image", expected = 1): @unchecked
+      assertEquals(photo.method, "sendPhoto")
+      assertEquals(uploadOf(photo), Some("png:1"))
+      eventually("the request is finished")(strings("SELECT status FROM report_requests") == List("sent"))
+      assertEquals(strings("SELECT card_kind FROM report_requests"), List("card.day.v1"))
+
+  test("with the rasteriser stopped the image is answered with its text equivalent at once"):
+    withStats(seedOwner())
+    val stopped: Rasteriser = (_, _) => Left(RasterFailure.Unavailable)
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(stopped)): bot =>
+      bot.say("300 ml", expected = 1)
+      val List(stats) = bot.say("/stats today", expected = 1): @unchecked
+      val List(text) = bot.tap(stats, "Show as image", expected = 1): @unchecked
+      assertEquals(text.method, "sendMessage")
+      assert(bot.body(text).startsWith("[image: Mon 21 Sep."), bot.body(text))
+      assert(bot.body(text).contains("Water today: 0.3 l"), "the caption follows the text equivalent")
+      assertEquals(bot.photos, Nil)
+      eventually("the request is finished")(strings("SELECT status FROM report_requests") == List("text_fallback"))
+
+  test("a drawing that hangs delays no dose reminder: render work is never in the send path of a reminder"):
+    val accountId = seedOwner()
+    val daily = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
+    fixtures.schedule(SteppedClock(monday), accountId, "Vitamin D", daily, ZoneOffset.UTC)
+    grant(accountId, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+    val hanging = HangingRasteriser()
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(hanging)): bot =>
+      bot.say("300 ml", expected = 1)
+      val List(stats) = bot.say("/stats today", expected = 1): @unchecked
+      bot.tap(stats, "Show as image", expected = 0)
+      eventually("the drawing started")(hanging.started.get() == 1)
+      bot.clock.advance(Duration.ofMinutes(61))
+      // Past the claim's lease the other report worker sends the image as text, which takes the chat's one message a
+      // second; the clock then moves on as it does in production, so the reminder gets the next one.
+      eventually(s"the 09:00 reminder is sent: ${strings("SELECT kind || ':' || status FROM outbox_messages")}"):
+        bot.clock.advance(Duration.ofMillis(100))
+        strings("SELECT status FROM outbox_messages WHERE kind = 'reminder'").contains("sent")
+      assertEquals(hanging.started.get(), 1, "the drawing still hangs")
+      assertEquals(bot.photos, Nil)
+
+  test("an image cut off by a crash between its request and its send is sent once after the restart, as its text"):
+    withStats(seedOwner())
+    val hanging = HangingRasteriser()
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(hanging)): bot =>
+      bot.say("300 ml", expected = 1)
+      val List(stats) = bot.say("/stats today", expected = 1): @unchecked
+      bot.tap(stats, "Show as image", expected = 0)
+      eventually("the drawing started")(hanging.started.get() == 1)
+    // The process stopped while the request was being drawn: it is claimed, and nothing was sent.
+    assertEquals(strings("SELECT status || ':' || attempts FROM report_requests"), List("rendering:1"))
+    assertEquals(strings("SELECT 1 FROM outbox_messages WHERE payload::text LIKE '%[image:%'"), Nil)
+
+    // The restarted process comes up after the claim's lease; the request is late and is not drawn again.
+    val restarted = NumberingRasteriser()
+    launchedFrom(firstUpdate = 900L, lastMessageId = 100L, drawingWith = Some(restarted), at = monday.plus(Duration.ofMinutes(10))): bot =>
+      eventually("the text equivalent is sent")(bot.messages.exists(call => bot.body(call).startsWith("[image: Mon 21 Sep.")))
+      Thread.sleep(500)
+      assertEquals(bot.messages.count(call => bot.body(call).startsWith("[image:")), 1, "sent once")
+      assertEquals(bot.photos, Nil)
+      assertEquals(restarted.count, 0, "a request a crashed worker held is not drawn again")
+      assertEquals(strings("SELECT status || ':' || attempts FROM report_requests"), List("text_fallback:2"))
 end CaptureLaunchSuite

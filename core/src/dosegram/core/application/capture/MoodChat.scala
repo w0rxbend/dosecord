@@ -1,6 +1,5 @@
 package dosegram.core.application.capture
 
-import dosegram.contracts.AttachmentRef
 import dosegram.contracts.Choice
 import dosegram.contracts.MessageHandle
 import dosegram.contracts.Reply
@@ -9,6 +8,7 @@ import dosegram.core.application.mood.MoodRecorded
 import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodService
 import dosegram.core.application.mood.SetEnergy
+import dosegram.core.application.reports.CardDelivery
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.CheckInCopy
@@ -20,6 +20,7 @@ import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptStatus
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MoodCardView
@@ -33,7 +34,13 @@ import java.util.UUID
   * image needs the `images_in_chat` consent like every personal image (owner decision 2026-11-13, BUX-MOOD-03); without
   * it the answer is the text alone, and the consent is not asked here.
   */
-private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, clock: Clock, tokens: Tokens):
+private[capture] final class MoodChat(
+    mood: MoodService,
+    cards: StatusCards,
+    delivery: CardDelivery,
+    clock: Clock,
+    tokens: Tokens
+):
 
   def prompt(turn: Turn): Reply =
     val steps = Valence.steps.map: step =>
@@ -47,8 +54,8 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, clo
     record(turn, valence, turn.clientKey): recorded =>
       val confirmation = turn.message("mood.recorded", List(captionOf(turn, recorded.checkin)), followUpRows(recorded))
       image(turn, valence) match
-        case Some(attachment) => Reply(followUps = List(confirmation.copy(attachment = Some(attachment))))
-        case None             => turn.show(confirmation)
+        case Some(card) => Reply(followUps = turn.images(delivery, List(card -> confirmation)))
+        case None       => turn.show(confirmation)
 
   /** A tap on a prompt (owner decision 2026-11-13: one prompt, one check-in). The check-in's key is the prompt message,
     * so a later, racing or post-restart tap on it replays the first check-in: it records nothing and answers "Already
@@ -64,12 +71,12 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, clo
           closeLoopPrompt(turn, prompt)
           val caption = captionOf(turn, recorded.checkin)
           image(turn, valence) match
-            case None             => turn.show(turn.message("mood.recorded", List(caption), followUpRows(recorded)))
-            case Some(attachment) =>
+            case None       => turn.show(turn.message("mood.recorded", List(caption), followUpRows(recorded)))
+            case Some(card) =>
               val photo = turn.message("mood.recorded", List(caption), followUpRows(recorded))
               turn
                 .show(turn.message("mood.prompt.recorded", List(caption), Nil))
-                .copy(followUps = List(photo.copy(attachment = Some(attachment))))
+                .copy(followUps = turn.images(delivery, List(card -> photo)))
 
   /** Closes the open mood prompt of the prompt loop when `prompt` is its message; a `/mood` prompt has no occurrence.
     */
@@ -82,9 +89,9 @@ private[capture] final class MoodChat(mood: MoodService, cards: StatusCards, clo
       if turn.tx.outbox.recordedHandle(prompt.vendor, key).contains(OutboxDispatcher.encodeHandle(prompt))
     do prompts.close(open.id, PromptStatus.Answered, clock.now())
 
-  private def image(turn: Turn, valence: Valence): Option[AttachmentRef] =
+  private def image(turn: Turn, valence: Valence): Option[CardPage] =
     if turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.ImagesInChat) then
-      cards.mood(MoodCardView(valence, None), turn.look, Some(turn.event.chat))
+      cards.mood(MoodCardView(valence, None), turn.look)
     else None
 
   private def record(turn: Turn, valence: Valence, key: String)(reply: MoodRecorded => Reply): Reply =

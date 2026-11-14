@@ -83,39 +83,63 @@ final case class CardLook(theme: ImageTheme, isDiscreet: Boolean)
 object CardLook:
   def of(settings: AccountSettings): CardLook = CardLook(settings.imageTheme, settings.isDiscreet)
 
-/** The status images of VISUALS_AND_ANALYTICS as the chat flows ask for them (ARCHITECTURE DEP-02: the core never holds
-  * image bytes). An implementation renders the card, keeps the bytes where the adapter's asset lookup finds them and
-  * returns the reference with the text equivalent as its alt text, drawn in the account's [[CardLook]]. `None` means
-  * there is no image now: the caller sends its text alone (VISUALS VA-FB-01). `chat` is the chat the image is for,
-  * where a slow drawing shows an upload status (VA-FB-02); without it no status is shown.
+/** One card as an event lays it out (stages 2 to 4 of ARCHITECTURE section 12.1, pure and without input or output): the
+  * SVG document of profile 1, its text equivalent, a neutral file name and the spoiler flag. It holds no image bytes
+  * (DEP-02): the report worker rasterises it after the event's transaction (ROADMAP G4.3, RND-05). `sharedKey` names a
+  * picture that is the same for every account, a mood state (VISUALS VA-BL-11), which is drawn and uploaded once under
+  * that key; a personal card has none and is keyed by its bytes.
+  */
+final case class CardPage(
+    templateId: String,
+    svg: String,
+    altText: String,
+    fileName: String,
+    hasSpoiler: Boolean,
+    sharedKey: Option[String] = None
+)
+
+/** The status images of VISUALS_AND_ANALYTICS as the chat flows ask for them, laid out in the account's [[CardLook]]
+  * and not yet drawn. `None` means there is no image now: the caller sends its text alone (VISUALS VA-FB-01).
   */
 trait StatusCards:
-  def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
-  def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
-  def day(view: DayCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
+  def mood(view: MoodCardView, look: CardLook): Option[CardPage]
+  def water(view: WaterCardView, look: CardLook): Option[CardPage]
+  def day(view: DayCardView, look: CardLook): Option[CardPage]
 
   /** IMG-12, the sleep regularity chart of the recent nights. */
-  def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
+  def sleep(view: SleepRegularityFigures, look: CardLook): Option[CardPage]
 
-  /** IMG-05: the pages of a month in order; empty when no page can be drawn now. */
-  def month(view: MonthCardView, look: CardLook, chat: Option[ChatRef] = None): List[AttachmentRef] = Nil
+  /** IMG-05: the pages of a month in order; empty when no page can be laid out. */
+  def month(view: MonthCardView, look: CardLook): List[CardPage] = Nil
 
   /** IMG-13: one comparison the insight engine passed; `None` for a rule the card cannot draw. */
-  def insight(view: Comparison.Shown, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef] = None
+  def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] = None
 
   /** IMG-04: the weekly card. */
-  def week(view: WeekCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef] = None
+  def week(view: WeekCardView, look: CardLook): Option[CardPage] = None
 
   /** IMG-09, the food day plate. */
-  def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
+  def food(view: FoodCardView, look: CardLook): Option[CardPage]
 
 object StatusCards:
 
   /** No renderer is wired: every flow answers with its text. */
   val textOnly: StatusCards = new StatusCards:
-    override def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
-    override def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
-    override def day(view: DayCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
-    override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-      None
-    override def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] = None
+    override def mood(view: MoodCardView, look: CardLook): Option[CardPage] = None
+    override def water(view: WaterCardView, look: CardLook): Option[CardPage] = None
+    override def day(view: DayCardView, look: CardLook): Option[CardPage] = None
+    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[CardPage] = None
+    override def food(view: FoodCardView, look: CardLook): Option[CardPage] = None
+
+/** Stage 5 and the asset store (ARCHITECTURE section 12.1): rasterises a laid-out card and keeps its bytes where the
+  * adapter loads them, outside every transaction. While a slow drawing runs, `chat` shows "sending a photo" (VISUALS
+  * VA-FB-02). `Left` names the kind of failure only, never SVG or rasteriser text, which can quote user text
+  * (VA-PV-09).
+  */
+trait CardDrawing:
+  def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef]
+
+object CardDrawing:
+
+  /** No rasteriser is wired: every page is answered with its text equivalent. */
+  val unavailable: CardDrawing = (_, _) => Left("Unavailable")

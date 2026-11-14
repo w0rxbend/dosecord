@@ -2,6 +2,7 @@ package dosegram.core.application.capture
 
 import dosegram.contracts.Choice
 import dosegram.contracts.Reply
+import dosegram.core.application.reports.CardDelivery
 import dosegram.core.application.sleep.EnterSleep
 import dosegram.core.application.sleep.RateEpisode
 import dosegram.core.application.sleep.SleepInput
@@ -34,7 +35,13 @@ import java.util.UUID
   * the typed night or nap. Sleep is what the user said it was: an "I'm up" without an open night records no night and
   * asks for the times. Nothing here reads Telegram presence.
   */
-private[capture] final class SleepChat(sleep: SleepService, cards: StatusCards, clock: Clock, tokens: Tokens):
+private[capture] final class SleepChat(
+    sleep: SleepService,
+    cards: StatusCards,
+    delivery: CardDelivery,
+    clock: Clock,
+    tokens: Tokens
+):
 
   /** Where sleep stands: the open check-in or the latest night, and the one button that fits. */
   def card(turn: Turn): Reply =
@@ -60,11 +67,9 @@ private[capture] final class SleepChat(sleep: SleepService, cards: StatusCards, 
       StatsCopy.sleep(SleepStats.period(SleepStats.byDay(episodes), window)) match
         case None          => turn.toast(SleepCopy.imageEmpty)
         case Some(caption) =>
-          cards.sleep(figures, turn.look, Some(turn.event.chat)) match
-            case Some(attachment) =>
-              Reply(followUps =
-                List(turn.message("sleep.image", List(caption), Nil).copy(attachment = Some(attachment)))
-              )
+          cards.sleep(figures, turn.look) match
+            case Some(card) =>
+              Reply(followUps = turn.images(delivery, List(card -> turn.message("sleep.image", List(caption), Nil))))
             case None => turn.toast(SleepCopy.imageUnavailable)
 
   def goingToSleep(turn: Turn): Reply =

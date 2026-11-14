@@ -9,7 +9,9 @@ import dosegram.contracts.MediaKind
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.nutrition.MealType
+import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
@@ -50,6 +52,7 @@ import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.resvg.ResvgConfig
 import dosegram.render.resvg.ResvgRasteriser
+import dosegram.render.svg.SvgEmitter
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
 import dosegram.render.tokens.Theme
@@ -129,38 +132,27 @@ object DrawingNotices:
     */
   val MaxUnderway = 4
 
-/** The status cards of the chat flows, drawn by the report renderer (ADR-022): a core view becomes the renderer's view
-  * model, the card is rasterised, the PNG goes into the asset store, and the reference carries the card's own text
-  * equivalent as its alt text. A card that cannot be drawn is logged by its template and the kind of failure only, and
-  * the flow sends its text (VISUALS VA-FB-01).
+/** The status cards of the chat flows, laid out by the report renderer (ADR-022): a core view becomes the renderer's
+  * view model and its scene is emitted as SVG with the card's own text equivalent. Nothing is rasterised here: the
+  * report worker draws the page after the event (ROADMAP G4.3, [[RenderedCardDrawing]]).
   */
-final class RenderedStatusCards(
-    renderer: CardRenderer,
-    store: AssetStore,
-    log: String => Unit,
-    notices: DrawingNotices
-) extends StatusCards:
+final class RenderedStatusCards extends StatusCards:
 
   import RenderedStatusCards.*
 
   /** A mood state is the same picture for everyone (VISUALS VA-BL-11), so its key names the state and it is drawn once.
     */
-  override def mood(view: MoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+  override def mood(view: MoodCardView, look: CardLook): Option[CardPage] =
     val state = MoodState.captured(view.valence.step, view.energy.map(_.step))
     val reading = MoodReading(state, isEnergyGiven = view.energy.isDefined)
     val drawing = contextOf(look)
     val key = s"mood.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.${keyOf(drawing)}"
-    val card = MoodCard.render(Some(reading), drawing)
-    if store.holds(key) then Some(reference(key, card))
-    else
-      rasterised(card, chat).map: png =>
-        store.put(key, png)
-        reference(key, card)
+    Some(page(MoodCard.render(Some(reading), drawing), Some(key)))
 
-  override def water(view: WaterCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-    personal(WaterCard.render(waterData(view), contextOf(look)), chat)
+  override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
+    Some(page(WaterCard.render(waterData(view), contextOf(look))))
 
-  override def day(view: DayCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+  override def day(view: DayCardView, look: CardLook): Option[CardPage] =
     val data = DayData(
       date = view.date,
       mood = view.mood.map: mood =>
@@ -172,68 +164,95 @@ final class RenderedStatusCards(
         sleep.minutes.fold(SleepEvidence.NoRecord)(SleepEvidence.Recorded(_, sleep.goalMinutes))
       )
     )
-    personal(DayCard.render(data, contextOf(look)), chat)
+    Some(page(DayCard.render(data, contextOf(look))))
 
-  override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-    personal(SleepRegularityCard.render(ReportCards.regularity(view), contextOf(look)), chat)
+  override def sleep(view: SleepRegularityFigures, look: CardLook): Option[CardPage] =
+    Some(page(SleepRegularityCard.render(ReportCards.regularity(view), contextOf(look))))
 
-  /** IMG-05: page 1, then pages 2 and 3 when they have a panel. A page that cannot be drawn ends the album there, so
-    * the pages that are sent are always the first ones, in order.
-    */
-  override def month(view: MonthCardView, look: CardLook, chat: Option[ChatRef]): List[AttachmentRef] =
+  /** IMG-05: page 1, then pages 2 and 3 when they have a panel. */
+  override def month(view: MonthCardView, look: CardLook): List[CardPage] =
     val context = contextOf(look)
     val figures = view.figures
     val days = ReportCards.monthDays(figures, view)
     val nights = ReportCards.monthNights(figures, view)
-    val pages = LazyList(
-      Some(() => MonthCard.render(ReportCards.monthPage(figures), context)),
-      Option.unless(days.isEmpty)(() => MonthPages.days(days, context)),
-      Option.unless(nights.isEmpty)(() => MonthPages.nights(nights, context))
-    ).flatten
-    pages.map(page => personal(page(), chat)).takeWhile(_.isDefined).flatten.toList
+    List(
+      Some(MonthCard.render(ReportCards.monthPage(figures), context)),
+      Option.unless(days.isEmpty)(MonthPages.days(days, context)),
+      Option.unless(nights.isEmpty)(MonthPages.nights(nights, context))
+    ).flatten.map(page(_))
 
-  override def insight(view: Comparison.Shown, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-    ReportCards.insight(view).flatMap(data => personal(InsightCard.render(data, contextOf(look)), chat))
+  override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
+    ReportCards.insight(view).map(data => page(InsightCard.render(data, contextOf(look))))
 
-  override def week(view: WeekCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-    personal(WeekCard.render(ReportCards.week(view), contextOf(look)), chat)
+  override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
+    Some(page(WeekCard.render(ReportCards.week(view), contextOf(look))))
 
-  override def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+  override def food(view: FoodCardView, look: CardLook): Option[CardPage] =
     val mains = view.mains.collect { case (mealType, at) if mealType.isMain => mainMealOf(mealType) -> at }
     val data = FoodDayData(view.date, mains, view.snacks, MealProgress(view.line.logged, view.line.planned))
-    personal(FoodDayCard.render(data, contextOf(look)), chat)
+    Some(page(FoodDayCard.render(data, contextOf(look))))
 
-  /** A personal card is keyed by its own bytes: the same picture is stored once, and the key says nothing. */
-  private def personal(card: CardOutput, chat: Option[ChatRef]): Option[AttachmentRef] =
-    rasterised(card, chat).map: png =>
-      val key = s"card.${HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(png))}"
-      store.put(key, png)
-      reference(key, card)
+/** Stage 5 of the pipeline for the report worker (ROADMAP G4.3): lints and rasterises a page, keeps the PNG in the
+  * asset store and returns the reference with the page's text equivalent as its alt text. A shared picture that the
+  * store already holds is not drawn again; a personal one is keyed by its own bytes, so the same picture is stored once
+  * and the key says nothing. A page that cannot be drawn is logged by its template and the kind of failure only.
+  */
+final class RenderedCardDrawing(
+    renderer: CardRenderer,
+    store: AssetStore,
+    log: String => Unit,
+    notices: DrawingNotices
+) extends CardDrawing:
+
+  import RenderedStatusCards.*
+
+  override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
+    page.sharedKey.filter(store.holds) match
+      case Some(key) => Right(reference(key, page))
+      case None      =>
+        rasterised(page, chat).map: png =>
+          val key = page.sharedKey.getOrElse(
+            s"card.${HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(png))}"
+          )
+          store.put(key, png)
+          reference(key, page)
 
   // A drawing that is still running after a second shows the upload status in its chat (VISUALS VA-FB-02); the
-  // rasteriser's own deadline ends it at five seconds, and the flow then sends the text (VA-FB-01).
-  private def rasterised(card: CardOutput, chat: Option[ChatRef]): Option[Array[Byte]] =
+  // rasteriser's own deadline ends it at five seconds, and the worker then sends the text (VA-FB-01).
+  private def rasterised(page: CardPage, chat: Option[ChatRef]): Either[String, Array[Byte]] =
     val notice = chat.map(target =>
       Slow.schedule((() => notices.drawing(target)): Runnable, SlowAfterMillis, TimeUnit.MILLISECONDS)
     )
     try
-      renderer.render(card) match
-        case Right(image)  => Some(image.png.toArray)
+      renderer.document(page.svg) match
+        case Right(image)  => Right(image.toArray)
         case Left(failure) =>
-          log(s"status image not drawn: template=${card.scene.templateId} reason=${failure.productPrefix}")
-          None
+          log(s"status image not drawn: template=${page.templateId} reason=${failure.productPrefix}")
+          Left(failure.productPrefix)
     finally notice.foreach(_.cancel(false))
-
-  private def reference(key: String, card: CardOutput): AttachmentRef =
-    AttachmentRef(MediaKind.Photo, key, "image/png", card.text.altText, Some(card.fileName), card.hasSpoiler)
 
 object RenderedStatusCards:
 
   /** VISUALS VA-FB-02: the status is shown when a drawing is expected to exceed one second. */
-  private val SlowAfterMillis = 1000L
+  private[app] val SlowAfterMillis = 1000L
 
   // One timer thread for every drawing of the process; it only ever sends a status.
-  private val Slow: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory())
+  private[app] val Slow: ScheduledExecutorService =
+    Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory())
+
+  /** Stage 4: the scene as SVG of profile 1, with the card's text equivalent, file name and spoiler flag. */
+  private def page(card: CardOutput, sharedKey: Option[String] = None): CardPage =
+    CardPage(
+      card.scene.templateId,
+      SvgEmitter.emit(card.scene),
+      card.text.altText,
+      card.fileName,
+      card.hasSpoiler,
+      sharedKey
+    )
+
+  private[app] def reference(key: String, page: CardPage): AttachmentRef =
+    AttachmentRef(MediaKind.Photo, key, "image/png", page.altText, Some(page.fileName), page.hasSpoiler)
 
   private val fitter = TextFitter(TableTextMeasurer)
 
@@ -277,15 +296,16 @@ object RenderedStatusCards:
       case DoseMark.NoRecord     => DoseStatus.Unknown
       case DoseMark.Open         => DoseStatus.Open
 
-/** The image side of one process: the store the adapters load attachments from, the `file_id` cache of the uploads, and
-  * the cards the chat flows ask for. Both halves share the store, so an image a flow made is the image the adapter
-  * uploads.
+/** The image side of one process: the store the adapters load attachments from, the `file_id` cache of the uploads, the
+  * cards the chat flows lay out and the drawing the report worker runs. Both halves share the store, so an image the
+  * worker drew is the image the adapter uploads.
   */
 final class StatusImages(
     val store: AssetStore,
     val fileIds: FileIdCache,
     val cards: StatusCards,
-    val notices: DrawingNotices = DrawingNotices(_ => ())
+    val notices: DrawingNotices = DrawingNotices(_ => ()),
+    val drawing: CardDrawing = CardDrawing.unavailable
 )
 
 object StatusImages:
@@ -317,8 +337,8 @@ object StatusImages:
 
   def over(rasteriser: Rasteriser, stores: Stores, log: String => Unit): StatusImages =
     val notices = DrawingNotices(log)
-    val cards = RenderedStatusCards(CardRenderer(rasteriser), stores.assets, log, notices)
-    StatusImages(stores.assets, stores.fileIds, cards, notices)
+    val drawing = RenderedCardDrawing(CardRenderer(rasteriser), stores.assets, log, notices)
+    StatusImages(stores.assets, stores.fileIds, RenderedStatusCards(), notices, drawing)
 
   /** The renderer the settings name, or text only without them. A binary that cannot run fails the start: a bot that
     * silently never draws is worse than one that does not start.

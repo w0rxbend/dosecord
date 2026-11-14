@@ -46,7 +46,8 @@ class MigrationSuite extends PgSuite:
       "day_profiles",
       "prompt_schedules",
       "prompt_occurrences",
-      "inbound_inbox"
+      "inbound_inbox",
+      "report_requests"
     )
     withConnection { conn =>
       given Connection = conn

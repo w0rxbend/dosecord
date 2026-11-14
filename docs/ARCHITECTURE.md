@@ -1133,6 +1133,14 @@ Research brief 04 is adopted as written. This section fixes the boundary.
 | RND-09 | Medication names appear in images only when the account enabled `image_names_visible`; discreet mode removes names from image, caption, alternative text and file name alike. | Golden fixtures with discreet on and off |
 | RND-10 | PNG output carries no text metadata and no timestamp. | Test on decoded chunks (spike S10) |
 
+Report queue as built in G4.3 (V7 `report_requests`; supervisor decision, 2026-11-14, owner asleep). The event lays its cards out (stages 2 to 4) on its own transaction and writes one request row there; a report worker (one per raster process of RND-07) claims it in a short transaction with a 30-second lease, rasterises outside every transaction, and puts the messages in the outbox in the transaction that finishes the row. Decisions the specification left open:
+
+- The daily limit of VA-FB-03 counts the requests of the last 24 hours, a rolling window; the reset time shown is the moment the oldest counted request leaves it, in the account's time zone.
+- A second image requested while the account's first one is queued or drawing, or while 32 requests wait, is answered at once with its text equivalent, without the reset line.
+- A request whose claim lapsed (a worker crashed or was stopped while drawing it) is not drawn again, since the drawing may be what stopped the worker: it is sent once as its text equivalent. A request claimed after its 5-second deadline is sent as text without drawing.
+- Finishing a request empties its `params` (the SVG and captions); the finished row is kept 24 hours, the window the daily limit counts it in. An unfinished row is deleted one hour after it was made, like the bytes of `render_assets`. `params` is not yet encrypted (G2.4b).
+- The cards of the scheduled weekly and monthly reports are still drawn by the prompt loop on its own transaction, apart from the reminder loop; drawing them ahead of their send time is VA-PS-08 and not built.
+
 ### 12.2 Rasteriser deployment
 
 | Binding | Description | Use |

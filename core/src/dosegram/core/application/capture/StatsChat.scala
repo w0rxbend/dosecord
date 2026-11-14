@@ -51,10 +51,10 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
           sleepToday(turn, today),
           foodToday(turn)
         )
-        parts.cards.day(view, turn.look, Some(turn.event.chat)) match
-          case Some(attachment) =>
+        parts.cards.day(view, turn.look) match
+          case Some(card) =>
             val caption = turn.message("stats.image", summary.lines, Nil)
-            Reply(followUps = List(caption.copy(attachment = Some(attachment))))
+            Reply(followUps = turn.images(parts.delivery, List(card -> caption)))
           case None => turn.toast(StatsCardCopy.imageUnavailable)
 
   // A domain without consent answers with a refusal and is left out of the picture, as it is left out of the text.

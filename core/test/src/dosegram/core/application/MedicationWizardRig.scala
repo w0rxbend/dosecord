@@ -3,6 +3,7 @@ package dosegram.core.application
 import dosegram.contracts.*
 import dosegram.core.chat.*
 import dosegram.core.application.capture.CaptureParts
+import dosegram.core.application.reports.ReportWorker
 import dosegram.core.chat.MediatorFakes.*
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.Occurrence
@@ -36,7 +37,8 @@ import scala.util.Using
 private final class MedicationWizardRig(
     profile: MedicationWizardRig.Profile,
     beforeSend: RenderedMessage => Unit = _ => (),
-    captureParts: Option[UnitOfWork => Clock => CaptureParts] = None
+    captureParts: Option[UnitOfWork => Clock => CaptureParts] = None,
+    drawing: CardDrawing = CardDrawing.unavailable
 )(using Ox):
   import MedicationWizardRig.*
 
@@ -355,7 +357,17 @@ private final class MedicationWizardRig(
     )
     val before = ops.size
     push(event)
+    drainReports()
     ops.drop(before)
+
+  /** The report worker after the event, as its fork would run it: draws every queued image and sends what it put in
+    * the outbox (ROADMAP G4.3).
+    */
+  private def drainReports(): Unit =
+    val worker = ReportWorker(uow, drawing, clock, _ => UUID.randomUUID(), _ => (), _ => ())
+    var drew = false
+    while worker.runOnce() do drew = true
+    if drew then dispatchOnce(): Unit
 
   private[application] def wireOf(containing: String, label: String): String =
     ops.reverse
@@ -460,6 +472,7 @@ private object MedicationWizardRig:
           export tx.{inboundEvents as _, *}
           // An export skips a member the trait already defines, so the group with a default is forwarded by hand.
           override def reminders: ReminderRepositories = tx.reminders
+          override def reports: ReportQueue = tx.reports
           override val inboundEvents: InboundEventRepository = new InboundEventRepository:
             export inbound.complete
             override def insert(event: NewInboundEvent): Boolean =

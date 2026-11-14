@@ -59,6 +59,7 @@ object ExportCoverage:
     "consent_state" -> Coverage.Owned(OwnerColumn),
     "render_assets" -> Coverage.Excluded("drawn images, at most one hour"),
     "telegram_file_cache" -> Coverage.Excluded("upload handles of drawn images"),
+    "report_requests" -> Coverage.Excluded("images waiting to be drawn, at most one hour"),
     "miniapp_sessions" -> Coverage.Excluded("hashes of session tokens"),
     "idempotency_keys" -> Coverage.Excluded("stored answers to repeated requests, at most 24 hours"),
     "sleep_checkins" -> Coverage.Owned(OwnerColumn),

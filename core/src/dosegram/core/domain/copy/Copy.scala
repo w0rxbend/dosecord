@@ -37,5 +37,6 @@ object Copy:
       MonthCopy.entries ++
       ReportCopy.entries ++
       FoodCopy.entries ++
-      ExportCopy.entries
+      ExportCopy.entries ++
+      ImageCopy.entries
 end Copy

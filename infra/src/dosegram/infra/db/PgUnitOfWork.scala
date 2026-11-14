@@ -23,6 +23,7 @@ import dosegram.core.ports.OutboxRepository
 import dosegram.core.ports.PolicyRepository
 import dosegram.core.ports.ReminderRepositories
 import dosegram.core.ports.RenderedMessageRepository
+import dosegram.core.ports.ReportQueue
 import dosegram.core.ports.RollupRepository
 import dosegram.core.ports.ScheduleRepository
 import dosegram.core.ports.ScheduleRevisionRepository
@@ -88,6 +89,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
       override lazy val meals: MealRepository = PgMealRepository(conn)
     override lazy val reminders: ReminderRepositories = PgReminderRepositories(conn)
     override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds)
+    override lazy val reports: ReportQueue = PgReportQueue(conn)
 
     override def savepoint[A](f: => A): A =
       val sp = conn.setSavepoint()

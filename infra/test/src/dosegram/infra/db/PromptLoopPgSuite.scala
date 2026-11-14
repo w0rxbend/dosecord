@@ -27,6 +27,7 @@ import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.reminders.TimeRef
 import dosegram.core.domain.reminders.PromptStatus
 import dosegram.core.domain.reminders.SuppressReason
+import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.PromptOccurrence
@@ -84,7 +85,7 @@ class PromptLoopPgSuite extends PgSuite:
     val errors = scala.collection.mutable.ListBuffer.empty[Throwable]
 
     def loop(): PromptLoop =
-      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), StatusCards.textOnly, codec)
+      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), StatusCards.textOnly, CardDrawing.unavailable, codec)
       PromptLoop(uow, clock, ids, PromptMessages(codec), hydration, settings, reports, (_, e) => errors += e)
 
     val dispatcher = OutboxDispatcher(

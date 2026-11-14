@@ -23,7 +23,9 @@ import dosegram.core.domain.insights.SleepRegularity
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.ports.AccountSettings
+import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.StatusCards
@@ -91,9 +93,10 @@ enum ReportOutcome:
   * it is due, and the monthly report of the previous calendar month, each in text with at most one pattern sentence,
   * and with its cards when the account allows images in chat (VA-PS-07). Every figure comes from [[StatsQueryService]],
   * so a report says what `/stats` says over the same days. Nothing here sends: the prompt loop puts the messages in the
-  * outbox.
+  * outbox. The cards are still drawn here, on the prompt loop's transaction: rendering them ahead of their send time in
+  * the report class is VISUALS VA-PS-08, not yet built.
   */
-final class ReportComposer(stats: StatsQueryService, cards: StatusCards, codec: CallbackCodec):
+final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing: CardDrawing, codec: CallbackCodec):
 
   private val views = ReportViews(stats)
 
@@ -121,7 +124,10 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, codec: 
         val lines = ReportCopy.weeklyTitle :: summary.lines.tail ++ pattern.toList
         val images =
           if !withImages || !imagesAllowed(tx, accountId) then Nil
-          else cards.week(views.week(tx, accountId, DateRange.endingOn(planDate, 7)), views.look(tx, accountId)).toList
+          else
+            drawn(
+              cards.week(views.week(tx, accountId, DateRange.endingOn(planDate, 7)), views.look(tx, accountId)).toList
+            )
         ReportOutcome.Send(compose(PromptKind.WeeklyReport, accountId, lines, images, key, silent))
 
   /** The calendar month before `planDate`; produced only when a domain meets the gate of R-INS-11. */
@@ -133,8 +139,12 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, codec: 
         val lines = ReportCopy.monthlyTitle :: MonthCopy.lines(view.figures, view.zone)
         val images =
           if !imagesAllowed(tx, accountId) then Nil
-          else cards.month(views.month(tx, accountId, view.figures, planDate), views.look(tx, accountId))
+          else drawn(cards.month(views.month(tx, accountId, view.figures, planDate), views.look(tx, accountId)))
         ReportOutcome.Send(compose(PromptKind.MonthlyReport, accountId, lines, images, key, silent))
+
+  /** The pages that could be drawn, in order; a page that cannot be drawn ends the album there. */
+  private def drawn(pages: List[CardPage]): List[AttachmentRef] =
+    pages.iterator.map(drawing.draw(_, None).toOption).takeWhile(_.isDefined).flatten.toList
 
   private def imagesAllowed(tx: Tx, accountId: UUID): Boolean =
     tx.consents.isGranted(accountId, ConsentPurpose.ImagesInChat)

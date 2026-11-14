@@ -10,6 +10,7 @@ import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
+import dosegram.core.application.reports.CardDelivery
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -17,6 +18,8 @@ import dosegram.core.chat.CallbackMode
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
+import dosegram.core.ports.ReportPage
 import dosegram.core.ports.Tx
 
 import java.time.Instant
@@ -59,6 +62,12 @@ private[capture] final case class Turn(
       case None         => Reply(followUps = List(message))
 
   def toast(text: String): Reply = Reply(toast = Some(text))
+
+  /** Images as new messages, each `message` carrying its card: queued for the report worker on this event's
+    * transaction, or sent at once as their text equivalents (ROADMAP G4.3).
+    */
+  def images(delivery: CardDelivery, pages: List[(CardPage, OutboundMessage)]): List[OutboundMessage] =
+    delivery.answer(tx, accountId, event.chat, pages.map(ReportPage(_, _)))
 
   /** The theme and discreet mode the account set for its images, read on this event's transaction. */
   def look: CardLook = CardLook.of(tx.accounts.settingsOf(accountId).getOrElse(AccountSettings.Default))

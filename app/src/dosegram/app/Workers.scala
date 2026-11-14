@@ -11,6 +11,7 @@ import dosegram.core.application.insights.ReportComposer
 import dosegram.core.application.insights.RollupService
 import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.reminders.PromptMessages
+import dosegram.core.application.reports.ReportWorker
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.SessionSweeper
 import dosegram.core.ports.IdSource
@@ -24,6 +25,7 @@ import dosegram.core.scheduling.PromptOutboxRenderer
 import dosegram.core.scheduling.ReminderLoop
 import dosegram.core.scheduling.TokenBuckets
 import dosegram.infra.Metrics
+import dosegram.infra.MicrometerImageMetrics
 import dosegram.infra.MicrometerLoopMetrics
 import dosegram.infra.MicrometerOutboxMetrics
 import dosegram.infra.Settings
@@ -76,6 +78,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startPromptLoop(log, passes)
     startInboxPurge(passes)
     startExportWorker(log, passes)
+    startReportWorkers(log, passes)
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
@@ -164,6 +167,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
         val now = clock.now()
         assets.purge(now)
         fileIds.forgetUnusedSince(now.minus(Workers.FileIdUnusedFor))
+        uow.transaction(ReportWorker.purge(_, now))
         Thread.sleep(parts.cadence.imagePurgePeriod.toMillis)
         true
     ()
@@ -191,7 +195,12 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       PromptMessages(codec),
       HydrationService(clock, IdSource.uuidV7(java.security.SecureRandom())),
       Application.reminderSettings(clock),
-      ReportComposer(StatsQueryService(RollupService(uow, clock), clock), parts.images.cards, codec),
+      ReportComposer(
+        StatsQueryService(RollupService(uow, clock), clock),
+        parts.images.cards,
+        parts.images.drawing,
+        codec
+      ),
       (plan, error) => log(s"prompt plan $plan failed: ${error.getClass.getSimpleName}")
     )
     fork:
@@ -221,7 +230,30 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
         true
     ()
 
+  /** The report workers of ROADMAP G4.3: two forks, one per raster process of ARCHITECTURE RND-07, each drawing one
+    * request at a time outside every transaction. They write the database and hand messages to the outbox, never to a
+    * vendor, so cancelling them with the scope loses nothing: a claimed request is taken again after its lease.
+    */
+  private def startReportWorkers(log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
+    val worker = ReportWorker(
+      uow,
+      parts.images.drawing,
+      clock,
+      IdSource.uuidV7(java.security.SecureRandom()),
+      log,
+      MicrometerImageMetrics.textFallback
+    )
+    (1 to Workers.ReportWorkers).foreach: n =>
+      fork:
+        passes.repeat(s"report worker $n"): () =>
+          if !worker.runOnce() then Thread.sleep(parts.cadence.reportIdlePoll.toMillis)
+          true
+    ()
+
 object Workers:
+
+  /** One report worker per raster process (ARCHITECTURE RND-07). */
+  private val ReportWorkers = 2
 
   /** Closes `wake` as soon as the scope is cancelled, not only after every fork has ended: the scope interrupts this
     * fork together with the others, and closing the wake ends a blocking wait for a NOTIFY even when the interrupt of
@@ -250,7 +282,9 @@ object Workers:
       // The 24-hour and 7-day limits of the inbound stores hold to within this.
       inboxPurgePeriod: Duration = Duration.ofMinutes(1),
       // An export is ready within 10 minutes (AC-IMX-2); its file is deleted to within this after 15 minutes.
-      exportIdlePoll: Duration = Duration.ofSeconds(5)
+      exportIdlePoll: Duration = Duration.ofSeconds(5),
+      // A queued image waits at most this long for a free report worker, well inside its 5-second deadline (VA-FB-01).
+      reportIdlePoll: Duration = Duration.ofMillis(250)
   )
 
   object Cadence:

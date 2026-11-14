@@ -45,6 +45,12 @@ trait Tx:
   def exports: ExportRepository =
     throw UnsupportedOperationException("the exports repository group is not on this transaction")
 
+  /** The report preparation queue (ROADMAP G4.3). A transaction double that does not use it keeps this default, which
+    * fails naming the group.
+    */
+  def reports: ReportQueue =
+    throw UnsupportedOperationException("the reports repository group is not on this transaction")
+
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
     * the reminder loop).

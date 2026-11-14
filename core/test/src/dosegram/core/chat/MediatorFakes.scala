@@ -604,6 +604,7 @@ object MediatorFakes:
     val heartbeat = InMemoryHeartbeat()
     val consents = dosegram.core.application.InMemoryConsentLedger()
     val tracking = dosegram.core.application.InMemoryTracking(Map.empty)
+    val reports = dosegram.core.application.reports.InMemoryReportQueue()
 
     private val tx: Tx = new Tx:
       override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions
@@ -627,6 +628,7 @@ object MediatorFakes:
       override def consents: ConsentLedger = InMemoryUnitOfWork.this.consents
       override def tracking: TrackingRepositories = InMemoryUnitOfWork.this.tracking
       override def reminders: ReminderRepositories = NoPromptPlans
+      override def reports: dosegram.core.ports.ReportQueue = InMemoryUnitOfWork.this.reports
       override def savepoint[A](f: => A): A = f
 
     override def transaction[A](f: Tx => A): A = f(tx)
