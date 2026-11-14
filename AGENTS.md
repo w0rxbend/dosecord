@@ -39,9 +39,9 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-14, after four rounds of parallel tracks were
-merged and wired together (the fourth: month and insights, nutrition,
-export and the record summary; migrations V4 to V6).
+State of `main` on 2026-11-14, after five rounds of parallel tracks were
+merged and wired together (the fifth: medication depth, Mini App depth and
+Ukrainian; migration V8).
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -83,6 +83,17 @@ Appendix B and its status notes are the record; this is the short form.
   of every account-owned table (`ExportCoverage` decides each table), download
   tickets, the file into the chat after two taps, and the record summary PDF
   (DOC-01) with a food section of counts.
+- Medication depth (G9.8 to G9.10, G9.12, V8 `medication_inventory`,
+  `inventory_events`, `medication_schedules.resume_on`): every N days and
+  cycles with presets in the chat and the Mini App builder, a count per
+  medication deducted by taken doses, the refill notice with its card
+  (IMG-15), "Pause for..." days, and as-needed limits stated as the user's
+  own facts.
+- Language (G2.22): every catalogue entry, card, API sentence and Mini App
+  string is an English and Ukrainian pair, chosen by the account's stored
+  locale, else the client's `language_code`, else English; `/language` and
+  the Mini App settings switch it. The Ukrainian text has had no
+  native-speaker review.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -103,8 +114,9 @@ Appendix B and its status notes are the record; this is the short form.
   `MINI_APP_URL` and an explicit `HTTP_PORT` (ADR-016 addendum).
   Sessions and idempotency records are rows of `miniapp_sessions` and
   `idempotency_keys`. Screens: Today, medications, Log, water, mood, sleep,
-  food, Insights (with month and patterns), reports and export, history and
-  day detail, settings. The app records and withdraws
+  food, Insights (a 7, 30 and 90-day dashboard with the previous period in
+  words, month and patterns), reports and export, history and day detail,
+  settings with the day profile page, and set-up (S-19). The app records and withdraws
   no consent; dose actions over HTTP do not exist. The container image
   serves the built Mini App, `docs/DEPLOY_MINIAPP.md` is the deploy guide,
   and `pnpm --dir miniapp run e2e` is the browser suite (G3.12).
@@ -130,14 +142,21 @@ Useful next, in this order:
    report's timing (R-INS-4); the album send; the opt-in and adaptive pause
    of the reports (G9.2); the step-up, `/privacy` button and e2e flow of the
    export (G3.10).
-6. What the consent and store work of 2026-11-13 left open: the rest of
+6. What the fifth round left open: the native-speaker review of the
+   Ukrainian copy; English words left in the chat menu's schedule summary
+   (`EveryNDays` and `Cycle` show their type name) and in the record
+   summary; every N weeks, interval from a fixed start and several day
+   groups (G9.8, G9.9); the refill notice against the nudge budget, the
+   course-finished message and pause with a date in the Mini App (G9.10,
+   G9.12); MA-INS-8 and the cross-representation test of G9.5.
+7. What the consent and store work of 2026-11-13 left open: the rest of
    onboarding (adult attestation, region, discreet choice, G2.8), deletion
    of a domain's data (G2.17), encryption of the stores of the edges, of the
    meal words and of the export file (G2.4b), and the `StorageError` port of
    G2.1, each as a new versioned
    migration. ARCHITECTURE section 10.17 lists the schema areas and the rules
    for adding a table.
-7. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
+8. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
    are eligible by dependency and untouched.
 
 ## Agent workflow
