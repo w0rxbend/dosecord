@@ -4,6 +4,7 @@
 // to six a minute per user (ARCHITECTURE API-18), runs once.
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixture';
+import { gotoPastNetworkChange } from './support/navigation';
 import { pressMainButton, type Scheme } from './support/telegram';
 
 const today = new Date().toISOString().slice(0, 10).replaceAll('-', '');
@@ -82,7 +83,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.route('https://telegram.org/js/telegram-web-app.js', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: '' }),
     );
-    await page.goto('/app/');
+    await gotoPastNetworkChange(page, '/app/');
     await expect(page.getByRole('heading', { name: 'Dosegram runs inside Telegram.' })).toBeVisible();
     // Outside Telegram the gate follows the system scheme.
     expect(await page.evaluate(() => document.documentElement.dataset.scheme)).toBe(scheme === 'dark' ? 'dark' : undefined);

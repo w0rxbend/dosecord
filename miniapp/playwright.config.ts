@@ -17,7 +17,8 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: true,
   // No retries: every test fails on a content security policy violation, and a violation that shows once must fail
-  // the run, not pass on a second attempt (stability review of 2026-11-14).
+  // the run, not pass on a second attempt (stability review of 2026-11-14). A navigation that Chromium aborts with
+  // ERR_NETWORK_CHANGED, when Docker adds or removes an interface, is made again by e2e/support/navigation.ts instead.
   retries: 0,
   timeout: 60_000,
   expect: { timeout: 15_000 },
@@ -33,7 +34,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'flows', testMatch: 'flows.spec.ts' },
+    { name: 'flows', testMatch: ['navigation.spec.ts', 'flows.spec.ts'] },
     { name: 'screens', testMatch: 'screens.spec.ts' },
   ],
   webServer: {

@@ -1,6 +1,7 @@
 // The suite's test function: every test counts content-security-policy violations, page errors and requests to any
 // origin except the app's own and telegram.org as failures (ARCHITECTURE API-20, ROADMAP G3.3 and G3.12).
 import { test as base, expect, type Page } from '@playwright/test';
+import { gotoPastNetworkChange } from './navigation';
 import { installTelegram, type LaunchOptions } from './telegram';
 
 type Watched = Window & { __violations?: string[] };
@@ -32,7 +33,7 @@ export const test = base.extend<{ app: Launcher }>({
     await use({
       launch: async (options) => {
         await installTelegram(page, options);
-        await page.goto('/app/');
+        await gotoPastNetworkChange(page, '/app/');
         return page;
       },
     });

@@ -1,6 +1,7 @@
 // ROADMAP G3.12: the user's main paths through the production build against the real application. Each test opens
 // the app as Telegram would and fails on any policy violation, page error or foreign request (support/fixture.ts).
 import { expect, test } from './support/fixture';
+import { gotoPastNetworkChange } from './support/navigation';
 import { chrome, pressBackButton, pressMainButton } from './support/telegram';
 
 const MEDICATION = 'Vitamin D';
@@ -54,7 +55,7 @@ test('launch data from another key opens the "session has ended" gate, not the a
         showPopup() {} } };`,
     }),
   );
-  await page.goto(`${baseURL}/app/`);
+  await gotoPastNetworkChange(page, `${baseURL}/app/`);
   await expect(page.getByRole('heading', { name: 'This session has ended.' })).toBeVisible();
 });
 
