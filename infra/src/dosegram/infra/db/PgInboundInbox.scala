@@ -51,15 +51,21 @@ final class PgInboundInbox(dataSource: DataSource) extends InboundInbox:
         .execute()
     ()
 
-  override def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant): Boolean =
+  override def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant, reason: String): Boolean =
     pooled:
       given RowMapper[String] = _.getString(1)
       sql"""UPDATE inbound_inbox
-            SET attempts = attempts + 1,
+            SET attempts = attempts + 1, failure_reason = $reason,
                 status = CASE WHEN attempts + 1 >= $maxAttempts THEN 'quarantined' ELSE 'pending' END,
                 finished_at = CASE WHEN attempts + 1 >= $maxAttempts THEN $at END
             WHERE vendor = ${entry.vendor} AND vendor_event_id = ${entry.vendorEventId} AND status = 'pending'
             RETURNING status""".queryOne[String]().contains("quarantined")
+
+  override def forget(entry: InboxEntry): Unit =
+    pooled:
+      sql"""DELETE FROM inbound_inbox WHERE vendor = ${entry.vendor} AND vendor_event_id = ${entry.vendorEventId}"""
+        .execute()
+    ()
 
   override def purge(now: Instant): InboxPurge =
     val bodiesBefore = now.minus(InboundInbox.BodyLifetime)

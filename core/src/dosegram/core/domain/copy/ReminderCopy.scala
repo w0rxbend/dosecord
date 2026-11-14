@@ -118,7 +118,8 @@ object ReminderCopy:
   def checkingOutcome: String = tr("Checking whether this was recorded…", "Перевіряю, чи це записано…")
 
   /** Toast for a bad MAC or an expired slot (DESIGN.md section 4.4). */
-  def staleControlToast: String = tr("This button is no longer valid.", "Ця кнопка вже не діє.")
+  def staleControlToast: String =
+    tr("This button no longer works. Open /today.", "Ця кнопка вже не діє. Відкрийте /today.")
 
   def entries: List[CopyEntry] = List(
     CopyEntry("reminder.body", reminderBody("Vitamin D", Some("1000 IU"), None).mkString("\n")),

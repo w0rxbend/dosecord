@@ -132,7 +132,8 @@ final class ProductChatRig(dataSource: DataSource, val clock: MutableClock, purg
       chat = chat,
       body = body
     )
-    assert(mediator.pushAndWait(event), s"event $seq of $user failed")
+    val settled = mediator.pushAndWait(event)
+    assert(settled == Settlement.Done || settled == Settlement.Forgotten, s"event $seq of $user failed: $settled")
     adapter.ops
       .drop(before)
       .collect {

@@ -93,6 +93,26 @@ class RlsSuite extends PgSuite:
         List("dosegram_app", "dosegram_erasure", "dosegram_worker").map(name => (name, false, false, false, 0L))
       )
 
+  test("the serving roles append to audit_log without reading it, and never touch the migration history (V18)"):
+    withConnection: conn =>
+      val checks = for
+        role <- List("dosegram_app", "dosegram_worker", "dosegram_erasure")
+        table <- List("flyway_schema_history", "audit_log")
+        privilege <- List("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE")
+      yield s"SELECT '$role $table:$privilege' WHERE has_table_privilege('$role', '$table', '$privilege')"
+      val rs = conn.createStatement().executeQuery(checks.mkString(" UNION ALL ")) // the suite's own query
+      val granted = Iterator.continually(rs).takeWhile(_.next()).map(_.getString(1)).toList.sorted
+      assertEquals(
+        granted,
+        List(
+          "dosegram_app audit_log:INSERT",
+          "dosegram_erasure audit_log:DELETE",
+          "dosegram_erasure audit_log:SELECT",
+          "dosegram_worker audit_log:INSERT",
+          "dosegram_worker audit_log:SELECT"
+        )
+      )
+
   test("the start-up check names the GRANT when the login role may not take the serving roles"):
     withConnection(_.createStatement().execute("CREATE ROLE rls_outsider LOGIN PASSWORD 'outsider'"))
     val outsider = DriverManager.getConnection(pg.jdbcUrl, "rls_outsider", "outsider")
@@ -137,7 +157,7 @@ class RlsSuite extends PgSuite:
       Flyway.configure().dataSource(ds).target("13").load().migrate()
       val (a, b) = withConnectionOf(ds)(seedAtV13)
       val result = SchemaUpgrade.run(ds, DataKeys.development, _ => ())
-      assertEquals((result.migrationsExecuted, result.schemaVersion), (4, "17"))
+      assertEquals((result.migrationsExecuted, result.schemaVersion), (5, "18"))
       assertEquals(withConnectionOf(ds)(c => countOf(c, "SELECT count(*) FROM hydration_entries")), 2L, "the owner sees all")
       assertServing(PgUnitOfWork(ds, MutableClock(at), DataKeys.development), a, b)
     finally ds.close()

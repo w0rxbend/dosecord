@@ -42,17 +42,29 @@ object ChatMediator:
     case Resolved(body: Inbound)
 
   private enum Outcome:
-    case Duplicate, Failed
+    case Duplicate
+    case Failed(reason: String)
     case Processed(plan: DeliveryPlan)
 
   private final case class PlannedSend(message: OutboundMessage, outboxId: Option[UUID])
 
+  /** `forgotten`: the event deleted the account of its chat, so nothing kept after it may name the chat (SEC-16). */
   private final case class DeliveryPlan(
       accountId: Option[UUID],
       sends: List[PlannedSend],
       toast: Option[String],
-      domainEvents: List[NewDomainEvent]
+      domainEvents: List[NewDomainEvent],
+      forgotten: Boolean
   )
+
+  /** The content-free code of a failed event: the SQL state of a database error, else the class of the error. Never its
+    * message, which may quote a value.
+    */
+  def failureReason(error: Throwable): String =
+    val code = error match
+      case sql: SQLException => s"sql_${Option(sql.getSQLState).getOrElse("none")}"
+      case other             => s"error_${other.getClass.getSimpleName}"
+    code.filter(c => c.isLetterOrDigit || c == '_').take(64)
 
 /** The ChatMediator (DESIGN.md section 4, ADR-005): adapters push intents through [[InboundSink]]; the mediator owns
   * MAC verification, the ack policy, identity stamping, per-chat ordering, the resolution rules, the per-event
@@ -80,17 +92,18 @@ final class ChatMediator(
     true
 
   /** [[push]] for a durable inbox (ADR-017): the event takes its place in its chat's queue like any other, and the call
-    * returns when it has been processed. False when its transaction failed or the handler threw.
+    * returns when it has been processed. Failed, with the code of the error, when its transaction failed or the handler
+    * threw.
     */
-  override def pushAndWait(event: InboundEvent): Boolean =
-    if !admitted(event) then true
+  override def pushAndWait(event: InboundEvent): Settlement =
+    if !admitted(event) then Settlement.Done
     else
-      val outcome = CompletableFuture[Boolean]()
+      val outcome = CompletableFuture[Settlement]()
       executor.submit(chatKey(event)):
-        val committed =
+        val settled =
           try processed(event)
-          catch case NonFatal(_) => false
-        outcome.complete(committed).discard
+          catch case NonFatal(error) => Settlement.Failed(failureReason(error))
+        outcome.complete(settled).discard
       // Interruptible, unlike join: a scope that ends while the event waits must be able to cancel the caller.
       outcome.get()
 
@@ -159,8 +172,8 @@ final class ChatMediator(
 
   private[chat] def process(event: InboundEvent): Unit = processed(event).discard
 
-  /** Steps 3 to 8; false when the transaction failed. */
-  private def processed(event: InboundEvent): Boolean =
+  /** Steps 3 to 8; Failed when the transaction failed. */
+  private def processed(event: InboundEvent): Settlement =
     val correlationId = s"${event.vendor}:${event.vendorEventId}"
     LogContext.scoped(
       LogContext(
@@ -173,20 +186,22 @@ final class ChatMediator(
       val outcome =
         try uow.transaction(tx => processInTx(event, tx, correlationId))
         catch
-          case _: SQLException =>
+          case error: SQLException =>
             // A failed commit acknowledgement is not proof of rollback. Read the durable
             // idempotency record before replay; never re-run the handler here.
             deliverFailureToast(event, ReminderCopy.checkingOutcome)
             replayStoredReply(event, reportUnknown = false)
-            Outcome.Failed
+            Outcome.Failed(failureReason(error))
       outcome match
-        case Outcome.Duplicate       => replayStoredReply(event)
+        case Outcome.Duplicate =>
+          replayStoredReply(event)
+          Settlement.Done
         case Outcome.Processed(plan) =>
           // ADR-003: domain events are consumed in-process, after the appending transaction commits.
           plan.domainEvents.foreach(events.publish)
           deliverAfterCommit(event, plan)
-        case Outcome.Failed => ()
-      outcome != Outcome.Failed
+          if plan.forgotten then Settlement.Forgotten else Settlement.Done
+        case Outcome.Failed(reason) => Settlement.Failed(reason)
 
   /** The per-event transaction (ADR-003): inbound insert-or-replay, identity stamping, the handler, `domain_events`,
     * outbox rows and the stored reply commit together or not at all.
@@ -258,7 +273,7 @@ final class ChatMediator(
         now
       )
       Outcome.Processed(
-        DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast, appendedEvents)
+        DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast, appendedEvents, kept.isEmpty)
       )
 
   /** ADR-015: a message with an attachment or an album is always a new message, so it never edits the message it
@@ -479,7 +494,7 @@ final class ChatMediator(
                   )
                 else message
                 PlannedSend(replay, tx.outbox.replyId(event.vendor, message.dedupeKey))
-            DeliveryPlan(row.accountId, sends, reply.toast, Nil)
+            DeliveryPlan(row.accountId, sends, reply.toast, Nil, forgotten = false)
 
   /** The catalogue failure notice when the database is unavailable (R68: visibly fails): the single-shot answer while
     * it is unspent, a silent message otherwise.

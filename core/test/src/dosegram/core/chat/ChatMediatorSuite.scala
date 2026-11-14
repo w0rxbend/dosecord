@@ -354,10 +354,10 @@ class ChatMediatorSuite extends munit.FunSuite:
       val handler = RecordingHandler(_ => Reply(followUps = List(outbound("hello", "reply-w"))))
       val m = mediator(uow, adapter, handler)
       val first = event(Inbound.MessageReceived("hi", None, truncated = false), "evt-wait")
-      assert(m.pushAndWait(first))
+      assertEquals(m.pushAndWait(first), Settlement.Done)
       assert(uow.inboundEvents.find("fake", "evt-wait").exists(_.processedAt.isDefined), "committed on return")
       assertEquals(handler.handled, 1)
-      assert(m.pushAndWait(first), "a duplicate needs no processing")
+      assertEquals(m.pushAndWait(first), Settlement.Done, "a duplicate needs no processing")
       assertEquals(handler.handled, 1)
       assertEquals(uow.inboundEvents.all.size, 1)
 
@@ -366,7 +366,9 @@ class ChatMediatorSuite extends munit.FunSuite:
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = ChatMediator(PoolPausedUow(), Map("fake" -> adapter), codec, handler, FixedClock(t0))
-      assert(!m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-down")))
+      m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-down")) match
+        case Settlement.Failed(reason) => assert(reason.startsWith("sql_"), reason)
+        case other                     => fail(s"a failed transaction settled as $other")
 
   test("pushAndWait reports a handler that threw, and the chat's queue keeps working"):
     ox.supervised:
@@ -375,8 +377,12 @@ class ChatMediatorSuite extends munit.FunSuite:
       val handler = RecordingHandler: received =>
         if received.vendorEventId == "evt-bug" then throw IllegalStateException("handler bug") else Reply.empty
       val m = mediator(uow, adapter, handler, stripes = 1)
-      assert(!m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-bug")))
-      assert(m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-next")))
+      assertEquals(
+        m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-bug")),
+        Settlement.Failed("error_IllegalStateException"),
+        "the code names the class of the error, never its message"
+      )
+      assertEquals(m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-next")), Settlement.Done)
 
   test("pushAndWait rejects a tampered token without processing it, and reports it as done"):
     ox.supervised:
@@ -385,5 +391,5 @@ class ChatMediatorSuite extends munit.FunSuite:
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
       val forged = tamperedRef(token("dose.taken", UUID.randomUUID()))
-      assert(m.pushAndWait(event(Inbound.InteractionSubmitted(forged, None), "evt-forged")))
+      assertEquals(m.pushAndWait(event(Inbound.InteractionSubmitted(forged, None), "evt-forged")), Settlement.Done)
       assertEquals(handler.handled, 0)

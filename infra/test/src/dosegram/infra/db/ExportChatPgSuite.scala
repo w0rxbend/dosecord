@@ -165,8 +165,8 @@ class ExportChatPgSuite extends PgSuite:
     owner.drain()
     val id = owner.jobs.head.id
     val stranger = Rig(Fixtures(dataSource).account())
-    assertEquals(stranger.tap("export.send", id, now.getEpochSecond / 60).toast, Some("This button is no longer valid."))
-    assertEquals(stranger.tap("export.start", owner.account, 0L).toast, Some("This button is no longer valid."))
+    assertEquals(stranger.tap("export.send", id, now.getEpochSecond / 60).toast, Some("This button no longer works. Open /today."))
+    assertEquals(stranger.tap("export.start", owner.account, 0L).toast, Some("This button no longer works. Open /today."))
     assertEquals(owner.jobs.head.status, ExportStatus.Ready)
 
   test("a request from the app is made only after its confirming tap; Not now ends it"):
@@ -179,7 +179,7 @@ class ExportChatPgSuite extends PgSuite:
     assert(confirmation.body.toString.contains("The app asked for an export"), confirmation.body.toString)
     assert(text(rig.tap("export.confirm", made.id, 0L)).contains(ExportCopy.preparing))
     assert(text(rig.tap("export.cancel", dropped.id, 0L)).contains(ExportCopy.cancelled))
-    assertEquals(rig.tap("export.confirm", dropped.id, 0L).toast, Some("This button is no longer valid."))
+    assertEquals(rig.tap("export.confirm", dropped.id, 0L).toast, Some("This button no longer works. Open /today."))
     rig.drain()
     assertEquals(rig.uow.transaction(_.exports.find(rig.account, made.id)).map(_.status), Some(ExportStatus.Ready))
     assertEquals(rig.uow.transaction(_.exports.find(rig.account, dropped.id)).map(_.status), Some(ExportStatus.Expired))

@@ -2123,7 +2123,7 @@ Placeholders are in braces. "Fixed" length excludes placeholder content.
 | `toast.wizard.expired` | Set-up timed out. Starting again. | |
 | `toast.today.closed` | That day is closed. Opening today. | |
 | `today.moved` | Today is shown below. | |
-| `err.control.invalid` | This button no longer works. | Generic; reveals nothing |
+| `err.control.invalid` | This button no longer works. Open /today. | Generic; reveals nothing. Supervisor decision, 2026-11-15: the toast names the next step; it answers a tampered, malformed or foreign token, a token signed with a retired key and a token whose subject is gone, and the update is recorded as processed (catalogue key `reminder.stale_control_toast`) |
 | `med.add.prompt` | Send the name and time in one message, for example: Vitamin D 1000 IU 9:00. Leave out the time for a medication you take only when needed. For other schedules, use the app form. | |
 | `med.add.invalid` | That could not be read. Send it like: Vitamin D 1000 IU 9:00. | |
 | `med.add.quiet` | {time} is inside your quiet hours ({from} to {to}). How should this reminder behave? | Buttons: Remind with sound; Remind silently; Move to {to} |

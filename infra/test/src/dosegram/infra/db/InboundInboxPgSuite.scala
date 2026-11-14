@@ -74,17 +74,35 @@ class InboundInboxPgSuite extends PgSuite:
     val inbox = PgInboundInbox(dataSource)
     inbox.store(entry(1), t0)
     inbox.store(entry(2), t0)
-    assert(!inbox.recordFailure(entry(1), maxAttempts = 3, t0))
-    assert(!inbox.recordFailure(entry(1), maxAttempts = 3, t0))
+    assert(!inbox.recordFailure(entry(1), maxAttempts = 3, t0, "sql_08006"))
+    assert(!inbox.recordFailure(entry(1), maxAttempts = 3, t0, "sql_08006"))
     assertEquals(inbox.pending(perChat = 1, limit = 10).map(_.entry.sequence), List(1L), "still pending")
-    assert(inbox.recordFailure(entry(1), maxAttempts = 3, t0))
+    assert(inbox.recordFailure(entry(1), maxAttempts = 3, t0, "sql_23505"))
     assertEquals(inbox.pending(perChat = 1, limit = 10).map(_.entry.sequence), List(2L))
     assertEquals(count("SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined' AND body IS NOT NULL"), 1)
+    assertEquals(
+      count("SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined' AND failure_reason = 'sql_23505'"),
+      1,
+      "the quarantine keeps the code of its last failure"
+    )
+
+  test("a failure reason that is not a code is refused by the table"):
+    val inbox = PgInboundInbox(dataSource)
+    inbox.store(entry(1), t0)
+    intercept[java.sql.SQLException](inbox.recordFailure(entry(1), maxAttempts = 3, t0, "duplicate key (seq)=(2)"))
+
+  test("a forgotten entry leaves no row that names its chat"):
+    val inbox = PgInboundInbox(dataSource)
+    inbox.store(entry(1), t0)
+    inbox.store(entry(2), t0)
+    inbox.forget(entry(1))
+    assertEquals(inbox.pending(perChat = 10, limit = 10).map(_.entry.sequence), List(2L))
+    assertEquals(rows, 1)
 
   test("under a fake clock a quarantined body is gone after 24 hours and not before"):
     val inbox = PgInboundInbox(dataSource)
     inbox.store(entry(1), t0)
-    (1 to 3).foreach(_ => inbox.recordFailure(entry(1), maxAttempts = 3, t0))
+    (1 to 3).foreach(_ => inbox.recordFailure(entry(1), maxAttempts = 3, t0, "error_IllegalStateException"))
     assertEquals(inbox.purge(t0.plus(InboundInbox.BodyLifetime).minusSeconds(1)).bodies, 0)
     assertEquals(bodies, 1)
     assertEquals(inbox.purge(t0.plus(InboundInbox.BodyLifetime)).bodies, 1)

@@ -160,5 +160,5 @@ class RemindersHubPgSuite extends PgSuite:
       principal = None,
       body = Inbound.InteractionSubmitted(ref, None)
     )
-    assertEquals(rig.uow.transaction(rig.handler.handle(event, principal, _)).toast, Some("This button is no longer valid."))
+    assertEquals(rig.uow.transaction(rig.handler.handle(event, principal, _)).toast, Some("This button no longer works. Open /today."))
     assertEquals(rig.command("/water").toast, Some("inner"))

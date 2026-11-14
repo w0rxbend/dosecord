@@ -50,6 +50,7 @@ object SchemaUpgrade:
       val transportCounts = backfill.run(SealingStage.Transport, log)
       val rest = flyway.load().migrate().migrationsExecuted
       requireServingRoles(locked)
+      alignSequences(locked, log)
       val backfilled = expandCounts.exists(count => count.sealedNow > 0 || count.verified > 0)
       val rewrapped = rewrap(dataSource, keys, backfilled)
       if rewrapped > 0 then
@@ -74,6 +75,16 @@ object SchemaUpgrade:
         .missingGrant(conn)
         .foreach: grant =>
           throw IllegalStateException(s"dosegram: the database login role may not take the serving roles; run $grant")
+    finally conn.close()
+
+  /** A sequence behind its column (rows copied with their numbers) is moved past them before anything serves. */
+  private def alignSequences(dataSource: DataSource, log: String => Unit): Unit =
+    val conn = dataSource.getConnection
+    try
+      OwnedSequences
+        .align(conn)
+        .foreach: moved =>
+          log(s"sequences: ${moved.sequence} was behind ${moved.column}; moved to ${moved.to}")
     finally conn.close()
 
   /** Plain VACUUM: no lock beyond what reads and writes take, so it is safe while the bot runs. It frees the dead row

@@ -6,6 +6,8 @@ import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.InboxPurge
 import dosegram.core.ports.PendingInboxEntry
 
+import ox.discard
+
 import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
@@ -37,7 +39,9 @@ class TelegramInboxSuite extends munit.FunSuite:
     override def markProcessed(entry: InboxEntry, at: Instant): Unit = synchronized:
       rows(entry.vendorEventId) = rows(entry.vendorEventId).copy(_3 = "processed")
 
-    override def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant): Boolean = false
+    override def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant, reason: String): Boolean = false
+
+    override def forget(entry: InboxEntry): Unit = synchronized(rows.remove(entry.vendorEventId)).discard
 
     override def purge(now: Instant): InboxPurge = InboxPurge(0, 0, 0)
 

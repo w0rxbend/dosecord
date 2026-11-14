@@ -1,10 +1,13 @@
 package dosegram.core.chat
 
+import dosegram.contracts.Settlement
 import dosegram.core.ports.Clock
 import dosegram.core.ports.InboxEntry
 import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.InboxPurge
 import dosegram.core.ports.PendingInboxEntry
+
+import ox.discard
 
 import java.sql.SQLException
 import java.time.Instant
@@ -21,10 +24,13 @@ class InboxProcessorSuite extends munit.FunSuite:
   /** The inbox as the database keeps it, without the database. */
   private final class MemoryInbox extends InboundInbox:
     private val rows = mutable.LinkedHashMap.empty[String, (InboxEntry, String, Int)]
+    private val reasons = mutable.Map.empty[String, String]
     @volatile var failMark = false
     @volatile var failMarkOf: Option[String] = None
 
-    def status(sequence: Long): String = synchronized(rows(s"u$sequence")._2)
+    def status(sequence: Long): String = synchronized(rows.get(s"u$sequence").fold("absent")(_._2))
+
+    def reason(sequence: Long): Option[String] = synchronized(reasons.get(s"u$sequence"))
 
     override def store(entry: InboxEntry, receivedAt: Instant): Unit = synchronized:
       if !rows.contains(entry.vendorEventId) then rows(entry.vendorEventId) = (entry, "pending", 0)
@@ -45,11 +51,14 @@ class InboxProcessorSuite extends munit.FunSuite:
         throw SQLException("injected: the process died before the mark")
       rows(entry.vendorEventId) = rows(entry.vendorEventId).copy(_2 = "processed")
 
-    override def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant): Boolean = synchronized:
+    override def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant, reason: String): Boolean = synchronized:
+      reasons(entry.vendorEventId) = reason
       val (stored, _, attempts) = rows(entry.vendorEventId)
       val quarantined = attempts + 1 >= maxAttempts
       rows(entry.vendorEventId) = (stored, if quarantined then "quarantined" else "pending", attempts + 1)
       quarantined
+
+    override def forget(entry: InboxEntry): Unit = synchronized(rows.remove(entry.vendorEventId)).discard
 
     override def purge(now: Instant): InboxPurge = InboxPurge(0, 0, 0)
 
@@ -61,17 +70,19 @@ class InboxProcessorSuite extends munit.FunSuite:
     val store: MemoryInbox = inbox
     val delivered = ConcurrentLinkedQueue[InboxEntry]()
     @volatile var refuse: InboxEntry => Boolean = _ => false
+    @volatile var forgets: InboxEntry => Boolean = _ => false
     var quarantined = 0
+    val logged = ConcurrentLinkedQueue[String]()
     val processor = InboxProcessor(
       inbox,
       pending =>
-        if refuse(pending.entry) then false
+        if refuse(pending.entry) then Settlement.Failed("sql_23505")
         else
           delivered.add(pending.entry)
-          true
+          if forgets(pending.entry) then Settlement.Forgotten else Settlement.Done
       ,
       clock,
-      log = _ => (),
+      log = line => logged.add(line).discard,
       quarantined = () => quarantined += 1
     )
 
@@ -116,6 +127,33 @@ class InboxProcessorSuite extends munit.FunSuite:
     assertEquals(rig.quarantined, 1)
     while rig.processor.processOnce() > 0 do ()
     assertEquals(rig.sequences(), List(2L))
+
+  test("each failed attempt is logged and stored with its content-free reason, and so is the quarantine"):
+    val rig = Rig()
+    rig.store.store(entry(1), t0)
+    rig.refuse = _ => true
+    (1 to 3).foreach(_ => rig.processor.processOnce())
+    assertEquals(rig.store.reason(1), Some("sql_23505"))
+    assertEquals(
+      rig.logged.asScala.toList,
+      List.fill(3)("inbox delivery failed: u1 reason=sql_23505") :+ "inbox entry quarantined: u1 reason=sql_23505"
+    )
+
+  test("a delivery that throws is stored with the class of the error, never its message"):
+    val rig = Rig()
+    rig.store.store(entry(1), t0)
+    rig.refuse = _ => throw IllegalStateException("medication Canary failed")
+    rig.processor.processOnce()
+    assertEquals(rig.store.reason(1), Some("error_IllegalStateException"))
+    assert(rig.logged.asScala.forall(!_.contains("Canary")), rig.logged.toString)
+
+  test("an entry whose event deleted the account of its chat is deleted, not kept as processed"):
+    val rig = Rig()
+    List(entry(1), entry(2)).foreach(rig.store.store(_, t0))
+    rig.forgets = candidate => candidate == entry(1)
+    while rig.processor.processOnce() > 0 do ()
+    assertEquals(rig.sequences(), List(1L, 2L))
+    assertEquals((rig.store.status(1), rig.store.status(2)), ("absent", "processed"))
 
   test("a delivery that throws counts as a failed attempt and does not stop the processor"):
     val rig = Rig()

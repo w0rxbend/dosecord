@@ -32,8 +32,13 @@ trait InboundInbox:
   /** The entry's effect is durable: its body is deleted and it is never offered again. */
   def markProcessed(entry: InboxEntry, at: Instant): Unit
 
-  /** Counts a failed attempt; the entry is quarantined at `maxAttempts`. True when it was quarantined now. */
-  def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant): Boolean
+  /** Counts a failed attempt and keeps its `reason`, a fixed code that names no content; the entry is quarantined at
+    * `maxAttempts`. True when it was quarantined now.
+    */
+  def recordFailure(entry: InboxEntry, maxAttempts: Int, at: Instant, reason: String): Boolean
+
+  /** The entry's event deleted the account of its chat: the entry is deleted, so no row of the inbox names the chat. */
+  def forget(entry: InboxEntry): Unit
 
   /** The deleting job (ARCHITECTURE section 15.6): every body older than [[InboundInbox.BodyLifetime]], a pending one
     * included, and every inbox and `inbound_events` row older than [[InboundInbox.RowLifetime]].

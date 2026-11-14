@@ -154,7 +154,8 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   /** Maps one update and hands it to the mediator. `false` only when the update must come again: the adapter is not
     * started, or the mediator's queue is full.
     */
-  def ingest(update: Update): Boolean = handOver(update, runtime.clock.now())(_.push(_))
+  def ingest(update: Update): Boolean =
+    handOver(update, runtime.clock.now())((target, event) => pushed(target.push(event))) == Settlement.Done
 
   /** The receipt of one update from the long poll or the webhook (ADR-017). With an inbox, an update that becomes an
     * event is stored before this returns true, and processed later; a sender outside the allowlist gets the fixed reply
@@ -164,7 +165,11 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   def receive(update: Update): Boolean =
     runtime.inbox match
       case None        => ingest(update)
-      case Some(inbox) => sink.get().isDefined && screened(update)(_ => stored(inbox, update))
+      case Some(inbox) =>
+        sink.get().isDefined && screened(update)(_ => pushed(stored(inbox, update))) == Settlement.Done
+
+  private def pushed(accepted: Boolean): Settlement =
+    if accepted then Settlement.Done else Settlement.Failed(Settlement.QueueFull)
 
   private def stored(inbox: InboundInbox, update: Update): Boolean =
     try
@@ -176,35 +181,37 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
         runtime.log(s"telegram update not stored: database unavailable update_id=${update.updateId}")
         false
 
-  /** An update from the inbox, processed to its end: true once its effect is durable (TG-08). */
-  private def deliverStored(pending: PendingInboxEntry): Boolean =
+  /** An update from the inbox, processed to its end: settled once its effect is durable (TG-08). */
+  private def deliverStored(pending: PendingInboxEntry): Settlement =
     InboxCodec.update(pending.entry) match
       case Some(update) => handOver(update, pending.receivedAt)(_.pushAndWait(_))
       case None         =>
         // It will never decode: offering it again cannot help.
         runtime.log(s"telegram inbox entry undecodable: ${pending.entry.vendorEventId}")
-        true
+        Settlement.Done
 
-  private def handOver(update: Update, receivedAt: Instant)(hand: (InboundSink, InboundEvent) => Boolean): Boolean =
+  private def handOver(update: Update, receivedAt: Instant)(
+      hand: (InboundSink, InboundEvent) => Settlement
+  ): Settlement =
     sink.get() match
-      case None         => false
+      case None         => Settlement.Failed(NotStarted)
       case Some(target) => screened(update)(draft => hand(target, event(update, draft, receivedAt)))
 
   /** Maps one update. A draft from an allowed sender goes to `accept`; anything else is settled here: a stranger gets
     * the fixed reply, a callback that cannot become an event is answered, the rest is logged and dropped.
     */
-  private def screened(update: Update)(accept: UpdateMapper.Draft => Boolean): Boolean =
+  private def screened(update: Update)(accept: UpdateMapper.Draft => Settlement): Settlement =
     UpdateMapper.map(update, botUsername.get()) match
       case UpdateMapper.Mapped.Deliver(draft) if config.access.allows(draft.userId) => accept(draft)
       case UpdateMapper.Mapped.Deliver(draft)                                       =>
         refuse(draft)
-        true
+        Settlement.Done
       case UpdateMapper.Mapped.Dismiss(queryId) =>
         answerQuery(queryId, None, Duration.ZERO)
-        true
+        Settlement.Done
       case UpdateMapper.Mapped.Ignore(reason) =>
         runtime.log(s"telegram update ignored: reason=$reason update_id=${update.updateId}")
-        true
+        Settlement.Done
 
   private def event(update: Update, draft: UpdateMapper.Draft, receivedAt: Instant): InboundEvent =
     InboundEvent(
@@ -495,6 +502,9 @@ end TelegramAdapter
 object TelegramAdapter:
 
   val Vendor = "telegram"
+
+  /** The failure code of an update offered before the adapter started: it comes again. */
+  val NotStarted = "adapter_not_started"
 
   /** `BotCommand.description` is 1 to 256 characters (research brief 02, section 8). */
   val MaxCommandDescriptionChars = 256

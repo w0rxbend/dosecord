@@ -1,5 +1,6 @@
 package dosegram.core.chat
 
+import dosegram.contracts.Settlement
 import dosegram.core.ports.Clock
 import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.InboxEntry
@@ -15,16 +16,17 @@ import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 /** The inbox processor (ARCHITECTURE section 7.2.3, ROADMAP G1.7). It offers each stored entry to `deliver`, which
-  * returns once the entry's effect is durable (true) or has failed (false), and marks the entry processed only after a
-  * true. The chats of a pass run concurrently; the entries of one chat run one at a time in sequence order, and a
-  * failed entry holds back the later ones of its chat until it succeeds or is quarantined (TG-06, TG-09).
+  * returns once the entry is settled, and marks the entry processed only then; an entry whose event deleted the account
+  * of its chat is deleted instead, so no row names the chat (SEC-16). A failed attempt is logged and stored with its
+  * content-free reason. The chats of a pass run concurrently; the entries of one chat run one at a time in sequence
+  * order, and a failed entry holds back the later ones of its chat until it succeeds or is quarantined (TG-06, TG-09).
   *
   * Exactly once: an entry whose delivery committed but whose mark was lost (the process died between them) is offered
   * again after a restart, and the receiver's own idempotency key makes that second delivery change nothing (TG-08).
   */
 final class InboxProcessor(
     inbox: InboundInbox,
-    deliver: PendingInboxEntry => Boolean,
+    deliver: PendingInboxEntry => Settlement,
     clock: Clock,
     log: String => Unit,
     settings: InboxProcessor.Settings = InboxProcessor.Settings.Default,
@@ -75,28 +77,31 @@ final class InboxProcessor(
     */
   private def settled(pending: PendingInboxEntry): Boolean =
     try
-      if delivered(pending) then
-        inbox.markProcessed(pending.entry, clock.now())
-        true
-      else if inbox.recordFailure(pending.entry, settings.maxAttempts, clock.now()) then
-        quarantine(pending.entry)
-        true
-      else false
+      delivered(pending) match
+        case Settlement.Done =>
+          inbox.markProcessed(pending.entry, clock.now())
+          true
+        case Settlement.Forgotten =>
+          inbox.forget(pending.entry)
+          true
+        case Settlement.Failed(reason) =>
+          log(s"inbox delivery failed: ${pending.entry.vendorEventId} reason=$reason")
+          if inbox.recordFailure(pending.entry, settings.maxAttempts, clock.now(), reason) then
+            quarantine(pending.entry, reason)
+            true
+          else false
     catch
       case _: SQLException =>
         log(s"inbox write failed: ${pending.entry.vendorEventId}")
         false
 
-  private def delivered(pending: PendingInboxEntry): Boolean =
+  private def delivered(pending: PendingInboxEntry): Settlement =
     try deliver(pending)
-    catch
-      case NonFatal(error) =>
-        log(s"inbox delivery failed: ${pending.entry.vendorEventId} (${error.getClass.getSimpleName})")
-        false
+    catch case NonFatal(error) => Settlement.Failed(ChatMediator.failureReason(error))
 
-  private def quarantine(entry: InboxEntry): Unit =
+  private def quarantine(entry: InboxEntry, reason: String): Unit =
     quarantined()
-    log(s"inbox entry quarantined: ${entry.vendorEventId}")
+    log(s"inbox entry quarantined: ${entry.vendorEventId} reason=$reason")
 
 object InboxProcessor:
 

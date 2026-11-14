@@ -8,12 +8,17 @@ import dosegram.contracts.LoopDispatch
 import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
 import dosegram.core.application.exports.ExportRequests
+import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
+import dosegram.core.chat.CallbackKey
+import dosegram.core.chat.CallbackKeys
+import dosegram.core.chat.CallbackMode
 import dosegram.core.chat.CapabilityProfiles
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.PromptCopy
+import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
@@ -32,6 +37,7 @@ import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.PgUnitOfWork
+import dosegram.infra.db.SchemaUpgrade
 import ox.supervised
 
 import java.time.Duration
@@ -103,9 +109,12 @@ class ProductionPathSuite extends PgSuite:
       environment = Environment.Development
     )
 
+  private val updateIds = java.util.concurrent.atomic.AtomicLong(500)
+
   /** The owner's chat on the fake wire: what the owner types and taps, and what the bot wrote back. */
   private final class Chat(val clock: SteppedClock, val wire: FakeTelegramTransport, val healthPort: Int):
-    private var updateSeq = 500L
+    // A relaunch in the same test keeps counting: the inbox drops an update id it has seen.
+    private var updateSeq = updateIds.getAndAdd(1000)
     private val messageMethods = Set("sendMessage", "editMessageText")
 
     def messages: List[FakeTelegramTransport.RecordedCall] = wire.calls.filter(call => messageMethods(call.method))
@@ -137,12 +146,34 @@ class ProductionPathSuite extends PgSuite:
 
     /** Taps the newest button whose label `matches`, then waits until a message from the bot shows `expected`. */
     def tap(matches: String => Boolean, expected: String): Unit =
+      val press = pressNewest(matches)
+      step(expected)(press)
+
+    /** Taps the newest button whose label `matches` and returns at once: for an answer that is only a toast. */
+    def tapOnly(matches: String => Boolean): Unit =
+      clock.advance(Duration.ofSeconds(5))
+      updateSeq += 1
+      pressNewest(matches)()
+
+    /** The id of a new update the owner sends. */
+    def nextUpdate(): Long =
+      clock.advance(Duration.ofSeconds(5))
+      updateSeq += 1
+      updateSeq
+
+    /** The inbox key of the last update the owner sent. */
+    def lastUpdate: String = s"telegram:update:$updateSeq"
+
+    /** The toasts the bot answered taps with, in order. */
+    def toasts: List[String] = wire.calls.filter(_.method == "answerCallbackQuery").flatMap(_.text("text"))
+
+    private def pressNewest(matches: String => Boolean): () => Unit =
       val (card, data) = messages.reverseIterator
         .flatMap(call => buttons(call).collectFirst { case (label, data) if matches(label) => (call, data) })
         .nextOption()
         .getOrElse(fail(s"no such button; messages: ${messages.map(body)}"))
       val messageId = card.sentMessageId.orElse(card.number("message_id")).getOrElse(fail("the card names no message"))
-      step(expected): () =>
+      () =>
         wire.enqueueUpdates(
           ujson.Obj(
             "update_id" -> updateSeq.toDouble,
@@ -343,6 +374,94 @@ class ProductionPathSuite extends PgSuite:
         catch case error: Exception => fail(s"${row.kind} does not render: ${error.getClass.getSimpleName} ${error.getMessage}")
       assertEquals(target.chatId, owner.toString, s"${row.kind} goes to the owner's chat")
       assert(rendered.chunks.exists(_.nonEmpty), s"${row.kind} renders text")
+
+  /** Moves the clock in 30-second steps until `condition` holds, as in production between taps. */
+  private def advanceUntil(clock: SteppedClock, clue: => String)(condition: => Boolean): Unit =
+    eventually(clue):
+      clock.advance(Duration.ofSeconds(30))
+      condition
+
+  test("an 'I took it' tap on the digest sent after an outage is answered and its update is processed"):
+    // The live defect of 2026-11-14: the database had been copied with its rows and not its sequences, the process was
+    // down over the 09:00 dose and its miss deadline, the restart sent the catch-up digest, and the owner's tap on its
+    // button failed on the primary key of domain_events three times and was quarantined by the inbox.
+    val clock = SteppedClock(start)
+    launched(clock): chat =>
+      onboard(chat)
+      addDailyMedication(chat)
+    // The copy of 2026-11-13: the events kept their numbers, every number up to the last one was taken, and the
+    // sequence was left at its start.
+    withConnection(
+      _.createStatement().execute(
+        """INSERT INTO domain_events (seq, id, type, source, occurred_at, data)
+           SELECT n, gen_random_uuid(), 'copied.v1', 'test', now(), '{}'
+           FROM generate_series(1, (SELECT max(seq) FROM domain_events)) AS n
+           WHERE n NOT IN (SELECT seq FROM domain_events);
+           SELECT setval('domain_events_seq_seq', 1, false)"""
+      )
+    )
+    clock.advance(Duration.ofHours(5))
+    // The start of the process, as Main runs it before anything serves.
+    SchemaUpgrade.run(dataSource, DataKeys(settings.kek, clock), _ => ())
+    launched(clock): chat =>
+      advanceUntil(clock, s"the digest is sent: ${strings("SELECT kind || ':' || status FROM outbox_messages")}"):
+        strings("SELECT status FROM outbox_messages WHERE kind = 'digest'") == List("sent")
+      assertEquals(strings("SELECT status::text FROM dose_occurrences ORDER BY scheduled_for LIMIT 1"), List("unknown"))
+      chat.tapOnly(_ == Labels.ITookIt)
+      val tapStatus = s"SELECT status FROM inbound_inbox WHERE vendor_event_id = '${chat.lastUpdate}'"
+      eventually(s"the tap is settled: ${strings(tapStatus)}"):
+        strings(tapStatus).exists(_ != "pending")
+      assertEquals(strings(tapStatus), List("processed"), "the tap is processed, not quarantined")
+      assertEquals(
+        strings("SELECT status::text FROM dose_occurrences ORDER BY scheduled_for LIMIT 1"),
+        List("taken"),
+        s"toasts ${chat.toasts}; messages ${chat.messages.takeRight(2).map(chat.body)}"
+      )
+
+  /** Sends a tap with `data` on a message the bot never sent, then waits until the inbox settled it. */
+  private def tapRaw(chat: Chat, data: String): String =
+    chat.wire.enqueueUpdates(
+      ujson.Obj(
+        "update_id" -> chat.nextUpdate().toDouble,
+        "callback_query" -> ujson.Obj(
+          "id" -> s"query-raw-${chat.lastUpdate}",
+          "from" -> ujson.Obj("id" -> owner.toDouble, "is_bot" -> false),
+          "message" -> ujson.Obj(
+            "message_id" -> 424242.0,
+            "chat" -> ujson.Obj("id" -> owner.toDouble, "type" -> "private"),
+            "date" -> chat.clock.now().getEpochSecond.toDouble,
+            "text" -> "x"
+          ),
+          "data" -> data
+        )
+      )
+    )
+    val status = s"SELECT status FROM inbound_inbox WHERE vendor_event_id = '${chat.lastUpdate}'"
+    eventually(s"the tap is settled: ${strings(status)}")(strings(status).exists(_ != "pending"))
+    strings(status).head
+
+  test("a stale, foreign or malformed button is answered with a toast, and its update is processed"):
+    val clock = SteppedClock(start)
+    launched(clock): chat =>
+      onboard(chat)
+      addDailyMedication(chat)
+      val signed = CallbackCodec(settings.callbackKeys)
+      val retired = CallbackCodec(CallbackKeys(CallbackKey(5, "retired-key-0123456789".getBytes), None))
+      val taken = ActionRegistry.byName("dose.taken").getOrElse(fail("no dose.taken"))
+      val occurrence = UUID.fromString(strings("SELECT id::text FROM dose_occurrences ORDER BY scheduled_for").head)
+      val taps = List(
+        "a key id the bot does not hold" -> retired.encode(CallbackMode.Direct, taken, occurrence, 0).wire,
+        "a malformed token" -> "dc:not-a-token",
+        "data that is not a token of ours" -> "foreign:42",
+        "a subject that no longer exists" -> signed.encode(CallbackMode.Direct, taken, UUID.randomUUID(), 0).wire
+      )
+      taps.foreach: (clue, data) =>
+        val before = chat.toasts.size
+        assertEquals(tapRaw(chat, data), "processed", clue)
+        eventually(s"$clue is answered with a toast; toasts ${chat.toasts}")(chat.toasts.size > before)
+        assertEquals(chat.toasts.last, ReminderCopy.staleControlToast, clue)
+      assertEquals(strings("SELECT status::text FROM dose_occurrences ORDER BY scheduled_for LIMIT 1"), List("pending"))
+      assertEquals(strings("SELECT status FROM inbound_inbox WHERE status = 'quarantined'"), Nil)
 
   // ---------- Operations on the launched process ----------
 
