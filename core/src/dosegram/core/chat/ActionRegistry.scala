@@ -99,7 +99,9 @@ object ActionRegistry:
     ActionEntry(303, "privacy.keep", requiresSession = false),
     ActionEntry(304, "privacy.delete_account_ask", requiresSession = false),
     ActionEntry(305, "privacy.delete_account_confirm", requiresSession = false),
-    ActionEntry(306, "privacy.delete_account", requiresSession = false)
+    ActionEntry(306, "privacy.delete_account", requiresSession = false),
+    // Imports (340 to 359; ROADMAP G10.5): direct mode on the account; the value is the template's ordinal.
+    ActionEntry(340, "import.template", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

@@ -45,6 +45,9 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
     */
   case FoodTyped(code: Int) extends Pending(14, Pending.FoodTypedBase + code)
 
+  /** `/import`: the import card opens after the `import` consent. */
+  case ImportCard extends Pending(15, 0)
+
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
 
@@ -74,6 +77,7 @@ private[capture] object Pending:
       case 12 => Some(Insights(argument == 1))
       case 13 => Some(MonthImage(argument))
       case 14 => foodOf(argument)
+      case 15 => Some(ImportCard)
       case _  => None
 
   /** The argument of [[FoodLog]] starts here; below it are [[FoodCard]] (0) and [[FoodImage]] (1). */
@@ -149,7 +153,8 @@ private[capture] object ConsentRequest:
     ConsentPurpose.CrossDomainPatterns -> 4,
     ConsentPurpose.ImagesInChat -> 5,
     ConsentPurpose.Sleep -> 6,
-    ConsentPurpose.Nutrition -> 7
+    ConsentPurpose.Nutrition -> 7,
+    ConsentPurpose.Import -> 8
   )
 
   def codeOf(purpose: ConsentPurpose): Int = purposeCodes(purpose)

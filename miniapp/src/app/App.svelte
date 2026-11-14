@@ -44,6 +44,7 @@
   const quietHours = () => import('../screens/settings/QuietHoursScreen.svelte');
   const privacy = () => import('../screens/settings/PrivacyScreen.svelte');
   const reports = () => import('../screens/reports/ReportsScreen.svelte');
+  const importScreen = () => import('../screens/imports/ImportScreen.svelte');
   const setup = () => import('../screens/setup/SetupScreen.svelte');
   const dayProfile = () => import('../screens/settings/DayProfileScreen.svelte');
   const deleteData = () => import('../screens/settings/DeleteDataScreen.svelte');
@@ -102,6 +103,8 @@
         <Lazy load={reminders} props={{}} />
       {:else if route.screen === 'reports'}
         <Lazy load={reports} props={{}} />
+      {:else if route.screen === 'import'}
+        <Lazy load={importScreen} props={{}} />
       {:else if route.screen === 'setup'}
         <Lazy load={setup} props={{}} />
       {:else if route.screen === 'settings-day'}

@@ -69,6 +69,12 @@ trait Tx:
   def erasure: ErasureRepository =
     throw UnsupportedOperationException("the erasure repository group is not on this transaction")
 
+  /** The import jobs, their staging and the entries they write (ROADMAP G10.5, V15). A transaction double that does not
+    * use them keeps this default, which fails naming the group.
+    */
+  def imports: ImportRepository =
+    throw UnsupportedOperationException("the imports repository group is not on this transaction")
+
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
     * the reminder loop).

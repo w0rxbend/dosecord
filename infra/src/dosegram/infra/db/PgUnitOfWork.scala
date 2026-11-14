@@ -16,6 +16,7 @@ import dosegram.core.ports.FormRunRepository
 import dosegram.core.ports.HydrationRepository
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.IdentityRepository
+import dosegram.core.ports.ImportRepository
 import dosegram.core.ports.InboundEventRepository
 import dosegram.core.ports.KeyOwner
 import dosegram.core.ports.MealRepository
@@ -100,6 +101,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
     override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds, auditLog, keyService)
     override lazy val reports: ReportQueue = PgReportQueue(conn)
     override lazy val medicationDepth: MedicationDepthRepositories = PgMedicationDepthRepositories(conn)
+    override lazy val imports: ImportRepository = PgImportRepository(conn, keyService)
 
     override def savepoint[A](f: => A): A =
       val sp = conn.setSavepoint()

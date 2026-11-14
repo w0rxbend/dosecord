@@ -24,6 +24,7 @@ import {
   toDayProfile,
   toDeletionRequest,
   toExportItem,
+  toImportView,
   toReminderPresets,
   toReminders,
   toReminderTimeline,
@@ -416,6 +417,28 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       // The ticket path is on this origin; downloadFile needs it absolute.
       return { ...ticket, url: new URL(ticket.url, globalThis.location?.href ?? 'http://localhost/').toString() };
     },
+
+    imports: async () => ((await request<Wire['ImportList']>('imports')).items ?? []).map(toImportView),
+    startImport: async (source, key) => {
+      const body: Wire['ImportInput'] = { source };
+      return toImportView(await request<Wire['ImportView']>('imports', { method: 'POST', body, headers: command(key) }));
+    },
+    addImportBatch: async (importId, batch, key) => {
+      const body: Wire['ImportBatchInput'] = {
+        ...batch,
+        records: batch.records === undefined ? undefined : [...batch.records],
+      };
+      const path = `imports/${id(importId)}/batches`;
+      return toImportView(await request<Wire['ImportView']>(path, { method: 'POST', body, headers: command(key) }));
+    },
+    commitImport: async (importId, key) => {
+      const path = `imports/${id(importId)}/commit`;
+      return toImportView(await request<Wire['ImportView']>(path, { method: 'POST', headers: command(key) }));
+    },
+    removeImport: async (importId) =>
+      toImportView(await request<Wire['ImportView']>(`imports/${id(importId)}`, { method: 'DELETE' })),
+    importTemplateUrl: (kind) =>
+      new URL(`${config.baseUrl}/import-templates/${id(kind)}`, globalThis.location?.href ?? 'http://localhost/').toString(),
   };
 
   return { open, client };

@@ -82,7 +82,14 @@ final class OpenApiSuite extends munit.FunSuite:
     "PUT /api/v1/medications/{id}/inventory",
     "POST /api/v1/medications/{id}/refills",
     "POST /api/v1/account/deletion",
-    "DELETE /api/v1/domains/{domain}/data"
+    "DELETE /api/v1/domains/{domain}/data",
+    "GET /api/v1/import-templates/{kind}",
+    "POST /api/v1/imports",
+    "GET /api/v1/imports",
+    "GET /api/v1/imports/{id}",
+    "POST /api/v1/imports/{id}/batches",
+    "POST /api/v1/imports/{id}/commit",
+    "DELETE /api/v1/imports/{id}"
   )
 
   private val document = ujson.read(OpenApiDocument.json)
@@ -103,7 +110,11 @@ final class OpenApiSuite extends munit.FunSuite:
   test("every operation except the session exchange and the ticket route requires the bearer token"):
     val open = operations.collect { case (route, operation) if !operation.obj.contains("security") => route }
     // The Telegram client fetches a download ticket without the session; the ticket is its only credential (9.7).
-    assertEquals(open.toSet, Set("POST /api/v1/session", "GET /api/v1/downloads/{ticket}"))
+    // An import template holds no record, so downloadFile fetches it without the session too (ROADMAP G10.5).
+    assertEquals(
+      open.toSet,
+      Set("POST /api/v1/session", "GET /api/v1/downloads/{ticket}", "GET /api/v1/import-templates/{kind}")
+    )
 
   test("every operation documents the problem response and no other error body"):
     operations.foreach: (route, operation) =>

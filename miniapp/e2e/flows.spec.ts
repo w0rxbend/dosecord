@@ -1,5 +1,6 @@
 // ROADMAP G3.12: the user's main paths through the production build against the real application. Each test opens
 // the app as Telegram would and fails on any policy violation, page error or foreign request (support/fixture.ts).
+import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixture';
 import { gotoPastNetworkChange, routeTo } from './support/navigation';
 import { answerPopup, chrome, pressBackButton, pressMainButton } from './support/telegram';
@@ -165,8 +166,9 @@ test('edit a medication time: the schedule gets a new revision and the list show
   await expect(page.getByText(/08:30/).first()).toBeVisible();
 });
 
-test('reminders: a preset is turned on, then off again; the language is switched and back', async ({ app }) => {
-  const page = await app.launch({ startParam: 'reminders' });
+test('reminders: a preset is turned on, then off again; the language is switched and back; imports', async ({ app }) => {
+  // On the desktop, where the app also offers the import of a device's health export (MINI_APP MA-REP-6).
+  const page = await app.launch({ startParam: 'reminders', platform: 'tdesktop' });
   await expect(page.getByRole('heading', { level: 1, name: 'Reminders' })).toBeVisible();
 
   const first = page.locator('fieldset').first();
@@ -228,4 +230,92 @@ test('reminders: a preset is turned on, then off again; the language is switched
 
   await page.getByRole('link', { name: /^Export everything/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Reports and export' })).toBeVisible();
+
+  await importsFromAFile(page);
 });
+
+/**
+ * Imports (ROADMAP G10.5, G10.7), from the reports screen: an Apple Health export and a CSV file are previewed, imported
+ * once and removed. A step of the last test, because the session exchange allows six launches a minute (API-18).
+ */
+async function importsFromAFile(page: Page): Promise<void> {
+  // Ten days back, so no entry another test of the shared account made can overlap.
+  const day = new Date(Date.now() - 10 * 86_400_000).toISOString().slice(0, 10);
+  const before = new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const record = (type: string, start: string, end: string, extra: string) =>
+    `<Record type="${type}" sourceName="Phone" startDate="${start} +0000" endDate="${end} +0000" ${extra}/>`;
+  const padding = Array.from({ length: 2000 }, (_, i) =>
+    record('HKQuantityTypeIdentifierStepCount', `${day} 12:00:00`, `${day} 12:01:00`, `unit="count" value="${i}"`),
+  );
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE HealthData [<!ELEMENT HealthData (Record*)>]>',
+    '<HealthData locale="en_GB">',
+    record('HKQuantityTypeIdentifierDietaryWater', `${day} 08:00:00`, `${day} 08:00:00`, 'unit="mL" value="250"'),
+    record('HKQuantityTypeIdentifierBodyMass', `${day} 07:30:00`, `${day} 07:30:00`, 'unit="kg" value="70"'),
+    record('HKCategoryTypeIdentifierSleepAnalysis', `${before} 22:30:00`, `${day} 07:10:00`, 'value="HKCategoryValueSleepAnalysisInBed"'),
+    record('HKCategoryTypeIdentifierSleepAnalysis', `${before} 23:00:00`, `${day} 03:00:00`, 'value="HKCategoryValueSleepAnalysisAsleepCore"'),
+    record('HKCategoryTypeIdentifierSleepAnalysis', `${day} 03:10:00`, `${day} 07:00:00`, 'value="HKCategoryValueSleepAnalysisAsleepDeep"'),
+    ...padding,
+    '</HealthData>',
+  ].join('\n');
+  const healthFile = { name: 'export.xml', mimeType: 'text/xml', buffer: Buffer.from(xml) };
+
+  // Imports (ROADMAP G10.5, G10.7), from the reports screen; Apple Health exports are offered on the desktop.
+  await page.getByRole('link', { name: /^Import from a file/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Import from a file' })).toBeVisible();
+  // Every body the app sends while importing is kept: the raw file must never be one of them (AC-IMX-9).
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v1/imports')) sent.push(request.postData() ?? '');
+  });
+
+  // Only sleep is selected: the drink and the body mass stay on the device and are counted as left out.
+  await page.getByLabel('Water', { exact: true }).uncheck();
+  await page.locator('input[type="file"][accept=".zip,.xml"]').setInputFiles(healthFile);
+  const preview = page.getByRole('region', { name: 'Preview' });
+  await expect(preview).toContainText('Sleep: 1 new, 0 already recorded');
+  await expect(preview).toContainText('2003 records of other types are left out.');
+  const committed = page.waitForResponse((r) => /\/api\/v1\/imports\/[^/]+\/commit$/.test(r.url()));
+  await preview.getByRole('button', { name: 'Import these records' }).click();
+  expect((await committed).status()).toBe(200);
+  await expect(page.getByRole('status').filter({ hasText: '1 records imported. They are marked as imported.' })).toBeVisible();
+
+  // The same file again adds nothing (AC-IMX-5).
+  await page.getByLabel('Water', { exact: true }).uncheck();
+  await page.locator('input[type="file"][accept=".zip,.xml"]').setInputFiles(healthFile);
+  await expect(preview).toContainText('Sleep: 0 new, 1 already recorded');
+  await expect(preview.getByText('Nothing new to import.')).toBeVisible();
+  await preview.getByRole('button', { name: 'Cancel' }).click();
+
+  const body = sent.join('\n');
+  expect(body).toContain('"sleep_main"');
+  expect(body).not.toMatch(/HKQuantityType|HKCategoryType|<Record|"water"|BodyMass|StepCount/);
+  expect(body.length, 'only normalised records are uploaded, never the file').toBeLessThan(xml.length / 20);
+
+  // A Dosegram CSV file: the empty template is a header row, and a repeated row is a duplicate in the preview.
+  const template = await page.request.get('/api/v1/import-templates/water');
+  expect(template.status()).toBe(200);
+  const header = (await template.text()).trim();
+  const csv = `${header}\n${day}T09:00:00Z,300\n${day}T09:00:00Z,300\n`;
+  await page
+    .locator('input[type="file"][accept=".csv,text/csv"]')
+    .setInputFiles({ name: 'water.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(preview).toContainText('Water: 1 new, 1 already recorded');
+  await preview.getByRole('button', { name: 'Import these records' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 records imported.' })).toBeVisible();
+
+  // Each import is removed as a unit (AC-IMX-6), which leaves the shared account as it was.
+  const history = page.getByRole('region', { name: 'Your imports' });
+  for (let remaining = 2; remaining > 0; remaining--) {
+    await expect(history.getByRole('button', { name: 'Remove' })).toHaveCount(remaining);
+    await history.getByRole('button', { name: 'Remove' }).first().click();
+    await expect
+      .poll(async () => (await chrome(page)).popups.at(-1))
+      .toBe('Remove this import? Every record it brought in is removed; your own records stay.');
+    const removed = page.waitForResponse((r) => /\/api\/v1\/imports\/[^/]+$/.test(r.url()) && r.request().method() === 'DELETE');
+    await answerPopup(page, 'remove');
+    expect((await removed).status()).toBe(200);
+  }
+  await expect(history.getByRole('button', { name: 'Remove' })).toHaveCount(0);
+}

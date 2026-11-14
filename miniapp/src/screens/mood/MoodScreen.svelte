@@ -9,6 +9,7 @@
   import AsyncView from '../../ui/AsyncView.svelte';
   import EmptyState from '../../ui/EmptyState.svelte';
   import OffState from '../../ui/OffState.svelte';
+  import ImportedMark from '../../ui/ImportedMark.svelte';
   import Screen from '../../ui/Screen.svelte';
   import MoodStatement from './MoodStatement.svelte';
   import MoodWeek from './MoodWeek.svelte';
@@ -86,6 +87,7 @@
                   <MoodBlob asset={data.assets.asset} stateId={checkin.blobState} size={36} />
                   <span class="time numeric">{checkin.time}</span>
                   <span class="text">{checkin.label}</span>
+                  {#if checkin.imported}<ImportedMark />{/if}
                   <button type="button" class="btn" aria-label={en.mood.remove(checkin.label, checkin.time)} onclick={() => remove(checkin)}>
                     {en.water.removeShort}
                   </button>

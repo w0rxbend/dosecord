@@ -2,6 +2,7 @@ package dosegram.api
 
 import dosegram.contracts.Weekday
 import dosegram.core.domain.DstKind
+import dosegram.core.domain.EntrySource
 import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
@@ -48,6 +49,10 @@ object ApiCopy:
   private val Workdays = List(Weekday.Mon, Weekday.Tue, Weekday.Wed, Weekday.Thu, Weekday.Fri)
 
   def noSchedule: String = tr("No schedule", "Без розкладу")
+
+  /** An entry an import brought in says so on every surface (ROADMAP G10.5, PRODUCT_SPEC R-IMX-10). */
+  def imported(text: String, source: EntrySource): String =
+    if source == EntrySource.Import then tr(s"$text, imported", s"$text, імпортовано") else text
   def asNeeded: String = tr("as needed", "за потреби")
   def paused(summary: String): String = tr(s"paused: $summary", s"призупинено: $summary")
   def ended(summary: String): String = tr(s"ended: $summary", s"завершено: $summary")
@@ -165,6 +170,8 @@ object ApiCopy:
       )
     case ConsentPurpose.Nutrition =>
       tr("Off. Send /food in the chat to turn it on.", "Вимкнено. Надішліть /food у чаті, щоб увімкнути.")
+    case ConsentPurpose.Import =>
+      tr("Off. Send /import in the chat to turn it on.", "Вимкнено. Надішліть /import у чаті, щоб увімкнути.")
 
   def quietHoursNote: String =
     tr(

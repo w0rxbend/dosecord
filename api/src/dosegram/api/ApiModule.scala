@@ -7,10 +7,12 @@ import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
 import dosegram.core.application.Application
 import dosegram.core.application.exports.ExportRequests
+import dosegram.core.application.imports.ImportService
 import dosegram.core.application.privacy.DeletionRequests
 import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.IdSource
 import dosegram.core.ports.UnitOfWork
 import sttp.model.Method
 import sttp.model.StatusCode
@@ -22,6 +24,7 @@ import sttp.tapir.server.model.ValuedEndpointOutput
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.HexFormat
 import java.util.UUID
 import scala.util.Try
@@ -67,9 +70,12 @@ final class ApiModule(
   private val exports = Exports(uow, clock, exportRequests)
   private val deletions = DeletionRequestsApi(uow, clock, deletionRequests)
   private val depth = MedicationDepthApi(uow, clock)
+  private val imports = Imports(uow, ImportService(clock, IdSource.uuidV7(SecureRandom())))
 
-  /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
-  def sweep(): Int = sessions.sweep() + idempotency.sweep()
+  /** Deletes expired sessions and idempotency records older than 24 hours, and cancels imports left open for a day; the
+    * caller runs it on a period.
+    */
+  def sweep(): Int = sessions.sweep() + idempotency.sweep() + imports.sweep()
 
   /** The bearer check, then the request limits of API-18: an unknown token is 401 before it can spend a budget. */
   private def authenticate(credentials: (String, Method)): Either[ApiFailure, Session] =
@@ -543,6 +549,54 @@ final class ApiModule(
       .handle(session => domain => guarded(deletions.domain(session.accountId, domain)))
   )
 
+  // The import routes (ROADMAP G10.5, G10.7): the import service checks the `import` consent and each domain's; the
+  // template holds no record and needs no session, like the download route.
+  private val importEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    ImportEndpoints.getImportTemplate.handle(kind => guarded(Imports.template(kind))),
+    ImportEndpoints.createImport
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              view <- idempotency.once(session.accountId, parsedKey, hashOf("imports", input)):
+                imports.start(session.accountId, input)
+            yield view
+    ,
+    ImportEndpoints.listImports
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(Right(imports.list(session.accountId)))),
+    ImportEndpoints.getImport
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(imports.get(session.accountId, id))),
+    ImportEndpoints.addImportBatch
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (id, key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              view <- idempotency.once(session.accountId, parsedKey, hashOf(s"imports/$id/batches", input)):
+                imports.addBatch(session.accountId, id, input)
+            yield view
+    ,
+    ImportEndpoints.commitImport
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (id, key) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              view <- idempotency.once(session.accountId, parsedKey, hashOf(s"imports/$id/commit", id.toString)):
+                imports.commit(session.accountId, id)
+            yield view
+    ,
+    ImportEndpoints.deleteImport
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(imports.remove(session.accountId, id)))
+  )
+
   /** The inventory of a medication (ROADMAP G9.10), behind the medication consent like the registry. */
   private val medicationDepthEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     MedicationDepthEndpoints.getInventory
@@ -581,7 +635,8 @@ final class ApiModule(
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     (sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
       hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
-      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints ++ deletionEndpoints).map(localised) :+
+      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints ++ deletionEndpoints ++ importEndpoints)
+      .map(localised) :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

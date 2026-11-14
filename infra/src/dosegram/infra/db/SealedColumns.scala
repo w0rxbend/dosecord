@@ -105,6 +105,12 @@ object SealedColumns:
     SealOwner.AccountOr("t.account_id", TransportPurpose)
   )
 
+  /** A staged record of an open import (V15): the whole normalised record, sealed. It has no plaintext column, so it is
+    * in neither list below: the backfill has nothing to seal and the archive does not export the staging.
+    */
+  val ImportPayload: SealedColumn =
+    SealedColumn("import_staging", "payload", "payload_enc", "id", SealOwner.AccountOf("t.account_id"))
+
   /** Every sealed column, in the order of V11. */
   val all: List[SealedColumn] = List(
     MedicationName,

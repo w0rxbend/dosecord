@@ -57,6 +57,9 @@ final class ProductChatRig(dataSource: DataSource, val clock: MutableClock, purg
       else Inbound.MessageReceived(input, None, truncated = false)
     push(body)
 
+  /** A file sent to the chat as a document. */
+  def document(): List[String] = push(Inbound.MediaReceived(MediaKind.Document, MediaRef(s"file-$user"), None))
+
   /** Taps the choice whose label contains `label` on the latest message whose text contains `containing`. */
   def tap(containing: String, label: String): List[String] =
     val (handle, rendered) = adapter.sent.reverse

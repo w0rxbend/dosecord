@@ -42,5 +42,6 @@ object Copy:
       MedicationDepthCopy.entries ++
       TrendCopy.entries ++
       LanguageCopy.entries ++
+      ImportCopy.entries ++
       PrivacyCopy.entries
 end Copy

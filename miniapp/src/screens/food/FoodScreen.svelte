@@ -6,6 +6,7 @@
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import OffState from '../../ui/OffState.svelte';
+  import ImportedMark from '../../ui/ImportedMark.svelte';
   import Screen from '../../ui/Screen.svelte';
   import MealForm from './MealForm.svelte';
   import { byType, editDraft, MAIN_MEALS, MEAL_KINDS, newDraft, shiftDate, toMealInput, type MealDraft } from './meal';
@@ -111,6 +112,7 @@
               {#each groups[kind] as meal (meal.id)}
                 <div class="row">
                   <span class="text numeric">{meal.time} {meal.description ?? ''}</span>
+                  {#if meal.imported}<ImportedMark />{/if}
                   <button type="button" class="btn" aria-label={en.food.change(meal.text)} onclick={() => { errors = []; draft = editDraft(meal); }}>›</button>
                   <button type="button" class="btn" aria-label={en.food.remove(meal.text)} onclick={() => remove(meal)}>{en.water.removeShort}</button>
                 </div>

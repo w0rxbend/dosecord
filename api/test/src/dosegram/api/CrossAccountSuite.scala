@@ -3,6 +3,8 @@ package dosegram.api
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ExportKind
 import dosegram.core.ports.ExportStatus
+import dosegram.core.ports.ImportJob
+import dosegram.core.ports.ImportStatus
 import dosegram.core.ports.NewExportJob
 import sttp.tapir.AnyEndpoint
 
@@ -24,7 +26,8 @@ final class CrossAccountSuite extends ApiSuite:
       water: Reply,
       checkin: Reply,
       night: Reply,
-      exportId: java.util.UUID
+      exportId: java.util.UUID,
+      importId: java.util.UUID
   ):
     val nightId: String = night.json("id").str
     val waterId: String = water.json("entry")("id").str
@@ -54,6 +57,13 @@ final class CrossAccountSuite extends ApiSuite:
         NewExportJob(exportId, owner.accountId, ExportKind.FullArchive, None, ExportStatus.AwaitingConfirmation, clock.now())
       )
     )
+    val importId = java.util.UUID.randomUUID()
+    uow.transaction(
+      _.imports.create(
+        ImportJob(importId, owner.accountId, dosegram.core.domain.imports.ImportSource.DosegramCsv, ImportStatus.Open,
+          dosegram.core.domain.imports.ImportCounts(), clock.now(), None, None)
+      )
+    )
     World(
       ownerToken,
       login(trackingAccount()),
@@ -62,7 +72,8 @@ final class CrossAccountSuite extends ApiSuite:
       water,
       checkin,
       night,
-      exportId
+      exportId,
+      importId
     )
 
   /** An account with every consent of the routes under test, so a refusal can only come from the identifier. */
@@ -73,7 +84,8 @@ final class CrossAccountSuite extends ApiSuite:
       ConsentPurpose.Hydration,
       ConsentPurpose.Mood,
       ConsentPurpose.Sleep,
-      ConsentPurpose.Nutrition
+      ConsentPurpose.Nutrition,
+      ConsentPurpose.Import
     )
     account
 
@@ -132,7 +144,13 @@ final class CrossAccountSuite extends ApiSuite:
     ),
     "deleteMeal" -> (w => delete(s"/api/v1/meals/$mealId", w.strangerToken)),
     "getExport" -> (w => get(s"/api/v1/exports/${w.exportId}", w.strangerToken)),
-    "createDownloadTicket" -> (w => post(s"/api/v1/exports/${w.exportId}/download-tickets", ujson.Obj(), w.strangerToken))
+    "createDownloadTicket" -> (w => post(s"/api/v1/exports/${w.exportId}/download-tickets", ujson.Obj(), w.strangerToken)),
+    "getImport" -> (w => get(s"/api/v1/imports/${w.importId}", w.strangerToken)),
+    "addImportBatch" -> (w =>
+      post(s"/api/v1/imports/${w.importId}/batches", ujson.Obj("csv" -> "occurred_at,amount_ml\n"), w.strangerToken, newKey())
+    ),
+    "commitImport" -> (w => post(s"/api/v1/imports/${w.importId}/commit", ujson.Obj(), w.strangerToken, newKey())),
+    "deleteImport" -> (w => delete(s"/api/v1/imports/${w.importId}", w.strangerToken))
   )
 
   cases.foreach: (route, request) =>

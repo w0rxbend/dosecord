@@ -152,8 +152,12 @@ object Nutrition:
       occurredAt = entry.occurredAt,
       mealType = kindOf(entry.mealType),
       label = label,
-      text = entry.text.fold(s"$label at $time")(words => s"$label at $time: ${words.value}"),
-      description = entry.text.map(_.value)
+      text = ApiCopy.imported(
+        entry.text.fold(s"$label at $time")(words => s"$label at $time: ${words.value}"),
+        entry.source
+      ),
+      description = entry.text.map(_.value),
+      imported = entry.source == EntrySource.Import
     )
 
   private def dayView(date: LocalDate, days: Map[LocalDate, MealDay], plan: MealPlan): NutritionDay =

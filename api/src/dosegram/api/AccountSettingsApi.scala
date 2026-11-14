@@ -214,4 +214,5 @@ object AccountSettingsApi:
     case ConsentPurpose.CrossDomainPatterns => tr("Comparisons between areas", "Порівняння між розділами")
     case ConsentPurpose.ImagesInChat        => tr("Report images in the chat", "Зображення звітів у чаті")
     case ConsentPurpose.Nutrition           => tr("Meals", "Їжа")
+    case ConsentPurpose.Import              => tr("Imports from files", "Імпорт із файлів")
 end AccountSettingsApi

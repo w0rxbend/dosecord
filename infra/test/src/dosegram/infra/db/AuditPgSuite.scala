@@ -34,6 +34,11 @@ class AuditPgSuite extends PgSuite:
   private val drivenByKeys: Set[AuditEventType] =
     Set(AuditEventType.DekRotated, AuditEventType.KekRotated, AuditEventType.BackfillCompleted)
 
+  /** The written events of an import, which the Mini App drives and no chat action does: `ImportPgSuite` asserts them on
+    * the product's import service.
+    */
+  private val drivenByImports: Set[AuditEventType] = Set(AuditEventType.ImportCommitted, AuditEventType.ImportUndone)
+
   private def withRig(user: String)(test: ProductChatRig => Unit): Unit =
     val purge = FilePurgeList(Files.createTempFile("purge", ".txt"))
     ox.supervised(test(ProductChatRig(dataSource, MutableClock(ProductChatRig.Start), purge, user)))
@@ -139,7 +144,7 @@ class AuditPgSuite extends PgSuite:
       val written = withConnection: conn =>
         given Connection = conn
         sql"SELECT DISTINCT event_type FROM audit_log".query[String]().toSet
-      val expected = AuditEventType.values.filter(_.written).toSet -- drivenByApi -- drivenByKeys
+      val expected = AuditEventType.values.filter(_.written).toSet -- drivenByApi -- drivenByKeys -- drivenByImports
       assertEquals(expected.map(_.code) -- written, Set.empty[String], "written events no row shows")
       assertEquals(
         written -- AuditEventType.values.filter(_.written).map(_.code).toSet,

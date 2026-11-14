@@ -59,6 +59,7 @@ object ErasureCoverage:
   private def promptKinds(kinds: String): String = s"account_id = ? AND kind IN ($kinds)"
   private def rollups(domain: String): String = s"account_id = ? AND domain = '$domain'"
   private def tags(domain: String): String = s"account_id = ? AND domain = '$domain'"
+  private def staged(domain: String): String = s"account_id = ? AND domain = '$domain'"
 
   private def only(domain: DataDomain): Erasure = Erasure.Domain(Own, Map(domain -> Own))
 
@@ -90,6 +91,13 @@ object ErasureCoverage:
     "medication_schedules" -> Erasure.Domain(OwnUser, Map(DataDomain.Medication -> OwnUser)),
     "medications" -> Erasure.Domain(OwnUser, Map(DataDomain.Medication -> OwnUser)),
     "reminders" -> Erasure.AccountWide(Own, "generic reminders, not one domain"),
+    // Imports (V15): the staging holds records of each domain; a job's counts name no value, so a domain deletion
+    // keeps the job rows and an account deletion deletes them.
+    "import_staging" -> Erasure.Domain(
+      Own,
+      DataDomain.values.filter(_ != DataDomain.Medication).map(d => d -> staged(d.code)).toMap
+    ),
+    "import_jobs" -> Erasure.AccountWide(Own, "the history of the account's imports: counts and codes"),
     // Water, mood, sleep, food.
     "hydration_entries" -> only(DataDomain.Hydration),
     "hydration_goals" -> only(DataDomain.Hydration),

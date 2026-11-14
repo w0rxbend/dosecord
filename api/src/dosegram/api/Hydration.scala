@@ -138,7 +138,8 @@ object Hydration:
       time = ApiCopy.clock(entry.occurredAt, entry.zone),
       occurredAt = entry.occurredAt,
       amountMl = entry.amount.millilitres,
-      text = ApiCopy.millilitres(entry.amount.millilitres)
+      text = ApiCopy.imported(ApiCopy.millilitres(entry.amount.millilitres), entry.source),
+      imported = entry.source == EntrySource.Import
     )
 
   /** A day in the server's words. A day without an entry says so; it shows no zero total as a figure of its own. */

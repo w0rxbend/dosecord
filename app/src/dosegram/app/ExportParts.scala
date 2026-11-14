@@ -1,5 +1,6 @@
 package dosegram.app
 
+import dosegram.core.application.capture.ImportChat
 import dosegram.core.application.exports.ExportMessages
 import dosegram.core.ports.Clock
 import dosegram.core.ports.RecordSummaryRenderer
@@ -53,13 +54,15 @@ object PdfRecordSummaryRenderer:
     )
 
 /** The asset store of the adapters, with the files of the exports in it (ROADMAP G10.4): the key of an export resolves
-  * to its file while the export has not expired; every other key is an image of `images`.
+  * to its file while the export has not expired; the key of an import template to the template, which holds no record
+  * (ROADMAP G10.5); every other key is an image of `images`.
   */
 final class ExportAssetStore(uow: UnitOfWork, clock: Clock, images: AssetStore) extends AssetStore:
   override def put(assetKey: String, png: Array[Byte]): Unit = images.put(assetKey, png)
-  override def holds(assetKey: String): Boolean = images.holds(assetKey)
+  override def holds(assetKey: String): Boolean = ImportChat.templateOf(assetKey).isDefined || images.holds(assetKey)
 
   override def load(assetKey: String): Option[Array[Byte]] =
-    ExportMessages.exportIdOf(assetKey) match
-      case Some(id) => uow.transaction(_.exports.fileForDelivery(id, clock.now())).map(_.bytes)
-      case None     => images.load(assetKey)
+    (ExportMessages.exportIdOf(assetKey), ImportChat.templateOf(assetKey)) match
+      case (Some(id), _)       => uow.transaction(_.exports.fileForDelivery(id, clock.now())).map(_.bytes)
+      case (_, Some(template)) => Some(template.content.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+      case _                   => images.load(assetKey)

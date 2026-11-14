@@ -284,7 +284,9 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         303 -> "privacy.keep",
         304 -> "privacy.delete_account_ask",
         305 -> "privacy.delete_account_confirm",
-        306 -> "privacy.delete_account"
+        306 -> "privacy.delete_account",
+        // Imports (ROADMAP G10.5).
+        340 -> "import.template"
       )
     )
 

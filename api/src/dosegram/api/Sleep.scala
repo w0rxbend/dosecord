@@ -17,6 +17,7 @@ import dosegram.core.domain.sleep.SleepBounds
 import dosegram.core.domain.sleep.SleepEpisode
 import dosegram.core.domain.sleep.SleepInvalid
 import dosegram.core.domain.sleep.SleepKind
+import dosegram.core.domain.sleep.SleepTier
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.Tx
@@ -120,6 +121,15 @@ object Sleep:
   /** Where every sleep value comes from (MA-SLEEP-1): every stored episode is the user's own entry. */
   def Source: String = tr("From your check-ins", "З ваших позначок")
 
+  /** Where a night came from, in words (MA-SLEEP-1): a device's night keeps its source (tier 3, PRODUCT_SPEC R-IMX-10).
+    */
+  private def sourceOf(episode: SleepEpisode): String =
+    (episode.source, episode.tier) match
+      case (EntrySource.Import, SleepTier.Sensor) =>
+        tr("Imported from a device export", "Імпортовано з експорту пристрою")
+      case (EntrySource.Import, _) => tr("Imported from a file", "Імпортовано з файлу")
+      case _                       => Source
+
   private def inputOf(accountId: UUID, key: UUID): SleepInput = SleepInput(accountId, EntrySource.MiniApp, s"api:$key")
 
   private def settingsOf(status: SleepStatus): SleepSettings =
@@ -154,12 +164,16 @@ object Sleep:
       wakeTime = wakeTime,
       minutes = minutes,
       duration = StatsCopy.duration(minutes),
-      source = Source,
-      text = tr(
-        s"$noun of ${ApiCopy.dayLabel(episode.sleepDay)}: $bedtime to $wakeTime, ${StatsCopy.duration(minutes)}",
-        s"$noun, ${ApiCopy.dayLabel(episode.sleepDay)}: з $bedtime до $wakeTime, ${StatsCopy.duration(minutes)}"
+      source = sourceOf(episode),
+      text = ApiCopy.imported(
+        tr(
+          s"$noun of ${ApiCopy.dayLabel(episode.sleepDay)}: $bedtime to $wakeTime, ${StatsCopy.duration(minutes)}",
+          s"$noun, ${ApiCopy.dayLabel(episode.sleepDay)}: з $bedtime до $wakeTime, ${StatsCopy.duration(minutes)}"
+        ),
+        episode.source
       ),
-      quality = episode.quality.map(_.step)
+      quality = episode.quality.map(_.step),
+      imported = episode.source == EntrySource.Import
     )
 
   def statusView(status: SleepStatus): SleepStatusView =
