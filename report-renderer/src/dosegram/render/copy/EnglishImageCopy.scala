@@ -504,6 +504,13 @@ object EnglishImageCopy extends ImageCopy:
     }
     (Vector(s"${monthYear(page.month)}, nights and water.") ++ sleep ++ water).mkString(" ")
 
+  def refillTitle: String = "Running low"
+  def refillDiscreetLabel: String = "One of your items is running low."
+  def refillSource: String = "Based on the count you entered."
+  def refillThreshold(threshold: String): String = s"Your threshold: $threshold"
+  def refillUnitsLeft(unit: String): String = s"$unit left"
+  def refillCovers(date: LocalDate): String = s"Covers your schedule until about ${dayDate(date)}."
+
   // The adherence percentage is shown only from five counted doses up (VISUALS section 6.5).
   private val MinimumDosesForPercent = 5
 

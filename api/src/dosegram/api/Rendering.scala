@@ -68,7 +68,9 @@ object ApiCopy:
     "day" -> UkForms("день", "дні", "днів"),
     "night" -> UkForms("ніч", "ночі", "ночей"),
     "schedule" -> UkForms("розклад", "розклади", "розкладів"),
-    "scheduled dose" -> UkForms("запланована доза", "заплановані дози", "запланованих доз")
+    "scheduled dose" -> UkForms("запланована доза", "заплановані дози", "запланованих доз"),
+    "meal" -> UkForms("прийом їжі", "прийоми їжі", "прийомів їжі"),
+    "snack" -> UkForms("перекус", "перекуси", "перекусів")
   )
 
   /** `7 Nov to 13 Nov`: the days a statistics period covers. */

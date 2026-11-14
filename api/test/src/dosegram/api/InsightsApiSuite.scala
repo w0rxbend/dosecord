@@ -42,6 +42,15 @@ final class InsightsApiSuite extends ApiSuite:
 
   private def blocks(reply: Reply): List[ujson.Value] = reply.json("blocks").arr.toList
 
+  /** Every string a person reads in a block: not the ids, tones, shapes, anchors or dates of the wire. */
+  private def wordsOf(value: ujson.Value): List[String] = value match
+    case ujson.Str(text) => List(text)
+    case ujson.Arr(items) => items.toList.flatMap(wordsOf)
+    case ujson.Obj(fields) =>
+      fields.toList.collect { case (key, field) if !Set("id", "tone", "shape", "anchor", "markDates")(key) => field }
+        .flatMap(wordsOf)
+    case _ => Nil
+
   test("without a consent there is no block, and the notice says where consents are given"):
     val overview = get("/api/v1/insights/overview?range=7", login(accountWithoutConsent()))
     assertEquals(overview.status, 200, overview.body)
@@ -215,6 +224,28 @@ final class InsightsApiSuite extends ApiSuite:
     val mood = blocks(get("/api/v1/insights/overview?range=30", login(account))).head
     assertEquals(mood("charts").arr.toList.map(_("id").str), List("mood-by-day"))
     assert(!mood.obj.contains("spark"), "one day has no line")
+
+  test("the dashboard answers in the account's language: titles, marks, tables and the previous period (G2.22)"):
+    val account = accountWithoutConsent("Europe/Kyiv")
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood, ConsentPurpose.Nutrition)
+    drink(account, 600)
+    checkIn(account, 4)
+    val token = login(account)
+    assertEquals(post("/api/v1/meals", ujson.Obj("mealType" -> "lunch"), token, newKey()).status, 201)
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    val chosen = patch("/api/v1/settings", body, token, ifMatch(read))
+    assertEquals(chosen.status, 200, chosen.body)
+    val English = List(
+      "Previous", "per week", "per day", "by week", "average", "no entry", "logged", "check-in", "Week", "Value",
+      "Meals", "Mood", "Water", "Food", "Breakfast", "Pleasant", "pleasant", "Neutral", "of the week", "taken"
+    )
+    List(7, 30, 90).foreach: range =>
+      val overview = get(s"/api/v1/insights/overview?range=$range", token)
+      assertEquals(overview.status, 200, overview.body)
+      val words = blocks(overview).flatMap(wordsOf).mkString("\n")
+      English.foreach(word => assert(!words.contains(word), s"range $range: '$word' in $words"))
+      assert(words.contains("Попередні"), words)
 
   // Last in the suite: it moves the shared clock on by a week.
   test("a record of the week before is the previous period of the 7-day view and not part of its own figures"):

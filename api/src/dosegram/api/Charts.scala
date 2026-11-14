@@ -1,7 +1,9 @@
 package dosegram.api
 
+import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.TrendCopy
+import dosegram.core.domain.copy.UkForms
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
@@ -329,6 +331,14 @@ object Charts:
   /** The local day of every mark of a chart of days, so that a picked mark opens that day (S-13). */
   private def datesOf[A](points: List[DayPoint[A]]): Option[List[String]] = Some(points.map(_.date.toString))
 
+  /** After "з" ("за 3 з 7 днів"): the genitive of the count (ROADMAP G2.22). */
+  private val UkDaysOf = UkForms("дня", "днів", "днів")
+  private val UkScheduledDosesOf = UkForms("запланованої дози", "запланованих доз", "запланованих доз")
+
+  /** `3.4 (neutral), 2 days with a check-in`. */
+  private def withCheckIn(mean: String, days: Int): String =
+    tr(s"$mean${ApiCopy.count(days, "day")} with a check-in", s"$mean${ApiCopy.count(days, "day")} з позначкою")
+
   // ---------- The dashboard of MINI_APP section 7.11 and VISUALS section 9.2 ----------
 
   private val SparkWidth = 120
@@ -403,7 +413,11 @@ object Charts:
       title = title,
       summary = summary,
       scene = Scene(Width, PlotHeight + LabelRoom, bars ++ referenceLine ++ frame ++ weeks.indices.map(columns.hit)),
-      table = ChartTable(title, List("Week", "Value"), weeks.map(week => List(weekLabel(week.range), week.text))),
+      table = ChartTable(
+        title,
+        tr(List("Week", "Value"), List("Тиждень", "Значення")),
+        weeks.map(week => List(weekLabel(week.range), week.text))
+      ),
       marks = weeks.map(week => s"${weekLabel(week.range)}: ${week.text}")
     )
 
@@ -427,15 +441,22 @@ object Charts:
     val columns = weeks.map: week =>
       val own = recordedIn(days, week)
       val average = meanOf(own.map(_.totalMl))
-      val text = average.fold("no entry")(ml =>
-        s"average ${WaterCopy.volume(Math.round(ml).toInt)} a day on ${ApiCopy.count(own.size, "day")}"
-      )
+      val text = average.fold(tr("no entry", "немає запису")): ml =>
+        val volume = WaterCopy.volume(Math.round(ml).toInt)
+        tr(
+          s"average $volume a day on ${ApiCopy.count(own.size, "day")}",
+          s"у середньому $volume на день за ${ApiCopy.count(own.size, "day")}"
+        )
       WeekColumn(week, average, None, text)
     weekBars(
       "water-by-week",
-      "Water per week",
-      s"Water per week, ${ApiCopy.rangeLabel(window)}: the average of the days with an entry. " +
-        s"Entries on ${recorded.size} of ${window.days} days.",
+      tr("Water per week", "Вода за тиждень"),
+      tr(
+        s"Water per week, ${ApiCopy.rangeLabel(window)}: the average of the days with an entry. " +
+          s"Entries on ${recorded.size} of ${window.days} days.",
+        s"Вода за тиждень, ${ApiCopy.rangeLabel(window)}: середнє днів із записом. " +
+          s"Записи є за ${recorded.size} з ${UkDaysOf.count(window.days)}."
+      ),
       SceneTone.Hydration,
       columns,
       goal
@@ -450,18 +471,27 @@ object Charts:
     val columns = weeks.map: week =>
       val own = recordedIn(days, week)
       val average = meanOf(own.map(_.minutes))
-      val text = average.fold("no night logged")(minutes =>
-        s"average ${StatsCopy.duration(Math.round(minutes).toInt)} over ${ApiCopy.count(own.size, "night")}"
-      )
+      val text = average.fold(tr("no night logged", "ночей не записано")): minutes =>
+        val length = StatsCopy.duration(Math.round(minutes).toInt)
+        tr(
+          s"average $length over ${ApiCopy.count(own.size, "night")}",
+          s"у середньому $length за ${ApiCopy.count(own.size, "night")}"
+        )
       WeekColumn(week, average, None, text)
     weekBars(
       "sleep-by-week",
-      "Sleep per week",
-      s"Sleep per week, ${ApiCopy.rangeLabel(window)}, from your check-ins: the average of the nights logged. " +
-        s"Nights logged on ${recordedIn(days, window).size} of ${window.days} days.",
+      tr("Sleep per week", "Сон за тиждень"),
+      tr(
+        s"Sleep per week, ${ApiCopy.rangeLabel(window)}, from your check-ins: the average of the nights logged. " +
+          s"Nights logged on ${recordedIn(days, window).size} of ${window.days} days.",
+        s"Сон за тиждень, ${ApiCopy.rangeLabel(window)}, з ваших позначок: середнє записаних ночей. " +
+          s"Ночі записано за ${recordedIn(days, window).size} з ${UkDaysOf.count(window.days)}."
+      ),
       SceneTone.Sleep,
       columns,
-      goalMinutes.map(minutes => minutes.toDouble -> f"${minutes / 60} h ${minutes % 60}%02d")
+      goalMinutes.map(minutes =>
+        minutes.toDouble -> tr(f"${minutes / 60} h ${minutes % 60}%02d", f"${minutes / 60} год ${minutes % 60}%02d")
+      )
     )
 
   def dosesByWeek(days: Map[LocalDate, MedicationDay], weeks: List[DateRange], window: DateRange): Chart =
@@ -470,14 +500,18 @@ object Charts:
     val columns = weeks.map: week =>
       val buckets = pooled(week)
       val scheduled = scheduledIn(buckets)
-      if scheduled == 0 then WeekColumn(week, None, None, "nothing scheduled")
+      if scheduled == 0 then WeekColumn(week, None, None, tr("nothing scheduled", "нічого не заплановано"))
       else WeekColumn(week, Some(buckets.resolved.taken.toDouble), Some(scheduled.toDouble), dosesOf(buckets))
     val total = pooled(window)
     weekBars(
       "doses-by-week",
-      "Doses by week",
-      s"Scheduled doses by week, ${ApiCopy.rangeLabel(window)}. ${total.resolved.taken} of " +
-        s"${ApiCopy.count(scheduledIn(total), "scheduled dose")} were recorded as taken.",
+      tr("Doses by week", "Дози за тиждень"),
+      tr(
+        s"Scheduled doses by week, ${ApiCopy.rangeLabel(window)}. ${total.resolved.taken} of " +
+          s"${ApiCopy.count(scheduledIn(total), "scheduled dose")} were recorded as taken.",
+        s"Заплановані дози за тиждень, ${ApiCopy.rangeLabel(window)}. Як прийняті записано ${total.resolved.taken} з " +
+          s"${UkScheduledDosesOf.count(scheduledIn(total))}."
+      ),
       SceneTone.Recorded,
       columns,
       None
@@ -487,24 +521,30 @@ object Charts:
     val columns = weeks.map: week =>
       val own = recordedIn(days, week).filter(_.meals > 0)
       val meals = own.map(_.meals).sum
-      if meals == 0 then WeekColumn(week, None, None, "no meal logged")
+      if meals == 0 then WeekColumn(week, None, None, tr("no meal logged", "прийомів їжі не записано"))
       else
         WeekColumn(
           week,
           Some(meals.toDouble),
           None,
-          s"${ApiCopy.count(meals, "meal")} on ${ApiCopy.count(own.size, "day")}"
+          tr(
+            s"${ApiCopy.count(meals, "meal")} on ${ApiCopy.count(own.size, "day")}",
+            s"${ApiCopy.count(meals, "meal")} за ${ApiCopy.count(own.size, "day")}"
+          )
         )
     weekBars(
       "meals-by-week",
-      "Meals per week",
-      s"Meals logged per week, ${ApiCopy.rangeLabel(window)}. A count of entries, with no amount.",
+      tr("Meals per week", "Прийоми їжі за тиждень"),
+      tr(
+        s"Meals logged per week, ${ApiCopy.rangeLabel(window)}. A count of entries, with no amount.",
+        s"Записані прийоми їжі за тиждень, ${ApiCopy.rangeLabel(window)}. Кількість записів, без обсягу."
+      ),
       SceneTone.Nutrition,
       columns,
       None
     )
 
-  private val MealRows = List("Breakfast", "Lunch", "Dinner")
+  private def MealRows: List[String] = tr(List("Breakfast", "Lunch", "Dinner"), List("Сніданок", "Обід", "Вечеря"))
   private val MealLabelWidth = 76
 
   /** The main meals of each day as dots in three rows (MINI_APP section 7.11: presence, not magnitude). */
@@ -528,7 +568,7 @@ object Charts:
     def dayText(point: DayPoint[MealDay]): String =
       point.value
         .filter(_.meals > 0)
-        .fold("no meal logged"): day =>
+        .fold(tr("no meal logged", "прийомів їжі не записано")): day =>
           val main = MealRows.zip(List(day.breakfast, day.lunch, day.dinner)).collect {
             case (name, n) if n > 0 =>
               name.toLowerCase(Locale.ROOT)
@@ -538,16 +578,19 @@ object Charts:
     val logged = points.count(_.value.exists(_.meals > 0))
     Chart(
       id = "meals-by-day",
-      title = "Meals per day",
-      summary = s"Main meals logged per day, ${ApiCopy.rangeLabel(window)}. Meals on $logged of ${points.size} days.",
+      title = tr("Meals per day", "Прийоми їжі за день"),
+      summary = tr(
+        s"Main meals logged per day, ${ApiCopy.rangeLabel(window)}. Meals on $logged of ${points.size} days.",
+        s"Основні прийоми їжі за день, ${ApiCopy.rangeLabel(window)}. Записи є за $logged з ${UkDaysOf.count(points.size)}."
+      ),
       scene = Scene(
         Width,
         PlotHeight + LabelRoom,
         rows ++ dots ++ dateLabels(points, MealLabelWidth) ++ points.indices.map(columns.hit)
       ),
       table = ChartTable(
-        "Meals per day",
-        List("Day", "Meals"),
+        tr("Meals per day", "Прийоми їжі за день"),
+        tr(List("Day", "Meals"), List("День", "Прийоми їжі")),
         points.map(point => List(ApiCopy.dayLabel(point.date), dayText(point).capitalize))
       ),
       marks = points.map(point => s"${ApiCopy.dayLabel(point.date)}: ${dayText(point)}"),
@@ -558,7 +601,10 @@ object Charts:
     MoodPlotTop + (MoodSteps - mean) / (MoodSteps - 1) * (PlotHeight - MoodPlotTop)
 
   private def moodLevels: List[SceneNode] =
-    List(5 -> "Very pleasant", 3 -> "Neutral", 1 -> "Very unpleasant").flatMap: (step, name) =>
+    tr(
+      List(5 -> "Very pleasant", 3 -> "Neutral", 1 -> "Very unpleasant"),
+      List(5 -> "Дуже приємно", 3 -> "Нейтрально", 1 -> "Дуже неприємно")
+    ).flatMap: (step, name) =>
       List(
         line(Point(MoodLabelWidth, moodY(step.toDouble)), Point(Width, moodY(step.toDouble)), SceneTone.Separator),
         label(Point(0, moodY(step.toDouble) + 4), name, SceneAnchor.Start)
@@ -579,21 +625,25 @@ object Charts:
         .copy(radius = Some(3.5), mark = Some(index))
     }
     val texts = means.map:
-      case (Some(mean), n) => s"${TrendCopy.moodMean(mean)}, ${ApiCopy.count(n, "day")} with a check-in"
-      case (None, _)       => "no check-in"
+      case (Some(mean), n) => withCheckIn(s"${TrendCopy.moodMean(mean)}, ", n)
+      case (None, _)       => tr("no check-in", "немає позначки")
     Chart(
       id = "mood-by-week",
-      title = "Mood per week",
-      summary = s"Mood per week, ${ApiCopy.rangeLabel(window)}: the average of the days with a check-in. " +
-        "A week without a check-in is a gap.",
+      title = tr("Mood per week", "Настрій за тиждень"),
+      summary = tr(
+        s"Mood per week, ${ApiCopy.rangeLabel(window)}: the average of the days with a check-in. " +
+          "A week without a check-in is a gap.",
+        s"Настрій за тиждень, ${ApiCopy.rangeLabel(window)}: середнє днів із позначкою. " +
+          "Тиждень без позначки показано як пропуск."
+      ),
       scene = Scene(
         Width,
         PlotHeight + LabelRoom,
         moodLevels ++ joins ++ dots ++ weekEnds(weeks, MoodLabelWidth) ++ weeks.indices.map(columns.hit)
       ),
       table = ChartTable(
-        "Mood per week",
-        List("Week", "Mood"),
+        tr("Mood per week", "Настрій за тиждень"),
+        tr(List("Week", "Mood"), List("Тиждень", "Настрій")),
         weeks.zip(texts).map((week, text) => List(weekLabel(week), text.capitalize))
       ),
       marks = weeks.zip(texts).map((week, text) => s"${weekLabel(week)}: $text")
@@ -609,23 +659,31 @@ object Charts:
         SceneNode(SceneShape.Circle, rounded(columns.centre(index)), rounded(moodY(mean)), SceneTone.Mood)
           .copy(radius = Some(4.0), mark = Some(index))
     val names = weekdays.zipWithIndex.map: (row, index) =>
-      val short = row.day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+      val short = row.day.getDisplayName(TextStyle.SHORT, Formats.locale)
       label(Point(columns.centre(index), PlotHeight + 16.0), short, SceneAnchor.Middle)
     def text(row: WeekdayMood): String =
       row.mean.shown match
-        case Some(mean)            => s"${TrendCopy.moodMean(mean)}, ${ApiCopy.count(row.days, "day")} with a check-in"
-        case None if row.days == 0 => "no check-in"
-        case None                  => s"${ApiCopy.count(row.days, "day")} with a check-in, an average needs 3"
-    def name(row: WeekdayMood): String = row.day.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+        case Some(mean)            => withCheckIn(s"${TrendCopy.moodMean(mean)}, ", row.days)
+        case None if row.days == 0 => tr("no check-in", "немає позначки")
+        case None                  =>
+          tr(
+            s"${ApiCopy.count(row.days, "day")} with a check-in, an average needs 3",
+            s"${ApiCopy.count(row.days, "day")} з позначкою, для середнього потрібно 3"
+          )
+    def name(row: WeekdayMood): String = row.day.getDisplayName(TextStyle.FULL_STANDALONE, Formats.locale)
     Chart(
       id = "mood-by-weekday",
-      title = "Mood by day of the week",
-      summary = s"Average mood by day of the week, ${ApiCopy.rangeLabel(window)}, from the days with a check-in. " +
-        "A day of the week needs 3 such days for an average.",
+      title = tr("Mood by day of the week", "Настрій за днями тижня"),
+      summary = tr(
+        s"Average mood by day of the week, ${ApiCopy.rangeLabel(window)}, from the days with a check-in. " +
+          "A day of the week needs 3 such days for an average.",
+        s"Середній настрій за днями тижня, ${ApiCopy.rangeLabel(window)}, з днів із позначкою. " +
+          "Для середнього дню тижня потрібно 3 такі дні."
+      ),
       scene = Scene(Width, PlotHeight + LabelRoom, moodLevels ++ dots ++ names ++ weekdays.indices.map(columns.hit)),
       table = ChartTable(
-        "Mood by day of the week",
-        List("Day of the week", "Mood"),
+        tr("Mood by day of the week", "Настрій за днями тижня"),
+        tr(List("Day of the week", "Mood"), List("День тижня", "Настрій")),
         weekdays.map(row => List(name(row), text(row).capitalize))
       ),
       marks = weekdays.map(row => s"${name(row)}: ${text(row)}")
@@ -661,26 +719,32 @@ object Charts:
       val points = dates.map(date => DayPoint(date, Option.empty[Unit]))
       def dayText(date: LocalDate): String =
         val own = bars.filter(_.date == date)
-        if own.isEmpty then "no night logged"
+        if own.isEmpty then tr("no night logged", "ночей не записано")
         else
           own
-            .map(bar => s"${if bar.isNap then "nap " else ""}${clockOf(bar.fromMinute)} to ${clockOf(bar.toMinute)}")
+            .map: bar =>
+              val (from, to) = (clockOf(bar.fromMinute), clockOf(bar.toMinute))
+              if bar.isNap then tr(s"nap $from to $to", s"денний сон $from – $to")
+              else tr(s"$from to $to", s"$from – $to")
             .mkString(", ")
       val nights = bars.filterNot(_.isNap).map(_.date).distinct.size
       Chart(
         id = "sleep-times",
-        title = "Sleep times",
-        summary =
+        title = tr("Sleep times", "Час сну"),
+        summary = tr(
           s"Sleep times, ${ApiCopy.rangeLabel(window)}, from your check-ins: when each night began and ended, " +
             s"on a clock from evening to morning. Nights logged on $nights of ${dates.size} days.",
+          s"Час сну, ${ApiCopy.rangeLabel(window)}, з ваших позначок: коли кожна ніч почалася й закінчилася, " +
+            s"на шкалі від вечора до ранку. Ночі записано за $nights з ${UkDaysOf.count(dates.size)}."
+        ),
         scene = Scene(
           Width,
           PlotHeight + LabelRoom,
           axis ++ nodes ++ dateLabels(points, AxisWidth) ++ dates.indices.map(columns.hit)
         ),
         table = ChartTable(
-          "Sleep times",
-          List("Day", "Slept"),
+          tr("Sleep times", "Час сну"),
+          tr(List("Day", "Slept"), List("День", "Сон")),
           dates.map(date => List(ApiCopy.dayLabel(date), dayText(date).capitalize))
         ),
         marks = dates.map(date => s"${ApiCopy.dayLabel(date)}: ${dayText(date)}"),

@@ -117,6 +117,18 @@ class MedicationDepthPgSuite extends PgSuite:
     assertEquals(rig.notices.size, 2, "again after 3 days")
     assertEquals(rig.errors.toList, Nil)
 
+  test("the refill notice is written in the account's language (ROADMAP G2.22)"):
+    val rig = Rig(onHand = 3)
+    fixtures.uow.transaction: tx =>
+      val settings = tx.accounts.settingsOf(rig.account).get
+      tx.accounts.saveSettings(rig.account, settings.copy(locale = Some("uk")), rig.clock.now())
+    rig.clock.at = local(21, "07:30")
+    rig.loop.tick()
+    val notice = rig.notices.head
+    assert(notice.contains("Iron: за вашим підрахунком лишилося близько 3 tablets."), notice)
+    assert(notice.contains("Показати картку") && notice.contains("Досить для цієї пачки"), notice)
+    assertEquals(rig.errors.toList, Nil)
+
   test("Stop for this pack ends the notices; a refill with the offered quantity starts them again later"):
     val rig = Rig(onHand = 3)
     fixtures.uow.transaction(_.medicationDepth.inventory.refill(rig.account, rig.medication, 1, "first", rig.clock.now()))

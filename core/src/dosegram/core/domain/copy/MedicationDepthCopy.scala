@@ -107,7 +107,10 @@ object MedicationDepthCopy:
   // ---------- inventory and the refill notice (R-REG-14 to R-REG-16, BOT_UX 10.5, IMG-15) ----------
 
   private def units(n: BigDecimal, unit: Option[String]): String =
-    s"${decimal(n.bigDecimal.stripTrailingZeros.toPlainString)} ${unit.getOrElse(tr("units", "од."))}"
+    s"${decimal(n.bigDecimal.stripTrailingZeros.toPlainString)} ${unit.getOrElse(unitsWord)}"
+
+  /** The unit word of a count whose dose unit is not countable. */
+  def unitsWord: String = tr("units", "од.")
 
   private def coversUntil(until: Option[LocalDate]): String =
     until.fold("")(d =>

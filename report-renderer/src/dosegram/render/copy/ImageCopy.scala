@@ -189,6 +189,14 @@ trait ImageCopy:
   def milestoneLabel(milestone: MilestoneData): String
   def milestoneText(milestone: MilestoneData): String
 
+  // Refill (IMG-15). The label, the count, the unit and the threshold come from the user's own entries.
+  def refillTitle: String
+  def refillDiscreetLabel: String
+  def refillSource: String
+  def refillThreshold(threshold: String): String
+  def refillUnitsLeft(unit: String): String
+  def refillCovers(date: LocalDate): String
+
 /** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
 final case class MonthSummary(
     month: YearMonth,

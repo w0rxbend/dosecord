@@ -528,6 +528,14 @@ object UkrainianImageCopy extends ImageCopy:
     }
     (Vector(s"${monthYear(page.month)}, ночі й вода.") ++ sleep ++ water).mkString(" ")
 
+  def refillTitle: String = "Залишок закінчується"
+  def refillDiscreetLabel: String = "Одна з ваших позицій закінчується."
+  def refillSource: String = "За залишком, який ви ввели."
+  def refillThreshold(threshold: String): String = s"Ваш поріг: $threshold"
+  // The unit alone under the count: the title already says it is what is left, and the column is narrow.
+  def refillUnitsLeft(unit: String): String = unit
+  def refillCovers(date: LocalDate): String = s"Вистачить приблизно до ${dayDate(date)}."
+
   // The adherence percentage is shown only from five counted doses up (VISUALS section 6.5).
   private val MinimumDosesForPercent = 5
 

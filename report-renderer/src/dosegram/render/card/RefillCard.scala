@@ -1,5 +1,6 @@
 package dosegram.render.card
 
+import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.scene.Align
 import dosegram.render.scene.Box
 import dosegram.render.scene.Channel
@@ -12,8 +13,6 @@ import dosegram.render.scene.TextKind
 import dosegram.render.tokens.TextStyle
 
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /** The values of IMG-15: the label, the count the user keeps, the unit word, the user's threshold (in units when it is
   * one, always as words), the last day the count covers on the user's schedule, and the text equivalent.
@@ -40,17 +39,18 @@ object RefillCard:
   private val CellHeightPx = 56.0
   private val RowTop = 268.0
   private val NumberColumnPx = 240.0
-  private val DateFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
 
-  val Title = "Running low"
-  val DiscreetLabel = "One of your items is running low."
-  val Source = "Based on the count you entered."
+  // The English words, for callers that name them; the card itself asks the context's catalogue (ROADMAP G2.22).
+  val Title: String = EnglishImageCopy.refillTitle
+  val DiscreetLabel: String = EnglishImageCopy.refillDiscreetLabel
+  val Source: String = EnglishImageCopy.refillSource
 
   def render(data: RefillData, context: CardContext): CardOutput =
     val frame = CardFrame(context, CardFrame.Wide, context.tokens.surface)
     val tokens = frame.tokens
+    val copy = context.copy
     val discreet = context.privacy == Privacy.Discreet
-    val label = if discreet then DiscreetLabel else data.label
+    val label = if discreet then copy.refillDiscreetLabel else data.label
     val rowWidth = frame.width - NumberColumnPx
     val cell = (rowWidth - CellGapPx * (Cells - 1)) / Cells
     val solid = data.onHand.setScale(0, BigDecimal.RoundingMode.FLOOR).toInt.min(Cells).max(0)
@@ -79,8 +79,8 @@ object RefillCard:
     val quiet = TextLook(TextStyle.Label, tokens.ink2, Align.Start, TextKind.Label)
     val right = TextLook(TextStyle.Hero, tokens.ink, Align.End, TextKind.Value)
     val unitLook = TextLook(TextStyle.Label, tokens.ink2, Align.End, TextKind.Label)
-    val covers = data.coversUntil.map(d => s"Covers your schedule until about ${d.format(DateFormat)}.")
-    val nodes = frame.header(Title, "")
+    val covers = data.coversUntil.map(copy.refillCovers)
+    val nodes = frame.header(copy.refillTitle, "")
       ++ Vector(
         frame.text(
           label,
@@ -92,12 +92,12 @@ object RefillCard:
       ++ cells
       ++ marker.toVector
       ++ Vector(
-        frame.text(s"Your threshold: ${data.threshold}", Point(frame.left, 392), quiet, rowWidth),
+        frame.text(copy.refillThreshold(data.threshold), Point(frame.left, 392), quiet, rowWidth),
         frame.text(number, Point(frame.right, 360), right, NumberColumnPx),
-        frame.text(s"${data.unit} left", Point(frame.right, 420), unitLook, NumberColumnPx)
+        frame.text(copy.refillUnitsLeft(data.unit), Point(frame.right, 420), unitLook, NumberColumnPx)
       )
       ++ covers.map(line => frame.text(line, Point(frame.left, 480), ink, frame.width)).toVector
-      ++ Vector(frame.text(Source, Point(frame.left, 540), quiet, frame.width), frame.footer)
-    val text = TextEquivalent.of(data.text, DiscreetLabel, context)
+      ++ Vector(frame.text(copy.refillSource, Point(frame.left, 540), quiet, frame.width), frame.footer)
+    val text = TextEquivalent.of(data.text, copy.refillDiscreetLabel, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-refill.png", discreet)
 end RefillCard

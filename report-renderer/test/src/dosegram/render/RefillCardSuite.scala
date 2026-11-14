@@ -3,6 +3,7 @@ package dosegram.render
 import dosegram.render.card.Privacy
 import dosegram.render.card.RefillCard
 import dosegram.render.card.RefillData
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.lint.LintRules
 import dosegram.render.lint.SceneLint
 import dosegram.render.scene.Node
@@ -63,3 +64,24 @@ class RefillCardSuite extends munit.FunSuite:
       val rules = LintRules(Tokens.of(theme).palette, Set(card.scene.background), TableTextMeasurer)
       assertEquals(SceneLint.violations(card.scene, rules), Vector.empty, theme.toString)
       assertEquals(dosegram.render.svg.SvgProfile.violations(dosegram.render.svg.SvgEmitter.emit(card.scene)), Vector.empty)
+
+  test("the Ukrainian catalogue draws every fixed word of the card in Ukrainian (ROADMAP G2.22)"):
+    val ukrainian = data.copy(threshold = "10 tablets", text = "Metformin 500 mg: за вашим підрахунком лишилося 6 tablets.")
+    Theme.values.foreach: theme =>
+      val card = RefillCard.render(ukrainian, Samples.context(theme, Privacy.Aggregate, UkrainianImageCopy))
+      val words = texts(card.scene.nodes)
+      assert(words.contains(UkrainianImageCopy.refillTitle), words.toString)
+      assert(words.contains("Вистачить приблизно до Нд 15 листопада."), words.toString)
+      assert(words.contains(UkrainianImageCopy.refillSource), words.toString)
+      assert(!words.exists(_.contains("…")), s"a word is cut: $words")
+      List("Running low", "Your threshold", " left", "Covers", "Based on").foreach: english =>
+        assert(!words.exists(_.contains(english)), s"'$english' in: $words")
+      // As the English lint above: a days threshold, since the units marker's attention colour is outside the palette.
+      val linted = RefillCard.render(
+        ukrainian.copy(thresholdUnits = None),
+        Samples.context(theme, Privacy.Aggregate, UkrainianImageCopy)
+      )
+      val rules = LintRules(Tokens.of(theme).palette, Set(linted.scene.background), TableTextMeasurer)
+      assertEquals(SceneLint.violations(linted.scene, rules), Vector.empty, theme.toString)
+    val discreet = RefillCard.render(ukrainian, Samples.context(Theme.Dark, Privacy.Discreet, UkrainianImageCopy))
+    assertEquals(discreet.text.caption, UkrainianImageCopy.refillDiscreetLabel)

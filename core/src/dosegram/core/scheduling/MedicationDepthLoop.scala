@@ -14,6 +14,7 @@ import dosegram.core.application.medication.MedicationDepthChat
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.inventory.Inventory
 import dosegram.core.domain.reminders.DayAnchors
@@ -59,9 +60,20 @@ final class MedicationDepthLoop(
   def tick(): Int =
     val now = clock.now()
     val resumes = uow.transaction(_.medicationDepth.pauses.dueResumes(now, Batch))
-    val resumed = resumes.count(due => guarded(due.scheduleId)(uow.transaction(resume(_, due, now))))
+    val resumed =
+      resumes.count(due =>
+        guarded(due.scheduleId)(uow.transaction(tx => inLanguage(tx, due.accountId)(resume(tx, due, now))))
+      )
     val candidates = uow.transaction(_.medicationDepth.inventory.noticeCandidates(now.minus(Repeat), Batch))
-    resumed + candidates.count(inventory => guarded(inventory.medicationId)(uow.transaction(notice(_, inventory, now))))
+    resumed + candidates.count(inventory =>
+      guarded(inventory.medicationId)(
+        uow.transaction(tx => inLanguage(tx, inventory.accountId)(notice(tx, inventory, now)))
+      )
+    )
+
+  /** Each notice is written in its account's language (ROADMAP G2.22), as the prompt loop writes its plans. */
+  private def inLanguage[A](tx: Tx, accountId: UUID)(body: => A): A =
+    Lang.within(tx.accounts.languageOf(accountId))(body)
 
   private def guarded(id: UUID)(work: => Boolean): Boolean =
     try work
