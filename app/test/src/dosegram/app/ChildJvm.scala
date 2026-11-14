@@ -1,8 +1,11 @@
 package dosegram.app
 
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
@@ -43,8 +46,39 @@ object ChildJvm:
     builder.redirectOutput(log.toFile)
     new ChildJvm(builder.start(), log)
 
-/** A TCP port that was free a moment ago, for a listener the test starts next. */
-def freePort(): Int =
-  val socket = ServerSocket(0)
-  try socket.getLocalPort
-  finally socket.close()
+/** A TCP port for a listener the test starts next. A bind to port 0 hands out a port of the kernel's ephemeral range,
+  * where every outgoing connection of this JVM (JDBC, Testcontainers, HTTP clients) also takes its local port, so one of
+  * them could take it before the listener binds it. This port comes from just below that range instead, which the
+  * kernel never assigns on its own; a counter keeps the calls of this JVM apart, and a port that does not bind is
+  * skipped.
+  */
+def freePort(): Int = FreePorts.next()
+
+private object FreePorts:
+
+  /** Ports per JVM before the counter starts again at the bottom of the range. */
+  private val Span = 10_000
+
+  private val top: Int =
+    val range = Path.of("/proc/sys/net/ipv4/ip_local_port_range")
+    // A file of /proc reports no size, so it is read by line: readString would stop early.
+    if Files.exists(range) then Files.readAllLines(range).get(0).trim.split("\\s+").head.toInt else 32768
+
+  private val bottom = (top - Span).max(1024)
+
+  // Two test JVMs that run at once start apart.
+  private val counter = AtomicInteger((ProcessHandle.current().pid() % (top - bottom)).toInt)
+
+  @annotation.tailrec
+  def next(): Int =
+    val port = bottom + Math.floorMod(counter.getAndIncrement(), top - bottom)
+    if bindable(port) then port else next()
+
+  private def bindable(port: Int): Boolean =
+    try
+      val socket = ServerSocket()
+      try
+        socket.bind(InetSocketAddress("127.0.0.1", port))
+        true
+      finally socket.close()
+    catch case _: java.io.IOException => false
