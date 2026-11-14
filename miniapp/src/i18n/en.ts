@@ -71,6 +71,8 @@ export const en = {
     notSaved: 'Not saved. Try again.',
     quota_exceeded: 'The limit for today is reached. Nothing more can be added today.',
     stepup_required: 'Confirm this in the chat with Dosegram.',
+    stepup_pending: 'Confirm this in the chat with Dosegram first.',
+    rate_limited: 'Too many requests. Try again later.',
   },
 
   today: {
@@ -414,6 +416,39 @@ export const en = {
     privacyHint: 'What you turned on, and how to change it',
     reminders: 'Reminders',
     remindersHint: 'Presets, work hours and a preview of tomorrow',
+  },
+
+  // MINI_APP S-14. The record summary is never called a clinical or medical report (PRODUCT_SPEC R-IMX-6).
+  reports: {
+    title: 'Reports and export',
+    hint: 'Record summary and a copy of all your records',
+    loading: 'Loading your exports',
+    summaryTitle: 'Record summary',
+    summaryText: 'A plain record of what you logged, as a PDF. It is not a clinical report.',
+    period: 'Period',
+    days: (count: number) => (count === 365 ? 'Last 12 months' : `Last ${count} days`),
+    makeSummary: 'Make record summary',
+    exportTitle: 'Export everything',
+    exportText:
+      'One ZIP file with JSON and CSV for each area, your consent history and access history. ' +
+      'You confirm it in the chat; then it can be downloaded once, for 15 minutes.',
+    requestExport: 'Request export',
+    confirmInChat: 'Confirm it in the chat with Dosegram. This page updates by itself.',
+    listTitle: 'Your files',
+    none: 'No file yet.',
+    full: 'Full export',
+    summaryOf: (from: string, to: string) => `Record summary, ${from} to ${to}`,
+    awaiting: 'Waiting for your confirmation in chat',
+    preparing: 'Preparing',
+    ready: (time: string) => `Ready until ${time}`,
+    downloaded: 'Downloaded',
+    expired: 'Expired',
+    notMade: 'Could not be made. Try again.',
+    download: 'Download',
+    downloadStarted: 'Telegram is saving the file.',
+    downloadUnavailable:
+      'This Telegram cannot save files from the app. In the chat, use "Send the file to this chat" instead.',
+    limit: (time: string) => `You can export 3 times in 24 hours. The next export is possible at ${time}.`,
   },
 
   reminders: {

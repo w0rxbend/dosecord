@@ -638,3 +638,37 @@ export interface ReminderTimeline {
   readonly date: LocalDate;
   readonly entries: readonly ReminderTimelineEntry[];
 }
+
+// ---------- exports (MINI_APP S-14, ARCHITECTURE 9.7) ----------
+
+export type ExportKind = 'full_zip' | 'record_summary_pdf';
+
+/** MA-REP-5: the states the page shows while it is open. */
+export type ExportState = 'awaiting_confirmation' | 'preparing' | 'ready' | 'downloaded' | 'expired' | 'failed';
+
+export interface ExportItem {
+  readonly id: string;
+  readonly kind: ExportKind;
+  readonly state: ExportState;
+  readonly from?: LocalDate;
+  readonly to?: LocalDate;
+  readonly fileName?: string;
+  readonly byteSize?: number;
+  readonly createdAt: string;
+  readonly expiresAt?: string;
+}
+
+export interface ExportRequest {
+  readonly kind: ExportKind;
+  /** The record summary of the last so many days, in the account's time zone. */
+  readonly days?: number;
+  readonly from?: LocalDate;
+  readonly to?: LocalDate;
+}
+
+/** `url` is absolute: the Telegram client fetches it with downloadFile (MA-NATIVE-13). */
+export interface ExportTicket {
+  readonly url: string;
+  readonly fileName: string;
+  readonly expiresAt: string;
+}

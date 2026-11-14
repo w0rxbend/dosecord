@@ -1,6 +1,13 @@
 // In-memory backend for browser development and tests. It must not ship (MA-TEST-2).
 import { ApiError, type ApiClient, type FieldError } from '../api/client';
-import type { Medication, MedicationDraft, OccurrenceActionResult, Schedule, ScheduleDraft } from '../api/types';
+import type {
+  ExportItem,
+  Medication,
+  MedicationDraft,
+  OccurrenceActionResult,
+  Schedule,
+  ScheduleDraft,
+} from '../api/types';
 import { parseDecimal, isPositive } from '../forms/decimal';
 import {
   MEDICATION_OPTIONS,
@@ -60,6 +67,8 @@ export class MockBackend implements ApiClient {
   private readonly answered = new Map<string, OccurrenceActionResult>();
   private readonly replies = new Map<string, unknown>();
   private nextId = 1;
+  /** The exports, newest first. Tests confirm one with `confirmExport`, as the chat would. */
+  exportItems: ExportItem[] = [];
 
   constructor(options: MockBackendOptions = {}) {
     this.now = options.now ?? (() => new Date());
@@ -325,4 +334,64 @@ export class MockBackend implements ApiClient {
     }
     return preview;
   }
+
+  // ---------- exports (MINI_APP S-14) ----------
+
+  exports: ApiClient['exports'] = () => this.respond('exports', () => [...this.exportItems]);
+
+  exportItem: ApiClient['exportItem'] = (id) => this.respond('exports:item', () => this.findExport(id));
+
+  requestExport: ApiClient['requestExport'] = (request, key) =>
+    this.respond('exports:create', () =>
+      this.once(key, () => {
+        const since = this.now().getTime() - 24 * 3_600_000;
+        const recent = this.exportItems.filter((item) => Date.parse(item.createdAt) > since);
+        if (recent.length >= 3) throw new ApiError('rate_limited', 'MOCK-0429', [], 3600);
+        const item: ExportItem = {
+          id: `export-${this.nextId++}`,
+          kind: request.kind,
+          state: 'awaiting_confirmation',
+          from: request.from,
+          to: request.to,
+          createdAt: this.now().toISOString(),
+        };
+        this.exportItems = [item, ...this.exportItems];
+        return item;
+      }),
+    );
+
+  downloadTicket: ApiClient['downloadTicket'] = (id) =>
+    this.respond('exports:ticket', () => {
+      const item = this.findExport(id);
+      if (item.state === 'awaiting_confirmation') throw new ApiError('stepup_pending', 'MOCK-0409');
+      if (item.state !== 'ready') throw new ApiError('not_found', 'MOCK-0404');
+      return {
+        url: `http://localhost/api/v1/downloads/mock-${id}`,
+        fileName: item.fileName ?? 'export',
+        expiresAt: item.expiresAt ?? '',
+      };
+    });
+
+  /** The confirming tap in the chat and the worker, in one step: the export is ready for 15 minutes. */
+  confirmExport(id: string): void {
+    const ready = new Date(this.now().getTime() + 15 * 60_000).toISOString();
+    this.exportItems = this.exportItems.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            state: 'ready',
+            fileName: item.kind === 'full_zip' ? 'dosegram-export-20261114.zip' : 'dosegram-report-20261114.pdf',
+            byteSize: 48_213,
+            expiresAt: ready,
+          }
+        : item,
+    );
+  }
+
+  private findExport(id: string): ExportItem {
+    const found = this.exportItems.find((item) => item.id === id);
+    if (!found) throw new ApiError('not_found', 'MOCK-0404');
+    return found;
+  }
+
 }

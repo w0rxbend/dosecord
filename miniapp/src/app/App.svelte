@@ -42,6 +42,7 @@
   const timeZone = () => import('../screens/settings/TimeZoneScreen.svelte');
   const quietHours = () => import('../screens/settings/QuietHoursScreen.svelte');
   const privacy = () => import('../screens/settings/PrivacyScreen.svelte');
+  const reports = () => import('../screens/reports/ReportsScreen.svelte');
 </script>
 
 <div class="app" class:with-tabs={atRoot}>
@@ -93,6 +94,8 @@
         <Lazy load={privacy} props={{}} />
       {:else if route.screen === 'reminders'}
         <Lazy load={reminders} props={{}} />
+      {:else if route.screen === 'reports'}
+        <Lazy load={reports} props={{}} />
       {:else}
         <Lazy load={insights} props={{}} />
       {/if}

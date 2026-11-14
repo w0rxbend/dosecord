@@ -10,6 +10,7 @@ import type {
   CalendarSwatch,
   Chart,
   Consents,
+  ExportItem,
   InsightCalendar,
   InsightRange,
   InsightsOverview,
@@ -413,4 +414,10 @@ export function toReminderPresets(wire: Wire['ReminderPresets']): ReminderPreset
 
 export function toReminderTimeline(wire: Wire['ReminderTimeline']): ReminderTimeline {
   return { date: wire.date, entries: wire.entries ?? [] };
+}
+
+// ---------- exports (MINI_APP S-14) ----------
+
+export function toExportItem(wire: Wire['ExportView']): ExportItem {
+  return { ...wire };
 }

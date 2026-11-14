@@ -53,6 +53,7 @@ interface NativeWebApp {
     params: { title?: string; message: string; buttons: { id: string; type: string; text: string }[] },
     callback: (buttonId: string | null) => void,
   ): void;
+  downloadFile?(params: { url: string; file_name: string }, callback: (accepted: boolean) => void): void;
 }
 
 declare global {
@@ -152,6 +153,14 @@ export function createRealTelegramPort(host: Window = window): TelegramPort | nu
           text: button.text,
         }));
         app.showPopup({ title: params.title, message: params.message, buttons }, resolve);
+      }),
+    downloadFile: (params) =>
+      new Promise((resolve) => {
+        if (!app.downloadFile || !app.isVersionAtLeast('8.0')) {
+          resolve(false);
+          return;
+        }
+        app.downloadFile({ url: params.url, file_name: params.fileName }, (accepted) => resolve(accepted));
       }),
   };
 }

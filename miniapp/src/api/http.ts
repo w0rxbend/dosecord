@@ -14,6 +14,7 @@ import {
   toWaterSettings,
   toSleepStatus,
   toDayProfile,
+  toExportItem,
   toReminderPresets,
   toReminders,
   toReminderTimeline,
@@ -54,13 +55,21 @@ const CODES: Readonly<Record<string, ApiErrorCode>> = {
   idempotency_key_reuse: 'validation',
   quota_exceeded: 'quota_exceeded',
   stepup_required: 'stepup_required',
+  stepup_pending: 'stepup_pending',
+  rate_limited: 'rate_limited',
 };
 
 /** A problem document becomes a typed error; its code is mapped, its title is never shown (8.3). */
 async function problemOf(response: Response): Promise<ApiError> {
   const problem = (await response.json().catch(() => ({}))) as Partial<Wire['Problem']>;
   const code = (problem.code && CODES[problem.code]) || 'server';
-  return new ApiError(code, problem.requestId, (problem.errors ?? []).map(toFieldError));
+  const retryAfter = Number(response.headers.get('Retry-After') ?? '');
+  return new ApiError(
+    code,
+    problem.requestId,
+    (problem.errors ?? []).map(toFieldError),
+    Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+  );
 }
 
 async function send(url: string, token: string | null, options: RequestOptions): Promise<Response> {
@@ -315,6 +324,20 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
 
     insightsOverview: async (rangeDays) =>
       toInsightsOverview(await request<Wire['InsightsOverview']>(`insights/overview?range=${rangeDays}`), rangeDays),
+
+    exports: async () => ((await request<Wire['ExportList']>('exports')).items ?? []).map(toExportItem),
+    exportItem: async (exportId) => toExportItem(await request<Wire['ExportView']>(`exports/${id(exportId)}`)),
+    requestExport: async (input, key) => {
+      const body: Wire['ExportInput'] = { ...input };
+      return toExportItem(await request<Wire['ExportView']>('exports', { method: 'POST', body, headers: command(key) }));
+    },
+    downloadTicket: async (exportId) => {
+      const ticket = await request<Wire['DownloadTicket']>(`exports/${id(exportId)}/download-tickets`, {
+        method: 'POST',
+      });
+      // The ticket path is on this origin; downloadFile needs it absolute.
+      return { ...ticket, url: new URL(ticket.url, globalThis.location?.href ?? 'http://localhost/').toString() };
+    },
   };
 
   return { open, client };

@@ -81,6 +81,16 @@ export interface TelegramPort {
   haptic(event: HapticEvent): void;
   /** Resolves with the pressed button id, or null when the popup was dismissed. */
   popup(params: PopupParams): Promise<string | null>;
+  /**
+   * Hands a file URL to the Telegram client's download manager (Bot API 8.0 downloadFile,
+   * MA-NATIVE-13). Resolves true when the person accepted, false when declined or unsupported.
+   */
+  downloadFile(params: DownloadFileParams): Promise<boolean>;
+}
+
+export interface DownloadFileParams {
+  readonly url: string;
+  readonly fileName: string;
 }
 
 export const ZERO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };

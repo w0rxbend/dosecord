@@ -70,6 +70,7 @@
       </div>
       <div class="section section-body">
         <LinkRow path="/insights/history" label={en.insights.history} hint={en.insights.historyHint} />
+        <LinkRow path="/insights/reports" label={en.reports.title} hint={en.reports.hint} />
       </div>
     {/snippet}
   </AsyncView>
