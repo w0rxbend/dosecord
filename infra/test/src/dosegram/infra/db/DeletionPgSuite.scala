@@ -71,9 +71,6 @@ class DeletionPgSuite extends PgSuite:
           Iterator.continually(rs).takeWhile(_.next()).map(_.getString(1)).toList
         finally st.close()
 
-  /** The documented exceptions of SEC-16 after an account deletion: the goodbye's outbox row and its handle. */
-  private val goodbyeRows: List[(String, Int)] = List("outbox_messages" -> 1, "rendered_messages" -> 1)
-
   private def identityOf(user: String): UUID =
     withConnection: conn =>
       given Connection = conn
@@ -169,14 +166,14 @@ class DeletionPgSuite extends PgSuite:
 
       assertEquals(tablesHolding(account.toString), Nil, "no row of any table names the account")
       assertEquals(count("SELECT count(*) FROM platform_identities WHERE vendor_user_id = 'del-1'"), 0)
-      // Nor the identity or the chat, the onboarding written before the account existed included. The documented
-      // exceptions (ARCHITECTURE SEC-16): the outbox row and the handle of the goodbye message.
+      // Nor the identity or the chat, the onboarding written before the account existed included, nor the goodbye
+      // once it is sent (ARCHITECTURE SEC-16, verification of cycle 9).
       assertEquals(tablesHolding(identity.toString), Nil, "no row of any table names the identity")
-      assertEquals(
-        tablesHolding(rig.chat.chatId),
-        goodbyeRows,
-        s"only the goodbye names the chat: ${rowsHolding(rig.chat.chatId)}"
+      assert(
+        count("SELECT count(*) FROM outbox_messages WHERE account_id IS NULL AND chat_key IS NULL AND status = 'sent'") >= 1,
+        "the goodbye was sent"
       )
+      assertEquals(tablesHolding(rig.chat.chatId), Nil, s"a row names the chat: ${rowsHolding(rig.chat.chatId)}")
       // The image the bot sent to the account goes; an image of nobody here stays.
       assertEquals(count(s"SELECT count(*) FROM render_assets WHERE asset_key = 'card.sent-$account'"), 0)
       assertEquals(count(s"SELECT count(*) FROM telegram_file_cache WHERE asset_key = 'card.sent-$account'"), 0)

@@ -59,7 +59,11 @@ final case class OutboxMessage(
     platformMessageId: Option[String],
     lastError: Option[String],
     createdAt: Instant,
-    sentAt: Option[Instant]
+    sentAt: Option[Instant],
+    /** The chat an answer of the mediator was kept with (V13); `None` for every other row, and for the answer to an
+      * update that deleted the account of its chat.
+      */
+    chatKey: Option[String] = None
 )
 
 /** What a producer enqueues. `payload` is an opaque JSON document to the core; the dispatcher's renderer interprets it.
@@ -133,6 +137,11 @@ trait OutboxRepository:
 
   /** Non-retryable, non-fatal failure (`failed_permanent`); no channel action (DESIGN.md section 7.6). */
   def failPermanently(id: UUID, error: String): Unit
+
+  /** A sent answer to a chat whose account was deleted keeps no handle: its message id and target, which name the chat,
+    * are cleared (ARCHITECTURE SEC-16).
+    */
+  def forgetHandle(id: UUID): Unit
 
   /** Epoch fencing (DESIGN.md section 7.6): the dispatcher cancels a claimed row whose epoch the occurrence has passed,
     * without a vendor call.

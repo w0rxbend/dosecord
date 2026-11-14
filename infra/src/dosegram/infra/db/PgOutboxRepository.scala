@@ -19,7 +19,9 @@ import scala.language.implicitConversions
   */
 final class PgOutboxRepository(conn: Connection, keys: KeyService) extends OutboxRepository:
   private given Connection = conn
-  private given RowMapper[OutboxMessage] = PgOutboxRepository.rowMapper(keys)
+  // A claimed row carries the chat it was kept with, which the dispatcher reads to forget an orphaned answer.
+  private given RowMapper[OutboxMessage] = rs =>
+    PgOutboxRepository.rowMapper(keys).read(rs).copy(chatKey = rs.optString("chat_key"))
   import SealedColumns.OutboxPayload
 
   override def recordedHandle(vendor: String, sendKey: String): Option[String] =
@@ -90,7 +92,8 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
           RETURNING o.id, o.send_key, o.op, o.kind, o.vendor, o.account_id, o.occurrence_id, o.channel_id,
                     o.epoch, o.payload, o.payload_enc, o.target, o.importance, o.status, o.attempts, o.next_attempt_at,
                     o.lease_until, o.attempted_at, due.prev_attempted_at, o.ops_done, o.possible_duplicate,
-                    o.platform_message_id, o.last_error, o.created_at, o.sent_at""".query[OutboxMessage]()
+                    o.platform_message_id, o.last_error, o.created_at, o.sent_at, o.chat_key"""
+      .query[OutboxMessage]()
 
   override def recordHandle(id: java.util.UUID, encodedHandle: String): Unit =
     val updated =
@@ -116,6 +119,11 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
                 last_error = $error
             WHERE id = $id""".execute()
     require(updated == 1, s"outbox row $id vanished before retry")
+
+  override def forgetHandle(id: java.util.UUID): Unit =
+    sql"""UPDATE outbox_messages SET platform_message_id = NULL, target = NULL
+          WHERE id = $id AND account_id IS NULL AND chat_key IS NULL AND status = 'sent'""".execute()
+    ()
 
   override def dead(id: java.util.UUID, error: String): Unit =
     val updated =

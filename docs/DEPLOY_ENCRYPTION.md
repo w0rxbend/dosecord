@@ -23,7 +23,7 @@ owner's live database. The design is ARCHITECTURE section 15.2 and its "As built
 
 | Variable | Value | Note |
 |---|---|---|
-| `KEK_FILE` | path to a file holding `<id>:<base64 of 32 bytes>` | Or `KEK` with the same value; prefer the file. The id names the key in `account_keys.kek_id`: 1 to 32 of `A-Z a-z 0-9 _ -`, not `development` |
+| `KEK_FILE` | path to a file holding `<id>:<base64 of 32 bytes>` | Or `KEK` with the same value; prefer the file. When both are set, `KEK` wins The id names the key in `account_keys.kek_id`: 1 to 32 of `A-Z a-z 0-9 _ -`, not `development` |
 
 The file must be outside the database volume and outside every backup of it (ARCHITECTURE SEC-02): whoever holds a
 backup and the key holds the data. Without the key the sealed data cannot be read by anyone, the owner included.

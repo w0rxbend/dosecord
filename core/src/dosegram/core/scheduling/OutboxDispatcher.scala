@@ -187,7 +187,8 @@ final class OutboxDispatcher(
               if row.kind == "interaction_reply" && !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
             adapter.send(ChatRef(row.vendor, target.chatId), rendered, s"${row.sendKey}:replacement")
     uow.transaction: tx =>
-      if row.kind == "interaction_reply" || adapter.capabilities.editOwn == EditCapability.NoEdit then
+      if !forgetsChat(row) && (row.kind == "interaction_reply" || adapter.capabilities.editOwn == EditCapability.NoEdit)
+      then
         tx.renderedMessages.record(
           handle,
           row.accountId,
@@ -203,7 +204,17 @@ final class OutboxDispatcher(
       else tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
     if row.kind == "interaction_reply" then
       uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false))
+    forgetIfOrphaned(row)
     metrics.sent(row.vendor, row.kind)
+
+  /** The answer to an update that deleted the account of its chat: it was kept with no account and no chat (V13), and
+    * once it is sent no row may name the chat (ARCHITECTURE SEC-16), so it records no handle.
+    */
+  private def forgetsChat(row: OutboxMessage): Boolean =
+    row.kind == "interaction_reply" && row.accountId.isEmpty && row.chatKey.isEmpty
+
+  private def forgetIfOrphaned(row: OutboxMessage): Unit =
+    if forgetsChat(row) then uow.transaction(_.outbox.forgetHandle(row.id))
 
   /** Enqueues the next healthy channel's dispatch with a new `send_key` (idempotent per channel through the UNIQUE
     * constraint). Only sends fall back: an edit/delete target is a vendor-specific handle.
@@ -302,19 +313,21 @@ final class OutboxDispatcher(
         val encoded = encodeHandle(sent)
         uow.transaction { tx =>
           tx.outbox.recordHandle(row.id, encoded)
-          tx.renderedMessages.record(
-            sent,
-            row.accountId,
-            row.kind,
-            subjectType = row.occurrenceId.map(_ => "occurrence"),
-            subjectId = row.occurrenceId,
-            epoch = row.epoch,
-            choiceMap = rendered.choiceMap,
-            now
-          )
+          if !forgetsChat(row) then
+            tx.renderedMessages.record(
+              sent,
+              row.accountId,
+              row.kind,
+              subjectType = row.occurrenceId.map(_ => "occurrence"),
+              subjectId = row.occurrenceId,
+              epoch = row.epoch,
+              choiceMap = rendered.choiceMap,
+              now
+            )
         }
         sent
     uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = resumeDuplicate))
+    forgetIfOrphaned(row)
     metrics.sent(row.vendor, row.kind)
     if resumeDuplicate && !row.possibleDuplicate then metrics.possibleDuplicate(row.vendor)
 

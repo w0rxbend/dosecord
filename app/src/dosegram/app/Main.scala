@@ -61,6 +61,8 @@ object Main:
       )
       // A restored backup deletes the listed accounts again before anything serves (ARCHITECTURE SEC-06, SEC-16).
       val purgeList = Path.of(settings.purgeListPath)
+      // The list names deleted accounts: the owner's file only (0600), or the start stops and names the chmod.
+      FilePurgeList.requirePrivate(purgeList)
       val replayed = PurgeReplay(
         PgUnitOfWork(dataSource, Clock.system, keys),
         Deletions(Clock.system, IdSource.uuidV7(SecureRandom()), FilePurgeList(purgeList))

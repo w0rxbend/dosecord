@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Live health report from the database (ops track, 2026-11-14): outbox,
-# inbox, worker heartbeats and the last reminder sent. It reads counts, ages,
-# kinds and instance names only: never a payload, a message body, an error
-# text or an account id. Read-only: every query is a SELECT.
+# inbox, worker heartbeats, the last reminder sent, the next dose action and
+# the dose rows the reminder loop failed on. It reads counts, ages, kinds and
+# instance names only: never a payload, a message body, an error text or an
+# account id. Read-only: every query is a SELECT.
 #
 # Usage: scripts/live-smoke.sh
 # Database access: see scripts/ops-lib.sh (PG_CONTAINER or the PG* variables).
@@ -72,6 +73,10 @@ else
 fi
 
 echo "reminders"
+# A reminder is an outbox row of kind 'reminder'. After an outage the loop folds a missed reminder
+# into a 'digest' instead, and a dose past its window gets a 'missed_notice': those count as the
+# last reminder-kind send. "never" with no dose due yet is not a fault; a dose row the loop failed
+# on is (the live defect of 2026-11-14, when no reminder reached the outbox at all).
 last="$(query "
   SELECT COALESCE(floor(extract(epoch FROM now() - max(sent_at)))::bigint::text, 'never')
   FROM outbox_messages WHERE kind = 'reminder' AND status = 'sent'")"
@@ -80,6 +85,23 @@ if [ "$last" = never ]; then
 else
   echo "  last reminder sent: ${last}s ago"
 fi
+last_any="$(query "
+  SELECT COALESCE((SELECT kind || ' ' || floor(extract(epoch FROM now() - sent_at))::bigint || 's ago'
+                   FROM outbox_messages
+                   WHERE kind IN ('reminder', 'digest', 'missed_notice') AND status = 'sent'
+                   ORDER BY sent_at DESC LIMIT 1), 'never')")"
+echo "  last reminder, digest or missed notice sent: $last_any"
+next_due="$(query "
+  SELECT COALESCE('in ' || greatest(0, floor(extract(epoch FROM min(next_action_at) - now())))::bigint || 's',
+                  'none open')
+  FROM dose_occurrences WHERE status IN ('pending', 'due', 'snoozed')")"
+echo "  next dose action: $next_due"
+IFS='|' read -r failed unknown <<<"$(query "
+  SELECT count(*) FILTER (WHERE error_count > 0),
+         count(*) FILTER (WHERE status = 'unknown')
+  FROM dose_occurrences WHERE updated_at > now() - interval '24 hours'")"
+echo "  doses marked unknown in the last 24 h: $unknown"
+verdict "no dose row failed in the reminder loop in the last 24 h ($failed)" "$(le "$failed" 0)"
 
 if [ "$red" -gt 0 ]; then
   echo "live-smoke: $red check(s) red"

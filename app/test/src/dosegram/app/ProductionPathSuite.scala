@@ -17,6 +17,7 @@ import dosegram.core.chat.CapabilityProfiles
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.PrivacyCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.WizardCopy
@@ -462,6 +463,33 @@ class ProductionPathSuite extends PgSuite:
         assertEquals(chat.toasts.last, ReminderCopy.staleControlToast, clue)
       assertEquals(strings("SELECT status::text FROM dose_occurrences ORDER BY scheduled_for LIMIT 1"), List("pending"))
       assertEquals(strings("SELECT status FROM inbound_inbox WHERE status = 'quarantined'"), Nil)
+
+  test("after an account deletion through the inbox no row names the owner's chat, the goodbye's included"):
+    val clock = SteppedClock(start)
+    launched(clock): chat =>
+      onboard(chat)
+      addDailyMedication(chat)
+      chat.say("/privacy", PrivacyCopy.DeleteData)
+      chat.tapLabel(PrivacyCopy.DeleteData, PrivacyCopy.DeleteMyAccount)
+      chat.tapLabel(PrivacyCopy.DeleteMyAccount, PrivacyCopy.Continue)
+      chat.tapLabel(PrivacyCopy.Continue, "Last step")
+      chat.tapLabel(PrivacyCopy.DeleteMyAccount, "Goodbye")
+      val deleting = s"SELECT 1 FROM inbound_inbox WHERE vendor_event_id = '${chat.lastUpdate}'"
+      eventually("the deleting update is settled")(strings(deleting).isEmpty)
+      eventually(s"the goodbye is sent: ${strings("SELECT status FROM outbox_messages WHERE account_id IS NULL")}"):
+        clock.advance(Duration.ofSeconds(31))
+        strings("SELECT status FROM outbox_messages WHERE account_id IS NULL AND status <> 'sent'").isEmpty
+      val chatId = owner.toString
+      val naming = List(
+        s"SELECT 'inbound_inbox' FROM inbound_inbox WHERE chat_key = '$chatId'",
+        s"SELECT 'inbound_events' FROM inbound_events WHERE chat_key = '$chatId'",
+        s"SELECT 'outbox chat_key' FROM outbox_messages WHERE chat_key = '$chatId'",
+        s"SELECT 'outbox handle' FROM outbox_messages WHERE platform_message_id LIKE '$chatId:%'",
+        s"SELECT 'outbox target' FROM outbox_messages WHERE target::text LIKE '%$chatId:%'",
+        s"SELECT 'rendered_messages' FROM rendered_messages WHERE chat_id = '$chatId'",
+        s"SELECT 'platform_identities' FROM platform_identities WHERE vendor_user_id = '$chatId'"
+      )
+      assertEquals(naming.flatMap(strings), Nil, "rows that name the chat")
 
   // ---------- Operations on the launched process ----------
 

@@ -374,7 +374,8 @@ object Settings:
       "PURGE_LIST_PATH",
       required = false,
       secret = false,
-      "File of deleted account ids, kept outside the database and its backups so a restore deletes them again.",
+      "File of deleted account ids, kept outside the database and its backups so a restore deletes them again. " +
+        "Created with mode 0600; a start refuses a list that its group or other users may read or write.",
       DefaultPurgeListPath,
       Some(DefaultPurgeListPath)
     ),
@@ -383,6 +384,7 @@ object Settings:
       required = false,
       secret = true,
       "Key-encryption keys '<id>:<base64 of 32 random bytes>'[,...]; the first wraps, the rest only unwrap. " +
+        "Read from KEK, or from the file KEK_FILE names (the Docker secret convention; KEK wins when both are set). " +
         "Required in production; keep it outside the database volume and its backups. New key: openssl rand -base64 32.",
       "kek-2026:REPLACE-WITH-BASE64-OF-32-RANDOM-BYTES"
     )

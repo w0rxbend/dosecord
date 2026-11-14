@@ -55,8 +55,11 @@ An alert says that something died, not what: look with section 3.
 
 `scripts/live-smoke.sh` reads the database and prints the outbox (rows due and unsent, the age of
 the oldest, rows dead in the last 24 hours by kind), the inbox (pending, oldest, quarantined in the
-last 24 hours), each worker's last heartbeat and the age of the last reminder sent. Every query is
-a `SELECT`. It exits 0 when every check is green, 1 when one is red, 2 when it cannot read the
+last 24 hours), each worker's last heartbeat, the age of the last reminder sent (an outbox row of
+kind `reminder`), the last reminder, catch-up digest or missed notice sent, the time to the next
+dose action, the doses marked unknown in the last 24 hours, and, as a check, the dose rows the
+reminder loop failed on in the last 24 hours (`error_count > 0`). "last reminder sent: never" with
+a next dose action ahead is no fault (supervisor decision, 2026-11-15). Every query is a `SELECT`. It exits 0 when every check is green, 1 when one is red, 2 when it cannot read the
 database.
 
 For the live database in its container (the owner runs this; agents do not):
@@ -194,7 +197,8 @@ database. In order:
    keep it off shared storage, and delete it once the first encrypted nightly backup of
    section 4 has passed a restore drill (supervisor decision, 2026-11-14).
 5. Stop the running bot. The previous release writes plaintext, which V11 then refuses.
-6. Add to the bot's environment: `KEK_FILE=<path of step 1>` (also under
+6. Add to the bot's environment: `KEK_FILE=<path of step 1>` (the app reads `KEK`, or the file
+   `KEK_FILE` names; `KEK` wins when both are set; also under
    `ENVIRONMENT=development`, or the data is sealed with the public development key) and
    `PURGE_LIST_PATH=<path of step 2>`. Optional: `OWNER_ALERT_CHAT=<chat id>`; without it the alerts
    go to the only user of `TELEGRAM_ALLOWED_USER_IDS`.
@@ -347,3 +351,38 @@ After the deploy, check once with a real client: the album, the share card, the 
 Rollback: restore the backup of step 1 and start the previous release. The previous release
 cannot read a payload V13 sealed. Starting an older release against the V17 schema without a
 restore was not tested.
+
+## 12. Deploying V18 (inbox failure reasons, narrower grants), and the start-up checks of 2026-11-15
+
+The live database is at V17. V18 adds `inbound_inbox.failure_reason`, revokes every grant of the
+serving roles on `flyway_schema_history`, and leaves `dosegram_app` only INSERT on `audit_log`
+(`dosegram_worker` reads it for the export). The start also does two things it did not do before
+(supervisor decisions, 2026-11-15):
+
+- It moves a sequence that is behind its column and logs `sequences: <sequence> was behind
+  <table.column>; moved to N`. On 2026-11-14 `domain_events_seq_seq` was behind the rows copied
+  into `dosegram_v2` (the copy had no `setval`): that morning's reminder and two button taps
+  failed with SQL state 23505. The failures have since used up the copied numbers, so the start
+  is expected to log nothing for the live database. A copy made with `pg_dump` and `pg_restore`
+  sets every sequence; a hand-made `COPY` does not.
+- It refuses to serve when the file of `PURGE_LIST_PATH` exists and its group or other users may
+  read or write it, and names the fix: `chmod 600 <path>`. The first deletion creates the file with
+  mode 0600.
+
+The key-encryption key is read from `KEK`, or from the file that `KEK_FILE` names (the Docker
+secret convention, preferred: the value stays out of the process environment and shell history).
+When both are set, `KEK` wins. `.env.example`, section 8 step 6 and
+[DEPLOY_ENCRYPTION.md](DEPLOY_ENCRYPTION.md) use `KEK_FILE`.
+
+Steps, all the owner's:
+
+1. Back up the database as in step 4 of section 8.
+2. `stat -c %a <PURGE_LIST_PATH>` prints `600` (or the file does not exist yet); otherwise
+   `chmod 600 <PURGE_LIST_PATH>`.
+3. Start the new release. Expect `migrate: 1 migration(s) applied, schema 18` and no `sequences:`
+   line.
+4. Check, read-only: `SELECT has_table_privilege('dosegram_app', 'audit_log', 'SELECT');` returns
+   `f`; `scripts/live-smoke.sh` reports the next dose action, and its red line "no dose row failed
+   in the reminder loop" clears 24 hours after the last failure.
+
+Rollback: restore the backup of step 1 and start the previous release.

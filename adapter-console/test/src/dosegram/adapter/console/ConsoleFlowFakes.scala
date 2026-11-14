@@ -198,6 +198,7 @@ private object ConsoleFlowFakes:
       states(id) = states(id).copy(status = OutboxStatus.Dead)
     override def failPermanently(id: UUID, error: String): Unit = this.synchronized:
       states(id) = states(id).copy(status = OutboxStatus.FailedPermanent)
+    override def forgetHandle(id: UUID): Unit = () // the fake keeps no handle column
     override def cancel(id: UUID): Unit = this.synchronized:
       states(id) = states(id).copy(status = OutboxStatus.Cancelled)
     override def deliveredFor(occurrenceId: UUID): Boolean = this.synchronized:

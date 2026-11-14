@@ -385,7 +385,7 @@ final class ChatMediator(
         case VendorOp.Send(chat, rendered, sendKey, _) =>
           try
             val handle = deliverSend(adapter, planned.message.replaces, chat, rendered, sendKey)
-            recordDelivery(plan.accountId, planned, handle, rendered)
+            recordDelivery(plan, planned, handle, rendered)
           catch case _: ChatError => () // the queued safety row redelivers
         case _ => ()
     plan.toast.foreach(deliverToast(event, adapter, _))
@@ -425,28 +425,33 @@ final class ChatMediator(
           )
           adapter.send(chat, page, s"$sendKey:chunk:${index + 1}")
 
+  /** Records the handle and marks the safety row sent. The answer to an update that deleted the account of its chat
+    * keeps no handle: no row may name the chat after the deletion (ARCHITECTURE SEC-16).
+    */
   private def recordDelivery(
-      accountId: Option[UUID],
+      plan: DeliveryPlan,
       planned: PlannedSend,
       handle: MessageHandle,
       rendered: RenderedMessage
   ): Unit =
     try
       uow.transaction: tx =>
-        tx.renderedMessages.record(
-          handle,
-          accountId,
-          kind = "interaction_reply",
-          subjectType = None,
-          subjectId = None,
-          epoch = None,
-          rendered.choiceMap,
-          clock.now()
-        )
-        if planned.message.replaces.isDefined then
-          tx.renderedMessages.recordEdit(handle, rendered.choiceMap, clock.now())
+        if !plan.forgotten then
+          tx.renderedMessages.record(
+            handle,
+            plan.accountId,
+            kind = "interaction_reply",
+            subjectType = None,
+            subjectId = None,
+            epoch = None,
+            rendered.choiceMap,
+            clock.now()
+          )
+          if planned.message.replaces.isDefined then
+            tx.renderedMessages.recordEdit(handle, rendered.choiceMap, clock.now())
         planned.outboxId.foreach: id =>
           tx.outbox.markSent(id, OutboxDispatcher.encodeHandle(handle), clock.now(), possibleDuplicate = false)
+          if plan.forgotten then tx.outbox.forgetHandle(id)
     catch case _: SQLException => () // the safety row redelivers
 
   /** The toast rides the single-shot answer while it is unspent, and degrades to a short auto-deleting message once the
