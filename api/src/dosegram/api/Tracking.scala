@@ -6,6 +6,7 @@ import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.insights.StatsRefusal
 import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.nutrition.NutritionService
 import dosegram.core.application.sleep.SleepService
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.mood.Energy
@@ -24,7 +25,8 @@ final case class TrackingUseCases(
     stats: StatsQueryService,
     hydration: HydrationService,
     mood: MoodService,
-    sleep: SleepService
+    sleep: SleepService,
+    nutrition: NutritionService
 )
 
 /** A refusal of a use case as the problem document of ARCHITECTURE section 9.4. An account that is gone and a record of

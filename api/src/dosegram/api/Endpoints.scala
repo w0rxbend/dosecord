@@ -314,6 +314,51 @@ object Endpoints:
   val getMoodSummary =
     secured.get.in("mood" / "summary").in(from).in(to).out(jsonBody[MoodSummary]).name("getMoodSummary")
 
+  // ---------- nutrition ----------
+
+  val listMeals = secured.get.in("meals").in(from).in(to).out(jsonBody[Meals]).name("listMeals")
+
+  val createMeal =
+    secured.post
+      .in("meals")
+      .in(idempotencyKey)
+      .in(jsonBody[MealEntryInput])
+      .out(created)
+      .out(jsonBody[MealRecordedView])
+      .name("createMeal")
+      .description("A meal; with `supersedes`, a change of a recorded meal, which the new one replaces.")
+
+  val listRecentMeals =
+    secured.get
+      .in("meals" / "recent")
+      .in(query[MealKind]("mealType"))
+      .out(jsonBody[MealRecent])
+      .name("listRecentMeals")
+
+  val getMeal = secured.get.in("meals" / id).out(jsonBody[MealView]).name("getMeal")
+
+  val deleteMeal =
+    secured.delete
+      .in("meals" / id)
+      .out(jsonBody[NutritionDay])
+      .name("deleteMeal")
+      .description("Voids the meal and answers with its day; a second delete answers the same.")
+
+  val getNutritionSummary =
+    secured.get.in("nutrition" / "summary").in(from).in(to).out(jsonBody[NutritionSummary]).name("getNutritionSummary")
+
+  val getNutritionSettings =
+    secured.get.in("nutrition" / "settings").out(etag).out(jsonBody[NutritionSettings]).name("getNutritionSettings")
+
+  val updateNutritionSettings =
+    secured.patch
+      .in("nutrition" / "settings")
+      .in(ifMatch)
+      .in(jsonBody[NutritionSettingsInput])
+      .out(etag)
+      .out(jsonBody[NutritionSettings])
+      .name("updateNutritionSettings")
+
   // ---------- sleep ----------
 
   val listSleepEpisodes =
@@ -495,5 +540,13 @@ object Endpoints:
     createReminderPause,
     getDayProfile,
     updateDayProfile,
-    getReminderTimeline
+    getReminderTimeline,
+    listMeals,
+    createMeal,
+    listRecentMeals,
+    getMeal,
+    deleteMeal,
+    getNutritionSummary,
+    getNutritionSettings,
+    updateNutritionSettings
   )

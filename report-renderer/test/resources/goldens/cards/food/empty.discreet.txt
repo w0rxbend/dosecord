@@ -1,0 +1,5 @@
+file: dosegram-food.png
+spoiler: true
+caption: Food today.
+alt: Food on Thu 12 Nov: no meal logged yet. 0 of 3 meals.
+full: Food on Thu 12 Nov: no meal logged yet. 0 of 3 meals.

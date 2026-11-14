@@ -10,3 +10,7 @@ trait TrackingRepositories:
   def rollups: RollupRepository
   def doseHistory: DoseHistoryRepository
   def sleep: SleepRepository
+
+  /** Meals (ROADMAP G8.1). A double that records no meal keeps this default, which fails naming the group. */
+  def meals: MealRepository =
+    throw UnsupportedOperationException("the meals repository is not on this transaction")

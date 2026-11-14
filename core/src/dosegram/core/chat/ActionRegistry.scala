@@ -56,6 +56,13 @@ object ActionRegistry:
     ActionEntry(114, "reminders.off", requiresSession = false),
     ActionEntry(115, "reminders.pause_all", requiresSession = false),
     ActionEntry(116, "reminders.day", requiresSession = false),
+    // Meals (BOT_UX section 11.3): direct mode on the account for a meal-type tap, whose value is the meal type, and on
+    // the entry for an Undo.
+    ActionEntry(170, "food.log", requiresSession = false),
+    ActionEntry(171, "food.undo", requiresSession = false),
+    ActionEntry(172, "food.image", requiresSession = false),
+    // A meal nudge (G8.4): direct mode on the prompt occurrence, the value is the meal type.
+    ActionEntry(173, "prompt.meal", requiresSession = false),
     // Analytics (190 to 209): the month in `/stats`, `/insights`, and "Stop these" on a scheduled report.
     ActionEntry(190, "stats.month", requiresSession = false),
     ActionEntry(191, "stats.month_image", requiresSession = false),

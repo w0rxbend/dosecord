@@ -1,6 +1,7 @@
 package dosegram.core.application.insights
 
 import dosegram.core.domain.AdherenceInput
+import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.BaselineStatements
 import dosegram.core.domain.insights.Comparison
@@ -13,6 +14,8 @@ import dosegram.core.domain.insights.InsightEngine
 import dosegram.core.domain.insights.InsightInputs
 import dosegram.core.domain.insights.InsightList
 import dosegram.core.domain.insights.LocalDays
+import dosegram.core.domain.insights.MealDay
+import dosegram.core.domain.insights.MealStats
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MedicationPeriod
 import dosegram.core.domain.insights.MedicationStats
@@ -28,6 +31,7 @@ import dosegram.core.domain.insights.SleepNight
 import dosegram.core.domain.insights.SleepPeriod
 import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -142,7 +146,8 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
         block(ConsentPurpose.Medication)(doseLines(tx, accountId, range)) ++
           block(ConsentPurpose.Hydration)(waterLines(tx, accountId, period, range)) ++
           block(ConsentPurpose.Mood)(moodLines(tx, accountId, period, range)) ++
-          block(ConsentPurpose.Sleep)(sleepLines(tx, accountId, period, range))
+          block(ConsentPurpose.Sleep)(sleepLines(tx, accountId, period, range)) ++
+          block(ConsentPurpose.Nutrition)(foodLines(tx, accountId, period, range))
       val body = if blocks.isEmpty then List(StatsCopy.Empty) else blocks
       PeriodSummary(zone, range, StatsCopy.header(period, zone) :: body)
 
@@ -253,6 +258,27 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       case StatsPeriod.Today                              => StatsCopy.sleepDay(days.get(range.end))
       case StatsPeriod.Last7Days | StatsPeriod.Last30Days => StatsCopy.sleep(SleepStats.period(days, range))
     line.toList
+
+  /** Today: the regular-meal view by the user's own plan; a period: the meals and the days per main meal. A period
+    * without a meal has no line.
+    */
+  private def foodLines(tx: Tx, accountId: UUID, period: StatsPeriod, range: DateRange): List[String] =
+    val days = mealDays(tx, accountId, range)
+    val line = period match
+      case StatsPeriod.Today =>
+        days
+          .get(range.end)
+          .map: day =>
+            val plan = tx.tracking.meals.plan(accountId).getOrElse(MealPlan.Default)
+            FoodCopy.statsDay(MealStats.regular(range.end, Some(day), plan))
+      case StatsPeriod.Last7Days | StatsPeriod.Last30Days => FoodCopy.statsPeriod(MealStats.period(days, range))
+    line.toList
+
+  private def mealDays(tx: Tx, accountId: UUID, range: DateRange): Map[LocalDate, MealDay] =
+    rollups.refresh(tx, accountId, RollupDomain.Nutrition, range)
+    tx.tracking.rollups
+      .list(accountId, RollupDomain.Nutrition, range)
+      .collect { case (date, RollupMetrics.Nutrition(day)) => date -> day }
 
   // Sleep has no rollup: a sleep day holds one night, read straight from the episodes.
   private def sleepDays(tx: Tx, accountId: UUID, range: DateRange): Map[LocalDate, SleepNight] =

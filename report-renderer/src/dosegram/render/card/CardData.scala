@@ -78,6 +78,22 @@ final case class StripData(from: LocalDate, dayCount: Int, rows: Vector[Medicati
 
 final case class MealDay(mainMeals: Int, snacks: Int)
 
+/** The main meals of the plate (IMG-09), in its fixed order: breakfast top left, lunch top right, dinner bottom left.
+  */
+enum MainMeal:
+  case Breakfast, Lunch, Dinner
+
+/** IMG-09, `card.food.day.v1`: which meals of a day are logged, each main meal at the time of its first entry, and the
+  * snacks counted. `progress` counts the planned main meals with an entry; with no plan it has `planned = 0` and the
+  * day is a count, never a rate. No meal word, photo or number of energy is part of it.
+  */
+final case class FoodDayData(
+    date: LocalDate,
+    mains: Map[MainMeal, LocalTime],
+    snacks: Int,
+    progress: MealProgress
+)
+
 /** IMG-04. Every series has seven entries, from `from`. A domain that is `None` is not tracked and is absent; a day
   * that is `None` has no record and is drawn as a gap (VA-PR-03).
   */

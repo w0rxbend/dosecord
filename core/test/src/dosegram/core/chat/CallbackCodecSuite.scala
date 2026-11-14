@@ -248,6 +248,11 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         114 -> "reminders.off",
         115 -> "reminders.pause_all",
         116 -> "reminders.day",
+        // Meals (BOT_UX section 11.3).
+        170 -> "food.log",
+        171 -> "food.undo",
+        172 -> "food.image",
+        173 -> "prompt.meal",
         // Analytics: the month in /stats, /insights, and "Stop these" on a scheduled report.
         190 -> "stats.month",
         191 -> "stats.month_image",

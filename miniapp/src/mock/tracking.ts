@@ -8,6 +8,7 @@ import type {
   CalendarDay,
   Consents,
   Domain,
+  TrackedDomain,
   InsightCalendar,
   LocalDate,
   MoodCheckin,
@@ -29,6 +30,7 @@ import blobAsset from './blob-states.json';
 import { HYDRATION_GOAL_ML, HYDRATION_PRESETS_ML, WATER_SEED } from './data';
 import { addDays, formatDate, toTime } from './dates';
 import { lastDays, moodLine, seeded, waterBars } from './scenes';
+import { MockFood } from './food';
 import { duration, MockSleep } from './sleep';
 
 const VALENCE = ['Very unpleasant', 'Unpleasant', 'Neutral', 'Pleasant', 'Very pleasant'];
@@ -72,8 +74,9 @@ interface StoredMood extends MoodCheckin {
 }
 
 export class MockTracking {
-  private readonly consented = new Set<Domain>(['medication', 'hydration', 'mood', 'sleep']);
+  private readonly consented = new Set<TrackedDomain>(['medication', 'hydration', 'mood', 'sleep', 'nutrition']);
   readonly sleep: MockSleep;
+  readonly food: MockFood;
   private water: StoredWater[] = [];
   private moods: StoredMood[] = [];
   private goals: { from: LocalDate; goalMl: number | undefined }[] = [];
@@ -99,19 +102,20 @@ export class MockTracking {
     withHistory: boolean,
   ) {
     this.sleep = new MockSleep(today, minute, () => this.gate('sleep'), withHistory);
+    this.food = new MockFood(today, minute, () => this.gate('nutrition'), withHistory);
     if (withHistory) this.seed();
   }
 
   /** What the chat's /privacy would do; lets tests show the "turned off" state. */
-  withdraw(domain: Domain): void {
+  withdraw(domain: TrackedDomain): void {
     this.consented.delete(domain);
   }
 
-  isOn(domain: Domain): boolean {
+  isOn(domain: TrackedDomain): boolean {
     return this.consented.has(domain);
   }
 
-  private gate(domain: Domain): void {
+  private gate(domain: TrackedDomain): void {
     if (!this.consented.has(domain)) throw new ApiError('consent_required', 'MOCK-0403');
   }
 
@@ -459,11 +463,12 @@ export class MockTracking {
       ['hydration', 'Water', '/water'],
       ['mood', 'Mood', '/mood'],
       ['sleep', 'Sleep', '/sleep'],
+      ['nutrition', 'Meals', '/food'],
     ];
     return {
       items: [
         ...titles.map(([purpose, title, command]) =>
-          this.consented.has(purpose as Domain)
+          this.consented.has(purpose as TrackedDomain)
             ? { purpose, title, granted: true, text: 'On since 2 Nov 2026.' }
             : { purpose, title, granted: false, text: `Off. Send ${command} in the chat to turn it on.` },
         ),

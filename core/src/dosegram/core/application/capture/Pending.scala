@@ -30,6 +30,16 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   /** The pages of a month after the images consent; the argument is the month's index, `year * 12 + month - 1`. */
   case MonthImage(index: Int) extends Pending(13, index)
 
+  /** `/food` and its meal buttons; also a typed meal, which is typed again after the consent, because the words do not
+    * fit in a button. The food cases share kind 14, told apart by the argument: the kind has four bits.
+    */
+  case FoodCard extends Pending(14, 0)
+
+  case FoodImage extends Pending(14, 1)
+
+  /** A meal-type tap; `code` is the ordinal of the meal type. */
+  case FoodLog(code: Int) extends Pending(14, Pending.FoodLogBase + code)
+
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
 
@@ -58,7 +68,17 @@ private[capture] object Pending:
       case 11 => Some(SleepImage)
       case 12 => Some(Insights(argument == 1))
       case 13 => Some(MonthImage(argument))
+      case 14 => foodOf(argument)
       case _  => None
+
+  /** The argument of [[FoodLog]] starts here; below it are [[FoodCard]] (0) and [[FoodImage]] (1). */
+  val FoodLogBase = 2
+
+  private def foodOf(argument: Int): Option[Pending] =
+    argument match
+      case 0 => Some(FoodCard)
+      case 1 => Some(FoodImage)
+      case n => Some(FoodLog(n - FoodLogBase))
 
 /** The two stages of a consent (BUX-CONS-02) and the two ways out of them. The codes are the wire form. */
 private[capture] enum ConsentStage(val code: Int):
@@ -119,7 +139,8 @@ private[capture] object ConsentRequest:
     ConsentPurpose.Mood -> 3,
     ConsentPurpose.CrossDomainPatterns -> 4,
     ConsentPurpose.ImagesInChat -> 5,
-    ConsentPurpose.Sleep -> 6
+    ConsentPurpose.Sleep -> 6,
+    ConsentPurpose.Nutrition -> 7
   )
 
   def codeOf(purpose: ConsentPurpose): Int = purposeCodes(purpose)

@@ -195,4 +195,5 @@ object AccountSettingsApi:
     case ConsentPurpose.Sleep               => "Sleep"
     case ConsentPurpose.CrossDomainPatterns => "Comparisons between areas"
     case ConsentPurpose.ImagesInChat        => "Report images in the chat"
+    case ConsentPurpose.Nutrition           => "Meals"
 end AccountSettingsApi

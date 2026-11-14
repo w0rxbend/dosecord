@@ -8,6 +8,8 @@ import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.insights.ReportComposer
 import dosegram.core.application.insights.RollupService
 import dosegram.core.application.insights.StatsQueryService
+import dosegram.core.application.nutrition.LogMeal
+import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
@@ -15,6 +17,8 @@ import dosegram.core.chat.*
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.hydration.WaterAmount
+import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.DaySet
 import dosegram.core.domain.reminders.NudgePlan
@@ -298,6 +302,43 @@ class PromptLoopPgSuite extends PgSuite:
       List(PromptStatus.Suppressed -> Some(SuppressReason.NoRecords))
     )
     assertEquals(rig.open, Nil)
+  test("meal nudges (G8.4): each meal anchor names its meal, a meal logged that day suppresses it, a tap logs it"):
+    val rig = Rig(start = kyiv("07:00"), preset = PromptPresets.MealAnchors, consent = ConsentPurpose.Nutrition)
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    rig.at("07:40")
+    // Breakfast is logged before its anchor, at 07:40: the 08:00 nudge is not sent.
+    rig.uow.transaction: tx =>
+      val meal = MealInput(MealType.Breakfast, None, None)
+      assert(parts.nutrition.log(tx, LogMeal(rig.account, meal, EntrySource.Bot, "breakfast")).isRight)
+    rig.at("08:00")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.status, p.reason)), List(("0800", PromptStatus.Suppressed, Some(SuppressReason.RecentEntry))))
+    assertEquals(rig.open, Nil)
+    rig.at("13:00")
+    rig.tickAndSend()
+    val List((handle, message)) = rig.open: @unchecked
+    assert(message.chunks.mkString.contains("Meal reminder: lunch."), message.chunks)
+    assertEquals(rig.labels(message), List("Log lunch", "Snooze 1 h", "Pause for today"))
+    assertEquals(rig.prompts.last.budgeted, true, "a meal nudge counts against the shared budget")
+    val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
+    val wire = message.choiceMap.find(_.label == "Log lunch").get.callback
+    rig.at("13:04")
+    val outcome = rig.tap(handler, handle, wire, "meal-tap-1").replace.getOrElse(fail("expected the prompt's outcome"))
+    assert(outcome.body.toString.contains("Lunch saved at 13:04."), outcome.body)
+    assertEquals(rig.prompts.last.status, PromptStatus.Answered)
+    val meals = rig.uow.transaction(_.tracking.meals.listLive(rig.account, DateRange.single(LocalDate.parse(monday))))
+    assertEquals(meals.map(_.mealType), List(MealType.Breakfast, MealType.Lunch))
+
+  test("meal nudges are silent and stop without the nutrition consent"):
+    val rig = Rig(start = kyiv("07:00"), preset = PromptPresets.MealAnchors, consent = ConsentPurpose.Nutrition)
+    rig.at("08:00")
+    rig.tickAndSend()
+    val List((_, sent)) = rig.open: @unchecked
+    assert(sent.silent, "a meal nudge is silent")
+    rig.uow.transaction(_.consents.withdraw(rig.account, ConsentPurpose.Nutrition, rig.clock.now()))
+    rig.at("13:00")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.last.reason, Some(SuppressReason.NoConsent))
 
   test("catch-up after downtime sends at most the newest prompt, and nothing once it is stale"):
     val rig = Rig()

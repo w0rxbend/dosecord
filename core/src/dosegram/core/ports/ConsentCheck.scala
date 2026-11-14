@@ -16,6 +16,9 @@ enum ConsentPurpose(val id: String):
   /** Delivery of personal report images into the chat (BOT_UX BUX-IMG-04). */
   case ImagesInChat extends ConsentPurpose("images_in_chat")
 
+  /** Meal records (PRODUCT_SPEC section 8.12). */
+  case Nutrition extends ConsentPurpose("nutrition")
+
 object ConsentPurpose:
   def ofId(id: String): Option[ConsentPurpose] = values.find(_.id == id)
 

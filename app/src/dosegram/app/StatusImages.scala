@@ -8,10 +8,12 @@ import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.FoodCardView
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
@@ -32,6 +34,10 @@ import dosegram.render.card.DayData
 import dosegram.render.card.InsightCard
 import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
+import dosegram.render.card.FoodDayCard
+import dosegram.render.card.FoodDayData
+import dosegram.render.card.MainMeal
+import dosegram.render.card.MealProgress
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
 import dosegram.render.card.SleepEvidence
@@ -161,7 +167,7 @@ final class RenderedStatusCards(
         MoodReading(MoodState.captured(mood.valence.step, mood.energy.map(_.step)), mood.energy.isDefined),
       medication = view.doses.map(_.map(statusOf).toVector),
       water = view.water.map(water => WaterProgress(water.totalMl, water.goalMl)),
-      food = None,
+      food = view.food.map(line => MealProgress(line.logged, line.planned)),
       sleep = view.sleep.map(sleep =>
         sleep.minutes.fold(SleepEvidence.NoRecord)(SleepEvidence.Recorded(_, sleep.goalMinutes))
       )
@@ -191,6 +197,11 @@ final class RenderedStatusCards(
 
   override def week(view: WeekCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
     personal(WeekCard.render(ReportCards.week(view), contextOf(look)), chat)
+
+  override def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+    val mains = view.mains.collect { case (mealType, at) if mealType.isMain => mainMealOf(mealType) -> at }
+    val data = FoodDayData(view.date, mains, view.snacks, MealProgress(view.line.logged, view.line.planned))
+    personal(FoodDayCard.render(data, contextOf(look)), chat)
 
   /** A personal card is keyed by its own bytes: the same picture is stored once, and the key says nothing. */
   private def personal(card: CardOutput, chat: Option[ChatRef]): Option[AttachmentRef] =
@@ -240,6 +251,13 @@ object RenderedStatusCards:
   private def keyOf(context: CardContext): String =
     val theme = context.theme.toString.toLowerCase(java.util.Locale.ROOT)
     if context.privacy == Privacy.Discreet then s"$theme.discreet" else theme
+
+  private def mainMealOf(mealType: MealType): MainMeal =
+    mealType match
+      case MealType.Breakfast => MainMeal.Breakfast
+      case MealType.Lunch     => MainMeal.Lunch
+      case MealType.Dinner    => MainMeal.Dinner
+      case MealType.Snack     => throw IllegalArgumentException("a snack has no slot of its own on the plate")
 
   private def waterData(view: WaterCardView): WaterData =
     WaterData(

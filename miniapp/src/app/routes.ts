@@ -14,6 +14,7 @@ export type Route =
   | { readonly screen: 'mood' }
   | { readonly screen: 'mood-new' }
   | { readonly screen: 'sleep' }
+  | { readonly screen: 'food' }
   | { readonly screen: 'insights' }
   | { readonly screen: 'history' }
   | { readonly screen: 'day'; readonly date: string }
@@ -44,6 +45,7 @@ const PATHS: readonly (readonly [RegExp, (match: RegExpExecArray) => Route])[] =
   [/^\/log\/mood$/, () => ({ screen: 'mood' })],
   [/^\/log\/mood\/new$/, () => ({ screen: 'mood-new' })],
   [/^\/log\/sleep$/, () => ({ screen: 'sleep' })],
+  [/^\/log\/food$/, () => ({ screen: 'food' })],
   [/^\/insights$/, () => ({ screen: 'insights' })],
   [/^\/insights\/history$/, () => ({ screen: 'history' })],
   [new RegExp(`^/insights/history/${DATE}$`), (m) => ({ screen: 'day', date: isoDate(m) })],
@@ -75,6 +77,7 @@ const START_PARAMS: readonly (readonly [RegExp, (match: RegExpExecArray) => stri
   [/^mood$/, () => '/log/mood'],
   [/^moodnew$/, () => '/log/mood/new'],
   [/^sleep$/, () => '/log/sleep'],
+  [/^food$/, () => '/log/food'],
   [/^insights$/, () => '/insights'],
   [/^hist$/, () => '/insights/history'],
   [new RegExp(`^hist_(${DATE})$`), (m) => `/insights/history/${m[1]}`],
@@ -107,6 +110,7 @@ const TABS: Readonly<Record<Route['screen'], TabId | null>> = {
   mood: 'log',
   'mood-new': 'log',
   sleep: 'log',
+  food: 'log',
   insights: 'insights',
   history: 'insights',
   day: 'insights',
@@ -137,6 +141,7 @@ const PARENTS: Readonly<Partial<Record<Route['screen'], string>>> = {
   mood: '/log',
   'mood-new': '/log/mood',
   sleep: '/log',
+  food: '/log',
   history: '/insights',
   day: '/insights/history',
   settings: '/',

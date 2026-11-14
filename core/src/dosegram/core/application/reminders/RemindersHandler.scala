@@ -15,6 +15,8 @@ import dosegram.contracts.Reply
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.hydration.HydrationRefusal
 import dosegram.core.application.hydration.LogWater
+import dosegram.core.application.nutrition.LogMeal
+import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.sleep.SleepInput
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
@@ -23,6 +25,7 @@ import dosegram.core.chat.CallbackMode
 import dosegram.core.chat.ChatHandler
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
+import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
@@ -31,6 +34,7 @@ import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.hydration.AmountOutOfBounds
 import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.insights.HydrationDay
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.reminders.Anchor
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPreset
@@ -219,6 +223,7 @@ final class RemindersHandler(
           case "prompt.snooze"      => snooze(ctx, occ, Duration.ofMinutes(ref.value.min(MaxSnoozeMinutes)))
           case "prompt.pause_today" => pauseToday(ctx, occ)
           case "prompt.sleep"       => sleepTap(ctx, occ, ref.value)
+          case "prompt.meal"        => mealTap(ctx, occ, ref.value)
           case _                    => stale
 
   private def logWater(ctx: Ctx, occ: PromptOccurrence, millilitres: Long): Reply =
@@ -255,6 +260,19 @@ final class RemindersHandler(
       answered(ctx, occ)
       val label = if value == PromptMessages.SleepGoing then PromptCopy.GoingToSleep else PromptCopy.ImUp
       outcome(ctx, PromptCopy.sleepRecorded(label, when(clock.now(), settings.zone(ctx.tx, ctx.accountId))))
+
+  /** One tap on a meal nudge records that meal now and closes the nudge. */
+  private def mealTap(ctx: Ctx, occ: PromptOccurrence, value: Long): Reply =
+    Option.when(value >= 0 && value < MealType.values.length)(MealType.fromOrdinal(value.toInt)) match
+      case None           => stale
+      case Some(mealType) =>
+        val command = LogMeal(ctx.accountId, MealInput(mealType, None, None), EntrySource.Bot, ctx.clientKey)
+        capture.nutrition.log(ctx.tx, command) match
+          case Left(_)         => stale
+          case Right(recorded) =>
+            answered(ctx, occ)
+            val at = recorded.entry.occurredAt.atZone(settings.zone(ctx.tx, ctx.accountId)).toLocalTime
+            outcome(ctx, FoodCopy.saved(mealType, PromptCopy.clock(at), withNote = false))
 
   private def answered(ctx: Ctx, occ: PromptOccurrence): Unit =
     ctx.tx.reminders.prompts.close(occ.id, PromptStatus.Answered, clock.now())

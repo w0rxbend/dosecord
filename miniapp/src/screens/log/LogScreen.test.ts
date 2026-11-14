@@ -37,9 +37,10 @@ describe('Log hub', () => {
     harness.api.tracking.withdraw('hydration');
     harness.api.tracking.withdraw('mood');
     harness.api.tracking.withdraw('sleep');
+    harness.api.tracking.withdraw('nutrition');
     const user = open(harness);
 
-    expect(await screen.findByText('Track water, mood or sleep. Each one is turned on separately, with your consent.')).toBeTruthy();
+    expect(await screen.findByText('Track water, mood, sleep or food. Each one is turned on separately, with your consent.')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Choose what to track' }));
 
     expect(harness.router.route).toEqual({ screen: 'settings-privacy' });
@@ -52,6 +53,15 @@ describe('Log hub', () => {
     await user.click(await screen.findByRole('link', { name: /^Sleep/ }));
 
     expect(harness.router.route).toEqual({ screen: 'sleep' });
+  });
+
+  it('opens the food diary from a row with today\'s meals in words', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+
+    await user.click(await screen.findByRole('link', { name: /^Food.*0 of 3 planned meals logged/ }));
+
+    expect(harness.router.route).toEqual({ screen: 'food' });
   });
 
   it('opens the water screen', async () => {

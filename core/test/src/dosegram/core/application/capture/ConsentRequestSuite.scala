@@ -19,7 +19,15 @@ class ConsentRequestSuite extends munit.ScalaCheckSuite:
     Gen.const(Pending.Stats),
     Gen.const(Pending.WaterImage),
     Gen.const(Pending.DayImage),
-    Gen.oneOf(MedicationScreen.values.toSeq).map(Pending.Medication(_))
+    Gen.oneOf(MedicationScreen.values.toSeq).map(Pending.Medication(_)),
+    Gen.const(Pending.SleepCard),
+    Gen.const(Pending.SleepTyped),
+    Gen.const(Pending.SleepImage),
+    Gen.oneOf(true, false).map(Pending.Insights(_)),
+    Gen.choose(2000 * 12, 2100 * 12).map(Pending.MonthImage(_)),
+    Gen.const(Pending.FoodCard),
+    Gen.const(Pending.FoodImage),
+    Gen.choose(0, 3).map(Pending.FoodLog(_))
   )
 
   private val requests: Gen[ConsentRequest] =

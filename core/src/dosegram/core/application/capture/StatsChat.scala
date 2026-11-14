@@ -2,6 +2,7 @@ package dosegram.core.application.capture
 
 import dosegram.contracts.Choice
 import dosegram.contracts.Reply
+import dosegram.core.application.nutrition.FoodViews
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.ReportCopy
@@ -10,6 +11,7 @@ import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.FoodLineView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.WaterCardView
@@ -41,7 +43,14 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
       case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
       case Right(summary) =>
         val today = summary.window.end
-        val view = DayCardView(today, latestMood(turn), doses, waterToday(turn, today), sleepToday(turn, today))
+        val view = DayCardView(
+          today,
+          latestMood(turn),
+          doses,
+          waterToday(turn, today),
+          sleepToday(turn, today),
+          foodToday(turn)
+        )
         parts.cards.day(view, turn.look, Some(turn.event.chat)) match
           case Some(attachment) =>
             val caption = turn.message("stats.image", summary.lines, Nil)
@@ -74,6 +83,13 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
       goal <- status.goalMinutes
       nights <- parts.stats.sleepCalendar(turn.tx, turn.accountId, DateRange.single(today)).toOption
     yield SleepCardView(nights.get(today).map(_.minutes), goal)
+
+  /** Food has a line whenever the domain is on: the planned meals with an entry, or a count without a plan. */
+  private def foodToday(turn: Turn): Option[FoodLineView] =
+    for
+      day <- parts.nutrition.today(turn.tx, turn.accountId).toOption
+      plan <- parts.nutrition.plan(turn.tx, turn.accountId).toOption
+    yield FoodViews.line(day, plan)
 
   private def rows(turn: Turn, period: StatsPeriod): List[List[Choice]] =
     val periods = StatsPeriod.values.toList.map: value =>

@@ -4,6 +4,7 @@ import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.insights.RollupService
 import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.nutrition.NutritionService
 import dosegram.core.application.sleep.SleepService
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
@@ -20,7 +21,8 @@ final class TrackingServices(
     val mood: MoodService,
     val sleep: SleepService,
     val stats: StatsQueryService,
-    val rollups: RollupService
+    val rollups: RollupService,
+    val nutrition: NutritionService
 )
 
 object TrackingServices:
@@ -33,5 +35,6 @@ object TrackingServices:
       MoodService(clock, ids),
       SleepService(clock, ids),
       StatsQueryService(rollups, clock),
-      rollups
+      rollups,
+      NutritionService(clock, ids)
     )

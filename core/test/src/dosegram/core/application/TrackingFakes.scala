@@ -90,6 +90,7 @@ final class InMemoryTracking(zones: Map[UUID, ZoneId]) extends TrackingRepositor
   private val presetAmounts: mutable.Map[UUID, List[Int]] = mutable.Map.empty
   private val zoneOf: mutable.Map[UUID, ZoneId] = mutable.Map.from(zones)
   override val sleep: InMemorySleep = InMemorySleep()
+  override val meals: InMemoryMeals = InMemoryMeals(dirty)
 
   /** The zone of an account, as `users.timezone` holds it. */
   def zoneIdOf(accountId: UUID): Option[String] = zoneOf.get(accountId).map(_.getId)

@@ -117,6 +117,19 @@ object CommandRegistry:
     )
   )
 
+  val Food: CommandSpec = CommandSpec(
+    name = "food",
+    description = "Log a meal.",
+    args = List(CommandArg("meal", "e.g. /food lunch: soup; omitted shows the meal buttons", required = false))
+  )
+
+  /** `/meal`: the hidden alias of `/food` (BOT_UX section 6.1). */
+  val Meal: CommandSpec = CommandSpec(
+    name = "meal",
+    description = "Log a meal.",
+    args = List(CommandArg("meal", "e.g. /meal lunch: soup; omitted shows the meal buttons", required = false))
+  )
+
   val Stats: CommandSpec = CommandSpec(
     name = "stats",
     description = "Show statistics.",
@@ -139,7 +152,7 @@ object CommandRegistry:
     * ledger (BUX-CMD-08): [[Application.withCapture]] handles them, [[all]] stays the list of a composition without
     * one.
     */
-  val capture: List[CommandSpec] = List(Water, Mood, Sleep, Stats, Privacy)
+  val capture: List[CommandSpec] = List(Water, Mood, Sleep, Food, Stats, Privacy)
 
   /** The command list of the composition with capture, with the capture commands ahead of `/menu`. */
   val withCapture: List[CommandSpec] =
@@ -161,7 +174,7 @@ object CommandRegistry:
   )
 
   val withCaptureByName: Map[String, CommandSpec] =
-    (withCapture :+ Reminders :+ Insights).map(spec => spec.name -> spec).toMap
+    (withCapture :+ Reminders :+ Meal :+ Insights).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

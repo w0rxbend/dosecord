@@ -9,6 +9,7 @@ import dosegram.adapter.telegram.WireRequest
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
 import dosegram.core.domain.insights.DateRange
@@ -16,6 +17,8 @@ import dosegram.core.domain.insights.SleepBar
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.FoodCardView
+import dosegram.core.ports.FoodLineView
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.SleepCardView
@@ -30,6 +33,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
+import java.time.LocalTime
 import scala.collection.mutable
 
 /** The status cards of the chat flows on the report renderer (ADR-022): a core view is drawn, its bytes are kept where
@@ -222,6 +226,20 @@ class StatusImagesSuite extends munit.FunSuite:
     assert(unslept.altText.contains("Sleep: no record yet."), unslept.altText)
     assert(!bare.altText.contains("Medication") && !bare.altText.contains("Water"), bare.altText)
     assert(bare.altText.contains("No mood entry today."), bare.altText)
+
+  test("the food day card is personal, lists the meals with their times, and the daily summary states the meals"):
+    val rig = Rig(CountingRasteriser())
+    val mains = Map(MealType.Breakfast -> LocalTime.of(8, 10), MealType.Dinner -> LocalTime.of(19, 40))
+    val card = rig.images.cards.food(FoodCardView(today, mains, 1, FoodLineView(2, 3)), light).get
+    assert(card.assetKey.matches("card\\.[0-9a-f]{64}"), card.assetKey)
+    assertEquals(card.hasSpoiler, false)
+    assert(card.altText.contains("breakfast 08:10, dinner 19:40, 1 snack. 2 of 3 meals, 1 snack."), card.altText)
+    val discreet = CardLook(ImageTheme.Dark, isDiscreet = true)
+    assertEquals(rig.images.cards.food(FoodCardView(today, mains, 1, FoodLineView(2, 3)), discreet).map(_.hasSpoiler), Some(true))
+    val day = rig.images.cards.day(DayCardView(today, None, None, None, None, Some(FoodLineView(2, 3))), light).get
+    assert(day.altText.contains("Food: 2 of 3 meals logged."), day.altText)
+    val unplanned = rig.images.cards.day(DayCardView(today, None, None, None, None, Some(FoodLineView(2, 0))), light).get
+    assert(unplanned.altText.contains("Food: 2 meals logged."), unplanned.altText)
 
   test("the image theme the account chose draws the card; auto is dark while no colour scheme is known (VISUALS 3.3.3)"):
     val rasteriser = CountingRasteriser()

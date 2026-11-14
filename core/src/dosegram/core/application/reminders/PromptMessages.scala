@@ -10,10 +10,12 @@ import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
 import dosegram.core.domain.copy.CheckInCopy
+import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptNotice
 
@@ -76,6 +78,21 @@ final class PromptMessages(codec: CallbackCodec):
       key
     )
 
+  /** A meal nudge: one button for the slot's meal, or one per meal type for a slot at another time. */
+  def meal(
+      occurrenceId: UUID,
+      meal: Option[MealType],
+      notice: Option[PromptNotice],
+      silent: Boolean,
+      key: String
+  ): OutboundMessage =
+    val buttons = meal.fold(MealType.values.toList.map(mealType => FoodCopy.label(mealType) -> mealType))(mealType =>
+      List(FoodCopy.logButton(mealType) -> mealType)
+    )
+    val log =
+      buttons.map((label, mealType) => Choice.callback(label, token(MealTap, occurrenceId, mealType.ordinal.toLong)))
+    message(FoodCopy.nudge(meal) :: noticeLines(notice), List(log, closeRow(occurrenceId)), silent, key)
+
   /** The one-line state an open prompt is edited to when its kind pauses for the day. */
   def pausedNotice(kind: PromptKind, key: String): OutboundMessage =
     val text = if kind == PromptKind.Water then PromptCopy.pausedToday else PromptCopy.pausedTodayOf(kind)
@@ -101,6 +118,7 @@ object PromptMessages:
   val Snooze = "prompt.snooze"
   val PauseToday = "prompt.pause_today"
   val SleepTap = "prompt.sleep"
+  val MealTap = "prompt.meal"
   val MoodStep = "mood.checkin"
   val SnoozeMinutes = 60
   val SleepGoing = 0L

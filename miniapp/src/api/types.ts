@@ -334,6 +334,9 @@ export interface InsightList {
 
 export type Domain = 'medication' | 'hydration' | 'mood' | 'sleep';
 
+/** A domain with a consent of its own; meals have no calendar or overview block yet. */
+export type TrackedDomain = Domain | 'nutrition';
+
 /** A read of a domain whose consent is missing: the screen shows "turned off", not an error. */
 export const OFF = 'off';
 export type Off = typeof OFF;
@@ -540,6 +543,63 @@ export interface SleepSummary {
   readonly days: readonly SleepSummaryDay[];
   readonly chart?: Chart;
   readonly noDataText?: string;
+}
+
+// ---------- food (MINI_APP 7.8) ----------
+// A meal journal: a type, a time and the person's own words. No energy, no target, no rating (MA-FOOD-1).
+
+export type MealKind = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export interface Meal {
+  readonly id: string;
+  readonly date: LocalDate;
+  readonly time: LocalTime;
+  readonly occurredAt: string;
+  readonly mealType: MealKind;
+  readonly label: string;
+  /** The meal in words, the row's accessible name. */
+  readonly text: string;
+  readonly description?: string;
+}
+
+export interface MealInput {
+  readonly mealType: MealKind;
+  /** An instant, ISO 8601 with offset; absent is now. */
+  readonly occurredAt?: string;
+  readonly description?: string;
+  /** The meal this one replaces (an edit). */
+  readonly supersedes?: string;
+}
+
+/** Which planned main meals a day has; `planned` is 0 when the person plans none (a count, never a rate). */
+export interface NutritionDay {
+  readonly date: LocalDate;
+  readonly label: string;
+  readonly text: string;
+  readonly meals: number;
+  readonly snacks: number;
+  readonly planned: number;
+  readonly plannedLogged: number;
+  readonly logged: readonly MealKind[];
+  readonly notLogged: readonly MealKind[];
+}
+
+export interface MealRecorded {
+  readonly meal: Meal;
+  readonly day: NutritionDay;
+}
+
+export interface NutritionSummary {
+  readonly today: NutritionDay;
+  readonly days: readonly NutritionDay[];
+  readonly perMeal: readonly { readonly mealType: MealKind; readonly label: string; readonly days: number }[];
+  /** The weekly line in the server's words (MA-FOOD-4). */
+  readonly text: string;
+}
+
+export interface NutritionSettings {
+  readonly planned: readonly MealKind[];
+  readonly version: number;
 }
 
 export interface CalendarSwatch {

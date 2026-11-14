@@ -283,6 +283,43 @@ object Samples:
     )
   )
 
+  private def at(hour: Int, minute: Int): LocalTime = LocalTime.of(hour, minute)
+
+  // IMG-09: the empty, partial and full day of ROADMAP G8.3, and a day without a plan, which is a count.
+  val foods: Vector[Fixture] = Vector(
+    Fixture("food/empty", context => Vector(FoodDayCard.render(FoodDayData(Today, Map.empty, 0, MealProgress(0, 3)), context))),
+    Fixture(
+      "food/partial",
+      context =>
+        Vector(
+          FoodDayCard.render(
+            FoodDayData(Today, Map(MainMeal.Breakfast -> at(8, 10), MainMeal.Dinner -> at(19, 40)), 1, MealProgress(2, 3)),
+            context
+          )
+        )
+    ),
+    Fixture(
+      "food/full",
+      context =>
+        Vector(
+          FoodDayCard.render(
+            FoodDayData(
+              Today,
+              Map(MainMeal.Breakfast -> at(8, 10), MainMeal.Lunch -> at(13, 5), MainMeal.Dinner -> at(19, 40)),
+              2,
+              MealProgress(3, 3)
+            ),
+            context
+          )
+        )
+    ),
+    Fixture(
+      "food/no-plan",
+      context =>
+        Vector(FoodDayCard.render(FoodDayData(Today, Map(MainMeal.Lunch -> at(12, 30)), 0, MealProgress(0, 0)), context))
+    )
+  )
+
   private def doses(taken: Int, skipped: Int, missed: Int): DoseCounts = DoseCounts(taken, skipped, missed, 0, 0, 0)
 
   private val octoberWeeks: Vector[MonthWeek] = Vector(
@@ -427,4 +464,4 @@ object Samples:
 
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
-      moreInsights ++ moodCards ++ monthPages
+      moreInsights ++ moodCards ++ monthPages ++ foods

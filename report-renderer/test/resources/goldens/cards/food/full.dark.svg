@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#0f222b"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Food</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">Thu 12 Nov</text>
+<g>
+  <path d="M534 482 L286 482 A248 248 0 0 1 534 234 Z" fill="#9e5d00"/>
+</g>
+<g>
+  <path d="M546 482 L546 234 A248 248 0 0 1 794 482 Z" fill="#9e5d00"/>
+</g>
+<g>
+  <path d="M534 494 L534 742 A248 248 0 0 1 286 494 Z" fill="#9e5d00"/>
+</g>
+<g>
+  <path d="M546 494 L794 494 A248 248 0 0 1 546 742 Z" fill="#9e5d00"/>
+</g>
+<text x="64" y="356" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Breakfast</text>
+<text x="64" y="412" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4">08:10</text>
+<text x="1016" y="356" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4" text-anchor="end">Lunch</text>
+<text x="1016" y="412" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">13:05</text>
+<text x="64" y="656" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Dinner</text>
+<text x="64" y="712" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4">19:40</text>
+<text x="1016" y="656" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4" text-anchor="end">Snacks</text>
+<text x="1016" y="712" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">2 snacks</text>
+<text x="540" y="884" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="middle">3 of 3 meals, 2 snacks</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>
