@@ -22,6 +22,7 @@ import {
   toWaterSettings,
   toSleepStatus,
   toDayProfile,
+  toDeletionRequest,
   toExportItem,
   toReminderPresets,
   toReminders,
@@ -404,6 +405,10 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       const body: Wire['ExportInput'] = { ...input };
       return toExportItem(await request<Wire['ExportView']>('exports', { method: 'POST', body, headers: command(key) }));
     },
+    requestAccountDeletion: async () =>
+      toDeletionRequest(await request<Wire['DeletionRequestView']>('account/deletion', { method: 'POST' })),
+    requestDomainDeletion: async (domain) =>
+      toDeletionRequest(await request<Wire['DeletionRequestView']>(`domains/${id(domain)}/data`, { method: 'DELETE' })),
     downloadTicket: async (exportId) => {
       const ticket = await request<Wire['DownloadTicket']>(`exports/${id(exportId)}/download-tickets`, {
         method: 'POST',

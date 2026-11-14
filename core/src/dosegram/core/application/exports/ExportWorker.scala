@@ -2,6 +2,10 @@ package dosegram.core.application.exports
 
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.ports.AuditActor
+import dosegram.core.ports.AuditChannel
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ExportFile
 import dosegram.core.ports.ExportJob
@@ -48,6 +52,17 @@ final class ExportWorker(
     built match
       case Right(file) =>
         tx.exports.complete(job.id, file, now, now.plus(ExportRepository.FileLifetime))
+        tx.auditLog.record(
+          AuditEvent(
+            AuditEventType.ExportCompleted,
+            AuditActor.System("export_worker"),
+            Some(job.accountId),
+            "export",
+            Some(job.id),
+            "export",
+            AuditChannel.Scheduler
+          )
+        )
         ExportRequests.enqueue(tx, ids, job.accountId, messages.ready(job), s"export:${job.id}:ready", now)
       case Left(reason) =>
         log(s"export ${job.id} (${job.kind.db}) failed: $reason")

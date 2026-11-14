@@ -549,4 +549,4 @@ object Endpoints:
     getNutritionSummary,
     getNutritionSettings,
     updateNutritionSettings
-  ) ++ ExportEndpoints.documented ++ MedicationDepthEndpoints.documented
+  ) ++ ExportEndpoints.documented ++ MedicationDepthEndpoints.documented ++ DeletionEndpoints.documented

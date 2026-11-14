@@ -1,6 +1,10 @@
 package dosegram.infra.db
 
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.ports.AuditChannel
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
+import dosegram.core.ports.AuditLog
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.ExportFile
@@ -25,7 +29,7 @@ import scala.language.implicitConversions
 /** `export_jobs` and `export_download_tickets` (ARCHITECTURE section 10.13) on the connection of the surrounding
   * transaction. Every statement on a job of an account names the account.
   */
-final class PgExportRepository(conn: Connection, ids: IdSource) extends ExportRepository:
+final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog) extends ExportRepository:
   private given Connection = conn
 
   private val Columns =
@@ -151,6 +155,16 @@ final class PgExportRepository(conn: Connection, ids: IdSource) extends ExportRe
       sql"""UPDATE export_download_tickets SET requests = requests + 1, ip_prefix = ${redemption.ipPrefix}
             WHERE ticket_hash = ${redemption.ticketHash}""".execute()
       markDownloaded(held.accountId, held.exportId, now)
+      audit.record(
+        AuditEvent.byUser(
+          AuditEventType.ExportDownloaded,
+          held.accountId,
+          "export",
+          Some(held.exportId),
+          "export",
+          AuditChannel.MiniApp
+        )
+      )
       found
 
   override def archive(accountId: UUID, at: Instant): ExportFile = AccountArchive.build(conn, accountId, at)

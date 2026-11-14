@@ -90,7 +90,16 @@ object ActionRegistry:
     ActionEntry(255, "take.limit_cancel", requiresSession = false),
     // ROADMAP G2.22, the language choice (ids 270 to 289): open the picker; set the language, value = its index.
     ActionEntry(270, "language.open", requiresSession = false),
-    ActionEntry(271, "language.set", requiresSession = false)
+    ActionEntry(271, "language.set", requiresSession = false),
+    // Deletion (300 to 319; BOT_UX section 20.3, ROADMAP G2.17, G5.7): direct mode on the account. The value of a
+    // confirmation carries the minute it was shown, whether the app asked for it, and the domain (see PrivacyActions).
+    ActionEntry(300, "privacy.delete_menu", requiresSession = false),
+    ActionEntry(301, "privacy.delete_domain_ask", requiresSession = false),
+    ActionEntry(302, "privacy.delete_domain", requiresSession = false),
+    ActionEntry(303, "privacy.keep", requiresSession = false),
+    ActionEntry(304, "privacy.delete_account_ask", requiresSession = false),
+    ActionEntry(305, "privacy.delete_account_confirm", requiresSession = false),
+    ActionEntry(306, "privacy.delete_account", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

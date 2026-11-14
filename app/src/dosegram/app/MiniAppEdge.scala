@@ -94,7 +94,8 @@ object MiniAppEdge:
       TrackingUseCases(tracking.stats, tracking.hydration, tracking.mood, tracking.sleep, tracking.nutrition),
       MoodBlobAsset.states,
       log,
-      Application.exportRequests(parts.clock, CallbackCodec(settings.callbackKeys))
+      Application.exportRequests(parts.clock, CallbackCodec(settings.callbackKeys)),
+      Application.deletionRequests(parts.clock, CallbackCodec(settings.callbackKeys))
     )
     fork:
       WorkerLoop

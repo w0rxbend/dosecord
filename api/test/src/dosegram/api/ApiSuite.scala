@@ -87,7 +87,8 @@ trait ApiSuite extends PgSuite:
     ),
     ApiSuite.BlobStates,
     line => logged.synchronized { logged += line; () },
-    Application.exportRequests(clock, ApiSuite.Codec)
+    Application.exportRequests(clock, ApiSuite.Codec),
+    Application.deletionRequests(clock, ApiSuite.Codec)
   )
 
   override def beforeAll(): Unit =

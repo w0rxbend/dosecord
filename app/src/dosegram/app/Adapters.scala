@@ -12,12 +12,14 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.InboundInbox
 import dosegram.infra.Adapter
+import dosegram.infra.FilePurgeList
 import dosegram.infra.Settings
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
 import ox.discard
 import ox.fork
 
+import java.nio.file.Path
 import java.security.SecureRandom
 import javax.sql.DataSource
 
@@ -57,7 +59,9 @@ object Adapters:
     val adapters = parts.adapters
     val uow = PgUnitOfWork(dataSource, parts.clock)
     val codec = CallbackCodec(settings.callbackKeys)
-    val capture = CaptureParts.over(uow, parts.clock, IdSource.uuidV7(SecureRandom()), parts.images.cards)
+    val capture = CaptureParts
+      .over(uow, parts.clock, IdSource.uuidV7(SecureRandom()), parts.images.cards)
+      .copy(purgeList = FilePurgeList(Path.of(settings.purgeListPath)))
     val mediator = ChatMediator(
       uow,
       adapters,

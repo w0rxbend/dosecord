@@ -25,7 +25,8 @@ export type Route =
   | { readonly screen: 'reminders' }
   | { readonly screen: 'reports' }
   | { readonly screen: 'setup' }
-  | { readonly screen: 'settings-day' };
+  | { readonly screen: 'settings-day' }
+  | { readonly screen: 'settings-delete' };
 
 export type TabId = 'today' | 'meds' | 'log' | 'insights';
 
@@ -60,6 +61,7 @@ const PATHS: readonly (readonly [RegExp, (match: RegExpExecArray) => Route])[] =
   [/^\/insights\/reports$/, () => ({ screen: 'reports' })],
   [/^\/setup$/, () => ({ screen: 'setup' })],
   [/^\/settings\/day$/, () => ({ screen: 'settings-day' })],
+  [/^\/settings\/delete$/, () => ({ screen: 'settings-delete' })],
 ];
 
 export function parsePath(path: string): Route | null {
@@ -131,6 +133,7 @@ const TABS: Readonly<Record<Route['screen'], TabId | null>> = {
   reports: 'insights',
   setup: 'today',
   'settings-day': null,
+  'settings-delete': null,
 };
 
 /** The tab a screen belongs to; settings sit outside the tabs (MINI_APP 4.1). */
@@ -164,6 +167,7 @@ const PARENTS: Readonly<Partial<Record<Route['screen'], string>>> = {
   reports: '/insights',
   setup: '/',
   'settings-day': '/settings',
+  'settings-delete': '/settings',
 };
 
 /** Where BackButton leads when the screen was opened by a route (MA-ROUTE-4). */

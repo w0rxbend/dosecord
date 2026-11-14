@@ -57,6 +57,18 @@ trait Tx:
   def medicationDepth: MedicationDepthRepositories =
     throw UnsupportedOperationException("the medication depth repository group is not on this transaction")
 
+  /** The append-only audit log (ROADMAP G2.16): a row commits with the action it records. A transaction double that
+    * does not use it keeps this default, which fails naming the group.
+    */
+  def auditLog: AuditLog =
+    throw UnsupportedOperationException("the audit log is not on this transaction")
+
+  /** The erasure job (ROADMAP G2.17, G5.7). A transaction double that does not use it keeps this default, which fails
+    * naming the group.
+    */
+  def erasure: ErasureRepository =
+    throw UnsupportedOperationException("the erasure repository group is not on this transaction")
+
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
     * the reminder loop).

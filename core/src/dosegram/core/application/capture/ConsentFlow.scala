@@ -3,18 +3,20 @@ package dosegram.core.application.capture
 import dosegram.contracts.Choice
 import dosegram.contracts.OutboundMessage
 import dosegram.contracts.Reply
+import dosegram.core.application.privacy.PrivacyMessages
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.DataDomain
 
 /** The two-stage consent of BOT_UX section 5.5 and the `/privacy` card of section 20.1. A consent is recorded only on
   * the "Confirm" tap; the card then becomes the receipt and is not edited again, and the input that opened the card
   * runs as a new message. Nothing is kept in a session: the pending input travels in the signed buttons. The ledger is
   * the one on the transaction of the event, so a consent and what it allows commit together.
   */
-private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
+private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock, privacyButtons: PrivacyMessages):
 
   /** Runs `granted` when the purpose is on; otherwise shows stage 1 with `pending` in its buttons. */
   def guarded(turn: Turn, purpose: ConsentPurpose, pending: Pending)(granted: => Reply): Reply =
@@ -64,7 +66,9 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
   private def button(turn: Turn, label: String, request: ConsentRequest): Choice =
     Choice.callback(label, tokens.direct(CaptureActions.ConsentStep, turn.accountId, request.value))
 
-  /** `/privacy`: every granted consent with its date and a "Withdraw" button (BUX-CONS-06). */
+  /** `/privacy`: every granted consent with its date and a "Withdraw" button (BUX-CONS-06), then "Delete data"
+    * (BUX-DEL-01).
+    */
   def privacy(turn: Turn): Reply =
     val granted = turn.tx.consents.granted(turn.accountId)
     val lines =
@@ -80,14 +84,16 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock):
           tokens.direct(CaptureActions.ConsentWithdraw, turn.accountId, code)
         )
       )
-    turn.show(turn.message("privacy.card", lines, buttons))
+    turn.show(turn.message("privacy.card", lines, buttons :+ List(privacyButtons.menuButton(turn.accountId))))
 
   /** Withdrawal takes effect at once, in the transaction of the tap: the domain's commands return to the consent
-    * prompt, and `stop` ends whatever the purpose kept running (PRODUCT_SPEC R-IDC-10).
+    * prompt, and `stop` ends whatever the purpose kept running (PRODUCT_SPEC R-IDC-10). A domain's withdrawal offers
+    * "Keep the data" and "Delete this data" (BUX-CONS-06).
     */
   def withdraw(turn: Turn, purposeCode: Long)(stop: ConsentPurpose => Unit): Reply =
     ConsentRequest.purposeOf(purposeCode) match
       case Some(purpose) if turn.tx.consents.withdraw(turn.accountId, purpose, clock.now()) =>
         stop(purpose)
-        turn.show(turn.message("privacy.withdrawn", List(ConsentCopy.withdrawn(purpose)), Nil))
+        val choices = DataDomain.ofPurpose(purpose).toList.flatMap(privacyButtons.afterWithdrawal(turn.accountId, _))
+        turn.show(turn.message("privacy.withdrawn", List(ConsentCopy.withdrawn(purpose)), choices))
       case _ => turn.toast(ReminderCopy.staleControlToast)

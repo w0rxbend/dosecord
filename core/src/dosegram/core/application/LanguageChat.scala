@@ -22,7 +22,9 @@ import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.LanguageCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.AccountSettings
+import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.Clock
+import dosegram.core.ports.SettingsAudit
 import dosegram.core.ports.Tx
 
 import java.util.UUID
@@ -58,6 +60,7 @@ final class LanguageChat(codec: CallbackCodec, clock: Clock, inner: ChatHandler)
   private def choose(event: InboundEvent, account: UUID, lang: Lang, source: Option[MessageHandle], tx: Tx): Reply =
     val settings = tx.accounts.settingsOf(account).getOrElse(AccountSettings.Default)
     tx.accounts.saveSettings(account, settings.copy(locale = Some(lang.code)), clock.now())
+    tx.auditLog.record(SettingsAudit.changed(account, AuditChannel.Bot, List("locale")))
     show(source, message(event, "language.changed", List(LanguageCopy.changed(lang)), Nil))
 
   private def picker(event: InboundEvent, account: UUID, source: Option[MessageHandle]): Reply =

@@ -129,6 +129,7 @@
         <div class="section-body">
           <LinkRow path="/insights/reports" label={en.settings.exportAll} hint={en.settings.exportHint} />
           <LinkRow path="/setup" label={en.settings.setup} hint={en.settings.setupHint} />
+          <LinkRow path="/settings/delete" label={en.settings.deleteData} hint={en.settings.deleteHint} />
         </div>
       </section>
 

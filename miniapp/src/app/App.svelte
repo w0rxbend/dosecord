@@ -46,6 +46,7 @@
   const reports = () => import('../screens/reports/ReportsScreen.svelte');
   const setup = () => import('../screens/setup/SetupScreen.svelte');
   const dayProfile = () => import('../screens/settings/DayProfileScreen.svelte');
+  const deleteData = () => import('../screens/settings/DeleteDataScreen.svelte');
 </script>
 
 <div class="app" class:with-tabs={atRoot}>
@@ -105,6 +106,8 @@
         <Lazy load={setup} props={{}} />
       {:else if route.screen === 'settings-day'}
         <Lazy load={dayProfile} props={{}} />
+      {:else if route.screen === 'settings-delete'}
+        <Lazy load={deleteData} props={{}} />
       {:else}
         <Lazy load={insights} props={{}} />
       {/if}

@@ -4264,6 +4264,102 @@
           }
         ]
       }
+    },
+    "/api/v1/account/deletion" : {
+      "post" : {
+        "description" : "Sends the confirmation of the account deletion into the chat. Nothing is deleted before the two taps there.",
+        "operationId" : "requestAccountDeletion",
+        "responses" : {
+          "202" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeletionRequestView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/domains/{domain}/data" : {
+      "delete" : {
+        "description" : "Sends the confirmation of the deletion of one domain (medication, hydration, mood, sleep, nutrition) into the chat. Nothing is deleted before the tap there.",
+        "operationId" : "requestDomainDeletion",
+        "parameters" : [
+          {
+            "name" : "domain",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "202" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeletionRequestView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
     }
   },
   "components" : {
@@ -4756,6 +4852,23 @@
           "nowMinute" : {
             "type" : "integer",
             "format" : "int32"
+          }
+        }
+      },
+      "DeletionRequestView" : {
+        "title" : "DeletionRequestView",
+        "type" : "object",
+        "required" : [
+          "status",
+          "expiresAt"
+        ],
+        "properties" : {
+          "status" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },

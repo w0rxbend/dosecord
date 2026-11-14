@@ -7,6 +7,7 @@ import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
 import dosegram.core.application.Application
 import dosegram.core.application.exports.ExportRequests
+import dosegram.core.application.privacy.DeletionRequests
 import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -44,7 +45,8 @@ final class ApiModule(
     tracking: TrackingUseCases,
     blobStates: MoodBlobStates,
     log: String => Unit,
-    exportRequests: ExportRequests
+    exportRequests: ExportRequests,
+    deletionRequests: DeletionRequests
 ):
   import ApiModule.*
 
@@ -63,6 +65,7 @@ final class ApiModule(
   private val reminders = Reminders(uow, clock, Application.reminderSettings(clock))
   private val accountSettings = AccountSettingsApi(uow, clock)
   private val exports = Exports(uow, clock, exportRequests)
+  private val deletions = DeletionRequestsApi(uow, clock, deletionRequests)
   private val depth = MedicationDepthApi(uow, clock)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
@@ -530,6 +533,16 @@ final class ApiModule(
           .map(file => (file.contentDisposition, file.contentType, file.bytes))
   )
 
+  // The deletion requests (ROADMAP G2.17, G5.7): no consent gate, because deleting is the right of every account.
+  private val deletionEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    DeletionEndpoints.requestAccountDeletion
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(deletions.account(session.accountId))),
+    DeletionEndpoints.requestDomainDeletion
+      .handleSecurity(authenticate)
+      .handle(session => domain => guarded(deletions.domain(session.accountId, domain)))
+  )
+
   /** The inventory of a medication (ROADMAP G9.10), behind the medication consent like the registry. */
   private val medicationDepthEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     MedicationDepthEndpoints.getInventory
@@ -568,7 +581,7 @@ final class ApiModule(
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     (sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
       hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
-      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints).map(localised) :+
+      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints ++ deletionEndpoints).map(localised) :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

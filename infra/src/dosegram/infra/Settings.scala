@@ -135,7 +135,9 @@ final case class Settings(
     // The interfaces the two listeners bind to. Both default to the loopback interface: `/healthz` is for the host
     // (ARCHITECTURE section 9.1), and the public origin is reached through a TLS proxy (docs/DEPLOY_MINIAPP.md).
     healthAddress: String = Settings.DefaultBindAddress,
-    httpAddress: String = Settings.DefaultBindAddress
+    httpAddress: String = Settings.DefaultBindAddress,
+    // The purge list of ROADMAP G2.17: a file outside the database, appended on every account deletion.
+    purgeListPath: String = Settings.DefaultPurgeListPath
 )
 
 object Settings:
@@ -147,6 +149,9 @@ object Settings:
 
   /** The interface both listeners bind to unless `HEALTH_ADDRESS` or `HTTP_ADDRESS` names another. */
   val DefaultBindAddress: String = "127.0.0.1"
+
+  /** The purge list file unless `PURGE_LIST_PATH` names another (ARCHITECTURE SEC-16). */
+  val DefaultPurgeListPath: String = "data/purge-list.txt"
 
   /** Declarative description of one env var: the single source for parsing, validation and `.env.example` generation,
     * so the committed example cannot drift from the case class (DESIGN.md section 12).
@@ -345,6 +350,14 @@ object Settings:
       "IP address the public listener (/app/, /api/v1/) binds to; the TLS proxy connects to it.",
       DefaultBindAddress,
       Some(DefaultBindAddress)
+    ),
+    EnvSpec(
+      "PURGE_LIST_PATH",
+      required = false,
+      secret = false,
+      "File of deleted account ids, kept outside the database and its backups so a restore deletes them again.",
+      DefaultPurgeListPath,
+      Some(DefaultPurgeListPath)
     )
   )
 
@@ -505,7 +518,8 @@ object Settings:
           telegramToken = telegramToken.map(Secret(_)),
           render = render,
           healthAddress = healthAddress,
-          httpAddress = httpAddress
+          httpAddress = httpAddress,
+          purgeListPath = lookup("PURGE_LIST_PATH").getOrElse(DefaultPurgeListPath)
         )
       )
 

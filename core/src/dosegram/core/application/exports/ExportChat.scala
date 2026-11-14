@@ -14,6 +14,9 @@ import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ExportCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.ports.AuditChannel
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentTaps
@@ -94,6 +97,16 @@ final class ExportChat(clock: Clock, requests: ExportRequests, messages: ExportM
 
   private def confirm(turn: Turn, job: ExportJob): Reply =
     if turn.tx.exports.confirm(turn.accountId, job.id, clock.now()) then
+      turn.tx.auditLog.record(
+        AuditEvent.byUser(
+          AuditEventType.StepUpConfirmed,
+          turn.accountId,
+          "export",
+          Some(job.id),
+          "export",
+          AuditChannel.Bot
+        )
+      )
       turn.show(messages.text("export.preparing", turn.key, ExportCopy.preparing))
     else stale
 
@@ -112,6 +125,16 @@ final class ExportChat(clock: Clock, requests: ExportRequests, messages: ExportM
         val notice = ConsentNotice(ExportCopy.WarningVersion, ExportCopy.chatWarning, ConsentCopy.Locale)
         turn.tx.exports.recordChatConsent(turn.accountId, job.id, notice, ConsentTaps(agreedAt, now))
         turn.tx.exports.markDownloaded(turn.accountId, job.id, now)
+        turn.tx.auditLog.record(
+          AuditEvent.byUser(
+            AuditEventType.ExportDownloaded,
+            turn.accountId,
+            "export",
+            Some(job.id),
+            "export",
+            AuditChannel.Bot
+          )
+        )
         val sending = turn.show(messages.text("export.sending", turn.key, ExportCopy.sending))
         sending.copy(followUps = sending.followUps :+ messages.document(job, file, turn.zone, now, turn.key))
       case None => turn.show(messages.text("export.gone", turn.key, ExportCopy.gone))
