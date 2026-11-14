@@ -36,7 +36,7 @@ final class History(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
   import History.*
 
   def calendar(accountId: UUID, domain: InsightDomain, month: Option[String]): Either[ApiFailure, InsightCalendar] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         zone <- tx.accounts.timezoneOf(accountId).map(ZoneId.of).toRight(ApiFailure.notFound())
         today = LocalDays.dateOf(clock.now(), zone)

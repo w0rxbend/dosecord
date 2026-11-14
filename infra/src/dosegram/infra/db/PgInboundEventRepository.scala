@@ -33,8 +33,8 @@ final class PgInboundEventRepository(conn: Connection, keys: KeyService) extends
     )
 
   override def insert(event: NewInboundEvent): Boolean =
-    sql"""INSERT INTO inbound_events (vendor, vendor_event_id, event_id, received_at)
-          VALUES (${event.vendor}, ${event.vendorEventId}, ${event.eventId}, ${event.receivedAt})
+    sql"""INSERT INTO inbound_events (vendor, vendor_event_id, event_id, received_at, account_id)
+          VALUES (${event.vendor}, ${event.vendorEventId}, ${event.eventId}, ${event.receivedAt}, ${event.accountId})
           ON CONFLICT DO NOTHING""".execute() == 1
 
   override def find(vendor: String, vendorEventId: String): Option[StoredInboundEvent] =

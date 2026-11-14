@@ -35,7 +35,7 @@ final class Sleep(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
 
   /** The live episodes whose sleep day is in a range, by wake instant; without a range, those of the last 7 days. */
   def episodes(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, SleepEpisodes] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         status <- statusOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.endingOn(today(status), DefaultSummaryDays))
@@ -47,11 +47,15 @@ final class Sleep(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
       case SleepEpisodeKind.Night => SleepKind.Main
       case SleepEpisodeKind.Nap   => SleepKind.Nap
     val command = EnterSleep(inputOf(accountId, key), kind, input.onsetAt, input.wakeAt)
-    uow.transaction(tracking.sleep.enter(_, command)).left.map(refusal).map(recorded => episodeView(recorded.episode))
+    uow
+      .transactionAs(accountId)(tracking.sleep.enter(_, command))
+      .left
+      .map(refusal)
+      .map(recorded => episodeView(recorded.episode))
 
   /** "Going to sleep" or "I'm up" now, and where sleep stands after it. */
   def checkIn(accountId: UUID, key: UUID, input: SleepCheckinInput): Either[ApiFailure, SleepStatusView] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       val tapped = input.kind match
         case SleepCheckinKind.GoingToSleep => tracking.sleep.goingToSleep(tx, inputOf(accountId, key)).map(_ => false)
         case SleepCheckinKind.Awake        =>
@@ -68,17 +72,17 @@ final class Sleep(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
   /** Voids an episode of any age and answers where sleep stands. A second delete changes nothing and answers the same.
     */
   def remove(accountId: UUID, episodeId: UUID): Either[ApiFailure, SleepStatusView] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         _ <- tracking.sleep.delete(tx, accountId, episodeId).left.map(refusal)
         status <- statusOf(tx, accountId)
       yield statusView(status)
 
   def settings(accountId: UUID): Either[ApiFailure, SleepSettings] =
-    uow.transaction(tx => statusOf(tx, accountId).map(settingsOf))
+    uow.transactionAs(accountId)(tx => statusOf(tx, accountId).map(settingsOf))
 
   def saveSettings(accountId: UUID, version: Long, input: SleepSettingsInput): Either[ApiFailure, SleepSettings] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- statusOf(tx, accountId).map(settingsOf)
         _ <- Either.cond(current.version == version, (), ApiFailure.versionConflict())
@@ -90,7 +94,7 @@ final class Sleep(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
 
   /** Now, the figures and the nights of a range with their chart; without a range, the last seven days. */
   def summary(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, SleepSummary] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         status <- statusOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.endingOn(today(status), DefaultSummaryDays))

@@ -31,7 +31,7 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
       .of(rangeDays)
       .toRight(ApiFailure.invalid("range", "invalid"))
       .flatMap(period =>
-        uow.transaction(tx =>
+        uow.transactionAs(accountId)(tx =>
           tracking.stats
             .today(tx, accountId)
             .left

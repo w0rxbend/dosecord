@@ -121,23 +121,25 @@ final class Imports(uow: UnitOfWork, service: ImportService):
   import Imports.*
 
   def start(accountId: UUID, input: ImportInput): Either[ApiFailure, ImportView] =
-    uow.transaction(service.start(_, accountId, input.source.source)).left.map(failureOf).map(viewOf)
+    uow.transactionAs(accountId)(service.start(_, accountId, input.source.source)).left.map(failureOf).map(viewOf)
 
-  def list(accountId: UUID): ImportList = ImportList(uow.transaction(service.recent(_, accountId)).map(viewOf))
+  def list(accountId: UUID): ImportList = ImportList(
+    uow.transactionAs(accountId)(service.recent(_, accountId)).map(viewOf)
+  )
 
   def get(accountId: UUID, id: UUID): Either[ApiFailure, ImportView] =
-    uow.transaction(service.find(_, accountId, id)).left.map(failureOf).map(viewOf)
+    uow.transactionAs(accountId)(service.find(_, accountId, id)).left.map(failureOf).map(viewOf)
 
   def addBatch(accountId: UUID, id: UUID, input: ImportBatchInput): Either[ApiFailure, ImportView] =
     batchOf(input)
-      .flatMap(batch => uow.transaction(service.addBatch(_, accountId, id, batch)).left.map(failureOf))
+      .flatMap(batch => uow.transactionAs(accountId)(service.addBatch(_, accountId, id, batch)).left.map(failureOf))
       .map(viewOf)
 
   def commit(accountId: UUID, id: UUID): Either[ApiFailure, ImportView] =
-    uow.transaction(service.commit(_, accountId, id)).left.map(failureOf).map(viewOf)
+    uow.transactionAs(accountId)(service.commit(_, accountId, id)).left.map(failureOf).map(viewOf)
 
   def remove(accountId: UUID, id: UUID): Either[ApiFailure, ImportView] =
-    uow.transaction(service.remove(_, accountId, id)).left.map(failureOf).map(viewOf)
+    uow.transactionAs(accountId)(service.remove(_, accountId, id)).left.map(failureOf).map(viewOf)
 
   /** Cancels the imports left open for a day; the caller runs it on a period with the other sweeps. */
   def sweep(): Int = uow.transaction(service.sweep)

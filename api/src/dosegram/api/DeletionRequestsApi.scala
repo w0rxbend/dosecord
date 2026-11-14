@@ -24,12 +24,12 @@ final case class DeletionRequestView(status: String, expiresAt: Instant) derives
 final class DeletionRequestsApi(uow: UnitOfWork, clock: Clock, requests: DeletionRequests):
 
   def account(accountId: UUID): Either[ApiFailure, DeletionRequestView] =
-    sent(uow.transaction(requests.account(_, accountId)))
+    sent(uow.transactionAs(accountId)(requests.account(_, accountId)))
 
   def domain(accountId: UUID, code: String): Either[ApiFailure, DeletionRequestView] =
     DataDomain.ofCode(code) match
       case None         => Left(ApiFailure.notFound())
-      case Some(domain) => sent(uow.transaction(requests.domain(_, accountId, domain)))
+      case Some(domain) => sent(uow.transactionAs(accountId)(requests.domain(_, accountId, domain)))
 
   /** Without a chat to confirm in, nothing can be confirmed: the user starts the bot first. */
   private def sent(confirmationSent: Boolean): Either[ApiFailure, DeletionRequestView] =

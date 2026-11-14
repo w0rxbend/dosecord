@@ -49,6 +49,7 @@ object SchemaUpgrade:
         flyway.target(MigrationVersion.fromVersion(SealingStage.Transport.expand)).load().migrate().migrationsExecuted
       val transportCounts = backfill.run(SealingStage.Transport, log)
       val rest = flyway.load().migrate().migrationsExecuted
+      requireServingRoles(locked)
       val backfilled = expandCounts.exists(count => count.sealedNow > 0 || count.verified > 0)
       val rewrapped = rewrap(dataSource, keys, backfilled)
       if rewrapped > 0 then
@@ -61,6 +62,19 @@ object SchemaUpgrade:
         sealedCounts.map(_.sealedNow).sum,
         rewrapped
       )
+
+  /** Row-level security (V14): every serving transaction takes `dosegram_app` or `dosegram_worker`, so a login role
+    * that may take neither would fail on its first transaction. Start-up refuses instead and names the GRANT the owner
+    * runs (OPERATIONS section 8).
+    */
+  private def requireServingRoles(dataSource: DataSource): Unit =
+    val conn = dataSource.getConnection
+    try
+      RowSecurity
+        .missingGrant(conn)
+        .foreach: grant =>
+          throw IllegalStateException(s"dosegram: the database login role may not take the serving roles; run $grant")
+    finally conn.close()
 
   /** Plain VACUUM: no lock beyond what reads and writes take, so it is safe while the bot runs. It frees the dead row
     * versions for reuse; VACUUM FULL, which rewrites the files, is an owner step of OPERATIONS section 9. A role that

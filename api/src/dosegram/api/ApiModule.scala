@@ -91,7 +91,8 @@ final class ApiModule(
     */
   private def medication[A](session: Session)(run: => Either[ApiFailure, A]): Either[ApiFailure, A] =
     guarded:
-      if uow.transaction(_.consents.isGranted(session.accountId, ConsentPurpose.Medication)) then run
+      if uow.transactionAs(session.accountId)(_.consents.isGranted(session.accountId, ConsentPurpose.Medication)) then
+        run
       else Left(ApiFailure.consentRequired(ConsentPurpose.Medication))
 
   /** An unexpected exception becomes the `internal` problem; its class and the request id are the only things logged.
@@ -227,7 +228,8 @@ final class ApiModule(
       .handle(session => _ => guarded(insightReports.correlations(session.accountId)))
   )
 
-  private def languageOf(session: Session): Lang = uow.transaction(_.accounts.languageOf(session.accountId))
+  private def languageOf(session: Session): Lang =
+    uow.transactionAs(session.accountId)(_.accounts.languageOf(session.accountId))
 
   /** Every text a route of a session writes is in the account's language (ROADMAP G2.22, MINI_APP 5.7 rule 8). */
   private def localised(endpoint: ServerEndpoint[Any, Identity]): ServerEndpoint[Any, Identity] =
@@ -251,7 +253,7 @@ final class ApiModule(
     )
 
   private def grantedPurposes(accountId: UUID): List[String] =
-    uow.transaction(_.consents.granted(accountId)).map(_.purpose.id)
+    uow.transactionAs(accountId)(_.consents.granted(accountId)).map(_.purpose.id)
 
   private val settingsEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.getSettings

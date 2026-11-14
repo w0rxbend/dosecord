@@ -37,6 +37,12 @@ trait PgSuite extends munit.FunSuite, TestContainerForAll:
     try f(conn)
     finally conn.close()
 
+  /** Takes the application role on `conn` for the rest of its session, with `account` as the claim of row-level
+    * security (V14), as the unit of work does for one transaction.
+    */
+  protected def asApplication(conn: Connection, account: java.util.UUID): Unit =
+    conn.createStatement().execute(s"SET ROLE dosegram_app; SET app.account_id = '$account'")
+
   /** A session-state-free connection for role/GUC tests. */
   protected def withFreshConnection[A](f: Connection => A): A =
     val conn = DriverManager.getConnection(pg.jdbcUrl, pg.username, pg.password)

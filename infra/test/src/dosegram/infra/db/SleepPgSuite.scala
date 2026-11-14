@@ -160,7 +160,7 @@ class SleepPgSuite extends PgSuite:
     val night = rig.night()
     withFreshConnection { conn =>
       given Connection = conn
-      conn.createStatement().execute("SET ROLE dosegram_app")
+      asApplication(conn, rig.account)
       val sleep = PgSleepRepository(conn)
       assertEquals(sleep.episode(rig.account, night.id), Some(night))
       assertEquals(sleep.episodeByClientKey(rig.account, "morning"), Some(night))

@@ -3,8 +3,16 @@ package dosegram.core.ports
 import java.time.Instant
 import java.util.UUID
 
-/** What the mediator inserts at step 3 of DESIGN.md section 4.6, before identity resolution. */
-final case class NewInboundEvent(vendor: String, vendorEventId: String, eventId: UUID, receivedAt: Instant)
+/** What the mediator inserts at step 3 of DESIGN.md section 4.6, with the sender's account once the identity is
+  * resolved (none during the onboarding), so the row is the account's from the start (ROADMAP G2.3).
+  */
+final case class NewInboundEvent(
+    vendor: String,
+    vendorEventId: String,
+    eventId: UUID,
+    receivedAt: Instant,
+    accountId: Option[UUID] = None
+)
 
 /** A stored `inbound_events` row; `reply` is the raw JSON document replayed on a duplicate delivery (C3). */
 final case class StoredInboundEvent(

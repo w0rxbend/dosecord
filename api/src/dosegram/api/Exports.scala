@@ -97,7 +97,7 @@ final class Exports(uow: UnitOfWork, clock: Clock, requests: ExportRequests):
   private val random = SecureRandom()
 
   def request(accountId: UUID, input: ExportInput): Either[ApiFailure, ExportView] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       val order = input.kind match
         case ExportKindWire.FullZip          => Right(ExportOrder.FullArchive)
         case ExportKindWire.RecordSummaryPdf =>
@@ -113,15 +113,15 @@ final class Exports(uow: UnitOfWork, clock: Clock, requests: ExportRequests):
       order.flatMap(requests.fromApp(tx, accountId, _).left.map(refusalOf(_, clock.now()))).map(viewOf)
 
   def list(accountId: UUID): ExportList =
-    ExportList(uow.transaction(_.exports.recent(accountId, ListLimit)).map(viewOf))
+    ExportList(uow.transactionAs(accountId)(_.exports.recent(accountId, ListLimit)).map(viewOf))
 
   def get(accountId: UUID, id: UUID): Either[ApiFailure, ExportView] =
-    uow.transaction(_.exports.find(accountId, id)).map(viewOf).toRight(ApiFailure.notFound())
+    uow.transactionAs(accountId)(_.exports.find(accountId, id)).map(viewOf).toRight(ApiFailure.notFound())
 
   /** A ticket for an export whose file is ready and not yet downloaded (R-IMX-2: one download). */
   def ticket(accountId: UUID, id: UUID): Either[ApiFailure, DownloadTicket] =
     val now = clock.now()
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       tx.exports.find(accountId, id) match
         case None                                                               => Left(ApiFailure.notFound())
         case Some(job) if job.status == ExportStatus.AwaitingConfirmation       => Left(ApiFailure.stepupPending())

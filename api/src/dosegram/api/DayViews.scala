@@ -18,7 +18,7 @@ final class DayViews(uow: UnitOfWork, clock: Clock):
   def on(accountId: UUID, date: LocalDate): DayView = day(accountId, Some(date))
 
   private def day(accountId: UUID, requested: Option[LocalDate]): DayView =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       val zone = ZoneId.of(tx.accounts.timezoneOf(accountId).getOrElse("UTC"))
       val now = clock.now().atZone(zone)
       val today = now.toLocalDate

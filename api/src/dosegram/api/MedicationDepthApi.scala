@@ -103,7 +103,7 @@ final class MedicationDepthApi(uow: UnitOfWork, clock: Clock):
   import MedicationDepthApi.*
 
   def inventory(accountId: UUID, medicationId: UUID): Either[ApiFailure, InventoryReading] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       owned(tx.medications.get(medicationId), accountId).map: medication =>
         InventoryReading(InventoryService.view(tx, accountId, medicationId, clock.now()).map(documentOf(medication, _)))
 
@@ -115,7 +115,7 @@ final class MedicationDepthApi(uow: UnitOfWork, clock: Clock):
       input: InventoryInput
   ): Either[ApiFailure, InventoryDocument] =
     validated(input).flatMap: (onHand, perIntake, threshold) =>
-      uow.transaction: tx =>
+      uow.transactionAs(accountId): tx =>
         for
           medication <- owned(tx.medications.get(medicationId), accountId)
           settings = InventorySettings(medicationId, accountId, onHand, perIntake, threshold, s"api:$key")
@@ -141,7 +141,7 @@ final class MedicationDepthApi(uow: UnitOfWork, clock: Clock):
       .filter(q => q > 0 && q <= MaxUnits)
       .toRight(ApiFailure.invalid("quantity", "invalid"))
       .flatMap: quantity =>
-        uow.transaction: tx =>
+        uow.transactionAs(accountId): tx =>
           for
             medication <- owned(tx.medications.get(medicationId), accountId)
             refilled <- tx.medicationDepth.inventory

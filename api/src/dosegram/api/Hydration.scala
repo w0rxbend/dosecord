@@ -26,7 +26,7 @@ final class Hydration(uow: UnitOfWork, tracking: TrackingUseCases):
 
   /** The live entries of a range of local days, oldest first; without a range, those of today. */
   def entries(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, HydrationEntries] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         today <- todayOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.single(today.date))
@@ -37,18 +37,19 @@ final class Hydration(uow: UnitOfWork, tracking: TrackingUseCases):
     for
       amount <- WaterAmount.ofMillilitres(input.amountMl).left.map(_ => ApiFailure.invalid("amountMl", "out_of_range"))
       command = LogWater(accountId, amount, EntryDay.Today, EntrySource.MiniApp, s"api:$key")
-      logged <- uow.transaction(tracking.hydration.log(_, command)).left.map(Refusals.of)
+      logged <- uow.transactionAs(accountId)(tracking.hydration.log(_, command)).left.map(Refusals.of)
     yield HydrationLogged(entryView(logged.entry), dayView(logged.day), logged.goalReachedNow)
 
   /** Voids an entry of any age and answers with its day. A second delete changes nothing and answers the same. */
   def remove(accountId: UUID, entryId: UUID): Either[ApiFailure, HydrationDayView] =
     uow
-      .transaction(tracking.hydration.delete(_, accountId, entryId))
+      .transactionAs(accountId)(tracking.hydration.delete(_, accountId, entryId))
       .left
       .map(Refusals.of)
       .map(removed => dayView(removed.day))
 
-  def settings(accountId: UUID): Either[ApiFailure, HydrationSettings] = uow.transaction(settingsIn(_, accountId))
+  def settings(accountId: UUID): Either[ApiFailure, HydrationSettings] =
+    uow.transactionAs(accountId)(settingsIn(_, accountId))
 
   /** Replaces the goal and the quick-add amounts. Both are checked before either is written. */
   def saveSettings(
@@ -56,7 +57,7 @@ final class Hydration(uow: UnitOfWork, tracking: TrackingUseCases):
       version: Long,
       input: HydrationSettingsInput
   ): Either[ApiFailure, HydrationSettings] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- settingsIn(tx, accountId)
         _ <- Either.cond(current.version == version, (), ApiFailure.versionConflict())
@@ -68,7 +69,7 @@ final class Hydration(uow: UnitOfWork, tracking: TrackingUseCases):
 
   /** Today, the quick-add amounts and the days of a range as a chart; without a range, the last seven days. */
   def summary(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, HydrationSummary] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         today <- todayOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.endingOn(today.date, DefaultSummaryDays))

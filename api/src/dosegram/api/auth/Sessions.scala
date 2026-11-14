@@ -183,11 +183,13 @@ final class SessionService(
       .foreach(oldest => store.delete(oldest.tokenHash))
 
   private def recordReuse(accountId: UUID): Unit =
-    uow.transaction(_.audit.append(AuditEntry("initdata.reused", "session_replaced", Vendor, userId = Some(accountId))))
+    uow.transactionAs(accountId)(
+      _.audit.append(AuditEntry("initdata.reused", "session_replaced", Vendor, userId = Some(accountId)))
+    )
 
   // The session store is not on the transaction, so the row follows the session write it records.
   private def audited(eventType: AuditEventType, accountId: UUID, action: String): Unit =
-    uow.transaction(
+    uow.transactionAs(accountId)(
       _.auditLog.record(AuditEvent.byUser(eventType, accountId, "session", None, action, AuditChannel.MiniApp))
     )
 

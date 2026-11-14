@@ -154,7 +154,7 @@ class TrackingSchemaSuite extends PgSuite:
   test("the application role can run every repository statement"):
     val account = fixtures.account()
     withFreshConnection { conn =>
-      conn.createStatement().execute("SET ROLE dosegram_app")
+      asApplication(conn, account)
       val hydration = PgHydrationRepository(conn)
       val rollups = PgRollupRepository(conn)
       val entry = HydrationEntry(

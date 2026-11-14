@@ -330,7 +330,9 @@ private final class KilledAtMark(store: PgInboundInbox, adapter: AtomicReference
     throw SQLException("injected: the process died before the mark")
 
 /** A data source whose connections, while `crash` is set, run their statements in a transaction that is rolled back
-  * when the connection is returned, and then fail: the process died between the insert and its commit.
+  * at its commit or when the connection is returned, and then fail: the process died between the insert and its
+  * commit. The store commits its own short transaction since row-level security (V14), so the commit is the last
+  * point before the insert would be durable.
   */
 private object CrashBeforeCommit:
   def apply(dataSource: DataSource, crash: AtomicBoolean): DataSource =
@@ -342,7 +344,10 @@ private object CrashBeforeCommit:
   private def crashing(connection: Connection): Connection =
     connection.setAutoCommit(false)
     val handler: InvocationHandler = (_, method, args) =>
-      if method.getName == "close" then
+      if method.getName == "commit" then
+        connection.rollback()
+        throw SQLException("injected: the process died before the commit")
+      else if method.getName == "close" then
         connection.rollback()
         connection.setAutoCommit(true)
         connection.close()
