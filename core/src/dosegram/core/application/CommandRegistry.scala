@@ -154,7 +154,14 @@ object CommandRegistry:
     args = List(CommandArg("setting", "e.g. wake 06:30, work mon-fri 09:00-18:00, pause 1", required = false))
   )
 
-  val withCaptureByName: Map[String, CommandSpec] = (withCapture :+ Reminders).map(spec => spec.name -> spec).toMap
+  /** `/export` (BOT_UX section 20.2): hidden, like `/reminders`, and declared so the mediator acknowledges it. */
+  val Export: CommandSpec = CommandSpec(
+    name = "export",
+    description = "Export your records, or make a record summary."
+  )
+
+  val withCaptureByName: Map[String, CommandSpec] =
+    (withCapture :+ Reminders :+ Export).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

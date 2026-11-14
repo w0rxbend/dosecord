@@ -2,6 +2,10 @@ package dosegram.app
 
 import dosegram.contracts.ChatAdapter
 import dosegram.core.application.Application
+import dosegram.core.application.exports.ExportMessages
+import dosegram.core.application.exports.ExportRequests
+import dosegram.core.application.exports.ExportWorker
+import dosegram.core.application.exports.RecordSummaries
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.insights.RollupService
 import dosegram.core.application.reminders.PromptMessages
@@ -67,6 +71,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startImagePurge(passes)
     startPromptLoop(log, passes)
     startInboxPurge(passes)
+    startExportWorker(log, passes)
     log(s"workers started: outbox vendors=${parts.adapters.keys.mkString(",")}")
 
   /** The first pass finishes before the reminder loop starts, so rows that an outage swallowed exist before anything is
@@ -107,7 +112,11 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     val dispatcher = OutboxDispatcher(
       uow,
       Map(vendor -> adapter),
-      PromptOutboxRenderer(uow, CatalogueOutboxRenderer(uow, codec, clock)),
+      PromptOutboxRenderer(
+        uow,
+        CatalogueOutboxRenderer(uow, codec, clock),
+        Set(PromptLoop.OutboxKind, ExportRequests.OutboxKind)
+      ),
       clock,
       metrics = MicrometerOutboxMetrics(),
       buckets = Some(TokenBuckets(clock, TokenBuckets.defaults))
@@ -187,6 +196,26 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
         true
     ()
 
+  /** The export worker and its deleting job (ROADMAP G3.10): builds the confirmed exports one by one, and empties every
+    * file 15 minutes after it was ready. The record summary needs the font pack of the image settings.
+    */
+  private def startExportWorker(log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
+    val worker = ExportWorker(
+      uow,
+      clock,
+      IdSource.uuidV7(java.security.SecureRandom()),
+      RecordSummaries(RollupService(uow, clock)),
+      PdfRecordSummaryRenderer.from(settings.render),
+      ExportMessages(codec),
+      log
+    )
+    fork:
+      passes.repeat("export worker"): () =>
+        worker.sweep()
+        if !worker.runOnce() then Thread.sleep(parts.cadence.exportIdlePoll.toMillis)
+        true
+    ()
+
 object Workers:
 
   /** The dirty keys one rollup step takes. */
@@ -204,7 +233,9 @@ object Workers:
       rollupIdlePoll: Duration,
       imagePurgePeriod: Duration,
       // The 24-hour and 7-day limits of the inbound stores hold to within this.
-      inboxPurgePeriod: Duration = Duration.ofMinutes(1)
+      inboxPurgePeriod: Duration = Duration.ofMinutes(1),
+      // An export is ready within 10 minutes (AC-IMX-2); its file is deleted to within this after 15 minutes.
+      exportIdlePoll: Duration = Duration.ofSeconds(5)
   )
 
   object Cadence:

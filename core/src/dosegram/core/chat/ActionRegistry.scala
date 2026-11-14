@@ -55,7 +55,17 @@ object ActionRegistry:
     ActionEntry(113, "reminders.apply", requiresSession = false),
     ActionEntry(114, "reminders.off", requiresSession = false),
     ActionEntry(115, "reminders.pause_all", requiresSession = false),
-    ActionEntry(116, "reminders.day", requiresSession = false)
+    ActionEntry(116, "reminders.day", requiresSession = false),
+    // The export (BOT_UX section 20.2, ROADMAP G3.10, G10.4): direct mode on the account for /export and its period
+    // choice, on the export for its confirmation and its delivery into the chat; the value carries the kind and period
+    // of a request, or the minute of the first tap of the warning.
+    ActionEntry(210, "export.start", requiresSession = false),
+    ActionEntry(211, "export.confirm", requiresSession = false),
+    ActionEntry(212, "export.cancel", requiresSession = false),
+    ActionEntry(213, "export.summary", requiresSession = false),
+    ActionEntry(214, "export.send_ask", requiresSession = false),
+    ActionEntry(215, "export.send_agree", requiresSession = false),
+    ActionEntry(216, "export.send", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

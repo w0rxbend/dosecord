@@ -7,6 +7,7 @@ import dosegram.core.ports.Clock
 import dosegram.infra.Role
 import dosegram.infra.Settings
 import dosegram.infra.db.PgInboundInbox
+import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
 import sttp.shared.Identity
 import sttp.tapir.server.ServerEndpoint
@@ -36,7 +37,10 @@ object Launch:
     def production(settings: Settings, dataSource: DataSource)(using Ox): Parts =
       // The file ids belong to the one bot of the process; without that adapter nothing asks for one.
       val botId = settings.telegram.map(_.botId).getOrElse(0L)
-      val stores = StatusImages.Stores.durable(dataSource, botId, Clock.system)
+      val durable = StatusImages.Stores.durable(dataSource, botId, Clock.system)
+      // The adapters also send the files of the exports (ROADMAP G10.4), from the same store.
+      val exportFiles = ExportAssetStore(PgUnitOfWork(dataSource, Clock.system), Clock.system, durable.assets)
+      val stores = durable.copy(assets = exportFiles)
       val images = StatusImages.from(settings.render, stores, line => scribe.info(line))
       val adapters = Adapters.build(settings, Clock.system, images, PgInboundInbox(dataSource))
       Parts(Clock.system, adapters, Workers.Cadence.Production, images)

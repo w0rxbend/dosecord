@@ -122,4 +122,7 @@ object ConsentApiSuite:
         "getDayProfile",
         "updateDayProfile",
         "getReminderTimeline"
-      ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))
+      ) ++
+      // The export is the right of access to every record, whatever is turned on (PRODUCT_SPEC R-IMX-1); the record
+      // summary leaves out a domain without its consent (ExportChatPgSuite).
+      ExportEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

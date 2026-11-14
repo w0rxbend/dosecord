@@ -708,6 +708,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listExports"];
+        put?: never;
+        /** @description Requests the full export or the record summary. Nothing is made before the confirming tap in the chat; at most 3 requests per 24 hours. */
+        post: operations["createExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/{id}/download-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A ticket URL for downloadFile: 15 minutes, one export, 5 requests from one address prefix. */
+        post: operations["createDownloadTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads/{ticket}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The file of an export. The ticket is the only credential; the Telegram client fetches it. */
+        get: operations["download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -866,11 +933,60 @@ export interface components {
          * @enum {string}
          */
         DoseState: "due" | "missed" | "pending" | "skipped" | "snoozed" | "taken" | "taken_late" | "unknown";
+        /** DownloadTicket */
+        DownloadTicket: {
+            url: string;
+            fileName: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         /**
          * ErrorCode
          * @enum {string}
          */
         ErrorCode: "account_required" | "client_outdated" | "client_too_old" | "consent_required" | "feature_disabled" | "idempotency_key_reuse" | "internal" | "not_found" | "payload_too_large" | "precondition_required" | "quota_exceeded" | "rate_limited" | "session_expired" | "stepup_pending" | "stepup_required" | "unauthenticated" | "upstream_unavailable" | "validation_failed" | "version_conflict";
+        /** ExportInput */
+        ExportInput: {
+            kind: components["schemas"]["ExportKindWire"];
+            /** Format: int32 */
+            days?: number;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+        };
+        /**
+         * ExportKindWire
+         * @enum {string}
+         */
+        ExportKindWire: "full_zip" | "record_summary_pdf";
+        /** ExportList */
+        ExportList: {
+            items?: components["schemas"]["ExportView"][];
+        };
+        /**
+         * ExportState
+         * @enum {string}
+         */
+        ExportState: "awaiting_confirmation" | "downloaded" | "expired" | "failed" | "preparing" | "ready";
+        /** ExportView */
+        ExportView: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["ExportKindWire"];
+            state: components["schemas"]["ExportState"];
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            fileName?: string;
+            /** Format: int32 */
+            byteSize?: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
         /** FieldError */
         FieldError: {
             field: string;
@@ -3345,6 +3461,164 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReminderTimeline"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listExports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportList"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createExport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportInput"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createDownloadTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadTicket"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    download: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Forwarded-For"?: string;
+            };
+            path: {
+                ticket: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition": string;
+                    "Content-Type": string;
+                    "Access-Control-Allow-Origin": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
             default: {

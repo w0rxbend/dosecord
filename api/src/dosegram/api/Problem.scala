@@ -121,6 +121,10 @@ object ApiFailure:
   def stepupRequired(): ApiFailure =
     of(StatusCode.Forbidden, ErrorCode.StepupRequired, "Confirm this in the chat.")
 
+  /** A step-up that waits for its confirming tap in the chat (an export that is not confirmed yet). */
+  def stepupPending(): ApiFailure =
+    of(StatusCode.Conflict, ErrorCode.StepupPending, "Confirm this in the chat first.")
+
   def idempotencyKeyReuse(): ApiFailure =
     of(StatusCode.UnprocessableEntity, ErrorCode.IdempotencyKeyReuse, "The idempotency key was used with another body.")
 

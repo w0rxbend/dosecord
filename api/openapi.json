@@ -3179,6 +3179,293 @@
           }
         ]
       }
+    },
+    "/api/v1/exports" : {
+      "get" : {
+        "operationId" : "listExports",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExportList"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "post" : {
+        "description" : "Requests the full export or the record summary. Nothing is made before the confirming tap in the chat; at most 3 requests per 24 hours.",
+        "operationId" : "createExport",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ExportInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExportView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/exports/{id}" : {
+      "get" : {
+        "operationId" : "getExport",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExportView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/exports/{id}/download-tickets" : {
+      "post" : {
+        "description" : "A ticket URL for downloadFile: 15 minutes, one export, 5 requests from one address prefix.",
+        "operationId" : "createDownloadTicket",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DownloadTicket"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/downloads/{ticket}" : {
+      "get" : {
+        "description" : "The file of an export. The ticket is the only credential; the Telegram client fetches it.",
+        "operationId" : "download",
+        "parameters" : [
+          {
+            "name" : "ticket",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          },
+          {
+            "name" : "X-Forwarded-For",
+            "in" : "header",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "Content-Disposition" : {
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              },
+              "Content-Type" : {
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              },
+              "Access-Control-Allow-Origin" : {
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components" : {
@@ -3719,6 +4006,27 @@
           "unknown"
         ]
       },
+      "DownloadTicket" : {
+        "title" : "DownloadTicket",
+        "type" : "object",
+        "required" : [
+          "url",
+          "fileName",
+          "expiresAt"
+        ],
+        "properties" : {
+          "url" : {
+            "type" : "string"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
       "ErrorCode" : {
         "title" : "ErrorCode",
         "type" : "string",
@@ -3743,6 +4051,107 @@
           "validation_failed",
           "version_conflict"
         ]
+      },
+      "ExportInput" : {
+        "title" : "ExportInput",
+        "type" : "object",
+        "required" : [
+          "kind"
+        ],
+        "properties" : {
+          "kind" : {
+            "$ref" : "#/components/schemas/ExportKindWire"
+          },
+          "days" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "ExportKindWire" : {
+        "title" : "ExportKindWire",
+        "type" : "string",
+        "enum" : [
+          "full_zip",
+          "record_summary_pdf"
+        ]
+      },
+      "ExportList" : {
+        "title" : "ExportList",
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ExportView"
+            }
+          }
+        }
+      },
+      "ExportState" : {
+        "title" : "ExportState",
+        "type" : "string",
+        "enum" : [
+          "awaiting_confirmation",
+          "downloaded",
+          "expired",
+          "failed",
+          "preparing",
+          "ready"
+        ]
+      },
+      "ExportView" : {
+        "title" : "ExportView",
+        "type" : "object",
+        "required" : [
+          "id",
+          "kind",
+          "state",
+          "createdAt"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "$ref" : "#/components/schemas/ExportKindWire"
+          },
+          "state" : {
+            "$ref" : "#/components/schemas/ExportState"
+          },
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "byteSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
       },
       "FieldError" : {
         "title" : "FieldError",

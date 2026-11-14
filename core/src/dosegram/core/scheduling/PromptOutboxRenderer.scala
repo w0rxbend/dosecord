@@ -9,14 +9,17 @@ import dosegram.core.chat.Renderer
 import dosegram.core.ports.OutboxMessage
 import dosegram.core.ports.UnitOfWork
 
-/** Renders the outbox rows of the prompt loop ([[PromptLoop.OutboxKind]]): the payload is the prompt message itself,
-  * built when the prompt was decided, and the chat is the row's delivery channel, or the chat of the message an edit
-  * targets. Every other kind goes to `next`.
+/** Renders the outbox rows of the prompt loop ([[PromptLoop.OutboxKind]]), and of any other producer in `kinds` that
+  * sends a finished message to a channel (the export messages): the payload is the message itself, built when it was
+  * decided, and the chat is the row's delivery channel, or the chat of the message an edit targets. Every other kind
+  * goes to `next`.
   */
-final class PromptOutboxRenderer(uow: UnitOfWork, next: OutboxRenderer) extends OutboxRenderer:
+final class PromptOutboxRenderer(uow: UnitOfWork, next: OutboxRenderer, kinds: Set[String]) extends OutboxRenderer:
+
+  def this(uow: UnitOfWork, next: OutboxRenderer) = this(uow, next, Set(PromptLoop.OutboxKind))
 
   override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
-    if row.kind != PromptLoop.OutboxKind then next.render(row, capabilities)
+    if !kinds(row.kind) then next.render(row, capabilities)
     else
       val chat = ChatRef(row.vendor, chatIdOf(row))
       val (ops, _) = Renderer.render(OutboundMessage.fromJson(row.payload), chat, capabilities, row.sendKey)

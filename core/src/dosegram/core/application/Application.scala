@@ -4,6 +4,9 @@ import dosegram.contracts.ChatAdapter
 import dosegram.core.application.capture.CaptureHandler
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.dose.DoseIntakeHandler
+import dosegram.core.application.exports.ExportChat
+import dosegram.core.application.exports.ExportMessages
+import dosegram.core.application.exports.ExportRequests
 import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
@@ -49,7 +52,8 @@ object Application:
     val help = FirstFlows.innerHandlers(CommandRegistry.withCapture)
     val menu = new MenuHandler(codec, clock, lifecycle, inner = help)
     val reminders = new RemindersHandler(codec, clock, Application.reminderSettings(clock), capture, inner = menu)
-    val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = reminders))
+    val exports = ExportChat(clock, exportRequests(clock, codec), ExportMessages(codec), inner = reminders)
+    val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = exports))
     val engine = WizardEngine(
       flows = flows(clock, lifecycle),
       flowCommands = Map.empty,
@@ -61,6 +65,10 @@ object Application:
     )
     menu.wireEngine(engine)
     FirstFlows.identityGate(engine)
+
+  /** The export requests, as the chat and the Mini App API share them (ROADMAP G3.10). */
+  def exportRequests(clock: Clock, codec: CallbackCodec): ExportRequests =
+    ExportRequests(clock, IdSource.uuidV7(java.security.SecureRandom()), ExportMessages(codec))
 
   /** The settings use cases of the prompts, as the handler and the prompt loop share them (ADR-023). */
   def reminderSettings(clock: Clock): ReminderSettings =

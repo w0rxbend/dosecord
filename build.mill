@@ -97,7 +97,17 @@ object app extends DosegramModule:
   // The composition root also knows the renderer: it maps the core's card views to the report-renderer view models and
   // keeps the rendered bytes where the adapters load them (ARCHITECTURE DEP-07).
   def moduleDeps =
-    Seq(`adapter-console`, `adapter-telegram`, api, infra, core, contracts, `report-renderer`, `report-renderer`.resvg)
+    Seq(
+      `adapter-console`,
+      `adapter-telegram`,
+      api,
+      infra,
+      core,
+      contracts,
+      `report-renderer`,
+      `report-renderer`.resvg,
+      `report-pdf`
+    )
   def mainClass = Some("dosegram.app.Main")
   // Tapir 1.13.31 pinned per docs/DESIGN.md section 2: netty-sync serves
   // /healthz (M0.5), later /readyz, /metrics and the auth-link pages.
@@ -150,3 +160,11 @@ object `report-renderer` extends DosegramModule:
       def contactSheet() = Task.Command {
         runMain("dosegram.render.resvg.renderContactSheet", "out/report-renderer/preview")()
       }
+
+// ROADMAP G3.10 / VISUALS DOC-01: the record summary as a PDF. Research brief 04 section 11 recommends Typst and names
+// Apache PDFBox 3.0.8 (Apache-2.0) as the JVM fallback; no Typst binary is installed or pinned yet, so the fallback is
+// the renderer. It lays out a text document with the pinned font pack; it knows nothing of the core.
+object `report-pdf` extends DosegramModule:
+  def mvnDeps = Seq(mvn"org.apache.pdfbox:pdfbox:3.0.8")
+  object test extends DosegramTests:
+    def forkEnv = super.forkEnv() ++ Map("DOSEGRAM_FONTS_DIR" -> `report-renderer`.fontsDir().path.toString)

@@ -6,6 +6,8 @@ import dosegram.api.auth.Ed25519InitDataCheck
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataVerifier
 import dosegram.api.auth.TelegramInitDataVerifier
+import dosegram.core.application.Application
+import dosegram.core.chat.CallbackCodec
 import dosegram.infra.MiniAppSettings
 import dosegram.infra.Settings
 import dosegram.infra.db.PgIdempotencyKeys
@@ -91,7 +93,8 @@ object MiniAppEdge:
       PgIdempotencyStore(PgIdempotencyKeys(dataSource), parts.clock),
       TrackingUseCases(tracking.stats, tracking.hydration, tracking.mood, tracking.sleep),
       MoodBlobAsset.states,
-      log
+      log,
+      Application.exportRequests(parts.clock, CallbackCodec(settings.callbackKeys))
     )
     fork:
       WorkerLoop

@@ -4,6 +4,10 @@ import dosegram.api.auth.InMemorySessionStore
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataSuite
 import dosegram.api.auth.TelegramInitDataVerifier
+import dosegram.core.application.Application
+import dosegram.core.chat.CallbackCodec
+import dosegram.core.chat.CallbackKey
+import dosegram.core.chat.CallbackKeys
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
 import dosegram.infra.db.Fixtures
@@ -76,7 +80,8 @@ trait ApiSuite extends PgSuite:
     InMemoryIdempotencyStore(),
     TrackingUseCases(tracking.statsService, tracking.hydrationService, tracking.moodService, tracking.sleepService),
     ApiSuite.BlobStates,
-    line => logged.synchronized { logged += line; () }
+    line => logged.synchronized { logged += line; () },
+    Application.exportRequests(clock, ApiSuite.Codec)
   )
 
   override def beforeAll(): Unit =
@@ -200,6 +205,9 @@ trait ApiSuite extends PgSuite:
 object ApiSuite:
   val T0: Instant = Instant.parse("2026-11-13T08:00:00Z")
   val BotToken = "7000000001:AAFakeTokenForTestsOnly_0123456789abcde"
+
+  /** The signing key of the buttons the export routes put into the chat. */
+  val Codec: CallbackCodec = CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 3).toByte)), None))
 
   /** A stand-in for the renderer's asset, which the composition root converts: the route only serves it. */
   val BlobStates: MoodBlobStates = MoodBlobStates(
