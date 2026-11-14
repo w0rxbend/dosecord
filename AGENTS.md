@@ -39,9 +39,10 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-14, after five rounds of parallel tracks were
-merged and wired together (the fifth: medication depth, Mini App depth and
-Ukrainian; migration V8).
+State of `main` on 2026-11-14, after six rounds of parallel tracks were
+merged and wired together (the sixth: operations, audit and deletion,
+encryption at rest; migrations V9 to V12). The live database is at V8;
+`docs/OPERATIONS.md` section 8 is the owner's deploy to V12.
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -94,6 +95,24 @@ Appendix B and its status notes are the record; this is the short form.
   locale, else the client's `language_code`, else English; `/language` and
   the Mini App settings switch it. The Ukrainian text has had no
   native-speaker review.
+- Encryption at rest (G2.4, G2.4b in part, V10, V11): every Class A column
+  that held a value (medication name, alias, instructions, dose snapshots,
+  dose notes, meal words, export files, render bytes, stored API answers) is
+  sealed with AES-256-GCM under a per-account data key wrapped by `KEK`
+  (`infra/crypto`, `core/ports/KeyService`); `SchemaUpgrade` seals old values
+  at start. Still plaintext: the inbox, outbox payloads, sessions, form runs,
+  callback slots, domain events, file ids, reminder titles, display names.
+- Audit and deletion (G2.16, G2.17, G5.7, V12): `audit_log` is append-only,
+  codes only, written on the transaction of each consent, export, step-up,
+  session, settings, deletion and key event. `/privacy` deletes one domain
+  or the account (`ErasureCoverage` lists every table); account deletion
+  destroys the data keys first, writes the purge list (`PURGE_LIST_PATH`)
+  and keeps the audit rows under a tombstone.
+- Operations (G0.8, G2.18 and G2.19 in part): `/readyz` and `/metrics` on the
+  health listener, one owner alert per hour for dead outbox rows and
+  quarantined updates, `scripts/backup.sh`, `restore-drill.sh`,
+  `live-smoke.sh`, gitleaks secret scanning and actions pinned by commit.
+  `ProductionPathSuite` starts from `/start` on the fake wire.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -148,14 +167,19 @@ Useful next, in this order:
    course-finished message and pause with a date in the Mini App (G9.10,
    G9.12); MA-INS-8 and the cross-representation test of G9.5.
 7. What the consent and store work of 2026-11-13 left open: the rest of
-   onboarding (adult attestation, region, discreet choice, G2.8), deletion
-   of a domain's data (G2.17), encryption of the stores of the edges, of the
-   meal words and of the export file (G2.4b), and the `StorageError` port of
-   G2.1, each as a new versioned
-   migration. ARCHITECTURE section 10.17 lists the schema areas and the rules
-   for adding a table.
-8. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
-   are eligible by dependency and untouched.
+   onboarding (adult attestation, region, discreet choice, G2.8), the
+   `StorageError` port of G2.1, and of G2.4b the stores still in plaintext
+   (listed above) with the whole-database and WAL dump test, each schema
+   change as a new versioned migration. ARCHITECTURE section 10.17 lists the
+   schema areas and the rules for adding a table; a new table also needs an
+   `ErasureCoverage` and an `ExportCoverage` entry.
+8. What the sixth round left open: the CI run of G0.8 on a pushed branch;
+   the purge-list replay and canary decryption of the restore drill (G2.19);
+   the 7-day deletion delay, menu-button reset and `deleteMessage` of
+   BUX-DEL-04, the 13-month audit retention (G11.8) and the hash chain
+   (G11.6b); the rest of G2.18; dropping the emptied plaintext columns; the
+   image gate after the compose change. G2.6 (English catalogue) is eligible
+   by dependency and untouched.
 
 ## Agent workflow
 

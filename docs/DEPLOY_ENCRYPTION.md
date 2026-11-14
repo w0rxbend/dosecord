@@ -1,6 +1,8 @@
 # Deploying encryption at rest
 
-Status: written on 2026-11-14 with ROADMAP G2.4 and G2.4b (supervisor decisions, owner asleep). The steps were run
+Status: written on 2026-11-14 with ROADMAP G2.4 and G2.4b (supervisor decisions, owner asleep); merged to `main` with
+the audit log (V12) the same day, so the head schema is 12. The whole deploy of that `main`, in order, is
+[OPERATIONS.md](OPERATIONS.md) section 8. The steps were run
 against Testcontainers databases seeded as the V9 release wrote them (`SealingBackfillPgSuite`), not against the
 owner's live database. The design is ARCHITECTURE section 15.2 and its "As built" notes.
 
@@ -47,10 +49,11 @@ a key anyone can derive.
 5. Add `KEK_FILE=/path/outside/the/db/volume/dosegram-kek` to the bot's environment, next to `DATABASE_URL`.
 6. Optional, to watch the upgrade on its own: run `dosegram migrate` with the same environment. It prints one line per
    sealed column (`sealing: medications.name sealed N value(s), verified N`) and then
-   `migrate: 2 migration(s) applied, schema 11, N value(s) sealed, 0 key(s) rewrapped`. No line carries a value.
+   `migrate: N migration(s) applied, schema 12, N value(s) sealed, 0 key(s) rewrapped`; from the live database at V8 that
+   is 4 migrations (V9 to V12; V12 is the audit log of ROADMAP G2.16). No line carries a value.
 7. Start the new release as usual. Its start runs the same step; on an upgraded database it finds nothing to do.
 8. Check:
-   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 11.
+   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 12.
    - `SELECT count(*) FROM medications WHERE name IS NOT NULL;` returns 0.
    - `/today` and the Mini App medication list show the names, `/food` shows recent words, and an export opens.
 

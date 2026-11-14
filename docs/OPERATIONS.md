@@ -161,3 +161,46 @@ token, webhook secret and key fail both scans.
 Every action in `.github/workflows/` is pinned by commit, with its version as a comment; Renovate
 moves the commit and the comment together. The gitleaks download is pinned by version and
 checksum; a Renovate update of the version needs the new checksum in the same pull request.
+
+## 8. Deploying `main` of 2026-11-14 to the live host (V8 to V12)
+
+The live database is at V8. This `main` brings V9 (inventory keys), V10 and V11 (encryption at rest,
+[DEPLOY_ENCRYPTION.md](DEPLOY_ENCRYPTION.md)) and V12 (audit log and deletion), the readiness and
+metrics paths, and the owner alerts. Every step is the owner's; none was run against the live
+database. In order:
+
+1. Make the key-encryption key file outside the database volume and every backup of it, as the
+   user that runs the bot (`umask 077`, `printf 'kek-2026:%s\n' "$(openssl rand -base64 32)"`,
+   `chmod 0400`), and two offline copies in separate places (OA-9). Losing it loses every sealed
+   value.
+2. Choose a persistent path for the purge list outside the database volume and its backups,
+   writable by the bot's user (for example next to the key file, not the same file).
+3. Check that the database login role may take the erasure role:
+   `SELECT rolsuper OR pg_has_role(current_user, 'dosegram_erasure', 'MEMBER') FROM pg_roles WHERE rolname = current_user;`
+   must return `t` (the role exists since V1). If it returns `f`:
+   `GRANT dosegram_erasure TO <login role>;`. Without it every deletion fails and
+   deletes nothing.
+4. Back up the live database with `pg_dump` and keep that file until step 9 has passed. It holds
+   plaintext: keep it off shared storage, and delete it once the first encrypted nightly backup of
+   section 4 has passed a restore drill (supervisor decision, 2026-11-14).
+5. Stop the running bot. The previous release writes plaintext, which V11 then refuses.
+6. Add to the bot's environment: `KEK_FILE=<path of step 1>` (also under
+   `ENVIRONMENT=development`, or the data is sealed with the public development key) and
+   `PURGE_LIST_PATH=<path of step 2>`. Optional: `OWNER_ALERT_CHAT=<chat id>`; without it the alerts
+   go to the only user of `TELEGRAM_ALLOWED_USER_IDS`.
+7. Optional: run `dosegram migrate` with the same environment and read its lines: one
+   `sealing: <table>.<column> sealed N value(s), verified N` per column, then
+   `migrate: 4 migration(s) applied, schema 12, N value(s) sealed, 0 key(s) rewrapped`.
+8. Start the new release as usual; its start finds nothing left to do.
+9. Check, read-only:
+   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 12.
+   - `SELECT count(*) FROM medications WHERE name IS NOT NULL;` returns 0.
+   - `SELECT event_type FROM audit_log WHERE event_type = 'key.backfill.completed';` returns one row
+     if the database held a sealed value's plaintext.
+   - `curl -fsS http://127.0.0.1:<HEALTH_PORT>/readyz` answers 200; `scripts/live-smoke.sh` exits 0.
+   - `/today`, the Mini App medication list, `/food` recent words and an export show the real values.
+10. Schedule the nightly backup and copy it off the host (section 4, OA-7), and install the
+    secret-scan hook (section 7).
+
+Rollback: a start that fails before V11 leaves V10 with every plaintext value, and the previous
+release can be started again. After V11, restore the backup of step 4.
