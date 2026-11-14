@@ -41,8 +41,9 @@ engine, and they govern nothing.
 
 State of `main` on 2026-11-14, after six rounds of parallel tracks were
 merged and wired together (the sixth: operations, audit and deletion,
-encryption at rest; migrations V9 to V12). The live database is at V8;
-`docs/OPERATIONS.md` section 8 is the owner's deploy to V12.
+encryption at rest; migrations V9 to V12), plus the fixes of that day's
+verification (V13). `docs/OPERATIONS.md` sections 8 and 9 are the owner's
+deploys to V12 and V13.
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -100,14 +101,19 @@ Appendix B and its status notes are the record; this is the short form.
   dose notes, meal words, export files, render bytes, stored API answers) is
   sealed with AES-256-GCM under a per-account data key wrapped by `KEK`
   (`infra/crypto`, `core/ports/KeyService`); `SchemaUpgrade` seals old values
-  at start. Still plaintext: the inbox, outbox payloads, sessions, form runs,
-  callback slots, domain events, file ids, reminder titles, display names.
+  at start. V13 seals outbox payloads and stored replies too (account key, or
+  the `transport` service key before the account exists) and the start seals
+  and empties the old ones, then vacuums. Still plaintext: the inbox,
+  sessions, form runs, callback slots, domain events, file ids, reminder
+  titles, display names.
 - Audit and deletion (G2.16, G2.17, G5.7, V12): `audit_log` is append-only,
   codes only, written on the transaction of each consent, export, step-up,
   session, settings, deletion and key event. `/privacy` deletes one domain
   or the account (`ErasureCoverage` lists every table); account deletion
   destroys the data keys first, writes the purge list (`PURGE_LIST_PATH`)
-  and keeps the audit rows under a tombstone.
+  and keeps the audit rows under a tombstone. It also deletes the onboarding
+  rows of the account's chat (`chat_key`, V13); a domain deletion deletes the
+  export files. Every start replays the purge list (`PurgeReplay`).
 - Operations (G0.8, G2.18 and G2.19 in part): `/readyz` and `/metrics` on the
   health listener, one owner alert per hour for dead outbox rows and
   quarantined updates, `scripts/backup.sh`, `restore-drill.sh`,
