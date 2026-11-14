@@ -87,3 +87,6 @@ object ExportFixture:
 
   /** A lunch every day and a snack every second day. */
   val Meals: Int = Days + Days / 2
+
+  /** The meals logged of VISUALS section 7.5: the lunches; snacks are counted apart. */
+  val MealsLogged: Int = Days

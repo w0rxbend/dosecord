@@ -54,5 +54,14 @@ class FoodCopySuite extends munit.FunSuite:
       date.minusDays(9) -> MealDay(1, 1, 1, 0)
     )
     val period = MealStats.period(days, DateRange.endingOn(date, 7))
-    assertEquals((period.meals, period.daysWithMeals), (7, 2))
+    assertEquals((period.meals, period.snacks, period.daysWithMeals), (5, 2, 2), "meals logged, snacks apart")
     assertEquals(FoodCopy.week(period), "Breakfast 2, Lunch 1, Dinner 2 of 7 days")
+    assertEquals(FoodCopy.logged(period), "5 meals logged, 2 snacks")
+
+  test("meals logged are distinct main meals per day, as the weekly card draws them (VISUALS 7.5)"):
+    val twoBreakfasts = Map(date -> MealDay(2, 0, 1, 0))
+    val period = MealStats.period(twoBreakfasts, DateRange.endingOn(date, 7))
+    assertEquals(period.meals, twoBreakfasts(date).mainMeals)
+    assertEquals(FoodCopy.statsPeriod(period), Some("Food: 2 meals logged · Breakfast 1, Lunch 0, Dinner 1 of 7 days"))
+    val snackOnly = MealStats.period(Map(date -> MealDay(0, 0, 0, 1)), DateRange.endingOn(date, 7))
+    assertEquals(FoodCopy.statsPeriod(snackOnly), Some("Food: 1 snack logged · Breakfast 0, Lunch 0, Dinner 0 of 7 days"))

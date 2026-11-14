@@ -45,7 +45,7 @@ class TrendCopySuite extends munit.FunSuite:
     val sleep = SleepStats.period(days(10)(_ => SleepNight(410, None)), month)
     assertEquals(TrendCopy.sleep(30, sleep), "Previous 30 days: average 6 h 50 min · 10 nights logged")
     val food = MealStats.period(days(4)(_ => MealDay(1, 1, 0, 1)), month)
-    assertEquals(TrendCopy.food(30, food), "Previous 30 days: 12 meals logged on 4 days")
+    assertEquals(TrendCopy.food(30, food), "Previous 30 days: 8 meals logged, 4 snacks on 4 days")
 
   test("a previous period below its gate gives counts and no average, and an empty one says No data"):
     val water = HydrationStats.period(days(2)(_ => HydrationDay(1500, 3, None)), month)

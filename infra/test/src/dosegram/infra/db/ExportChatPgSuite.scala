@@ -218,7 +218,7 @@ class ExportChatPgSuite extends PgSuite:
     val logged = food.blocks.collect { case SummaryBlock.Table(header, rows, _) if header == ExportCopy.foodHeader =>
       rows.map(row => row(2).toInt).sum
     }
-    assertEquals(logged, List(ExportFixture.Meals), "every meal entry of the period, from the statistics' rollup")
+    assertEquals(logged, List(ExportFixture.MealsLogged), "the meals logged of the period, from the statistics' rollup")
     assert(!words.exists(_.contains(fixture.mealWords)), "meal words are not part of the record summary")
 
   test("a record summary of a domain without its consent shows nothing of it"):

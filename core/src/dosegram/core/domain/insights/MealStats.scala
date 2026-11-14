@@ -10,7 +10,11 @@ import java.time.LocalDate
   * a meal and no energy value enters it.
   */
 final case class MealDay(breakfast: Int, lunch: Int, dinner: Int, snacks: Int):
+  /** Every entry of the day, snacks included: whether the day has a meal at all. */
   def meals: Int = breakfast + lunch + dinner + snacks
+
+  /** The meals logged of VISUALS section 7.5: distinct main meal types with an entry, as the weekly card draws them. */
+  def mainMeals: Int = logged.size
 
   def count(mealType: MealType): Int =
     mealType match
@@ -36,10 +40,20 @@ final case class RegularMealDay(date: LocalDate, plan: MealPlan, logged: Set[Mea
   def progress: Option[Double] =
     Option.when(plan.planned.nonEmpty)(plannedLogged.toDouble / plan.planned.size.toDouble)
 
-/** The meals of a period: the meals and the days with a meal, and per main meal the number of days it was logged on
-  * (MINI_APP MA-FOOD-4: counts, no percentages).
+/** The meals of a period: the meals logged (distinct main meal types per day, VISUALS section 7.5), the snacks counted
+  * separately, the days with any entry, and per main meal the number of days it was logged on (MINI_APP MA-FOOD-4:
+  * counts, no percentages). The text, the weekly card and the app count meals the same way (supervisor decision,
+  * 2026-11-14).
   */
-final case class MealPeriod(window: DateRange, meals: Int, daysWithMeals: Int, daysPerMeal: Map[MealType, Int])
+final case class MealPeriod(
+    window: DateRange,
+    meals: Int,
+    daysWithMeals: Int,
+    daysPerMeal: Map[MealType, Int],
+    snacks: Int = 0
+):
+  /** Whether the period has any entry, a snack alone included. */
+  def hasEntries: Boolean = meals > 0 || snacks > 0
 
 object MealStats:
 
@@ -58,8 +72,9 @@ object MealStats:
     val inside = days.view.filterKeys(window.contains).values.filter(_.meals > 0).toList
     MealPeriod(
       window = window,
-      meals = inside.map(_.meals).sum,
+      meals = inside.map(_.mainMeals).sum,
       daysWithMeals = inside.size,
-      daysPerMeal = MealType.main.map(meal => meal -> inside.count(_.count(meal) > 0)).toMap
+      daysPerMeal = MealType.main.map(meal => meal -> inside.count(_.count(meal) > 0)).toMap,
+      snacks = inside.map(_.snacks).sum
     )
 end MealStats

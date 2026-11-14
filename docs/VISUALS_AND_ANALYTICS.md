@@ -1558,6 +1558,8 @@ Edge cases: a tracked day with no entry is "no record", not zero. Deleting or ed
 
 Edge cases: entries without numbers count as meals and not toward energy. An entry with energy but no macros counts toward energy only, and the macro bar's coverage line says so. A value from a lookup or a model is `estimated`. No calorie budget, deficit, remaining amount or weight-linked figure is computed.
 
+Meals logged over a period (supervisor decision, 2026-11-14): the sum over its days of the distinct main meal types with an entry, the count the weekly card draws as dots, with snacks counted apart ("19 meals logged, 3 snacks"; a period with snacks only says "2 snacks logged"). Two breakfasts on one day are one meal logged. `/stats`, the weekly and monthly report text, the record summary, the Mini App figures and the weekly card use this one count.
+
 | ID | Requirement |
 |---|---|
 | VA-ME-40 | The food metrics contain no target unless the user entered a personal reference value, and then only the plain difference from it is shown. |

@@ -525,7 +525,8 @@ object Charts:
   def mealsByWeek(days: Map[LocalDate, MealDay], weeks: List[DateRange], window: DateRange): Chart =
     val columns = weeks.map: week =>
       val own = recordedIn(days, week).filter(_.meals > 0)
-      val meals = own.map(_.meals).sum
+      // Meals logged as the text and the weekly card count them: distinct main meals per day (VISUALS 7.5).
+      val meals = own.map(_.mainMeals).sum
       if meals == 0 then WeekColumn(week, None, None, tr("no meal logged", "прийомів їжі не записано"))
       else
         WeekColumn(

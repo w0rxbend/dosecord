@@ -104,22 +104,22 @@ object TrendCopy:
 
   def food(days: Int, period: MealPeriod): String =
     val figure =
-      if period.meals == 0 then StatsCopy.NoData
+      if !period.hasEntries then StatsCopy.NoData
       else
         tr(
-          s"${StatsCopy.count(period.meals, "meal")} logged on ${StatsCopy.count(period.daysWithMeals, "day")}",
-          s"записано ${UkNouns.Meals.count(period.meals)} за ${UkNouns.Days.count(period.daysWithMeals)}"
+          s"${FoodCopy.logged(period)} on ${StatsCopy.count(period.daysWithMeals, "day")}",
+          s"${FoodCopy.logged(period)} за ${UkNouns.Days.count(period.daysWithMeals)}"
         )
     previous(days, figure)
 
   /** The meals of a period and the days per main meal; empty when the period has no meal. */
   def foodFigures(period: MealPeriod): List[String] =
-    if period.meals == 0 then Nil
+    if !period.hasEntries then Nil
     else
       List(
         tr(
-          s"${StatsCopy.count(period.meals, "meal")} logged on ${period.daysWithMeals} of ${period.window.days} days",
-          s"записано ${UkNouns.Meals.count(period.meals)} за ${period.daysWithMeals} з ${UkNouns.DaysOf.count(period.window.days)}"
+          s"${FoodCopy.logged(period)} on ${period.daysWithMeals} of ${period.window.days} days",
+          s"${FoodCopy.logged(period)} за ${period.daysWithMeals} з ${UkNouns.DaysOf.count(period.window.days)}"
         ),
         FoodCopy.week(period)
       )
