@@ -18,6 +18,8 @@ test('launch: the session exchange answers 201, Today shows the medication, the 
 
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
   await expect(page.getByText(MEDICATION).first()).toBeVisible();
+  // The account has never saved its day: Today offers set-up (MINI_APP S-19).
+  await expect(page.getByRole('region', { name: 'Finish setting up' })).toBeVisible();
 
   const shell = await page.request.get('/app/');
   expect(shell.headers()['content-security-policy']).toContain("default-src 'none'");
@@ -86,6 +88,25 @@ test('log water from the deep link: the amount is recorded, shown, and counted i
   await page.getByRole('button', { name: 'Previous month' }).click();
   expect((await previous).status()).toBe(200);
   await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
+
+  // The dashboard (MINI_APP 7.11): every block names the previous period; 90 days are drawn in weeks; the day picked
+  // on a chart of days opens Day detail.
+  const water = page.getByRole('region', { name: 'Water' });
+  await expect(water.getByText(/^Previous 30 days: /)).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'At a glance' })).toBeVisible();
+  const quarter = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/overview?range=90'));
+  await page.getByLabel('90 days').check();
+  expect((await quarter).status()).toBe(200);
+  await expect(water.getByText('Water per week', { exact: true })).toBeVisible();
+  await expect(water.getByText(/^Previous 90 days: /)).toBeVisible();
+  const week = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/overview?range=7'));
+  await page.getByLabel('7 days').check();
+  expect((await week).status()).toBe(200);
+  await expect(water.getByText('Water per day', { exact: true })).toBeVisible();
+  // The last mark is today, with the water just added.
+  await water.getByRole('link', { name: 'Open this day' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Day' })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/insights\/history\/\d{8}$/);
 });
 
 test('mood check-in: the slider is moved, Save on the bottom button records it', async ({ app }) => {
@@ -134,4 +155,24 @@ test('reminders: a preset is turned on, then off again', async ({ app }) => {
   await first.getByRole('button', { name: 'Turn off' }).click();
   expect((await off).ok()).toBe(true);
   await expect(page.getByText('Turned off')).toBeVisible();
+
+  // Settings complete and set-up (MA-SET-11, S-19): the day saved on its own page counts as done in set-up.
+  await pressBackButton(page);
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await page.getByRole('link', { name: /^Set up Dosegram/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Set up Dosegram' })).toBeVisible();
+  const day = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Your day' }) });
+  await expect(day.getByText('To do')).toBeVisible();
+  await day.getByRole('button', { name: 'Set your day' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Your day' })).toBeVisible();
+  await page.getByLabel('Wake', { exact: true }).fill('06:45');
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/reminders/day') && r.request().method() === 'PATCH');
+  await page.getByRole('button', { name: 'Save day' }).click();
+  expect((await saved).ok()).toBe(true);
+  await expect(page.getByRole('heading', { level: 1, name: 'Set up Dosegram' })).toBeVisible();
+  await expect(day.getByText('Done')).toBeVisible();
+  await pressBackButton(page);
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await page.getByRole('link', { name: /^Export everything/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Reports and export' })).toBeVisible();
 });

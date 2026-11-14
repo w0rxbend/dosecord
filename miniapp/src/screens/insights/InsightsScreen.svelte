@@ -1,14 +1,17 @@
 <script lang="ts">
-  import type { InsightRange, InsightsOverview } from '../../api/types';
+  import { tick } from 'svelte';
+  import type { InsightBlock, InsightRange, InsightsOverview } from '../../api/types';
   import { useApp } from '../../app/context';
-  import ChartFigure from '../../charts/ChartFigure.svelte';
-  import Vessel from '../../charts/Vessel.svelte';
   import { en } from '../../i18n/en';
+  import { isReducedMotion } from '../../state/motion';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
+  import EmptyState from '../../ui/EmptyState.svelte';
   import LinkRow from '../../ui/LinkRow.svelte';
-  import MonthAndPatterns from './MonthAndPatterns.svelte';
   import Screen from '../../ui/Screen.svelte';
+  import DomainBlock from './DomainBlock.svelte';
+  import GlanceTile from './GlanceTile.svelte';
+  import MonthAndPatterns from './MonthAndPatterns.svelte';
 
   /** Offered until the first answer names the periods the backend computes. */
   const FIRST_RANGES: readonly InsightRange[] = [7, 30];
@@ -20,19 +23,30 @@
 
   $effect(() => tg.onActivated(() => void overview.load()));
 
+  // The chosen period applies to every block (MA-INS-1, VA-MA-12).
   function changeRange(): void {
     tg.haptic('selection');
     const chosen = range;
     void overview.load(() => api.insightsOverview(chosen));
   }
+
+  /** A tile leads to its block: the block's heading takes the focus and comes into view. */
+  async function open(block: InsightBlock): Promise<void> {
+    await tick();
+    const heading = document.getElementById(`insight-${block.id}`);
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView?.({ block: 'start', behavior: isReducedMotion(tg) ? 'auto' : 'smooth' });
+  }
+
+  const withData = (data: InsightsOverview): boolean => data.blocks.some((block) => !block.noDataText);
 </script>
 
 <Screen title={en.insights.title} subtitle={overview.data?.rangeLabel}>
   <fieldset class="section">
     <legend class="visually-hidden">{en.insights.range}</legend>
-    <div class="chips">
+    <div class="segmented">
       {#each ranges as option (option)}
-        <label class="chip">
+        <label>
           <input type="radio" name="insights-range" value={option} bind:group={range} onchange={changeRange} />
           <span class="numeric">{en.insights.days(option)}</span>
         </label>
@@ -42,31 +56,20 @@
 
   <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
     {#snippet children(data)}
-      {#if data.notice}<p class="muted">{data.notice}</p>{/if}
+      {#if data.notice}<p class="muted notice">{data.notice}</p>{/if}
+      {#if data.blocks.length > 0 && !withData(data)}
+        <div class="section"><EmptyState message={en.insights.empty} art="all" /></div>
+      {/if}
+      {#if data.blocks.length > 1}
+        <nav class="section glance" aria-label={en.insights.glance}>
+          {#each data.blocks as block (block.id)}
+            <GlanceTile {block} onOpen={(chosen) => void open(chosen)} />
+          {/each}
+        </nav>
+      {/if}
       <div class="blocks" aria-busy={overview.loading}>
         {#each data.blocks as block (block.id)}
-          <section class="section" aria-labelledby="insight-{block.id}">
-            <h2 class="section-title" id="insight-{block.id}">{block.title}</h2>
-            <div class="section-body pad block">
-              <!-- Counts and durations in the server's words: no score, no rating (MA-INS-2). -->
-              {#if block.noDataText}
-                <p>{block.noDataText}</p>
-              {:else}
-                <div class="lead">
-                  {#if block.vessel}<Vessel {...block.vessel} />{/if}
-                  <div>
-                    {#each block.lines as line, index (index)}
-                      <p class="numeric" class:headline={index === 0} class:muted={index > 0}>{line}</p>
-                    {/each}
-                    {#if block.vessel}<p class="numeric">{block.vessel.label}</p>{/if}
-                  </div>
-                </div>
-                {#each block.charts as chart, index (chart.id)}
-                  <ChartFigure {chart} id="chart-{block.id}-{index}" />
-                {/each}
-              {/if}
-            </div>
-          </section>
+          <DomainBlock {block} />
         {/each}
       </div>
       {#if data.blocks.length > 0}<MonthAndPatterns />{/if}
@@ -79,6 +82,28 @@
 </Screen>
 
 <style>
+  .notice {
+    margin-block-end: var(--dg-space-4);
+  }
+
+  /* Tiles in two columns; one column on the narrowest phones (MA-LAYOUT-3). */
+  .glance {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--dg-space-3);
+  }
+
+  /* An odd last tile takes the whole row instead of leaving a hole. */
+  .glance > :global(:last-child:nth-child(odd)) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 339px) {
+    .glance {
+      grid-template-columns: 1fr;
+    }
+  }
+
   /* From 720 px the blocks sit in two columns in reading order (MA-INS-9). */
   @media (min-width: 720px) {
     .blocks {
@@ -87,22 +112,9 @@
       gap: var(--dg-space-4);
       align-items: start;
     }
-  }
 
-  .block {
-    display: grid;
-    gap: var(--dg-space-5);
-  }
-
-  .lead {
-    display: flex;
-    gap: var(--dg-space-4);
-    align-items: center;
-  }
-
-  .headline {
-    font-size: var(--dg-text-title);
-    font-weight: 600;
-    line-height: 1.2;
+    .glance {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 </style>

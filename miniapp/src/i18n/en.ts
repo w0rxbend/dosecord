@@ -250,6 +250,19 @@ export const en = {
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
     byMedication: 'By medication',
+    // The dashboard of MINI_APP 7.11 (supervisor decision, 2026-11-14).
+    glance: 'At a glance',
+    eachMedication: 'Each medication in this period',
+    openDay: 'Open this day',
+    period: 'This period',
+    empty: 'Insights appear after a few days of entries. Nothing is missing; there is just not enough yet.',
+    start: {
+      medication: 'Open medications',
+      hydration: 'Log water',
+      mood: 'Check in',
+      sleep: 'Log a night',
+      nutrition: 'Log a meal',
+    },
   },
 
   // MINI_APP 8.2 "Consent needed": consent is given in chat only (ARCHITECTURE API-19).
@@ -461,6 +474,58 @@ export const en = {
     privacyHint: 'What you turned on, and how to change it',
     reminders: 'Reminders',
     remindersHint: 'Presets, work hours and a preview of tomorrow',
+    // Settings complete (supervisor decision, 2026-11-14).
+    day: 'Your day',
+    dayHint: 'Wake, meals, bedtime, work and quiet hours',
+    setup: 'Set up Dosegram',
+    setupHint: 'Consents, time zone, your day and a first step',
+    data: 'Your data',
+    exportAll: 'Export everything',
+    exportHint: 'One file with all your records, confirmed in the chat',
+    about: 'Dosegram records what you log and reminds you of what you set. It gives no medical advice.',
+  },
+
+  // The day profile on its own Settings page (MA-SET-10, supervisor decision 2026-11-14).
+  dayProfile: {
+    title: 'Your day',
+    loading: 'Loading your day',
+    intro: 'Reminders and summaries use these times. Medication reminders keep their own times.',
+  },
+
+  // Set-up inside the app for a person who opens it first (supervisor decision, 2026-11-14).
+  // Consent is given in the chat only; the app explains it and shows where (MA-ROLE-2).
+  setup: {
+    title: 'Set up Dosegram',
+    loading: 'Loading your set-up',
+    intro: 'Four short steps. You can change every one of them later in Settings.',
+    progress: (done: number, total: number) => `${done} of ${total} done`,
+    done: 'Done',
+    todo: 'To do',
+    card: 'Finish setting up',
+    cardText: 'Tell Dosegram about your day so reminders and summaries fit it.',
+    cardAction: 'Set up',
+    finish: 'Go to Today',
+    consentTitle: 'What Dosegram records',
+    consentText:
+      'Dosegram records an area only after you confirm it in the chat with the bot. This app shows what is on and never records a consent itself.',
+    consentOn: 'On',
+    toChat: 'Close and go to the chat',
+    zoneTitle: 'Time zone',
+    zoneText: (zone: string) => `Dosegram uses ${zone} for your days and reminders.`,
+    zoneDevice: (zone: string) => `This device is on ${zone}.`,
+    zoneKeep: 'Looks right',
+    zoneChange: 'Change time zone',
+    dayTitle: 'Your day',
+    dayText: 'When you usually wake, eat and go to bed, and your work and quiet hours.',
+    daySet: 'Set your day',
+    dayEdit: 'Change your day',
+    firstTitle: 'A first step',
+    firstText: 'Add a medication or set a water goal of your own.',
+    firstMedication: 'Add a medication',
+    firstGoal: 'Set a water goal',
+    goalSet: (millilitres: number) => `Your water goal is ${millilitres} ml a day.`,
+    medicationsSet: (count: number) => (count === 1 ? '1 medication is set up.' : `${count} medications are set up.`),
+    firstOff: 'Turn on medication or water in the chat first: send /meds or /water.',
   },
 
   // MINI_APP S-14. The record summary is never called a clinical or medical report (PRODUCT_SPEC R-IMX-6).
@@ -521,6 +586,9 @@ export const en = {
     dinner: 'Dinner',
     bedtime: 'Bedtime',
     workDays: 'Work days',
+    groupMeals: 'Wake, meals and bedtime',
+    groupWork: 'Work',
+    groupQuiet: 'Quiet hours',
     workStart: 'Work starts',
     workEnd: 'Work ends',
     quietStart: 'Quiet from',

@@ -24,6 +24,7 @@ import type {
   NutritionDay,
   NutritionSettings,
   NutritionSummary,
+  Scene,
   SceneNode,
   SleepStatus,
   SleepSummary,
@@ -245,6 +246,10 @@ export function toInsightsOverview(wire: Wire['InsightsOverview'], asked: Insigh
       noDataText: block.noDataText,
       charts: (block.charts ?? []).map(toChart),
       vessel: block.vessel,
+      comparison: block.comparison,
+      spark: block.spark && toScene(block.spark),
+      details: block.details,
+      medications: block.medications?.map((row) => ({ ...row })),
     })),
     notice: wire.notice,
   };
@@ -314,18 +319,23 @@ function toSceneNode(wire: Wire['SceneNode']): SceneNode | null {
   }
 }
 
+function toScene(wire: Wire['Scene']): Scene {
+  return {
+    width: wire.width,
+    height: wire.height,
+    nodes: (wire.nodes ?? []).map(toSceneNode).filter((node) => node !== null),
+  };
+}
+
 export function toChart(wire: Wire['Chart']): Chart {
   return {
     id: wire.id,
     title: wire.title,
     summary: wire.summary,
-    scene: {
-      width: wire.scene.width,
-      height: wire.scene.height,
-      nodes: (wire.scene.nodes ?? []).map(toSceneNode).filter((node) => node !== null),
-    },
+    scene: toScene(wire.scene),
     table: { caption: wire.table.caption, columns: wire.table.columns ?? [], rows: wire.table.rows ?? [] },
     marks: wire.marks ?? [],
+    markDates: wire.markDates,
   };
 }
 

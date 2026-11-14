@@ -103,14 +103,15 @@
 
       <div class="section section-body">
         <LinkRow path="/settings/reminders" label={en.settings.reminders} hint={en.settings.remindersHint} />
+        <LinkRow path="/settings/day" label={en.settings.day} hint={en.settings.dayHint} />
       </div>
 
       <fieldset class="section">
         <legend class="section-title">{en.settings.imageTheme}</legend>
         <div class="section-body pad">
-          <div class="chips">
+          <div class="segmented">
             {#each THEMES as theme (theme)}
-              <label class="chip">
+              <label>
                 <input type="radio" name="image-theme" value={theme} checked={data.account.imageTheme === theme} onchange={() => saveAccount({ imageTheme: theme })} />
                 <span>{en.settings.themes[theme]}</span>
               </label>
@@ -119,6 +120,16 @@
           <p class="muted help">{en.settings.imageThemeHelp}</p>
         </div>
       </fieldset>
+
+      <section class="section" aria-labelledby="set-data">
+        <h2 class="section-title" id="set-data">{en.settings.data}</h2>
+        <div class="section-body">
+          <LinkRow path="/insights/reports" label={en.settings.exportAll} hint={en.settings.exportHint} />
+          <LinkRow path="/setup" label={en.settings.setup} hint={en.settings.setupHint} />
+        </div>
+      </section>
+
+      <p class="note section">{en.settings.about}</p>
     {/snippet}
   </AsyncView>
 </Screen>
@@ -132,11 +143,6 @@
     padding: var(--dg-space-2) var(--dg-space-4);
   }
 
-  .toggle input {
-    inline-size: 24px;
-    block-size: 24px;
-    flex: none;
-  }
 
   .text {
     display: grid;

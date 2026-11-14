@@ -1,23 +1,41 @@
 <script lang="ts">
   import type { Chart } from '../api/types';
+  import { useApp } from '../app/context';
+  import { historyDayPath } from '../app/routes';
   import { en } from '../i18n/en';
   import ScenePainter from './ScenePainter.svelte';
 
   let { chart, id }: { chart: Chart; id: string } = $props();
+  const { router } = useApp();
   let tableOpen = $state(false);
   // The last mark is the most recent day: it is the one shown until the person picks another.
   let selected = $state<number | undefined>(undefined);
   const current = $derived(selected ?? chart.marks.length - 1);
   const caption = $derived(chart.marks[current]);
+  // A chart of days names the day of each mark: the picked day opens in Day detail (S-13).
+  const day = $derived(chart.markDates?.[current]);
 
+  function openDay(): void {
+    if (day) void router.navigate(historyDayPath(day));
+  }
+
+  // The first tap on a mark shows its value; a second tap on the same mark opens its day.
   function pick(event: MouseEvent): void {
     const mark = (event.target as Element | null)?.getAttribute('data-mark');
-    if (mark !== null && mark !== undefined && mark !== '') selected = Number(mark);
+    if (mark === null || mark === undefined || mark === '') return;
+    const index = Number(mark);
+    if (selected === index && day) openDay();
+    else selected = index;
   }
 
   // The values are reachable by keyboard: the arrow keys move between marks (MA-INS-6).
   function step(event: KeyboardEvent): void {
     const last = chart.marks.length - 1;
+    if (event.key === 'Enter' && day) {
+      event.preventDefault();
+      openDay();
+      return;
+    }
     const moves: Record<string, number> = { ArrowLeft: current - 1, ArrowRight: current + 1, Home: 0, End: last };
     const next = moves[event.key];
     if (next === undefined) return;
@@ -46,7 +64,14 @@
     >
       <ScenePainter scene={chart.scene} label={chart.summary} selected={current} />
     </div>
-    <p class="caption numeric" aria-live="polite">{caption}</p>
+    <div class="picked">
+      <p class="caption numeric" aria-live="polite">{caption}</p>
+      {#if day}
+        <a class="open" href={router.hrefFor(historyDayPath(day))} onclick={(event) => { event.preventDefault(); openDay(); }}>
+          {en.insights.openDay}
+        </a>
+      {/if}
+    </div>
   {:else}
     <ScenePainter scene={chart.scene} label={chart.summary} />
   {/if}
@@ -99,9 +124,27 @@
     touch-action: manipulation;
   }
 
+  .picked {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--dg-space-2);
+    min-block-size: var(--dg-target);
+  }
+
   .caption {
     min-block-size: 1.4em;
     font-weight: 600;
+  }
+
+  .open {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--dg-target);
+    color: var(--dg-accent-text);
+    font-weight: 600;
+    text-decoration: none;
   }
 
   .btn {

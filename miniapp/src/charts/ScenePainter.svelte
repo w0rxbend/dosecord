@@ -6,15 +6,23 @@
     label: string;
     /** The mark whose nodes are outlined as selected (MA-INS-6). */
     selected?: number;
+    /** A small line whose text is written beside it: hidden from assistive technology. */
+    decorative?: boolean;
   }
 
-  let { scene, label, selected }: Props = $props();
+  let { scene, label, selected, decorative = false }: Props = $props();
 </script>
 
 <!-- The one scene painter (MINI_APP 5.6): it draws the primitives the server positioned and has
      no axis, scale or layout code of its own. Colours are token names resolved in CSS; nodes are
      created as DOM elements, never from markup strings (MA-SEC-1). -->
-<svg viewBox="0 0 {scene.width} {scene.height}" role="img" aria-label={label}>
+<svg
+  viewBox="0 0 {scene.width} {scene.height}"
+  role={decorative ? undefined : 'img'}
+  aria-label={decorative ? undefined : label}
+  aria-hidden={decorative ? 'true' : undefined}
+  class:decorative
+>
   {#each scene.nodes as node, index (index)}
     {#if node.kind === 'rect'}
       <rect
@@ -81,10 +89,16 @@
     stroke-width: 1;
   }
 
+  .decorative line {
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
   [data-fill='domain-medication'] { fill: var(--dg-domain-medication); }
   [data-fill='domain-hydration'] { fill: var(--dg-domain-hydration); }
   [data-fill='domain-mood'] { fill: var(--dg-domain-mood); }
   [data-fill='domain-sleep'] { fill: var(--dg-domain-sleep); }
+  [data-fill='domain-nutrition'] { fill: var(--dg-domain-nutrition); }
   [data-fill='recorded'] { fill: var(--dg-recorded); }
   [data-fill='text'] { fill: var(--dg-text); }
   [data-fill='text-muted'] { fill: var(--dg-text-muted); }
@@ -95,6 +109,10 @@
   [data-stroke='text'] { stroke: var(--dg-text); }
   [data-stroke='domain-mood'] { stroke: var(--dg-domain-mood); stroke-width: 2; }
   [data-stroke='domain-hydration'] { stroke: var(--dg-domain-hydration); }
+  [data-stroke='domain-sleep'] { stroke: var(--dg-domain-sleep); }
+  [data-stroke='domain-nutrition'] { stroke: var(--dg-domain-nutrition); }
+  [data-stroke='recorded'] { stroke: var(--dg-recorded); }
+  [data-stroke='domain-medication'] { stroke: var(--dg-domain-medication); }
 
   /* An outline marks a partial or unanswered value, so shade is never the only cue. */
   [data-outlined='true'] {

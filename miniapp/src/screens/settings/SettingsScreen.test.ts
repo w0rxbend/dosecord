@@ -7,6 +7,7 @@ import PrivacyScreen from './PrivacyScreen.svelte';
 import QuietHoursScreen from './QuietHoursScreen.svelte';
 import SettingsScreen from './SettingsScreen.svelte';
 import TimeZoneScreen from './TimeZoneScreen.svelte';
+import DayProfileScreen from './DayProfileScreen.svelte';
 
 function open(component: typeof SettingsScreen, harness: Harness) {
   render(component, { context: harness.context });
@@ -102,5 +103,36 @@ describe('Privacy and consent', () => {
     expect(within(list).getByText('Water').closest('li')?.textContent).toContain('On since');
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByText(/Bot chats are not end-to-end encrypted\./)).toBeTruthy();
+  });
+});
+
+describe('Settings, complete', () => {
+  it('reaches the day profile, set-up and the export from the settings page', async () => {
+    const harness = createHarness();
+    const user = open(SettingsScreen, harness);
+
+    await user.click(await screen.findByRole('link', { name: /^Your day/ }));
+    expect(harness.router.route).toEqual({ screen: 'settings-day' });
+    await user.click(screen.getByRole('link', { name: /^Export everything/ }));
+    expect(harness.router.route).toEqual({ screen: 'reports' });
+    await user.click(screen.getByRole('link', { name: /^Set up Dosegram/ }));
+    expect(harness.router.route).toEqual({ screen: 'setup' });
+  });
+
+  it('saves the day profile on the version it read and goes back', async () => {
+    const harness = createHarness();
+    await harness.router.navigate('/settings');
+    await harness.router.navigate('/settings/day');
+    const user = open(DayProfileScreen, harness);
+
+    const wake = await screen.findByLabelText('Wake');
+    await user.clear(wake);
+    await user.type(wake, '06:30');
+    await user.click(screen.getByRole('button', { name: 'Save day' }));
+
+    await vi.waitFor(() => expect(harness.toasts.current?.message).toBe('Day saved'));
+    expect(harness.api.calls).toContain('reminders/day:update');
+    expect((await harness.api.reminders()).day.wake).toBe('06:30');
+    await vi.waitFor(() => expect(harness.router.route).toEqual({ screen: 'settings' }));
   });
 });

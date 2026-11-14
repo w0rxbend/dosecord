@@ -58,7 +58,7 @@
       {#if data.water === OFF && data.mood === OFF && data.sleep === OFF && data.food === OFF}
         <!-- MA-LOG-2: no optional domain is on. -->
         <div class="section">
-          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} />
+          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} art="all" />
         </div>
       {:else}
         <!-- Enabled domains first, each with one line of today's state (MA-LOG-1). -->

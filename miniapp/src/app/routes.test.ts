@@ -11,6 +11,8 @@ describe('parsePath', () => {
     ['/meds/med-a/schedules/new', { screen: 'schedule-new', medicationId: 'med-a' }],
     ['/insights', { screen: 'insights' }],
     ['/settings/reminders', { screen: 'reminders' }],
+    ['/setup', { screen: 'setup' }],
+    ['/settings/day', { screen: 'settings-day' }],
   ])('maps %s to its screen', (path, route) => {
     expect(parsePath(path)).toEqual(route);
   });
@@ -21,6 +23,15 @@ describe('parsePath', () => {
       expect(parsePath(path)).toBeNull();
     },
   );
+});
+
+describe('setup and the day profile', () => {
+  it('opens set-up under Today and the day profile under Settings, neither a tab root', () => {
+    expect(tabOf({ screen: 'setup' })).toBe('today');
+    expect(parentPath({ screen: 'setup' })).toBe('/');
+    expect(parentPath({ screen: 'settings-day' })).toBe('/settings');
+    expect(isTabRoot({ screen: 'setup' })).toBe(false);
+  });
 });
 
 describe('pathFromStartParam', () => {
@@ -44,6 +55,8 @@ describe('pathFromStartParam', () => {
     ['set_tz', '/settings/tz'],
     ['set_privacy', '/settings/privacy'],
     ['reminders', '/settings/reminders'],
+    ['setup', '/setup'],
+    ['set_day', '/settings/day'],
   ])('maps %s to %s', (param, path) => {
     expect(pathFromStartParam(param)).toBe(path);
   });

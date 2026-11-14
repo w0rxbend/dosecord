@@ -106,7 +106,7 @@ h1:focus {
 
 .note {
   padding: 0 var(--dg-space-4);
-  color: var(--dg-text-section);
+  color: var(--dg-text-muted);
   font-size: var(--dg-text-secondary);
   max-inline-size: 70ch;
 }
@@ -216,4 +216,107 @@ textarea.input {
 .chip input:focus-visible + span {
   outline: 2px solid var(--dg-focus);
   outline-offset: 2px;
+}
+
+/* A segmented control: two to five mutually exclusive views on native radios (MINI_APP 5.6). */
+.segmented {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: var(--dg-space-1);
+  padding: var(--dg-space-1);
+  border-radius: var(--dg-radius-section);
+  background: var(--dg-surface);
+}
+
+.segmented label {
+  position: relative;
+  display: grid;
+}
+
+.segmented input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 40px;
+  padding: 0 var(--dg-space-2);
+  border-radius: var(--dg-radius-control);
+  color: var(--dg-text-muted);
+  font-weight: 600;
+  transition: background-color var(--dg-motion-state), color var(--dg-motion-state);
+}
+
+.segmented input:checked + span {
+  background: var(--dg-accent);
+  color: var(--dg-on-accent);
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid var(--dg-focus);
+  outline-offset: 2px;
+}
+
+/* A text button that reads as a link: navigation inside a card. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dg-target);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dg-accent-text);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* A switch: a native checkbox with role="switch", drawn as a track and a thumb (MINI_APP 5.6
+   Toggle). The state is also in the accessible name's checked state, never in colour alone. */
+input[type='checkbox'][role='switch'] {
+  position: relative;
+  flex: none;
+  inline-size: 48px;
+  block-size: 28px;
+  margin: 0;
+  border: 1px solid var(--dg-separator);
+  border-radius: var(--dg-radius-full);
+  background: var(--dg-separator);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color var(--dg-motion-state);
+}
+
+input[type='checkbox'][role='switch']::after {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 22px;
+  block-size: 22px;
+  border-radius: 50%;
+  background: var(--dg-surface);
+  content: '';
+  transition: transform var(--dg-motion-state);
+}
+
+input[type='checkbox'][role='switch']:checked {
+  border-color: var(--dg-accent);
+  background: var(--dg-accent);
+}
+
+input[type='checkbox'][role='switch']:checked::after {
+  transform: translateX(20px);
+}
+
+:dir(rtl) input[type='checkbox'][role='switch']:checked::after {
+  transform: translateX(-20px);
 }

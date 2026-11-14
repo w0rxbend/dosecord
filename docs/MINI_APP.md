@@ -280,6 +280,8 @@ Route grammar: `<screen>` or `<screen>_<argument>`, at most 64 characters, alpha
 | `reports` | S-14 Reports and export | `/insights/reports` |
 | `settings` | S-15 Settings | `/settings` |
 | `set_<section>` | S-15 Settings section: `notif`, `tz`, `lang`, `privacy`, `data`, `about` | `/settings/<section>` |
+| `set_day` | S-15 Settings, the day profile on its own page (supervisor decision, 2026-11-14, owner asleep) | `/settings/day` |
+| `setup` | S-19 Set-up (supervisor decision, 2026-11-14, owner asleep) | `/setup` |
 | `share` | S-16 Sharing | `/settings/sharing` |
 
 MA-ROUTE-1. A route selects a screen and nothing else. It never grants access. Every record named by a route is authorised by the API against the session's account, and an unknown or foreign identifier produces the "Not found" state of section 8.3, identical in both cases (R06 threat API-2). [M]
@@ -1523,6 +1525,16 @@ MA-INS-8. Blocks below the first two load when they are scrolled within 200 px o
 
 MA-INS-9. From 720 px viewport width the blocks are laid out in two columns in reading order. [M]
 
+Dashboard as built (supervisor decision, 2026-11-14, owner asleep). Decisions the sections above left open:
+
+1. Above the blocks, one tile per enabled domain (two columns, one below 340 px, three from 720 px): the domain icon and name, the block's first line, a small line of the period by bucket, and the comparison sentence. The small line is a scene from the server (`spark`), decorative and hidden from assistive technology, because the words beside it carry the figures. A tile moves focus to its block. The tiles are a navigation landmark, not regions, so each block stays the one region of its domain.
+2. Food has a block of its own (`nutrition`): meals and the days per main meal, dot rows per main meal by day, meals per week for 90 days. Counts only, no rate (MA-FOOD-4).
+3. The comparison of MA-INS-3 is one sentence per block, `comparison`, written by the core (`TrendCopy`): "Previous 30 days: 90 of 110 taken (82%)", "Previous 7 days: average 1.6 l a day · goal reached on 5 of 7 recorded days", "Previous 30 days: No data". The percentage is the period's own adherence from five resolved doses (VISUALS section 7.1), never a change between periods.
+4. 90 days are drawn in week buckets cut from today backwards (12 whole weeks and the 6 days before them); a week mark names the week and its pooled value. 7 and 30 days are drawn by day.
+5. A chart of days carries `markDates`, the local day of every mark. The first tap on a mark shows its value in the caption; a second tap on the same mark, Enter on the focused chart, or the link "Open this day" beside the caption opens Day detail (S-13) for that day. A chart of weeks or of outcomes has no `markDates` and opens nothing.
+6. The mood block adds "Mood by day of the week" once one weekday has 3 check-in days in the period (VISUALS section 9.2). The sleep block adds "Sleep times" (IMG-12 as a scene: when each night began and ended on an evening-to-morning clock) and the bedtime regularity figures of VISUALS section 7.7 as `details`, or the nights still needed. The medication block lists each medication's own counts for the period ("Each medication in this period").
+7. A block without data shows the domain's empty-state art (cells, VISUALS IMG-18) and one link to make the first record. MA-INS-8 (loading the lower blocks on scroll) is not built: one `insights/overview` read carries every block.
+
 States: skeleton block per enabled domain; empty state for a new account "Insights appear after a few days of entries. Nothing is missing; there is just not enough yet."
 
 ### 7.12 S-12 History calendar
@@ -1748,6 +1760,23 @@ MA-SET-8. The access history lists exports, caregiver reads, operator access and
 MA-SET-9. A link to the privacy policy is reachable from S-15 in two taps and from every gate screen that involves an account (G-3). [M]
 
 MA-SET-10. Reminders (ADR-023, route `/settings/reminders`, start parameter `reminders`), reached from S-15. One block per prompt kind that can be turned on (water, mood, bedtime, morning) with its preset and next time; the presets of the kind as a choice with nothing preselected, whose preview of the next five times shows before anything is saved, and "Turn on" and "Turn off". "Pause 1 h" and "Pause 3 h", or "Resume", with the sentence that medication reminders are not affected. Tomorrow's reminders across every domain as a timeline, medication reminders without a name. The medication schedule count links to S-02. The day profile (wake, breakfast, lunch, dinner, bedtime, work days, work start and end, quiet hours) saves on the version read; work that ends before it starts is refused before the request. Routes: `GET /reminders`, `GET /reminders/presets` (with the medication presets as schedule drafts), `POST /reminders/plans`, `DELETE /reminders/plans/{kind}`, `POST /reminders/pause`, `GET` and `PATCH /reminders/day`, `GET /reminders/timeline`. [M]
+
+MA-SET-11. Settings complete (supervisor decision, 2026-11-14, owner asleep). The day profile also has its own page, `/settings/day` (start parameter `set_day`), reached from the Reminders section, with the same form, the same version rule and the same refusal of work that ends before it starts as MA-SET-10. A section "Your data" holds "Export everything" (S-14) and "Set up Dosegram" (S-19). The language choice lists the locales the server offers in `settings.languages`; English is the default and the only locale until the localisation track adds another. "Reduce motion" and "Vibration" are not built: without a `CloudStorage` member in `TelegramPort` they could not outlive the session. [M]
+
+### 7.17 S-19 Set-up (supervisor decision, 2026-11-14, owner asleep)
+
+Purpose: the first visit to the app after onboarding in chat. The account and the first consent exist (MA-ROLE-2); set-up explains the rest and leads to the screens that hold each setting. Identifier S-19 because S-17 and S-18 are reserved for measurements and symptoms.
+
+Route `/setup`, start parameter `setup` (for the "Set up" button of BOT_UX after `/start`). Today shows a card "Finish setting up" with the action "Set up" while the day profile was never saved (the member `saved` of the day profile in `GET /reminders` and `GET /reminders/day`, false until the first save); the card is read after Today's own data, so the launch keeps its two requests (MA-LAUNCH-6), and a failed read shows nothing.
+
+Four steps, each with its number in a cell that is filled when done and its state in words ("Done", "To do"):
+
+1. What Dosegram records: every purpose with its state in the server's words, the sentence that consent is given in the chat and never in the app, and "Close and go to the chat" (`close()`) when a purpose is off. No checkbox, no switch. Done when one purpose is granted.
+2. Time zone: the account zone and, when it differs, the device zone (MA-A-04); "Looks right", which lasts for the session in memory only, and "Change time zone" (the Time zone sub-page with its preview, MA-SET-3). Done when the zones agree or the person said "Looks right".
+3. Your day: leads to `/settings/day`. Done when the day profile has been saved once.
+4. A first step: "Add a medication" (S-04) with the medication consent, "Set a water goal" (the water settings of S-07) with the water consent, or the commands that turn them on. Done when a medication exists or a water goal is set. The goal is typed by the person; no value is suggested.
+
+Every state is read from the server (`consents`, `settings`, `reminders`, `medications`, `hydration/settings`), so nothing about the person is stored on the device (section 6.6). [M]
 
 ### 7.16 S-16 Sharing with a caregiver (wave V2, if adopted)
 

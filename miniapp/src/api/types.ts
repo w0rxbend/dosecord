@@ -176,6 +176,7 @@ export type SceneColour =
   | 'domain-hydration'
   | 'domain-mood'
   | 'domain-sleep'
+  | 'domain-nutrition'
   | 'recorded'
   | 'text'
   | 'text-muted'
@@ -251,17 +252,27 @@ export interface Chart {
   readonly table: ChartTable;
   /** The exact value of each selectable mark, in reading order (MA-INS-6). */
   readonly marks: readonly string[];
+  /** The local day of each mark when every mark is one day: picking it opens that day (S-13). */
+  readonly markDates?: readonly LocalDate[];
 }
 
 export interface InsightBlock {
-  readonly id: Domain;
+  readonly id: TrackedDomain;
   readonly title: string;
-  /** Headline, comparison and other lines, all in the server's words. */
+  /** Headline and other figures, all in the server's words. */
   readonly lines: readonly string[];
   /** Set when the period has too little data; then there are no charts (MA-INS-4). */
   readonly noDataText?: string;
   readonly charts: readonly Chart[];
   readonly vessel?: { readonly valueMl: number; readonly goalMl: number; readonly label: string };
+  /** The user's own previous period of the same length, in words with both figures (MA-INS-3). */
+  readonly comparison?: string;
+  /** A small decorative line of the period by bucket; its text is `lines`. */
+  readonly spark?: Scene;
+  /** Further figures: bedtime regularity, a gate still to reach. */
+  readonly details?: readonly string[];
+  /** Medication only: each medication's own counts for the period. */
+  readonly medications?: readonly InsightMedicationRow[];
 }
 
 export type InsightRange = 7 | 30 | 90;
@@ -706,9 +717,11 @@ export interface DayProfile {
   readonly workEnd: LocalTime;
   readonly quietStart: LocalTime;
   readonly quietEnd: LocalTime;
+  /** Whether the person ever saved it; until then it is the product's default and set-up offers it. */
+  readonly saved?: boolean;
 }
 
-export type DayProfileInput = Omit<DayProfile, 'version'>;
+export type DayProfileInput = Omit<DayProfile, 'version' | 'saved'>;
 
 /** One prompt kind; `presetId` is present when a plan is on. */
 export interface ReminderKind {

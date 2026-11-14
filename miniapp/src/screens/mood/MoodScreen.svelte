@@ -71,7 +71,7 @@
             </div>
           </section>
         {:else if data.summary.days.every((day) => day.checkIns === 0)}
-          <div class="section"><EmptyState message={en.mood.empty} actionLabel={en.mood.checkIn} onAction={checkInNow} /></div>
+          <div class="section"><EmptyState message={en.mood.empty} actionLabel={en.mood.checkIn} onAction={checkInNow} art="mood" /></div>
         {:else}
           <p class="section section-body pad">{data.summary.today.text}</p>
         {/if}

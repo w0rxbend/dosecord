@@ -273,7 +273,19 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       );
     },
     saveDayProfile: async (input, version) => {
-      const body: Wire['DayProfileInput'] = { ...input, workDays: [...input.workDays] };
+      // Named field by field: a form's copy of the day also holds its version and saved flag (ADR-023).
+      const body: Wire['DayProfileInput'] = {
+        wake: input.wake,
+        breakfast: input.breakfast,
+        lunch: input.lunch,
+        dinner: input.dinner,
+        bedtime: input.bedtime,
+        workDays: [...input.workDays],
+        workStart: input.workStart,
+        workEnd: input.workEnd,
+        quietStart: input.quietStart,
+        quietEnd: input.quietEnd,
+      };
       return toDayProfile(
         await request<Wire['DayProfileView']>('reminders/day', { method: 'PATCH', body, headers: versionTag(version) }),
       );

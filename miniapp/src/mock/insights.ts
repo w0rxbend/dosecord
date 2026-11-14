@@ -2,6 +2,8 @@
 // descriptive sentences, laid-out scenes. Counts and durations only: no score, no rating word,
 // no comparison with other people (MA-INS-2).
 import type {
+  Scene,
+  SceneNode,
   InsightBlock,
   InsightList,
   InsightMonth,
@@ -15,6 +17,33 @@ import { doseCalendar, lastDays, outcomeBar, outcomeLabels, seeded, waterBars, t
 import type { MockTracking } from './tracking';
 
 const litres = (ml: number): string => `${(ml / 1000).toFixed(1)} L`;
+
+type SceneTone = 'recorded' | 'domain-hydration' | 'domain-mood' | 'domain-sleep' | 'domain-nutrition';
+
+/** The small decorative line of a block, laid out as the server lays it out: gaps stay gaps. */
+export function sparkOf(values: readonly (number | undefined)[], tone: SceneTone): Scene | undefined {
+  const present = values.filter((value): value is number => value !== undefined);
+  if (present.length < 2) return undefined;
+  const low = Math.min(...present);
+  const span = Math.max(...present) - low;
+  const step = 114 / Math.max(1, values.length - 1);
+  const at = (index: number, value: number) => ({
+    x: Math.round((3 + index * step) * 10) / 10,
+    y: Math.round((29 - (span === 0 ? 0.5 : (value - low) / span) * 26) * 10) / 10,
+  });
+  const nodes: SceneNode[] = [];
+  values.forEach((value, index) => {
+    const next = values[index + 1];
+    if (value === undefined || next === undefined) return;
+    const from = at(index, value);
+    const to = at(index + 1, next);
+    nodes.push({ kind: 'line', x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: tone });
+  });
+  const lastIndex = values.length - 1 - [...values].reverse().findIndex((value) => value !== undefined);
+  const end = at(lastIndex, values[lastIndex]!);
+  nodes.push({ kind: 'circle', x: end.x, y: end.y, r: 2.5, fill: tone });
+  return { width: 120, height: 32, nodes };
+}
 
 export function doseHistory(dates: readonly LocalDate[]): DoseDay[] {
   return dates.map((date) => {
@@ -41,11 +70,9 @@ function medicationBlock(days: readonly DoseDay[], rangeDays: InsightRange): Ins
   return {
     id: 'medication',
     title: 'Medication',
-    lines: [
-      `${total} scheduled doses`,
-      `${counts.join(', ')}.`,
-      `Previous ${rangeDays} days: ${outcomes.onTime - 6} on time of ${total - 2}.`,
-    ],
+    lines: [`${total} scheduled doses`, `${counts.join(', ')}.`],
+    comparison: `Previous ${rangeDays} days: ${outcomes.onTime - 6} on time of ${total - 2}.`,
+    spark: sparkOf(days.map((day) => day.taken / day.scheduled), 'recorded'),
     charts: [outcomeBar(outcomes), doseCalendar(days)],
   };
 }
@@ -64,8 +91,9 @@ function hydrationBlock(tracking: MockTracking, dates: readonly LocalDate[], ran
       `${litres(average)} a day on average`,
       ...(goal === undefined ? [] : [`Goal reached on ${recorded.filter((day) => day.totalMl >= goal).length} of ${days.length} days.`]),
       `Water logged ${firstGap === -1 ? days.length : firstGap} days in a row.`,
-      `Previous ${rangeDays} days: ${litres(average - 100)} a day on average.`,
     ],
+    comparison: `Previous ${rangeDays} days: average ${litres(average - 100)} a day.`,
+    spark: sparkOf(days.map((day) => (day.totalMl > 0 ? day.totalMl : undefined)), 'domain-hydration'),
     charts: [waterBars(days, goal)],
     vessel:
       goal === undefined
@@ -87,6 +115,14 @@ function moodBlock(tracking: MockTracking, dates: readonly LocalDate[]): Insight
         id: 'mood',
         title: 'Mood',
         lines: [`${checkins.length} check-ins on ${days} of ${dates.length} days`, `${days} of ${dates.length} days have data`],
+        comparison: `Previous ${dates.length} days: check-ins on ${Math.max(0, days - 2)} days`,
+        spark: sparkOf(
+          dates.map((date) => {
+            const own = checkins.filter((checkin) => checkin.date === date);
+            return own.length === 0 ? undefined : own.reduce((sum, checkin) => sum + checkin.valence, 0) / own.length;
+          }),
+          'domain-mood',
+        ),
         charts: [chart],
       }
     : emptyBlock('mood', 'Mood');
@@ -100,13 +136,16 @@ function sleepBlock(tracking: MockTracking, dates: readonly LocalDate[]): Insigh
         id: 'sleep',
         title: 'Sleep',
         lines: [`${logged} nights logged`, 'your check-ins', `${logged} of ${dates.length} days have data`],
+        comparison: `Previous ${dates.length} days: ${Math.max(0, logged - 1)} nights logged`,
+        spark: sparkOf(nights.map((night) => night.minutes), 'domain-sleep'),
+        details: logged >= 5 ? ['Bedtime varied by about 35 min, wake time by about 20 min'] : [`${5 - logged} more nights for bedtime regularity`],
         charts: [tracking.sleep.chart(nights)],
       }
     : emptyBlock('sleep', 'Sleep');
 }
 
 function emptyBlock(id: InsightBlock['id'], title: string): InsightBlock {
-  return { id, title, lines: [], noDataText: 'No data in this period', charts: [] };
+  return { id, title, lines: [], noDataText: 'No data in this period', charts: [], comparison: 'Previous 30 days: No data' };
 }
 
 export function buildOverview(
@@ -126,6 +165,7 @@ export function buildOverview(
   }
   if (tracking.isOn('mood')) blocks.push(moodBlock(tracking, dates));
   if (tracking.isOn('sleep')) blocks.push(sleepBlock(tracking, dates));
+  if (tracking.isOn('nutrition')) blocks.push(emptyBlock('nutrition', 'Food'));
   return {
     rangeDays,
     rangeLabel: `${formatDate(dates[0]!, short)} to ${formatDate(today, short)}`,

@@ -44,6 +44,8 @@
   const quietHours = () => import('../screens/settings/QuietHoursScreen.svelte');
   const privacy = () => import('../screens/settings/PrivacyScreen.svelte');
   const reports = () => import('../screens/reports/ReportsScreen.svelte');
+  const setup = () => import('../screens/setup/SetupScreen.svelte');
+  const dayProfile = () => import('../screens/settings/DayProfileScreen.svelte');
 </script>
 
 <div class="app" class:with-tabs={atRoot}>
@@ -99,6 +101,10 @@
         <Lazy load={reminders} props={{}} />
       {:else if route.screen === 'reports'}
         <Lazy load={reports} props={{}} />
+      {:else if route.screen === 'setup'}
+        <Lazy load={setup} props={{}} />
+      {:else if route.screen === 'settings-day'}
+        <Lazy load={dayProfile} props={{}} />
       {:else}
         <Lazy load={insights} props={{}} />
       {/if}
