@@ -122,11 +122,11 @@ object PromptPresets:
     ownCap = false
   )
 
-  /** The weekly summary on Sunday evening. Defined; not wired while no report is sent on a schedule. */
+  /** The weekly summary on Sunday evening, of the seven days that end that day. */
   val WeeklyReport: PromptPreset =
     PromptPreset("report.weekly", PromptKind.WeeklyReport, NudgePlan.Weekly(DayOfWeek.SUNDAY, at(19)), ownCap = false)
 
-  /** The monthly summary on the 1st. Defined; not wired while no report is sent on a schedule. */
+  /** The monthly summary on the 1st, of the previous calendar month. */
   val MonthlyReport: PromptPreset =
     PromptPreset("report.monthly", PromptKind.MonthlyReport, NudgePlan.Monthly(1, at(10)), ownCap = false)
 
@@ -145,8 +145,15 @@ object PromptPresets:
     MonthlyReport
   )
 
-  /** The kinds whose prompts are sent today. Meals and reports have presets and no sender yet. */
-  val wired: Set[PromptKind] = Set(PromptKind.Water, PromptKind.Mood, PromptKind.SleepBedtime, PromptKind.SleepMorning)
+  /** The kinds whose prompts are sent today. Meals have presets and no sender yet. */
+  val wired: Set[PromptKind] = Set(
+    PromptKind.Water,
+    PromptKind.Mood,
+    PromptKind.SleepBedtime,
+    PromptKind.SleepMorning,
+    PromptKind.WeeklyReport,
+    PromptKind.MonthlyReport
+  )
 
   def byId(id: String): Option[PromptPreset] = all.find(_.id == id)
 

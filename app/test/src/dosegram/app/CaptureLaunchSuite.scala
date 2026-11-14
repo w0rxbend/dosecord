@@ -348,7 +348,7 @@ class CaptureLaunchSuite extends PgSuite:
       assert(text.startsWith("Today · UTC"), text)
       assert(text.contains("Water today: 0.3 l"), text)
       assert(text.contains("Mood today: 5.0 (very pleasant) · 1 check-in"), text)
-      assertEquals(bot.buttons(stats).map(_._1), List("Today", "7 days", "30 days", "Show as image"))
+      assertEquals(bot.buttons(stats).map(_._1), List("Today", "7 days", "30 days", "Show as image", "Month", "Patterns"))
 
       val List(photo) = bot.tap(stats, "Show as image", expected = 1): @unchecked
       assertEquals(photo.method, "sendPhoto")

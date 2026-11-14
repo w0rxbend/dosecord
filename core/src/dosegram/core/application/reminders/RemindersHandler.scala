@@ -26,6 +26,7 @@ import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.hydration.AmountOutOfBounds
 import dosegram.core.domain.hydration.WaterAmount
@@ -108,6 +109,7 @@ final class RemindersHandler(
       case Some("reminders.off")                    => kindOf(ref.value).fold(stale)(turnOff(ctx, _))
       case Some("reminders.pause_all")              => pauseAll(ctx, Option.when(ref.value > 0)(ref.value.toInt))
       case Some("reminders.day")                    => dayCard(ctx, None)
+      case Some("reminders.report_stop")            => kindOf(ref.value).fold(stale)(stopReport(ctx, _))
       case _                                        => stale
 
   private def hub(ctx: Ctx, headline: Option[String]): Reply =
@@ -170,6 +172,15 @@ final class RemindersHandler(
   private def turnOff(ctx: Ctx, kind: PromptKind): Reply =
     settings.turnOff(ctx.tx, ctx.accountId, kind)
     hub(ctx, Some(PromptCopy.turnedOff(kind)))
+
+  /** "Stop these" on a scheduled report (VISUALS VA-PS-01): the report's plan is turned off, and the message says so in
+    * place of its controls.
+    */
+  private def stopReport(ctx: Ctx, kind: PromptKind): Reply =
+    if kind != PromptKind.WeeklyReport && kind != PromptKind.MonthlyReport then stale
+    else
+      settings.turnOff(ctx.tx, ctx.accountId, kind)
+      show(ctx, "reminders.report_stopped", List(ReportCopy.stopped(kind)), Nil)
 
   private def pauseAll(ctx: Ctx, hours: Option[Int]): Reply =
     settings.pauseAll(ctx.tx, ctx.accountId, hours)

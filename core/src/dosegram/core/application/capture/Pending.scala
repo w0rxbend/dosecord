@@ -24,6 +24,12 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   case SleepTyped extends Pending(10, 0)
   case SleepImage extends Pending(11, 0)
 
+  /** `/insights` after the cross-domain consent (`image` false), or its image after the images consent. */
+  case Insights(image: Boolean) extends Pending(12, if image then 1 else 0)
+
+  /** The pages of a month after the images consent; the argument is the month's index, `year * 12 + month - 1`. */
+  case MonthImage(index: Int) extends Pending(13, index)
+
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
 
@@ -50,6 +56,8 @@ private[capture] object Pending:
       case 9  => Some(SleepCard)
       case 10 => Some(SleepTyped)
       case 11 => Some(SleepImage)
+      case 12 => Some(Insights(argument == 1))
+      case 13 => Some(MonthImage(argument))
       case _  => None
 
 /** The two stages of a consent (BUX-CONS-02) and the two ways out of them. The codes are the wire form. */

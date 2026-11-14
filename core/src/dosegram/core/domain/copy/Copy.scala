@@ -34,5 +34,6 @@ object Copy:
       InputCopy.entries ++
       PromptCopy.entries ++
       InsightCopy.entries ++
-      MonthCopy.entries
+      MonthCopy.entries ++
+      ReportCopy.entries
 end Copy

@@ -6,7 +6,7 @@ import dosegram.core.domain.insights.StatsPeriod
 object StatsCardCopy:
 
   val ShowAsImage = "Show as image"
-  val usage = "Send /stats, /stats today, /stats 7 or /stats 30."
+  val usage = "Send /stats, /stats today, /stats 7, /stats 30 or /stats month."
   val imageUnavailable = "The image is not available right now. The figures above are complete."
 
   def period(period: StatsPeriod): String =

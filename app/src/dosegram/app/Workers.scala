@@ -3,7 +3,9 @@ package dosegram.app
 import dosegram.contracts.ChatAdapter
 import dosegram.core.application.Application
 import dosegram.core.application.hydration.HydrationService
+import dosegram.core.application.insights.ReportComposer
 import dosegram.core.application.insights.RollupService
+import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.SessionSweeper
@@ -178,6 +180,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       PromptMessages(codec),
       HydrationService(clock, IdSource.uuidV7(java.security.SecureRandom())),
       Application.reminderSettings(clock),
+      ReportComposer(StatsQueryService(RollupService(uow, clock), clock), parts.images.cards, codec),
       (plan, error) => log(s"prompt plan $plan failed: ${error.getClass.getSimpleName}")
     )
     fork:

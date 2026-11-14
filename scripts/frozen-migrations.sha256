@@ -1,3 +1,4 @@
 39e95b1153b1c532ae178947e03cd4f49b45d45fbed7b7d3a9fff6037bff815b  infra/src/main/resources/db/migration/V1__baseline.sql
 d8c4e443b8055f5e13f4a998180df3067b4eb436c333306788acd585da8c9325  infra/src/main/resources/db/migration/V2__day_profile_nudge_plans_and_prompts.sql
 c423c0f1204b9f800a65267f52a58a4386010bebe13fe3280ccd3aac417d335d  infra/src/main/resources/db/migration/V3__inbound_inbox.sql
+aade20a898d31f586c943b9c544ffb74b30bb463d12d89fc4476afe072e5ce70  infra/src/main/resources/db/migration/V5__report_no_records_reason.sql

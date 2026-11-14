@@ -11,7 +11,7 @@ import java.util.UUID
 /** The doses of one local day as the daily summary draws them, in schedule order. A cancelled dose is not a dose of the
   * day; a dose taken after its window is late by the engine's own rule (`Decide`: past `due_window_end`).
   */
-private[capture] object DoseMarks:
+private[application] object DoseMarks:
 
   def of(tx: Tx, accountId: UUID, date: LocalDate): List[DoseMark] =
     tx.occurrences.listForAccountBetween(accountId, date, date).sortBy(_.scheduledFor).flatMap(markOf)

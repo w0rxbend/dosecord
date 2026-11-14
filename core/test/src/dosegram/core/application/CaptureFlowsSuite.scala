@@ -22,7 +22,19 @@ import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.sleep.SleepKind
+import dosegram.core.domain.insights.Comparison
+import dosegram.core.domain.insights.InsightRule
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.application.hydration.HydrationService
+import dosegram.core.application.hydration.LogWater
+import dosegram.core.application.mood.CheckIn
+import dosegram.core.application.mood.MoodService
+import dosegram.core.domain.EntryDay
+import dosegram.core.domain.hydration.WaterAmount
+import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.copy.InsightCopy
+import dosegram.core.domain.copy.MonthCopy
+import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
@@ -33,6 +45,7 @@ import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.ImageTheme
+import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.UnitOfWork
@@ -87,6 +100,17 @@ class CaptureFlowsSuite extends munit.FunSuite:
       sleeps += view
       looks += look
       image("sleep")
+
+    val months: mutable.ListBuffer[MonthCardView] = mutable.ListBuffer.empty
+    val insights: mutable.ListBuffer[Comparison.Shown] = mutable.ListBuffer.empty
+
+    override def month(view: MonthCardView, look: CardLook, chat: Option[ChatRef]): List[AttachmentRef] =
+      months += view
+      List(image("month-1"), image("month-2")).flatten
+
+    override def insight(view: Comparison.Shown, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      insights += view
+      image("insight")
 
   /** The tables behind the rig's transaction, as the tests inspect them. */
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
@@ -415,7 +439,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.tapOn("I agree that", ConsentCopy.Agree)
       val shown = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
       assert(texts(shown).exists(_.startsWith("Last 7 days · Europe/Kyiv")), s"got: ${texts(shown)}")
-      assertEquals(labels(shown), List("Today", "7 days", "30 days"))
+      assertEquals(labels(shown), List("Today", "7 days", "30 days", "Month", "Patterns"))
 
   test("the daily summary image is drawn from today's doses, water and mood, with today's text as its caption"):
     val cards = RecordingCards()
@@ -541,10 +565,89 @@ class CaptureFlowsSuite extends munit.FunSuite:
         List(CardLook(ImageTheme.Auto, isDiscreet = false), CardLook.of(chosen), CardLook.of(chosen))
       )
 
+  // ---------- The month and the patterns ----------
+
+  /** Water on each day of `days` before the rig's day, at noon in Kyiv, through the use case. */
+  private def waterOn(chat: Chat, daysBack: Range, millilitres: Int => Int): Unit =
+    val water = HydrationService(chat.rig.clock, SequentialIds())
+    val start = chat.rig.clock.at
+    daysBack.foreach { back =>
+      chat.rig.clock.at = start.minus(Duration.ofDays(back.toLong)).plus(Duration.ofHours(9))
+      val amount = WaterAmount.ofMillilitres(millilitres(back)).toOption.get
+      chat.rig.uow.transaction(tx =>
+        assert(water.log(tx, LogWater(chat.account, amount, EntryDay.Today, EntrySource.Bot, s"w$back")).isRight)
+      )
+    }
+    chat.rig.clock.at = start
+
+  test("/stats month shows the month so far with its gate; Previous month moves back to a month with figures"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      // 21 September is the rig's day: the 14 days before 21 August are all in August.
+      waterOn(chat, 22 to 40, _ => 1500)
+      val september = chat.rig.line("/stats month")
+      assertEquals(september.head.split("\n\n").take(2).toList, List("September 2026 · Europe/Kyiv", "0 days with records"))
+      assert(september.head.contains(MonthCopy.gateTitle), september)
+      assertEquals(chat.rig.lastChoiceMap("September 2026").map(_.label), List(ReportCopy.PreviousMonth))
+      val august = chat.rig.tapOn("September 2026", ReportCopy.PreviousMonth)
+      assert(texts(august).head.startsWith("August 2026 · Europe/Kyiv\n\n19 days with records"), texts(august))
+      assert(texts(august).head.contains("Water: "), texts(august))
+      assertEquals(labels(august), List(ReportCopy.PreviousMonth, ReportCopy.NextMonth, "Show as image"))
+
+  test("Show as image on a month asks the image consent, then sends its pages, each with its own caption"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      waterOn(chat, 22 to 40, _ => 1500)
+      chat.rig.line("/stats month")
+      chat.rig.tapOn("September 2026", ReportCopy.PreviousMonth)
+      assertEquals(texts(chat.rig.tapOn("August 2026", "Show as image")), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      val photos = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("month-1"), Some("month-2")))
+      assertEquals(photos.flatMap(_.chunks), List("alt of month-1", "alt of month-2"))
+      assertEquals(cards.months.map(view => (view.figures.month.toString, view.sleep)).toList, List(("2026-08", None)))
+
+  test("/insights without the cross-domain consent runs no comparison and offers it; the consent turns it on"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Hydration, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+      val now = chat.rig.clock.at
+      chat.rig.clock.at = now.minus(Duration.ofDays(30))
+      chat.rig.uow.transaction(tx => HydrationService(chat.rig.clock, SequentialIds()).setGoal(tx, chat.account, Some(2000)))
+      chat.rig.clock.at = now
+      waterOn(chat, 1 to 20, back => if back % 2 == 0 then 2200 else 800)
+      val moods = MoodService(chat.rig.clock, SequentialIds())
+      val start = chat.rig.clock.at
+      (1 to 20).foreach { back =>
+        chat.rig.clock.at = start.minus(Duration.ofDays(back.toLong)).plus(Duration.ofHours(10))
+        val valence = Valence.of(if back % 2 == 0 then 5 else 3).get
+        chat.rig.uow.transaction(tx =>
+          moods.checkIn(tx, CheckIn(chat.account, valence, None, Nil, EntryDay.Today, EntrySource.Bot, s"m$back"))
+        )
+      }
+      chat.rig.clock.at = start
+      val off = chat.rig.line("/insights")
+      assert(off.head.contains(InsightCopy.crossDomainOff), off)
+      assert(!off.head.contains("water goal, your average mood"), off)
+      assertEquals(chat.rig.lastChoiceMap(InsightCopy.title).map(_.label), List(InsightCopy.CompareAcrossAreas))
+      assertEquals(
+        texts(chat.rig.tapOn(InsightCopy.title, InsightCopy.CompareAcrossAreas)),
+        List(ConsentCopy.statement(ConsentPurpose.CrossDomainPatterns))
+      )
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val on = texts(chat.rig.tapOn("Please confirm", ConsentCopy.Confirm))
+      assert(on.exists(_.contains("days you reached your water goal, your average mood was")), on)
+      val image = chat.rig.tapOn(InsightCopy.title, "Show as image")
+      val photo = image.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photo.map(_.attachment.map(_.assetKey)), List(Some("insight")))
+      assertEquals(cards.insights.map(_.rule).toList, List(InsightRule.WaterGoalAndMood))
+
   test("an unknown period is answered with the usage"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Medication)
-      assertEquals(chat.rig.line("/stats year"), List("Send /stats, /stats today, /stats 7 or /stats 30."))
+      assertEquals(chat.rig.line("/stats year"), List("Send /stats, /stats today, /stats 7, /stats 30 or /stats month."))
 
   // ---------- Ownership, help, console ----------
 
