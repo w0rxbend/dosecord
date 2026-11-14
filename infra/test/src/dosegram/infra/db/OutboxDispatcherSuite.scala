@@ -32,6 +32,7 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.NewOutboxMessage
 import dosegram.core.ports.OutboxMessage
 import dosegram.core.ports.OutboxMetrics
+import dosegram.core.ports.OutboxReason
 import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.OutboxStatus
 import dosegram.core.ports.Tx
@@ -344,9 +345,18 @@ class OutboxDispatcherSuite extends PgSuite:
 
   private val codec = CallbackCodec(CallbackKeys(CallbackKey(1, Array.fill[Byte](32)(7)), None))
 
+  /** Every outcome the dispatcher reported, as `outcome:kind:reason`, in order. */
   private final class RecordingMetrics extends OutboxMetrics:
-    val deadCount = AtomicInteger(0)
-    override def outboxDead(): Unit = deadCount.incrementAndGet()
+    private val seen = java.util.concurrent.CopyOnWriteArrayList[String]()
+    def outcomes: List[String] = seen.toArray(Array.empty[String]).toList
+    def deadCount: Int = outcomes.count(_.startsWith("dead:"))
+    private def record(outcome: String): Unit = { seen.add(outcome); () }
+    override def sent(vendor: String, kind: String): Unit = record(s"sent:$kind")
+    override def retried(vendor: String, kind: String, reason: OutboxReason): Unit =
+      record(s"retried:$kind:${reason.code}")
+    override def dead(vendor: String, kind: String, reason: OutboxReason): Unit = record(s"dead:$kind:${reason.code}")
+    override def failed(vendor: String, kind: String, reason: OutboxReason): Unit =
+      record(s"failed:$kind:${reason.code}")
     override def possibleDuplicate(vendor: String): Unit = ()
 
   private def fixtureSchedule(fixtures: Fixtures, clock: Clock, accountId: UUID): UUID =
@@ -438,15 +448,28 @@ class OutboxDispatcherSuite extends PgSuite:
       else
         assertEquals(row.status, OutboxStatus.Dead, "the budget is spent: dead instead of a ninth retry")
     }
-    assertEquals(metrics.deadCount.get(), 1, "dead increments the outbox metric exactly once")
+    assertEquals(metrics.deadCount, 1, "dead increments the outbox metric exactly once")
+    assertEquals(
+      metrics.outcomes,
+      List.fill(7)("retried:reminder:retryable") :+ "dead:reminder:retryable",
+      "each retry and the dead row carry the fixed reason code, never the vendor's text"
+    )
     assertEquals(d.dispatchOnce(), 0, "a dead row is never claimed again")
 
-    MicrometerOutboxMetrics().outboxDead()
-    assert(
-      Metrics.scrape().linesIterator.exists(l =>
-        l.startsWith("dosegram_outbox_dead_total ") || l.startsWith("dosegram_outbox_dead_total{")
-      ),
-      "the dead counter is registered under its DESIGN.md name"
+    val logged = java.util.concurrent.CopyOnWriteArrayList[String]()
+    val micrometer = MicrometerOutboxMetrics(line => { logged.add(line); () })
+    micrometer.dead("fake", "reminder", OutboxReason.Retryable)
+    micrometer.retried("fake", "reminder", OutboxReason.RateLimited)
+    micrometer.sent("fake", "reminder")
+    val scrape = Metrics.scrape().linesIterator.toList
+    List("dosegram_outbox_dead_total{", "dosegram_outbox_retried_total{", "dosegram_outbox_sent_total{").foreach: name =>
+      assert(scrape.exists(_.startsWith(name)), s"$name is registered")
+    assertEquals(
+      logged.toArray(Array.empty[String]).toList,
+      List(
+        "outbox row dead: vendor=fake kind=reminder reason=retryable",
+        "outbox row retried: vendor=fake kind=reminder reason=rate_limited"
+      )
     )
     MicrometerOutboxMetrics().possibleDuplicate("fake")
     assert(
@@ -483,7 +506,9 @@ class OutboxDispatcherSuite extends PgSuite:
       assertEquals(d.dispatchOnce(), 1, s"attempt $attempt")
     }
     assertEquals(rowBySendKey("key-poison").status, OutboxStatus.Dead, "the budget is spent")
-    assertEquals(metrics.deadCount.get(), 1)
+    assertEquals(metrics.deadCount, 1)
+    assertEquals(metrics.outcomes.last, "dead:reminder:unrenderable")
+    assert(metrics.outcomes.contains("sent:reminder"), "the healthy row is counted as sent")
     assertEquals(sendsOf(adapter).size, 1, "only the healthy row reached the vendor")
 
   // The live row of 2026-11-14: a catch-up digest to a channel whose identity has no direct chat recorded.
@@ -659,9 +684,12 @@ class OutboxDispatcherSuite extends PgSuite:
       )
     )
     adapterA.inner.failNext(ChatError.Unreachable("50007: cannot send messages to this user"))
-    val d = OutboxDispatcher(uow, Map("fake" -> adapterA, "fake2" -> adapterB), renderer(false), clock)
+    val metrics = RecordingMetrics()
+    val d =
+      OutboxDispatcher(uow, Map("fake" -> adapterA, "fake2" -> adapterB), renderer(false), clock, metrics = metrics)
 
     assertEquals(d.dispatchOnce(), 1)
+    assertEquals(metrics.outcomes, List("dead:reminder:channel_fatal"))
     assertEquals(sendsOf(adapterA), Nil, "the fatal send never reached the vendor")
     assertEquals(rowBySendKey(sendKey).status, OutboxStatus.Dead)
     assertEquals(channelState(channels.primaryChannelId), Some("dead"), "the channel is marked dead")

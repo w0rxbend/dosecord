@@ -13,7 +13,7 @@ One process serves the bot, the Mini App and its API. It opens two listeners:
 | Listener | Setting | Default | Serves | Reached by |
 |---|---|---|---|---|
 | Public | `HTTP_ADDRESS`, `HTTP_PORT` | `127.0.0.1:8081` | `/app/` (the built Mini App) and `/api/v1/` | The TLS proxy only |
-| Health | `HEALTH_ADDRESS`, `HEALTH_PORT` | `127.0.0.1:8080` | `/healthz` | The host, the container health check |
+| Health | `HEALTH_ADDRESS`, `HEALTH_PORT` | `127.0.0.1:8080` | `/healthz`, `/readyz`, `/metrics` ([OPERATIONS.md](OPERATIONS.md)) | The host, the container health check |
 
 The application sets the security headers itself (content security policy, HSTS, `nosniff`,
 `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Resource-Policy`, `Cache-Control`), so the

@@ -3,6 +3,7 @@ package dosegram.infra
 import dosegram.core.ports.Clock
 import dosegram.core.ports.LoopMetrics
 import dosegram.core.ports.OutboxMetrics
+import dosegram.core.ports.OutboxReason
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.prometheusmetrics.PrometheusConfig
@@ -19,9 +20,6 @@ import java.util.concurrent.atomic.AtomicReference
   */
 object Metrics:
   val registry: PrometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-
-  private val outboxDeadCounter: Counter =
-    Counter.builder("dosegram_outbox_dead_total").register(registry)
 
   private val possibleDuplicateCounters =
     new java.util.concurrent.ConcurrentHashMap[String, Counter]()
@@ -56,10 +54,29 @@ object Metrics:
       )
       .increment()
 
-  /** `dosegram_outbox_dead_total` (DESIGN.md section 10, ROADMAP M1.7): terminal `dead` outbox rows (attempt budget
-    * spent or channelFatal); the M2.4 alert source.
+  /** `dosegram_outbox_dead_total{vendor,reason}` (DESIGN.md section 10, ROADMAP M1.7): terminal `dead` outbox rows
+    * (attempt budget spent or channelFatal); the owner alert of OPS-A2 reads the rows themselves.
     */
-  def outboxDead(): Unit = outboxDeadCounter.increment()
+  def outboxDead(vendor: String, reason: OutboxReason): Unit = outboxCounter("dead", vendor, reason.code)
+
+  /** `dosegram_outbox_sent_total{vendor,kind}`: delivered outbox rows by their fixed kind. */
+  def outboxSent(vendor: String, kind: String): Unit =
+    Counter.builder("dosegram_outbox_sent_total").tag("vendor", vendor).tag("kind", kind).register(registry).increment()
+
+  /** `dosegram_outbox_retried_total{vendor,reason}`: rows put back for another attempt. */
+  def outboxRetried(vendor: String, reason: OutboxReason): Unit = outboxCounter("retried", vendor, reason.code)
+
+  /** `dosegram_outbox_failed_total{vendor,reason}`: rows that ended `failed_permanent`. */
+  def outboxFailed(vendor: String, reason: OutboxReason): Unit = outboxCounter("failed", vendor, reason.code)
+
+  // Micrometer returns the registered counter for a name and tag set it already holds.
+  private def outboxCounter(outcome: String, vendor: String, reason: String): Unit =
+    Counter
+      .builder(s"dosegram_outbox_${outcome}_total")
+      .tag("vendor", vendor)
+      .tag("reason", reason)
+      .register(registry)
+      .increment()
 
   /** `dosegram_possible_duplicates_total{vendor}` (DESIGN.md section 10, ROADMAP M1.7): sends flagged
     * `possible_duplicate` under ADR-009's bounded-duplicate rule.
@@ -112,9 +129,24 @@ object Metrics:
 object MicrometerImageMetrics:
   def textFallback(templateId: String): Unit = Metrics.imageTextFallback(templateId)
 
-/** The dispatcher's metrics port over the shared registry (ROADMAP M1.7). */
-final class MicrometerOutboxMetrics extends OutboxMetrics:
-  override def outboxDead(): Unit = Metrics.outboxDead()
+/** The dispatcher's metrics port over the shared registry (ROADMAP M1.7). A retried, failed or dead row is also one log
+  * line of fixed words: the vendor, the row's kind and the reason code, never the row's stored error or payload.
+  */
+final class MicrometerOutboxMetrics(log: String => Unit = line => scribe.warn(line)) extends OutboxMetrics:
+  override def sent(vendor: String, kind: String): Unit = Metrics.outboxSent(vendor, kind)
+
+  override def retried(vendor: String, kind: String, reason: OutboxReason): Unit =
+    Metrics.outboxRetried(vendor, reason)
+    log(s"outbox row retried: vendor=$vendor kind=$kind reason=${reason.code}")
+
+  override def dead(vendor: String, kind: String, reason: OutboxReason): Unit =
+    Metrics.outboxDead(vendor, reason)
+    log(s"outbox row dead: vendor=$vendor kind=$kind reason=${reason.code}")
+
+  override def failed(vendor: String, kind: String, reason: OutboxReason): Unit =
+    Metrics.outboxFailed(vendor, reason)
+    log(s"outbox row failed: vendor=$vendor kind=$kind reason=${reason.code}")
+
   override def possibleDuplicate(vendor: String): Unit = Metrics.possibleDuplicate(vendor)
 
 /** The reminder loop's metrics port over the shared registry (ROADMAP M1.8). */

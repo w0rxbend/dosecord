@@ -44,4 +44,5 @@ docker compose -f docker/compose.yml down -v
 | [docs/adr/](docs/adr/README.md) | Decision records |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, test and gate commands |
 | [docs/DEPLOY_MINIAPP.md](docs/DEPLOY_MINIAPP.md) | Serving the Mini App on an https origin: settings, proxy, BotFather, smoke checklist |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Readiness, metrics, owner alerts, the live smoke report, encrypted backups, the restore drill, secret scanning |
 | [docs/archive/](docs/archive/) | The Dosecord roadmap, design and UX plan. History only |

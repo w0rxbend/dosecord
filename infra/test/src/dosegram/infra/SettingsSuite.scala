@@ -191,3 +191,15 @@ class SettingsSuite extends munit.FunSuite:
     Files.writeString(file, "jdbc:postgresql://db:5432/dosegram\n")
     val settings = Settings.fromEnv(base - "DATABASE_URL" ++ Map("DATABASE_URL_FILE" -> file.toString))
     assertEquals(settings.databaseUrl, "jdbc:postgresql://db:5432/dosegram")
+
+  test("owner alerts go to OWNER_ALERT_CHAT, else to the only allowlisted user, else nowhere"):
+    val Right(single) = parse(telegram): @unchecked
+    assertEquals(single.ownerChat, Some("7001"))
+    val Right(named) = parse(telegram ++ Map("OWNER_ALERT_CHAT" -> "-1001234")): @unchecked
+    assertEquals(named.ownerChat, Some("-1001234"))
+    val Right(several) = parse(telegram ++ Map("TELEGRAM_ALLOWED_USER_IDS" -> "7001,7002")): @unchecked
+    assertEquals(several.ownerChat, None)
+    val Right(console) = parse(base): @unchecked
+    assertEquals(console.ownerChat, None)
+    val Left(errors) = parse(telegram ++ Map("OWNER_ALERT_CHAT" -> "@owner")): @unchecked
+    assert(errors.exists(_.startsWith("OWNER_ALERT_CHAT must be a Telegram chat id")), errors.toString)

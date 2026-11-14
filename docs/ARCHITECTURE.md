@@ -1402,6 +1402,8 @@ What does not scale by adding processes: the Telegram send budget of about 30 me
 
 OPS-01. A restore to a point 6 hours in the past sends no reminder whose miss deadline has passed and no duplicate of a message recorded as sent. Test: infra test with a clock jump over a restored snapshot.
 
+Backup as built for G2.19, first stage (supervisor decision, 2026-11-14). `scripts/backup.sh` pipes `pg_dump` in the custom format straight into GnuPG, encrypted to a public key file named by `BACKUP_GPG_RECIPIENT_FILE`, so no plain dump touches the disk; GnuPG rather than age because it is on the host and in the CI runner already. Each backup is one `dosegram-<UTC stamp>.dump.gpg` with its `.sha256`; backups older than `BACKUP_RETENTION_DAYS` (35) are deleted only after a good backup. The private key never lives on the host. `scripts/restore-drill.sh` restores one backup into a throwaway container and checks the checksum, that each table holds as many rows as the dump carries, and `flyway validate` (pending migrations allowed, so an older backup passes against newer code). Not yet part of it: the purge-list replay (with G2.17), the canary decryption (with G2.4b) and the outbox reconciliation of OPS-01; until the last exists, a restored database is not given to a running bot without the manual step of docs/OPERATIONS.md. `docs/OPERATIONS.md` is the runbook.
+
 ## 18. Observability and service objectives
 
 ### 18.1 Logs
@@ -1457,6 +1459,13 @@ Manual spans through the OpenTelemetry API, exported over OTLP when an endpoint 
 | OPS-A11 | Image digest of the running container differs from the released digest |
 
 Alerts reach the operator through an external channel first and through the bot second, because the bot may be the thing that is down. `/readyz` is true when the database answers, Flyway is at head, the tick age is under 30 seconds and, in the sender-owning process, the last Bot API call did not end in `Fatal`.
+
+Operations as built on 2026-11-14 (supervisor decision, 2026-11-14), a first part of G2.18:
+
+- `/readyz` on the operations listener answers 200 or 503 with `{"status","database","outbox_pending","outbox_oldest_pending_seconds"}`. It is ready when the database answers and the oldest due outbox row (`queued`, `failed_retry` or `sending`, `next_attempt_at` passed) is at most 5 minutes old, the dispatcher's `fallback_after`. Flyway head, tick age and the last Bot API outcome are not checked yet. `/metrics` serves the registry on the same listener.
+- The dispatcher counts `dosegram_outbox_sent_total{vendor,kind}`, `dosegram_outbox_retried_total{vendor,reason}`, `dosegram_outbox_failed_total{vendor,reason}` and `dosegram_outbox_dead_total{vendor,reason}`. `reason` is a fixed code (`rate_limited`, `retryable`, `too_old`, `channel_fatal`, `permanent`, `unrenderable`); a retried, failed or dead row is also one log line of vendor, kind and reason, never the stored error or the payload.
+- The bot half of OPS-A2: a dead outbox row or a quarantined inbox update sends one silent `Ops:` message to the owner's chat, at most once per condition per hour, straight through the adapter rather than the outbox. The chat is `OWNER_ALERT_CHAT`, else the only user of the Telegram allowlist; with several users and no setting no alert is sent. A dead row is dated by its last attempt, because `outbox_messages` has no column for the moment it died. The external channel is not built.
+- `scripts/live-smoke.sh` reads the same facts from the database for the owner: due and dead outbox rows, the inbox, worker heartbeats and the last reminder sent, as counts, ages and kinds.
 
 ## 19. Test strategy
 
