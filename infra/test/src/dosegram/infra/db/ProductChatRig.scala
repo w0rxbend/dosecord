@@ -32,7 +32,8 @@ final class ProductChatRig(dataSource: DataSource, val clock: MutableClock, purg
 ):
   val codec: CallbackCodec =
     CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))
-  val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock, DataKeys.development)
+  val keys: DataKeys = DataKeys.development
+  val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock, keys)
   val adapter: FakeAdapter = FakeAdapter(CapabilityProfiles.Telegram)
   val chat: ChatRef = ChatRef("fake", s"dm:$user")
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)

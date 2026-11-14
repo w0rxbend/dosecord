@@ -47,6 +47,18 @@ class KeyServicePgSuite extends PgSuite, ScalaCheckSuite:
           conn.rollback()
           throw e
 
+  /** The audit rows about `account`, oldest first, as event type, actor and object. */
+  private def keyEvents(account: UUID): List[String] =
+    withConnection: conn =>
+      given Connection = conn
+      sql"""SELECT event_type || ' ' || actor_type || ':' || actor_ref || ' ' || object_type || ' ' || action
+            FROM audit_log WHERE subject_ref = $account ORDER BY occurred_at, id""".query[String]()
+
+  private def kekRotations(): Int =
+    withConnection: conn =>
+      given Connection = conn
+      sql"SELECT count(*)::int FROM audit_log WHERE event_type = 'key.kek.rotated'".queryOne[Int]().getOrElse(0)
+
   private def field(account: UUID, row: String = "row-1", column: String = "name_enc", table: String = "medications") =
     SealedField(KeyOwner.Account(account), table, column, row)
 
@@ -99,9 +111,11 @@ class KeyServicePgSuite extends PgSuite, ScalaCheckSuite:
     assert(!unknown.getMessage.contains(material(4).mkString), unknown.getMessage)
 
   test("a data key rotates: old values keep opening, new values use the new version, the lookup hash stays"):
-    val keys = DataKeys(ring("rot", 5), MutableClock(t0))
+    val clock = MutableClock(t0)
+    val keys = DataKeys(ring("rot", 5), clock)
     val account = fixtures.account()
     val (before, hashBefore) = inTx(keys)((_, s) => (s.seal(field(account), Array[Byte](7)), s.lookupHash(account, "p", "x")))
+    clock.advance(Duration.ofSeconds(1))
     assertEquals(inTx(keys)((conn, _) => keys.rotate(conn, KeyOwner.Account(account))), 2)
     val (after, hashAfter) = inTx(keys)((_, s) => (s.seal(field(account), Array[Byte](8)), s.lookupHash(account, "p", "x")))
     assertEquals(after.slice(1, 5).toList, List[Byte](0, 0, 0, 2), "the header carries the key version")
@@ -110,6 +124,11 @@ class KeyServicePgSuite extends PgSuite, ScalaCheckSuite:
       assertEquals(s.open(field(account), before).toList, List[Byte](7))
       assertEquals(s.open(field(account), after).toList, List[Byte](8))
     assertEquals(hashAfter.toList, hashBefore.toList)
+    assertEquals(
+      keyEvents(account),
+      List("key.dek.created system:keys data_key create", "key.dek.rotated system:keys data_key rotate"),
+      "the first key and the rotation are audited, on the account, by the key service"
+    )
 
   test("the key-encryption key rotates by rewrapping every data key; then the old key can go"):
     val old = Kek("kek-old", material(6))
@@ -121,9 +140,12 @@ class KeyServicePgSuite extends PgSuite, ScalaCheckSuite:
       given Connection = conn
       sql"DELETE FROM account_keys WHERE kek_id <> ${old.id}".execute()
     val rotating = DataKeys(KekRing(Kek("kek-new", material(7)), List(old)), MutableClock(t0))
+    val rotationsBefore = kekRotations()
     val rewrapped = inTx(rotating)((conn, _) => rotating.rewrapRetired(conn))
     assert(rewrapped >= accounts.size, s"rewrapped $rewrapped")
+    assertEquals(kekRotations(), rotationsBefore + 1, "one audit row for the rotation")
     assertEquals(inTx(rotating)((conn, _) => rotating.rewrapRetired(conn)), 0, "a second run finds nothing")
+    assertEquals(kekRotations(), rotationsBefore + 1, "a run that rewraps nothing writes no audit row")
     val newOnly = DataKeys(KekRing(Kek("kek-new", material(7)), Nil), MutableClock(t0))
     values.foreach: (account, value) =>
       assertEquals(String(inTx(newOnly)((_, s) => s.open(field(account), value)), UTF_8), account.toString)
@@ -158,6 +180,18 @@ class KeyServicePgSuite extends PgSuite, ScalaCheckSuite:
       given Connection = conn
       sql"SELECT count(*)::int FROM account_keys WHERE account_id = $account".queryOne[Int]()
     assertEquals(stored, Some(1))
+    assertEquals(keyEvents(account), List("key.dek.created system:keys data_key create"), "the rolled-back key left no row")
+
+  test("a forgotten owner's keys leave memory at once: once its key rows are gone, nothing opens"):
+    val keys = DataKeys(ring("fg", 12), MutableClock(t0))
+    val account = fixtures.account()
+    val value = inTx(keys)((_, s) => s.seal(field(account), Array[Byte](4)))
+    assertEquals(inTx(keys)((_, s) => s.open(field(account), value)).toList, List[Byte](4), "cached")
+    withConnection: conn =>
+      given Connection = conn
+      sql"DELETE FROM account_keys WHERE account_id = $account".execute()
+    keys.forget(KeyOwner.Account(account))
+    intercept[SealBroken](inTx(keys)((_, s) => s.open(field(account), value)))
 
   test("two transactions that create an account's first key at once store one key and both values open"):
     val keys = DataKeys(ring("race", 10), MutableClock(t0))

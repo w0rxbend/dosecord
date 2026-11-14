@@ -14,15 +14,17 @@ import scala.language.implicitConversions
   * guards), then back to the session role for the receipt. The login role must be a superuser or a member of
   * `dosegram_erasure`; otherwise the first statement fails and the transaction rolls back with nothing deleted.
   */
-final class PgErasure(conn: Connection) extends ErasureRepository:
+final class PgErasure(conn: Connection, forgetKeys: UUID => Unit) extends ErasureRepository:
   private given Connection = conn
 
+  /** `forgetKeys` drops the account's unwrapped data keys from the process's memory once their rows are deleted. */
   override def eraseAccount(accountId: UUID, tombstoneId: UUID, now: Instant): ErasureReceipt =
     val counts = underErasure:
       val deleted = ErasureCoverage.tables.collect:
         case (table, Erasure.Domain(predicate, _))      => table -> delete(table, predicate, accountId)
         case (table, Erasure.AccountWide(predicate, _)) => table -> delete(table, predicate, accountId)
       deleted :+ ("audit_log" -> pseudonymise(accountId, tombstoneId))
+    forgetKeys(accountId)
     receipt(tombstoneId, "account", counts, now)
 
   override def eraseDomain(accountId: UUID, domain: DataDomain, tombstoneId: UUID, now: Instant): ErasureReceipt =
@@ -67,6 +69,6 @@ final class PgErasure(conn: Connection) extends ErasureRepository:
     val rowCounts = counts.filter(_._2 > 0).toMap
     sql"""INSERT INTO deletion_receipts (tombstone_id, scope, deleted_at, row_counts)
           VALUES ($tombstoneId, $scope, $now, ${Jsonb(upickle.default.write(rowCounts))})""".execute()
-    ErasureReceipt(tombstoneId, rowCounts)
+    ErasureReceipt(tombstoneId, rowCounts, rowCounts.getOrElse("account_keys", 0))
 
 end PgErasure

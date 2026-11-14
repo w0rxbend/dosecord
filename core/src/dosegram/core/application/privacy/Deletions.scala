@@ -23,7 +23,8 @@ final class Deletions(clock: Clock, ids: IdSource, purgeList: PurgeList):
 
   /** The account deletion of ARCHITECTURE SEC-16. The account goes on the purge list first: if the transaction then
     * fails, a restore deletes an account that the user asked to delete, and if the list cannot be written nothing is
-    * deleted. Every row of the account goes, reminders and sessions with it, and its audit rows keep the tombstone.
+    * deleted. Every row of the account goes, its data keys first, reminders and sessions with it, and its audit rows
+    * keep the tombstone.
     */
   def account(tx: Tx, accountId: UUID, channel: AuditChannel): ErasureReceipt =
     val now = clock.now()
@@ -41,6 +42,18 @@ final class Deletions(clock: Clock, ids: IdSource, purgeList: PurgeList):
         channel
       )
     )
+    if receipt.dataKeysDestroyed > 0 then
+      tx.auditLog.record(
+        AuditEvent(
+          AuditEventType.DekDestroyed,
+          AuditActor.System("erasure"),
+          Some(tombstone),
+          "data_key",
+          None,
+          "destroy",
+          channel
+        )
+      )
     receipt
 
   /** The deletion of one domain (ARCHITECTURE SEC-17): its consent is withdrawn if it was on, `stop` ends what the

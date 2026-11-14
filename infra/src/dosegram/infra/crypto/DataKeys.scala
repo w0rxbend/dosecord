@@ -1,16 +1,23 @@
 package dosegram.infra.crypto
 
+import dosegram.core.ports.AuditActor
+import dosegram.core.ports.AuditChannel
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
 import dosegram.core.ports.Clock
+import dosegram.core.ports.IdSource
 import dosegram.core.ports.KeyOwner
 import dosegram.core.ports.KeyService
 import dosegram.core.ports.SealBroken
 import dosegram.core.ports.SealedField
+import dosegram.infra.db.PgAuditLog
 import dosegram.infra.db.RowMapper
 import dosegram.infra.db.SqlBind
 import dosegram.infra.db.SqlQuery
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets.UTF_8
+import java.security.SecureRandom
 import java.sql.Connection
 import java.time.Duration
 import java.time.Instant
@@ -26,7 +33,9 @@ private[crypto] final class DataKey(val version: Int, val material: Array[Byte])
 /** The data keys of the process (ARCHITECTURE section 15.2): each owner's 256-bit keys are stored in `account_keys` or
   * `service_keys` wrapped by the key-encryption key, and unwrapped keys stay in a bounded cache for at most
   * [[DataKeys.CacheTtl]] (SEC-03). A key created inside a transaction is cached only once a later read finds it
-  * committed, so a rolled-back transaction never leaves a key in memory that the database does not hold.
+  * committed, so a rolled-back transaction never leaves a key in memory that the database does not hold. Creating,
+  * rotating and destroying an account's key and rotating the key-encryption key each write an audit row on the same
+  * transaction (ROADMAP G2.16), with the account as subject and no key material.
   */
 final class DataKeys(val ring: KekRing, clock: Clock):
   import DataKeys.*
@@ -36,8 +45,21 @@ final class DataKeys(val ring: KekRing, clock: Clock):
   // Keyed by owner label and version; version 0 holds the owner's active key.
   private val cache = ConcurrentHashMap[(String, Int), Cached]()
 
+  private val auditIds = IdSource.uuidV7(SecureRandom())
+
   /** The key service bound to `conn`: data keys it creates commit or roll back with the caller's transaction. */
-  def on(conn: Connection): KeyService = PgKeyService(conn)
+  def on(conn: Connection): KeyService = PgKeyService(conn, audited = true)
+
+  /** The key service of the sealing backfill, which runs before `audit_log` exists (V10 to V12): it writes no audit row
+    * for a key it creates. [[dosegram.infra.db.SchemaUpgrade]] records the backfill once the schema is complete.
+    */
+  def beforeAuditLog(conn: Connection): KeyService = PgKeyService(conn, audited = false)
+
+  /** Drops every unwrapped key of `owner` from memory: after an erasure no cached copy outlives the deleted rows. */
+  def forget(owner: KeyOwner): Unit =
+    val owned = label(owner)
+    cache.keySet.removeIf(_._1 == owned)
+    ()
 
   /** Adds a new active data key for `owner` (SEC-07, on demand). Values sealed before keep opening with their own
     * version; a value is sealed with the new key the next time it is written. Returns the new version.
@@ -47,13 +69,27 @@ final class DataKeys(val ring: KekRing, clock: Clock):
     val next = store.maxVersion(conn, owner) + 1
     store.insert(conn, owner, next, wrap(owner, next, Aead.freshKey()), clock.now())
     cache.remove((label(owner), 0))
+    auditAccountKey(conn, owner, AuditEventType.DekRotated, "rotate")
     next
 
   /** Rewraps every data key that a retired key-encryption key wraps with the active one (SEC-07) and returns how many
     * it rewrapped. Refuses, naming the id only, a data key whose key-encryption key is not configured.
     */
   def rewrapRetired(conn: Connection): Int =
-    Store.all.map(_.rewrap(conn, this)).sum
+    val rewrapped = Store.all.map(_.rewrap(conn, this)).sum
+    if rewrapped > 0 then
+      PgAuditLog(conn, clock, auditIds).record(
+        AuditEvent(AuditEventType.KekRotated, KeysActor, None, "kek", None, "rewrap", AuditChannel.Scheduler)
+      )
+    rewrapped
+
+  private def auditAccountKey(conn: Connection, owner: KeyOwner, event: AuditEventType, action: String): Unit =
+    owner match
+      case KeyOwner.Account(account) =>
+        PgAuditLog(conn, clock, auditIds).record(
+          AuditEvent(event, KeysActor, Some(account), "data_key", None, action, AuditChannel.Scheduler)
+        )
+      case KeyOwner.Service(_) => ()
 
   private[crypto] def wrap(owner: KeyOwner, version: Int, material: Array[Byte]): Wrapped =
     Wrapped(ring.active.id, Aead.seal(ring.active.material, wrapAad(ring.active.id, owner, version), material))
@@ -79,7 +115,7 @@ final class DataKeys(val ring: KekRing, clock: Clock):
     if cache.size >= CacheEntries then cache.clear()
     cache.put((label(owner), slot), Cached(key, clock.now()))
 
-  private final class PgKeyService(conn: Connection) extends KeyService:
+  private final class PgKeyService(conn: Connection, audited: Boolean) extends KeyService:
     // Keys this transaction created: not committed yet, so never in the shared cache.
     private val created = mutable.Map.empty[String, DataKey]
 
@@ -138,7 +174,9 @@ final class DataKeys(val ring: KekRing, clock: Clock):
       val (version, stored) =
         store.find(conn, owner, None).getOrElse(throw IllegalStateException("a data key vanished"))
       val key = unwrap(owner, version, stored)
-      if stored.bytes.sameElements(wrapped.bytes) then created.put(label(owner), key)
+      if stored.bytes.sameElements(wrapped.bytes) then
+        created.put(label(owner), key)
+        if audited then auditAccountKey(conn, owner, AuditEventType.DekCreated, "create")
       else remember(owner, 0, key)
       key
 
@@ -152,6 +190,9 @@ object DataKeys:
 
   /** The keys of development and tests, wrapped by [[KekRing.development]]. */
   def development: DataKeys = DataKeys(KekRing.development, Clock.system)
+
+  /** The actor of the key events: the key service of the process, never a person (brief 06 section 10.2). */
+  private val KeysActor = AuditActor.System("keys")
 
   private val Format: Byte = 1
   private val HeaderBytes = 5

@@ -41,8 +41,12 @@ enum AuditEventType(val code: String, val written: Boolean, val pending: String 
   case WebhookRejected extends AuditEventType("webhook.rejected", false, "G11.6b, with the chain")
   case CallbackRejected extends AuditEventType("callback.rejected", false, "kept in auth_audit_log until G11.6b")
   // Keys and secrets
-  case DekCreated extends AuditEventType("key.dek.created", false, "account data keys, G2.4b")
-  case DekDestroyed extends AuditEventType("key.dek.destroyed", false, "account data keys, G2.4b")
+  case DekCreated extends AuditEventType("key.dek.created", written = true)
+  case DekRotated extends AuditEventType("key.dek.rotated", written = true)
+  case DekDestroyed extends AuditEventType("key.dek.destroyed", written = true)
+  case KekRotated extends AuditEventType("key.kek.rotated", written = true)
+  // Not in brief 06: the sealing backfill of the plaintext stores (supervisor decision, 2026-11-14).
+  case BackfillCompleted extends AuditEventType("key.backfill.completed", written = true)
   // Administrative
   case AdminCommand extends AuditEventType("admin.command", false, "the operator CLI, G2.18")
 

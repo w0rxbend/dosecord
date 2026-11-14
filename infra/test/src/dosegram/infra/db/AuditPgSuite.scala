@@ -28,6 +28,12 @@ class AuditPgSuite extends PgSuite:
   /** The written events that the API suites drive (the session service lives in the `api` module). */
   private val drivenByApi: Set[AuditEventType] = Set(AuditEventType.SessionCreated, AuditEventType.SessionRevoked)
 
+  /** The written events of the key service and the upgrade, which no chat action drives: `KeyServicePgSuite` and
+    * `SealingBackfillPgSuite` assert them.
+    */
+  private val drivenByKeys: Set[AuditEventType] =
+    Set(AuditEventType.DekRotated, AuditEventType.KekRotated, AuditEventType.BackfillCompleted)
+
   private def withRig(user: String)(test: ProductChatRig => Unit): Unit =
     val purge = FilePurgeList(Files.createTempFile("purge", ".txt"))
     ox.supervised(test(ProductChatRig(dataSource, MutableClock(ProductChatRig.Start), purge, user)))
@@ -133,7 +139,7 @@ class AuditPgSuite extends PgSuite:
       val written = withConnection: conn =>
         given Connection = conn
         sql"SELECT DISTINCT event_type FROM audit_log".query[String]().toSet
-      val expected = AuditEventType.values.filter(_.written).toSet -- drivenByApi
+      val expected = AuditEventType.values.filter(_.written).toSet -- drivenByApi -- drivenByKeys
       assertEquals(expected.map(_.code) -- written, Set.empty[String], "written events no row shows")
       assertEquals(
         written -- AuditEventType.values.filter(_.written).map(_.code).toSet,

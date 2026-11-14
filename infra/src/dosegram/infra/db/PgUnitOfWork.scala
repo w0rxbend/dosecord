@@ -17,6 +17,7 @@ import dosegram.core.ports.HydrationRepository
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.IdentityRepository
 import dosegram.core.ports.InboundEventRepository
+import dosegram.core.ports.KeyOwner
 import dosegram.core.ports.MealRepository
 import dosegram.core.ports.MedicationDepthRepositories
 import dosegram.core.ports.MedicationRepository
@@ -86,7 +87,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
     override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
     override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
     override lazy val auditLog: AuditLog = PgAuditLog(conn, clock, consentEventIds)
-    override lazy val erasure: ErasureRepository = PgErasure(conn)
+    override lazy val erasure: ErasureRepository = PgErasure(conn, account => keys.forget(KeyOwner.Account(account)))
     override lazy val consents: ConsentLedger = PgConsentLedger(conn, consentEventIds, auditLog)
     override lazy val tracking: TrackingRepositories = new TrackingRepositories:
       override lazy val hydration: HydrationRepository = PgHydrationRepository(conn)

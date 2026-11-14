@@ -17,10 +17,10 @@ object DataDomain:
   def ofCode(code: String): Option[DataDomain] = values.find(_.code == code)
   def ofPurpose(purpose: ConsentPurpose): Option[DataDomain] = values.find(_.purpose == purpose)
 
-/** What a deletion did: the tombstone that stands for the account from now on, and the rows deleted per table. Counts
-  * only, never content (ROADMAP G2.17).
+/** What a deletion did: the tombstone that stands for the account from now on, the rows deleted per table, and the data
+  * keys of the account destroyed with them (crypto-shredding, SEC-06). Counts only, never content (ROADMAP G2.17).
   */
-final case class ErasureReceipt(tombstoneId: UUID, rowCounts: Map[String, Int]):
+final case class ErasureReceipt(tombstoneId: UUID, rowCounts: Map[String, Int], dataKeysDestroyed: Int):
   def total: Int = rowCounts.values.sum
 
 /** The erasure job on the caller's transaction (ARCHITECTURE SEC-16, SEC-17): deletes under the erasure role, in

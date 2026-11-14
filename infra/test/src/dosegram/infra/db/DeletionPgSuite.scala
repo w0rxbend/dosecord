@@ -9,6 +9,7 @@ import dosegram.core.domain.copy.PrivacyCopy
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DataDomain
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.SealedField
 import dosegram.core.scheduling.CreateSchedule
 import dosegram.core.scheduling.ScheduleLifecycle
 import dosegram.infra.FilePurgeList
@@ -107,6 +108,10 @@ class DeletionPgSuite extends PgSuite:
             VALUES (${s"token-$account"}, $account, 'initdata', $now, $now)""".execute()
     other
 
+  /** Whether `value` opens with the rig's own key service, the one whose cache the deletion must empty. */
+  private def opens(rig: ProductChatRig, field: SealedField, value: Array[Byte]): Boolean =
+    withConnection(conn => scala.util.Try(rig.keys.on(conn).open(field, value)).isSuccess)
+
   test("after the account deletion no row of any table holds the account, and the bot has forgotten the chat"):
     withRig("del-1"): rig =>
       val account = rig.onboard()
@@ -114,6 +119,15 @@ class DeletionPgSuite extends PgSuite:
       List("hydration_entries", "mood_checkins", "sleep_episodes", "meals", "dose_occurrences", "export_jobs")
         .foreach(table => assert(rows(table, account) >= 1, s"$table has a row before the deletion"))
       assert(tablesHolding(account.toString).size > 20, "the account is spread over the schema before the deletion")
+      // A sealed meal, copied as a dump or a backup would hold it; it opens while the account's keys exist.
+      val (mealId, sealedMeal) = withConnection: conn =>
+        given Connection = conn
+        given RowMapper[(UUID, Array[Byte])] = rs => (rs.getObject(1, classOf[UUID]), rs.getBytes(2))
+        sql"SELECT id, description_enc FROM meals WHERE account_id = $account AND description_enc IS NOT NULL LIMIT 1"
+          .queryOne[(UUID, Array[Byte])]()
+          .getOrElse(fail("no sealed meal"))
+      val mealField = SealedColumns.MealWords.forAccount(account, mealId)
+      assert(opens(rig, mealField, sealedMeal), "the copy opens before the deletion")
       rig.line("/privacy")
       val oldButton = rig.wireOf("Your consents", PrivacyCopy.DeleteData)
       rig.tap("Your consents", PrivacyCopy.DeleteData)
@@ -142,6 +156,9 @@ class DeletionPgSuite extends PgSuite:
         sql"SELECT event_type FROM audit_log WHERE subject_ref = ${tombstone.head} ORDER BY occurred_at, id"
           .query[String]()
       assert(events.contains("account.delete.completed"), events.toString)
+      assert(events.contains("key.dek.destroyed"), events.toString)
+      // Crypto-shredding (SEC-06): with the keys gone, from the table and from memory, the copy no longer opens.
+      assert(!opens(rig, mealField, sealedMeal), "the copy of a sealed meal opens after the deletion")
       assert(events.contains("consent.granted") && events.contains("data.export.requested"), events.toString)
       val counts = withConnection: conn =>
         given Connection = conn

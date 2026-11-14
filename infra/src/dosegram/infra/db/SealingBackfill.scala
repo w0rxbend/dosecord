@@ -39,7 +39,7 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
 
   private def sealBatch(column: SealedColumn): Int =
     transaction: conn =>
-      val keyService = keys.on(conn)
+      val keyService = keys.beforeAuditLog(conn)
       val rows = select(
         conn,
         s"SELECT t.ctid::text, ${selection(column)} FROM ${column.table} t " +
@@ -68,7 +68,7 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
     */
   private def verify(column: SealedColumn): (Int, Int) =
     transaction: conn =>
-      val keyService = keys.on(conn)
+      val keyService = keys.beforeAuditLog(conn)
       val rows = select(
         conn,
         s"SELECT t.ctid::text, t.${column.encrypted}, ${selection(column)} FROM ${column.table} t " +

@@ -156,6 +156,15 @@ class SealingBackfillPgSuite extends PgSuite:
     assertEquals(result.getExitCode, 0, result.getStderr)
     result.getStdout
 
+  /** The audit rows of the key events, as event type and actor. */
+  private def keyEvents(ds: HikariDataSource): List[String] =
+    val conn = ds.getConnection
+    try
+      given Connection = conn
+      sql"""SELECT event_type || ' ' || actor_type || ':' || actor_ref FROM audit_log
+            WHERE event_type LIKE 'key.%' ORDER BY occurred_at, id""".query[String]()
+    finally conn.close()
+
   private def hex(bytes: Array[Byte]): String = HexFormat.of().formatHex(bytes)
 
   /** Every log line written at any level while `f` runs, library lines included. */
@@ -178,6 +187,7 @@ class SealingBackfillPgSuite extends PgSuite:
       assertEquals(result.schemaVersion, "12")
       assertEquals(result.migrationsExecuted, 3)
       assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer")
+      assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
       val uow = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
       uow.transaction: tx =>
@@ -218,6 +228,7 @@ class SealingBackfillPgSuite extends PgSuite:
       SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
       val again = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
       assertEquals(again, UpgradeResult(0, "12", 0, 0))
+      assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "a run that seals nothing is not audited")
     finally ds.close()
 
   test("a backfill that stops part-way keeps V10 and the plaintext; the next start resumes it"):
