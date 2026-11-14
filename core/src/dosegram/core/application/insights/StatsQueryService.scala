@@ -2,30 +2,40 @@ package dosegram.core.application.insights
 
 import dosegram.core.domain.AdherenceInput
 import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.insights.BaselineStatements
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.Comparisons
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.HydrationPeriod
 import dosegram.core.domain.insights.HydrationStats
+import dosegram.core.domain.insights.InsightEngine
+import dosegram.core.domain.insights.InsightInputs
+import dosegram.core.domain.insights.InsightList
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MedicationPeriod
 import dosegram.core.domain.insights.MedicationStats
+import dosegram.core.domain.insights.MonthFigures
+import dosegram.core.domain.insights.MonthStats
 import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.MoodPeriod
 import dosegram.core.domain.insights.MoodStats
+import dosegram.core.domain.insights.NightFacts
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.SleepNight
 import dosegram.core.domain.insights.SleepPeriod
 import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.Tx
 
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
 
@@ -53,6 +63,12 @@ final case class MedicationPeriodView(zone: ZoneId, period: MedicationPeriod)
 
 /** The text statistics of a period: the header line and one block of lines per domain that has consent and data. */
 final case class PeriodSummary(zone: ZoneId, window: DateRange, lines: List[String])
+
+/** A calendar month as every surface reads it: the figures and the zone they were computed in. */
+final case class MonthView(zone: ZoneId, figures: MonthFigures)
+
+/** The current insights of an account and whether cross-domain comparisons are on (VISUALS VA-IN-01). */
+final case class InsightsView(zone: ZoneId, list: InsightList, crossDomain: Boolean)
 
 /** The windows a comparison may run over (VISUALS_AND_ANALYTICS section 8.5): 28 local days by default. */
 enum ComparisonWindow(val days: Int):
@@ -141,6 +157,67 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
         zoneOf(tx, accountId).map: zone =>
           val range = DateRange.endingOn(LocalDays.dateOf(clock.now(), zone), window.days)
           Comparisons.waterGoalAndMood(hydrationDays(tx, accountId, range), moodDays(tx, accountId, range), range)
+
+  /** A calendar month (VISUALS section 6.6): one block per domain whose consent is active, a domain without consent is
+    * absent. The previous month's medication days are the only baseline. Weeks start on Monday until the account has a
+    * week-start setting.
+    */
+  def month(tx: Tx, accountId: UUID, month: YearMonth): Either[StatsRefusal, MonthView] =
+    zoneOf(tx, accountId).map: zone =>
+      val range = MonthStats.window(month)
+      def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+      val medication = Option.when(granted(ConsentPurpose.Medication))(
+        medicationDays(tx, accountId, range) -> dosesOf(tx, accountId, zone, range)
+      )
+      val previous = Option.when(granted(ConsentPurpose.Medication))(
+        medicationDays(tx, accountId, MonthStats.window(month.minusMonths(1)))
+      )
+      MonthView(
+        zone,
+        MonthStats.of(
+          month,
+          DayOfWeek.MONDAY,
+          medication,
+          Option.when(granted(ConsentPurpose.Hydration))(hydrationDays(tx, accountId, range)),
+          Option.when(granted(ConsentPurpose.Mood))(moodDays(tx, accountId, range)),
+          Option.when(granted(ConsentPurpose.Sleep))(sleepDays(tx, accountId, range)),
+          previous
+        )
+      )
+
+  /** The current insights (VISUALS section 8.5): every rule of the registry whose sources have consent, over the last
+    * `window` local days; the baseline statements read the last five weeks. Cross-domain rules run only with the
+    * `cross_domain_patterns` consent; the timing statement and the baselines are single-domain.
+    */
+  def insights(tx: Tx, accountId: UUID, window: ComparisonWindow): Either[StatsRefusal, InsightsView] =
+    zoneOf(tx, accountId).map: zone =>
+      val today = LocalDays.dateOf(clock.now(), zone)
+      val range = DateRange.endingOn(today, window.days)
+      // One read covers the window and the five weeks of the baselines.
+      val read = DateRange.endingOn(today, Math.max(window.days, BaselineStatements.window(today).days))
+      def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+      val crossDomain = granted(ConsentPurpose.CrossDomainPatterns)
+      val inputs = InsightInputs(
+        today = today,
+        window = range,
+        zone = zone,
+        hydration = Option.when(granted(ConsentPurpose.Hydration))(hydrationDays(tx, accountId, read)),
+        mood = Option.when(granted(ConsentPurpose.Mood))(moodDays(tx, accountId, read)),
+        nights = Option.when(granted(ConsentPurpose.Sleep))(
+          NightFacts.of(tx.tracking.sleep.liveEpisodes(accountId, read), tx.tracking.sleep.goals(accountId, today))
+        ),
+        doses = Option.when(granted(ConsentPurpose.Medication))(dosesOf(tx, accountId, zone, range)),
+        // Only IR-06 reads the work days, and it runs only with the cross-domain consent.
+        workDays = if crossDomain then workDaysOf(tx, accountId) else DayProfile.Default.work.days,
+        crossDomain = crossDomain
+      )
+      InsightsView(zone, InsightEngine.evaluate(inputs), crossDomain)
+
+  /** The user's own work days from the day profile, Monday to Friday until the user set them (VISUALS IR-06). */
+  private def workDaysOf(tx: Tx, accountId: UUID): Set[DayOfWeek] =
+    tx.reminders.dayProfiles
+      .anchors(accountId)
+      .fold(DayProfile.Default.work.days)(_.work.days)
 
   private def answer[A](tx: Tx, accountId: UUID, purpose: ConsentPurpose)(f: ZoneId => A): Either[StatsRefusal, A] =
     if !tx.consents.isGranted(accountId, purpose) then Left(StatsRefusal.ConsentMissing(purpose))

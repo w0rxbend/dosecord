@@ -21,6 +21,7 @@ import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseRecord
 import dosegram.core.domain.insights.InsightGens
+import dosegram.core.domain.insights.Insight
 import dosegram.core.domain.insights.InsightRule
 import dosegram.core.domain.insights.MedicationStats
 import dosegram.core.domain.insights.Ratio
@@ -52,7 +53,7 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
   private final class Rig(consent: FakeConsent = FakeConsent.all(account)):
     val clock = ManualClock(now)
     val tables = InMemoryTracking(Map(account -> kyiv))
-    val tx = TrackingTxDouble(tables, consent)
+    val tx = TrackingTxDouble(tables, consent, Some(dosegram.core.chat.MediatorFakes.NoPromptPlans))
     val rollups = RollupService(tx, clock)
     val stats = StatsQueryService(rollups, clock)
     val water = HydrationService(clock, SequentialIds())
@@ -320,4 +321,37 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     (0 until 4).foreach(_ => rig.dose(1, OccurrenceStatus.Taken))
     val total = rig.stats.medication(rig.tx, account, StatsPeriod.Last7Days).toOption.get.period.total
     assertEquals(total.adherence, Stat.Insufficient(4, 5, DateRange.endingOn(today, 7)))
+  test("a month answers one block per consented domain, the gate, and the previous month as its baseline"):
+    val consent = FakeConsent.all(account)
+    val rig = Rig(consent)
+    consent.withdraw(account, ConsentPurpose.Mood)
+    (1 to 15).foreach(daysAgo => rig.on(daysAgo)(rig.drink(1500, s"w$daysAgo")))
+    (31 to 40).foreach(daysAgo => rig.dose(daysAgo, OccurrenceStatus.Taken))
+    val view = rig.stats.month(rig.tx, account, java.time.YearMonth.of(2026, 6)).toOption.get
+    assertEquals(view.figures.hydration.map(_.recordedDays), Some(15))
+    assert(view.figures.isReportable)
+    assertEquals(view.figures.mood, None)
+    assertEquals(view.figures.previousAdherence.shown, Some(Ratio(10, 10)))
+    assertEquals(view.figures.medication.map(_.recordedDays), Some(0))
+
+  test("the insights list runs no cross-domain rule without its consent, and the single-domain ones without it"):
+    val consent = FakeConsent.all(account)
+    val rig = Rig(consent)
+    rig.on(27)(rig.water.setGoal(rig.tx, account, Some(2000)))
+    (1 to 20).foreach { daysAgo =>
+      val reached = daysAgo % 2 == 0
+      rig.on(daysAgo):
+        rig.drink(if reached then 2200 else 800, s"w$daysAgo")
+        rig.feel(if reached then 5 else 3, s"m$daysAgo")
+    }
+    def patterns(view: InsightsView): List[InsightRule] =
+      view.list.shown.collect { case Insight.Pattern(comparison, _) => comparison.rule }
+    val on = rig.stats.insights(rig.tx, account, ComparisonWindow.Days28).toOption.get
+    assert(on.crossDomain)
+    assert(patterns(on).contains(InsightRule.WaterGoalAndMood), clue(on.list))
+    consent.withdraw(account, ConsentPurpose.CrossDomainPatterns)
+    val off = rig.stats.insights(rig.tx, account, ComparisonWindow.Days28).toOption.get
+    assert(!off.crossDomain)
+    assertEquals(patterns(off), Nil)
+    assertEquals(off.list.window, DateRange.endingOn(today, 28))
 end StatsQueryServiceSuite

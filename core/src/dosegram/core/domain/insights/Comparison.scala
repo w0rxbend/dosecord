@@ -1,18 +1,36 @@
 package dosegram.core.domain.insights
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 
-/** A measure a comparison rule may read, with the domain it comes from. No medication measure is in this list, and none
+/** Where a measure of an insight rule comes from. `Calendar` is no record at all: the day of the week, read against the
+  * user's own work days. `Medication` is read by the single-domain timing statement IR-07 only.
+  */
+enum InsightSource:
+  case Hydration, Mood, Sleep, Calendar, Medication
+
+/** A measure a comparison rule may read, with the source it comes from. No medication measure is in this list, and none
   * may be added: taken, skipped, missed, timing, punctuality and as-needed logs are excluded from both sides of every
   * cross-domain rule (VISUALS_AND_ANALYTICS section 8.3, PRODUCT_SPEC R-INS-9).
   */
-enum InsightVariable(val domain: RollupDomain):
-  case WaterGoalReached extends InsightVariable(RollupDomain.Hydration)
-  case DailyMoodMean extends InsightVariable(RollupDomain.Mood)
+enum InsightVariable(val source: InsightSource):
+  case WaterGoalReached extends InsightVariable(InsightSource.Hydration)
+  case DailyMoodMean extends InsightVariable(InsightSource.Mood)
+  case SleepGoalReached extends InsightVariable(InsightSource.Sleep)
+  case BedtimeNearMedian extends InsightVariable(InsightSource.Sleep)
+  case WorkDay extends InsightVariable(InsightSource.Calendar)
+  case SleepDuration extends InsightVariable(InsightSource.Sleep)
+  case WaterVolume extends InsightVariable(InsightSource.Hydration)
+
+/** The unit of a rule's outcome, which decides how its values are worded. */
+enum OutcomeUnit:
+  case MoodLevels, Minutes, Millilitres
 
 /** The closed rule registry of VISUALS section 8.4 (ARCHITECTURE INS-09). The system never searches for the strongest
   * association: it evaluates the rules listed here and nothing else. `minimumDifference` is the smallest difference of
-  * group means that is displayed, in the unit of the outcome.
+  * group means that is displayed, in the unit of the outcome. A rule whose grouping is a record of another domain than
+  * its outcome is cross-domain and runs only with the `cross_domain_patterns` consent (VA-IN-01); IR-06 groups by the
+  * calendar and is held to the same consent, because section 8.2 exempts only IR-07 and IR-11.
   */
 enum InsightRule(
     val id: String,
@@ -23,6 +41,32 @@ enum InsightRule(
   /** IR-04: days on which the user's own water goal was reached against the other recorded days; daily mood mean. */
   case WaterGoalAndMood
       extends InsightRule("IR-04", InsightVariable.WaterGoalReached, InsightVariable.DailyMoodMean, 0.3)
+
+  /** IR-01: sleep days whose night reached the user's own goal against shorter nights; mood of the same local day. */
+  case SleepGoalAndMood
+      extends InsightRule("IR-01", InsightVariable.SleepGoalReached, InsightVariable.DailyMoodMean, 0.3)
+
+  /** IR-02: nights that began within 30 minutes of the user's own median bedtime against the others; mood that day. */
+  case BedtimeAndMood
+      extends InsightRule("IR-02", InsightVariable.BedtimeNearMedian, InsightVariable.DailyMoodMean, 0.3)
+
+  /** IR-06: the user's work days against free days; the night's duration on its sleep day. */
+  case WorkDaysAndSleep extends InsightRule("IR-06", InsightVariable.WorkDay, InsightVariable.SleepDuration, 30)
+
+  /** IR-06: the user's work days against free days; the day's water. */
+  case WorkDaysAndWater extends InsightRule("IR-06", InsightVariable.WorkDay, InsightVariable.WaterVolume, 300)
+
+  /** IR-06: the user's work days against free days; the day's mood mean. */
+  case WorkDaysAndMood extends InsightRule("IR-06", InsightVariable.WorkDay, InsightVariable.DailyMoodMean, 0.3)
+
+  def unit: OutcomeUnit =
+    outcome match
+      case InsightVariable.SleepDuration => OutcomeUnit.Minutes
+      case InsightVariable.WaterVolume   => OutcomeUnit.Millilitres
+      case _                             => OutcomeUnit.MoodLevels
+
+  /** The number of the rule in the catalogue, which breaks ties in the ranking (VISUALS section 8.5). */
+  def number: Int = id.stripPrefix("IR-").toInt
 
 /** One local day that has both the grouping value and the outcome. */
 final case class PairedDay(date: LocalDate, inFirstGroup: Boolean, outcome: Double)
@@ -60,13 +104,94 @@ object Comparisons:
       mood: Map[LocalDate, MoodDay],
       window: DateRange
   ): Comparison =
-    val paired =
+    compare(InsightRule.WaterGoalAndMood, waterGoalPairs(hydration, mood, window), window)
+
+  /** The paired days of a rule over the sources of `in`; `None` when a source the rule reads has no consent. */
+  def pairedDays(rule: InsightRule, in: InsightInputs): Option[List[PairedDay]] =
+    val window = in.window
+    rule match
+      case InsightRule.WaterGoalAndMood =>
+        for water <- in.hydration; mood <- in.mood yield waterGoalPairs(water, mood, window)
+      case InsightRule.SleepGoalAndMood =>
+        for nights <- in.nights; mood <- in.mood yield sleepGoalPairs(nights, mood, window)
+      case InsightRule.BedtimeAndMood =>
+        for nights <- in.nights; mood <- in.mood yield bedtimePairs(nights, mood, window)
+      case InsightRule.WorkDaysAndSleep =>
+        in.nights.map(nights => workDayPairs(nights.view.mapValues(_.minutes.toDouble).toMap, in.workDays, window))
+      case InsightRule.WorkDaysAndWater =>
+        in.hydration.map(days => workDayPairs(days.view.mapValues(_.totalMl.toDouble).toMap, in.workDays, window))
+      case InsightRule.WorkDaysAndMood =>
+        in.mood.map(days => workDayPairs(days.view.mapValues(_.mean).toMap, in.workDays, window))
+
+  private def waterGoalPairs(
+      hydration: Map[LocalDate, HydrationDay],
+      mood: Map[LocalDate, MoodDay],
+      window: DateRange
+  ): List[PairedDay] =
+    for
+      date <- window.dates
+      progress <- hydration.get(date).flatMap(_.progress)
+      checkins <- mood.get(date)
+    yield PairedDay(date, progress.reached, checkins.mean)
+
+  /** IR-01. A sleep day is paired when its night ended under a goal in force that day and the day has a check-in. */
+  private def sleepGoalPairs(
+      nights: Map[LocalDate, NightFacts],
+      mood: Map[LocalDate, MoodDay],
+      window: DateRange
+  ): List[PairedDay] =
+    for
+      date <- window.dates
+      night <- nights.get(date)
+      goal <- night.goalMinutes
+      checkins <- mood.get(date)
+    yield PairedDay(date, night.minutes >= goal, checkins.mean)
+
+  /** IR-02. The median is the user's own, over the nights of the window whose clock did not shift; a night that began
+    * within 30 minutes of it on the clock is in the first group.
+    */
+  private def bedtimePairs(
+      nights: Map[LocalDate, NightFacts],
+      mood: Map[LocalDate, MoodDay],
+      window: DateRange
+  ): List[PairedDay] =
+    val steady = window.dates.flatMap(date => nights.get(date).filterNot(_.clockShift).map(date -> _))
+    if steady.isEmpty then Nil
+    else
+      val median = SleepRegularity.circularMedian(steady.map(_._2.bedtimeMinute))
       for
-        date <- window.dates
-        progress <- hydration.get(date).flatMap(_.progress)
+        (date, night) <- steady
         checkins <- mood.get(date)
-      yield PairedDay(date, progress.reached, checkins.mean)
-    compare(InsightRule.WaterGoalAndMood, paired, window)
+      yield PairedDay(date, clockDistance(night.bedtimeMinute, median) <= BedtimeBandMinutes, checkins.mean)
+
+  /** IR-06: a recorded day is a work day or a free day of the user's own week; for sleep, the sleep day. */
+  private def workDayPairs(
+      outcomes: Map[LocalDate, Double],
+      workDays: Set[DayOfWeek],
+      window: DateRange
+  ): List[PairedDay] =
+    window.dates.flatMap(date => outcomes.get(date).map(PairedDay(date, workDays(date.getDayOfWeek), _)))
+
+  /** The pooled standard deviation of the outcome over both groups: the divisor of the ranking (section 8.5). */
+  def standardisedSize(paired: List[PairedDay]): Double =
+    val (first, second) = paired.partition(_.inFirstGroup)
+    val pooledVariance =
+      (squares(first) + squares(second)) / Math.max(1, paired.size - 2).toDouble
+    val sd = Math.sqrt(pooledVariance)
+    if sd <= Epsilon then Double.PositiveInfinity else Math.abs(difference(paired)) / sd
+
+  private def squares(days: List[PairedDay]): Double =
+    if days.isEmpty then 0.0
+    else
+      val centre = mean(days)
+      days.map(day => (day.outcome - centre) * (day.outcome - centre)).sum
+
+  private val BedtimeBandMinutes = 30
+  private val DayMinutes = 1440
+
+  private def clockDistance(a: Int, b: Int): Int =
+    val gap = Math.floorMod(a - b, DayMinutes)
+    Math.min(gap, DayMinutes - gap)
 
   def compare(rule: InsightRule, paired: List[PairedDay], window: DateRange): Comparison =
     val (first, second) = paired.partition(_.inFirstGroup)

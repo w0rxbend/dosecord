@@ -32,5 +32,7 @@ object Copy:
       StatsCardCopy.entries ++
       SleepCopy.entries ++
       InputCopy.entries ++
-      PromptCopy.entries
+      PromptCopy.entries ++
+      InsightCopy.entries ++
+      MonthCopy.entries
 end Copy

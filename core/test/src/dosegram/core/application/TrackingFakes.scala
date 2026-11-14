@@ -216,8 +216,13 @@ end InMemoryTracking
 /** A transaction for the use-case suites: the zones of the accounts, a consent ledger and the tracking tables. A call
   * on any other repository group fails and names the group (ROADMAP G2.1).
   */
-final class TrackingTxDouble(tables: InMemoryTracking, ledger: ConsentLedger) extends Tx, UnitOfWork:
+final class TrackingTxDouble(
+    tables: InMemoryTracking,
+    ledger: ConsentLedger,
+    reminderGroup: Option[ReminderRepositories] = None
+) extends Tx, UnitOfWork:
   override def transaction[A](f: Tx => A): A = f(this)
+  override def reminders: ReminderRepositories = reminderGroup.getOrElse(super.reminders)
   override def consents: ConsentLedger = ledger
   override def tracking: TrackingRepositories = tables
   override val accounts: AccountRepository = new AccountRepository:

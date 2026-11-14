@@ -18,6 +18,9 @@ enum MinimumSample(val required: Int):
   case PairedDays extends MinimumSample(14)
   case GroupDays extends MinimumSample(5)
 
+  /** PRODUCT_SPEC R-INS-11: a domain of the monthly report needs a record on at least 14 days of the month. */
+  case MonthlyReportDays extends MinimumSample(14)
+
 object MinimumSample:
 
   /** "A weekly average is shown only with at least 3 recorded days; a monthly average with at least 10." A window of up
