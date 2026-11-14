@@ -140,7 +140,7 @@ test('edit a medication time: the schedule gets a new revision and the list show
   await expect(page.getByText(/08:30/).first()).toBeVisible();
 });
 
-test('reminders: a preset is turned on, then off again', async ({ app }) => {
+test('reminders: a preset is turned on, then off again; the language is switched and back', async ({ app }) => {
   const page = await app.launch({ startParam: 'reminders' });
   await expect(page.getByRole('heading', { level: 1, name: 'Reminders' })).toBeVisible();
 
@@ -173,6 +173,19 @@ test('reminders: a preset is turned on, then off again', async ({ app }) => {
   await expect(day.getByText('Done')).toBeVisible();
   await pressBackButton(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+
+  // Language (ROADMAP G2.22): Ukrainian is saved on an account still on the default UTC zone, then English again,
+  // because every test of the suite shares the account. In this test: the session exchange allows six launches a
+  // minute (API-18).
+  const toUkrainian = page.waitForResponse((r) => r.url().endsWith('/api/v1/settings') && r.request().method() === 'PATCH');
+  await page.getByRole('combobox', { name: 'Language' }).selectOption('uk');
+  expect((await toUkrainian).status()).toBe(200);
+  await expect(page.getByRole('heading', { level: 1, name: 'Налаштування' })).toBeVisible();
+  const toEnglish = page.waitForResponse((r) => r.url().endsWith('/api/v1/settings') && r.request().method() === 'PATCH');
+  await page.getByRole('combobox', { name: 'Мова' }).selectOption('en');
+  expect((await toEnglish).status()).toBe(200);
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+
   await page.getByRole('link', { name: /^Export everything/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Reports and export' })).toBeVisible();
 });

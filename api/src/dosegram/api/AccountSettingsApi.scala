@@ -41,7 +41,7 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
       for
         current <- stored(tx, accountId)
         _ <- Either.cond(settingsView(current).version == version, (), ApiFailure.versionConflict())
-        zone <- validated(input)
+        zone <- validated(input, current.zone)
       yield
         val now = clock.now()
         tx.accounts.saveSettings(
@@ -154,9 +154,12 @@ object AccountSettingsApi:
       quietHours = quiet
     )
 
-  private def validated(input: SettingsInput): Either[ApiFailure, ZoneId] =
+  /** The zone kept as it is is accepted whatever it is (an account starts on `UTC`, which is not a region zone); a new
+    * zone must be a region zone.
+    */
+  private def validated(input: SettingsInput, currentZone: String): Either[ApiFailure, ZoneId] =
     val language = Option.when(!Languages.exists(_.code == input.language))(FieldError("language", "unsupported"))
-    val zone = zoneOf(input.timeZone)
+    val zone = if input.timeZone == currentZone then Right(ZoneId.of(currentZone)) else zoneOf(input.timeZone)
     val errors = language.toList ++ zone.left.toOption.toList.flatMap(_.problem.errors)
     if errors.isEmpty then zone else Left(ApiFailure.invalid(errors))
 

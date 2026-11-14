@@ -56,6 +56,18 @@ final class SettingsApiSuite extends ApiSuite:
     assertEquals(consents.status, 200, consents.body)
     assert(consents.body.contains("Щоб відкликати згоду, надішліть /privacy у чаті."), consents.body)
 
+  test("an account still on the default UTC zone changes its language and theme without choosing a region zone"):
+    val token = login(telegramAccount("UTC"))
+    val read = get("/api/v1/settings", token)
+    assertEquals(read.json("timeZone").str, "UTC")
+    val chosen = patch("/api/v1/settings", settingsBody("UTC", "dark", language = "uk"), token, ifMatch(read))
+    assertEquals(chosen.status, 200, chosen.body)
+    assertEquals((chosen.json("language").str, chosen.json("imageTheme").str), ("uk", "dark"))
+    // A zone that is not a region zone is still refused when it is a change.
+    val moved = patch("/api/v1/settings", settingsBody("Etc/GMT+5"), token, ifMatch(chosen))
+    assertProblem(moved, 422, "validation_failed")
+    assertEquals(moved.fieldErrors.toSet, Set("timeZone" -> "unknown"))
+
   test("a new time zone is previewed first, then moves the schedules that follow the account"):
     val account = telegramAccount("Europe/Kyiv")
     fixtures.schedule(clock, account.accountId, "Vitamin D", everyDayAtNine, ZoneId.of("Europe/Kyiv"))
