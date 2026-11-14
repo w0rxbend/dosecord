@@ -7,6 +7,7 @@ import dosegram.render.card.FoodDayData
 import dosegram.render.card.MainMeal
 import dosegram.render.card.MealProgress
 import dosegram.render.card.Privacy
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.scene.Node
 import dosegram.render.tokens.Theme
 
@@ -47,6 +48,15 @@ class FoodCardSuite extends munit.FunSuite:
     val day = DayCard.render(DayData(date, None, None, None, Some(MealProgress(2, 0)), None), named)
     assert(day.text.full.contains("Food: 2 meals logged."), day.text.full)
     assert(texts(day.scene.nodes).contains("2 meals logged"))
+
+  test("the Ukrainian headline and the sentence it ends the text with start with a capital"):
+    val ukrainian = Samples.context(Theme.Light, Privacy.Aggregate, UkrainianImageCopy)
+    val counted = FoodDayData(date, Map(MainMeal.Lunch -> LocalTime.of(12, 30)), 0, MealProgress(0, 0))
+    val card = FoodDayCard.render(counted, ukrainian)
+    assert(texts(card.scene.nodes).contains("Записано 1 прийом їжі"), texts(card.scene.nodes).toString)
+    assert(card.text.full.endsWith(": обід 12:30. Записано 1 прийом їжі."), card.text.full)
+    val snacks = FoodDayCard.render(counted.copy(mains = Map.empty, snacks = 1), ukrainian)
+    assert(texts(snacks.scene.nodes).exists(_.startsWith("Прийомів їжі не записано")), texts(snacks.scene.nodes).toString)
 
   test("in discreet mode the caption is the generic line and the image goes behind a spoiler"):
     val food = FoodDayData(date, Map(MainMeal.Dinner -> LocalTime.of(19, 40)), 0, MealProgress(1, 3))

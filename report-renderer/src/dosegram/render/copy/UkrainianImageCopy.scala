@@ -158,12 +158,14 @@ object UkrainianImageCopy extends ImageCopy:
   /** Under the label "Перекуси" the number alone: the noun would not fit the slot. */
   def snackSlot(count: Int): String = count.toString
 
-  /** "2 з 3 прийомів їжі, 1 перекус"; with no planned meal a count: "записано 2 прийоми їжі". */
+  /** The card's headline, also the last sentence of its text: "2 з 3 прийомів їжі, 1 перекус"; with no planned meal a
+    * count, "Записано 2 прийоми їжі".
+    */
   def foodSummary(food: FoodDayData): String =
     val meals =
       if food.progress.planned > 0 then mealsOf(food.progress.logged, food.progress.planned)
       else if food.mains.isEmpty then "Прийомів їжі не записано"
-      else mealsLogged(food.mains.size)
+      else mealsLogged(food.mains.size).capitalize
     if food.snacks == 0 then meals else s"$meals, ${snackCount(food.snacks)}"
 
   def foodText(food: FoodDayData): String =
