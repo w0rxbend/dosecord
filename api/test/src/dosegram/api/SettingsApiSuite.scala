@@ -141,6 +141,21 @@ final class SettingsApiSuite extends ApiSuite:
     assertProblem(post("/api/v1/consents/unknown/withdrawals", ujson.Obj(), token), 404, "not_found")
     assert(uow.transaction(_.consents.isGranted(account.accountId, ConsentPurpose.Hydration)), "nothing was withdrawn")
 
+  test("a Ukrainian account reads each consent's name and its date line in Ukrainian (G2.22)"):
+    val account = accountWithoutConsent("Europe/Kyiv")
+    fixtures.grant(account.accountId, ConsentPurpose.Hydration)
+    val token = login(account)
+    val read = get("/api/v1/settings", token)
+    assertEquals(patch("/api/v1/settings", settingsBody("Europe/Kyiv", language = "uk"), token, ifMatch(read)).status, 200)
+    val items = get("/api/v1/consents", token).json("items").arr.toList
+    val byPurpose = items.map(item => item("purpose").str -> item).toMap
+    assertEquals(
+      items.map(_("title").str),
+      List("Ліки", "Вода", "Настрій", "Сон", "Порівняння між розділами", "Зображення звітів у чаті", "Їжа")
+    )
+    assert(byPurpose("hydration")("text").str.startsWith("Увімкнено з "), byPurpose("hydration").toString)
+    assert(!items.exists(_("text").str.contains("On since")), items.toString)
+
   test("the session bootstrap names the purposes granted now"):
     val account = accountWithoutConsent()
     fixtures.grant(account.accountId, ConsentPurpose.Mood)

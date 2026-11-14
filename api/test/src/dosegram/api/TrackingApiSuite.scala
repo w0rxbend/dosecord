@@ -131,6 +131,17 @@ final class TrackingApiSuite extends ApiSuite:
     assertEquals(get("/api/v1/mood/blob-states?revision=test-1", token).status, 200)
     assertProblem(get("/api/v1/mood/blob-states?revision=old", token), 404, "not_found")
 
+  test("the scale is read in the account's language: the labels and the sentence follow a change to Ukrainian (G2.22)"):
+    val (_, token) = tracker(ConsentPurpose.Mood)
+    assertEquals(get("/api/v1/mood/scale", token).json("valence").arr.head("label").str, "Very unpleasant")
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val scale = get("/api/v1/mood/scale", token)
+    assertEquals(scale.json("valence").arr.map(_("label").str).toList.head, "Дуже неприємно")
+    assertEquals(scale.json("energy").arr.map(_("label").str).toList.last, "Дуже висока")
+    assertEquals(scale.json("statement").str, "Dosegram записує, як ви почуваєтеся. Він цього не оцінює.")
+
   test("a check-in is recorded once per key and answered with its label and drawn state"):
     val (_, token) = tracker(ConsentPurpose.Mood)
     val key = newKey()

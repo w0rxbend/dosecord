@@ -3,6 +3,7 @@ package dosegram.api
 import dosegram.contracts.HhMm
 import dosegram.core.domain.QuietHours
 import dosegram.core.domain.copy.Formats
+import dosegram.core.domain.copy.tr
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -100,7 +101,7 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
                 purpose.id,
                 titleOf(purpose),
                 granted = true,
-                s"On since ${Since.format(consent.grantedAt.atZone(ZoneId.of("UTC")))}.",
+                ApiCopy.consentOnSince(Since.format(consent.grantedAt.atZone(ZoneId.of("UTC")))),
                 Some(consent.policyVersion)
               )
             case None => ConsentView(purpose.id, titleOf(purpose), granted = false, ApiCopy.consentOff(purpose))
@@ -193,11 +194,11 @@ object AccountSettingsApi:
     case ImageTheme.Dark  => ImageThemeChoice.Dark
 
   def titleOf(purpose: ConsentPurpose): String = purpose match
-    case ConsentPurpose.Medication          => "Medication"
-    case ConsentPurpose.Hydration           => "Water"
-    case ConsentPurpose.Mood                => "Mood"
-    case ConsentPurpose.Sleep               => "Sleep"
-    case ConsentPurpose.CrossDomainPatterns => "Comparisons between areas"
-    case ConsentPurpose.ImagesInChat        => "Report images in the chat"
-    case ConsentPurpose.Nutrition           => "Meals"
+    case ConsentPurpose.Medication          => tr("Medication", "Ліки")
+    case ConsentPurpose.Hydration           => tr("Water", "Вода")
+    case ConsentPurpose.Mood                => tr("Mood", "Настрій")
+    case ConsentPurpose.Sleep               => tr("Sleep", "Сон")
+    case ConsentPurpose.CrossDomainPatterns => tr("Comparisons between areas", "Порівняння між розділами")
+    case ConsentPurpose.ImagesInChat        => tr("Report images in the chat", "Зображення звітів у чаті")
+    case ConsentPurpose.Nutrition           => tr("Meals", "Їжа")
 end AccountSettingsApi

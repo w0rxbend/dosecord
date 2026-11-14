@@ -138,6 +138,9 @@ object ApiCopy:
     "Щоб відкликати згоду, надішліть /privacy у чаті. Застосунок сам згод не записує."
   )
 
+  /** `On since 14 November 2026.`: the line of a granted consent (MINI_APP section 7.15). */
+  def consentOnSince(day: String): String = tr(s"On since $day.", s"Увімкнено з $day.")
+
   /** How a purpose is turned on: in the chat only (ARCHITECTURE API-19). */
   def consentOff(purpose: ConsentPurpose): String = purpose match
     case ConsentPurpose.Medication =>

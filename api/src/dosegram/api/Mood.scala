@@ -83,7 +83,8 @@ final class Mood(uow: UnitOfWork, tracking: TrackingUseCases, blob: MoodBlobStat
 object Mood:
   private val DefaultSummaryDays = 7
 
-  private val Scale: MoodScale = MoodScale(
+  // A def: the labels and the sentence are read in the language of each request (ROADMAP G2.22).
+  private def Scale: MoodScale = MoodScale(
     valence = Valence.steps.map(step => MoodStop(step.step, MoodLabels.valence(step))),
     energy = Energy.steps.map(step => MoodStop(step.step, MoodLabels.energy(step))),
     blobRevision = "",
