@@ -38,7 +38,8 @@ describe('Insights', () => {
     const user = open(createHarness());
     await block('Medication');
     await user.click(screen.getByLabelText('90 days'));
-    await screen.findByText('360 scheduled doses');
+    // The tile at the top repeats the headline, so the block is the scope.
+    await within(await block('Medication')).findByText('360 scheduled doses');
 
     for (const chart of screen.getAllByRole('img')) {
       expect(chart.querySelectorAll('*').length).toBeLessThanOrEqual(400);
@@ -72,7 +73,7 @@ describe('Insights', () => {
 
     await user.click(screen.getByLabelText('7 days'));
 
-    expect(await screen.findByText('28 scheduled doses')).toBeTruthy();
+    expect(await within(await block('Medication')).findByText('28 scheduled doses')).toBeTruthy();
     expect(screen.getByText('6 Nov to 12 Nov')).toBeTruthy();
     expect(harness.tg.haptics).toEqual(['selection']);
   });
@@ -206,5 +207,87 @@ describe('Insights', () => {
     expect(await screen.findByText('15 Oct to 13 Nov')).toBeTruthy();
     expect(screen.queryByText('Patterns in your records')).toBeNull();
     expect(screen.queryByText('By medication')).toBeNull();
+  });
+
+  it('shows a tile per domain with its figure and the previous period in words, and a tile leads to its block', async () => {
+    const user = open(createHarness());
+
+    const glance = await screen.findByRole('navigation', { name: 'At a glance' });
+    const tiles = within(glance).getAllByRole('button');
+    expect(tiles.map((tile) => tile.querySelector('.name')?.textContent)).toEqual(['Medication', 'Water', 'Mood', 'Sleep', 'Food']);
+    expect(within(glance).getByText(/^Previous 30 days: /, { selector: '[data-domain="medication"] *' })).toBeTruthy();
+    // The small lines are decorative: the words carry the figures.
+    expect(within(glance).queryByRole('img')).toBeNull();
+
+    await user.click(tiles[2]!);
+    expect(document.activeElement?.id).toBe('insight-mood');
+  });
+
+  it('writes the comparison with the previous period inside each block, with no arrow', async () => {
+    open(createHarness());
+
+    const medication = await block('Medication');
+    const comparison = within(medication).getByText(/^Previous 30 days: /);
+    expect(comparison.textContent).not.toMatch(/[↑↓▲▼]/);
+  });
+
+  it('opens the day of a picked mark, by a second tap or by Enter', async () => {
+    const harness = createHarness();
+    harness.api.insightsOverview = async () => ({
+      rangeDays: 7,
+      rangeLabel: '6 Nov to 12 Nov',
+      ranges: [7, 30, 90],
+      blocks: [
+        {
+          id: 'hydration',
+          title: 'Water',
+          lines: ['average 1.2 l a day'],
+          comparison: 'Previous 7 days: No data',
+          charts: [
+            {
+              id: 'water-by-day',
+              title: 'Water per day',
+              summary: 'Water per day, 11 Nov to 12 Nov. Entries on 2 of 2 days.',
+              scene: {
+                width: 320,
+                height: 116,
+                nodes: [
+                  { kind: 'hit', x: 0, y: 0, width: 160, height: 96, mark: 0 },
+                  { kind: 'hit', x: 160, y: 0, width: 160, height: 96, mark: 1 },
+                ],
+              },
+              table: { caption: 'Water per day', columns: ['Day', 'Water'], rows: [] },
+              marks: ['Wed 11 Nov: 1.0 l', 'Thu 12 Nov: 1.4 l'],
+              markDates: ['2026-11-11', '2026-11-12'],
+            },
+          ],
+        },
+      ],
+    });
+    const user = open(harness);
+
+    const water = await block('Water');
+    expect(within(water).getByRole('link', { name: 'Open this day' }).getAttribute('href')).toBe('/insights/history/20261112');
+    const values = within(water).getByRole('slider', { name: 'Water per day: values' });
+    await user.click(values.querySelector('.hit[data-mark="0"]')!);
+    // The first tap shows the value only.
+    expect(harness.router.route).toEqual({ screen: 'today' });
+    await user.click(values.querySelector('.hit[data-mark="0"]')!);
+    expect(harness.router.route).toEqual({ screen: 'day', date: '2026-11-11' });
+
+    await harness.router.navigate('/insights');
+    await user.click(screen.getByRole('slider', { name: 'Water per day: values' }));
+    await user.keyboard('{End}{Enter}');
+    expect(harness.router.route).toEqual({ screen: 'day', date: '2026-11-12' });
+  });
+
+  it('offers the first record of a domain that has none in the period, with its art hidden from screen readers', async () => {
+    const harness = createHarness('empty');
+    const user = open(harness);
+
+    const medication = await block('Medication');
+    expect(within(medication).queryByRole('img')).toBeNull();
+    await user.click(within(medication).getByRole('link', { name: 'Open medications' }));
+    expect(harness.router.route).toEqual({ screen: 'meds' });
   });
 });

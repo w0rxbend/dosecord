@@ -4518,6 +4518,12 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "markDates" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         }
       },
@@ -4658,7 +4664,8 @@
           "workStart",
           "workEnd",
           "quietStart",
-          "quietEnd"
+          "quietEnd",
+          "saved"
         ],
         "properties" : {
           "version" : {
@@ -4698,6 +4705,9 @@
           },
           "quietEnd" : {
             "type" : "string"
+          },
+          "saved" : {
+            "type" : "boolean"
           }
         }
       },
@@ -5234,7 +5244,7 @@
         ],
         "properties" : {
           "id" : {
-            "$ref" : "#/components/schemas/InsightDomain"
+            "$ref" : "#/components/schemas/OverviewDomain"
           },
           "title" : {
             "type" : "string"
@@ -5255,6 +5265,24 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/Chart"
+            }
+          },
+          "comparison" : {
+            "type" : "string"
+          },
+          "spark" : {
+            "$ref" : "#/components/schemas/Scene"
+          },
+          "details" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "medications" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsightMedicationRow"
             }
           }
         }
@@ -6475,6 +6503,17 @@
           }
         }
       },
+      "OverviewDomain" : {
+        "title" : "OverviewDomain",
+        "type" : "string",
+        "enum" : [
+          "hydration",
+          "medication",
+          "mood",
+          "nutrition",
+          "sleep"
+        ]
+      },
       "PreviewDay" : {
         "title" : "PreviewDay",
         "type" : "object",
@@ -6906,6 +6945,7 @@
           "domain-medication",
           "domain-mood",
           "text-muted",
+          "domain-nutrition",
           "recorded",
           "separator",
           "domain-sleep"

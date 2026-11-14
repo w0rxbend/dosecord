@@ -24,6 +24,7 @@ enum SceneTone(val wire: String):
   case Hydration extends SceneTone("domain-hydration")
   case Mood extends SceneTone("domain-mood")
   case Sleep extends SceneTone("domain-sleep")
+  case Nutrition extends SceneTone("domain-nutrition")
   case Recorded extends SceneTone("recorded")
   case Ink extends SceneTone("text")
   case Muted extends SceneTone("text-muted")
@@ -82,7 +83,8 @@ final case class ChartTable(caption: String, columns: List[String], rows: List[L
 
 /** A chart with its text equivalent (MINI_APP MA-INS-5): `summary` is one sentence from the same data and the
   * accessible name of the drawing, `table` holds every value, and `marks` holds the exact value of each selectable mark
-  * in reading order (MA-INS-6).
+  * in reading order (MA-INS-6). `markDates` names the local day of each mark when every mark is one day, so that a
+  * picked mark opens that day (S-13); a chart of weeks or of outcomes has none.
   */
 final case class Chart(
     id: String,
@@ -90,6 +92,7 @@ final case class Chart(
     summary: String,
     scene: Scene,
     table: ChartTable,
-    marks: List[String]
+    marks: List[String],
+    markDates: Option[List[String]] = None
 ) derives ReadWriter,
       Schema

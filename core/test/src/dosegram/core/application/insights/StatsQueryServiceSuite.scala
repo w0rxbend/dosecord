@@ -32,6 +32,7 @@ import dosegram.core.domain.insights.Ratio
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.Stat
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.ConsentPurpose
@@ -190,6 +191,35 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     assert(rig.stats.hydration(rig.tx, account, StatsPeriod.Last7Days).isRight)
     val lines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
     assertEquals(lines, List("Today · Europe/Kyiv", "Water today: 0.5 l"))
+
+  test("a dashboard period and the one before it are read over their own windows, each behind its consent"):
+    val consent = FakeConsent.all(account)
+    val rig = Rig(consent)
+    rig.on(9) { rig.drink(800, "w-previous"); rig.feel(2, "m-previous"); rig.eat(MealType.Lunch, "f-previous") }
+    rig.on(1) { rig.drink(500, "w-current"); rig.eat(MealType.Breakfast, "f-current") }
+    val period = TrendPeriod.Week
+    val current = period.current(today)
+    val previous = period.previous(today)
+    assertEquals(rig.stats.today(rig.tx, account), Right(today))
+    assertEquals(rig.stats.hydrationOver(rig.tx, account, current).toOption.get.period.totalMl, 500)
+    assertEquals(rig.stats.hydrationOver(rig.tx, account, previous).toOption.get.period.totalMl, 800)
+    assertEquals(rig.stats.moodOver(rig.tx, account, current).toOption.get.period.checkInDays, 0)
+    assertEquals(rig.stats.moodOver(rig.tx, account, previous).toOption.get.period.checkInDays, 1)
+    assertEquals(rig.stats.mealsOver(rig.tx, account, previous).toOption.get.period.meals, 1)
+    assertEquals(rig.stats.mealsOver(rig.tx, account, current).toOption.get.days.keySet, Set(today.minusDays(1)))
+    assertEquals(rig.stats.sleepOver(rig.tx, account, current).toOption.get.period.nights, 0)
+    assertEquals(rig.stats.sleepRegularity(rig.tx, account, current).toOption.get.nights, 0)
+    assert(rig.stats.medicationOver(rig.tx, account, previous).toOption.get.period.total.buckets.isEmpty)
+    consent.withdraw(account, ConsentPurpose.Nutrition)
+    consent.withdraw(account, ConsentPurpose.Sleep)
+    assertEquals(
+      rig.stats.mealsOver(rig.tx, account, current),
+      Left(StatsRefusal.ConsentMissing(ConsentPurpose.Nutrition))
+    )
+    assertEquals(
+      rig.stats.sleepRegularity(rig.tx, account, current),
+      Left(StatsRefusal.ConsentMissing(ConsentPurpose.Sleep))
+    )
 
   test("the calendar reads answer the recorded days of any range, and nothing without the consent"):
     val rig = Rig()

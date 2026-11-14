@@ -999,6 +999,7 @@ export interface components {
             scene: components["schemas"]["Scene"];
             table: components["schemas"]["ChartTable"];
             marks?: string[];
+            markDates?: string[];
         };
         /** ChartTable */
         ChartTable: {
@@ -1047,6 +1048,7 @@ export interface components {
             workEnd: string;
             quietStart: string;
             quietEnd: string;
+            saved: boolean;
         };
         /** DayView */
         DayView: {
@@ -1237,12 +1239,16 @@ export interface components {
         ImageThemeChoice: "auto" | "dark" | "light";
         /** InsightBlock */
         InsightBlock: {
-            id: components["schemas"]["InsightDomain"];
+            id: components["schemas"]["OverviewDomain"];
             title: string;
             lines?: string[];
             noDataText?: string;
             vessel?: components["schemas"]["InsightVessel"];
             charts?: components["schemas"]["Chart"][];
+            comparison?: string;
+            spark?: components["schemas"]["Scene"];
+            details?: string[];
+            medications?: components["schemas"]["InsightMedicationRow"][];
         };
         /** InsightCalendar */
         InsightCalendar: {
@@ -1641,6 +1647,11 @@ export interface components {
             perMeal?: components["schemas"]["NutritionMealDays"][];
             text: string;
         };
+        /**
+         * OverviewDomain
+         * @enum {string}
+         */
+        OverviewDomain: "hydration" | "medication" | "mood" | "nutrition" | "sleep";
         /** PreviewDay */
         PreviewDay: {
             /** Format: date */
@@ -1790,7 +1801,7 @@ export interface components {
          * SceneTone
          * @enum {string}
          */
-        SceneTone: "domain-hydration" | "text" | "domain-medication" | "domain-mood" | "text-muted" | "recorded" | "separator" | "domain-sleep";
+        SceneTone: "domain-hydration" | "text" | "domain-medication" | "domain-mood" | "text-muted" | "domain-nutrition" | "recorded" | "separator" | "domain-sleep";
         /** Schedule */
         Schedule: {
             /** Format: uuid */

@@ -15,6 +15,7 @@ import dosegram.core.domain.insights.InsightInputs
 import dosegram.core.domain.insights.InsightList
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.domain.insights.MealDay
+import dosegram.core.domain.insights.MealPeriod
 import dosegram.core.domain.insights.MealStats
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MedicationPeriod
@@ -29,6 +30,8 @@ import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.SleepNight
 import dosegram.core.domain.insights.SleepPeriod
+import dosegram.core.domain.insights.SleepRegularity
+import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.nutrition.MealPlan
@@ -65,6 +68,9 @@ final case class SleepPeriodView(zone: ZoneId, period: SleepPeriod, days: Map[Lo
   */
 final case class MedicationPeriodView(zone: ZoneId, period: MedicationPeriod)
 
+/** The meal view of a period: the counts and the meal days behind them (a day without a meal is absent). */
+final case class MealPeriodView(zone: ZoneId, period: MealPeriod, days: Map[LocalDate, MealDay])
+
 /** The text statistics of a period: the header line and one block of lines per domain that has consent and data. */
 final case class PeriodSummary(zone: ZoneId, window: DateRange, lines: List[String])
 
@@ -93,22 +99,57 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       MedicationPeriodView(zone, medicationPeriod(tx, accountId, zone, window(period, zone)))
 
   def hydration(tx: Tx, accountId: UUID, period: StatsPeriod): Either[StatsRefusal, HydrationPeriodView] =
-    answer(tx, accountId, ConsentPurpose.Hydration): zone =>
-      val range = window(period, zone)
-      val days = hydrationDays(tx, accountId, range)
-      HydrationPeriodView(zone, HydrationStats.period(days, range), days)
+    answer(tx, accountId, ConsentPurpose.Hydration)(zone => hydrationView(tx, accountId, zone, window(period, zone)))
 
   def mood(tx: Tx, accountId: UUID, period: StatsPeriod): Either[StatsRefusal, MoodPeriodView] =
-    answer(tx, accountId, ConsentPurpose.Mood): zone =>
-      val range = window(period, zone)
-      val days = moodDays(tx, accountId, range)
-      MoodPeriodView(zone, MoodStats.period(days, range), days)
+    answer(tx, accountId, ConsentPurpose.Mood)(zone => moodView(tx, accountId, zone, window(period, zone)))
 
   def sleep(tx: Tx, accountId: UUID, period: StatsPeriod): Either[StatsRefusal, SleepPeriodView] =
-    answer(tx, accountId, ConsentPurpose.Sleep): zone =>
-      val range = window(period, zone)
-      val days = sleepDays(tx, accountId, range)
-      SleepPeriodView(zone, SleepStats.period(days, range), days)
+    answer(tx, accountId, ConsentPurpose.Sleep)(zone => sleepView(tx, accountId, zone, window(period, zone)))
+
+  /** The account's current local day: where a dashboard period ([[dosegram.core.domain.insights.TrendPeriod]]) ends.
+    */
+  def today(tx: Tx, accountId: UUID): Either[StatsRefusal, LocalDate] =
+    zoneOf(tx, accountId).map(zone => LocalDays.dateOf(clock.now(), zone))
+
+  // The reads of any window of local days, for the Mini App dashboard and its previous period (MINI_APP MA-INS-3).
+
+  def medicationOver(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, MedicationPeriodView] =
+    answer(tx, accountId, ConsentPurpose.Medication)(zone =>
+      MedicationPeriodView(zone, medicationPeriod(tx, accountId, zone, range))
+    )
+
+  def hydrationOver(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, HydrationPeriodView] =
+    answer(tx, accountId, ConsentPurpose.Hydration)(zone => hydrationView(tx, accountId, zone, range))
+
+  def moodOver(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, MoodPeriodView] =
+    answer(tx, accountId, ConsentPurpose.Mood)(zone => moodView(tx, accountId, zone, range))
+
+  def sleepOver(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, SleepPeriodView] =
+    answer(tx, accountId, ConsentPurpose.Sleep)(zone => sleepView(tx, accountId, zone, range))
+
+  def mealsOver(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, MealPeriodView] =
+    answer(tx, accountId, ConsentPurpose.Nutrition): zone =>
+      val days = mealDays(tx, accountId, range).filter((_, day) => day.meals > 0)
+      MealPeriodView(zone, MealStats.period(days, range), days)
+
+  /** The bedtime regularity figures of a window (VISUALS section 7.7), with the user's own goal on its last day. */
+  def sleepRegularity(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, SleepRegularityFigures] =
+    answer(tx, accountId, ConsentPurpose.Sleep): _ =>
+      val goal = NightFacts.goalOn(range.end, tx.tracking.sleep.goals(accountId, range.end))
+      SleepRegularity.view(tx.tracking.sleep.liveEpisodes(accountId, range), range, goal)
+
+  private def hydrationView(tx: Tx, accountId: UUID, zone: ZoneId, range: DateRange): HydrationPeriodView =
+    val days = hydrationDays(tx, accountId, range)
+    HydrationPeriodView(zone, HydrationStats.period(days, range), days)
+
+  private def moodView(tx: Tx, accountId: UUID, zone: ZoneId, range: DateRange): MoodPeriodView =
+    val days = moodDays(tx, accountId, range)
+    MoodPeriodView(zone, MoodStats.period(days, range), days)
+
+  private def sleepView(tx: Tx, accountId: UUID, zone: ZoneId, range: DateRange): SleepPeriodView =
+    val days = sleepDays(tx, accountId, range)
+    SleepPeriodView(zone, SleepStats.period(days, range), days)
 
   /** The nights of a range of sleep days, for a calendar or a chart of days: a day without a night is absent. */
   def sleepCalendar(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, Map[LocalDate, SleepNight]] =

@@ -72,7 +72,7 @@
     {#snippet children(data)}
       {#if data.calendar === null}
         <div class="section">
-          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} />
+          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} art="all" />
         </div>
       {:else}
         {@const calendar = data.calendar}

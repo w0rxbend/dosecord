@@ -1573,6 +1573,8 @@ Edge cases: entries without numbers count as meals and not toward energy. An ent
 | Variability | The sample standard deviation of `Md` (at least 5 check-in days), and the day-to-day change: the mean of `abs(Md - Md-1)` over pairs of consecutive calendar days that both have a check-in (at least 4 pairs). |
 | Most frequent tags | Counts of tag words in the period; L2 only. |
 
+Mood by day of the week (supervisor decision, 2026-11-14, owner asleep): for each weekday, the mean of `Md` over that weekday's check-in days in the period, shown only from 3 such days (`WeekdayMeanDays`, the weekly-mean rule applied to each weekday). It is a description of the user's own days, drawn as dots on the level axis with the count of days beside each; no sentence ranks or compares the weekdays, so it is not an insight rule of section 8.4 and needs no `cross_domain_patterns` consent.
+
 Variability is reported as numbers ("day-to-day change averaged 0.8 levels"). It is never labelled stable, unstable, volatile or any similar word, and no threshold is applied to it. A day without a check-in is a gap in every chart and is excluded from every figure.
 
 | ID | Requirement |

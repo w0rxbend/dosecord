@@ -27,6 +27,11 @@ const PRESETS: readonly PromptPreset[] = [
 ];
 
 export class MockReminders {
+  /** `daySaved` false is an account whose day profile is still the product's default. */
+  constructor(daySaved = true) {
+    this.day = { ...this.day, saved: daySaved };
+  }
+
   private plans = new Map<string, string>();
   private pausedUntil: string | undefined;
   private day: DayProfile = {
@@ -76,7 +81,7 @@ export class MockReminders {
   saveDay(input: DayProfileInput, version: number): DayProfile {
     if (version !== this.day.version) throw new ApiError('version_conflict', 'MOCK-0412');
     if (input.workStart >= input.workEnd) throw new ApiError('validation', 'MOCK-0422', [{ field: 'workStart', code: 'order' }]);
-    this.day = { ...input, version: this.day.version + 1 };
+    this.day = { ...input, version: this.day.version + 1, saved: true };
     return this.day;
   }
 

@@ -259,17 +259,38 @@ object InsightDomain:
 /** Today's water against the user's own goal; `label` is the server's sentence for it. */
 final case class InsightVessel(valueMl: Int, goalMl: Int, label: String) derives ReadWriter, Schema
 
+/** The domain of a dashboard block (MINI_APP section 7.11): the calendar domains and food, under the purpose name the
+  * consents use. Food has a block here before it has a history calendar.
+  */
+enum OverviewDomain(val wire: String):
+  case Medication extends OverviewDomain("medication")
+  case Hydration extends OverviewDomain("hydration")
+  case Mood extends OverviewDomain("mood")
+  case Sleep extends OverviewDomain("sleep")
+  case Nutrition extends OverviewDomain("nutrition")
+
+object OverviewDomain:
+  given ReadWriter[OverviewDomain] = ApiJson.wireEnum(values, _.wire)
+  given Schema[OverviewDomain] = Schema.derivedEnumeration[OverviewDomain](encode = Some(_.wire))
+
 /** The statistics of one domain in the server's words. `noDataText` is set when the period has no record of the domain;
   * then there are no lines and no chart. `charts` are the series of the period, each shown only when a day of the
-  * period has a record (the gate of [[dosegram.core.domain.insights.DaySeries]]).
+  * period has a record (the gate of [[dosegram.core.domain.insights.DaySeries]]). `comparison` is the user's own
+  * previous period of the same length, in words with both figures (MA-INS-3). `spark` is a small decorative line of the
+  * period by bucket, whose text is the block's lines. `details` are further figures of the domain (bedtime regularity,
+  * a gate still to reach), and `medications` the per-medication counts of the period.
   */
 final case class InsightBlock(
-    id: InsightDomain,
+    id: OverviewDomain,
     title: String,
     lines: List[String],
     noDataText: Option[String] = None,
     vessel: Option[InsightVessel] = None,
-    charts: List[Chart] = Nil
+    charts: List[Chart] = Nil,
+    comparison: Option[String] = None,
+    spark: Option[Scene] = None,
+    details: List[String] = Nil,
+    medications: List[InsightMedicationRow] = Nil
 ) derives ReadWriter,
       Schema
 

@@ -11,6 +11,7 @@
   import DayLine from './DayLine.svelte';
   import DayTrackers from './DayTrackers.svelte';
   import { optimistic, replaceOccurrence } from './group';
+  import SetupCard from './SetupCard.svelte';
   import TodayDoses from './TodayDoses.svelte';
   import { readTracking, trackingMarks, type DayTracking } from './tracking';
 
@@ -119,10 +120,11 @@
         {#if !view.isToday && title === undefined}
           <p class="section"><button type="button" class="btn btn-tinted" onclick={() => router.replace('/')}>{en.today.backToToday}</button></p>
         {/if}
+        {#if date === undefined}<SetupCard />{/if}
         <div class="section section-body pad"><DayLine marks={[...view.dayLine, ...trackingMarks(tracking.data)]} nowMinute={view.nowMinute} /></div>
         {#if view.occurrences.length === 0}
           <div class="section">
-            <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} />
+            <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} art="medication" />
           </div>
         {:else}
           {#if view.answerInChat}<p class="note answer">{en.today.answerInChat}</p>{/if}
@@ -130,7 +132,7 @@
         {/if}
       {:else if everythingOff(view)}
         <div class="section">
-          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} />
+          <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} art="all" />
         </div>
       {/if}
       {#if tracking.data}

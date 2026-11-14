@@ -35,7 +35,7 @@
   <AsyncView resource={medications} loadingLabel={en.meds.loading} skeletonRows={4}>
     {#snippet children(list)}
       {#if list.length === 0}
-        <EmptyState message={en.meds.empty} actionLabel={en.meds.add} onAction={addMedication} />
+        <EmptyState message={en.meds.empty} actionLabel={en.meds.add} onAction={addMedication} art="medication" />
       {:else}
         <div class="section tools">
           <label for="med-search">{en.meds.search}</label>

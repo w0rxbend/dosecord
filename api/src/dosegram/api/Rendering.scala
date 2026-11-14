@@ -65,6 +65,12 @@ object ApiCopy:
     case InsightDomain.Hydration  => "Water"
     case InsightDomain.Mood       => "Mood"
     case InsightDomain.Sleep      => "Sleep"
+  def overviewTitle(domain: OverviewDomain): String = domain match
+    case OverviewDomain.Medication => "Medication"
+    case OverviewDomain.Hydration  => "Water"
+    case OverviewDomain.Mood       => "Mood"
+    case OverviewDomain.Sleep      => "Sleep"
+    case OverviewDomain.Nutrition  => "Food"
   def clock(at: Instant, zone: ZoneId): String = Clock.format(at.atZone(zone))
 
   // ---------- tracking ----------

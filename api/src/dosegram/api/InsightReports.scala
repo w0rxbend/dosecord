@@ -177,10 +177,13 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
         domain.figures.perMedication
           .get(medication.id)
           .filterNot(_.buckets.isEmpty)
-          .map(row(medication.id, medication.name, medication.status == MedicationStatus.Archived, _))
+          .map(InsightReports.row(medication.id, medication.name, medication.status == MedicationStatus.Archived, _))
       )
 
-  private def row(id: UUID, name: String, archived: Boolean, figures: MedicationFigures): InsightMedicationRow =
+object InsightReports:
+
+  /** One medication of a period with its own counts, the archived one marked in its line. */
+  def row(id: UUID, name: String, archived: Boolean, figures: MedicationFigures): InsightMedicationRow =
     val resolved = figures.buckets.resolved
     InsightMedicationRow(
       id = id.toString,
@@ -192,8 +195,6 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
       percent = figures.adherence.shown.map(_.percent),
       asNeededLogs = figures.buckets.asNeeded
     )
-
-object InsightReports:
 
   /** `YYYY-MM`, not after the current month; absent is the current month. */
   def monthOf(month: Option[String], current: YearMonth): Either[ApiFailure, YearMonth] =

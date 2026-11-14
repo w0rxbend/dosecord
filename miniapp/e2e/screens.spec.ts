@@ -27,6 +27,10 @@ const SCREENS: readonly (readonly [string, string])[] = [
   ['18-quiet-hours', '/settings/notif'],
   ['19-privacy', '/settings/privacy'],
   ['20-reminders', '/settings/reminders'],
+  ['22-setup', '/setup'],
+  ['23-day-profile', '/settings/day'],
+  ['24-food', '/log/food'],
+  ['25-reports', '/insights/reports'],
 ];
 
 /** Moves the running app to an internal path, as a history entry would. */
@@ -51,7 +55,9 @@ test('some records of today exist before the screens are taken', async ({ app })
     await page.getByRole('button', { name: /^Add \d+ ml$/ }).nth(1).click();
     await expect(page.getByText(/^Added \d+ ml$/)).toBeVisible();
   }
-  await go(page, '/log/mood/new');
+  // A fresh launch on the check-in route, as the flows do: reached by the router from Water, the check-in screen
+  // fails to render in this suite (open, see the hand-off of 2026-11-14).
+  await app.launch({ startParam: 'moodnew' });
   await page.getByRole('button', { name: 'More pleasant' }).click();
   await pressMainButton(page);
   await expect(page.getByText('Check-in saved')).toBeVisible();

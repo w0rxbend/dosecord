@@ -39,5 +39,6 @@ object Copy:
       FoodCopy.entries ++
       ExportCopy.entries ++
       ImageCopy.entries ++
-      MedicationDepthCopy.entries
+      MedicationDepthCopy.entries ++
+      TrendCopy.entries
 end Copy

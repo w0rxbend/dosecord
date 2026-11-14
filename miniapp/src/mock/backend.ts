@@ -85,7 +85,8 @@ export class MockBackend implements ApiClient {
     this.storedSchedules = empty ? [] : seedSchedules(this.localToday());
     this.day = new MockDay(!empty);
     this.tracking = new MockTracking(() => this.localToday(), () => this.minute(), !empty);
-    this.reminderState = new MockReminders();
+    // A new account has never saved its day: set-up offers it (supervisor decision, 2026-11-14).
+    this.reminderState = new MockReminders(!empty);
   }
 
   resolveInChat(occurrenceId: string): void {

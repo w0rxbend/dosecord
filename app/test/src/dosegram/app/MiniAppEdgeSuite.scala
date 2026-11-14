@@ -257,7 +257,7 @@ final class MiniAppEdgeSuite extends PgSuite:
       assertEquals(overview.statusCode(), 200, overview.body())
       assertEquals(header(overview, "Cache-Control"), Some("no-store"))
       val document = ujson.read(overview.body())
-      assertEquals(document("ranges").arr.toList.map(_.num.toInt), List(7, 30))
+      assertEquals(document("ranges").arr.toList.map(_.num.toInt), List(7, 30, 90))
       assertEquals(
         document("blocks").arr.toList.map(_("id").str),
         List("medication"),

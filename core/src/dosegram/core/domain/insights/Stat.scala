@@ -21,6 +21,11 @@ enum MinimumSample(val required: Int):
   /** PRODUCT_SPEC R-INS-11: a domain of the monthly report needs a record on at least 14 days of the month. */
   case MonthlyReportDays extends MinimumSample(14)
 
+  /** The mean of one day of the week on the Mini App dashboard needs that weekday on at least 3 recorded days, the
+    * weekly mean rule applied to each weekday (VISUALS section 7.6, supervisor decision of 2026-11-14).
+    */
+  case WeekdayMeanDays extends MinimumSample(3)
+
 object MinimumSample:
 
   /** "A weekly average is shown only with at least 3 recorded days; a monthly average with at least 10." A window of up
