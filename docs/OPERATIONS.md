@@ -243,8 +243,14 @@ files, the owner runs, with the bot stopped (VACUUM FULL locks each table while 
 
 ```sh
 docker exec <postgres container> psql -U <owner role> -d <database> -c \
-  'VACUUM (FULL, ANALYZE) outbox_messages, inbound_events, medications, schedule_revisions, dose_occurrences, dose_actions, meals, export_jobs, render_assets, idempotency_keys;'
+  'VACUUM (FULL, ANALYZE) outbox_messages, inbound_events, medications, schedule_revisions, dose_occurrences, dose_actions, meals, export_jobs, render_assets, idempotency_keys, conversation_sessions, form_runs, inbound_inbox;'
 ```
+
+The last three tables are still plaintext stores (the answers of an open chat form and the body of
+a received update): their live rows are deleted or emptied once the form or the update is done, but
+the old row versions keep the typed text, a medication name or the words of a meal included, until
+they are rewritten. The upgrade rehearsal of 2026-11-14 found those versions in the files after the
+shorter list above had run.
 
 Run it once after the deploy of V11 and of V13, and after an account deletion when the deleted
 records must leave the files before autovacuum reuses their space. It does not reach the WAL or the
