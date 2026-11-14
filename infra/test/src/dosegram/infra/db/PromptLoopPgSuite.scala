@@ -114,6 +114,21 @@ class PromptLoopPgSuite extends PgSuite:
           .query[LocalDate]()
       uow.transaction(tx => dates.flatMap(tx.reminders.prompts.decidedOn(account, _)))
 
+    /** The prompt that the tick at `tick` decided and sent, if any. A prompt's `decided_at` is the clock of the tick
+      * that inserted it and never changes, so one statement finds it; reading every decided prompt before and after
+      * each tick grew with the days simulated.
+      */
+    def sentBy(tick: Instant): Option[PromptOccurrence] =
+      val dates = withConnection: conn =>
+        given Connection = conn
+        sql"""SELECT DISTINCT local_date FROM prompt_occurrences
+              WHERE account_id = $account AND decided_at >= $tick AND status = 'sent' ORDER BY local_date"""
+          .query[LocalDate]()
+      if dates.isEmpty then None
+      else
+        uow.transaction(tx => dates.flatMap(tx.reminders.prompts.decidedOn(account, _)))
+          .find(p => !p.decidedAt.isBefore(tick) && p.status == PromptStatus.Sent)
+
     def drink(ml: Int, key: String): Unit =
       val amount = WaterAmount.ofMillilitres(ml).toOption.get
       uow.transaction(tx => assert(hydration.log(tx, LogWater(account, amount, EntryDay.Today, EntrySource.Bot, key)).isRight))
@@ -399,11 +414,10 @@ class PromptLoopPgSuite extends PgSuite:
       half <- 0 until 48
     do
       val local = date.atStartOfDay.plusMinutes(30L * half).plusSeconds(5)
-      rig.clock.at = local.atZone(zone).toInstant
-      val before = rig.allPrompts.map(_.id).toSet
+      val tick = local.atZone(zone).toInstant
+      rig.clock.at = tick
       rig.tickAndSend()
-      val sent = rig.allPrompts.find(p => !before(p.id) && p.status == PromptStatus.Sent)
-      persona(rig, sent, rig.clock.now())
+      persona(rig, rig.sentBy(tick), rig.clock.now())
     rig.allPrompts.groupBy(_.planDate)
 
   private def isWorkDay(date: LocalDate): Boolean = date.getDayOfWeek.getValue <= 5
