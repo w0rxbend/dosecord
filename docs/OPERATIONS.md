@@ -250,3 +250,37 @@ Run it once after the deploy of V11 and of V13, and after an account deletion wh
 records must leave the files before autovacuum reuses their space. It does not reach the WAL or the
 backups: those age out with the WAL recycling and the 35 days of backup retention (SEC-06), and a
 restore replays the purge list (section 6).
+
+## 10. Deploying V14 (row-level security)
+
+V14 forces row-level security on every account-owned table (ROADMAP G2.3, ADR-021). From this
+release on, every transaction of the bot takes `dosegram_app` with the account as the claim, or
+`dosegram_worker` for the work that crosses accounts; serving code never runs as the login role.
+V14 revokes no grant and changes no row. It applies after V13 (section 9). Every step is the
+owner's:
+
+1. Back up the database as in step 4 of section 8 (`umask 077`, off shared storage).
+2. Find out whether the login role is a superuser, read-only:
+   `SELECT rolsuper FROM pg_roles WHERE rolname = current_user;`
+   - `t` (the stock container image): nothing to grant. Go to step 3.
+   - `f`: V14 grants `dosegram_app`, `dosegram_worker` and `dosegram_erasure` to the login role when
+     that role created them in V1. If it did not, the start refuses to serve and its last line is
+     `dosegram: the database login role may not take the serving roles; run GRANT dosegram_app, dosegram_worker TO "<login role>";`.
+     Run that statement as a superuser, together with `GRANT dosegram_erasure TO "<login role>";`
+     when step 3 of section 8 returned `f`, and start again.
+3. Stop the running bot, then start the new release. Its log shows
+   `migrate: 1 migration(s) applied, schema 14, 0 value(s) sealed, 0 key(s) rewrapped`.
+4. Check, read-only:
+   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 14.
+   - `SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity;`
+     returns 43.
+   - `SELECT rolname FROM pg_roles WHERE rolname LIKE 'dosegram%' AND (rolsuper OR rolbypassrls OR rolcanlogin);`
+     returns no row.
+   - `BEGIN; SET LOCAL ROLE dosegram_app; SELECT count(*) FROM medications; ROLLBACK;` returns 0:
+     without the claim the application role reads nothing.
+   - `curl -fsS http://127.0.0.1:<HEALTH_PORT>/readyz` answers 200; `scripts/live-smoke.sh` exits 0.
+   - `/today`, `/water`, the Mini App medication list and an export show the real values.
+
+Rollback: start the previous release. It runs as the login role, which the `schema_owner` policy
+admits (or which bypasses the policies as a superuser), and Flyway ignores the applied V14 as a
+future migration. No restore is needed.
