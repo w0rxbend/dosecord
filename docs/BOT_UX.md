@@ -523,6 +523,7 @@ This table is the single command registry of the document set (ROADMAP conflict 
 | `/language` | Hidden | MVP | | none | Language picker |
 | `/quiet` | Hidden | MVP | | none | Quiet hours and "Pause prompts" (section 14.4) |
 | `/export` | Hidden | MVP | | none | Opens the export step of `/privacy` (section 20.2) |
+| `/import` | Hidden | V2 | | none | Asks the `import` consent at first use, then the import card: "Import in app" and the four empty templates (water, mood, sleep, meals) as documents (ROADMAP G10.5; supervisor decision, 2026-11-14) |
 | `/terms` | Hidden | MVP | | none | Links to the terms and the privacy notice |
 | `/support` | Hidden | Gate E1 | | none | Issues a short-lived support code the user can read to the operator (PRODUCT_SPEC R-OPS-2); also a button in `/help` and in settings |
 | `/status` | Hidden | Gate E1 | | none | Service state in one line and the link to the public status and notice page (PRODUCT_SPEC section 8.3) |
