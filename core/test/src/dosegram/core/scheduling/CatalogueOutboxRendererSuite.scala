@@ -169,7 +169,7 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     val (_, rendered) = renderer(s.uow).render(row(s, "reminder", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Telegram)
 
     val text = rendered.chunks.mkString("\n")
-    assert(text.contains("Нагадування: Vitamin D, 1000 IU."), s"body was: $text")
+    assert(text.contains("Нагадування: Vitamin D, 1000 МО."), s"body was: $text")
     rendered.controls match
       case List(RenderedControls.Buttons(row1), RenderedControls.Buttons(row2)) =>
         assertEquals(row1.flatten.map(_.label), List("Прийнято", "Відкласти на 10 хв", "Пропустити"))

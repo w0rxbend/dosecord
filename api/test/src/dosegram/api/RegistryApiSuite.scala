@@ -255,6 +255,23 @@ final class RegistryApiSuite extends ApiSuite:
     assertEquals(reply.json("limits")("instructionsMax").num.toInt, 500)
     assert(reply.json("doseUnits").arr.map(_.str).contains("mg"))
 
+  test("a Ukrainian account reads the dose units and the doses in Ukrainian; the stored code stays the code"):
+    val token = login(telegramAccount("Europe/Kyiv"))
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val options = get("/api/v1/medication-options", token).json
+    val choices = options("doseUnitChoices").arr.map(c => c("code").str -> c("label").str).toMap
+    assertEquals(choices("tablet"), "таблетка")
+    assertEquals(choices("IU"), "МО")
+    assertEquals(options("doseUnitChoices").arr.map(_("code").str).toList, options("doseUnits").arr.map(_.str).toList)
+    val med = ujson.Obj("name" -> "Iron", "doseAmount" -> "2", "doseUnit" -> "tablet")
+    val created = post("/api/v1/medications", med, token, newKey())
+    assertEquals(created.json("doseUnit").str, "tablet")
+    assertEquals(created.json("doseUnitLabel").str, "таблетка")
+    val listed = get("/api/v1/medications", token).json("items").arr.head
+    assertEquals(listed("doseText").str, "2 таблетки")
+
   // ---------- schedules ----------
 
   test("POST /schedule-previews lists the next seven days from the engine's evaluator and writes nothing"):

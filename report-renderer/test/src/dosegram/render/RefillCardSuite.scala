@@ -66,7 +66,11 @@ class RefillCardSuite extends munit.FunSuite:
       assertEquals(dosegram.render.svg.SvgProfile.violations(dosegram.render.svg.SvgEmitter.emit(card.scene)), Vector.empty)
 
   test("the Ukrainian catalogue draws every fixed word of the card in Ukrainian (ROADMAP G2.22)"):
-    val ukrainian = data.copy(threshold = "10 tablets", text = "Metformin 500 mg: за вашим підрахунком лишилося 6 tablets.")
+    val ukrainian = data.copy(
+      unit = "таблеток",
+      threshold = "10 таблеток",
+      text = "Metformin 500 mg: за вашим підрахунком лишилося 6 таблеток."
+    )
     Theme.values.foreach: theme =>
       val card = RefillCard.render(ukrainian, Samples.context(theme, Privacy.Aggregate, UkrainianImageCopy))
       val words = texts(card.scene.nodes)
@@ -74,7 +78,7 @@ class RefillCardSuite extends munit.FunSuite:
       assert(words.contains("Вистачить приблизно до Нд 15 листопада."), words.toString)
       assert(words.contains(UkrainianImageCopy.refillSource), words.toString)
       assert(!words.exists(_.contains("…")), s"a word is cut: $words")
-      List("Running low", "Your threshold", " left", "Covers", "Based on").foreach: english =>
+      List("Running low", "Your threshold", " left", "Covers", "Based on", "tablet").foreach: english =>
         assert(!words.exists(_.contains(english)), s"'$english' in: $words")
       // As the English lint above: a days threshold, since the units marker's attention colour is outside the palette.
       val linted = RefillCard.render(

@@ -1086,6 +1086,11 @@ export interface components {
          * @enum {string}
          */
         DoseState: "due" | "missed" | "pending" | "skipped" | "snoozed" | "taken" | "taken_late" | "unknown";
+        /** DoseUnitChoice */
+        DoseUnitChoice: {
+            code: string;
+            label: string;
+        };
         /** DownloadTicket */
         DownloadTicket: {
             url: string;
@@ -1455,6 +1460,7 @@ export interface components {
             doseAmount?: string;
             doseUnit?: string;
             instructions?: string;
+            doseUnitLabel?: string;
         };
         /**
          * MedicationChange
@@ -1476,6 +1482,7 @@ export interface components {
         MedicationOptions: {
             doseUnits?: string[];
             limits: components["schemas"]["Limits"];
+            doseUnitChoices?: components["schemas"]["DoseUnitChoice"][];
         };
         /** MedicationPresetView */
         MedicationPresetView: {

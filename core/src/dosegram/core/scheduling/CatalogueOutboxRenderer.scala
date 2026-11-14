@@ -24,6 +24,7 @@ import dosegram.core.domain.DoseSnapshot
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.ReminderPolicy
 import dosegram.core.domain.copy.DigestCopy
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.ReminderCopy
@@ -359,9 +360,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     codec.encode(CallbackMode.Direct, entry, subject, value).wire
 
   private def doseText(snapshot: DoseSnapshot): Option[String] =
-    snapshot.doseAmount.map: amount =>
-      val number = amount.bigDecimal.stripTrailingZeros.toPlainString
-      snapshot.doseUnit.map(unit => s"$number $unit").getOrElse(number)
+    snapshot.doseAmount.flatMap(amount => DoseUnits.doseText(Some(amount), snapshot.doseUnit))
 
   private def formatTime(occ: StoredOccurrence, at: Instant): String =
     DateTimeFormatter.ofPattern("HH:mm").withZone(occ.tz).format(at)

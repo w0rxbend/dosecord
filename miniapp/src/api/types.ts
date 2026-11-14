@@ -94,6 +94,8 @@ export interface Medication extends MedicationDraft {
   readonly id: string;
   readonly status: MedicationStatus;
   readonly version: number;
+  /** The dose unit's name in the account language, for display; `doseUnit` stays the stored code. */
+  readonly doseUnitLabel: string;
 }
 
 export interface Choice {

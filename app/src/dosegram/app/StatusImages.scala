@@ -7,7 +7,6 @@ import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.copy.Lang
-import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.nutrition.MealType
@@ -198,12 +197,12 @@ final class RenderedStatusCards extends StatusCards:
     val data = FoodDayData(view.date, mains, view.snacks, MealProgress(view.line.logged, view.line.planned))
     Some(page(FoodDayCard.render(data, contextOf(look))))
 
-  /** IMG-15 (ROADMAP G9.10): the unit word is the user's countable dose unit, or "units" in the account's language. */
+  /** IMG-15 (ROADMAP G9.10): the unit word is the user's countable dose unit, or "units", in the account's language. */
   override def refill(view: RefillCardView, look: CardLook): Option[CardPage] =
     val data = RefillData(
       view.label,
       view.onHand,
-      view.unit.getOrElse(MedicationDepthCopy.unitsWord),
+      view.unit,
       view.thresholdUnits,
       view.threshold,
       view.coversUntil,

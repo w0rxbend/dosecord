@@ -17,6 +17,7 @@ import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.WizardEngine
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
@@ -604,11 +605,7 @@ final class MenuHandler(
     case _                => revision.rule.productPrefix
 
   private def doseTitle(name: String, amount: Option[BigDecimal], unit: Option[String]): String =
-    amount match
-      case Some(value) =>
-        val number = value.bigDecimal.stripTrailingZeros.toPlainString
-        s"$name ${unit.map(u => s"$number $u").getOrElse(number)}"
-      case None => name
+    amount.flatMap(value => DoseUnits.doseText(Some(value), unit)).fold(name)(dose => s"$name $dose")
 
   private def mint(chat: ChatRef, accountId: Option[UUID], action: ActionEntry, key: String, tx: Tx): CallbackToken =
     val slotId = UUID.randomUUID()

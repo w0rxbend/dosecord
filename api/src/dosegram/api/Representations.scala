@@ -126,7 +126,8 @@ final case class Medication(
     schedules: List[Schedule],
     doseAmount: Option[String] = None,
     doseUnit: Option[String] = None,
-    instructions: Option[String] = None
+    instructions: Option[String] = None,
+    doseUnitLabel: Option[String] = None
 ) derives ReadWriter,
       Schema
 
@@ -147,7 +148,16 @@ final case class MedicationStateChange(change: MedicationChange, resumeOn: Optio
     derives ReadWriter,
       Schema
 
-final case class MedicationOptions(doseUnits: List[String], limits: Limits) derives ReadWriter, Schema
+/** A dose unit of the picker: the code `doseUnit` stores and its name in the account's language. */
+final case class DoseUnitChoice(code: String, label: String) derives ReadWriter, Schema
+
+/** `doseUnits` are the stored codes; `doseUnitChoices` are the same codes, in the same order, with their names. */
+final case class MedicationOptions(
+    doseUnits: List[String],
+    limits: Limits,
+    doseUnitChoices: List[DoseUnitChoice] = Nil
+) derives ReadWriter,
+      Schema
 
 // ---------- schedule-and-reminders ----------
 

@@ -124,7 +124,7 @@
 
 <form novalidate onsubmit={(event) => event.preventDefault()} onfocusout={onFieldLeft} onchange={onFieldLeft}>
   <fieldset disabled={saving}>
-    <ScheduleFields bind:form {options} doseUnit={medication.doseUnit} errors={messages} />
+    <ScheduleFields bind:form {options} doseUnit={medication.doseUnitLabel} errors={messages} />
   </fieldset>
 </form>
 

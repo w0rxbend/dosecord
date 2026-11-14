@@ -4817,6 +4817,22 @@
           "unknown"
         ]
       },
+      "DoseUnitChoice" : {
+        "title" : "DoseUnitChoice",
+        "type" : "object",
+        "required" : [
+          "code",
+          "label"
+        ],
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        }
+      },
       "DownloadTicket" : {
         "title" : "DownloadTicket",
         "type" : "object",
@@ -5920,6 +5936,9 @@
           },
           "instructions" : {
             "type" : "string"
+          },
+          "doseUnitLabel" : {
+            "type" : "string"
           }
         }
       },
@@ -5980,6 +5999,12 @@
           },
           "limits" : {
             "$ref" : "#/components/schemas/Limits"
+          },
+          "doseUnitChoices" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DoseUnitChoice"
+            }
           }
         }
       },

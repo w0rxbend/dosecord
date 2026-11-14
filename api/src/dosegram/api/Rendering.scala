@@ -5,6 +5,7 @@ import dosegram.core.domain.DstKind
 import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.MedicationDepthCopy
@@ -205,9 +206,8 @@ object ApiCopy:
     case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
       Rule.kindTag(rule)
 
-  def doseText(amount: Option[BigDecimal], unit: Option[String]): Option[String] =
-    val number = amount.map(_.bigDecimal.stripTrailingZeros.toPlainString)
-    Option.when(number.isDefined || unit.isDefined)(List(number, unit).flatten.mkString(" "))
+  /** The dose in the account's language, its unit from the catalogue (`DoseUnits`). */
+  def doseText(amount: Option[BigDecimal], unit: Option[String]): Option[String] = DoseUnits.doseText(amount, unit)
 
   def clockChangeNote(candidate: OccurrenceCandidate, zone: ZoneId): Option[String] = candidate.dstKind match
     case DstKind.None => None
@@ -307,7 +307,8 @@ object Rendering:
       schedules = tx.schedules.listForMedication(stored.id).map(schedule(tx, _)),
       doseAmount = stored.doseAmount.map(_.bigDecimal.stripTrailingZeros.toPlainString),
       doseUnit = stored.doseUnit,
-      instructions = stored.instructions
+      instructions = stored.instructions,
+      doseUnitLabel = stored.doseUnit.map(DoseUnits.label)
     )
 
   def medicationSummary(tx: Tx, stored: StoredMedication): MedicationSummary =

@@ -2,6 +2,7 @@ package dosegram.api
 
 import dosegram.core.domain.Evaluator
 import dosegram.core.domain.ScheduleRevision
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.ports.Clock
 import dosegram.core.ports.MedicationEdit
 import dosegram.core.ports.MedicationStatus
@@ -32,7 +33,12 @@ final class Registry(uow: UnitOfWork, clock: Clock):
 
   // ---------- medications ----------
 
-  def options: MedicationOptions = MedicationOptions(DoseUnits, RegistryLimits.published)
+  def options: MedicationOptions =
+    MedicationOptions(
+      DoseUnits.picker.map(_.code),
+      RegistryLimits.published,
+      DoseUnits.picker.map(unit => DoseUnitChoice(unit.code, unit.label))
+    )
 
   def list(accountId: UUID, status: Option[MedicationState]): MedicationList =
     uow.transaction: tx =>
@@ -340,7 +346,6 @@ object Registry:
 
   /** The longest pause with a resume date (supervisor decision, 2026-11-14). */
   val MaxPauseDays = 365L
-  private val DoseUnits = List("mg", "mcg", "g", "ml", "IU", "tablet", "capsule", "drop", "puff", "unit")
 
   private def ownedMedication(tx: Tx, accountId: UUID, id: UUID): Either[ApiFailure, StoredMedication] =
     tx.medications.get(id).filter(_.accountId == accountId).toRight(ApiFailure.notFound())

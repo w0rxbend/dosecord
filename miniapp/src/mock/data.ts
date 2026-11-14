@@ -21,7 +21,8 @@ export const MEDICATION_OPTIONS: MedicationOptions = {
     { value: 'IU', label: 'IU' },
     { value: 'mg/ml', label: 'mg/ml' },
   ],
-  doseUnits: choices(['tablet', 'capsule', 'ml', 'drop', 'puff', 'spray', 'unit', 'patch']),
+  // Named as the server's catalogue names them in English (`DoseUnits`): the picker shows the stored unit's name.
+  doseUnits: ['tablet', 'capsule', 'ml', 'drop', 'puff', 'spray', 'unit', 'patch'].map((value) => ({ value, label: value })),
   colourTags: choices(['none', 'white', 'yellow', 'orange', 'pink', 'red', 'brown', 'green', 'blue', 'purple', 'grey']),
   shapeTags: choices(['none', 'round', 'oval', 'capsule', 'oblong', 'other']),
   limits: { nameMax: 80, notesMax: 500 },
@@ -52,6 +53,11 @@ export interface MedicationRecord {
   lowStockText?: string;
 }
 
+/** The picker name of a seeded unit, as the server's catalogue names it. */
+export function doseUnitLabel(code: string): string {
+  return MEDICATION_OPTIONS.doseUnits.find((unit) => unit.value === code)?.label ?? code;
+}
+
 function record(
   id: string,
   name: string,
@@ -74,6 +80,7 @@ function record(
       notes: '',
       showNameInReminders: true,
       ...fields,
+      doseUnitLabel: doseUnitLabel(fields.doseUnit ?? 'tablet'),
     },
     ...row,
   };

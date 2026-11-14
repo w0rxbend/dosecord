@@ -12,6 +12,7 @@ import type {
 import { parseDecimal, isPositive } from '../forms/decimal';
 import {
   MEDICATION_OPTIONS,
+  doseUnitLabel,
   SCHEDULE_PATTERNS,
   WEEKDAYS,
   seedMedications,
@@ -278,7 +279,13 @@ export class MockBackend implements ApiClient {
   createMedication: ApiClient['createMedication'] = (draft) =>
     this.respond('medications:create', () => {
       this.checked(draft);
-      const medication: Medication = { ...draft, id: `med-new-${this.nextId++}`, status: 'active', version: 1 };
+      const medication: Medication = {
+        ...draft,
+        id: `med-new-${this.nextId++}`,
+        status: 'active',
+        version: 1,
+        doseUnitLabel: doseUnitLabel(draft.doseUnit),
+      };
       this.records.push({ medication, scheduleSummary: 'No schedule' });
       return medication;
     });
@@ -288,7 +295,7 @@ export class MockBackend implements ApiClient {
       const record = this.find(id);
       if (record.medication.version !== version) throw new ApiError('version_conflict', 'MOCK-0412');
       this.checked(draft, id);
-      record.medication = { ...record.medication, ...draft, version: version + 1 };
+      record.medication = { ...record.medication, ...draft, version: version + 1, doseUnitLabel: doseUnitLabel(draft.doseUnit) };
       return record.medication;
     });
 

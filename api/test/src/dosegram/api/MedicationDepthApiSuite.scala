@@ -57,6 +57,16 @@ final class MedicationDepthApiSuite extends ApiSuite:
     assertProblem(put(path, ujson.Obj("onHand" -> "9", "perIntake" -> "1"), token, newKey() ++ ifMatch(first)), 412, "version_conflict")
     assertProblem(put(path, ujson.Obj("onHand" -> "9", "perIntake" -> "1"), token, newKey()), 428, "precondition_required")
 
+  test("a Ukrainian account reads the count's summary with the unit in Ukrainian"):
+    clock.at = utcMorning
+    val token = login(telegramAccount("UTC"))
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "UTC", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val id = medication(token)
+    val saved = put(s"/api/v1/medications/$id/inventory", ujson.Obj("onHand" -> "21", "perIntake" -> "1"), token, newKey())
+    assert(saved.json("summary").str.startsWith("Iron: за вашим підрахунком лишилося близько 21 таблетка."), saved.body)
+
   test("invalid members answer 422 per member; a stranger's medication is 404"):
     clock.at = utcMorning
     val token = login(telegramAccount("UTC"))

@@ -3,6 +3,7 @@ package dosegram.core.application.exports
 import dosegram.contracts.Weekday
 import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.ExportCopy
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.MedicationDepthCopy
@@ -239,10 +240,7 @@ object RecordSummaries:
   private def monthName(month: DateRange): String = MonthFormat.format(month.start)
 
   private def doseOf(medication: StoredMedication): Option[String] =
-    val number = medication.doseAmount.map(_.bigDecimal.stripTrailingZeros.toPlainString)
-    Option.when(number.isDefined || medication.doseUnit.isDefined)(
-      List(number, medication.doseUnit).flatten.mkString(" ")
-    )
+    DoseUnits.doseText(medication.doseAmount, medication.doseUnit)
 
   private def statusOf(status: MedicationStatus): String =
     status match

@@ -1,6 +1,7 @@
 package dosegram.infra.db
 
 import dosegram.contracts.*
+import dosegram.core.application.LocalisedHandler
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.medication.MedicationDepthChat
 import dosegram.core.chat.*
@@ -64,12 +65,15 @@ class MedicationDepthPgSuite extends PgSuite:
     )
     val lifecycle = ScheduleLifecycle(fixtures.uow, clock)
     val loop = MedicationDepthLoop(fixtures.uow, clock, ids, codec, lifecycle, (_, e) => errors += e)
-    val chat = MedicationDepthChat(
-      codec,
-      clock,
-      lifecycle,
-      CaptureParts.over(fixtures.uow, clock, ids, StatusCards.textOnly),
-      inner = (_, _, _) => Reply.empty
+    // Wrapped as `Application.handler` wraps every handler: the account's language is bound around the event.
+    val chat = LocalisedHandler(
+      MedicationDepthChat(
+        codec,
+        clock,
+        lifecycle,
+        CaptureParts.over(fixtures.uow, clock, ids, StatusCards.textOnly),
+        inner = (_, _, _) => Reply.empty
+      )
     )
 
     def notices: List[String] =
@@ -144,9 +148,21 @@ class MedicationDepthPgSuite extends PgSuite:
     rig.clock.at = local(21, "07:30")
     rig.loop.tick()
     val notice = rig.notices.head
-    assert(notice.contains("Iron: за вашим підрахунком лишилося близько 3 tablets."), notice)
+    assert(notice.contains("Iron: за вашим підрахунком лишилося близько 3 таблетки."), notice)
     assert(notice.contains("Показати картку") && notice.contains("Досить для цієї пачки"), notice)
     assertEquals(rig.errors.toList, Nil)
+
+  test("a Ukrainian account's card and refill name the unit in Ukrainian, in the form of their count"):
+    val rig = Rig(onHand = 3)
+    fixtures.uow.transaction: tx =>
+      val settings = tx.accounts.settingsOf(rig.account).get
+      tx.accounts.saveSettings(rig.account, settings.copy(locale = Some("uk")), rig.clock.now())
+    rig.clock.at = local(21, "07:30")
+    val card = rig.text(rig.tap("refill.card", 0))
+    assert(card.contains("Iron: за вашим підрахунком лишилося 3 таблетки, на вашому порозі (7 днів)"), card)
+    val refilled = rig.text(rig.tap("refill.add", 2000))
+    assert(refilled.contains("Iron: 5 таблеток за вашим підрахунком."), refilled)
+    assert(!refilled.contains("tablet") && !card.contains("tablet"), s"$card / $refilled")
 
   test("Stop for this pack ends the notices; a refill with the offered quantity starts them again later"):
     val rig = Rig(onHand = 3)

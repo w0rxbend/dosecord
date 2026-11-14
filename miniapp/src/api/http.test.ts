@@ -227,6 +227,34 @@ describe('HTTP API client', () => {
     expect(schedules.weekdays).toHaveLength(7);
   });
 
+  it('names the dose units in the account language when the server sends their names', async () => {
+    serve({
+      'POST /api/v1/session': [session('t')],
+      'GET /api/v1/medication-options': [
+        {
+          status: 200,
+          body: {
+            doseUnits: ['mg', 'tablet'],
+            doseUnitChoices: [
+              { code: 'mg', label: 'мг' },
+              { code: 'tablet', label: 'таблетка' },
+            ],
+            limits: { medicationNameMax: 80, instructionsMax: 500, doseUnitMax: 16, scheduleTimesMax: 12 },
+          },
+        },
+      ],
+      'GET /api/v1/medications/m1': [{ status: 200, body: { ...medication, doseUnitLabel: 'таблетка' } }],
+    });
+    const api = createHttpApi(config());
+    await api.open();
+
+    const options = await api.client.medicationOptions();
+    const read = await api.client.medication('m1');
+
+    expect(options.doseUnits).toEqual([{ value: 'mg', label: 'мг' }, { value: 'tablet', label: 'таблетка' }]);
+    expect(read).toMatchObject({ doseUnit: 'tablet', doseUnitLabel: 'таблетка' });
+  });
+
   it('sends a weekly draft as fixed times on weekdays and reads the preview', async () => {
     const weekly: ScheduleDraft = {
       pattern: 'weekly',

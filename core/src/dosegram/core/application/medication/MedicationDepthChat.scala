@@ -20,6 +20,8 @@ import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
 import dosegram.core.chat.ChatHandler
+import dosegram.core.domain.copy.DoseUnit
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.inventory.RefillThreshold
@@ -208,15 +210,8 @@ object MedicationDepthChat:
   private val Own: Set[String] =
     Set(RefillAdd, RefillCard, RefillStop, PauseFor, LimitConfirm, LimitCancel).map(_.name)
 
-  /** The unit word of a count: the dose unit when it names a thing that is counted, otherwise "units". */
-  def countableUnit(medication: StoredMedication): Option[String] =
-    medication.doseUnit
-      .map(_.trim.toLowerCase(java.util.Locale.ROOT))
-      .collect:
-        case unit if Countable.contains(unit)                  => unit + "s"
-        case unit if Countable.contains(unit.stripSuffix("s")) => unit
-
-  private val Countable = Set("tablet", "capsule", "drop", "puff", "sachet", "application", "pill")
+  /** The unit a medication's count is kept in: its dose unit when countable, otherwise "units" (R-REG-14). */
+  def countableUnit(medication: StoredMedication): DoseUnit = DoseUnits.countable(medication.doseUnit)
 
   /** The card of a count, its text equivalent written from the same values. */
   def cardViewOf(medication: StoredMedication, view: InventoryView): RefillCardView =
@@ -231,7 +226,7 @@ object MedicationDepthChat:
     RefillCardView(
       label,
       inventory.onHand,
-      unit,
+      unit.noun(inventory.onHand),
       thresholdUnits,
       threshold,
       view.supply.lastCovered,

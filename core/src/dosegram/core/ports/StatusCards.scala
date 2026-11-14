@@ -75,13 +75,14 @@ final case class WeekCardView(
     food: Option[List[Option[WeekDayFood]]] = None
 )
 
-/** IMG-15 (VISUALS section 6.16): the count the user keeps, their threshold as words, and the last day the count covers
-  * on their schedule; `text` is the card's text equivalent, written by the caller from the same values.
+/** IMG-15 (VISUALS section 6.16): the count the user keeps, the word of its unit after that count in the account's
+  * language ("tablets", "таблеток"), their threshold as words, and the last day the count covers on their schedule;
+  * `text` is the card's text equivalent, written by the caller from the same values.
   */
 final case class RefillCardView(
     label: String,
     onHand: BigDecimal,
-    unit: Option[String],
+    unit: String,
     thresholdUnits: Option[BigDecimal],
     threshold: String,
     coversUntil: Option[LocalDate],

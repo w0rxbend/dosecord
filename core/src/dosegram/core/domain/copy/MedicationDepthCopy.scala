@@ -106,12 +106,6 @@ object MedicationDepthCopy:
 
   // ---------- inventory and the refill notice (R-REG-14 to R-REG-16, BOT_UX 10.5, IMG-15) ----------
 
-  private def units(n: BigDecimal, unit: Option[String]): String =
-    s"${decimal(n.bigDecimal.stripTrailingZeros.toPlainString)} ${unit.getOrElse(unitsWord)}"
-
-  /** The unit word of a count whose dose unit is not countable. */
-  def unitsWord: String = tr("units", "од.")
-
   private def coversUntil(until: Option[LocalDate]): String =
     until.fold("")(d =>
       tr(
@@ -120,11 +114,13 @@ object MedicationDepthCopy:
       )
     )
 
-  /** `refill.low`: a count and a date, from the user's own entries; no advice. */
-  def refillLow(name: String, onHand: BigDecimal, unit: Option[String], until: Option[LocalDate]): String =
+  /** `refill.low`: a count and a date, from the user's own entries; no advice. `unit` is the one the count is kept in
+    * (`DoseUnits.countable`), so the count reads "6 таблеток" or "5 одиниць".
+    */
+  def refillLow(name: String, onHand: BigDecimal, unit: DoseUnit, until: Option[LocalDate]): String =
     tr(
-      s"About ${units(onHand, unit)} of $name left by your count.${coversUntil(until)}",
-      s"$name: за вашим підрахунком лишилося близько ${units(onHand, unit)}.${coversUntil(until)}"
+      s"About ${unit.count(onHand)} of $name left by your count.${coversUntil(until)}",
+      s"$name: за вашим підрахунком лишилося близько ${unit.count(onHand)}.${coversUntil(until)}"
     )
 
   def refillLowDiscreet: String =
@@ -135,10 +131,10 @@ object MedicationDepthCopy:
     tr(s"Refilled +$plain", s"Поповнено +$plain")
   def refillShowCard: String = tr("Show card", "Показати картку")
   def refillStop: String = tr("Stop for this pack", "Досить для цієї пачки")
-  def refilled(name: String, onHand: BigDecimal, unit: Option[String]): String =
+  def refilled(name: String, onHand: BigDecimal, unit: DoseUnit): String =
     tr(
-      s"Added. $name: ${units(onHand, unit)} by your count.",
-      s"Додано. $name: ${units(onHand, unit)} за вашим підрахунком."
+      s"Added. $name: ${unit.count(onHand)} by your count.",
+      s"Додано. $name: ${unit.count(onHand)} за вашим підрахунком."
     )
   def refillStopped: String = tr(
     "No more refill notices for this pack. A refill or a new count turns them back on.",
@@ -150,21 +146,22 @@ object MedicationDepthCopy:
   def refillCardText(
       name: String,
       onHand: BigDecimal,
-      unit: Option[String],
+      unit: DoseUnit,
       threshold: String,
       until: Option[LocalDate]
   ): String =
     tr(
-      s"$name: ${units(onHand, unit)} left by your count, at or below your threshold of $threshold.${coversUntil(until)} " +
+      s"$name: ${unit.count(onHand)} left by your count, at or below your threshold of $threshold.${coversUntil(until)} " +
         "Update the count after a refill.",
-      s"$name: за вашим підрахунком лишилося ${units(onHand, unit)}, на вашому порозі ($threshold) або нижче." +
+      s"$name: за вашим підрахунком лишилося ${unit.count(onHand)}, на вашому порозі ($threshold) або нижче." +
         s"${coversUntil(until)} Після поповнення оновіть залишок."
     )
 
   def thresholdDays(days: Int): String = counted(days, "day", "days", UkNouns.Days)
-  def thresholdUnits(n: BigDecimal, unit: Option[String]): String = units(n, unit)
+  def thresholdUnits(n: BigDecimal, unit: DoseUnit): String = unit.count(n)
 
   private val sample = LocalDate.of(2026, 11, 16)
+  private val tablets: DoseUnit = DoseUnits.countable(Some("tablet"))
 
   def entries: List[CopyEntry] = List(
     CopyEntry("schedule.every_n_days", everyNDays(2, sample)),
@@ -187,18 +184,18 @@ object MedicationDepthCopy:
     CopyEntry("med.pause_for.days", pauseDaysLabel(7)),
     CopyEntry("med.paused_until", pausedUntil("Vitamin D", sample)),
     CopyEntry("med.resumed_on", resumedOn("Vitamin D")),
-    CopyEntry("refill.low", refillLow("Metformin 500 mg", 6, Some("tablets"), Some(sample))),
+    CopyEntry("refill.low", refillLow("Metformin 500 mg", 6, tablets, Some(sample))),
     CopyEntry("refill.low.discreet", refillLowDiscreet),
     CopyEntry("refill.count_off", countOff),
     CopyEntry("refill.refilled_label", refilledLabel(30)),
     CopyEntry("refill.show_card", refillShowCard),
     CopyEntry("refill.stop", refillStop),
-    CopyEntry("refill.refilled", refilled("Metformin", 36, Some("tablets"))),
+    CopyEntry("refill.refilled", refilled("Metformin", 36, tablets)),
     CopyEntry("refill.stopped", refillStopped),
     CopyEntry("refill.unavailable", refillUnavailable),
     CopyEntry(
       "refill.card.text",
-      refillCardText("Metformin 500 mg", 6, Some("tablets"), thresholdDays(7), Some(sample))
+      refillCardText("Metformin 500 mg", 6, tablets, thresholdDays(7), Some(sample))
     )
   ) ++ List(
     "med.morning",

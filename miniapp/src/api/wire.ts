@@ -8,6 +8,7 @@ import type {
   AccountSettings,
   BlobAsset,
   CalendarSwatch,
+  Choice,
   Chart,
   Consents,
   InventoryView,
@@ -116,6 +117,7 @@ export function toMedication(wire: Wire['Medication']): Medication {
     strengthUnit: null,
     doseAmount: wire.doseAmount ?? '',
     doseUnit: wire.doseUnit ?? '',
+    doseUnitLabel: wire.doseUnitLabel ?? wire.doseUnit ?? '',
     colourTag: 'none',
     shapeTag: 'none',
     notes: wire.instructions ?? '',
@@ -154,12 +156,19 @@ export function toMedicationInput(draft: MedicationDraft): Wire['MedicationInput
   };
 }
 
+/** The stored codes with their names in the account language; a server without names shows the codes. */
+function doseUnitChoices(wire: Wire['MedicationOptions']): Choice[] {
+  const named = wire.doseUnitChoices ?? [];
+  if (named.length > 0) return named.map((choice) => ({ value: choice.code, label: choice.label }));
+  return (wire.doseUnits ?? []).map((unit) => ({ value: unit, label: unit }));
+}
+
 /** Empty choice lists hide the fields the server does not keep. */
 export function toMedicationOptions(wire: Wire['MedicationOptions']): MedicationOptions {
   return {
     forms: [],
     strengthUnits: [],
-    doseUnits: (wire.doseUnits ?? []).map((unit) => ({ value: unit, label: unit })),
+    doseUnits: doseUnitChoices(wire),
     colourTags: [],
     shapeTags: [],
     limits: { nameMax: wire.limits.medicationNameMax, notesMax: wire.limits.instructionsMax },

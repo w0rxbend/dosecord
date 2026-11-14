@@ -442,6 +442,8 @@ Tier and wave: Must, MVP. Starting assumption: English (`en`) and Ukrainian (`uk
 
 Supervisor decision, 2026-11-14, owner asleep (ROADMAP G2.22): the locale resolved at onboarding by R-LOC-1 is stored with the account, so it counts as the account's explicit setting from then on; a consent records the locale of the statement shown (R-LOC-11), which is the language onboarding or the consent card ran in. Not built in G2.22: the 12-hour clock and week-start settings of R-LOC-5 (both locales use the 24-hour clock and Monday) and the unit settings of R-LOC-6.
 
+Supervisor decision, 2026-11-14 (dose units): a medication stores its dose unit as a code (`tablet`, `mg`, `IU`) or as the word the user typed in the chat. One unit catalogue (`DoseUnits` in `core`) holds every code with its English singular and plural and its four Ukrainian forms, and everything that shows a dose or a count reads the unit through it: the reminder and the digest, the chat menu, the record summary, the refill notice and card, the API sentences, the Mini App unit picker (`doseUnitChoices`) and the unit next to a dose (`doseUnitLabel`). A typed word is matched in either language and either number; a word the catalogue does not know is shown as the user wrote it (R-LOC-7). Measures (mg, mcg, g, ml, IU) do not change with the count; an inventory of a medication whose unit is a measure counts in "units" ("одиниці"), with the plural of its count.
+
 **Data captured**
 
 | Field | Values | Class (R06 section 6) |
