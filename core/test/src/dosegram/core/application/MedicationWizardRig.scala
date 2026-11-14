@@ -77,6 +77,11 @@ private final class MedicationWizardRig(
       else Inbound.MessageReceived(input, None, truncated = false)
     pushAndCollect(body, None).collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten
 
+  /** Sends a photo, as the Telegram adapter maps one, and returns the newly printed chunks. */
+  def photo(caption: Option[String]): List[String] =
+    pushAndCollect(Inbound.MediaReceived(MediaKind.Photo, MediaRef("photo-file"), caption), None)
+      .collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten
+
   def command(name: String): List[String] =
     pushAndCollect(Inbound.CommandInvoked(name, Map.empty, s"/$name"), None)
       .collect { case VendorOp.Send(_, m, _, _) => m.chunks }.flatten

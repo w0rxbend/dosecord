@@ -3,6 +3,7 @@ package dosegram.core.application.capture
 import dosegram.contracts.CallbackRef
 import dosegram.contracts.Inbound
 import dosegram.contracts.InboundEvent
+import dosegram.contracts.MediaKind
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
 import dosegram.core.application.CommandRegistry
@@ -12,6 +13,7 @@ import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatHandler
 import dosegram.core.domain.copy.CheckInCopy
+import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
@@ -24,6 +26,9 @@ import dosegram.core.domain.hydration.WaterText
 import dosegram.core.domain.hydration.WaterTextParser
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.nutrition.MealLine
+import dosegram.core.domain.nutrition.MealTextParser
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.sleep.SleepText
 import dosegram.core.domain.sleep.SleepTextParser
 import dosegram.core.ports.Clock
@@ -52,6 +57,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val mood = MoodChat(parts.mood, parts.cards, clock, tokens)
   private val stats = StatsChat(parts, tokens)
   private val sleep = SleepChat(parts.sleep, parts.cards, clock, tokens)
+  private val food = FoodChat(parts.nutrition, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -73,18 +79,21 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   /** `None` when the event is not a capture input: the next handler takes it. */
   private def route(turn: Turn): Option[Reply] =
     turn.event.body match
-      case Inbound.CommandInvoked(name, _, raw) if commandNames(name) => Some(onCommand(turn, name, argumentOf(raw)))
+      case Inbound.CommandInvoked(name, _, raw) if commandNames(name)        => Some(onCommand(turn, name, raw))
       case Inbound.InteractionSubmitted(ref, source) if isCaptureAction(ref) =>
         Some(onTap(turn.copy(source = source), ref))
-      case Inbound.MessageReceived(text, _, _) => onText(turn, text)
-      case _                                   => None
+      case Inbound.MessageReceived(text, _, _)          => onText(turn, text)
+      case Inbound.MediaReceived(MediaKind.Photo, _, _) => Some(food.photo(turn))
+      case _                                            => None
 
-  private def onCommand(turn: Turn, name: String, argument: String): Reply =
+  private def onCommand(turn: Turn, name: String, raw: String): Reply =
+    val argument = argumentOf(raw)
     name match
-      case WaterCommand => waterCommand(turn, argument)
-      case MoodCommand  => moodCommand(turn, argument)
-      case StatsCommand => statsCommand(turn, argument)
-      case SleepCommand => sleepCommand(turn, argument)
+      case FoodCommand | MealCommand => foodCommand(turn, rawArgumentOf(raw))
+      case WaterCommand              => waterCommand(turn, argument)
+      case MoodCommand               => moodCommand(turn, argument)
+      case StatsCommand              => statsCommand(turn, argument)
+      case SleepCommand              => sleepCommand(turn, argument)
       // The fourth capture command, `/privacy`: `route` lets no other name in.
       case _ => consent.privacy(turn)
 
@@ -111,6 +120,22 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def recordSleep(turn: Turn, text: SleepText): Reply =
     consent.guarded(turn, ConsentPurpose.Sleep, Pending.SleepTyped)(sleep.typed(turn, text))
 
+  /** `/food` (and `/meal`): the meal buttons, or a meal given as the argument. The words keep the case they were typed
+    * in.
+    */
+  private def foodCommand(turn: Turn, argument: String): Reply =
+    if argument.isEmpty then consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodCard)(food.card(turn))
+    else
+      MealTextParser.argument(argument) match
+        case MealLine.NotMeal => turn.toast(FoodCopy.usage)
+        case line             => recordFood(turn, line)
+
+  private def recordFood(turn: Turn, line: MealLine): Reply =
+    consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodTyped)(food.typed(turn, line))
+
+  private def foodButton(turn: Turn, mealType: MealType): Reply =
+    consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodLog(mealType.ordinal))(food.tap(turn, mealType))
+
   private def moodCommand(turn: Turn, argument: String): Reply =
     if argument.isEmpty then consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodPrompt)(mood.prompt(turn))
     else
@@ -130,8 +155,11 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
           case MoodLine(step) => step.toIntOption.flatMap(Valence.of).map(recordMood(turn, _))
           case _              =>
             SleepTextParser.free(text) match
-              case SleepText.NotSleep => None
-              case sleepText          => Some(recordSleep(turn, sleepText))
+              case SleepText.NotSleep =>
+                MealTextParser.free(text) match
+                  case MealLine.NotMeal => None
+                  case line             => Some(recordFood(turn, line))
+              case sleepText => Some(recordSleep(turn, sleepText))
 
   private def recordWater(turn: Turn, millilitres: Int)(record: => Reply): Reply =
     consent.guarded(turn, ConsentPurpose.Hydration, Pending.WaterAdd(millilitres))(record)
@@ -151,6 +179,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Some(CaptureActions.SleepRate)      => sleep.rate(turn, ref.subject, ref.value)
       case Some(CaptureActions.SleepUndo)      => sleep.undo(turn, ref.subject)
       case Some(CaptureActions.SleepStartUndo) => sleep.undoStart(turn, ref.subject)
+      case Some(CaptureActions.FoodUndo)       => food.undo(turn, ref.subject)
       // Every other button names the account it was made for: a tap from another account is a stale button.
       case Some(action) if ref.subject == turn.accountId => onAccountTap(turn, action, ref.value)
       case _                                             => stale(turn)
@@ -170,6 +199,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
       case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
+      case CaptureActions.FoodLog         => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
       case _                              => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
@@ -195,6 +225,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.SleepCard             => sleep.card(fresh)
       case Pending.SleepTyped            => sleep.card(fresh)
       case Pending.SleepImage            => sleep.image(fresh)
+      case Pending.FoodCard              => food.card(fresh)
+      case Pending.FoodLog(code)         => mealOf(code.toLong).map(food.tap(fresh, _)).getOrElse(stale(turn))
+      case Pending.FoodTyped             => food.card(fresh)
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =
@@ -210,7 +243,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
     purpose match
       case ConsentPurpose.Medication => parts.withdrawal.stop(turn.tx, turn.accountId, clock.now())
       case ConsentPurpose.Hydration | ConsentPurpose.Mood | ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns |
-          ConsentPurpose.ImagesInChat =>
+          ConsentPurpose.ImagesInChat | ConsentPurpose.Nutrition =>
         ()
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
@@ -233,7 +266,9 @@ private object CaptureHandler:
   val MoodCommand: String = CommandRegistry.Mood.name
   val StatsCommand: String = CommandRegistry.Stats.name
   val SleepCommand: String = CommandRegistry.Sleep.name
-  val commandNames: Set[String] = CommandRegistry.capture.map(_.name).toSet
+  val FoodCommand: String = CommandRegistry.Food.name
+  val MealCommand: String = CommandRegistry.Meal.name
+  val commandNames: Set[String] = CommandRegistry.capture.map(_.name).toSet + MealCommand
 
   /** Free text is parsed before the consent is known, so a glass has the default size here; [[WaterChat.typed]] sizes
     * it by the user's own preset.
@@ -243,4 +278,11 @@ private object CaptureHandler:
   private val MoodLine = """(?i)mood\s+(\d)""".r
 
   /** The text after the command name: `/water 300` gives `300`. */
-  def argumentOf(raw: String): String = raw.trim.dropWhile(!_.isWhitespace).trim.toLowerCase(java.util.Locale.ROOT)
+  def argumentOf(raw: String): String = rawArgumentOf(raw).toLowerCase(java.util.Locale.ROOT)
+
+  /** The text after the command name as typed: the words of a meal keep their case. */
+  def rawArgumentOf(raw: String): String = raw.trim.dropWhile(!_.isWhitespace).trim
+
+  /** The meal type a button value names: its ordinal. */
+  def mealOf(value: Long): Option[MealType] =
+    Option.when(value >= 0 && value < MealType.values.length)(MealType.fromOrdinal(value.toInt))

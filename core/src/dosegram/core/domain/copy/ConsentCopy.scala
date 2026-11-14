@@ -78,6 +78,14 @@ object ConsentCopy:
           "Sleep tracking stays off. Send /sleep to turn it on later.",
           s"Nothing new is recorded, and sleep records are not shown in this chat or in the app. $RecordsKept"
         )
+      case ConsentPurpose.Nutrition =>
+        Wording(
+          "stores and processes my meal records: meal type, time and my notes",
+          "may store and process your meal records: meal type, time and your notes",
+          "meal records",
+          "Meal tracking stays off. Send /food to turn it on later.",
+          s"Nothing new is recorded, and meal records are not shown in this chat or in the app. $RecordsKept"
+        )
       case ConsentPurpose.CrossDomainPatterns =>
         Wording(
           "compares my records across domains, for example water and mood",
@@ -148,10 +156,11 @@ object ConsentCopy:
 
   def onboardingLabel(purpose: ConsentPurpose): String =
     purpose match
-      case ConsentPurpose.Medication                                                               => "Medication"
-      case ConsentPurpose.Hydration                                                                => "Water"
-      case ConsentPurpose.Mood                                                                     => "Mood"
-      case ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns | ConsentPurpose.ImagesInChat =>
+      case ConsentPurpose.Medication => "Medication"
+      case ConsentPurpose.Hydration  => "Water"
+      case ConsentPurpose.Mood       => "Mood"
+      case ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns | ConsentPurpose.ImagesInChat |
+          ConsentPurpose.Nutrition =>
         wording(purpose).short.capitalize
 
   val onboardingChoiceHint = "Choose one of the buttons."

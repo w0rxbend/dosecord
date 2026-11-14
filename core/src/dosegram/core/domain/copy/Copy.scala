@@ -32,5 +32,6 @@ object Copy:
       StatsCardCopy.entries ++
       SleepCopy.entries ++
       InputCopy.entries ++
-      PromptCopy.entries
+      PromptCopy.entries ++
+      FoodCopy.entries
 end Copy

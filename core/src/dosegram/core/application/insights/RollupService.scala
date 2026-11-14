@@ -3,6 +3,7 @@ package dosegram.core.application.insights
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HydrationStats
 import dosegram.core.domain.insights.LocalDays
+import dosegram.core.domain.insights.MealStats
 import dosegram.core.domain.insights.MedicationStats
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.RollupDomain
@@ -70,6 +71,8 @@ final class RollupService(uow: UnitOfWork, clock: Clock):
           .toMap
       case RollupDomain.Mood =>
         MoodStats.byDay(tx.tracking.mood.listLive(accountId, span)).view.mapValues(RollupMetrics.Mood(_)).toMap
+      case RollupDomain.Nutrition =>
+        MealStats.byDay(tx.tracking.meals.listLive(accountId, span)).view.mapValues(RollupMetrics.Nutrition(_)).toMap
       case RollupDomain.Medication =>
         tx.accounts.timezoneOf(accountId).map(ZoneId.of) match
           case None       => Map.empty

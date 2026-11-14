@@ -8,6 +8,7 @@ enum RollupDomain(val dbValue: String):
   case Medication extends RollupDomain("medication")
   case Hydration extends RollupDomain("hydration")
   case Mood extends RollupDomain("mood")
+  case Nutrition extends RollupDomain("nutrition")
 
 object RollupDomain:
   def fromDbValue(value: String): RollupDomain =
@@ -23,12 +24,14 @@ enum RollupMetrics:
   case Medication(day: MedicationDay)
   case Hydration(day: HydrationDay)
   case Mood(day: MoodDay)
+  case Nutrition(day: MealDay)
 
   def domain: RollupDomain =
     this match
       case _: Medication => RollupDomain.Medication
       case _: Hydration  => RollupDomain.Hydration
       case _: Mood       => RollupDomain.Mood
+      case _: Nutrition  => RollupDomain.Nutrition
 
 /** The JSON form of [[RollupMetrics]] in `daily_rollups.metrics`. The shape is written out field by field so that a
   * change of a case class cannot silently change what is stored; [[Version]] moves with every change of a shape.
@@ -57,6 +60,14 @@ object RollupMetricsJson:
           "energyN" -> ujson.Num(day.energyN.toDouble),
           "energySum" -> ujson.Num(day.energySum.toDouble)
         )
+      case RollupMetrics.Nutrition(day) =>
+        ujson.Obj(
+          "meals" -> ujson.Num(day.meals.toDouble),
+          "breakfast" -> ujson.Num(day.breakfast.toDouble),
+          "lunch" -> ujson.Num(day.lunch.toDouble),
+          "dinner" -> ujson.Num(day.dinner.toDouble),
+          "snacks" -> ujson.Num(day.snacks.toDouble)
+        )
     ujson.write(json)
 
   def decode(domain: RollupDomain, text: String): RollupMetrics =
@@ -79,6 +90,10 @@ object RollupMetricsJson:
             energyN = int(json, "energyN"),
             energySum = int(json, "energySum")
           )
+        )
+      case RollupDomain.Nutrition =>
+        RollupMetrics.Nutrition(
+          MealDay(int(json, "breakfast"), int(json, "lunch"), int(json, "dinner"), int(json, "snacks"))
         )
 
   private def medication(entry: (UUID, DoseBuckets)): ujson.Value =

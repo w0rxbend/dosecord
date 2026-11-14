@@ -105,6 +105,7 @@ object ApiCopy:
     case ConsentPurpose.Sleep               => "Off. The chat cannot turn sleep records on yet."
     case ConsentPurpose.CrossDomainPatterns => "Off. The chat asks for it when a comparison is first requested."
     case ConsentPurpose.ImagesInChat        => "Off. The chat asks for it when an image is first requested."
+    case ConsentPurpose.Nutrition           => "Off. Send /food in the chat to turn it on."
 
   val quietHoursNote =
     "A medication reminder that falls inside quiet hours follows the quiet-hours rule of its schedule."
