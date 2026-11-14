@@ -411,7 +411,7 @@ object AddMedicationFlow:
       val cadence =
         if days == allDays then WizardCopy.cadenceEveryDay
         else if days == weekDays then WizardCopy.cadenceWeekdays
-        else WizardCopy.cadenceDays(days.map(_.toString))
+        else WizardCopy.cadenceDays(days.map(day => WizardCopy.weekdayLabels(day.ordinal)))
       (offer ++ WizardCopy.confirmCard(name, dose, cadence, times, zone) ++ preview.toList).map(paragraph)
 
   private def complete(

@@ -66,6 +66,20 @@ class MenuSuite extends munit.FunSuite:
       assert(labels.contains("History"))
       assert(!labels.contains("Edit"), "Edit is hidden until M3.2")
 
+  test("the Medications submenu names every other day and certain days in words, not by type name"):
+    withRig: rig =>
+      val account = rig.seedAccount()
+      val anchor = java.time.LocalDate.of(2026, 11, 16)
+      rig.seedSchedule(account, "Iron", Rule.EveryNDays(2, List(HhMm.unsafe("09:00")), anchor), kyiv)
+      val monWed = Rule.FixedTimes(List(SlotGroup(List(Weekday.Mon, Weekday.Wed), List(HhMm.unsafe("08:00")))))
+      rig.seedSchedule(account, "Zinc", monWed, kyiv)
+      rig.line("/menu")
+      rig.tapLabel("What would you like to do?", "Medications")
+      val chunks = rig.lastChunks
+      assert(chunks.exists(_.contains("Iron — every other day from Mon 16 Nov 09:00")), s"the schedule line: $chunks")
+      assert(chunks.exists(_.contains("Zinc — on Mon, Wed 08:00")), s"the schedule line: $chunks")
+      assert(!chunks.exists(_.contains("EveryNDays")), s"no type name: $chunks")
+
   test("pause then resume from the menu fires the next slot"):
     withRig: rig =>
       val account = rig.seedAccount()

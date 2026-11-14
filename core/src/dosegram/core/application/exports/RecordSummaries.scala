@@ -244,9 +244,9 @@ object RecordSummaries:
 
   private def statusOf(status: MedicationStatus): String =
     status match
-      case MedicationStatus.Active   => "Active"
-      case MedicationStatus.Paused   => "Paused"
-      case MedicationStatus.Archived => "Archived"
+      case MedicationStatus.Active   => ExportCopy.statusActive
+      case MedicationStatus.Paused   => ExportCopy.statusPaused
+      case MedicationStatus.Archived => ExportCopy.statusArchived
 
   /** A schedule in the words of the chat wizard: `every day 09:00, 21:00`. */
   def ruleInWords(rule: Rule): String = rule match
@@ -256,9 +256,9 @@ object RecordSummaries:
       val cadence =
         if days.size == Weekday.values.length then WizardCopy.cadenceEveryDay
         else if days == Weekday.values.toList.take(5) then WizardCopy.cadenceWeekdays
-        else WizardCopy.cadenceDays(days.map(_.toString))
+        else WizardCopy.cadenceDays(days.map(day => WizardCopy.weekdayLabels(day.ordinal)))
       s"$cadence ${times.mkString(", ")}"
-    case _: Rule.AsNeeded                          => "as needed"
+    case _: Rule.AsNeeded                          => ExportCopy.asNeededSchedule
     case Rule.EveryNDays(everyDays, times, anchor) =>
       s"${MedicationDepthCopy.everyNDays(everyDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
     case Rule.Cycle(onDays, offDays, times, anchor) =>

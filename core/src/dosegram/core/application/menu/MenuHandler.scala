@@ -5,6 +5,7 @@ import dosegram.core.application.LanguageChat
 import dosegram.core.application.capture.MedicationConsentGate
 import dosegram.core.application.capture.MedicationScreen
 import dosegram.core.application.dose.LogDosePicker
+import dosegram.core.application.exports.RecordSummaries
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
 import dosegram.core.application.medication.MedicationDepthChat
@@ -16,7 +17,6 @@ import dosegram.core.chat.CallbackToken
 import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.WizardEngine
 import dosegram.core.domain.OccurrenceStatus
-import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.IdentityCopy
@@ -24,7 +24,6 @@ import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.ReminderCopy
-import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.ports.CallbackSlot
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ScheduleStatus
@@ -592,17 +591,8 @@ final class MenuHandler(
   private def userZone(tx: Tx, account: UUID): ZoneId =
     ZoneId.of(tx.accounts.timezoneOf(account).getOrElse("UTC"))
 
-  private def ruleSummary(revision: StoredScheduleRevision): String = revision.rule match
-    case Rule.FixedTimes(groups) =>
-      val days = groups.flatMap(_.days).distinct
-      val times = groups.flatMap(_.times).map(_.value).distinct
-      val cadence =
-        if days.size == 7 then WizardCopy.cadenceEveryDay
-        else if days == WeekdayRange then WizardCopy.cadenceWeekdays
-        else WizardCopy.cadenceDays(days.map(_.toString))
-      s"$cadence ${times.mkString(", ")}"
-    case _: Rule.AsNeeded => "as needed"
-    case _                => revision.rule.productPrefix
+  /** The schedule in the words of the wizard and the record summary, in the account's language. */
+  private def ruleSummary(revision: StoredScheduleRevision): String = RecordSummaries.ruleInWords(revision.rule)
 
   private def doseTitle(name: String, amount: Option[BigDecimal], unit: Option[String]): String =
     amount.flatMap(value => DoseUnits.doseText(Some(value), unit)).fold(name)(dose => s"$name $dose")
@@ -691,6 +681,4 @@ private object MenuHandler:
       case KeyToday | KeyLogDose              => Some(MedicationScreen.Today)
       case KeyHistory                         => Some(MedicationScreen.History)
       case _                                  => Some(MedicationScreen.Medications)
-
-  val WeekdayRange: List[Weekday] = Weekday.values.toList.take(5)
 end MenuHandler

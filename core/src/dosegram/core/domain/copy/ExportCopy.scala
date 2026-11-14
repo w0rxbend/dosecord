@@ -184,6 +184,14 @@ object ExportCopy:
         )
 
   def asNeeded(count: Int): String = tr(s"As-needed doses logged: $count.", s"Записано доз за потреби: $count.")
+
+  /** An as-needed schedule in words, after a medication's name: "Ibuprofen, as needed". */
+  def asNeededSchedule: String = tr("as needed", "за потреби")
+
+  // The status column of the medication table.
+  def statusActive: String = tr("Active", "Активно")
+  def statusPaused: String = tr("Paused", "Призупинено")
+  def statusArchived: String = tr("Archived", "В архіві")
   def minutes(total: Int): String = tr(s"${total / 60} h ${total % 60} min", s"${total / 60} год ${total % 60} хв")
   def millilitres(total: Int): String = tr(f"$total%,d ml".replace(',', ' '), f"$total%,d мл".replace(',', ' '))
   def goalDays(days: Int, of: Int): String = tr(s"$days of $of", s"$days з $of")
@@ -249,6 +257,10 @@ object ExportCopy:
     CopyEntry("doc.record_summary.taken", taken(95, 98, Some(97))),
     CopyEntry("doc.record_summary.taken_few", taken(3, 4, None)),
     CopyEntry("doc.record_summary.as_needed", asNeeded(2)),
+    CopyEntry("doc.record_summary.as_needed_schedule", asNeededSchedule),
+    CopyEntry("doc.record_summary.status.active", statusActive),
+    CopyEntry("doc.record_summary.status.paused", statusPaused),
+    CopyEntry("doc.record_summary.status.archived", statusArchived),
     CopyEntry("doc.record_summary.no_medications", noMedications),
     CopyEntry("doc.record_summary.no_records", noRecords),
     CopyEntry("doc.record_summary.consent_off", notShownWithoutConsent)

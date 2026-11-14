@@ -143,9 +143,7 @@ Useful next, in this order:
    of the reports (G9.2); the step-up, `/privacy` button and e2e flow of the
    export (G3.10).
 6. What the fifth round left open: the native-speaker review of the
-   Ukrainian copy; English words left in the chat menu's schedule summary
-   (`EveryNDays` and `Cycle` show their type name) and in the record
-   summary; every N weeks, interval from a fixed start and several day
+   Ukrainian copy; every N weeks, interval from a fixed start and several day
    groups (G9.8, G9.9); the refill notice against the nudge budget, the
    course-finished message and pause with a date in the Mini App (G9.10,
    G9.12); MA-INS-8 and the cross-representation test of G9.5.
