@@ -7,6 +7,7 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.InputCopy
 import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.input.DayList
@@ -396,6 +397,54 @@ class MedicationWizardSuite extends munit.FunSuite:
       assert(out.exists(_.contains(InputCopy.days(DayList.Rejection.NotADay("8")))), s"re-prompt: $out")
       rig.line("Mon, Wed")
       assert(rig.lastChunks.exists(_.contains("on Mon, Wed 09:00")), s"name selection: ${rig.lastChunks}")
+
+  private def startPresets(rig: MedicationWizardRig): Unit =
+    rig.bootstrapTelegram()
+    rig.command("menu")
+    rig.tapLabel(MenuCopy.mainPrompt, "Medications")
+    rig.tapLabel("Medications", "Add medication")
+    List("Vitamin D", "1000 IU").foreach(rig.line)
+    rig.tapLabel("When should I remind you?", MedicationDepthCopy.presetsLabel)
+
+  test("G9.8 presets: every other day is two taps, reviewed with its next reminders, and reminded on alternate days"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      startPresets(rig)
+      rig.tapLabel("Pick a preset", "Every other day")
+      rig.tapLabel("Preset: Every other day.", WizardCopy.noInstructions)
+      val card = rig.lastChunks.mkString("\n")
+      assert(card.contains("Vitamin D 1000 IU, every other day from Mon 21 Sep 07:00 Europe/Kyiv"), card)
+      assert(card.contains("Next reminders: Mon 21 Sep 07:00, Wed 23 Sep 07:00, Fri 25 Sep 07:00."), card)
+      assert(!card.contains(WizardCopy.changeDays), "a preset has no Change days")
+      rig.tapLabel("every other day", Labels.Create)
+      val schedule = rig.uow.schedules.all.head
+      assertEquals(schedule.kind, "every_n_days")
+      assertEquals(
+        rig.uow.revisions.all.head.rule,
+        Rule.EveryNDays(2, List(HhMm.unsafe("07:00")), java.time.LocalDate.of(2026, 9, 21))
+      )
+      // The first 48 hours hold Monday's reminder only; Wednesday's falls after them.
+      assertEquals(
+        rig.uow.occurrences.listBySchedule(schedule.id).map(_.scheduledFor),
+        List(Instant.parse("2026-09-21T04:00:00Z"))
+      )
+
+  test("G9.8 presets: a cycle preset counts 21 days on and 7 off from today; As needed stays without reminders"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      startPresets(rig)
+      rig.tapLabel("Pick a preset", "21 days on, 7 off")
+      rig.tapLabel("Preset: 21 days on, 7 off.", WizardCopy.noInstructions)
+      assert(rig.lastChunks.exists(_.contains("21 days on, 7 days off from Mon 21 Sep 07:00 Europe/Kyiv")), rig.lastChunks)
+      rig.tapLabel("21 days on", Labels.Create)
+      assertEquals(rig.uow.schedules.all.head.kind, "cycle")
+
+      val asNeeded = MedicationWizardRig(Profile.Telegram)
+      startPresets(asNeeded)
+      asNeeded.tapLabel("Pick a preset", "As needed")
+      asNeeded.tapLabel(WizardCopy.timesEcho(Nil), WizardCopy.noInstructions)
+      asNeeded.tapLabel("as needed", Labels.Create)
+      assertEquals(asNeeded.uow.schedules.all.head.kind, "as_needed")
 
 /** Regenerates both transcript goldens:
   * `./mill core.test.runMain dosegram.core.application.medicationWizardGoldenGenerate`.

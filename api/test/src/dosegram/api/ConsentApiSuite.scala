@@ -42,7 +42,17 @@ final class ConsentApiSuite extends ApiSuite:
     "createSchedule" -> post(s"/api/v1/medications/$medicationId/schedules", dailyAtNine, token, newKey()),
     "getSchedule" -> get(s"/api/v1/schedules/$scheduleId", token),
     "reviseSchedule" -> post(s"/api/v1/schedules/$scheduleId/revisions", dailyAtNine, token, etag),
-    "changeScheduleState" -> post(s"/api/v1/schedules/$scheduleId/state-changes", ujson.Obj("change" -> "pause"), token, etag)
+    "changeScheduleState" -> post(s"/api/v1/schedules/$scheduleId/state-changes", ujson.Obj("change" -> "pause"), token, etag),
+    // Medication depth (ROADMAP G9.10).
+    "getInventory" -> get(s"/api/v1/medications/$medicationId/inventory", token),
+    "saveInventory" -> send(
+      "PUT",
+      s"/api/v1/medications/$medicationId/inventory",
+      token,
+      Some(ujson.write(ujson.Obj("onHand" -> "5", "perIntake" -> "1"))),
+      newKey()
+    ),
+    "createRefill" -> post(s"/api/v1/medications/$medicationId/refills", ujson.Obj("quantity" -> "30"), token, newKey())
   )
 
   private def rowsOf(accountId: UUID): (Int, Int, List[String]) =

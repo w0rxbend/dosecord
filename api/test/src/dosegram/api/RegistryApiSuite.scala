@@ -306,6 +306,54 @@ final class RegistryApiSuite extends ApiSuite:
     assertEquals(errors(ujson.Obj("pattern" -> "fixed_times", "times" -> ujson.Arr("09:00"), "startDate" -> "2027-02-02", "endDate" -> "2027-02-01")), List("endDate" -> "before_start"))
     assertProblem(post("/api/v1/schedule-previews", ujson.Obj("draft" -> ujson.Obj("pattern" -> "hourly")), token), 400, "validation_failed")
 
+  test("G9.8: every other day previews from its anchor, and the engine materialises what the preview listed"):
+    clock.at = Instant.parse("2027-02-01T08:00:00Z")
+    val token = login(telegramAccount("UTC"))
+    val draft = ujson.Obj("pattern" -> "every_n_days", "times" -> ujson.Arr("09:00"), "everyDays" -> 2)
+    val preview = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token)
+    assertEquals(preview.status, 200, preview.body)
+    assertEquals(preview.json("summary").str, "every other day from Mon 1 Feb 09:00")
+    assertEquals(preview.json("days").arr.map(_("date").str).toList, List("2027-02-01", "2027-02-03", "2027-02-05", "2027-02-07"))
+    val id = createMedication(token, "Alternate").json("id").str
+    val created = createSchedule(token, id, draft)
+    assertEquals(created.json("pattern").str, "every_n_days")
+    assertEquals(created.json("everyDays").num.toInt, 2)
+    assertEquals(created.json("anchorDate").str, "2027-02-01")
+    val materialised = pendingRows(created.json("id").str).map(_.scheduledFor.toString).sorted
+    assertEquals(materialised, List("2027-02-01T09:00:00Z", "2027-02-03T09:00:00Z").take(materialised.size))
+    assert(materialised.nonEmpty)
+
+  test("G9.8: a cycle counts its days on and off from the anchor date it is given"):
+    clock.at = Instant.parse("2027-02-01T08:00:00Z")
+    val token = login(telegramAccount("UTC"))
+    val draft = ujson.Obj(
+      "pattern" -> "cycle",
+      "times" -> ujson.Arr("20:00"),
+      "onDays" -> 2,
+      "offDays" -> 3,
+      "anchorDate" -> "2027-01-31"
+    )
+    val preview = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token)
+    assertEquals(preview.json("summary").str, "2 days on, 3 days off from Sun 31 Jan 20:00")
+    assertEquals(preview.json("days").arr.map(_("date").str).toList, List("2027-02-01", "2027-02-05", "2027-02-06"))
+
+  test("G9.8: an invalid periodic draft answers 422 per member"):
+    val token = login(telegramAccount())
+    def errors(draft: ujson.Obj) = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token).fieldErrors
+    assertEquals(errors(ujson.Obj("pattern" -> "every_n_days", "times" -> ujson.Arr("09:00"))), List("everyDays" -> "required"))
+    assertEquals(
+      errors(ujson.Obj("pattern" -> "every_n_days", "times" -> ujson.Arr("09:00"), "everyDays" -> 0, "weekdays" -> ujson.Arr(1))),
+      List("weekdays" -> "not_allowed", "everyDays" -> "out_of_range")
+    )
+    assertEquals(
+      errors(ujson.Obj("pattern" -> "cycle", "times" -> ujson.Arr("09:00"), "onDays" -> 21)),
+      List("offDays" -> "required")
+    )
+    assertEquals(
+      errors(ujson.Obj("pattern" -> "fixed_times", "times" -> ujson.Arr("09:00"), "everyDays" -> 2)),
+      List("everyDays" -> "not_allowed")
+    )
+
   test("POST /medications/{id}/schedules starts the schedule; the engine materialises what the preview listed"):
     clock.at = Instant.parse("2027-02-01T08:00:00Z")
     val token = login(telegramAccount("UTC"))
@@ -406,7 +454,7 @@ final class RegistryApiSuite extends ApiSuite:
   test("GET /schedule-options publishes the patterns, the limits and the account's day"):
     clock.at = Instant.parse("2027-05-01T22:30:00Z")
     val reply = get("/api/v1/schedule-options", login(telegramAccount("Europe/Kyiv")))
-    assertEquals(reply.json("patterns").arr.map(_.str).toList, List("fixed_times", "as_needed"))
+    assertEquals(reply.json("patterns").arr.map(_.str).toList, List("fixed_times", "as_needed", "every_n_days", "cycle"))
     assertEquals(reply.json("previewDays").num.toInt, 7)
     assertEquals(reply.json("timeZone").str, "Europe/Kyiv")
     assertEquals(reply.json("today").str, "2027-05-02")

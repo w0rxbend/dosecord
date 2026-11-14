@@ -23,8 +23,8 @@ final case class MedicationPresetParams(
 
 /** A medication schedule preset (ADR-023): a name and the rule of the existing schedule model it builds from the day
   * profile. The times are taken from the anchors when the preset is applied; the schedule then keeps clock times, as
-  * every schedule does. `materialised` is false for a rule the engine does not remind yet (every N days, cycles:
-  * ROADMAP G9.8); such a preset is listed and not offered.
+  * every schedule does. `materialised` is false for a rule the engine does not remind yet; such a preset is listed and
+  * not offered. Every other day and cycles are reminded since ROADMAP G9.8.
   */
 final case class MedicationPreset(id: String, materialised: Boolean)
 
@@ -38,8 +38,8 @@ object MedicationPresets:
   val Every12Hours: MedicationPreset = MedicationPreset("med.every_12h", materialised = true)
   val Weekdays: MedicationPreset = MedicationPreset("med.weekdays", materialised = true)
   val Weekly: MedicationPreset = MedicationPreset("med.weekly", materialised = true)
-  val EveryOtherDay: MedicationPreset = MedicationPreset("med.every_other_day", materialised = false)
-  val CycleOnOff: MedicationPreset = MedicationPreset("med.cycle", materialised = false)
+  val EveryOtherDay: MedicationPreset = MedicationPreset("med.every_other_day", materialised = true)
+  val CycleOnOff: MedicationPreset = MedicationPreset("med.cycle", materialised = true)
   val AsNeeded: MedicationPreset = MedicationPreset("med.as_needed", materialised = true)
 
   val all: List[MedicationPreset] = List(
@@ -60,7 +60,9 @@ object MedicationPresets:
 
   private val everyDay: List[Weekday] = Weekday.values.toList
 
-  /** The rule of the preset for this day profile. `today` anchors a cycle. As needed has no reminder. */
+  /** The rule of the preset for this day profile. `today` anchors every other day and a cycle. As needed has no
+    * reminder.
+    */
   def rule(preset: MedicationPreset, profile: DayProfile, params: MedicationPresetParams, today: LocalDate): Rule =
     def daily(times: LocalTime*): Rule = Rule.FixedTimes(List(SlotGroup(everyDay, clockTimes(times))))
     preset match
@@ -73,7 +75,7 @@ object MedicationPresets:
       case Weekdays     => Rule.FixedTimes(List(SlotGroup(everyDay.take(5), clockTimes(List(profile.wake)))))
       case Weekly       =>
         Rule.FixedTimes(List(SlotGroup(List(params.weekday), clockTimes(List(params.time.getOrElse(profile.wake))))))
-      case EveryOtherDay => Rule.EveryNDays(2, clockTimes(List(params.time.getOrElse(profile.wake))))
+      case EveryOtherDay => Rule.EveryNDays(2, clockTimes(List(params.time.getOrElse(profile.wake))), today)
       case CycleOnOff    =>
         Rule.Cycle(params.onDays, params.offDays, clockTimes(List(params.time.getOrElse(profile.wake))), today)
       case AsNeeded => Rule.AsNeeded(maxPerDay = 10, minGapMinutes = 0)

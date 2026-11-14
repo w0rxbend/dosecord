@@ -57,10 +57,13 @@ class MedicationPresetsSuite extends munit.FunSuite:
     assertEquals(weekly.map(_.atZone(zone).getDayOfWeek), List(DayOfWeek.THURSDAY), "one Thursday in the eight days")
     assertEquals(weekly.head.atZone(zone).toLocalTime, LocalTime.of(10, 0))
 
-  test("as needed has no reminder; every other day and cycles are named and wait for the engine"):
+  test("as needed has no reminder; every other day and cycles are anchored on today"):
     assertEquals(MedicationPresets.preview(MedicationPresets.rule(MedicationPresets.AsNeeded, profile, params, today), zone, now, 5), Nil)
     assertEquals(
       MedicationPresets.rule(MedicationPresets.CycleOnOff, profile, MedicationPresetParams(onDays = 21, offDays = 7), today),
       Rule.Cycle(21, 7, List(dosegram.contracts.HhMm.unsafe("07:00")), today)
     )
+    val everyOther =
+      MedicationPresets.preview(MedicationPresets.rule(MedicationPresets.EveryOtherDay, profile, params, today), zone, now, 3)
+    assertEquals(everyOther.map(_.atZone(zone).toLocalDate), List(16, 18, 20).map(LocalDate.of(2026, 11, _)))
     MedicationPresets.all.foreach(preset => assert(PromptCopy.presetName(preset.id) != preset.id, preset.id))

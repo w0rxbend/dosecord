@@ -62,6 +62,7 @@ final class ApiModule(
   private val reminders = Reminders(uow, clock, Application.reminderSettings(clock))
   private val accountSettings = AccountSettingsApi(uow, clock)
   private val exports = Exports(uow, clock, exportRequests)
+  private val depth = MedicationDepthApi(uow, clock)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
   def sweep(): Int = sessions.sweep() + idempotency.sweep()
@@ -153,7 +154,9 @@ final class ApiModule(
       .handle: session =>
         (id, ifMatch, body) =>
           medication(session):
-            versionOf(ifMatch).flatMap(registry.changeState(session.accountId, id, _, body.change)).map(withEtag)
+            versionOf(ifMatch)
+              .flatMap(registry.changeState(session.accountId, id, _, body.change, body.resumeOn))
+              .map(withEtag)
   )
 
   private val scheduleEndpoints: List[ServerEndpoint[Any, Identity]] = List(
@@ -193,7 +196,7 @@ final class ApiModule(
         (id, ifMatch, body) =>
           medication(session):
             versionOf(ifMatch)
-              .flatMap(registry.changeScheduleState(session.accountId, id, _, body.change))
+              .flatMap(registry.changeScheduleState(session.accountId, id, _, body.change, body.endDate))
               .map(withRevisionTag)
   )
 
@@ -498,11 +501,42 @@ final class ApiModule(
           .map(file => (file.contentDisposition, file.contentType, file.bytes))
   )
 
+  /** The inventory of a medication (ROADMAP G9.10), behind the medication consent like the registry. */
+  private val medicationDepthEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    MedicationDepthEndpoints.getInventory
+      .handleSecurity(authenticate)
+      .handle: session =>
+        id =>
+          medication(session):
+            depth.inventory(session.accountId, id).map(read => (Rendering.etag(read.count.fold(0L)(_.version)), read))
+    ,
+    MedicationDepthEndpoints.saveInventory
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (id, ifMatch, key, input) =>
+          medication(session):
+            for
+              version <- ifMatch.fold(Right(None))(tag => versionOf(Some(tag)).map(Some(_)))
+              parsedKey <- idempotencyKeyOf(key)
+              doc <- depth.save(session.accountId, id, version, parsedKey, input)
+            yield (Rendering.etag(doc.version), doc)
+    ,
+    MedicationDepthEndpoints.createRefill
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (id, key, input) =>
+          medication(session):
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              doc <- depth.refill(session.accountId, id, parsedKey, input)
+            yield (Rendering.etag(doc.version), doc)
+  )
+
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
       hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
-      nutritionEndpoints ++ exportEndpoints :+
+      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

@@ -33,6 +33,8 @@ object ScheduleState:
 enum SchedulePattern(val wire: String):
   case FixedTimes extends SchedulePattern("fixed_times")
   case AsNeeded extends SchedulePattern("as_needed")
+  case EveryNDays extends SchedulePattern("every_n_days")
+  case Cycle extends SchedulePattern("cycle")
 
 object SchedulePattern:
   given ReadWriter[SchedulePattern] = ApiJson.wireEnum(values, _.wire)
@@ -133,7 +135,10 @@ final case class MedicationSummary(
 
 final case class MedicationList(items: List[MedicationSummary]) derives ReadWriter, Schema
 
-final case class MedicationStateChange(change: MedicationChange) derives ReadWriter, Schema
+/** `resumeOn` (with `pause` only, ROADMAP G9.12): the local date the medication resumes on by itself (R-REG-5). */
+final case class MedicationStateChange(change: MedicationChange, resumeOn: Option[LocalDate] = None)
+    derives ReadWriter,
+      Schema
 
 final case class MedicationOptions(doseUnits: List[String], limits: Limits) derives ReadWriter, Schema
 
@@ -141,7 +146,8 @@ final case class MedicationOptions(doseUnits: List[String], limits: Limits) deri
 
 /** A schedule as the builder edits it. `weekdays` are ISO numbers, 1 is Monday; an empty list means every day.
   * `fixed_times` needs `times`; `as_needed` takes `maxPerDay` and `minGapMinutes`. The dates are set when a schedule is
-  * created and cannot be changed by a revision.
+  * created and cannot be changed by a revision. `every_n_days` needs `times` and `everyDays`; `cycle` needs `times`,
+  * `onDays` and `offDays`; both count from `anchorDate`, which defaults to the start date, else today (ROADMAP G9.8).
   */
 final case class ScheduleDraft(
     pattern: SchedulePattern,
@@ -150,7 +156,11 @@ final case class ScheduleDraft(
     maxPerDay: Option[Int] = None,
     minGapMinutes: Option[Int] = None,
     startDate: Option[LocalDate] = None,
-    endDate: Option[LocalDate] = None
+    endDate: Option[LocalDate] = None,
+    everyDays: Option[Int] = None,
+    onDays: Option[Int] = None,
+    offDays: Option[Int] = None,
+    anchorDate: Option[LocalDate] = None
 ) derives ReadWriter,
       Schema
 
@@ -167,13 +177,23 @@ final case class Schedule(
     summary: String,
     maxPerDay: Option[Int] = None,
     minGapMinutes: Option[Int] = None,
-    endDate: Option[LocalDate] = None
+    endDate: Option[LocalDate] = None,
+    everyDays: Option[Int] = None,
+    onDays: Option[Int] = None,
+    offDays: Option[Int] = None,
+    anchorDate: Option[LocalDate] = None,
+    resumeOn: Option[LocalDate] = None
 ) derives ReadWriter,
       Schema
 
 final case class ScheduleList(items: List[Schedule]) derives ReadWriter, Schema
 
-final case class ScheduleStateChange(change: ScheduleChange) derives ReadWriter, Schema
+/** `endDate` (with `end` only, ROADMAP G9.12): "course ends on", the last local date of the schedule (R-SCH-4); without
+  * it the schedule ends now.
+  */
+final case class ScheduleStateChange(change: ScheduleChange, endDate: Option[LocalDate] = None)
+    derives ReadWriter,
+      Schema
 
 final case class ScheduleOptions(
     patterns: List[SchedulePattern],

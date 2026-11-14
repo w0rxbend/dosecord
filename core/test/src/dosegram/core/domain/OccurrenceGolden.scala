@@ -52,11 +52,13 @@ object OccurrenceGolden:
     )
   )
 
+  private val TransitionTimes: List[HhMm] = List("00:30", "02:15", "02:30", "03:30", "12:00", "23:45").map(HhMm.unsafe)
+
   private val TransitionRule: Rule = Rule.FixedTimes(
     List(
       SlotGroup(
         Weekday.values.toList,
-        List("00:30", "02:15", "02:30", "03:30", "12:00", "23:45").map(HhMm.unsafe)
+        TransitionTimes
       )
     )
   )
@@ -93,10 +95,28 @@ object OccurrenceGolden:
       transition.getInstant.plus(TransitionMargin)
     )
 
+  /** ROADMAP G9.8: every other day and a 3-on/2-off cycle across each recorded transition of the zone, anchored two
+    * local days before it so the transition day is a reminded day of both rules.
+    */
+  private def periodicFixtures(zone: ZoneId, transition: ZoneOffsetTransition): List[Fixture] =
+    val anchor = transition.getInstant.atZone(zone).toLocalDate.minusDays(2)
+    List(
+      "every-2-days" -> Rule.EveryNDays(2, TransitionTimes, anchor),
+      "cycle-3-2" -> Rule.Cycle(3, 2, TransitionTimes, anchor)
+    ).map: (name, rule) =>
+      Fixture(
+        s"$name:${transition.getInstant}",
+        ScheduleRevision(rule, zone),
+        transition.getInstant.minus(TransitionMargin.multipliedBy(3)),
+        transition.getInstant.plus(TransitionMargin.multipliedBy(3))
+      )
+
   def fixtures: List[Fixture] =
     for
       zone <- DstGolden.Zones
-      fixture <- weekFixture(zone) +: transitions(zone).map(transitionFixture(zone, _))
+      fixture <- weekFixture(zone) +: transitions(zone).flatMap(t =>
+        transitionFixture(zone, t) +: periodicFixtures(zone, t)
+      )
     yield fixture
 
   def rows: List[Row] =

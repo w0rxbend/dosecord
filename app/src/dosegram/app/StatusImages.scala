@@ -19,6 +19,7 @@ import dosegram.core.ports.FoodCardView
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.RefillCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
@@ -42,6 +43,8 @@ import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
+import dosegram.render.card.RefillCard
+import dosegram.render.card.RefillData
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityCard
 import dosegram.render.card.WaterCard
@@ -191,6 +194,19 @@ final class RenderedStatusCards extends StatusCards:
     val mains = view.mains.collect { case (mealType, at) if mealType.isMain => mainMealOf(mealType) -> at }
     val data = FoodDayData(view.date, mains, view.snacks, MealProgress(view.line.logged, view.line.planned))
     Some(page(FoodDayCard.render(data, contextOf(look))))
+
+  /** IMG-15 (ROADMAP G9.10): the unit word is the user's countable dose unit, or "units". */
+  override def refill(view: RefillCardView, look: CardLook): Option[CardPage] =
+    val data = RefillData(
+      view.label,
+      view.onHand,
+      view.unit.getOrElse("units"),
+      view.thresholdUnits,
+      view.threshold,
+      view.coversUntil,
+      view.text
+    )
+    Some(page(RefillCard.render(data, contextOf(look))))
 
 /** Stage 5 of the pipeline for the report worker (ROADMAP G4.3): lints and rasterises a page, keeps the PNG in the
   * asset store and returns the reference with the page's text equivalent as its alt text. A shared picture that the

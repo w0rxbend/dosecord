@@ -51,6 +51,12 @@ trait Tx:
   def reports: ReportQueue =
     throw UnsupportedOperationException("the reports repository group is not on this transaction")
 
+  /** The inventory and the pauses with a resume date (ROADMAP G9.10, G9.12; V8). A transaction double that does not use
+    * them keeps this default, which fails naming the group.
+    */
+  def medicationDepth: MedicationDepthRepositories =
+    throw UnsupportedOperationException("the medication depth repository group is not on this transaction")
+
   /** Runs `f` under a savepoint: on exception the transaction is rolled back to the savepoint and the exception
     * rethrown, so one failing unit of work cannot poison the surrounding transaction (ADR-004: per-row savepoints in
     * the reminder loop).

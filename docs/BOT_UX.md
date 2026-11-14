@@ -885,6 +885,7 @@ Every day · 09:00 · Europe/Kyiv
 | BUX-MED-06 | "Edit in app" opens the Mini App form pre-filled with the draft. The draft is suspended, not discarded (C17). |
 | BUX-MED-07 | From "Add medication" to `med.saved` the flow needs 2 taps and 1 typed message when the default cadence is accepted. |
 | BUX-MED-08 | Interval, cycle and taper schedules are not offered in chat. The prompt mentions "For other schedules, use the app form." |
+| BUX-MED-09 | Supervisor decision, 2026-11-14, owner asleep; amends BUX-MED-08 for the presets of ADR-023. The times step adds "Presets", which lists every medication preset the engine reminds as one tap each: Morning, Evening, Twice a day, With meals, Every 8 h, Every 12 h, Weekdays, Weekly (today's weekday), Every other day (from today), 21 days on, 7 off (from today) and As needed. A preset takes its times from the day profile of `/reminders`, skips the days step, and goes to the instructions step and the review card, which has no "Change days". Every review card with reminder times ends with `med.add.next`, the next three reminders as dates and clock times (PRODUCT_SPEC R-SCH-5). Other N, other days on and off, interval and taper schedules stay in the app. |
 
 ### 10.2 Medication list and card
 
@@ -930,6 +931,8 @@ Reached from "Doses" on the Today card or from history. It names the medication 
 ### 10.5 Refill reminder (later stage)
 
 When the user entered a remaining count and a threshold in the Mini App, the bot sends one silent card `refill.low` when the count reaches the threshold: "About 5 doses of <name> left by your count." Buttons: "Refilled", "Remind me in 3 days", "Stop refill reminders". It is a counted, budgeted message; it contains no advice and, in discreet mode, no name.
+
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G9.10). As built, `refill.low` reads "About 6 tablets of <name> left by your count. At your current schedule that covers until about Sun 15 Nov.", adds `refill.count_off` when a deduction stopped at zero, and has "Refilled +N" (the last refill quantity, shown only once a refill was recorded), "Show card" (IMG-15 with its text equivalent as the caption, VISUALS section 10.1) and "Stop for this pack". "Remind me in 3 days" is not a button: the notice repeats every 3 days by itself (PRODUCT_SPEC R-REG-14). A first count, a new count and a refill of another quantity are entered in the Mini App. The medication list adds "Pause for..." beside "Pause" with 3, 7, 14 and 30 days (`med.pause_for`, `med.paused_until`); the schedule resumes at local midnight of the date with the silent `med.resumed_on`.
 
 ## 11. Quick capture
 

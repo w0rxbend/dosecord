@@ -16,6 +16,7 @@ import dosegram.core.scheduling.ScheduleLifecycle
 
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
 import java.util.UUID
@@ -76,16 +77,46 @@ final class Registry(uow: UnitOfWork, clock: Clock):
         refreshSnapshots(tx, written)
         Rendering.medication(tx, written)
 
-  def changeState(accountId: UUID, id: UUID, version: Long, change: MedicationChange): Either[ApiFailure, Medication] =
+  def changeState(
+      accountId: UUID,
+      id: UUID,
+      version: Long,
+      change: MedicationChange,
+      resumeOn: Option[LocalDate] = None
+  ): Either[ApiFailure, Medication] =
     uow.transaction: tx =>
       for
         current <- ownedMedication(tx, accountId, id)
         _ <- currentVersion(tx, current, version)
         target <- targetStatus(current.status, change)
+        _ <- resumeDateAllowed(tx, accountId, change, resumeOn)
         written <- if target == current.status then Right(current) else replace(tx, current, _.copy(status = target))
       yield
         moveSchedules(tx, written, target)
+        // R-REG-5: the paused schedules resume on their own at local midnight of the date (ROADMAP G9.12).
+        resumeOn.foreach: date =>
+          liveSchedules(tx, written.id)
+            .filter(_.status == ScheduleStatus.Paused)
+            .foreach(schedule => tx.medicationDepth.pauses.setResumeOn(schedule.id, Some(date), clock.now()))
         Rendering.medication(tx, written)
+
+  /** A resume date only with a pause, after today and within a year. */
+  private def resumeDateAllowed(
+      tx: Tx,
+      accountId: UUID,
+      change: MedicationChange,
+      resumeOn: Option[LocalDate]
+  ): Either[ApiFailure, Unit] =
+    resumeOn match
+      case None                                        => Right(())
+      case Some(_) if change != MedicationChange.Pause => Left(ApiFailure.invalid("resumeOn", "not_allowed"))
+      case Some(date)                                  =>
+        val today = clock.now().atZone(zoneOf(tx, accountId)).toLocalDate
+        Either.cond(
+          date.isAfter(today) && !date.isAfter(today.plusDays(MaxPauseDays)),
+          (),
+          ApiFailure.invalid("resumeOn", "out_of_range")
+        )
 
   // ---------- schedules ----------
 
@@ -103,12 +134,12 @@ final class Registry(uow: UnitOfWork, clock: Clock):
     * materialiser uses. Nothing is written.
     */
   def preview(accountId: UUID, draft: ScheduleDraft): Either[ApiFailure, SchedulePreview] =
+    val zone = uow.transaction(zoneOf(_, accountId))
+    val now = clock.now()
+    val today = now.atZone(zone).toLocalDate
     ScheduleRules
-      .validate(draft)
+      .validate(draft, today)
       .map: rule =>
-        val zone = uow.transaction(zoneOf(_, accountId))
-        val now = clock.now()
-        val today = now.atZone(zone).toLocalDate
         val revision = ScheduleRevision(
           rule,
           zone,
@@ -153,7 +184,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
           (),
           ApiFailure.invalid("medication", "schedule_exists")
         )
-        rule <- ScheduleRules.validate(draft)
+        rule <- ScheduleRules.validate(draft, clock.now().atZone(zoneOf(tx, accountId)).toLocalDate)
         plan = AddSchedule(
           medicationId,
           rule,
@@ -174,7 +205,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
         current <- lockedSchedule(tx, accountId, id)
         _ <- currentRevision(tx, current, baseRevision)
         _ <- Either.cond(current.status == ScheduleStatus.Active, (), ApiFailure.invalid("status", "not_active"))
-        rule <- ScheduleRules.validate(draft)
+        rule <- ScheduleRules.validate(draft, clock.now().atZone(current.tz).toLocalDate)
         _ <- unchangedSince(tx, current, draft)
       yield
         lifecycle.editInTx(tx, id, rule, None, None, clock.now())
@@ -184,21 +215,51 @@ final class Registry(uow: UnitOfWork, clock: Clock):
       accountId: UUID,
       id: UUID,
       baseRevision: Long,
-      change: ScheduleChange
+      change: ScheduleChange,
+      endDate: Option[LocalDate] = None
   ): Either[ApiFailure, Schedule] =
     uow.transaction: tx =>
       for
         current <- lockedSchedule(tx, accountId, id)
         _ <- currentRevision(tx, current, baseRevision)
         _ <- Either.cond(allowed(current.status, change), (), ApiFailure.invalid("change", "not_allowed"))
+        _ <- endDateAllowed(current, change, endDate)
       yield
         val now = clock.now()
-        change match
-          case ScheduleChange.Pause  => lifecycle.pauseInTx(tx, id, now)
-          case ScheduleChange.Resume => resume(tx, current, now)
-          case ScheduleChange.End    => lifecycle.archiveInTx(tx, id, now)
-        mirrorOnMedication(tx, current.medicationId, change, now)
+        (change, endDate) match
+          case (ScheduleChange.Pause, _)        => lifecycle.pauseInTx(tx, id, now)
+          case (ScheduleChange.Resume, _)       => resume(tx, current, now)
+          case (ScheduleChange.End, Some(date)) => endOn(tx, current, date, now)
+          case (ScheduleChange.End, None)       => lifecycle.archiveInTx(tx, id, now)
+        if endDate.isEmpty then mirrorOnMedication(tx, current.medicationId, change, now)
         Rendering.schedule(tx, tx.schedules.get(id).get)
+
+  /** "Course ends on" (R-SCH-4): today or later, not before the start, with `end` only. */
+  private def endDateAllowed(
+      current: StoredSchedule,
+      change: ScheduleChange,
+      endDate: Option[LocalDate]
+  ): Either[ApiFailure, Unit] =
+    endDate match
+      case None                                    => Right(())
+      case Some(_) if change != ScheduleChange.End => Left(ApiFailure.invalid("endDate", "not_allowed"))
+      case Some(date)                              =>
+        val today = clock.now().atZone(current.tz).toLocalDate
+        Either.cond(
+          !date.isBefore(today) && !date.isBefore(current.startDate),
+          (),
+          ApiFailure.invalid("endDate", "out_of_range")
+        )
+
+  /** The last date moves; an active schedule takes a revision of its own rule, which cancels the pending doses after
+    * the date and re-creates those before it (ADR-004).
+    */
+  private def endOn(tx: Tx, current: StoredSchedule, date: LocalDate, now: Instant): Unit =
+    tx.medicationDepth.pauses.setEndDate(current.id, Some(date), now)
+    if current.status == ScheduleStatus.Active then
+      tx.revisions
+        .latest(current.id)
+        .foreach(latest => lifecycle.editInTx(tx, current.id, latest.rule, None, None, now))
 
   // ---------- shared steps ----------
 
@@ -276,6 +337,9 @@ final class Registry(uow: UnitOfWork, clock: Clock):
 
 object Registry:
   val PreviewDays = 7
+
+  /** The longest pause with a resume date (supervisor decision, 2026-11-14). */
+  val MaxPauseDays = 365L
   private val DoseUnits = List("mg", "mcg", "g", "ml", "IU", "tablet", "capsule", "drop", "puff", "unit")
 
   private def ownedMedication(tx: Tx, accountId: UUID, id: UUID): Either[ApiFailure, StoredMedication] =

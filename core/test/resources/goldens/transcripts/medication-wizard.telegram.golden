@@ -47,6 +47,8 @@ When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm.
 > with breakfast
 Which days?
 > tap "Every day"
-send: Vitamin D 1000 IU, every day 09:00 Europe/Kyiv | [Create] [Change days] [Change timezone] [Back] [Cancel]
+send: Vitamin D 1000 IU, every day 09:00 Europe/Kyiv
+
+Next reminders: Mon 21 Sep 09:00, Tue 22 Sep 09:00, Wed 23 Sep 09:00. | [Create] [Change days] [Change timezone] [Back] [Cancel]
 > tap "Create"
 send: Vitamin D is set.

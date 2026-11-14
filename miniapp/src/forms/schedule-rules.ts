@@ -16,6 +16,41 @@ export interface ScheduleForm {
   weekdays: number[];
   startDate: LocalDate;
   endDate: LocalDate | '';
+  /** every_n_days and cycle (ROADMAP G9.8); whole days as typed. */
+  everyDays?: string;
+  onDays?: string;
+  offDays?: string;
+  /** as_needed: the user's own limits; empty means none. */
+  maxPerDay?: string;
+  minGapMinutes?: string;
+}
+
+const PERIOD_MAX = 365;
+const MAX_PER_DAY = 24;
+const MIN_GAP_MAX = 1440;
+
+/** A whole number in [min, max] as typed, or null. */
+function wholeNumber(text: string | undefined, min: number, max: number): number | null {
+  const trimmed = (text ?? '').trim();
+  if (!/^\d{1,4}$/.test(trimmed)) return null;
+  const value = Number(trimmed);
+  return value >= min && value <= max ? value : null;
+}
+
+function periodErrors(form: ScheduleForm): FieldError[] {
+  const fields: (keyof ScheduleForm)[] = form.pattern === 'every_n_days' ? ['everyDays'] : form.pattern === 'cycle' ? ['onDays', 'offDays'] : [];
+  return fields
+    .filter((field) => wholeNumber(form[field] as string | undefined, 1, PERIOD_MAX) === null)
+    .map((field) => ({ field, code: 'period_invalid' }));
+}
+
+function limitErrors(form: ScheduleForm): FieldError[] {
+  const errors: FieldError[] = [];
+  if ((form.maxPerDay ?? '').trim() !== '' && wholeNumber(form.maxPerDay, 1, MAX_PER_DAY) === null)
+    errors.push({ field: 'maxPerDay', code: 'out_of_range' });
+  if ((form.minGapMinutes ?? '').trim() !== '' && wholeNumber(form.minGapMinutes, 0, MIN_GAP_MAX) === null)
+    errors.push({ field: 'minGapMinutes', code: 'out_of_range' });
+  return errors;
 }
 
 const DOSE = { integerDigits: 4, fractionDigits: 3 };
@@ -59,12 +94,12 @@ function dateErrors(form: ScheduleForm): FieldError[] {
 
 /** `perTimeDose` is false when the server keeps one dose per schedule: the row dose is then not asked. */
 export function validateSchedule(form: ScheduleForm, perTimeDose = true): FieldError[] {
-  if (form.pattern === 'as_needed') return [];
+  if (form.pattern === 'as_needed') return limitErrors(form);
   const weekdayErrors =
     form.pattern === 'weekly' && form.weekdays.length === 0
       ? [{ field: 'weekdays', code: 'weekday_required' }]
       : [];
-  return [...weekdayErrors, ...rowErrors(form.rows, perTimeDose), ...dateErrors(form)];
+  return [...weekdayErrors, ...periodErrors(form), ...rowErrors(form.rows, perTimeDose), ...dateErrors(form)];
 }
 
 /** Call only for a form that validateSchedule accepts. */
@@ -81,5 +116,29 @@ export function toScheduleDraft(form: ScheduleForm): ScheduleDraft {
     weekdays: form.pattern === 'weekly' ? [...form.weekdays].sort((a, b) => a - b) : [],
     startDate: form.startDate,
     endDate: form.endDate === '' ? null : form.endDate,
+    ...periodOf(form),
   };
+}
+
+/** The pattern's own numbers, only for that pattern. */
+function periodOf(form: ScheduleForm): Partial<ScheduleDraft> {
+  switch (form.pattern) {
+    case 'every_n_days':
+      return { everyDays: wholeNumber(form.everyDays, 1, PERIOD_MAX) ?? undefined };
+    case 'cycle':
+      return {
+        onDays: wholeNumber(form.onDays, 1, PERIOD_MAX) ?? undefined,
+        offDays: wholeNumber(form.offDays, 1, PERIOD_MAX) ?? undefined,
+      };
+    case 'as_needed': {
+      const maxPerDay = wholeNumber(form.maxPerDay, 1, MAX_PER_DAY);
+      const minGapMinutes = wholeNumber(form.minGapMinutes, 0, MIN_GAP_MAX);
+      return {
+        ...(maxPerDay === null ? {} : { maxPerDay }),
+        ...(minGapMinutes === null ? {} : { minGapMinutes }),
+      };
+    }
+    default:
+      return {};
+  }
 }

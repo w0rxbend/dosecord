@@ -4,6 +4,7 @@ import dosegram.contracts.Weekday
 import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.ExportCopy
+import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.insights.DateRange
@@ -259,8 +260,11 @@ object RecordSummaries:
         else if days == Weekday.values.toList.take(5) then WizardCopy.cadenceWeekdays
         else WizardCopy.cadenceDays(days.map(_.toString))
       s"$cadence ${times.mkString(", ")}"
-    case _: Rule.AsNeeded => "as needed"
-    case _: Rule.EveryNDays | _: Rule.EveryNWeeks | _: Rule.Cycle | _: Rule.IntervalFixedStart | _: Rule.Chain |
-        _: Rule.Taper | Rule.Paused =>
+    case _: Rule.AsNeeded                          => "as needed"
+    case Rule.EveryNDays(everyDays, times, anchor) =>
+      s"${MedicationDepthCopy.everyNDays(everyDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
+    case Rule.Cycle(onDays, offDays, times, anchor) =>
+      s"${MedicationDepthCopy.cycle(onDays, offDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
+    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
       Rule.kindTag(rule)
 end RecordSummaries

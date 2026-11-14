@@ -55,6 +55,8 @@ import type {
   MedicationSummary,
   OccurrenceAction,
   OccurrenceActionResult,
+  InventoryInput,
+  InventoryView,
   Schedule,
   ScheduleDraft,
   ScheduleOptions,
@@ -181,6 +183,12 @@ export interface ApiClient {
   schedule(id: string): Promise<Schedule>;
   /** An edit is a new revision on `revision`, the one the screen loaded (API-17). */
   reviseSchedule(id: string, draft: ScheduleDraft, revision: number): Promise<Schedule>;
+
+  // inventory (ROADMAP G9.10): null when the user keeps no count for the medication.
+  inventory(medicationId: string): Promise<InventoryView | null>;
+  /** `version` is null for a first count. */
+  saveInventory(medicationId: string, input: InventoryInput, version: number | null): Promise<InventoryView>;
+  refill(medicationId: string, quantity: string): Promise<InventoryView>;
 
   insightsOverview(rangeDays: InsightRange): Promise<InsightsOverview>;
   /** One calendar month; absent is the current month. */

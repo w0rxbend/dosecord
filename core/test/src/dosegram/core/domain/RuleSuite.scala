@@ -20,7 +20,7 @@ class RuleSuite extends munit.FunSuite:
     // …enforced structurally by the exhaustive matches in `object Rule` (see the M1.1 negative compile test).
     val kinds: List[Rule] = List(
       validFixed,
-      Rule.EveryNDays(2, List(nine)),
+      Rule.EveryNDays(2, List(nine), LocalDate.of(2026, 9, 1)),
       Rule.EveryNWeeks(2, weekdays, List(nine)),
       Rule.Cycle(21, 7, List(nine), LocalDate.of(2026, 9, 1)),
       Rule.IntervalFixedStart(nine, 240, 4, weekdays),
@@ -48,11 +48,29 @@ class RuleSuite extends munit.FunSuite:
     assert(Rule.validate(Rule.AsNeeded(0, 60)).nonEmpty)
     assert(Rule.validate(Rule.AsNeeded(4, -1)).nonEmpty)
 
-  test("M7 kinds are declared, inert (validate to Nil) and not accepted by validation"):
+  test("G9.8: valid every-N-days and cycle rules pass validation and are accepted on writes"):
+    val everyOther = Rule.EveryNDays(2, List(nine), LocalDate.of(2026, 9, 1))
+    val cycle = Rule.Cycle(21, 7, List(nine, HhMm.unsafe("21:00")), LocalDate.of(2026, 9, 1))
+    assertEquals(Rule.validate(everyOther), Nil)
+    assertEquals(Rule.validate(cycle), Nil)
+    assert(Rule.isSupportedInMvp(everyOther))
+    assert(Rule.isSupportedInMvp(cycle))
+
+  test("G9.8: every-N-days and cycle validation rejects bad periods and bad times"):
+    val start = LocalDate.of(2026, 9, 1)
+    assert(Rule.validate(Rule.EveryNDays(0, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNDays(366, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNDays(2, Nil, start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNDays(2, List(nine, nine), start)).nonEmpty)
+    val thirteen = (0 until 13).toList.map(h => HhMm.unsafe(f"$h%02d:00"))
+    assert(Rule.validate(Rule.EveryNDays(2, thirteen, start)).nonEmpty)
+    assert(Rule.validate(Rule.Cycle(0, 7, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.Cycle(21, 0, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.Cycle(21, 7, Nil, start)).nonEmpty)
+
+  test("the remaining M7 kinds are declared, inert (validate to Nil) and not accepted by validation"):
     val inert: List[Rule] = List(
-      Rule.EveryNDays(2, List(nine)),
       Rule.EveryNWeeks(2, weekdays, List(nine)),
-      Rule.Cycle(21, 7, List(nine), LocalDate.of(2026, 9, 1)),
       Rule.IntervalFixedStart(nine, 240, 4, weekdays),
       Rule.Chain(ChainAnchor.FirstTaken, 360, 4, nine, HhMm.unsafe("23:00"), HhMm.unsafe("08:00")),
       Rule.taper(List(TaperPhase(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 15), validFixed))),

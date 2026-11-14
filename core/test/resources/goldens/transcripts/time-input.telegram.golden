@@ -1,6 +1,6 @@
 ## the owner's case
 > 1000 IU
-send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Back] [Cancel]
+send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Presets] [Back] [Cancel]
 > 9:00
 send: Reminder time: 09:00.
 
@@ -8,11 +8,11 @@ Any instructions to show with the reminder? Type them, like with breakfast. | [N
 
 ## an error, then the explanation
 > 1000 IU
-send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Back] [Cancel]
+send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Presets] [Back] [Cancel]
 > 9:75
 send: I could not read "9:75" as a time. Type a time like 9:00, 21:30 or 9pm, or several at once: 8, 14:30 and 22.
 
-When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Back] [Cancel]
+When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Presets] [Back] [Cancel]
 > 9am
 send: Reminder time: 09:00.
 
@@ -20,7 +20,7 @@ Any instructions to show with the reminder? Type them, like with breakfast. | [N
 
 ## two failures, then buttons
 > 1000 IU
-send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Back] [Cancel]
+send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Presets] [Back] [Cancel]
 > tap "Other time"
 send: Type the time or times, like 7:30, 9pm or 8, 14:30 and 22.
 
@@ -34,7 +34,7 @@ Reply Back to go back or Cancel to stop.
 > after lunch
 send: I could not read "after lunch" as a time. Type a time like 9:00, 21:30 or 9pm, or several at once: 8, 14:30 and 22.
 
-When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Back] [Cancel]
+When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Presets] [Back] [Cancel]
 > tap "08:00"
 send: Reminder time: 08:00.
 
@@ -42,7 +42,7 @@ Any instructions to show with the reminder? Type them, like with breakfast. | [N
 
 ## several times in one message
 > 1000 IU
-send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Back] [Cancel]
+send: When should I remind you? Tap a time, or type one or more, like 9, 14:30 or 9pm. | [08:00] [09:00] [13:00] [20:00] | [22:00] [Other time] [As needed] [Presets] [Back] [Cancel]
 > 8, 14:30 and 22
 send: Reminder times: 08:00, 14:30 and 22:00.
 
@@ -50,4 +50,6 @@ Any instructions to show with the reminder? Type them, like with breakfast. | [N
 > with breakfast
 send: Which days? | [Every day] [Weekdays] [Choose days...] [Back] [Cancel]
 > tap "Every day"
-send: Vitamin D 1000 IU, every day 08:00, 14:30, 22:00 Europe/Kyiv | [Create] [Change days] [Change timezone] [Back] [Cancel]
+send: Vitamin D 1000 IU, every day 08:00, 14:30, 22:00 Europe/Kyiv
+
+Next reminders: Mon 21 Sep 08:00, Mon 21 Sep 14:30, Mon 21 Sep 22:00. | [Create] [Change days] [Change timezone] [Back] [Cancel]

@@ -9,7 +9,9 @@ import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.Refusal
+import dosegram.core.domain.copy.Copy
 import dosegram.core.domain.copy.DoseActionKind
+import dosegram.core.domain.copy.ForbiddenPhrases
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.DeliveryTarget
 import dosegram.core.ports.NewOutboxMessage
@@ -522,4 +524,49 @@ class DoseIntakeSuite extends munit.FunSuite:
         case VendorOp.Send(_, m, _, _) if m.chunks.exists(_.contains("Time for Vitamin D")) => m
       }.lastOption.get
       assert(repeat.choiceMap.nonEmpty, "the repeat carries fresh controls")
+
+  // ---------- ROADMAP G9.12: the limits the user set for an as-needed medication ----------
+
+  private def limitedPicker(rig: MedicationWizardRig, rule: Rule.AsNeeded): Unit =
+    val account = rig.seedAccount()
+    channel(rig, account)
+    rig.seedSchedule(account, "Ibuprofen", rule, kyiv)
+    rig.clock.at = due
+
+  private def logOnce(rig: MedicationWizardRig): MessageHandle =
+    rig.line("/log")
+    val (picker, wire) = rig.controlOn("Log a dose of which medication?", "Log Ibuprofen")
+    rig.tapFrom(picker, wire)
+    picker
+
+  test("G9.12: the outcome states the limit the user set as a fact; a log at the limit asks once, Log it records"):
+    withTelegramRig: rig =>
+      limitedPicker(rig, Rule.AsNeeded(maxPerDay = 2, minGapMinutes = 0))
+      val first = logOnce(rig)
+      assertEquals(rig.messageAt(first).chunks.mkString, "Logged Ibuprofen at 09:05. You set at most 2 a day; 1 logged today.")
+      logOnce(rig)
+      val third = logOnce(rig)
+      assertEquals(manualTakenRows(rig).size, 2, "nothing is recorded before the answer")
+      val question = rig.messageAt(third)
+      assertEquals(question.chunks.mkString, "You set at most 2 a day; 2 logged today. Log Ibuprofen anyway?")
+      assertEquals(question.choiceMap.map(_.label), List("Log it", "Cancel"))
+      rig.tapFrom(third, rig.controlOn("Log Ibuprofen anyway?", "Log it")._2)
+      assertEquals(manualTakenRows(rig).size, 3, "the log is never refused")
+      assertEquals(rig.messageAt(third).chunks.mkString, "Logged Ibuprofen at 09:05. You set at most 2 a day; 3 logged today.")
+      Copy.all.map(_.text).foreach(text => assertEquals(ForbiddenPhrases.violations(text), Nil, text))
+
+  test("G9.12: a log closer than the user's own gap asks; Cancel records nothing; the default limits say nothing"):
+    withTelegramRig: rig =>
+      limitedPicker(rig, Rule.AsNeeded(maxPerDay = 10, minGapMinutes = 240))
+      logOnce(rig)
+      rig.clock.at = due.plusSeconds(3600)
+      val soon = logOnce(rig)
+      assertEquals(rig.messageAt(soon).chunks.mkString, "You set at least 4 h between; 1 logged today. Log Ibuprofen anyway?")
+      rig.tapFrom(soon, rig.controlOn("Log Ibuprofen anyway?", "Cancel")._2)
+      assertEquals(rig.messageAt(soon).chunks.mkString, "Nothing was logged.")
+      assertEquals(manualTakenRows(rig).size, 1)
+    withTelegramRig: rig =>
+      limitedPicker(rig, Rule.AsNeeded(maxPerDay = 10, minGapMinutes = 0))
+      val picker = logOnce(rig)
+      assertEquals(rig.messageAt(picker).chunks.mkString, "Logged Ibuprofen at 09:05.")
 end DoseIntakeSuite

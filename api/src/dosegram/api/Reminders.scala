@@ -314,4 +314,19 @@ object Reminders:
       )
     case Rule.AsNeeded(maxPerDay, minGap) =>
       ScheduleDraft(SchedulePattern.AsNeeded, maxPerDay = Some(maxPerDay), minGapMinutes = Some(minGap))
+    case Rule.EveryNDays(everyDays, times, anchor) =>
+      ScheduleDraft(
+        SchedulePattern.EveryNDays,
+        times = times.map(_.value).sorted,
+        everyDays = Some(everyDays),
+        anchorDate = Some(anchor)
+      )
+    case Rule.Cycle(onDays, offDays, times, anchor) =>
+      ScheduleDraft(
+        SchedulePattern.Cycle,
+        times = times.map(_.value).sorted,
+        onDays = Some(onDays),
+        offDays = Some(offDays),
+        anchorDate = Some(anchor)
+      )
     case other => throw IllegalArgumentException(s"no draft for ${Rule.kindTag(other)}")

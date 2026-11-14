@@ -77,7 +77,10 @@ final class OpenApiSuite extends munit.FunSuite:
     "GET /api/v1/exports",
     "GET /api/v1/exports/{id}",
     "POST /api/v1/exports/{id}/download-tickets",
-    "GET /api/v1/downloads/{ticket}"
+    "GET /api/v1/downloads/{ticket}",
+    "GET /api/v1/medications/{id}/inventory",
+    "PUT /api/v1/medications/{id}/inventory",
+    "POST /api/v1/medications/{id}/refills"
   )
 
   private val document = ujson.read(OpenApiDocument.json)
@@ -109,5 +112,8 @@ final class OpenApiSuite extends munit.FunSuite:
   test("the wire enumerations are closed sets in the document"):
     val schemas = document("components")("schemas")
     assertEquals(schemas("MedicationState")("enum").arr.map(_.str).toSet, Set("active", "paused", "archived"))
-    assertEquals(schemas("SchedulePattern")("enum").arr.map(_.str).toSet, Set("fixed_times", "as_needed"))
+    assertEquals(
+      schemas("SchedulePattern")("enum").arr.map(_.str).toSet,
+      Set("fixed_times", "as_needed", "every_n_days", "cycle")
+    )
     assert(schemas("ErrorCode")("enum").arr.map(_.str).contains("version_conflict"))

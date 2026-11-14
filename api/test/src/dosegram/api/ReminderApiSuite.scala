@@ -48,8 +48,11 @@ final class ReminderApiSuite extends ApiSuite:
     val twice = presets.json("medication").arr.find(_("id").str == "med.twice_daily").get
     assertEquals(twice("draft")("times").arr.map(_.str).toList, List("07:00", "23:00"))
     val cycle = presets.json("medication").arr.find(_("id").str == "med.cycle").get
-    assertEquals(cycle("available").bool, false)
-    assert(!cycle.obj.contains("draft"))
+    assertEquals(cycle("available").bool, true)
+    assertEquals(cycle("draft")("pattern").str, "cycle")
+    assertEquals((cycle("draft")("onDays").num.toInt, cycle("draft")("offDays").num.toInt), (21, 7))
+    val everyOther = presets.json("medication").arr.find(_("id").str == "med.every_other_day").get
+    assertEquals(everyOther("draft")("everyDays").num.toInt, 2)
     assert(!kind(get("/api/v1/reminders", token).json, "water").obj.contains("presetId"))
 
   test("a plan needs the domain's consent, is recorded once per key, and is turned off by kind"):

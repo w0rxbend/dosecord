@@ -6,6 +6,7 @@ import dosegram.core.application.capture.MedicationScreen
 import dosegram.core.application.dose.LogDosePicker
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
+import dosegram.core.application.medication.MedicationDepthChat
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -17,6 +18,7 @@ import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.WizardCopy
@@ -347,11 +349,16 @@ final class MenuHandler(
             MenuCopy.medicationsPause,
             mint(chat, accountId, MenuOpenAction, KeyPausePrefix + medication.id, tx).wire
           )
+      // R-REG-5: a pause that ends on its own, offered next to the open-ended one (ROADMAP G9.12).
+      val pauseFor = Option.unless(paused):
+        Choice.callback(
+          MedicationDepthCopy.pauseFor,
+          codec.encode(CallbackMode.Direct, MedicationDepthChat.PauseFor, medication.id, 0).wire
+        )
       Block.Choices(
         ChoiceSet(
           id = s"menu.medications.toggle.${medication.id}",
-          choices = List(
-            toggle,
+          choices = List(toggle) ++ pauseFor.toList ++ List(
             Choice.callback(
               Labels.Archive,
               mint(chat, accountId, MenuOpenAction, KeyArchivePrefix + medication.id, tx).wire

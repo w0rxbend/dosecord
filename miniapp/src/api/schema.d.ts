@@ -891,6 +891,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/medications/{id}/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The count of the medication; `count` is absent while the user keeps none (ETag "v0"). */
+        get: operations["getInventory"];
+        /** @description Creates the count (no If-Match) or replaces it on the version read; a repeated key changes nothing. */
+        put: operations["saveInventory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/medications/{id}/refills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createRefill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1305,6 +1339,39 @@ export interface components {
             blocks?: components["schemas"]["InsightBlock"][];
             notice?: string;
         };
+        /** InventoryDocument */
+        InventoryDocument: {
+            /** Format: uuid */
+            medicationId: string;
+            onHand: string;
+            perIntake: string;
+            /** Format: int32 */
+            thresholdDays?: number;
+            thresholdUnits?: string;
+            lastRefill?: string;
+            /** Format: int32 */
+            daysOfSupply?: number;
+            /** Format: date */
+            coversUntil?: string;
+            belowThreshold: boolean;
+            countMayBeOff: boolean;
+            noticesStopped: boolean;
+            /** Format: int64 */
+            version: number;
+            summary: string;
+        };
+        /** InventoryInput */
+        InventoryInput: {
+            onHand: string;
+            perIntake: string;
+            /** Format: int32 */
+            thresholdDays?: number;
+            thresholdUnits?: string;
+        };
+        /** InventoryReading */
+        InventoryReading: {
+            count?: components["schemas"]["InventoryDocument"];
+        };
         /** LanguageChoice */
         LanguageChoice: {
             code: string;
@@ -1419,6 +1486,8 @@ export interface components {
         /** MedicationStateChange */
         MedicationStateChange: {
             change: components["schemas"]["MedicationChange"];
+            /** Format: date */
+            resumeOn?: string;
         };
         /** MedicationSummary */
         MedicationSummary: {
@@ -1612,6 +1681,10 @@ export interface components {
             start: string;
             end: string;
         };
+        /** RefillInput */
+        RefillInput: {
+            quantity: string;
+        };
         /** ReminderKindView */
         ReminderKindView: {
             kind: string;
@@ -1740,6 +1813,16 @@ export interface components {
             minGapMinutes?: number;
             /** Format: date */
             endDate?: string;
+            /** Format: int32 */
+            everyDays?: number;
+            /** Format: int32 */
+            onDays?: number;
+            /** Format: int32 */
+            offDays?: number;
+            /** Format: date */
+            anchorDate?: string;
+            /** Format: date */
+            resumeOn?: string;
         };
         /**
          * ScheduleChange
@@ -1759,6 +1842,14 @@ export interface components {
             startDate?: string;
             /** Format: date */
             endDate?: string;
+            /** Format: int32 */
+            everyDays?: number;
+            /** Format: int32 */
+            onDays?: number;
+            /** Format: int32 */
+            offDays?: number;
+            /** Format: date */
+            anchorDate?: string;
         };
         /** ScheduleList */
         ScheduleList: {
@@ -1779,7 +1870,7 @@ export interface components {
          * SchedulePattern
          * @enum {string}
          */
-        SchedulePattern: "as_needed" | "fixed_times";
+        SchedulePattern: "as_needed" | "cycle" | "every_n_days" | "fixed_times";
         /** SchedulePreview */
         SchedulePreview: {
             summary: string;
@@ -1798,6 +1889,8 @@ export interface components {
         /** ScheduleStateChange */
         ScheduleStateChange: {
             change: components["schemas"]["ScheduleChange"];
+            /** Format: date */
+            endDate?: string;
         };
         /** SessionCreated */
         SessionCreated: {
@@ -4199,6 +4292,118 @@ export interface operations {
                 };
                 content: {
                     "application/octet-stream": string;
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInventory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryReading"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    saveInventory: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; absent only for a first count */
+                "If-Match"?: string;
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InventoryInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryDocument"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createRefill: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefillInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryDocument"];
                 };
             };
             default: {

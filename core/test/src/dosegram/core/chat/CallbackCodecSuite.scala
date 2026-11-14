@@ -267,7 +267,14 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         213 -> "export.summary",
         214 -> "export.send_ask",
         215 -> "export.send_agree",
-        216 -> "export.send"
+        216 -> "export.send",
+        // Medication depth (ROADMAP G9.10, G9.12): refill, pause for days, as-needed limits.
+        250 -> "refill.add",
+        251 -> "refill.card",
+        252 -> "refill.stop",
+        253 -> "med.pause_for",
+        254 -> "take.limit_confirm",
+        255 -> "take.limit_cancel"
       )
     )
 
