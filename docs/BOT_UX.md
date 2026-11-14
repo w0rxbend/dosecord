@@ -1509,6 +1509,8 @@ Consents:
 | BUX-DEL-03 | The confirmation buttons are "Delete my account" and "Keep my account". The destructive button may use style `danger`; it is never the first button. |
 | BUX-DEL-04 | After deletion the bot sends `privacy.deleted` as its last message, resets the menu button (BUX-MENU-03), and sends nothing further. A later `/start` begins onboarding from step W. |
 
+Supervisor decision, 2026-11-14 (ROADMAP G2.17): "Delete my account" opens `privacy.delete.account`, which names what is deleted, what stops, the 35-day backup period and the limit of BUX-DEL-01, with "Keep my account" and "Continue"; "Continue" opens `privacy.delete.account.final` with "Keep my account" and the danger button "Delete my account", whose tap deletes the account and is answered with `privacy.deleted` in place of the card. A domain is deleted from `privacy.delete.<domain>` with "Keep the data" and "Delete this data". A confirmation counts for ten minutes; an older one deletes nothing and answers `privacy.delete.expired`. The choice of BUX-DEL-02 is not offered yet (PRODUCT_SPEC, supervisor decision of the same date), and the menu-button reset of BUX-DEL-04 is not built. A confirmation that the Mini App asked for opens with "The app asked..." and is the step-up of MINI_APP section 8.8.
+
 ### 20.4 Clearing the chat
 
 | ID | Requirement |
