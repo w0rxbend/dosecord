@@ -1,0 +1,8 @@
+# Default Mill options, one argument per line.
+# The ticker's prompt thread asks the launcher for the terminal size over the
+# same RPC wire that `runMain` uses for its subprocess. Mill 1.1.9 does not
+# serialise those calls, so a reply can reach the wrong waiter and `runMain`
+# reports "Subprocess failed" after a correct run (issue #9; fixed upstream in
+# Mill 1.3.0). Without the ticker the race cannot happen.
+--ticker
+false

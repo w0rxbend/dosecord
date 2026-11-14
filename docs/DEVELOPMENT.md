@@ -49,8 +49,17 @@ docker rm -f dosegram-flyway
 
 The suites in `infra` and `app` start their own PostgreSQL through
 Testcontainers and are slow under parallel load; rerun before concluding that
-a failure is real. `./mill app.test.runMain` fails now and then with
-"Subprocess failed" after printing a correct result (issue #9); rerun it.
+a failure is real.
+
+`./mill ... runMain` used to fail now and then with "Subprocess failed" after
+printing a correct result (issue #9). The cause is in Mill 1.1.9: the
+ticker's prompt thread asks the launcher for the terminal size over the same
+connection that `runMain` uses to run its subprocess, the two calls are not
+serialised, and a reply can reach the wrong waiter. Under load 9 of 40 runs of
+`envExampleCheck` failed with the ticker and 0 of 40 without it (and 0 of 40
+on Mill 1.3.1, which serialises the calls). `.mill-opts` therefore turns the
+ticker off for every `./mill` command; remove it after an upgrade to Mill
+1.3.0 or later.
 
 ## Focused test
 
