@@ -617,6 +617,8 @@ MA-DS-7. Interactive charts in the Mini App and server-rendered cards use the sa
 8. Every string comes from the message catalogue of the account locale. First locales: English and Ukrainian (R04 open question Q10). Layouts tolerate strings 40 percent longer than English. Plural forms use `Intl.PluralRules`.
 9. Strings passed to `showPopup` respect its limits in every locale: title at most 64 characters, message at most 256 (TGF-18). A catalogue lint checks this. [O]
 
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G2.22): the catalogues are `src/i18n/en.ts` and `src/i18n/uk.ts`; `uk` has the type of `en`, so a missing key or a function with other arguments fails the type check. `src/i18n/index.svelte.ts` holds the locale as reactive state and serves the catalogue of the current locale; screens import it under the name they used before (`import { t as en }`), so a language change re-renders them without a reload. The locale comes from `language` in the session's bootstrap document, then from the settings screen; before the session the gate screens follow the client's `language_code` (MA-SEC-6). Dates and numbers use `Intl` with the locale; the server writes its sentences in the account's language too.
+
 ## 6. Native controls
 
 ### 6.1 Bottom buttons
