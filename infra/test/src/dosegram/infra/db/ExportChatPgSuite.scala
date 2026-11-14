@@ -95,8 +95,10 @@ class ExportChatPgSuite extends PgSuite:
   private def outboxPayloads(account: UUID): List[String] =
     withConnection: conn =>
       given Connection = conn
-      sql"""SELECT payload::text FROM outbox_messages WHERE account_id = $account AND kind = 'export'
-            ORDER BY created_at""".query[String]()
+      OutboxPayloads.open(
+        sql"""SELECT id, account_id, payload, payload_enc FROM outbox_messages
+              WHERE account_id = $account AND kind = 'export' ORDER BY created_at"""
+      )
 
   test("/export offers the full export and the record summary; nothing is made before a tap"):
     val rig = Rig(seeded().account)

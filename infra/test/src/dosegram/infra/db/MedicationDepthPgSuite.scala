@@ -79,8 +79,10 @@ class MedicationDepthPgSuite extends PgSuite:
     def notices: List[String] =
       withConnection: conn =>
         given Connection = conn
-        sql"""SELECT payload FROM outbox_messages WHERE account_id = $account AND kind = 'prompt'
-              ORDER BY created_at, id""".query[String]()
+        OutboxPayloads.open(
+          sql"""SELECT id, account_id, payload, payload_enc FROM outbox_messages
+                WHERE account_id = $account AND kind = 'prompt' ORDER BY created_at, id"""
+        )
 
     def tap(action: String, value: Long): Reply =
       val entry = ActionRegistry.byName(action).get
@@ -112,7 +114,7 @@ class MedicationDepthPgSuite extends PgSuite:
     val notice = rig.notices.head
     assert(notice.contains("About 3 tablets of Iron left by your count."), notice)
     assert(notice.contains("covers until about Wed 23 Sep"), notice)
-    assert(notice.contains("\"silent\": true"), notice)
+    assert(ujson.read(notice)("silent").bool, notice)
     assert(notice.contains("Show card") && notice.contains("Stop for this pack"), notice)
     rig.clock.at = local(23, "23:00") // inside quiet hours, and less than 3 days on
     rig.loop.tick()
@@ -197,7 +199,7 @@ class MedicationDepthPgSuite extends PgSuite:
     assertEquals(fixtures.uow.transaction(_.schedules.get(rig.schedule).get.status), ScheduleStatus.Active)
     val resumed = rig.notices.filter(_.contains("are back on"))
     assertEquals(resumed.size, 1)
-    assert(resumed.head.contains("\"silent\": true"))
+    assert(ujson.read(resumed.head)("silent").bool, resumed.head)
     // Nothing is backfilled: the next reminder is today's 09:00, after the resume.
     val next = fixtures.uow.transaction(_.occurrences.nextScheduledAfter(rig.schedule, rig.clock.now()))
     assertEquals(next, Some(local(24, "09:00")))

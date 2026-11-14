@@ -70,7 +70,8 @@ class SealedStoresPgSuite extends PgSuite:
       .foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
 
   test("every text, JSON or byte column of a sealed table is sealed, a lookup hash, or named as not Class A"):
-    val sealedTables = SealedColumns.all.map(_.table).toSet
+    val sealedColumns = SealedColumns.all ++ SealedColumns.emptiedOnSeal
+    val sealedTables = sealedColumns.map(_.table).toSet
     val columns = withConnection: conn =>
       given Connection = conn
       given RowMapper[(String, String)] = rs => (rs.getString(1), rs.getString(2))
@@ -78,7 +79,7 @@ class SealedStoresPgSuite extends PgSuite:
             WHERE table_schema = 'public' AND data_type IN ('text', 'jsonb', 'json', 'bytea', 'character varying')"""
         .query[(String, String)]()
         .filter((table, _) => sealedTables(table))
-    val sealedOrLookup = SealedColumns.all.flatMap: column =>
+    val sealedOrLookup = sealedColumns.flatMap: column =>
       List(column.table -> column.plain, column.table -> column.encrypted) ++
         column.lookup.map(spec => column.table -> spec.column)
     val unclassified = columns.toSet -- sealedOrLookup -- SealedStoresPgSuite.NotClassA.toList.flatMap((table, names) =>
@@ -99,5 +100,10 @@ object SealedStoresPgSuite:
     "meals" -> Set("tz", "source", "client_key", "external_ref_hmac", "meal_type", "void_reason"),
     "export_jobs" -> Set("kind", "params", "status", "file_name", "mime"),
     "render_assets" -> Set("asset_key", "mime"),
-    "idempotency_keys" -> Set("request_hash")
+    "idempotency_keys" -> Set("request_hash"),
+    // target and platform_message_id are message handles, last_error a delivery error code and text from the vendor,
+    // traceparent a trace id, items unused; chat_key is the chat, kept for the erasure job (V13).
+    "outbox_messages" -> Set("send_key", "op", "kind", "vendor", "items", "target", "importance", "status",
+      "platform_message_id", "last_error", "traceparent", "chat_key"),
+    "inbound_events" -> Set("vendor", "vendor_event_id", "chat_key")
   )

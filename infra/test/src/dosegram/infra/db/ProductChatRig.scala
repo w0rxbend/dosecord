@@ -81,8 +81,9 @@ final class ProductChatRig(dataSource: DataSource, val clock: MutableClock, purg
       try
         given java.sql.Connection = conn
         accountId.toList.flatMap: account =>
-          sql"SELECT payload::text FROM outbox_messages WHERE account_id = $account ORDER BY created_at, id"
-            .query[String]()
+          OutboxPayloads
+            .open(sql"""SELECT id, account_id, payload, payload_enc FROM outbox_messages
+                        WHERE account_id = $account ORDER BY created_at, id""")
             .map(OutboundMessage.fromJson)
       finally conn.close()
     val wire = queued.reverse

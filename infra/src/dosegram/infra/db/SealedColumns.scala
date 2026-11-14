@@ -11,12 +11,13 @@ import java.util.UUID
 /** The keyed lookup column next to a sealed column: what the hash is computed over, and for which purpose. */
 final case class LookupColumn(column: String, purpose: String, normalise: String => String)
 
-/** Where the owner of a sealed value comes from: an account column of the row (an SQL expression over alias `t`), or a
-  * service key.
+/** Where the owner of a sealed value comes from: an account column of the row (an SQL expression over alias `t`), a
+  * service key, or the account column when the row has an account and the service key when it has none.
   */
 enum SealOwner:
   case AccountOf(expression: String)
   case Service(purpose: String)
+  case AccountOr(expression: String, purpose: String)
 
 /** One Class A column and its sealed form (ARCHITECTURE SEC-01, SEC-04; V10, V11). `plain` is the column V11 emptied;
   * `encrypted` is the column the value lives in, bound to the row by `rowKey`. The repositories, the backfill, the
@@ -35,7 +36,15 @@ final case class SealedColumn(
 
   def forAccount(account: UUID, row: Any): SealedField = field(KeyOwner.Account(account), row)
 
+  /** The field of a row of an [[SealOwner.AccountOr]] column: its account's key, or the service key without one. */
+  def forRow(account: Option[UUID], row: Any): SealedField = owner match
+    case SealOwner.AccountOr(_, purpose) => field(account.fold(KeyOwner.Service(purpose))(KeyOwner.Account(_)), row)
+    case other => throw IllegalArgumentException(s"$table.$encrypted is not sealed by row ($other)")
+
 object SealedColumns:
+
+  /** The service key of the transport rows written before an account existed (the onboarding). */
+  val TransportPurpose: String = "transport"
 
   /** The normalised form of a medication name, the same on write and on search: trimmed, lower case. */
   def medicationNameNorm(name: String): String = name.trim.toLowerCase(Locale.ROOT)
@@ -78,6 +87,24 @@ object SealedColumns:
   val IdempotencyResponse: SealedColumn =
     SealedColumn("idempotency_keys", "response_json", "response_enc", "key", SealOwner.AccountOf("t.account_id"))
 
+  /** The text of a message the bot queued (V13): medication names and instructions among it. */
+  val OutboxPayload: SealedColumn = SealedColumn(
+    "outbox_messages",
+    "payload",
+    "payload_enc",
+    "id",
+    SealOwner.AccountOr("t.account_id", TransportPurpose)
+  )
+
+  /** The stored answer to an update, replayed on a repeated delivery (V13). */
+  val InboundReply: SealedColumn = SealedColumn(
+    "inbound_events",
+    "reply",
+    "reply_enc",
+    "event_id",
+    SealOwner.AccountOr("t.account_id", TransportPurpose)
+  )
+
   /** Every sealed column, in the order of V11. */
   val all: List[SealedColumn] = List(
     MedicationName,
@@ -91,6 +118,11 @@ object SealedColumns:
     RenderBytes,
     IdempotencyResponse
   )
+
+  /** The sealed columns of V13. No contract migration empties their plaintext: the backfill right after V13 seals each
+    * value and empties its plaintext column in the same UPDATE, and the release writes the sealed column only.
+    */
+  val emptiedOnSeal: List[SealedColumn] = List(OutboxPayload, InboundReply)
 
 /** Text over a [[KeyService]]: UTF-8 in, UTF-8 out. */
 extension (keys: KeyService)

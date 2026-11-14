@@ -92,10 +92,12 @@ class CatchUpDigestPgSuite extends PgSuite:
 
   private def outboxRows(): List[OutboxRow] = withConnection { conn =>
     given Connection = conn
+    val keys = DataKeys.development.on(conn)
     given RowMapper[OutboxRow] = rs =>
-      OutboxRow(rs.getString("send_key"), rs.getString("kind"), rs.getString("status"), rs.getString("payload"))
-    sql"SELECT send_key, kind, status::text AS status, payload FROM outbox_messages ORDER BY created_at, send_key"
-      .query[OutboxRow]()
+      val payload = PgOutboxRepository.payloadOf(keys, rs, rs.uuid("id"), Option(rs.getObject("account_id", classOf[UUID])))
+      OutboxRow(rs.getString("send_key"), rs.getString("kind"), rs.getString("status"), payload)
+    sql"""SELECT id, account_id, send_key, kind, status::text AS status, payload, payload_enc FROM outbox_messages
+          ORDER BY created_at, send_key""".query[OutboxRow]()
   }
 
   private def digestOf(rows: List[OutboxRow]): (String, LoopDispatch.Digest) =

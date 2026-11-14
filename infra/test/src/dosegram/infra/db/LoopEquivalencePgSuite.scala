@@ -104,7 +104,9 @@ class LoopEquivalencePgSuite extends PgSuite, munit.ScalaCheckSuite:
           .getOrElse(0)
       val direct =
         sql"SELECT occurrence_id FROM outbox_messages WHERE occurrence_id IS NOT NULL".query[UUID]().toSet
-      val folded = sql"SELECT payload FROM outbox_messages WHERE kind = 'digest'".query[String]().flatMap { payload =>
+      val folded = OutboxPayloads.open(
+        sql"SELECT id, account_id, payload, payload_enc FROM outbox_messages WHERE kind = 'digest'"
+      ).flatMap { payload =>
         LoopDispatch.fromJson(payload) match
           case d: LoopDispatch.Digest => d.items.map(_.occurrenceId)
           case _                      => Nil

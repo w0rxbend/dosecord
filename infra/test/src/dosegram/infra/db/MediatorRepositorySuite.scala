@@ -35,13 +35,14 @@ class MediatorRepositorySuite extends PgSuite:
   test("inbound_events: insert, duplicate rejected, complete stores reply and account id"):
     val uow = newUow
     val eventId = UUID.randomUUID()
-    val accountId = UUID.randomUUID()
+    // An account that exists: the reply is sealed with its key (V13).
+    val accountId = Fixtures(dataSource).account()
     assert(uow.transaction(_.inboundEvents.insert(NewInboundEvent("fake", "evt-1", eventId, t0))))
     assert(
       !uow.transaction(_.inboundEvents.insert(NewInboundEvent("fake", "evt-1", UUID.randomUUID(), t0))),
       "duplicate (vendor, vendor_event_id) rejected"
     )
-    uow.transaction(_.inboundEvents.complete("fake", "evt-1", Some(accountId), """{"toast":"ok"}""", t0))
+    uow.transaction(_.inboundEvents.complete("fake", "evt-1", Some(accountId), Some("dm:1"), """{"toast":"ok"}""", t0))
 
     val stored = uow.transaction(_.inboundEvents.find("fake", "evt-1")).get
     assertEquals(stored.eventId, eventId)

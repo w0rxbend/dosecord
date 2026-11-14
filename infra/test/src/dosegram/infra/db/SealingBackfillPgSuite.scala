@@ -184,8 +184,8 @@ class SealingBackfillPgSuite extends PgSuite:
     try
       val seed = seedAtV9(ds)
       val (result, lines) = logged(SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
-      assertEquals(result.schemaVersion, "12")
-      assertEquals(result.migrationsExecuted, 3)
+      assertEquals(result.schemaVersion, "13")
+      assertEquals(result.migrationsExecuted, 4)
       assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
@@ -221,13 +221,107 @@ class SealingBackfillPgSuite extends PgSuite:
       (kekText :: canaries).foreach(secret => assert(!output.contains(secret), s"a log line holds '$secret'"))
     finally ds.close()
 
+  test("a start whose V12 fails after the backfill keeps V10, and the next start still records the backfill"):
+    val (_, ds) = databaseAt("9")
+    try
+      seedAtV9(ds)
+      // Something in the way of V12, which creates audit_log.
+      val conn = ds.getConnection
+      try conn.createStatement().execute("CREATE TABLE audit_log (in_the_way int)")
+      finally conn.close()
+      intercept[Exception](SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
+      assertEquals(Flyway.configure().dataSource(ds).load().info().current().getVersion.getVersion, "10",
+        "V11 rolls back with V12")
+      val again = ds.getConnection
+      try again.createStatement().execute("DROP TABLE audit_log")
+      finally again.close()
+      val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
+      assertEquals((result.schemaVersion, result.valuesSealed), ("13", 0), "everything was sealed by the first start")
+      assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"))
+    finally ds.close()
+
+  test("the upgrade from V12 seals the queued messages and stored answers, keeping their chat and their images"):
+    val (database, ds) = databaseAt("12")
+    try
+      val uow = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
+      val account = uow.transaction: tx =>
+        val principal = tx.identities.resolve(PlatformIdentity("telegram", "7002", None), t0)
+        tx.accounts.createAccount(principal.identityId, zone.getId, t0).uuid
+      val (reminder, onboarding) = (UUID.randomUUID(), UUID.randomUUID())
+      val reminderPayload =
+        s"""{"body":[{"s":"$medicationName"}],"attachment":{"assetKey":"card.canary-sent"},"dedupeKey":"r"}"""
+      val onboardingPayload = s"""{"body":[{"s":"$instructions"}],"deliveryChat":{"chatId":"5550","vendor":"telegram"}}"""
+      val (reply, onboardingReply) = (s"""{"toast":"$doseNote"}""", s"""{"toast":"$mealWords"}""")
+      val conn = ds.getConnection
+      try
+        given Connection = conn
+        // PgOutboxRepository.enqueue, PgInboundInbox.push and PgInboundEventRepository.complete of the V12 release.
+        List((reminder, Some(account), reminderPayload), (onboarding, None, onboardingPayload)).foreach:
+          (id, owner, payload) =>
+            sql"""INSERT INTO outbox_messages (id, send_key, op, kind, vendor, account_id, payload, importance, status,
+                                               next_attempt_at)
+                  VALUES ($id, ${id.toString}, 'send', 'interaction_reply', 'telegram', $owner, ${Jsonb(payload)},
+                          'interaction_reply', 'queued', $t0)""".execute()
+        sql"""INSERT INTO inbound_inbox (vendor, vendor_event_id, chat_key, sequence, body, status, received_at,
+                                         finished_at)
+              VALUES ('telegram', 'telegram:update:2', '5550', 2, NULL, 'processed', $t0, $t0)""".execute()
+        List(("telegram:update:1", Some(account), reply), ("telegram:update:2", None, onboardingReply)).foreach:
+          (key, owner, answer) =>
+            sql"""INSERT INTO inbound_events (vendor, vendor_event_id, event_id, account_id, received_at, reply,
+                                              processed_at)
+                  VALUES ('telegram', $key, ${UUID.randomUUID()}, $owner, $t0, ${Jsonb(answer)}, $t0)""".execute()
+      finally conn.close()
+
+      val lines = List.newBuilder[String]
+      val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), line => lines += line)
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("13", 1, 4))
+      assert(lines.result().contains("sealing: vacuumed outbox_messages, inbound_events"), lines.result().toString)
+
+      val check = ds.getConnection
+      try
+        given Connection = check
+        assertEquals(
+          sql"SELECT count(*) FROM outbox_messages WHERE payload IS NOT NULL OR payload_enc IS NULL".queryOne[Int](),
+          Some(0)
+        )
+        assertEquals(
+          sql"SELECT count(*) FROM inbound_events WHERE reply IS NOT NULL OR reply_enc IS NULL".queryOne[Int](),
+          Some(0)
+        )
+        given RowMapper[(String, String)] = rs => (rs.getString(1), rs.getString(2))
+        assertEquals(
+          sql"""SELECT coalesce(chat_key, '-'), array_to_string(asset_keys, ',') FROM outbox_messages
+                ORDER BY account_id NULLS LAST""".query[(String, String)](),
+          List("-" -> "card.canary-sent", "5550" -> "")
+        )
+        assertEquals(
+          sql"SELECT vendor_event_id, coalesce(chat_key, '-') FROM inbound_events ORDER BY 1".query[(String, String)](),
+          List("telegram:update:1" -> "-", "telegram:update:2" -> "5550")
+        )
+        val keys = DataKeys(kek, MutableClock(t0)).on(check)
+        given RowMapper[String] = rs =>
+          PgOutboxRepository.payloadOf(keys, rs, rs.uuid("id"), Option(rs.getObject("account_id", classOf[UUID])))
+        assertEquals(
+          sql"""SELECT id, account_id, payload, payload_enc FROM outbox_messages
+                ORDER BY account_id NULLS LAST""".query[String]().map(ujson.read(_)),
+          List(reminderPayload, onboardingPayload).map(ujson.read(_))
+        )
+      finally check.close()
+      val stored = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0))).transaction: tx =>
+        List("telegram:update:1", "telegram:update:2").flatMap(tx.inboundEvents.find("telegram", _)).flatMap(_.reply)
+      assertEquals(stored.map(ujson.read(_)), List(reply, onboardingReply).map(ujson.read(_)))
+      val dumped = dump(database)
+      List(medicationName, instructions, doseNote, mealWords)
+        .foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
+    finally ds.close()
+
   test("a second start finds nothing to seal and applies nothing"):
     val (_, ds) = databaseAt("9")
     try
       seedAtV9(ds)
       SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
       val again = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(again, UpgradeResult(0, "12", 0, 0))
+      assertEquals(again, UpgradeResult(0, "13", 0, 0))
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "a run that seals nothing is not audited")
     finally ds.close()
 
@@ -239,13 +333,13 @@ class SealingBackfillPgSuite extends PgSuite:
       // The process dies right after the meals (the seventh column) were sealed and verified.
       var columns = 0
       intercept[IllegalStateException]:
-        SealingBackfill(ds, DataKeys(kek, MutableClock(t0))).run: _ =>
+        SealingBackfill(ds, DataKeys(kek, MutableClock(t0))).run(SealingStage.Expand, _ =>
           columns += 1
-          if columns == 7 then throw IllegalStateException("the process stops")
+          if columns == 7 then throw IllegalStateException("the process stops"))
       val version = Flyway.configure().dataSource(ds).load().info().current().getVersion.getVersion
       assertEquals(version, "10")
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(result.schemaVersion, "12")
+      assertEquals(result.schemaVersion, "13")
       assertEquals(result.valuesSealed, 1 + 1 + 1, "only the export, the image and the stored answer were left")
       val meals = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
         .transaction(_.tracking.meals.listLive(seed.account, DateRange.single(day)))
@@ -257,7 +351,7 @@ class SealingBackfillPgSuite extends PgSuite:
     try
       val seed = seedAtV9(ds)
       Flyway.configure().dataSource(ds).target("10").load().migrate()
-      SealingBackfill(ds, DataKeys(kek, MutableClock(t0))).run(_ => ())
+      SealingBackfill(ds, DataKeys(kek, MutableClock(t0))).run(SealingStage.Expand, _ => ())
       // The V9 release, started again on V10, renames the medication (PgMedicationRepository.replace of V9).
       val conn = ds.getConnection
       try

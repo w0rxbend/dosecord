@@ -17,58 +17,77 @@ import scala.util.Try
   */
 final case class SealingCount(column: SealedColumn, sealedNow: Int, verified: Int)
 
-/** The online backfill between V10 and V11 (ROADMAP G2.4, G2.4b; supervisor decision, 2026-11-14). For every
-  * [[SealedColumns]] entry it seals the values that are still only in the plaintext column, [[BatchRows]] rows per
-  * transaction under `dosegram.sealing`, and checks each sealed value by opening it before it writes it. A run that
-  * stops part-way leaves whole batches behind; the next run takes up the rows still without a sealed value, so it is
-  * idempotent and resumable. Then it opens every sealed copy that still has a plaintext next to it and compares the
-  * two, sealing again a copy that differs, so V11 empties only values whose sealed copy is proven. Logs carry table,
-  * column and counts, never a value.
+/** The online backfill of the sealed columns (ROADMAP G2.4, G2.4b; supervisor decisions, 2026-11-14), one
+  * [[SealingStage]] at a time. For every column of the stage it seals the values that are still only in the plaintext
+  * column, [[BatchRows]] rows per transaction under `dosegram.sealing`, and checks each sealed value by opening it
+  * before it writes it. A run that stops part-way leaves whole batches behind; the next run takes up the rows still
+  * without a sealed value, so it is idempotent and resumable. The V10 stage then opens every sealed copy that still has
+  * a plaintext next to it and compares the two, sealing again a copy that differs, so V11 empties only values whose
+  * sealed copy is proven. The V13 stage empties the plaintext in the UPDATE that writes the sealed value. Logs carry
+  * table, column and counts, never a value.
   */
 final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
   import SealingBackfill.*
 
-  def run(log: String => Unit): List[SealingCount] =
-    SealedColumns.all.map: column =>
-      val sealedNow = Iterator.continually(sealBatch(column)).takeWhile(_ > 0).sum
-      val (verified, resealed) = verify(column)
+  def run(stage: SealingStage, log: String => Unit): List[SealingCount] =
+    stage.columns.map: column =>
+      val sealedNow = Iterator.continually(sealBatch(stage, column)).takeWhile(_ > 0).sum
+      val (verified, resealed) = verify(stage, column)
       log(
         s"sealing: ${column.table}.${column.plain} sealed ${sealedNow + resealed} value(s), verified $verified"
       )
       SealingCount(column, sealedNow + resealed, verified)
 
-  private def sealBatch(column: SealedColumn): Int =
+  private def sealBatch(stage: SealingStage, column: SealedColumn): Int =
     transaction: conn =>
-      val keyService = keys.beforeAuditLog(conn)
+      val keyService = keyServiceOf(stage, conn)
       val rows = select(
         conn,
         s"SELECT t.ctid::text, ${selection(column)} FROM ${column.table} t " +
           s"WHERE t.${column.plain} IS NOT NULL AND t.${column.encrypted} IS NULL " +
           s"ORDER BY t.${column.rowKey} LIMIT $BatchRows FOR UPDATE OF t"
       )(rs => (rs.getString(1), plainOf(column, rs, 2)))
-      rows.foreach((ctid, plain) => write(conn, keyService, column, ctid, plain))
+      rows.foreach((ctid, plain) => write(conn, keyService, stage, column, ctid, plain))
       rows.size
 
-  private def write(conn: Connection, keyService: KeyService, column: SealedColumn, ctid: String, plain: Plain): Unit =
+  /** The V10 stage runs before `audit_log` exists, so the keys it creates write no audit row; the V13 stage runs after.
+    */
+  private def keyServiceOf(stage: SealingStage, conn: Connection): KeyService = stage match
+    case SealingStage.Expand    => keys.beforeAuditLog(conn)
+    case SealingStage.Transport => keys.on(conn)
+
+  private def write(
+      conn: Connection,
+      keyService: KeyService,
+      stage: SealingStage,
+      column: SealedColumn,
+      ctid: String,
+      plain: Plain
+  ): Unit =
     val field = column.field(plain.owner, plain.row)
     val sealedValue = keyService.seal(field, plain.bytes)
     if !keyService.open(field, sealedValue).sameElements(plain.bytes) then
       throw IllegalStateException(s"sealing: a value of ${column.table}.${column.plain} did not open as written")
     val lookup = column.lookup.map(_ => keyService.lookup(column, accountOf(plain.owner), String(plain.bytes, UTF_8)))
     val setLookup = column.lookup.fold("")(spec => s", ${spec.column} = ?")
+    val emptyPlain = stage match
+      case SealingStage.Expand    => ""
+      case SealingStage.Transport => s", ${column.plain} = NULL"
     val binds = Vector[SqlBind](sealedValue) ++ lookup.map(hash => hash: SqlBind) :+ (ctid: SqlBind)
     given Connection = conn
-    val updated = SqlQuery(s"UPDATE ${column.table} SET ${column.encrypted} = ?$setLookup WHERE ctid = ?::tid", binds)
-      .execute()
+    val updated = SqlQuery(
+      s"UPDATE ${column.table} SET ${column.encrypted} = ?$setLookup$emptyPlain WHERE ctid = ?::tid",
+      binds
+    ).execute()
     if updated != 1 then throw IllegalStateException(s"sealing: a row of ${column.table} moved while it was sealed")
 
   /** Opens every sealed copy that still has its plaintext and returns how many it checked and how many it sealed again.
     * A copy that differs from its plaintext is sealed again from the plaintext, which is the value until V11: that
     * happens when the previous release, started again after a stopped run, changed a value the run had sealed.
     */
-  private def verify(column: SealedColumn): (Int, Int) =
+  private def verify(stage: SealingStage, column: SealedColumn): (Int, Int) =
     transaction: conn =>
-      val keyService = keys.beforeAuditLog(conn)
+      val keyService = keyServiceOf(stage, conn)
       val rows = select(
         conn,
         s"SELECT t.ctid::text, t.${column.encrypted}, ${selection(column)} FROM ${column.table} t " +
@@ -77,13 +96,14 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
       val stale = rows.filterNot: (_, sealedValue, plain) =>
         val field = column.field(plain.owner, plain.row)
         Try(keyService.open(field, sealedValue)).toOption.exists(_.sameElements(plain.bytes))
-      stale.foreach((ctid, _, plain) => write(conn, keyService, column, ctid, plain))
+      stale.foreach((ctid, _, plain) => write(conn, keyService, stage, column, ctid, plain))
       (rows.size, stale.size)
 
   private def selection(column: SealedColumn): String =
     val owner = column.owner match
-      case SealOwner.AccountOf(expression) => s"($expression)::text"
-      case SealOwner.Service(_)            => "NULL::text"
+      case SealOwner.AccountOf(expression)    => s"($expression)::text"
+      case SealOwner.AccountOr(expression, _) => s"($expression)::text"
+      case SealOwner.Service(_)               => "NULL::text"
     s"t.${column.rowKey}::text, $owner, t.${column.plain}"
 
   private def select[A](conn: Connection, statement: String)(row: ResultSet => A): List[A] =
@@ -102,6 +122,8 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
         val account = Option(rs.getString(from + 1))
           .getOrElse(throw IllegalStateException(s"sealing: a row of ${column.table} has no account"))
         KeyOwner.Account(UUID.fromString(account))
+      case SealOwner.AccountOr(_, purpose) =>
+        Option(rs.getString(from + 1)).fold(KeyOwner.Service(purpose))(id => KeyOwner.Account(UUID.fromString(id)))
       case SealOwner.Service(purpose) => KeyOwner.Service(purpose)
     val valueAt = from + 2
     val bytes =
@@ -128,6 +150,15 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
         conn.rollback()
         throw e
     finally conn.close()
+
+/** One backfill: the migration that adds its sealed columns, and the columns. */
+enum SealingStage(val expand: String, val columns: List[SealedColumn]):
+
+  /** V10, before `audit_log` exists; V11 empties the plaintext once every value is sealed. */
+  case Expand extends SealingStage("10", SealedColumns.all)
+
+  /** V13, after `audit_log` exists; each UPDATE empties the plaintext it sealed. */
+  case Transport extends SealingStage("13", SealedColumns.emptiedOnSeal)
 
 object SealingBackfill:
 

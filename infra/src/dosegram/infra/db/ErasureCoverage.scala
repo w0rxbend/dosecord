@@ -41,9 +41,13 @@ object ErasureCoverage:
 
   /** The images the bot sent to the account: the asset keys its outbox messages name, and its export files. */
   private val AssetKeys =
-    """SELECT key #>> '{}' FROM outbox_messages, jsonb_path_query(payload, 'lax $.**.assetKey') AS key
-       WHERE account_id = ?
+    """SELECT unnest(asset_keys) FROM outbox_messages WHERE account_id = ?
        UNION SELECT 'export.' || id FROM export_jobs WHERE account_id = ?"""
+
+  /** Rows of the account, and rows of its chats written before the account existed (the onboarding), whose `column`
+    * names the chat.
+    */
+  private def ownOrChat(column: String): String = s"$Own OR (vendor, $column) IN ($Chats)"
 
   private def promptKinds(kinds: String): String = s"account_id = ? AND kind IN ($kinds)"
   private def rollups(domain: String): String = s"account_id = ? AND domain = '$domain'"
@@ -65,7 +69,7 @@ object ErasureCoverage:
     "inventory_events" -> only(DataDomain.Medication),
     "medication_inventory" -> only(DataDomain.Medication),
     "dose_actions" -> only(DataDomain.Medication),
-    "outbox_messages" -> Erasure.Domain(Own, Map(DataDomain.Medication -> Occurrences)),
+    "outbox_messages" -> Erasure.Domain(ownOrChat("chat_key"), Map(DataDomain.Medication -> Occurrences)),
     "dose_occurrences" -> only(DataDomain.Medication),
     "schedule_revisions" -> Erasure.Domain(
       "schedule_id IN (SELECT id FROM medication_schedules WHERE user_id = ?)",
@@ -122,8 +126,8 @@ object ErasureCoverage:
       "answers of an open chat form"
     ),
     "conversation_sessions" -> Erasure.AccountWide(Sessions, "the state of an open chat wizard"),
-    "rendered_messages" -> Erasure.AccountWide(Own, "handles of the messages the bot sent"),
-    "inbound_events" -> Erasure.AccountWide(Own, "the idempotency record of received updates"),
+    "rendered_messages" -> Erasure.AccountWide(ownOrChat("chat_id"), "handles of the messages the bot sent"),
+    "inbound_events" -> Erasure.AccountWide(ownOrChat("chat_key"), "the idempotency record of received updates"),
     "inbound_inbox" -> Erasure.AccountWide(
       s"status <> 'pending' AND (vendor, chat_key) IN ($Chats)",
       "processed updates of the account's chat; the update being processed goes with the inbox job"

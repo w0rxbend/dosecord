@@ -1,6 +1,7 @@
 package dosegram.api
 
 import dosegram.core.ports.ConsentPurpose
+import dosegram.infra.db.OutboxPayloads
 import dosegram.infra.db.RowMapper.given
 import dosegram.infra.db.sql
 
@@ -24,7 +25,10 @@ final class DeletionApiSuite extends ApiSuite:
     val conn = dataSource.getConnection
     try
       given Connection = conn
-      sql"SELECT payload::text FROM outbox_messages WHERE account_id = $account ORDER BY created_at".query[String]()
+      OutboxPayloads.open(
+        sql"""SELECT id, account_id, payload, payload_enc FROM outbox_messages WHERE account_id = $account
+              ORDER BY created_at"""
+      )
     finally conn.close()
 
   private def events(account: UUID): List[String] =
@@ -44,9 +48,10 @@ final class DeletionApiSuite extends ApiSuite:
     assertEquals(queued(account.accountId).size, 1)
     assert(queued(account.accountId).head.contains("The app asked to delete your account"))
     assertEquals(get("/api/v1/settings", token).status, 200, "the account and its session are still there")
-    // The fixture's consent and the sign-in have their own rows.
+    // The fixture's consent and the sign-in have their own rows, and so has the account's first data key, created to
+    // seal the queued confirmation (V13).
     assertEquals(
-      events(account.accountId).toSet -- Set("consent.granted", "session.created"),
+      events(account.accountId).toSet -- Set("consent.granted", "session.created", "key.dek.created"),
       Set("account.delete.requested", "stepup.requested")
     )
 

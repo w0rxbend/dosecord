@@ -205,3 +205,39 @@ database. In order:
 
 Rollback: a start that fails before V11 leaves V10 with every plaintext value, and the previous
 release can be started again. After V11, restore the backup of step 4.
+
+## 9. Deploying V13 (sealed transport), and VACUUM after sealing and deletion
+
+V13 seals the text of queued messages (`outbox_messages.payload`) and the stored answers
+(`inbound_events.reply`), which held medication names and instructions as plaintext, and keeps the
+chat of each onboarding row so that an account deletion takes those rows too. The start applies
+V13 and then seals every value the previous release left, emptying its plaintext in the same
+statement. Every step is the owner's:
+
+1. Back up the database as in step 4 of section 8 (`umask 077`, off shared storage).
+2. Stop the running bot, then start the new release. Its log shows
+   `sealing: outbox_messages.payload sealed N value(s), verified 0`, the same for
+   `inbound_events.reply`, and `sealing: vacuumed outbox_messages, inbound_events`.
+3. Check, read-only: `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns
+   13; `SELECT count(*) FROM outbox_messages WHERE payload IS NOT NULL;` and
+   `SELECT count(*) FROM inbound_events WHERE reply IS NOT NULL;` return 0.
+
+Rollback: the previous release cannot read a sealed payload. Restore the backup of step 1.
+
+**VACUUM (supervisor decision, 2026-11-14).** Sealing a value and deleting a row leave the old row
+version in the table file until Postgres reuses its space, and that version holds the plaintext or
+the deleted record. The start runs a plain `VACUUM (ANALYZE)` of each table it sealed a value in:
+it takes no lock that stops the bot, and it frees the old versions for reuse, but it does not
+overwrite them at once. A role that does not own a table gets a warning from Postgres and that
+table is skipped; the log line names the tables it ran on. To remove the old versions from the
+files, the owner runs, with the bot stopped (VACUUM FULL locks each table while it rewrites it):
+
+```sh
+docker exec <postgres container> psql -U <owner role> -d <database> -c \
+  'VACUUM (FULL, ANALYZE) outbox_messages, inbound_events, medications, schedule_revisions, dose_occurrences, dose_actions, meals, export_jobs, render_assets, idempotency_keys;'
+```
+
+Run it once after the deploy of V11 and of V13, and after an account deletion when the deleted
+records must leave the files before autovacuum reuses their space. It does not reach the WAL or the
+backups: those age out with the WAL recycling and the 35 days of backup retention (SEC-06), and a
+restore replays the purge list (section 6).

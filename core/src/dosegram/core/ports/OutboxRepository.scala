@@ -63,7 +63,9 @@ final case class OutboxMessage(
 )
 
 /** What a producer enqueues. `payload` is an opaque JSON document to the core; the dispatcher's renderer interprets it.
-  * `target` (non-send ops) is the encoded handle `chatId:messageId` of the message to act on.
+  * `target` (non-send ops) is the encoded handle `chatId:messageId` of the message to act on. `chatId` is the chat of
+  * an answer while the chat has an identity: account deletion deletes the answers of the chat with the account, the
+  * ones queued before the account existed included (ARCHITECTURE SEC-16).
   */
 final case class NewOutboxMessage(
     id: UUID,
@@ -78,7 +80,8 @@ final case class NewOutboxMessage(
     payload: String,
     target: Option[String] = None,
     importance: String = "info",
-    nextAttemptAt: Instant
+    nextAttemptAt: Instant,
+    chatId: Option[String] = None
 )
 
 /** The outbox half of the per-event transaction (ADR-003). Claim/record are deliberately separate short transactions:

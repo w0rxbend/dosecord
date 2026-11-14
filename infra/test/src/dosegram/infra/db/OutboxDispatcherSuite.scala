@@ -149,8 +149,9 @@ class OutboxDispatcherSuite extends PgSuite:
 
   private def rowBySendKey(sendKey: String): OutboxMessage = withConnection { conn =>
     given Connection = conn
-    import PgOutboxRepository.given
-    sql"""SELECT id, send_key, op, kind, vendor, account_id, occurrence_id, channel_id, epoch, payload, target,
+    given RowMapper[OutboxMessage] = PgOutboxRepository.rowMapper(DataKeys.development.on(conn))
+    sql"""SELECT id, send_key, op, kind, vendor, account_id, occurrence_id, channel_id, epoch, payload, payload_enc,
+                 target,
                  importance, status, attempts, next_attempt_at, lease_until, attempted_at,
                  attempted_at AS prev_attempted_at, ops_done, possible_duplicate, platform_message_id,
                  last_error, created_at, sent_at

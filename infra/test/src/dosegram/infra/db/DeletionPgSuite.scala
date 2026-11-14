@@ -55,6 +55,25 @@ class DeletionPgSuite extends PgSuite:
           Option.when(rs.getInt(1) > 0)(table -> rs.getInt(1))
         finally st.close()
 
+  /** Every row, as text, of the tables that hold `needle`: the clue of a failed assertion. */
+  private def rowsHolding(needle: String): List[String] =
+    withConnection: conn =>
+      tablesHolding(needle).flatMap: (table, _) =>
+        val st = conn.prepareStatement(s"SELECT '$table: ' || r::text FROM $table AS r WHERE r::text LIKE ?")
+        try
+          st.setString(1, s"%$needle%")
+          val rs = st.executeQuery()
+          Iterator.continually(rs).takeWhile(_.next()).map(_.getString(1)).toList
+        finally st.close()
+
+  /** The documented exceptions of SEC-16 after an account deletion: the goodbye's outbox row and its handle. */
+  private val goodbyeRows: List[(String, Int)] = List("outbox_messages" -> 1, "rendered_messages" -> 1)
+
+  private def identityOf(user: String): UUID =
+    withConnection: conn =>
+      given Connection = conn
+      sql"SELECT id FROM platform_identities WHERE vendor_user_id = $user".queryOne[UUID]().getOrElse(fail("no identity"))
+
   private def count(query: String): Int =
     withConnection: conn =>
       val rs = conn.createStatement().executeQuery(query)
@@ -115,7 +134,13 @@ class DeletionPgSuite extends PgSuite:
   test("after the account deletion no row of any table holds the account, and the bot has forgotten the chat"):
     withRig("del-1"): rig =>
       val account = rig.onboard()
+      val identity = identityOf("del-1")
       val other = recordEverything(rig, account)
+      assert(tablesHolding(identity.toString).nonEmpty, "the identity is named before the deletion")
+      assert(
+        count("SELECT count(*) FROM outbox_messages WHERE account_id IS NULL") > 0,
+        "onboarding queued messages before the account existed"
+      )
       List("hydration_entries", "mood_checkins", "sleep_episodes", "meals", "dose_occurrences", "export_jobs")
         .foreach(table => assert(rows(table, account) >= 1, s"$table has a row before the deletion"))
       assert(tablesHolding(account.toString).size > 20, "the account is spread over the schema before the deletion")
@@ -140,6 +165,14 @@ class DeletionPgSuite extends PgSuite:
 
       assertEquals(tablesHolding(account.toString), Nil, "no row of any table names the account")
       assertEquals(count("SELECT count(*) FROM platform_identities WHERE vendor_user_id = 'del-1'"), 0)
+      // Nor the identity or the chat, the onboarding written before the account existed included. The documented
+      // exceptions (ARCHITECTURE SEC-16): the outbox row and the handle of the goodbye message.
+      assertEquals(tablesHolding(identity.toString), Nil, "no row of any table names the identity")
+      assertEquals(
+        tablesHolding(rig.chat.chatId),
+        goodbyeRows,
+        s"only the goodbye names the chat: ${rowsHolding(rig.chat.chatId)}"
+      )
       // The image the bot sent to the account goes; an image of nobody here stays.
       assertEquals(count(s"SELECT count(*) FROM render_assets WHERE asset_key = 'card.sent-$account'"), 0)
       assertEquals(count(s"SELECT count(*) FROM telegram_file_cache WHERE asset_key = 'card.sent-$account'"), 0)

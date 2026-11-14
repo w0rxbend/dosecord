@@ -22,6 +22,7 @@ import dosegram.infra.Settings
 import dosegram.infra.TelegramSettings
 import dosegram.infra.TelegramUpdates
 import dosegram.infra.db.Fixtures
+import dosegram.infra.db.OutboxPayloads
 import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.PgUnitOfWork
@@ -482,7 +483,11 @@ class CaptureLaunchSuite extends PgSuite:
       eventually("the drawing started")(hanging.started.get() == 1)
     // The process stopped while the request was being drawn: it is claimed, and nothing was sent.
     assertEquals(strings("SELECT status || ':' || attempts FROM report_requests"), List("rendering:1"))
-    assertEquals(strings("SELECT 1 FROM outbox_messages WHERE payload::text LIKE '%[image:%'"), Nil)
+    val queued = withConnection { conn =>
+      given java.sql.Connection = conn
+      OutboxPayloads.open(sql"SELECT id, account_id, payload, payload_enc FROM outbox_messages")
+    }
+    assertEquals(queued.filter(_.contains("[image:")), Nil)
 
     // The restarted process comes up after the claim's lease; the request is late and is not drawn again.
     val restarted = NumberingRasteriser()

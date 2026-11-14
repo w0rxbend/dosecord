@@ -26,11 +26,14 @@ trait InboundEventRepository:
 
   def find(vendor: String, vendorEventId: String): Option[StoredInboundEvent]
 
-  /** The processed half of the per-event transaction: stores the reply and the resolved account id (C2, C3). */
+  /** The processed half of the per-event transaction: stores the reply and the resolved account id (C2, C3), and the
+    * chat while it has an identity, so account deletion finds the record of the chat (ARCHITECTURE SEC-16).
+    */
   def complete(
       vendor: String,
       vendorEventId: String,
       accountId: Option[UUID],
+      chatId: Option[String],
       reply: String,
       processedAt: Instant
   ): Unit

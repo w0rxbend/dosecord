@@ -60,6 +60,7 @@ object MediatorFakes:
         vendor: String,
         vendorEventId: String,
         accountId: Option[UUID],
+        chatId: Option[String],
         reply: String,
         processedAt: Instant
     ): Unit = this.synchronized:

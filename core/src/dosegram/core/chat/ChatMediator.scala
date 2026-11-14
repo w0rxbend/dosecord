@@ -210,8 +210,11 @@ final class ChatMediator(
       // stored reply, the outbox rows and the domain events all carry the effective account id (C2). It may also have
       // deleted the account (ROADMAP G2.17): the identity is then gone, nothing recreates it, and the answer names no
       // account.
-      val effectivePrincipal =
-        tx.identities.find(event.actor).getOrElse(Principal(principal.identityId, None, linked = false))
+      val kept = tx.identities.find(event.actor)
+      val effectivePrincipal = kept.getOrElse(Principal(principal.identityId, None, linked = false))
+      // The chat is kept with the answer while it has an identity, so a later account deletion finds the answers of the
+      // onboarding, which have no account (ARCHITECTURE SEC-16). After a deletion it has none, and nothing names it.
+      val chatKey = kept.map(_ => event.chat.chatId)
       val appendedEvents =
         reply.domainEvents.map(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
       val sends = (reply.replace.toList ++ reply.followUps)
@@ -229,7 +232,8 @@ final class ChatMediator(
               payload = InteractionReplyPayload.encode(message, event.chat),
               target = message.replaces.map(OutboxDispatcher.encodeHandle),
               importance = "interaction_reply",
-              nextAttemptAt = now.plus(SyncSafetyDelay)
+              nextAttemptAt = now.plus(SyncSafetyDelay),
+              chatId = chatKey
             )
           )
           PlannedSend(message, Option.when(enqueued)(outboxId))
@@ -237,6 +241,7 @@ final class ChatMediator(
         event.vendor,
         event.vendorEventId,
         effectivePrincipal.accountId.map(_.uuid),
+        chatKey,
         Reply.toJson(reply),
         now
       )

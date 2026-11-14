@@ -69,9 +69,9 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
   private final class PgTx(conn: Connection) extends Tx:
     private lazy val keyService = keys.on(conn)
     override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock)
-    override lazy val outbox: OutboxRepository = PgOutboxRepository(conn)
+    override lazy val outbox: OutboxRepository = PgOutboxRepository(conn, keyService)
     override lazy val renderedMessages: RenderedMessageRepository = PgRenderedMessageRepository(conn)
-    override lazy val inboundEvents: InboundEventRepository = PgInboundEventRepository(conn)
+    override lazy val inboundEvents: InboundEventRepository = PgInboundEventRepository(conn, keyService)
     override lazy val domainEvents: DomainEventRepository = PgDomainEventRepository(conn)
     override lazy val identities: IdentityRepository = PgIdentityRepository(conn)
     override lazy val accounts: AccountRepository = PgAccountRepository(conn)
