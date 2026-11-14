@@ -30,8 +30,8 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   /** The pages of a month after the images consent; the argument is the month's index, `year * 12 + month - 1`. */
   case MonthImage(index: Int) extends Pending(13, index)
 
-  /** `/food` and its meal buttons; also a typed meal, which is typed again after the consent, because the words do not
-    * fit in a button. The food cases share kind 14, told apart by the argument: the kind has four bits.
+  /** `/food` and its meal buttons. The food cases share kind 14, told apart by the argument: the kind has four bits. A
+    * card sent before [[FoodTyped]] existed carries this case for a typed meal, which then opens the food card.
     */
   case FoodCard extends Pending(14, 0)
 
@@ -39,6 +39,11 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
 
   /** A meal-type tap; `code` is the ordinal of the meal type. */
   case FoodLog(code: Int) extends Pending(14, Pending.FoodLogBase + code)
+
+  /** A typed meal; `code` is the ordinal of the meal type. Its words do not fit in a button, so they are held, sealed,
+    * until the confirming tap (finding 8 of the verification of 2026-11-14).
+    */
+  case FoodTyped(code: Int) extends Pending(14, Pending.FoodTypedBase + code)
 
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
@@ -74,11 +79,15 @@ private[capture] object Pending:
   /** The argument of [[FoodLog]] starts here; below it are [[FoodCard]] (0) and [[FoodImage]] (1). */
   val FoodLogBase = 2
 
+  /** The argument of [[FoodTyped]] starts here, far above every [[FoodLog]] code. */
+  val FoodTypedBase = 64
+
   private def foodOf(argument: Int): Option[Pending] =
     argument match
-      case 0 => Some(FoodCard)
-      case 1 => Some(FoodImage)
-      case n => Some(FoodLog(n - FoodLogBase))
+      case 0                       => Some(FoodCard)
+      case 1                       => Some(FoodImage)
+      case n if n >= FoodTypedBase => Some(FoodTyped(n - FoodTypedBase))
+      case n                       => Some(FoodLog(n - FoodLogBase))
 
 /** The two stages of a consent (BUX-CONS-02) and the two ways out of them. The codes are the wire form. */
 private[capture] enum ConsentStage(val code: Int):

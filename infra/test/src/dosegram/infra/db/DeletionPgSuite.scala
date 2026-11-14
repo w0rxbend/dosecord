@@ -96,11 +96,10 @@ class DeletionPgSuite extends PgSuite:
     rig.consent()
     rig.line("slept 23:30 7:10")
     rig.consent()
-    // The consents of sleep and food resume on their cards, so the entry is typed again.
+    // The consent of sleep resumes on its card, so the night is typed again; a typed meal is recorded at the consent.
     rig.line("slept 23:30 7:10")
     rig.line("lunch: canary soup")
     rig.consent()
-    rig.line("lunch: canary soup")
     rig.line("/meds")
     rig.consent()
     val everyDay = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))

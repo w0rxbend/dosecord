@@ -36,6 +36,7 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.Tx
+import ox.discard
 
 import java.time.ZoneId
 
@@ -138,8 +139,13 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         case MealLine.NotMeal => turn.toast(FoodCopy.usage)
         case line             => recordFood(turn, line)
 
+  /** A typed meal. Without the consent its words are held until the confirming tap (BUX-CONS-04), which records it. */
   private def recordFood(turn: Turn, line: MealLine): Reply =
-    consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodCard)(food.typed(turn, line))
+    line match
+      case MealLine.Logged(mealType, words) if !turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.Nutrition) =>
+        words.foreach(turn.tx.tracking.meals.hold(turn.accountId, _, clock.now().plus(CaptureHandler.HeldMealFor)))
+        consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodTyped(mealType.ordinal))(food.typed(turn, line))
+      case _ => consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodCard)(food.typed(turn, line))
 
   private def foodButton(turn: Turn, mealType: MealType): Reply =
     consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodLog(mealType.ordinal))(food.tap(turn, mealType))
@@ -195,7 +201,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def onAccountTap(turn: Turn, action: ActionEntry, value: Long): Reply =
     action match
       case CaptureActions.ConsentStep =>
-        ConsentRequest.of(value).map(consent.step(turn, _)(resume(turn, _))).getOrElse(stale(turn))
+        ConsentRequest.of(value).map(consentStep(turn, _)).getOrElse(stale(turn))
       case CaptureActions.ConsentWithdraw => consent.withdraw(turn, value)(stop(turn, _))
       case CaptureActions.WaterAdd        => waterButton(turn, value)
       case CaptureActions.WaterGoal       => water.setGoal(turn, value)
@@ -227,6 +233,14 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Right(amount)           => recordWater(turn, amount.millilitres)(water.add(turn, amount))
       case Left(AmountOutOfBounds) => turn.toast(WaterCopy.tooMuch)
 
+  /** "Not now" forgets the words of a typed meal held for the consent; every other tap goes on as the card says. */
+  private def consentStep(turn: Turn, request: ConsentRequest): Reply =
+    (request.stage, request.pending) match
+      case (ConsentStage.Decline, Pending.FoodTyped(_)) =>
+        turn.tx.tracking.meals.takeHeld(turn.accountId, clock.now()).discard
+      case _ => ()
+    consent.step(turn, request)(resume(turn, _))
+
   /** The input that opened a consent card, run after the confirming tap. Turning water on asks for the goal first
     * (BUX-WATER-02), with the typed amount kept for after the choice.
     */
@@ -248,7 +262,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.MonthImage(index)     => months.monthImage(fresh, index)
       case Pending.FoodCard              => food.card(fresh)
       case Pending.FoodLog(code)         => mealOf(code.toLong).map(food.tap(fresh, _)).getOrElse(stale(turn))
-      case Pending.FoodImage             => food.image(fresh)
+      case Pending.FoodTyped(code)       =>
+        val words = turn.tx.tracking.meals.takeHeld(turn.accountId, clock.now())
+        mealOf(code.toLong).map(meal => food.typed(fresh, MealLine.Logged(meal, words))).getOrElse(stale(turn))
+      case Pending.FoodImage => food.image(fresh)
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =
@@ -292,6 +309,9 @@ private object CaptureHandler:
   val MealCommand: String = CommandRegistry.Meal.name
   val commandNames: Set[String] =
     (CommandRegistry.capture :+ CommandRegistry.Insights).map(_.name).toSet + MealCommand
+
+  /** How long the words of a typed meal are held while its consent card is open. */
+  val HeldMealFor: java.time.Duration = java.time.Duration.ofMinutes(30)
 
   /** `/stats month`: the current month so far. */
   val MonthArgument = "month"

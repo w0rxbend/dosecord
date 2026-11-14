@@ -35,3 +35,12 @@ trait MealRepository:
   def plan(accountId: UUID): Option[MealPlan]
 
   def savePlan(accountId: UUID, plan: MealPlan, now: Instant): Unit
+
+  /** Holds the words of a meal typed while the `nutrition` consent is asked (BOT_UX BUX-CONS-04), sealed, one per
+    * account, until `until`; a later hold replaces it. Nothing is a meal record until [[takeHeld]] returns it after the
+    * consent.
+    */
+  def hold(accountId: UUID, words: MealText, until: Instant): Unit
+
+  /** Removes the held words of the account and returns them unless they expired before `now`. */
+  def takeHeld(accountId: UUID, now: Instant): Option[MealText]

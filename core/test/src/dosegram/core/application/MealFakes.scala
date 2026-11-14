@@ -20,6 +20,12 @@ import scala.collection.mutable
 final class InMemoryMeals(dirty: mutable.LinkedHashSet[RollupKey]) extends MealRepository:
   val entries: mutable.LinkedHashMap[UUID, MealEntry] = mutable.LinkedHashMap.empty
   private val plans: mutable.Map[UUID, MealPlan] = mutable.Map.empty
+  private val held: mutable.Map[UUID, (MealText, Instant)] = mutable.Map.empty
+
+  override def hold(accountId: UUID, words: MealText, until: Instant): Unit = held(accountId) = (words, until)
+
+  override def takeHeld(accountId: UUID, now: Instant): Option[MealText] =
+    held.remove(accountId).collect { case (words, until) if !until.isBefore(now) => words }
 
   def live: List[MealEntry] = entries.values.filter(_.isLive).toList
 

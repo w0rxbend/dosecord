@@ -8,13 +8,16 @@ import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.nutrition.MealText
 import dosegram.core.domain.nutrition.MealTextTooLong
 import dosegram.core.domain.nutrition.MealType
+import dosegram.core.ports.KeyOwner
 import dosegram.core.ports.KeyService
 import dosegram.core.ports.MealRepository
+import dosegram.core.ports.SealedField
 
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Base64
 import java.util.UUID
 import scala.language.implicitConversions
 
@@ -44,6 +47,32 @@ final class PgMealRepository(conn: Connection, keys: KeyService) extends MealRep
       createdAt = rs.instant("created_at"),
       voidedAt = rs.optInstant("voided_at")
     )
+
+  /** The held words live in a `callback_slots` row that no button names: its id is derived from the account, its
+    * payload holds the words sealed with the account's key, and its expiry is the hold's (supervisor decision,
+    * 2026-11-14; the schema of V13 was frozen, so no column of its own). Account deletion deletes it with the account's
+    * other slots.
+    */
+  override def hold(accountId: UUID, words: MealText, until: Instant): Unit =
+    val id = PgMealRepository.heldSlot(accountId)
+    val sealedWords =
+      Base64.getEncoder.encodeToString(keys.sealText(PgMealRepository.heldField(accountId, id), words.value))
+    val payload = ujson.write(ujson.Obj(PgMealRepository.HeldKey -> sealedWords))
+    sql"""INSERT INTO callback_slots (id, account_id, chat, payload, expires_at)
+          VALUES ($id, $accountId, ${Jsonb("{}")}, ${Jsonb(payload)}, $until)
+          ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, expires_at = EXCLUDED.expires_at""".execute()
+    ()
+
+  override def takeHeld(accountId: UUID, now: Instant): Option[MealText] =
+    val id = PgMealRepository.heldSlot(accountId)
+    given RowMapper[(String, Instant)] = rs => (rs.getString("payload"), rs.instant("expires_at"))
+    val row = sql"""DELETE FROM callback_slots WHERE id = $id AND account_id = $accountId
+                    RETURNING payload, expires_at""".queryOne[(String, Instant)]()
+    row
+      .filter((_, until) => !until.isBefore(now))
+      .flatMap: (payload, _) =>
+        val sealedWords = Base64.getDecoder.decode(ujson.read(payload)(PgMealRepository.HeldKey).str)
+        stored(id, keys.openText(PgMealRepository.heldField(accountId, id), sealedWords))
 
   /** A stored meal type and description are inside their CHECKs; anything else is a corrupt row. */
   private def mealType(stored: String): MealType =
@@ -118,3 +147,15 @@ final class PgMealRepository(conn: Connection, keys: KeyService) extends MealRep
       .execute()
     ()
 end PgMealRepository
+
+object PgMealRepository:
+
+  /** The payload field of the held words. */
+  private val HeldKey = "heldMealWords"
+
+  /** The slot of an account's held words: the same id for every hold of the account, so a later hold replaces it. */
+  private def heldSlot(accountId: UUID): UUID =
+    UUID.nameUUIDFromBytes(s"dosegram/held-meal/$accountId".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+
+  private def heldField(accountId: UUID, slot: UUID): SealedField =
+    SealedField(KeyOwner.Account(accountId), "callback_slots", "payload", slot.toString)
