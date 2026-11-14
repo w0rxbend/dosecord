@@ -23,6 +23,7 @@ import {
 } from './data';
 import { toLocalDate } from './dates';
 import { MockDay, otherDay } from './day';
+import { MockImports } from './imports';
 import { buildInsightList, buildMonth, buildOverview, doseHistory } from './insights';
 import { buildPreview } from './preview';
 import { MockReminders } from './reminders';
@@ -72,6 +73,8 @@ export class MockBackend implements ApiClient {
   private nextId = 1;
   /** The exports, newest first. Tests confirm one with `confirmExport`, as the chat would. */
   exportItems: ExportItem[] = [];
+  /** The imports (ROADMAP G10.5): tests read the batches the server received and turn the consent off. */
+  importState!: MockImports;
 
   constructor(options: MockBackendOptions = {}) {
     this.now = options.now ?? (() => new Date());
@@ -89,6 +92,7 @@ export class MockBackend implements ApiClient {
     this.tracking = new MockTracking(() => this.localToday(), () => this.minute(), !empty);
     // A new account has never saved its day: set-up offers it (supervisor decision, 2026-11-14).
     this.reminderState = new MockReminders(!empty);
+    this.importState = new MockImports(this.now);
   }
 
   resolveInChat(occurrenceId: string): void {
@@ -489,6 +493,23 @@ export class MockBackend implements ApiClient {
         : item,
     );
   }
+
+  // ---------- imports (ROADMAP G10.5, G10.7) ----------
+
+  imports: ApiClient['imports'] = () => this.respond('imports', () => [...this.importState.items]);
+
+  startImport: ApiClient['startImport'] = (source, key) =>
+    this.respond('imports:create', () => this.once(key, () => this.importState.start(source)));
+
+  addImportBatch: ApiClient['addImportBatch'] = (id, batch, key) =>
+    this.respond('imports:batch', () => this.once(key, () => this.importState.addBatch(id, batch)));
+
+  commitImport: ApiClient['commitImport'] = (id, key) =>
+    this.respond('imports:commit', () => this.once(key, () => this.importState.commit(id)));
+
+  removeImport: ApiClient['removeImport'] = (id) => this.respond('imports:remove', () => this.importState.remove(id));
+
+  importTemplateUrl: ApiClient['importTemplateUrl'] = (kind) => `http://localhost/api/v1/import-templates/${kind}`;
 
   private findExport(id: string): ExportItem {
     const found = this.exportItems.find((item) => item.id === id);

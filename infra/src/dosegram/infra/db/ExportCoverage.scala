@@ -79,6 +79,9 @@ object ExportCoverage:
          FROM export_jobs WHERE account_id = ? ORDER BY created_at, id"""
     ),
     "export_download_tickets" -> Coverage.Excluded("hashes of download tickets"),
+    // V15: the history of the account's imports, counts and codes only; the imported entries are in their tables.
+    "import_jobs" -> Coverage.Owned(OwnerColumn),
+    "import_staging" -> Coverage.Excluded("records of an open import before the commit, at most 24 hours"),
     // The audit rows about the account (ROADMAP G2.16): codes and outcomes only, part of the access history.
     "audit_log" -> Coverage.Selected(
       """SELECT id, occurred_at, event_type, actor_type, object_type, object_id, action, outcome, reason_code, channel,

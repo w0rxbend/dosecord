@@ -103,6 +103,20 @@ describe('Food screen (S-08)', () => {
     expect(document.body.textContent).not.toMatch(/kcal|calorie|energy|target|budget|remaining/i);
   });
 
+  it('marks a meal an import brought in as imported, and no other (ROADMAP G10.5)', async () => {
+    const harness = createHarness('empty');
+    const meals = harness.api.meals;
+    harness.api.meals = async (from, to) => (await meals(from, to)).map((meal) => ({ ...meal, imported: true }));
+    const user = open(harness);
+
+    await user.click(await screen.findByRole('button', { name: 'Add lunch' }));
+    await user.click(screen.getByRole('button', { name: 'Save meal' }));
+    harness.tg.activate();
+
+    expect(await within(group('Lunch')).findByText('Imported')).toBeTruthy();
+    expect(within(group('Breakfast')).queryByText('Imported')).toBeNull();
+  });
+
   it('without the nutrition consent the diary is turned off and says how to turn it on', async () => {
     const harness = createHarness();
     harness.api.tracking.withdraw('nutrition');

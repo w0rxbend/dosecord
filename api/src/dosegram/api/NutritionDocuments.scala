@@ -46,7 +46,8 @@ final case class MealView(
     mealType: MealKind,
     label: String,
     text: String,
-    description: Option[String] = None
+    description: Option[String] = None,
+    imported: Boolean
 ) derives ReadWriter,
       Schema
 

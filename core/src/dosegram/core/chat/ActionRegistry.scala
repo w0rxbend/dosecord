@@ -100,6 +100,8 @@ object ActionRegistry:
     ActionEntry(304, "privacy.delete_account_ask", requiresSession = false),
     ActionEntry(305, "privacy.delete_account_confirm", requiresSession = false),
     ActionEntry(306, "privacy.delete_account", requiresSession = false),
+    // Imports (340 to 359; ROADMAP G10.5): direct mode on the account; the value is the template's ordinal.
+    ActionEntry(340, "import.template", requiresSession = false),
     // Sleep, food and report depth (360 to 389; ROADMAP G7.2, G9.2). Direct mode: "Nap" on the account; a bedtime chip
     // on the "I'm up" tap, its value the minute of the day; "Adjust times" on the episode, its value the two shifts in
     // steps of 15 minutes (see SleepCards.shifts); the report offer and Resume on the account, the value the kind.

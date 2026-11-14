@@ -19,6 +19,12 @@ enum ConsentPurpose(val id: String):
   /** Meal records (PRODUCT_SPEC section 8.12). */
   case Nutrition extends ConsentPurpose("nutrition")
 
+  /** Imports from a file (PRODUCT_SPEC section 8.17, R-IMX-8). One consent covers both sources of this wave, the
+    * Dosegram CSV template and the Apple Health export: `consent_state` holds one row per purpose (supervisor decision,
+    * 2026-11-14).
+    */
+  case Import extends ConsentPurpose("import")
+
 object ConsentPurpose:
   def ofId(id: String): Option[ConsentPurpose] = values.find(_.id == id)
 

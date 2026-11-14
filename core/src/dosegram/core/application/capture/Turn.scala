@@ -118,6 +118,7 @@ private[capture] object CaptureActions:
   val FoodImage: ActionEntry = named("food.image")
   val StatsShare: ActionEntry = named("stats.share")
   val StatsShareSend: ActionEntry = named("stats.share_send")
+  val ImportTemplate: ActionEntry = named("import.template")
 
   val all: Set[ActionEntry] = Set(
     ConsentStep,
@@ -152,7 +153,8 @@ private[capture] object CaptureActions:
     FoodUndo,
     FoodImage,
     StatsShare,
-    StatsShareSend
+    StatsShareSend,
+    ImportTemplate
   )
 
   private def named(name: String): ActionEntry =

@@ -26,6 +26,9 @@ enum AuditEventType(val code: String, val written: Boolean, val pending: String 
   case ExportRequested extends AuditEventType("data.export.requested", written = true)
   case ExportCompleted extends AuditEventType("data.export.completed", written = true)
   case ExportDownloaded extends AuditEventType("data.export.downloaded", written = true)
+  // Not in brief 06: an import committed and undone (ROADMAP G10.5; supervisor decision, 2026-11-14).
+  case ImportCommitted extends AuditEventType("data.import.committed", written = true)
+  case ImportUndone extends AuditEventType("data.import.undone", written = true)
   case OperatorRead extends AuditEventType("data.read.operator", false, "break-glass, G11.14")
   // Data change
   case RecordUpdated extends AuditEventType("record.updated", written = true)

@@ -29,6 +29,9 @@ enum SleepOrigin(val dbValue: String):
   case PassiveConfirmed extends SleepOrigin("passive_confirmed")
   case SelfReportCorrected extends SleepOrigin("self_report_corrected")
 
+  /** Brought in by an import (V15): a device's night, or a night of a Dosegram CSV file. */
+  case ImportFile extends SleepOrigin("import_file")
+
 /** The quality class of an episode. Tier 1, the passive quiet window, is not here on purpose: it is a [[QuietWindow]],
   * never an episode, so no duration or average can be computed from it (VISUALS VA-ME-60).
   */

@@ -14,6 +14,7 @@ import type {
   InventoryView,
   DeletionRequest,
   ExportItem,
+  ImportView,
   InsightCalendar,
   InsightList,
   InsightMonth,
@@ -527,6 +528,10 @@ export function toReminderTimeline(wire: Wire['ReminderTimeline']): ReminderTime
 
 export function toExportItem(wire: Wire['ExportView']): ExportItem {
   return { ...wire };
+}
+
+export function toImportView(wire: Wire['ImportView']): ImportView {
+  return { ...wire, domains: wire.domains ?? [], errors: wire.errors ?? [] };
 }
 
 export function toDeletionRequest(wire: Wire['DeletionRequestView']): DeletionRequest {

@@ -29,6 +29,10 @@ import type {
   ExportItem,
   ExportRequest,
   ExportTicket,
+  ImportBatch,
+  ImportSource,
+  ImportTemplateKind,
+  ImportView,
   ReminderPresets,
   Reminders,
   ReminderTimeline,
@@ -208,6 +212,16 @@ export interface ApiClient {
   // before the tap there (MA-STEP-1).
   requestAccountDeletion(): Promise<DeletionRequest>;
   requestDomainDeletion(domain: DeletionDomain): Promise<DeletionRequest>;
+
+  // imports (ROADMAP G10.5, G10.7): starting, a batch and the commit need the import consent, given in the chat.
+  imports(): Promise<readonly ImportView[]>;
+  startImport(source: ImportSource, idempotencyKey: string): Promise<ImportView>;
+  addImportBatch(id: string, batch: ImportBatch, idempotencyKey: string): Promise<ImportView>;
+  commitImport(id: string, idempotencyKey: string): Promise<ImportView>;
+  /** Cancels an open import or undoes a committed one. */
+  removeImport(id: string): Promise<ImportView>;
+  /** The absolute URL of an empty template, for downloadFile; it holds no record and needs no session. */
+  importTemplateUrl(kind: ImportTemplateKind): string;
 }
 
 /**

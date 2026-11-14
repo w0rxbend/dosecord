@@ -34,7 +34,8 @@ final case class HydrationEntryView(
     time: String,
     occurredAt: Instant,
     amountMl: Int,
-    text: String
+    text: String,
+    imported: Boolean
 ) derives ReadWriter,
       Schema
 
@@ -109,7 +110,8 @@ final case class MoodCheckinView(
     valence: Int,
     label: String,
     blobState: String,
-    energy: Option[Int] = None
+    energy: Option[Int] = None,
+    imported: Boolean
 ) derives ReadWriter,
       Schema
 
@@ -295,7 +297,8 @@ final case class SleepEpisodeView(
     duration: String,
     source: String,
     text: String,
-    quality: Option[Int] = None
+    quality: Option[Int] = None,
+    imported: Boolean
 ) derives ReadWriter,
       Schema
 

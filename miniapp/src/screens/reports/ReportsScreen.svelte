@@ -5,6 +5,7 @@
   import { dateLocale, t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
+  import LinkRow from '../../ui/LinkRow.svelte';
   import Screen from '../../ui/Screen.svelte';
 
   /** MA-REP-5: while a file waits or is made, the page asks again on this period. */
@@ -123,6 +124,13 @@
       <button class="btn btn-tinted" type="button" disabled={busy} onclick={() => request({ kind: 'full_zip' })}
         >{en.reports.requestExport}</button
       >
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="import-title">
+    <h2 class="section-title" id="import-title">{en.imports.title}</h2>
+    <div class="section-body">
+      <LinkRow path="/insights/reports/import" label={en.imports.link} hint={en.imports.linkHint} />
     </div>
   </section>
 

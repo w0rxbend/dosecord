@@ -47,6 +47,8 @@ const THEMES: Record<Scheme, Record<string, string>> = {
 export interface LaunchOptions {
   readonly startParam?: string;
   readonly scheme?: Scheme;
+  /** Telegram's platform name; a phone by default. `tdesktop` opens what the app offers on the desktop only. */
+  readonly platform?: string;
 }
 
 /** What the stub recorded of the native controls. */
@@ -87,7 +89,7 @@ function stubSource(config: object): string {
     initData: config.initData,
     initDataUnsafe: config.startParam === undefined ? {} : { start_param: config.startParam },
     version: '9.1',
-    platform: 'android',
+    platform: config.platform,
     colorScheme: config.scheme,
     themeParams: config.theme,
     viewportStableHeight: window.innerHeight,
@@ -124,6 +126,7 @@ export async function installTelegram(page: Page, options: LaunchOptions = {}): 
     startParam: options.startParam,
     scheme,
     theme: THEMES[scheme],
+    platform: options.platform ?? 'android',
   });
   await page.route(TELEGRAM_SCRIPT, (route) => route.fulfill({ contentType: 'text/javascript', body }));
 }

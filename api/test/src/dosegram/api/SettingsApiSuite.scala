@@ -151,7 +151,16 @@ final class SettingsApiSuite extends ApiSuite:
     val byPurpose = items.map(item => item("purpose").str -> item).toMap
     assertEquals(
       items.map(_("title").str),
-      List("Ліки", "Вода", "Настрій", "Сон", "Порівняння між розділами", "Зображення звітів у чаті", "Їжа")
+      List(
+        "Ліки",
+        "Вода",
+        "Настрій",
+        "Сон",
+        "Порівняння між розділами",
+        "Зображення звітів у чаті",
+        "Їжа",
+        "Імпорт із файлів"
+      )
     )
     assert(byPurpose("hydration")("text").str.startsWith("Увімкнено з "), byPurpose("hydration").toString)
     assert(!items.exists(_("text").str.contains("On since")), items.toString)

@@ -151,4 +151,6 @@ object ConsentApiSuite:
       // summary leaves out a domain without its consent (ExportChatPgSuite).
       ExportEndpoints.documented.flatMap(_.info.name).toSet ++
       // Deleting is the right of every account, whatever is turned on (PRODUCT_SPEC R-IDC-19, R-IDC-20).
-      DeletionEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))
+      DeletionEndpoints.documented.flatMap(_.info.name).toSet ++
+      // The import routes check the import consent and each record's own domain (ImportApiSuite, ImportPgSuite).
+      ImportEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

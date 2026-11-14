@@ -179,6 +179,12 @@ object CommandRegistry:
     description = "Export your records, or make a record summary."
   )
 
+  /** `/import` (ROADMAP G10.5): hidden, like `/export`, and declared so the mediator acknowledges it. */
+  val Import: CommandSpec = CommandSpec(
+    name = "import",
+    description = "Bring records in from a file."
+  )
+
   /** `/language` (BOT_UX section 6.1): hidden, and declared so the mediator acknowledges it (ROADMAP G2.22). */
   val Language: CommandSpec = CommandSpec(
     name = "language",
@@ -186,7 +192,7 @@ object CommandRegistry:
   )
 
   val withCaptureByName: Map[String, CommandSpec] =
-    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export :+ Language).map(spec => spec.name -> spec).toMap
+    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export :+ Import :+ Language).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

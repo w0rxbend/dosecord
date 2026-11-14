@@ -52,7 +52,8 @@ class ConsentRequestSuite extends munit.ScalaCheckSuite:
 
   test("a value with an unknown purpose or pending kind is no request"):
     assertEquals(ConsentRequest.of(0L), None)
-    assertEquals(ConsentRequest.of(ConsentRequest.asking(ConsentPurpose.Mood, Pending.Stats).value | (15L << 6)), None)
+    // Every pending kind from 1 to 15 is used (15 is the import card, ROADMAP G10.5); kind 0 is none.
+    assertEquals(ConsentRequest.of(ConsentRequest.asking(ConsentPurpose.Mood, Pending.Stats).value & ~(0xfL << 6)), None)
 
   test("both taps come back from the token: the first to the minute, never after the confirming one"):
     val agreed = java.time.Instant.parse("2026-11-13T09:41:27Z")

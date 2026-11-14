@@ -959,6 +959,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/import-templates/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The empty Dosegram CSV template of a domain (water, mood, sleep, meals): a header row only. It holds no record, so downloadFile fetches it without a session. */
+        get: operations["getImportTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listImports"];
+        put?: never;
+        /** @description Starts an import from one source. Needs the import consent, which is given in the chat. */
+        post: operations["createImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getImport"];
+        put?: never;
+        post?: never;
+        /** @description Cancels an open import, or undoes a committed one: exactly its entries are removed. */
+        delete: operations["deleteImport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{id}/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reads one batch of at most 2 MB and 5000 rows into the preview: CSV rows with their header, or device records. Nothing is stored as an entry before the commit. */
+        post: operations["addImportBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Writes the new records of the preview as imported entries. */
+        post: operations["commitImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1106,6 +1191,23 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
+        /** DeviceRecordInput */
+        DeviceRecordInput: {
+            type: components["schemas"]["DeviceRecordType"];
+            /** Format: date-time */
+            at?: string;
+            /** Format: int32 */
+            amountMl?: number;
+            /** Format: date-time */
+            onset?: string;
+            /** Format: date-time */
+            wake?: string;
+        };
+        /**
+         * DeviceRecordType
+         * @enum {string}
+         */
+        DeviceRecordType: "sleep_main" | "sleep_nap" | "water";
         /** DoseOccurrence */
         DoseOccurrence: {
             /** Format: uuid */
@@ -1230,6 +1332,7 @@ export interface components {
             /** Format: int32 */
             amountMl: number;
             text: string;
+            imported: boolean;
         };
         /** HydrationLimits */
         HydrationLimits: {
@@ -1283,6 +1386,83 @@ export interface components {
          * @enum {string}
          */
         ImageThemeChoice: "auto" | "dark" | "light";
+        /** ImportBatchInput */
+        ImportBatchInput: {
+            csv?: string;
+            /** Format: int32 */
+            firstLine?: number;
+            records?: components["schemas"]["DeviceRecordInput"][];
+            /** Format: int32 */
+            ignored?: number;
+            /** Format: int32 */
+            firstIndex?: number;
+        };
+        /** ImportDomainView */
+        ImportDomainView: {
+            domain: string;
+            /** Format: int32 */
+            fresh: number;
+            /** Format: int32 */
+            duplicates: number;
+            /** Format: int32 */
+            conflicts: number;
+            /** Format: int32 */
+            imported: number;
+        };
+        /** ImportErrorView */
+        ImportErrorView: {
+            /** Format: int32 */
+            line: number;
+            field: string;
+            code: string;
+        };
+        /** ImportInput */
+        ImportInput: {
+            source: components["schemas"]["ImportSourceWire"];
+        };
+        /** ImportList */
+        ImportList: {
+            items?: components["schemas"]["ImportView"][];
+        };
+        /**
+         * ImportSourceWire
+         * @enum {string}
+         */
+        ImportSourceWire: "apple_health" | "dosegram_csv";
+        /**
+         * ImportState
+         * @enum {string}
+         */
+        ImportState: "cancelled" | "committed" | "open" | "undone";
+        /** ImportView */
+        ImportView: {
+            /** Format: uuid */
+            id: string;
+            source: components["schemas"]["ImportSourceWire"];
+            state: components["schemas"]["ImportState"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            committedAt?: string;
+            /** Format: date-time */
+            closedAt?: string;
+            domains?: components["schemas"]["ImportDomainView"][];
+            /** Format: int32 */
+            invalid: number;
+            /** Format: int32 */
+            skipped: number;
+            /** Format: int32 */
+            ignored: number;
+            /** Format: int32 */
+            withoutConsent: number;
+            /** Format: int32 */
+            noOffset: number;
+            errors?: components["schemas"]["ImportErrorView"][];
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+        };
         /** InsightBlock */
         InsightBlock: {
             id: components["schemas"]["OverviewDomain"];
@@ -1477,6 +1657,7 @@ export interface components {
             label: string;
             text: string;
             description?: string;
+            imported: boolean;
         };
         /** Meals */
         Meals: {
@@ -1581,6 +1762,7 @@ export interface components {
             blobState: string;
             /** Format: int32 */
             energy?: number;
+            imported: boolean;
         };
         /** MoodCheckins */
         MoodCheckins: {
@@ -2026,6 +2208,7 @@ export interface components {
             text: string;
             /** Format: int32 */
             quality?: number;
+            imported: boolean;
         };
         /** SleepEpisodes */
         SleepEpisodes: {
@@ -4521,6 +4704,232 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeletionRequestView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getImportTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition": string;
+                    "Content-Type": string;
+                    "Access-Control-Allow-Origin": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listImports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportList"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createImport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    addImportBatch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportBatchInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    commitImport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportView"];
                 };
             };
             default: {

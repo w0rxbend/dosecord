@@ -379,6 +379,8 @@ export interface WaterEntry {
   readonly time: LocalTime;
   readonly amountMl: number;
   readonly text: string;
+  /** Brought in by an import; shown as such (ROADMAP G10.5). */
+  readonly imported?: boolean;
 }
 
 export interface WaterLogged {
@@ -470,6 +472,7 @@ export interface MoodCheckin {
   readonly energy?: number;
   readonly label: string;
   readonly blobState: string;
+  readonly imported?: boolean;
 }
 
 export interface MoodCheckinInput {
@@ -523,6 +526,7 @@ export interface SleepEpisode {
   readonly source: string;
   readonly text: string;
   readonly quality?: number;
+  readonly imported?: boolean;
 }
 
 export interface SleepEpisodeInput {
@@ -581,6 +585,7 @@ export interface Meal {
   /** The meal in words, the row's accessible name. */
   readonly text: string;
   readonly description?: string;
+  readonly imported?: boolean;
 }
 
 export interface MealInput {
@@ -838,4 +843,63 @@ export type DeletionDomain = 'medication' | 'hydration' | 'mood' | 'sleep' | 'nu
 export interface DeletionRequest {
   readonly status: 'confirmation_sent';
   readonly expiresAt: string;
+}
+
+// ---------- imports (ROADMAP G10.5, G10.7; MINI_APP S-14) ----------
+
+export type ImportSource = 'dosegram_csv' | 'apple_health';
+export type ImportState = 'open' | 'committed' | 'cancelled' | 'undone';
+export type ImportTemplateKind = 'water' | 'mood' | 'sleep' | 'meals';
+
+/** The records of one domain in an import: new, duplicates, conflicts and, once committed, imported. */
+export interface ImportDomainCounts {
+  readonly domain: string;
+  readonly fresh: number;
+  readonly duplicates: number;
+  readonly conflicts: number;
+  readonly imported: number;
+}
+
+/** A refused row: its file line (or record number), the column and a code; never the value. */
+export interface ImportRowError {
+  readonly line: number;
+  readonly field: string;
+  readonly code: string;
+}
+
+/** An import and its preview (PRODUCT_SPEC R-IMX-8). */
+export interface ImportView {
+  readonly id: string;
+  readonly source: ImportSource;
+  readonly state: ImportState;
+  readonly createdAt: string;
+  readonly committedAt?: string;
+  readonly closedAt?: string;
+  readonly domains: readonly ImportDomainCounts[];
+  readonly invalid: number;
+  readonly skipped: number;
+  readonly ignored: number;
+  readonly withoutConsent: number;
+  readonly noOffset: number;
+  readonly errors: readonly ImportRowError[];
+  readonly from?: LocalDate;
+  readonly to?: LocalDate;
+}
+
+/** A normalised device record (the raw file never leaves the device, R-IMX-7). */
+export interface ImportDeviceRecord {
+  readonly type: 'water' | 'sleep_main' | 'sleep_nap';
+  readonly at?: string;
+  readonly amountMl?: number;
+  readonly onset?: string;
+  readonly wake?: string;
+}
+
+/** One batch: CSV rows with their header, or device records. */
+export interface ImportBatch {
+  readonly csv?: string;
+  readonly firstLine?: number;
+  readonly records?: readonly ImportDeviceRecord[];
+  readonly ignored?: number;
+  readonly firstIndex?: number;
 }

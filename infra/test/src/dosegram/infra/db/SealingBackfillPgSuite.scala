@@ -185,7 +185,7 @@ class SealingBackfillPgSuite extends PgSuite:
       val seed = seedAtV9(ds)
       val (result, lines) = logged(SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
       assertEquals(result.schemaVersion, "16")
-      assertEquals(result.migrationsExecuted, 5)
+      assertEquals(result.migrationsExecuted, 6)
       assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
@@ -274,7 +274,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("16", 2, 4))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("16", 3, 4))
       assert(lines.result().contains("sealing: vacuumed outbox_messages, inbound_events"), lines.result().toString)
 
       val check = ds.getConnection

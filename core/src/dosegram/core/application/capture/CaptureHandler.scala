@@ -62,6 +62,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
   private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens)
+  private val imports = ImportChat(tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -86,9 +87,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Inbound.CommandInvoked(name, _, raw) if commandNames(name)        => Some(onCommand(turn, name, raw))
       case Inbound.InteractionSubmitted(ref, source) if isCaptureAction(ref) =>
         Some(onTap(turn.copy(source = source), ref))
-      case Inbound.MessageReceived(text, _, _)          => onText(turn, text)
-      case Inbound.MediaReceived(MediaKind.Photo, _, _) => Some(food.photo(turn))
-      case _                                            => None
+      case Inbound.MessageReceived(text, _, _)             => onText(turn, text)
+      case Inbound.MediaReceived(MediaKind.Photo, _, _)    => Some(food.photo(turn))
+      case Inbound.MediaReceived(MediaKind.Document, _, _) => Some(imports.document(turn))
+      case _                                               => None
 
   private def onCommand(turn: Turn, name: String, raw: String): Reply =
     val argument = argumentOf(raw)
@@ -99,6 +101,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case StatsCommand              => statsCommand(turn, argument)
       case SleepCommand              => sleepCommand(turn, argument)
       case InsightsCommand           => months.insights(turn)
+      case ImportCommand => consent.guarded(turn, ConsentPurpose.Import, Pending.ImportCard)(imports.card(turn))
       // The fourth capture command, `/privacy`: `route` lets no other name in.
       case _ => consent.privacy(turn)
 
@@ -233,6 +236,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.FoodImage      => imageOf(turn, Pending.FoodImage)(food.image(turn))
       case CaptureActions.StatsShare     => share.picker(turn)
       case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
+      case CaptureActions.ImportTemplate => imports.template(turn, value).getOrElse(stale(turn))
       case _                             => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
@@ -273,7 +277,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.FoodTyped(code)       =>
         val words = turn.tx.tracking.meals.takeHeld(turn.accountId, clock.now())
         mealOf(code.toLong).map(meal => food.typed(fresh, MealLine.Logged(meal, words))).getOrElse(stale(turn))
-      case Pending.FoodImage => food.image(fresh)
+      case Pending.FoodImage  => food.image(fresh)
+      case Pending.ImportCard => imports.card(fresh)
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =
@@ -289,7 +294,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
     purpose match
       case ConsentPurpose.Medication => parts.withdrawal.stop(turn.tx, turn.accountId, clock.now())
       case ConsentPurpose.Hydration | ConsentPurpose.Mood | ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns |
-          ConsentPurpose.ImagesInChat | ConsentPurpose.Nutrition =>
+          ConsentPurpose.ImagesInChat | ConsentPurpose.Nutrition | ConsentPurpose.Import =>
         ()
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
@@ -315,8 +320,9 @@ private object CaptureHandler:
   val InsightsCommand: String = CommandRegistry.Insights.name
   val FoodCommand: String = CommandRegistry.Food.name
   val MealCommand: String = CommandRegistry.Meal.name
+  val ImportCommand: String = CommandRegistry.Import.name
   val commandNames: Set[String] =
-    (CommandRegistry.capture :+ CommandRegistry.Insights).map(_.name).toSet + MealCommand
+    (CommandRegistry.capture :+ CommandRegistry.Insights :+ CommandRegistry.Import).map(_.name).toSet + MealCommand
 
   /** How long the words of a typed meal are held while its consent card is open. */
   val HeldMealFor: java.time.Duration = java.time.Duration.ofMinutes(30)

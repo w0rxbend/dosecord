@@ -125,6 +125,19 @@ object ConsentCopy:
           "Нові зображення не надсилаються: усі цифри надходять текстом. Зображення, що вже є в цьому чаті, " +
             "лишаються там, доки ви їх не видалите."
         )
+      case ConsentPurpose.Import =>
+        Wording(
+          "читає файли, які я вибираю для імпорту, файл CSV Dosegram або експорт Apple Health, і зберігає " +
+            "записи, які я підтверджую, з позначкою «імпортовано». Мій пристрій залишають лише записи вибраних " +
+            "мною типів",
+          "може читати файли, які ви вибираєте для імпорту, файл CSV Dosegram або експорт Apple Health, і " +
+            "зберігати записи, які ви підтверджуєте, з позначкою «імпортовано». Ваш пристрій залишають лише " +
+            "записи вибраних вами типів",
+          "імпорт із файлів",
+          "Імпорт лишається вимкненим. Надішліть /import, щоб увімкнути його пізніше.",
+          "Новий імпорт розпочати не можна. Уже імпортовані записи лишаються, доки ви не вилучите їхній імпорт у " +
+            "застосунку."
+        )
 
   private def english(purpose: ConsentPurpose): Wording =
     purpose match
@@ -189,6 +202,16 @@ object ConsentCopy:
           "Images stay off. Every figure is still sent as text.",
           "No new image is sent: every figure comes as text. Images already in this chat stay there until you " +
             "delete them."
+        )
+      case ConsentPurpose.Import =>
+        Wording(
+          "reads the files I choose to import, a Dosegram CSV file or an Apple Health export, and stores the " +
+            "records I confirm, marked as imported. Only the records of the types I select leave my device",
+          "may read the files you choose to import, a Dosegram CSV file or an Apple Health export, and store the " +
+            "records you confirm, marked as imported. Only the records of the types you select leave your device",
+          "imports from files",
+          "Imports stay off. Send /import to turn them on later.",
+          "No new import can be started. Records already imported stay until you remove their import in the app."
         )
 
   /** Stage 1: the full statement. It is the text whose hash the ledger keeps. */
@@ -281,7 +304,7 @@ object ConsentCopy:
       case ConsentPurpose.Hydration  => tr("Water", "Вода")
       case ConsentPurpose.Mood       => tr("Mood", "Настрій")
       case ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns | ConsentPurpose.ImagesInChat |
-          ConsentPurpose.Nutrition =>
+          ConsentPurpose.Nutrition | ConsentPurpose.Import =>
         wording(purpose).short.capitalize
 
   def onboardingChoiceHint: String = tr("Choose one of the buttons.", "Виберіть одну з кнопок.")

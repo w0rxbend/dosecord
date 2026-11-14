@@ -104,7 +104,8 @@ object Mood:
       valence = checkin.valence.step,
       label = CheckInCopy.label(checkin.valence, checkin.energy),
       blobState = BlobStates.of(checkin.valence, checkin.energy),
-      energy = checkin.energy.map(_.step)
+      energy = checkin.energy.map(_.step),
+      imported = checkin.source == EntrySource.Import
     )
 
   /** A day by its latest check-in. A day without one is `blob.none`: no other day's mood stands in for it (VA-BL-02).

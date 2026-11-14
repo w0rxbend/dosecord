@@ -24,6 +24,7 @@ export type Route =
   | { readonly screen: 'settings-privacy' }
   | { readonly screen: 'reminders' }
   | { readonly screen: 'reports' }
+  | { readonly screen: 'import' }
   | { readonly screen: 'setup' }
   | { readonly screen: 'settings-day' }
   | { readonly screen: 'settings-delete' };
@@ -59,6 +60,7 @@ const PATHS: readonly (readonly [RegExp, (match: RegExpExecArray) => Route])[] =
   [/^\/settings\/privacy$/, () => ({ screen: 'settings-privacy' })],
   [/^\/settings\/reminders$/, () => ({ screen: 'reminders' })],
   [/^\/insights\/reports$/, () => ({ screen: 'reports' })],
+  [/^\/insights\/reports\/import$/, () => ({ screen: 'import' })],
   [/^\/setup$/, () => ({ screen: 'setup' })],
   [/^\/settings\/day$/, () => ({ screen: 'settings-day' })],
   [/^\/settings\/delete$/, () => ({ screen: 'settings-delete' })],
@@ -95,6 +97,7 @@ const START_PARAMS: readonly (readonly [RegExp, (match: RegExpExecArray) => stri
   [/^set_privacy$/, () => '/settings/privacy'],
   [/^reminders$/, () => '/settings/reminders'],
   [/^reports$/, () => '/insights/reports'],
+  [/^import$/, () => '/insights/reports/import'],
   [/^setup$/, () => '/setup'],
   [/^set_day$/, () => '/settings/day'],
 ];
@@ -131,6 +134,7 @@ const TABS: Readonly<Record<Route['screen'], TabId | null>> = {
   'settings-privacy': null,
   reminders: null,
   reports: 'insights',
+  import: 'insights',
   setup: 'today',
   'settings-day': null,
   'settings-delete': null,
@@ -165,6 +169,7 @@ const PARENTS: Readonly<Partial<Record<Route['screen'], string>>> = {
   'settings-privacy': '/settings',
   reminders: '/settings',
   reports: '/insights',
+  import: '/insights/reports',
   setup: '/',
   'settings-day': '/settings',
   'settings-delete': '/settings',
