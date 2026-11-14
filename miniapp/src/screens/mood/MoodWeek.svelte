@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { BlobAsset, MoodSummaryDay } from '../../api/types';
   import MoodBlob from '../../charts/MoodBlob.svelte';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
 
   let { days, asset }: { days: readonly MoodSummaryDay[]; asset: BlobAsset } = $props();
 </script>

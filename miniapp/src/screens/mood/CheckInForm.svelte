@@ -5,7 +5,7 @@
   import { useMainButton } from '../../app/main-button.svelte';
   import { NO_ENTRY, stateIdOf } from '../../charts/blob';
   import MoodBlob from '../../charts/MoodBlob.svelte';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
 
   interface Props {
     asset: BlobAsset;

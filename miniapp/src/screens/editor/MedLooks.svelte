@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { MedicationOptions } from '../../api/types';
   import type { MedicationField, MedicationForm } from '../../forms/medication-rules';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
   import PillTag from '../../ui/PillTag.svelte';
 

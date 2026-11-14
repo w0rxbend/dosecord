@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TrackedDomain } from '../api/types';
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
 
   let { domain }: { domain: TrackedDomain } = $props();
 </script>

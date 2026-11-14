@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { BlobAsset, InsightCalendar } from '../../api/types';
   import { findState } from '../../charts/blob';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
 
   interface Props {
     calendar: InsightCalendar;

@@ -2,7 +2,7 @@
   import { toApiError } from '../../api/client';
   import type { MealKind, NutritionSettings } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import { MAIN_MEALS } from './meal';
 
   let { onSaved }: { onSaved: () => void } = $props();

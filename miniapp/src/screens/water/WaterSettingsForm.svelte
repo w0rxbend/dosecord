@@ -4,7 +4,7 @@
   import type { WaterSettings } from '../../api/types';
   import { useApp } from '../../app/context';
   import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
 
   let { settings }: { settings: WaterSettings } = $props();

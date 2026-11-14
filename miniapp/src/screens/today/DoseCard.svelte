@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Occurrence, OccurrenceAction } from '../../api/types';
-  import { doseStatusText, en } from '../../i18n/en';
+  import { doseStatusText, t as en } from '../../i18n/index.svelte';
   import StatusGlyph from '../../ui/StatusGlyph.svelte';
 
   interface Props {

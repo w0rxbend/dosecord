@@ -84,7 +84,10 @@ export class MockTracking {
   private waterVersion = 1;
   private account: AccountSettings = {
     language: 'en',
-    languages: [{ value: 'en', label: 'English' }],
+    languages: [
+      { value: 'en', label: 'English' },
+      { value: 'uk', label: 'Українська' },
+    ],
     timeZone: 'Europe/Kyiv',
     imageTheme: 'auto',
     version: 1,

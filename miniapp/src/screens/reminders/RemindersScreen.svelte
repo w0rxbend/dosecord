@@ -2,7 +2,7 @@
   import { newIdempotencyKey, toApiError } from '../../api/client';
   import type { DayProfileInput, ReminderPresets, Reminders, ReminderTimeline } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import LinkRow from '../../ui/LinkRow.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Chart } from '../api/types';
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
   import ScenePainter from './ScenePainter.svelte';
 
   let { chart, id }: { chart: Chart; id: string } = $props();

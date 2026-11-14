@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { FieldError } from '../../api/client';
   import type { LocalDate, SleepKind } from '../../api/types';
-  import { en, fieldErrorText } from '../../i18n/en';
+  import { t as en, fieldErrorText } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
   import { lastNightDraft, type NightDraft } from './night';
 

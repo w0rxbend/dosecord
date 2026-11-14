@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ScheduleOptions } from '../../api/types';
   import type { ScheduleForm } from '../../forms/schedule-rules';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
   import TimeRows from './TimeRows.svelte';
 

@@ -3,7 +3,7 @@
   import { OFF, type MoodCheckin, type MoodSummary, type Off } from '../../api/types';
   import { useApp } from '../../app/context';
   import MoodBlob from '../../charts/MoodBlob.svelte';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import { moodAssets, type MoodAssets } from '../../state/mood-assets';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';

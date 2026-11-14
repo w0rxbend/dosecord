@@ -2,7 +2,7 @@
   import type { Domain, InsightCalendar } from '../../api/types';
   import { useApp } from '../../app/context';
   import { historyDayPath } from '../../app/routes';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import { moodAssets, type MoodAssets } from '../../state/mood-assets';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';

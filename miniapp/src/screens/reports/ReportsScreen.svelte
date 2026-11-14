@@ -2,7 +2,7 @@
   import { ApiError, newIdempotencyKey, toApiError } from '../../api/client';
   import type { ExportItem, ExportRequest } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, errorText } from '../../i18n/en';
+  import { dateLocale, t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import Screen from '../../ui/Screen.svelte';
@@ -30,10 +30,10 @@
   });
 
   const clock = (iso: string): string =>
-    new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    new Date(iso).toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit' });
 
   const dateText = (date: string): string =>
-    new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    new Date(`${date}T12:00:00Z`).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
   function titleOf(item: ExportItem): string {
     if (item.kind === 'full_zip' || !item.from || !item.to) return en.reports.full;

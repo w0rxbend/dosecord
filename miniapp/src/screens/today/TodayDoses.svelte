@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Occurrence, OccurrenceAction } from '../../api/types';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import DoseCard from './DoseCard.svelte';
   import DoseRow from './DoseRow.svelte';
   import { EARLIER_COLLAPSE_ABOVE, groupOccurrences } from './group';

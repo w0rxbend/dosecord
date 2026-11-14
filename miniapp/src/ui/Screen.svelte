@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte';
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
 
   interface Props {
     title: string;

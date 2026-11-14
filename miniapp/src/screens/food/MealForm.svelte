@@ -3,7 +3,7 @@
   import type { FieldError } from '../../api/client';
   import type { MealKind } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, fieldErrorText } from '../../i18n/en';
+  import { t as en, fieldErrorText } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
   import { MEAL_KINDS, type MealDraft } from './meal';
 
