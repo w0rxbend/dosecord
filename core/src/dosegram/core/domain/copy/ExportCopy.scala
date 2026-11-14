@@ -96,6 +96,7 @@ object ExportCopy:
   val sectionSleep = "Sleep"
   val sectionMood = "Mood"
   val sectionWater = "Water"
+  val sectionFood = "Food"
   val sectionDefinitions = "Definitions"
 
   val noMedications = "No medication was recorded in this period."
@@ -108,6 +109,7 @@ object ExportCopy:
   val moodHeader = List("Month", "Check-ins", "Days with a check-in")
   val moodStepHeader = List("Recorded step", "Check-ins")
   val waterHeader = List("Month", "Days recorded", "Total", "Mean per recorded day", "Goal days")
+  val foodHeader = List("Month", "Days with a meal", "Meals logged", "Breakfast days", "Lunch days", "Dinner days")
 
   def taken(taken: Int, resolved: Int, percent: Option[Int]): String =
     percent match
@@ -130,7 +132,9 @@ object ExportCopy:
     "Sleep: main sleep periods recorded with both times; naps are not counted. Mean length is over the nights " +
       "recorded in the month.",
     "Water: the sum of the entries of each day. Days without an entry are not counted as zero.",
-    "Mood: check-ins as recorded, on the five steps from Very unpleasant to Very pleasant."
+    "Mood: check-ins as recorded, on the five steps from Very unpleasant to Very pleasant.",
+    "Food: meals logged counts every meal entry, snacks included. A breakfast, lunch or dinner day has at least one " +
+      "entry of that meal. What was eaten is not part of this summary."
   )
 
   val entries: List[CopyEntry] = List(

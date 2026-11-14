@@ -67,6 +67,8 @@ object ExportCoverage:
     "day_profiles" -> Coverage.Owned(OwnerColumn),
     "prompt_schedules" -> Coverage.Owned(OwnerColumn),
     "prompt_occurrences" -> Coverage.Owned(OwnerColumn),
+    "meals" -> Coverage.Owned(OwnerColumn),
+    "meal_plans" -> Coverage.Owned(OwnerColumn),
     // The history of the account's exports, part of the access history (R-IMX-1); never the bytes.
     "export_jobs" -> Coverage.Selected(
       """SELECT id, kind, params, status, file_name, byte_size, created_at, confirmed_at, ready_at, expires_at,

@@ -211,6 +211,12 @@ class ExportChatPgSuite extends PgSuite:
     val resolved = taken + total.skipped + total.missed
     assert(resolved > 0, "the fixture has resolved doses")
     assert(words.exists(_.startsWith(s"Taken: $taken of $resolved resolved doses")), words.filter(_.startsWith("Taken")))
+    val food = document.sections.find(_.heading == ExportCopy.sectionFood).getOrElse(fail("no food section"))
+    val logged = food.blocks.collect { case SummaryBlock.Table(header, rows, _) if header == ExportCopy.foodHeader =>
+      rows.map(row => row(2).toInt).sum
+    }
+    assertEquals(logged, List(ExportFixture.Meals), "every meal entry of the period, from the statistics' rollup")
+    assert(!words.exists(_.contains(fixture.mealWords)), "meal words are not part of the record summary")
 
   test("a record summary of a domain without its consent shows nothing of it"):
     val rig = Rig(Fixtures(dataSource).account())

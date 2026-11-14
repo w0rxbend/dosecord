@@ -10,6 +10,8 @@ import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseBuckets
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.HydrationStats
+import dosegram.core.domain.insights.MealDay
+import dosegram.core.domain.insights.MealStats
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MedicationStats
 import dosegram.core.domain.insights.MoodStats
@@ -17,6 +19,7 @@ import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.StoredMedication
@@ -33,10 +36,10 @@ import java.util.Locale
 import java.util.UUID
 
 /** The record summary of a period (PRODUCT_SPEC R-IMX-6, VISUALS_AND_ANALYTICS DOC-01) as a document of text: the
-  * medications with their schedules in words, the dose records by month per medication, and the monthly sleep, mood and
-  * water figures. Each figure comes from the same pure functions and daily rollups as the statistics of the chat and
-  * the Mini App (VA-DOC-01a), read on the caller's transaction. A domain without its consent is named as not included
-  * and shows nothing (R-IDC-9). The document carries no account identifier and no interpretation.
+  * medications with their schedules in words, the dose records by month per medication, and the monthly sleep, mood,
+  * water and meal figures. Each figure comes from the same pure functions and daily rollups as the statistics of the
+  * chat and the Mini App (VA-DOC-01a), read on the caller's transaction. A domain without its consent is named as not
+  * included and shows nothing (R-IDC-9). The document carries no account identifier and no interpretation.
   */
 final class RecordSummaries(rollups: RollupService):
   import RecordSummaries.*
@@ -53,7 +56,8 @@ final class RecordSummaries(rollups: RollupService):
       ),
       ExportCopy.sectionSleep -> Option.when(granted(ConsentPurpose.Sleep))(sleep(tx, accountId, period, months)),
       ExportCopy.sectionMood -> Option.when(granted(ConsentPurpose.Mood))(mood(tx, accountId, period, months)),
-      ExportCopy.sectionWater -> Option.when(granted(ConsentPurpose.Hydration))(water(tx, accountId, period, months))
+      ExportCopy.sectionWater -> Option.when(granted(ConsentPurpose.Hydration))(water(tx, accountId, period, months)),
+      ExportCopy.sectionFood -> Option.when(granted(ConsentPurpose.Nutrition))(food(tx, accountId, period, months))
     ).map((heading, blocks) =>
       SummarySection(heading, blocks.getOrElse(List(SummaryBlock.Paragraph(ExportCopy.notShownWithoutConsent))))
     )
@@ -197,6 +201,21 @@ final class RecordSummaries(rollups: RollupService):
               .getOrElse(ExportCopy.noGoal)
           )
       List(SummaryBlock.Table(ExportCopy.waterHeader, rows, numeric = Set(1, 2, 3, 4)))
+
+  // The meal counts of the statistics (MealStats over the nutrition rollup); never the words of a meal.
+  private def food(tx: Tx, accountId: UUID, period: DateRange, months: List[DateRange]): List[SummaryBlock] =
+    rollups.refresh(tx, accountId, RollupDomain.Nutrition, period)
+    val days: Map[java.time.LocalDate, MealDay] = tx.tracking.rollups
+      .list(accountId, RollupDomain.Nutrition, period)
+      .collect { case (date, RollupMetrics.Nutrition(day)) => date -> day }
+    if !days.values.exists(_.meals > 0) then List(SummaryBlock.Paragraph(ExportCopy.noRecords))
+    else
+      val rows = months.flatMap: month =>
+        val figures = MealStats.period(days, month)
+        Option.when(figures.meals > 0):
+          monthName(month) :: figures.daysWithMeals.toString :: figures.meals.toString ::
+            MealType.main.map(meal => figures.daysPerMeal.getOrElse(meal, 0).toString)
+      List(SummaryBlock.Table(ExportCopy.foodHeader, rows, numeric = Set(1, 2, 3, 4, 5)))
 end RecordSummaries
 
 object RecordSummaries:

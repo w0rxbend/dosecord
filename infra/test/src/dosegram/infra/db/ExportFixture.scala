@@ -4,6 +4,8 @@ import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.mood.CheckIn
+import dosegram.core.application.nutrition.LogMeal
+import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.sleep.EnterSleep
 import dosegram.core.application.sleep.SleepInput
 import dosegram.core.domain.EntryDay
@@ -14,6 +16,8 @@ import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.nutrition.MealText
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
@@ -26,8 +30,8 @@ import java.util.random.RandomGenerator
 import javax.sql.DataSource
 
 /** An account with a record in every domain that exists (ROADMAP G3.10: "the export of a fixture account"): a
-  * medication with a schedule and a taken, a skipped and a missed dose, water, mood and sleep entries over several days,
-  * a delivery channel and its consents. `now` is the end of the recorded days.
+  * medication with a schedule and a taken, a skipped and a missed dose, water, mood, sleep and meal entries over several
+  * days, a delivery channel and its consents. `now` is the end of the recorded days.
   */
 final class ExportFixture(dataSource: DataSource, val now: Instant, val zone: ZoneId):
   private val fixtures = Fixtures(dataSource)
@@ -37,6 +41,7 @@ final class ExportFixture(dataSource: DataSource, val now: Instant, val zone: Zo
 
   val account: UUID = fixtures.account(zone.getId)
   val medicationName = "Canary-Cetirizine"
+  val mealWords = "Canary-soup"
 
   def seed(): ExportFixture =
     fixtures.grant(
@@ -44,7 +49,8 @@ final class ExportFixture(dataSource: DataSource, val now: Instant, val zone: Zo
       ConsentPurpose.Medication,
       ConsentPurpose.Hydration,
       ConsentPurpose.Mood,
-      ConsentPurpose.Sleep
+      ConsentPurpose.Sleep,
+      ConsentPurpose.Nutrition
     )
     fixtures.deliveryChannel(account, "fake", s"chat-$account", clock.now())
     val rule = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
@@ -67,8 +73,16 @@ final class ExportFixture(dataSource: DataSource, val now: Instant, val zone: Zo
       val wake = at.minus(Duration.ofHours(3))
       tracking.uow.transaction(tracking.sleepService.enter(_, EnterSleep(SleepInput(account, EntrySource.Bot,
         s"sleep-$day"), SleepKind.Main, wake.minus(Duration.ofMinutes(400L + day)), wake)))
+      val lunch = MealInput(MealType.Lunch, MealText.of(mealWords).toOption.flatten, None)
+      tracking.uow.transaction(tracking.nutritionService.log(_, LogMeal(account, lunch, EntrySource.Bot, s"lunch-$day")))
+      if day % 2 == 0 then
+        val snack = MealInput(MealType.Snack, None, None)
+        tracking.uow.transaction(tracking.nutritionService.log(_, LogMeal(account, snack, EntrySource.Bot, s"snack-$day")))
     this
 end ExportFixture
 
 object ExportFixture:
   val Days = 6
+
+  /** A lunch every day and a snack every second day. */
+  val Meals: Int = Days + Days / 2

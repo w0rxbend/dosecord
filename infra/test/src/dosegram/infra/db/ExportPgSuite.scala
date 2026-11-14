@@ -76,8 +76,10 @@ class ExportPgSuite extends PgSuite:
       assertEquals(rows.size, ownedRows(fixture.account, table), s"rows of $table")
       val csvLines = entries(s"csv/$table.csv").split("\r\n").length
       assertEquals(csvLines, rows.size + 1, s"csv/$table.csv has a header and one line per row")
-    List("medications", "dose_occurrences", "hydration_entries", "mood_checkins", "sleep_episodes", "consent_events")
-      .foreach(table => assert(exported(table).arr.nonEmpty, s"the fixture has $table"))
+    List("medications", "dose_occurrences", "hydration_entries", "mood_checkins", "sleep_episodes", "meals",
+      "consent_events").foreach(table => assert(exported(table).arr.nonEmpty, s"the fixture has $table"))
+    assert(covered.toSet("meals"), "meals are declared in ExportCoverage")
+    assert(entries("export.json").contains(fixture.mealWords), "meal words are included: the export is for the owner")
     assert(entries("export.json").contains(fixture.medicationName), "names are included: the export is for the owner")
     assert(!entries("export.json").contains(other.account.toString), "no row of another account")
     assert(entries("README.txt").contains("Recorded entries only. Not medical advice."))
