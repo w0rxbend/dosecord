@@ -10,6 +10,7 @@ import dosegram.core.application.exports.ExportRequests
 import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
+import dosegram.core.application.medication.MedicationDepthChat
 import dosegram.core.application.menu.MenuHandler
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
@@ -54,12 +55,15 @@ object Application:
     val reminders = new RemindersHandler(codec, clock, Application.reminderSettings(clock), capture, inner = menu)
     val exports = ExportChat(clock, exportRequests(clock, codec), ExportMessages(codec), inner = reminders)
     val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = exports))
+    // Medication depth (ROADMAP G9.10, G9.12): refill and pause taps, and the question before an as-needed log above
+    // the user's own limit, ahead of the dose handler that records the log.
+    val depth = MedicationDepthChat(codec, clock, lifecycle, capture, inner = dose)
     val engine = WizardEngine(
       flows = flows(clock, lifecycle),
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,
-      inner = dose,
+      inner = depth,
       uow = uow,
       adapters = adapters
     )

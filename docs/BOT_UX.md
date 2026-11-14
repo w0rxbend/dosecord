@@ -932,6 +932,8 @@ Reached from "Doses" on the Today card or from history. It names the medication 
 
 When the user entered a remaining count and a threshold in the Mini App, the bot sends one silent card `refill.low` when the count reaches the threshold: "About 5 doses of <name> left by your count." Buttons: "Refilled", "Remind me in 3 days", "Stop refill reminders". It is a counted, budgeted message; it contains no advice and, in discreet mode, no name.
 
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G9.10). As built, `refill.low` reads "About 6 tablets of <name> left by your count. At your current schedule that covers until about Sun 15 Nov.", adds `refill.count_off` when a deduction stopped at zero, and has "Refilled +N" (the last refill quantity, shown only once a refill was recorded), "Show card" (IMG-15 with its text equivalent as the caption, VISUALS section 10.1) and "Stop for this pack". "Remind me in 3 days" is not a button: the notice repeats every 3 days by itself (PRODUCT_SPEC R-REG-14). A first count, a new count and a refill of another quantity are entered in the Mini App. The medication list adds "Pause for..." beside "Pause" with 3, 7, 14 and 30 days (`med.pause_for`, `med.paused_until`); the schedule resumes at local midnight of the date with the silent `med.resumed_on`.
+
 ## 11. Quick capture
 
 ### 11.1 Inbound router

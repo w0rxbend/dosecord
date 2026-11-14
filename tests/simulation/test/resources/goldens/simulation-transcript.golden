@@ -1326,12 +1326,12 @@
   
   Vitamin D 1000 IU — every day 09:00
   
-  1) Pause 2) Archive
+  1) Pause 2) Pause for... 3) Archive
   
-  3) Today's doses 4) Add medication 5) Log dose 6) Settings 7) History
+  4) Today's doses 5) Add medication 6) Log dose 7) Settings 8) History
   
-  8) Back
-  choices: 1) Pause -> menu.open(-,0); 2) Archive -> menu.open(-,0); 3) Today's doses -> menu.open(-,0); 4) Add medication -> menu.open_form(-,0); 5) Log dose -> menu.open(-,0); 6) Settings -> menu.open(-,0); 7) History -> menu.open(-,0); 8) Back -> menu.open(-,0)
+  9) Back
+  choices: 1) Pause -> menu.open(-,0); 2) Pause for... -> med.pause_for(-,0); 3) Archive -> menu.open(-,0); 4) Today's doses -> menu.open(-,0); 5) Add medication -> menu.open_form(-,0); 6) Log dose -> menu.open(-,0); 7) Settings -> menu.open(-,0); 8) History -> menu.open(-,0); 9) Back -> menu.open(-,0)
 2026-10-21T12:00:00Z >> p1 #136 1 (Pause)
 2026-10-21T12:00:00Z p1 send/reply menu:medications:console:console:msg:sim:p1:76
   Paused Vitamin D — no reminders until you resume.
@@ -1450,12 +1450,12 @@
   
   Vitamin D 1000 IU — every day 09:00
   
-  1) Pause 2) Archive
+  1) Pause 2) Pause for... 3) Archive
   
-  3) Today's doses 4) Add medication 5) Log dose 6) Settings 7) History
+  4) Today's doses 5) Add medication 6) Log dose 7) Settings 8) History
   
-  8) Back
-  choices: 1) Pause -> menu.open(-,0); 2) Archive -> menu.open(-,0); 3) Today's doses -> menu.open(-,0); 4) Add medication -> menu.open_form(-,0); 5) Log dose -> menu.open(-,0); 6) Settings -> menu.open(-,0); 7) History -> menu.open(-,0); 8) Back -> menu.open(-,0)
+  9) Back
+  choices: 1) Pause -> menu.open(-,0); 2) Pause for... -> med.pause_for(-,0); 3) Archive -> menu.open(-,0); 4) Today's doses -> menu.open(-,0); 5) Add medication -> menu.open_form(-,0); 6) Log dose -> menu.open(-,0); 7) Settings -> menu.open(-,0); 8) History -> menu.open(-,0); 9) Back -> menu.open(-,0)
 2026-10-23T21:07:00Z p2 send/initial occ:p2-2026-10-23-t2107:e1:s1:kinitial
   Time for Metformin, 500 mg.
   

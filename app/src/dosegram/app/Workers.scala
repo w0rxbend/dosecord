@@ -19,10 +19,12 @@ import dosegram.core.ports.LoopMetrics
 import dosegram.core.ports.Wake
 import dosegram.core.scheduling.CatalogueOutboxRenderer
 import dosegram.core.scheduling.Materialiser
+import dosegram.core.scheduling.MedicationDepthLoop
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.core.scheduling.PromptLoop
 import dosegram.core.scheduling.PromptOutboxRenderer
 import dosegram.core.scheduling.ReminderLoop
+import dosegram.core.scheduling.ScheduleLifecycle
 import dosegram.core.scheduling.TokenBuckets
 import dosegram.infra.Metrics
 import dosegram.infra.MicrometerImageMetrics
@@ -76,6 +78,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startRollupWorker(passes)
     startImagePurge(passes)
     startPromptLoop(log, passes)
+    startMedicationDepthLoop(log, passes)
     startInboxPurge(passes)
     startExportWorker(log, passes)
     startReportWorkers(log, passes)
@@ -205,6 +208,25 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     )
     fork:
       passes.repeat("prompt loop"): () =>
+        loop.tick()
+        Thread.sleep(parts.cadence.reminderPoll.toMillis)
+        true
+    ()
+
+  /** The resume dates of paused medications and the refill notices (ROADMAP G9.10, G9.12), at the reminder poll. A row
+    * that fails is logged by id and error class only.
+    */
+  private def startMedicationDepthLoop(log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
+    val loop = MedicationDepthLoop(
+      uow,
+      clock,
+      IdSource.uuidV7(java.security.SecureRandom()),
+      codec,
+      ScheduleLifecycle(uow, clock),
+      (id, error) => log(s"medication depth row $id failed: ${error.getClass.getSimpleName}")
+    )
+    fork:
+      passes.repeat("medication depth loop"): () =>
         loop.tick()
         Thread.sleep(parts.cadence.reminderPoll.toMillis)
         true

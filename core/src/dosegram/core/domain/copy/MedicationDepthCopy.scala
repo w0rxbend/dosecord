@@ -56,6 +56,71 @@ object MedicationDepthCopy:
   /** The first reminders of the reviewed schedule (PRODUCT_SPEC R-SCH-5). */
   def nextReminders(times: List[String]): String = s"Next reminders: ${times.mkString(", ")}."
 
+  // ---------- as needed: the user's own limits (supervisor decision, 2026-11-14) ----------
+
+  /** `You set at most 3 a day; 2 logged today.` Only the values the user entered; nothing is computed or advised. */
+  def prnFacts(maxPerDay: Option[Int], minGapMinutes: Option[Int], loggedToday: Int): String =
+    val set =
+      List(maxPerDay.map(n => s"at most $n a day"), minGapMinutes.map(m => s"at least ${gap(m)} between")).flatten
+        .mkString(" and ")
+    s"You set $set; $loggedToday logged today."
+
+  /** The question before a log above the user's own limit. The log is never refused. */
+  def prnConfirm(name: String, facts: String): String = s"$facts Log $name anyway?"
+
+  val prnLogIt = "Log it"
+  val prnCancel = "Cancel"
+  val prnCancelled = "Nothing was logged."
+
+  private def gap(minutes: Int): String =
+    if minutes % 60 == 0 then s"${minutes / 60} h" else s"${minutes / 60} h ${minutes % 60} min"
+
+  // ---------- pause for a number of days (R-REG-5) ----------
+
+  val pauseFor = "Pause for..."
+  def pauseForPrompt(name: String): String =
+    s"For how long should reminders for $name stop? They come back on their own; the history stays."
+  val pauseDays: List[Int] = List(3, 7, 14, 30)
+  def pauseDaysLabel(days: Int): String = s"$days days"
+  def pausedUntil(name: String, date: LocalDate): String =
+    s"Paused $name until ${this.date(date)}. Reminders come back that day."
+  def resumedOn(name: String): String = s"Reminders for $name are back on from today, as you set when pausing."
+
+  // ---------- inventory and the refill notice (R-REG-14 to R-REG-16, BOT_UX 10.5, IMG-15) ----------
+
+  private def units(n: BigDecimal, unit: Option[String]): String =
+    s"${n.bigDecimal.stripTrailingZeros.toPlainString} ${unit.getOrElse("units")}"
+
+  /** `refill.low`: a count and a date, from the user's own entries; no advice. */
+  def refillLow(name: String, onHand: BigDecimal, unit: Option[String], until: Option[LocalDate]): String =
+    val covers = until.fold("")(d => s" At your current schedule that covers until about ${date(d)}.")
+    s"About ${units(onHand, unit)} of $name left by your count.$covers"
+
+  val refillLowDiscreet = "One of your items is running low by your count."
+  val countOff = "The count may be off. Update it?"
+  def refilledLabel(quantity: BigDecimal): String = s"Refilled +${quantity.bigDecimal.stripTrailingZeros.toPlainString}"
+  val refillShowCard = "Show card"
+  val refillStop = "Stop for this pack"
+  def refilled(name: String, onHand: BigDecimal, unit: Option[String]): String =
+    s"Added. $name: ${units(onHand, unit)} by your count."
+  val refillStopped = "No more refill notices for this pack. A refill or a new count turns them back on."
+  val refillUnavailable = "That count is no longer there."
+
+  /** The text equivalent of IMG-15 (VISUALS section 6.16). */
+  def refillCardText(
+      name: String,
+      onHand: BigDecimal,
+      unit: Option[String],
+      threshold: String,
+      until: Option[LocalDate]
+  ): String =
+    val covers = until.fold("")(d => s" At your current schedule that covers until about ${date(d)}.")
+    s"$name: ${units(onHand, unit)} left by your count, at or below your threshold of $threshold.$covers " +
+      "Update the count after a refill."
+
+  def thresholdDays(days: Int): String = if days == 1 then "1 day" else s"$days days"
+  def thresholdUnits(n: BigDecimal, unit: Option[String]): String = units(n, unit)
+
   private val sample = LocalDate.of(2026, 11, 16)
 
   def entries: List[CopyEntry] = List(
@@ -68,7 +133,30 @@ object MedicationDepthCopy:
       "med.add.preset.confirm",
       confirmCard("Vitamin D", Some("1000 IU"), everyNDays(2, sample) + " 07:00", "Europe/Kyiv")
     ),
-    CopyEntry("med.add.next", nextReminders(List("Mon 16 Nov 09:00", "Wed 18 Nov 09:00")))
+    CopyEntry("med.add.next", nextReminders(List("Mon 16 Nov 09:00", "Wed 18 Nov 09:00"))),
+    CopyEntry("take.limits", prnFacts(Some(3), Some(240), 2)),
+    CopyEntry("take.limits.confirm", prnConfirm("Ibuprofen", prnFacts(Some(3), None, 3))),
+    CopyEntry("take.limits.log_it", prnLogIt),
+    CopyEntry("take.limits.cancel", prnCancel),
+    CopyEntry("take.limits.cancelled", prnCancelled),
+    CopyEntry("med.pause_for", pauseFor),
+    CopyEntry("med.pause_for.prompt", pauseForPrompt("Vitamin D")),
+    CopyEntry("med.pause_for.days", pauseDaysLabel(7)),
+    CopyEntry("med.paused_until", pausedUntil("Vitamin D", sample)),
+    CopyEntry("med.resumed_on", resumedOn("Vitamin D")),
+    CopyEntry("refill.low", refillLow("Metformin 500 mg", 6, Some("tablets"), Some(sample))),
+    CopyEntry("refill.low.discreet", refillLowDiscreet),
+    CopyEntry("refill.count_off", countOff),
+    CopyEntry("refill.refilled_label", refilledLabel(30)),
+    CopyEntry("refill.show_card", refillShowCard),
+    CopyEntry("refill.stop", refillStop),
+    CopyEntry("refill.refilled", refilled("Metformin", 36, Some("tablets"))),
+    CopyEntry("refill.stopped", refillStopped),
+    CopyEntry("refill.unavailable", refillUnavailable),
+    CopyEntry(
+      "refill.card.text",
+      refillCardText("Metformin 500 mg", 6, Some("tablets"), thresholdDays(7), Some(sample))
+    )
   ) ++ List(
     "med.morning",
     "med.evening",

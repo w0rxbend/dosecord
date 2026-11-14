@@ -4,6 +4,7 @@ import dosegram.contracts.*
 import dosegram.core.application.CommandRegistry
 import dosegram.core.application.capture.MedicationConsentGate
 import dosegram.core.application.capture.MedicationScreen
+import dosegram.core.application.medication.AsNeededLimits
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
@@ -503,8 +504,11 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       )
     )
     val time = formatTime(now, row.tz)
+    // The limits the user set for an as-needed medication, as facts after the log (ROADMAP G9.12; never advice).
+    val facts = AsNeededLimits.facts(tx, row.accountId, row.medicationId, row.tz, now)
+    val text = (ReminderCopy.logged(row.doseSnapshot.medicationName, time) :: facts.toList).mkString(" ")
     Reply(
-      replace = source.map(confirmation(event, principal, row.doseSnapshot.medicationName, time, row.id, _, tx)),
+      replace = source.map(confirmation(event, principal, text, row.id, _, tx)),
       toast = Some(ReminderCopy.takenConfirmation(time)),
       domainEvents = List(Event.IntakeTaken(AccountId(row.accountId), row.id, now, takenLate = false))
     )
@@ -515,14 +519,13 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
   private def confirmation(
       event: InboundEvent,
       principal: Principal,
-      name: String,
-      time: String,
+      text: String,
       occurrenceId: UUID,
       picker: MessageHandle,
       tx: Tx
   ): OutboundMessage =
     val undo = Choice.callback(Labels.Undo, directToken("dose.undo", occurrenceId, 0))
-    logCard(event, principal, ReminderCopy.logged(name, time), List(undo), picker, s"dose:logged:$occurrenceId", tx)
+    logCard(event, principal, text, List(undo), picker, s"dose:logged:$occurrenceId", tx)
 
   /** The confirmation after Undo of a manual log: what was undone, and [Log another] (BUX-UNDO-03). */
   private def logUndoneCard(

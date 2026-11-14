@@ -79,7 +79,15 @@ object ActionRegistry:
     ActionEntry(213, "export.summary", requiresSession = false),
     ActionEntry(214, "export.send_ask", requiresSession = false),
     ActionEntry(215, "export.send_agree", requiresSession = false),
-    ActionEntry(216, "export.send", requiresSession = false)
+    ActionEntry(216, "export.send", requiresSession = false),
+    // Medication depth (250 to 269; ROADMAP G9.10, G9.12): direct mode on the medication. `refill.add` carries the
+    // quantity in thousandths of a unit, `med.pause_for` the days (0 opens the choice).
+    ActionEntry(250, "refill.add", requiresSession = false),
+    ActionEntry(251, "refill.card", requiresSession = false),
+    ActionEntry(252, "refill.stop", requiresSession = false),
+    ActionEntry(253, "med.pause_for", requiresSession = false),
+    ActionEntry(254, "take.limit_confirm", requiresSession = false),
+    ActionEntry(255, "take.limit_cancel", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")
