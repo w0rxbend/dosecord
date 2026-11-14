@@ -11,7 +11,7 @@ export interface WaterView {
  * The day as the person expects it the moment they tap: the amount added and a pending entry. The
  * server's answer replaces it (MA-CONC-2); the figures in words wait for that answer.
  */
-export function withPending(view: WaterView, amountMl: number, time: string): WaterView {
+export function withPending(view: WaterView, amountMl: number, time: string, key: string): WaterView {
   const totalMl = view.day.totalMl + amountMl;
   const goalMl = view.day.goalMl;
   return {
@@ -22,7 +22,9 @@ export function withPending(view: WaterView, amountMl: number, time: string): Wa
       entries: view.day.entries + 1,
       percent: goalMl === undefined ? undefined : Math.floor((100 * totalMl) / goalMl),
     },
-    entries: [...view.entries, { id: `pending-${time}-${amountMl}`, date: view.day.date, time, amountMl, text: `${amountMl} ml` }],
+    // Keyed by the tap's idempotency key: two taps on one amount in one minute are two rows (MA-HYD-1), and the list
+    // is keyed by id, where a repeated id fails the whole screen.
+    entries: [...view.entries, { id: `pending-${key}`, date: view.day.date, time, amountMl, text: `${amountMl} ml` }],
   };
 }
 

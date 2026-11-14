@@ -1,7 +1,7 @@
 // ROADMAP G3.12: the user's main paths through the production build against the real application. Each test opens
 // the app as Telegram would and fails on any policy violation, page error or foreign request (support/fixture.ts).
 import { expect, test } from './support/fixture';
-import { gotoPastNetworkChange } from './support/navigation';
+import { gotoPastNetworkChange, routeTo } from './support/navigation';
 import { chrome, pressBackButton, pressMainButton } from './support/telegram';
 
 const MEDICATION = 'Vitamin D';
@@ -107,6 +107,31 @@ test('log water from the deep link: the amount is recorded, shown, and counted i
   await water.getByRole('link', { name: 'Open this day' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Day' })).toBeVisible();
   await expect(page).toHaveURL(/\/app\/insights\/history\/\d{8}$/);
+
+  // Two taps on one amount, then the check-in screen through the router. Two pending rows of one amount in one minute
+  // once shared a key, and the keyed list failed the screen. The reload after the first tap is held until the second
+  // tap, so the second pending row is added beside the first. In this test, not its own: the session exchange allows
+  // six launches a minute (ARCHITECTURE API-18).
+  await routeTo(page, '/log/water');
+  const again = page.getByRole('button', { name: /^Add \d+ ml$/ }).nth(1);
+  await expect(again).toBeVisible();
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(/\/api\/v1\/hydration\/summary$/, async (route) => {
+    await held;
+    await route.continue();
+  });
+  const first = page.waitForResponse((r) => r.url().endsWith('/api/v1/hydration/entries') && r.request().method() === 'POST');
+  await again.click();
+  await first;
+  await again.click();
+  release();
+  await page.unroute(/\/api\/v1\/hydration\/summary$/);
+  await expect(page.getByRole('button', { name: /^Remove \d+ ml at/ })).toHaveCount(3);
+  await expect(page.getByText('Something went wrong on this screen')).toHaveCount(0);
+  await routeTo(page, '/log/mood/new');
+  await expect(page.getByRole('heading', { level: 1, name: 'How are you right now?' })).toBeVisible();
+  await expect(page.getByText('Something went wrong on this screen')).toHaveCount(0);
 });
 
 test('mood check-in: the slider is moved, Save on the bottom button records it', async ({ app }) => {

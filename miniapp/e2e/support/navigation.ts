@@ -20,3 +20,11 @@ export async function gotoPastNetworkChange(page: Navigator, url: string): Promi
     }
   }
 }
+
+/** Moves the running app to an internal path through its own router, as a history entry would. */
+export async function routeTo(page: Pick<Page, 'evaluate'>, path: string): Promise<void> {
+  await page.evaluate((target) => {
+    history.pushState(null, '', `/app${target}`);
+    dispatchEvent(new PopStateEvent('popstate'));
+  }, path);
+}

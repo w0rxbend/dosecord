@@ -46,7 +46,7 @@
     if (!loaded || loaded.view === OFF) return;
     const before = loaded.view;
     const key = newIdempotencyKey();
-    setView(withPending(before, amountMl, clockNow()));
+    setView(withPending(before, amountMl, clockNow(), key));
     try {
       const logged = await api.addWater(amountMl, key);
       // Reaching the goal: one success haptic and the full vessel, no message (MA-HYD-5).

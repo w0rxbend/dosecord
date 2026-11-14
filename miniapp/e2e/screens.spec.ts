@@ -4,7 +4,7 @@
 // to six a minute per user (ARCHITECTURE API-18), runs once.
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixture';
-import { gotoPastNetworkChange } from './support/navigation';
+import { gotoPastNetworkChange, routeTo } from './support/navigation';
 import { pressMainButton, type Scheme } from './support/telegram';
 
 const today = new Date().toISOString().slice(0, 10).replaceAll('-', '');
@@ -33,14 +33,6 @@ const SCREENS: readonly (readonly [string, string])[] = [
   ['25-reports', '/insights/reports'],
 ];
 
-/** Moves the running app to an internal path, as a history entry would. */
-async function go(page: Page, path: string): Promise<void> {
-  await page.evaluate((target) => {
-    history.pushState(null, '', `/app${target}`);
-    dispatchEvent(new PopStateEvent('popstate'));
-  }, path);
-}
-
 async function shoot(page: Page, scheme: Scheme, name: string): Promise<void> {
   await page.waitForLoadState('networkidle');
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
@@ -55,9 +47,7 @@ test('some records of today exist before the screens are taken', async ({ app })
     await page.getByRole('button', { name: /^Add \d+ ml$/ }).nth(1).click();
     await expect(page.getByText(/^Added \d+ ml$/)).toBeVisible();
   }
-  // A fresh launch on the check-in route, as the flows do: reached by the router from Water, the check-in screen
-  // fails to render in this suite (open, see the hand-off of 2026-11-14).
-  await app.launch({ startParam: 'moodnew' });
+  await routeTo(page, '/log/mood/new');
   await page.getByRole('button', { name: 'More pleasant' }).click();
   await pressMainButton(page);
   await expect(page.getByText('Check-in saved')).toBeVisible();
@@ -68,19 +58,19 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(180_000);
     const page = await app.launch({ scheme });
     for (const [name, path] of SCREENS) {
-      await go(page, path);
+      await routeTo(page, path);
       await shoot(page, scheme, name);
     }
 
-    await go(page, '/meds');
+    await routeTo(page, '/meds');
     await page.getByRole('link', { name: /Vitamin D/ }).click();
     const change = page.getByRole('link', { name: 'Change times' });
     await shoot(page, scheme, '04-med-edit');
     const edit = new URL(page.url()).pathname.replace(/^\/app/, '');
     const schedule = (await change.getAttribute('href'))?.replace(/^\/app/, '') ?? '';
-    await go(page, schedule);
+    await routeTo(page, schedule);
     await shoot(page, scheme, '05-schedule-edit');
-    await go(page, edit.replace(/\/edit$/, '/schedules/new'));
+    await routeTo(page, edit.replace(/\/edit$/, '/schedules/new'));
     await shoot(page, scheme, '06-schedule-new');
   });
 
