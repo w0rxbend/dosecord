@@ -55,6 +55,8 @@ final class OpenApiSuite extends munit.FunSuite:
     "GET /api/v1/sleep/summary",
     "GET /api/v1/insights/calendar",
     "GET /api/v1/insights/overview",
+    "GET /api/v1/insights/month",
+    "GET /api/v1/insights/correlations",
     "GET /api/v1/reminders",
     "GET /api/v1/reminders/presets",
     "POST /api/v1/reminders/plans",

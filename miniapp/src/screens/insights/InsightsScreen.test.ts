@@ -162,4 +162,49 @@ describe('Insights', () => {
     expect(await block('Water')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Mood' })).toBeNull();
   });
+  it('lists the patterns in the words of the server, each with how it was worked out', async () => {
+    const user = open(createHarness());
+
+    const pattern = await screen.findByText(/^On the 9 days you reached your water goal/);
+    expect(pattern.textContent).toMatch(/It does not show a cause\.$/);
+    await user.click(screen.getByText('How was this worked out?'));
+    expect(screen.getByText('This is a count over your own records. It cannot show a cause.')).toBeTruthy();
+    expect(screen.getByText(/^Bedtime and mood: 3 more days/)).toBeTruthy();
+  });
+
+  it('says where comparisons are turned on when they are off, and shows none', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('mood');
+    open(harness);
+
+    expect(await screen.findByText(/^Comparisons between areas are off\./)).toBeTruthy();
+    expect(screen.getByText(/Send \/insights in the chat/)).toBeTruthy();
+    expect(screen.queryByText(/^On the 9 days/)).toBeNull();
+  });
+
+  it('shows the month so far with each medication on its own counts, and moves to the previous month', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+
+    expect(await screen.findByText('November 2026')).toBeTruthy();
+    const rows = screen.getByRole('list', { name: 'By medication' });
+    expect(within(rows).getAllByRole('listitem').length).toBeGreaterThan(0);
+    expect(within(rows).getAllByText(/ of \d+ taken/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Water: \d+ more days with records for the month's figures/)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    expect(await screen.findByText('October 2026')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeTruthy();
+    expect(harness.api.calls.filter((call) => call === 'insights/month')).toHaveLength(2);
+  });
+
+  it('shows no month or pattern section when no domain is turned on', async () => {
+    const harness = createHarness();
+    harness.api.insightsOverview = async () => ({ rangeDays: 30, rangeLabel: '15 Oct to 13 Nov', ranges: [7, 30], blocks: [] });
+    open(harness);
+
+    expect(await screen.findByText('15 Oct to 13 Nov')).toBeTruthy();
+    expect(screen.queryByText('Patterns in your records')).toBeNull();
+    expect(screen.queryByText('By medication')).toBeNull();
+  });
 });

@@ -167,6 +167,21 @@ object Endpoints:
       .name("getInsightsOverview")
       .description("The statistics of a period, one block per domain whose consent is active.")
 
+  val insightMonth =
+    secured.get
+      .in("insights" / "month")
+      .in(query[Option[String]]("month").description("YYYY-MM; absent is the current month"))
+      .out(jsonBody[InsightMonth])
+      .name("getInsightMonth")
+      .description("One calendar month: one block per domain whose consent is active, and each medication's counts.")
+
+  val insightCorrelations =
+    secured.get
+      .in("insights" / "correlations")
+      .out(jsonBody[InsightList])
+      .name("listInsightCorrelations")
+      .description("The patterns of the last 28 days that passed every check, and those close to their data.")
+
   // ---------- settings, consents (identity-and-consent, schedule-and-reminders) ----------
 
   val getSettings = secured.get.in("settings").out(etag).out(jsonBody[SettingsView]).name("getSettings")
@@ -471,6 +486,8 @@ object Endpoints:
     getSleepSummary,
     getInsightCalendar,
     insightsOverview,
+    insightMonth,
+    insightCorrelations,
     getReminders,
     listReminderPresets,
     createReminderPlan,

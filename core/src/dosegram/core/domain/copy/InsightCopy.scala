@@ -130,6 +130,32 @@ object InsightCopy:
       case Insight.Baseline(BaselineStatement.Shown(metric, current, previous, weeks, _), _) =>
         s"${baseline(metric, current, previous, weeks)} $CountNotACause"
 
+  /** "How was this worked out?" (VISUALS VA-IN-03): the period, the groups and their sizes, the minimum-data rules and
+    * the sentence that a count over the user's own records cannot show a cause.
+    */
+  def howWorkedOut(insight: Insight): List[String] =
+    val rules = insight match
+      case Insight.Pattern(Comparison.Shown(rule, first, second, window), _) =>
+        List(
+          s"Period: ${window.days} days to ${window.end}.",
+          s"Groups: ${topic(rule).toLowerCase(java.util.Locale.ROOT)}; ${first.days} and ${second.days} days.",
+          "Only days with both records are compared: at least 14 such days and 5 in each group, and the " +
+            "difference holds in both halves of the period and without any single day."
+        )
+      case Insight.Timing(TimingStatement.Shown(highest, lowest, window), _) =>
+        List(
+          s"Period: ${window.days} days to ${window.end}.",
+          s"Times of day compared: ${slotName(highest.slot)} (${highest.resolved} answered doses) and " +
+            s"${slotName(lowest.slot)} (${lowest.resolved}).",
+          "Each time of day needs at least 10 answered doses, and the order holds in both halves of the period."
+        )
+      case Insight.Baseline(BaselineStatement.Shown(_, _, _, weeks, window), _) =>
+        List(
+          s"Period: the last 7 days, to ${window.end}, against your previous ${count(weeks, "week")}.",
+          "A week counts when it has records on at least 3 days; at least 2 earlier weeks are needed."
+        )
+    rules :+ CountNotACause
+
   /** A rule that is close to its minimum data, with the count it still needs (VISUALS section 8.5). */
   def gap(gap: InsightGap): String =
     gap match
@@ -207,7 +233,13 @@ object InsightCopy:
         CopyEntry("insight.compare", CompareAcrossAreas),
         CopyEntry("insight.usage", usage),
         CopyEntry("insight.image_unavailable", imageUnavailable),
-        CopyEntry("insight.count_not_a_cause", CountNotACause)
+        CopyEntry("insight.count_not_a_cause", CountNotACause),
+        CopyEntry(
+          "insight.how",
+          Comparisons.compare(InsightRule.SleepGoalAndMood, pairs(3.7, 3.0), window) match
+            case comparison: Comparison.Shown => howWorkedOut(Insight.Pattern(comparison, 1.0)).mkString("\n")
+            case other                        => throw IllegalStateException(s"copy sample insight.how: $other")
+        )
       ) ++ baselines
   end Samples
 end InsightCopy

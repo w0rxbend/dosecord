@@ -2739,6 +2739,103 @@
         ]
       }
     },
+    "/api/v1/insights/month" : {
+      "get" : {
+        "description" : "One calendar month: one block per domain whose consent is active, and each medication's counts.",
+        "operationId" : "getInsightMonth",
+        "parameters" : [
+          {
+            "name" : "month",
+            "in" : "query",
+            "description" : "YYYY-MM; absent is the current month",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightMonth"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/insights/correlations" : {
+      "get" : {
+        "description" : "The patterns of the last 28 days that passed every check, and those close to their data.",
+        "operationId" : "listInsightCorrelations",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightList"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
     "/api/v1/reminders" : {
       "get" : {
         "operationId" : "getReminders",
@@ -4120,6 +4217,196 @@
           "mood",
           "sleep"
         ]
+      },
+      "InsightItem" : {
+        "title" : "InsightItem",
+        "type" : "object",
+        "required" : [
+          "id",
+          "text"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "howWorkedOut" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "InsightList" : {
+        "title" : "InsightList",
+        "type" : "object",
+        "required" : [
+          "windowDays",
+          "windowLabel",
+          "crossDomain"
+        ],
+        "properties" : {
+          "windowDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "windowLabel" : {
+            "type" : "string"
+          },
+          "crossDomain" : {
+            "type" : "boolean"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsightItem"
+            }
+          },
+          "close" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "notice" : {
+            "type" : "string"
+          }
+        }
+      },
+      "InsightMedicationRow" : {
+        "title" : "InsightMedicationRow",
+        "type" : "object",
+        "required" : [
+          "id",
+          "name",
+          "archived",
+          "line",
+          "taken",
+          "resolved",
+          "asNeededLogs"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "archived" : {
+            "type" : "boolean"
+          },
+          "line" : {
+            "type" : "string"
+          },
+          "taken" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "resolved" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "percent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "asNeededLogs" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "InsightMonth" : {
+        "title" : "InsightMonth",
+        "type" : "object",
+        "required" : [
+          "month",
+          "monthLabel",
+          "previousMonth",
+          "timeZone",
+          "reportable",
+          "daysWithRecords",
+          "summary"
+        ],
+        "properties" : {
+          "month" : {
+            "type" : "string"
+          },
+          "monthLabel" : {
+            "type" : "string"
+          },
+          "previousMonth" : {
+            "type" : "string"
+          },
+          "nextMonth" : {
+            "type" : "string"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "reportable" : {
+            "type" : "boolean"
+          },
+          "daysWithRecords" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "domains" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsightMonthDomain"
+            }
+          },
+          "medications" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsightMedicationRow"
+            }
+          },
+          "notice" : {
+            "type" : "string"
+          }
+        }
+      },
+      "InsightMonthDomain" : {
+        "title" : "InsightMonthDomain",
+        "type" : "object",
+        "required" : [
+          "id",
+          "title",
+          "recordedDays",
+          "meetsGate"
+        ],
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/InsightDomain"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "recordedDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "meetsGate" : {
+            "type" : "boolean"
+          },
+          "lines" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "gateText" : {
+            "type" : "string"
+          }
+        }
       },
       "InsightVessel" : {
         "title" : "InsightVessel",

@@ -1,7 +1,15 @@
 // Stands in for insights/overview: synthetic dose history, the mock's water and mood records,
 // descriptive sentences, laid-out scenes. Counts and durations only: no score, no rating word,
 // no comparison with other people (MA-INS-2).
-import type { InsightBlock, InsightRange, InsightsOverview, LocalDate } from '../api/types';
+import type {
+  InsightBlock,
+  InsightList,
+  InsightMonth,
+  InsightMonthDomain,
+  InsightRange,
+  InsightsOverview,
+  LocalDate,
+} from '../api/types';
 import { formatDate } from './dates';
 import { doseCalendar, lastDays, outcomeBar, outcomeLabels, seeded, waterBars, type DoseDay, type DoseOutcomes } from './scenes';
 import type { MockTracking } from './tracking';
@@ -124,5 +132,124 @@ export function buildOverview(
     ranges: [7, 30, 90],
     blocks,
     notice: blocks.length === 0 ? 'Statistics appear here for the records you turned on in the chat.' : undefined,
+  };
+}
+
+// Stands in for insights/month and insights/correlations: the month's figures per domain with
+// the gate of 14 days, the medications with their own counts, and a pattern in the server's
+// words. Counts only, never a mean of percentages and never a judgement.
+
+const GATE_DAYS = 14;
+
+function monthDates(month: string, today: LocalDate): LocalDate[] {
+  const dates: LocalDate[] = [];
+  for (let day = 1; day <= 31; day++) {
+    const date = `${month}-${String(day).padStart(2, '0')}`;
+    if (date > today || new Date(`${date}T12:00:00Z`).getUTCMonth() + 1 !== Number(month.slice(5))) break;
+    dates.push(date);
+  }
+  return dates;
+}
+
+function shiftMonth(month: string, by: number): string {
+  const [year, value] = month.split('-').map(Number) as [number, number];
+  const index = year * 12 + value - 1 + by;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+function gated(id: InsightMonthDomain['id'], title: string, recorded: number, lines: string[]): InsightMonthDomain {
+  return recorded >= GATE_DAYS
+    ? { id, title, recordedDays: recorded, meetsGate: true, lines }
+    : {
+        id,
+        title,
+        recordedDays: recorded,
+        meetsGate: false,
+        lines: [],
+        gateText: `${title}: ${GATE_DAYS - recorded} more days with records for the month's figures (${recorded} of ${GATE_DAYS})`,
+      };
+}
+
+export interface MockMedicationName {
+  readonly id: string;
+  readonly name: string;
+  readonly archived: boolean;
+}
+
+export function buildMonth(
+  month: string | undefined,
+  today: LocalDate,
+  tracking: MockTracking,
+  medications: readonly MockMedicationName[],
+  hasHistory: boolean,
+): InsightMonth {
+  const current = today.slice(0, 7);
+  const shown = month ?? current;
+  const dates = hasHistory ? monthDates(shown, today) : [];
+  const domains: InsightMonthDomain[] = [];
+  const doses = doseHistory(dates);
+  if (tracking.isOn('medication')) {
+    const taken = doses.reduce((sum, day) => sum + day.taken, 0);
+    const scheduled = doses.reduce((sum, day) => sum + day.scheduled, 0);
+    domains.push(gated('medication', 'Medication', doses.length, [`${taken} of ${scheduled} taken`]));
+  }
+  if (tracking.isOn('hydration')) {
+    const water = dates.filter((date) => tracking.waterDay(date).totalMl > 0).length;
+    domains.push(gated('hydration', 'Water', water, [`${water} of ${dates.length} days have data`]));
+  }
+  const reportable = domains.some((domain) => domain.meetsGate);
+  const resolved = doses.length * 2;
+  const rows = tracking.isOn('medication')
+    ? medications.map((medication, index) => {
+        const taken = Math.max(0, resolved - index - 1);
+        const percent = resolved >= 5 ? Math.round((100 * taken) / resolved) : undefined;
+        return {
+          id: medication.id,
+          name: medication.name,
+          archived: medication.archived,
+          line: `${medication.name}: ${taken} of ${resolved} taken${percent === undefined ? '' : ` (${percent}%)`}`,
+          taken,
+          resolved,
+          percent,
+          asNeededLogs: 0,
+        };
+      })
+    : [];
+  return {
+    month: shown,
+    monthLabel: formatDate(`${shown}-01`, { month: 'long', year: 'numeric' }),
+    previousMonth: shiftMonth(shown, -1),
+    nextMonth: shown < current ? shiftMonth(shown, 1) : undefined,
+    reportable,
+    daysWithRecords: dates.length,
+    summary: `${dates.length} days with records`,
+    domains,
+    medications: rows.filter((row) => row.resolved > 0),
+    notice: reportable ? undefined : 'A monthly summary needs one area with records on at least 14 days.',
+  };
+}
+
+export function buildInsightList(tracking: MockTracking, hasHistory: boolean): InsightList {
+  const crossDomain = tracking.isOn('hydration') && tracking.isOn('mood');
+  const how = [
+    'Period: the last 28 days.',
+    'Only days with both records are compared: at least 14 such days and 5 in each group, and the difference holds in both halves of the period and without any single day.',
+    'This is a count over your own records. It cannot show a cause.',
+  ];
+  return {
+    windowLabel: '28 days to 12 Nov',
+    crossDomain,
+    items:
+      hasHistory && crossDomain
+        ? [
+            {
+              id: 'IR-04.DailyMoodMean',
+              text: 'On the 9 days you reached your water goal, your average mood was 3.8 (pleasant). On the 8 other days it was 3.1 (neutral). This compares your own days. It does not show a cause.',
+              howWorkedOut: how,
+            },
+          ]
+        : [],
+    close: hasHistory ? ['Bedtime and mood: 3 more days with both a night and a mood check-in.'] : [],
+    notice: crossDomain ? undefined : 'Comparisons between areas are off.',
   };
 }
