@@ -30,6 +30,11 @@
           weekdays: [...schedule.weekdays],
           startDate: schedule.startDate,
           endDate: schedule.endDate ?? '',
+          everyDays: schedule.everyDays?.toString() ?? '2',
+          onDays: schedule.onDays?.toString() ?? '21',
+          offDays: schedule.offDays?.toString() ?? '7',
+          maxPerDay: schedule.maxPerDay?.toString() ?? '',
+          minGapMinutes: schedule.minGapMinutes?.toString() ?? '',
         }
       : {
           pattern: options.patterns[0]?.value ?? 'fixed_times',
@@ -37,6 +42,11 @@
           weekdays: [],
           startDate: options.today,
           endDate: '',
+          everyDays: '2',
+          onDays: '21',
+          offDays: '7',
+          maxPerDay: '',
+          minGapMinutes: '',
         };
 
   let form = $state(startingForm());

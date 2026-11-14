@@ -77,7 +77,10 @@ final class OpenApiSuite extends munit.FunSuite:
     "GET /api/v1/exports",
     "GET /api/v1/exports/{id}",
     "POST /api/v1/exports/{id}/download-tickets",
-    "GET /api/v1/downloads/{ticket}"
+    "GET /api/v1/downloads/{ticket}",
+    "GET /api/v1/medications/{id}/inventory",
+    "PUT /api/v1/medications/{id}/inventory",
+    "POST /api/v1/medications/{id}/refills"
   )
 
   private val document = ujson.read(OpenApiDocument.json)

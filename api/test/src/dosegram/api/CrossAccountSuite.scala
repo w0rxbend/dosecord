@@ -116,6 +116,20 @@ final class CrossAccountSuite extends ApiSuite:
     "deleteMoodCheckin" -> (w => delete(s"/api/v1/mood/checkins/${w.checkinId}", w.strangerToken)),
     "deleteSleepEpisode" -> (w => delete(s"/api/v1/sleep/episodes/${w.nightId}", w.strangerToken)),
     "getMeal" -> (w => get(s"/api/v1/meals/$mealId", w.strangerToken)),
+    // Medication depth (ROADMAP G9.10).
+    "getInventory" -> (w => get(s"/api/v1/medications/${w.medicationId}/inventory", w.strangerToken)),
+    "saveInventory" -> (w =>
+      send(
+        "PUT",
+        s"/api/v1/medications/${w.medicationId}/inventory",
+        w.strangerToken,
+        Some(ujson.write(ujson.Obj("onHand" -> "5", "perIntake" -> "1"))),
+        newKey()
+      )
+    ),
+    "createRefill" -> (w =>
+      post(s"/api/v1/medications/${w.medicationId}/refills", ujson.Obj("quantity" -> "30"), w.strangerToken, newKey())
+    ),
     "deleteMeal" -> (w => delete(s"/api/v1/meals/$mealId", w.strangerToken)),
     "getExport" -> (w => get(s"/api/v1/exports/${w.exportId}", w.strangerToken)),
     "createDownloadTicket" -> (w => post(s"/api/v1/exports/${w.exportId}/download-tickets", ujson.Obj(), w.strangerToken))

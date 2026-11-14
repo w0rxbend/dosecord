@@ -4,6 +4,7 @@
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import Screen from '../../ui/Screen.svelte';
+  import InventoryPanel from './InventoryPanel.svelte';
   import MedEditor from './MedEditor.svelte';
 
   /** Absent for a new medication. */
@@ -11,13 +12,15 @@
 
   const { api, router } = useApp();
   const loaded = new Resource(async () => {
-    const [options, medication, schedules] = await Promise.all([
+    const [options, medication, schedules, inventory] = await Promise.all([
       api.medicationOptions(),
       id ? api.medication(id) : null,
       id ? api.schedules(id) : [],
+      id ? api.inventory(id) : null,
     ]);
     // The times live on the schedule that has not ended (ADR-020 decision 9: at most one).
-    return { options, medication, schedule: schedules.find((schedule) => schedule.status !== 'ended') ?? null };
+    const schedule = schedules.find((item) => item.status !== 'ended') ?? null;
+    return { options, medication, schedule, inventory };
   });
 
   function open(event: MouseEvent, path: string): void {
@@ -28,7 +31,7 @@
 
 <Screen title={id ? en.editor.titleEdit : en.editor.titleNew}>
   <AsyncView resource={loaded} loadingLabel={en.editor.loading} skeletonRows={5}>
-    {#snippet children({ options, medication, schedule })}
+    {#snippet children({ options, medication, schedule, inventory })}
       <MedEditor {options} {medication}>
         {#snippet after()}
           {#if medication}
@@ -42,6 +45,7 @@
                 </a>
               </div>
             </section>
+            <InventoryPanel medicationId={medication.id} current={inventory} />
           {/if}
         {/snippet}
       </MedEditor>

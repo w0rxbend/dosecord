@@ -2,6 +2,7 @@
 import { ApiError, type ApiClient, type FieldError } from '../api/client';
 import type {
   ExportItem,
+  InventoryView,
   Medication,
   MedicationDraft,
   OccurrenceActionResult,
@@ -322,6 +323,47 @@ export class MockBackend implements ApiClient {
     this.respond('medications/{id}/schedules', () => this.storedSchedules.filter((s) => s.medicationId === medicationId));
 
   schedule: ApiClient['schedule'] = (id) => this.respond('schedules/{id}', () => this.findSchedule(id));
+
+  private readonly inventories = new Map<string, InventoryView>();
+
+  /** A plain count: the mock has no schedule walk, so it states the count without a days figure. */
+  private inventoryOf(onHand: string, perIntake: string, thresholdDays: number | null, version: number, lastRefill: string | null): InventoryView {
+    return {
+      onHand,
+      perIntake,
+      thresholdDays,
+      thresholdUnits: null,
+      lastRefill,
+      daysOfSupply: null,
+      coversUntil: null,
+      belowThreshold: false,
+      countMayBeOff: false,
+      summary: `${onHand} by your count.`,
+      version,
+    };
+  }
+
+  inventory: ApiClient['inventory'] = (medicationId) =>
+    this.respond('medications/{id}/inventory', () => this.inventories.get(medicationId) ?? null);
+
+  saveInventory: ApiClient['saveInventory'] = (medicationId, input, version) =>
+    this.respond('medications/{id}/inventory:save', () => {
+      const current = this.inventories.get(medicationId);
+      if ((current?.version ?? null) !== version) throw new ApiError('version_conflict', 'MOCK-0412');
+      const saved = this.inventoryOf(input.onHand, input.perIntake, input.thresholdDays ?? 7, (version ?? 0) + 1, current?.lastRefill ?? null);
+      this.inventories.set(medicationId, saved);
+      return saved;
+    });
+
+  refill: ApiClient['refill'] = (medicationId, quantity) =>
+    this.respond('medications/{id}/refills', () => {
+      const current = this.inventories.get(medicationId);
+      if (!current) throw new ApiError('not_found', 'MOCK-0404');
+      const onHand = String(Number(current.onHand) + Number(quantity));
+      const saved = this.inventoryOf(onHand, current.perIntake, current.thresholdDays, current.version + 1, quantity);
+      this.inventories.set(medicationId, saved);
+      return saved;
+    });
 
   reviseSchedule: ApiClient['reviseSchedule'] = (id, draft, revision) =>
     this.respond('schedules/{id}/revisions', () => {

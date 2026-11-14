@@ -6,6 +6,7 @@ import {
   toBlobAsset,
   toCalendar,
   toConsents,
+  toInventory,
   toFieldError,
   toInsightList,
   toInsightMonth,
@@ -44,7 +45,7 @@ const TIMEOUT_MS = 10_000;
 const FRESHNESS_MS = 300_000;
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   headers?: Record<string, string>;
 }
@@ -353,6 +354,27 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
           method: 'POST',
           body: toScheduleDraft(draft),
           headers: versionTag(revision),
+        }),
+      ),
+
+    inventory: async (medicationId) => {
+      const read = await request<Wire['InventoryReading']>(`medications/${id(medicationId)}/inventory`);
+      return read.count ? toInventory(read.count) : null;
+    },
+    saveInventory: async (medicationId, input, version) =>
+      toInventory(
+        await request<Wire['InventoryDocument']>(`medications/${id(medicationId)}/inventory`, {
+          method: 'PUT',
+          body: { onHand: input.onHand, perIntake: input.perIntake, thresholdDays: input.thresholdDays },
+          headers: { ...command(newIdempotencyKey()), ...(version === null ? {} : versionTag(version)) },
+        }),
+      ),
+    refill: async (medicationId, quantity) =>
+      toInventory(
+        await request<Wire['InventoryDocument']>(`medications/${id(medicationId)}/refills`, {
+          method: 'POST',
+          body: { quantity },
+          headers: command(newIdempotencyKey()),
         }),
       ),
 

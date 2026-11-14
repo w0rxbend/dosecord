@@ -1003,7 +1003,11 @@ MA-EDIT-7. Saving sends `If-Match` with the version the form was loaded with. A 
 
 MA-EDIT-8. The editor is usable with the keyboard alone on Telegram Desktop: logical tab order, visible focus, `Enter` in a single-line field moves to the next field, and the native bottom button is reachable (MA-A-08). [M][L]
 
+MA-EDIT-9. Supervisor decision, 2026-11-14, owner asleep (ROADMAP G9.10). The editor of a saved medication ends with the Count panel: units on hand, units each time (default 1) and the days of supply at which the chat tells the user (default 7), saved with their own button; once a count exists, the server's sentence for it ("About 12 tablets of Iron left by your count. At your current schedule that covers until about Tue 9 Feb.") and "Add refill" with the last refill offered. The panel states facts the user entered and never advises.
+
 ### 7.5 S-05 Schedule builder
+
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G9.8, G9.9). The builder offers "Every few days" (`every_n_days`, every how many days, default 2) and "Days on, days off" (`cycle`, default 21 and 7) when the server lists them; both count from the start date, take times like fixed times and are previewed by the server's evaluator. A stored rule of either kind comes back as that kind, never as a daily schedule. "Only when needed" adds the user's own limits, at most this many a day and at least this many minutes between, both optional; the chat wizard's default (10 a day, no gap) is not shown as a limit. A pause with a resume date and "course ends on" exist in the API and the chat; the Mini App does not offer them yet.
 
 Purpose: describe when a medication is taken, see the next seven days before saving, and set how reminders behave.
 

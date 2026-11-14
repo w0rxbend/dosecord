@@ -10,6 +10,7 @@ import type {
   CalendarSwatch,
   Chart,
   Consents,
+  InventoryView,
   ExportItem,
   InsightCalendar,
   InsightList,
@@ -173,6 +174,8 @@ export function toScheduleOptions(wire: Wire['ScheduleOptions']): ScheduleOption
     patterns.push({ value: 'fixed_times', label: en.schedule.patterns.fixed_times });
     patterns.push({ value: 'weekly', label: en.schedule.patterns.weekly });
   }
+  if (offered.includes('every_n_days')) patterns.push({ value: 'every_n_days', label: en.schedule.patterns.every_n_days });
+  if (offered.includes('cycle')) patterns.push({ value: 'cycle', label: en.schedule.patterns.cycle });
   if (offered.includes('as_needed')) patterns.push({ value: 'as_needed', label: en.schedule.patterns.as_needed });
   return {
     patterns,
@@ -184,7 +187,18 @@ export function toScheduleOptions(wire: Wire['ScheduleOptions']): ScheduleOption
 }
 
 export function toScheduleDraft(draft: ScheduleDraft): Wire['ScheduleDraft'] {
-  if (draft.pattern === 'as_needed') return { pattern: 'as_needed' };
+  if (draft.pattern === 'as_needed')
+    return { pattern: 'as_needed', maxPerDay: draft.maxPerDay, minGapMinutes: draft.minGapMinutes };
+  if (draft.pattern === 'every_n_days' || draft.pattern === 'cycle')
+    return {
+      pattern: draft.pattern,
+      times: draft.rows.map((row) => row.time),
+      everyDays: draft.everyDays,
+      onDays: draft.onDays,
+      offDays: draft.offDays,
+      startDate: draft.startDate,
+      endDate: draft.endDate ?? undefined,
+    };
   return {
     pattern: 'fixed_times',
     times: draft.rows.map((row) => row.time),
@@ -215,17 +229,24 @@ export function toSchedule(wire: Wire['Schedule']): Schedule {
   const weekdays = wire.weekdays ?? [];
   const everyDay = weekdays.length === ISO_WEEK.length;
   const timed = everyDay ? 'fixed_times' : 'weekly';
+  const periodic = wire.pattern === 'every_n_days' || wire.pattern === 'cycle';
   return {
     id: wire.id,
     medicationId: wire.medicationId,
     status: wire.status,
     revision: wire.revision,
     summary: wire.summary,
-    pattern: wire.pattern === 'as_needed' ? 'as_needed' : timed,
+    pattern: wire.pattern === 'as_needed' || periodic ? wire.pattern : timed,
     rows: (wire.times ?? []).map((time) => ({ time, dose: '' })),
-    weekdays: everyDay ? [] : weekdays,
+    weekdays: everyDay || periodic ? [] : weekdays,
     startDate: wire.startDate,
     endDate: wire.endDate ?? null,
+    everyDays: wire.everyDays,
+    onDays: wire.onDays,
+    offDays: wire.offDays,
+    // The chat wizard's defaults (10 a day, no gap) are not limits the user set.
+    maxPerDay: wire.maxPerDay === 10 && !wire.minGapMinutes ? undefined : wire.maxPerDay,
+    minGapMinutes: wire.minGapMinutes || undefined,
   };
 }
 
@@ -486,4 +507,20 @@ export function toReminderTimeline(wire: Wire['ReminderTimeline']): ReminderTime
 
 export function toExportItem(wire: Wire['ExportView']): ExportItem {
   return { ...wire };
+}
+
+export function toInventory(wire: Wire['InventoryDocument']): InventoryView {
+  return {
+    onHand: wire.onHand,
+    perIntake: wire.perIntake,
+    thresholdDays: wire.thresholdDays ?? null,
+    thresholdUnits: wire.thresholdUnits ?? null,
+    lastRefill: wire.lastRefill ?? null,
+    daysOfSupply: wire.daysOfSupply ?? null,
+    coversUntil: wire.coversUntil ?? null,
+    belowThreshold: wire.belowThreshold,
+    countMayBeOff: wire.countMayBeOff,
+    summary: wire.summary,
+    version: wire.version,
+  };
 }

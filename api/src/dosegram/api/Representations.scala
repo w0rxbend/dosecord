@@ -135,7 +135,10 @@ final case class MedicationSummary(
 
 final case class MedicationList(items: List[MedicationSummary]) derives ReadWriter, Schema
 
-final case class MedicationStateChange(change: MedicationChange) derives ReadWriter, Schema
+/** `resumeOn` (with `pause` only, ROADMAP G9.12): the local date the medication resumes on by itself (R-REG-5). */
+final case class MedicationStateChange(change: MedicationChange, resumeOn: Option[LocalDate] = None)
+    derives ReadWriter,
+      Schema
 
 final case class MedicationOptions(doseUnits: List[String], limits: Limits) derives ReadWriter, Schema
 
@@ -178,13 +181,19 @@ final case class Schedule(
     everyDays: Option[Int] = None,
     onDays: Option[Int] = None,
     offDays: Option[Int] = None,
-    anchorDate: Option[LocalDate] = None
+    anchorDate: Option[LocalDate] = None,
+    resumeOn: Option[LocalDate] = None
 ) derives ReadWriter,
       Schema
 
 final case class ScheduleList(items: List[Schedule]) derives ReadWriter, Schema
 
-final case class ScheduleStateChange(change: ScheduleChange) derives ReadWriter, Schema
+/** `endDate` (with `end` only, ROADMAP G9.12): "course ends on", the last local date of the schedule (R-SCH-4); without
+  * it the schedule ends now.
+  */
+final case class ScheduleStateChange(change: ScheduleChange, endDate: Option[LocalDate] = None)
+    derives ReadWriter,
+      Schema
 
 final case class ScheduleOptions(
     patterns: List[SchedulePattern],

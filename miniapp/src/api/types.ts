@@ -112,7 +112,7 @@ export interface MedicationOptions {
   readonly reminderNameToggle: boolean;
 }
 
-export type SchedulePattern = 'fixed_times' | 'weekly' | 'as_needed';
+export type SchedulePattern = 'fixed_times' | 'weekly' | 'every_n_days' | 'cycle' | 'as_needed';
 
 export interface TimeRow {
   readonly time: LocalTime;
@@ -126,6 +126,14 @@ export interface ScheduleDraft {
   readonly weekdays: readonly number[];
   readonly startDate: LocalDate;
   readonly endDate: LocalDate | null;
+  /** every_n_days: the period in days (ROADMAP G9.8). */
+  readonly everyDays?: number;
+  /** cycle: the days with reminders, then the days without. */
+  readonly onDays?: number;
+  readonly offDays?: number;
+  /** as_needed: the limits the user entered, stated back as facts in the chat; absent means none. */
+  readonly maxPerDay?: number;
+  readonly minGapMinutes?: number;
 }
 
 export interface ScheduleOptions {
@@ -783,4 +791,27 @@ export interface ExportTicket {
   readonly url: string;
   readonly fileName: string;
   readonly expiresAt: string;
+}
+
+/** A count the user keeps for one medication (ROADMAP G9.10); decimals are strings. */
+export interface InventoryView {
+  readonly onHand: Decimal;
+  readonly perIntake: Decimal;
+  readonly thresholdDays: number | null;
+  readonly thresholdUnits: Decimal | null;
+  readonly lastRefill: Decimal | null;
+  /** From the user's own schedule; null for as needed or a count that outlasts the horizon. */
+  readonly daysOfSupply: number | null;
+  readonly coversUntil: LocalDate | null;
+  readonly belowThreshold: boolean;
+  readonly countMayBeOff: boolean;
+  /** The same facts as one sentence, written by the server. */
+  readonly summary: string;
+  readonly version: number;
+}
+
+export interface InventoryInput {
+  readonly onHand: Decimal;
+  readonly perIntake: Decimal;
+  readonly thresholdDays?: number;
 }

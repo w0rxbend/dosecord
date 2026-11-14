@@ -209,7 +209,8 @@ object Rendering:
       everyDays = view.everyDays,
       onDays = view.onDays,
       offDays = view.offDays,
-      anchorDate = view.anchorDate
+      anchorDate = view.anchorDate,
+      resumeOn = tx.medicationDepth.pauses.resumeOn(stored.id)
     )
 
   private def scheduleSummary(status: ScheduleStatus, rule: Rule): String =

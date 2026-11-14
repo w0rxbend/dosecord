@@ -57,6 +57,51 @@
   </fieldset>
 {/if}
 
+{#if form.pattern === 'every_n_days' || form.pattern === 'cycle'}
+  <section class="section" aria-labelledby="period-title">
+    <h2 class="section-title" id="period-title">{en.schedule.period}</h2>
+    <div class="section-body pad stack">
+      {#if form.pattern === 'every_n_days'}
+        <Field id="sch-everyDays" label={en.schedule.everyDays} required help={en.schedule.everyDaysHelp} error={errors.everyDays}>
+          {#snippet children(attributes)}
+            <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.everyDays} />
+          {/snippet}
+        </Field>
+      {:else}
+        <Field id="sch-onDays" label={en.schedule.onDays} required help={en.schedule.cycleHelp} error={errors.onDays}>
+          {#snippet children(attributes)}
+            <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.onDays} />
+          {/snippet}
+        </Field>
+        <Field id="sch-offDays" label={en.schedule.offDays} required error={errors.offDays}>
+          {#snippet children(attributes)}
+            <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.offDays} />
+          {/snippet}
+        </Field>
+      {/if}
+    </div>
+  </section>
+{/if}
+
+{#if form.pattern === 'as_needed'}
+  <section class="section" aria-labelledby="limits-title">
+    <h2 class="section-title" id="limits-title">{en.schedule.limits}</h2>
+    <div class="section-body pad stack">
+      <p>{en.schedule.limitsHelp}</p>
+      <Field id="sch-maxPerDay" label={en.schedule.maxPerDay} optional error={errors.maxPerDay}>
+        {#snippet children(attributes)}
+          <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.maxPerDay} />
+        {/snippet}
+      </Field>
+      <Field id="sch-minGapMinutes" label={en.schedule.minGapMinutes} optional error={errors.minGapMinutes}>
+        {#snippet children(attributes)}
+          <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.minGapMinutes} />
+        {/snippet}
+      </Field>
+    </div>
+  </section>
+{/if}
+
 {#if timed}
   <section class="section" aria-labelledby="times-title">
     <h2 class="section-title" id="times-title">{en.schedule.times}</h2>

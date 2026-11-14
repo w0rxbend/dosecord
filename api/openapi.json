@@ -4031,6 +4031,239 @@
           }
         }
       }
+    },
+    "/api/v1/medications/{id}/inventory" : {
+      "get" : {
+        "description" : "The count of the medication; `count` is absent while the user keeps none (ETag \"v0\").",
+        "operationId" : "getInventory",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InventoryReading"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "put" : {
+        "description" : "Creates the count (no If-Match) or replaces it on the version read; a repeated key changes nothing.",
+        "operationId" : "saveInventory",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; absent only for a first count",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          },
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InventoryInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InventoryDocument"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/medications/{id}/refills" : {
+      "post" : {
+        "operationId" : "createRefill",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefillInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InventoryDocument"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
     }
   },
   "components" : {
@@ -5344,6 +5577,98 @@
           }
         }
       },
+      "InventoryDocument" : {
+        "title" : "InventoryDocument",
+        "type" : "object",
+        "required" : [
+          "medicationId",
+          "onHand",
+          "perIntake",
+          "belowThreshold",
+          "countMayBeOff",
+          "noticesStopped",
+          "version",
+          "summary"
+        ],
+        "properties" : {
+          "medicationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "onHand" : {
+            "type" : "string"
+          },
+          "perIntake" : {
+            "type" : "string"
+          },
+          "thresholdDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "thresholdUnits" : {
+            "type" : "string"
+          },
+          "lastRefill" : {
+            "type" : "string"
+          },
+          "daysOfSupply" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "coversUntil" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "belowThreshold" : {
+            "type" : "boolean"
+          },
+          "countMayBeOff" : {
+            "type" : "boolean"
+          },
+          "noticesStopped" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "summary" : {
+            "type" : "string"
+          }
+        }
+      },
+      "InventoryInput" : {
+        "title" : "InventoryInput",
+        "type" : "object",
+        "required" : [
+          "onHand",
+          "perIntake"
+        ],
+        "properties" : {
+          "onHand" : {
+            "type" : "string"
+          },
+          "perIntake" : {
+            "type" : "string"
+          },
+          "thresholdDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "thresholdUnits" : {
+            "type" : "string"
+          }
+        }
+      },
+      "InventoryReading" : {
+        "title" : "InventoryReading",
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "$ref" : "#/components/schemas/InventoryDocument"
+          }
+        }
+      },
       "LanguageChoice" : {
         "title" : "LanguageChoice",
         "type" : "object",
@@ -5675,6 +6000,10 @@
         "properties" : {
           "change" : {
             "$ref" : "#/components/schemas/MedicationChange"
+          },
+          "resumeOn" : {
+            "type" : "string",
+            "format" : "date"
           }
         }
       },
@@ -6280,6 +6609,18 @@
           }
         }
       },
+      "RefillInput" : {
+        "title" : "RefillInput",
+        "type" : "object",
+        "required" : [
+          "quantity"
+        ],
+        "properties" : {
+          "quantity" : {
+            "type" : "string"
+          }
+        }
+      },
       "ReminderKindView" : {
         "title" : "ReminderKindView",
         "type" : "object",
@@ -6652,6 +6993,10 @@
           "anchorDate" : {
             "type" : "string",
             "format" : "date"
+          },
+          "resumeOn" : {
+            "type" : "string",
+            "format" : "date"
           }
         }
       },
@@ -6828,6 +7173,10 @@
         "properties" : {
           "change" : {
             "$ref" : "#/components/schemas/ScheduleChange"
+          },
+          "endDate" : {
+            "type" : "string",
+            "format" : "date"
           }
         }
       },
