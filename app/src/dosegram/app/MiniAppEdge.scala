@@ -10,6 +10,7 @@ import dosegram.core.application.Application
 import dosegram.core.chat.CallbackCodec
 import dosegram.infra.MiniAppSettings
 import dosegram.infra.Settings
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgIdempotencyKeys
 import dosegram.infra.db.PgMiniAppSessions
 import dosegram.infra.db.PgUnitOfWork
@@ -83,14 +84,15 @@ object MiniAppEdge:
   )(using
       Ox
   ): NettySyncServerBinding =
-    val uow = PgUnitOfWork(dataSource, parts.clock)
+    val keys = DataKeys(settings.kek, parts.clock)
+    val uow = PgUnitOfWork(dataSource, parts.clock, keys)
     val tracking = TrackingServices.over(uow, parts.clock)
     val api = ApiModule(
       uow,
       parts.clock,
       verifier(settings, miniApp),
       PgSessionStore(PgMiniAppSessions(dataSource)),
-      PgIdempotencyStore(PgIdempotencyKeys(dataSource), parts.clock),
+      PgIdempotencyStore(PgIdempotencyKeys(dataSource, keys), parts.clock),
       TrackingUseCases(tracking.stats, tracking.hydration, tracking.mood, tracking.sleep, tracking.nutrition),
       MoodBlobAsset.states,
       log,

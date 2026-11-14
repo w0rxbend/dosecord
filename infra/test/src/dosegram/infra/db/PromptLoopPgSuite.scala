@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.capture.CaptureHandler
 import dosegram.core.application.capture.CaptureParts
@@ -78,7 +79,7 @@ class PromptLoopPgSuite extends PgSuite:
     val account: UUID = fixtures.account("Europe/Kyiv")
     fixtures.grant(account, consent)
     fixtures.deliveryChannel(account, "fake", s"chat-$account", start)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val hydration = HydrationService(clock, ids)
     val settings = ReminderSettings(clock, ids)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)

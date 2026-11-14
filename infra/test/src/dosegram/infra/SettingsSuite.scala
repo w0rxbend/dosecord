@@ -10,7 +10,8 @@ class SettingsSuite extends munit.FunSuite:
     "ENABLED_ADAPTERS" -> "console",
     "DATABASE_URL"     -> "jdbc:postgresql://localhost:5432/dosegram",
     "CALLBACK_KEYS"    -> key0,
-    "CONSOLE_USER_ID"  -> "owner"
+    "CONSOLE_USER_ID"  -> "owner",
+    "KEK" -> "test:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
   )
 
   private def parse(env: Map[String, String], secrets: Map[String, String] = Map.empty) =
@@ -203,3 +204,42 @@ class SettingsSuite extends munit.FunSuite:
     assertEquals(console.ownerChat, None)
     val Left(errors) = parse(telegram ++ Map("OWNER_ALERT_CHAT" -> "@owner")): @unchecked
     assert(errors.exists(_.startsWith("OWNER_ALERT_CHAT must be a Telegram chat id")), errors.toString)
+
+  // ---------- KEK (ROADMAP G2.4, ARCHITECTURE SEC-02) ----------
+
+  private val kekValue = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+
+  test("production refuses to start without a key-encryption key"):
+    val Left(errors) = parse(base - "KEK"): @unchecked
+    assert(errors.contains("KEK is required while ENVIRONMENT=production"), errors.toString)
+
+  test("development and test stand in the development key for a missing one"):
+    List("development", "test").foreach: environment =>
+      val Right(settings) = parse(base - "KEK" + ("ENVIRONMENT" -> environment)): @unchecked
+      assertEquals(settings.kek, crypto.KekRing.development)
+
+  test("the first key wraps, the others only unwrap, and the text form shows ids only"):
+    val other = "//////////////////////////////////////////8="
+    val Right(settings) = parse(base + ("KEK" -> s"new:$kekValue, old:$other")): @unchecked
+    assertEquals(settings.kek.active.id, "new")
+    assertEquals(settings.kek.retired.map(_.id), List("old"))
+    assert(!settings.toString.contains(kekValue), settings.toString)
+    assert(!settings.toString.contains(other), settings.toString)
+
+  test("a malformed key is refused without quoting it"):
+    val short = "c2hvcnQta2V5"
+    List(
+      s"k1:$short" -> "KEK: key 'k1' is not 32 bytes",
+      "k1:%%%not-base64%%%" -> "KEK: key 'k1' is not base64",
+      s"a key without an id $kekValue" -> "KEK: an entry is not '<id>:<base64>'",
+      s"k1:$kekValue,k1:$kekValue" -> "KEK: key ids must be distinct",
+      s"development:$kekValue" -> "KEK: the id 'development' is reserved"
+    ).foreach: (raw, expected) =>
+      val Left(errors) = parse(base + ("KEK" -> raw)): @unchecked
+      assert(errors.contains(expected), s"$raw: $errors")
+      assert(!errors.mkString.contains(kekValue) && !errors.mkString.contains(short), errors.toString)
+
+  test("the key may come from a Docker secret file"):
+    val Right(settings) =
+      parse(base - "KEK" + ("KEK_FILE" -> "/run/secrets/kek"), Map("/run/secrets/kek" -> s"file:$kekValue")): @unchecked
+    assertEquals(settings.kek.active.id, "file")

@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.application.hydration.HydrationRefusal
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.insights.ComparisonWindow
@@ -50,7 +51,7 @@ class TrackingPgSuite extends PgSuite, munit.ScalaCheckSuite:
   private final class Rig(zone: String = "Europe/Kyiv"):
     val account: UUID = fixtures.account(zone)
     val clock = MutableClock(now)
-    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock))
+    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock, DataKeys.development))
     val ids: IdSource = IdSource.uuidV7(RandomGenerator.getDefault)
     val tracking = TransactionalTracking(uow, clock, ids)
     export tracking.{water, moods, rollups, stats}

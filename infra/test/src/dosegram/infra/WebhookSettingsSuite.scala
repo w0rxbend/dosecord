@@ -16,7 +16,8 @@ class WebhookSettingsSuite extends munit.FunSuite:
     "TELEGRAM_ALLOWED_USER_IDS" -> "7001",
     "PUBLIC_BASE_URL" -> "https://bot.example.com/",
     "TELEGRAM_WEBHOOK_PATH_SECRET" -> pathSecret,
-    "TELEGRAM_WEBHOOK_SECRET_TOKEN" -> headerSecret
+    "TELEGRAM_WEBHOOK_SECRET_TOKEN" -> headerSecret,
+    "KEK" -> "test:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
   )
 
   private def parse(env: Map[String, String]) = Settings.parse(env, path => sys.error(s"no secret file $path"))

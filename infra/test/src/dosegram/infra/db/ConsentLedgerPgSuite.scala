@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
@@ -18,7 +19,7 @@ class ConsentLedgerPgSuite extends PgSuite:
   private val t0 = Instant.parse("2026-11-13T09:00:00Z")
   private val notice = ConsentNotice(1, "I agree that Dosegram stores and processes my water intake records.", "en")
   private lazy val fixtures = Fixtures(dataSource)
-  private lazy val uow = PgUnitOfWork(dataSource, () => t0)
+  private lazy val uow = PgUnitOfWork(dataSource, () => t0, DataKeys.development)
 
   /** The ledger of the unit of work, one transaction per call. */
   private object ledger:

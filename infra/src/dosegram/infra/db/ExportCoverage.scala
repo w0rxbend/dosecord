@@ -86,6 +86,9 @@ object ExportCoverage:
          FROM audit_log WHERE subject_ref = ? ORDER BY occurred_at, id"""
     ),
     "deletion_receipts" -> Coverage.Excluded("receipts of deletions: a tombstone and counts, no account"),
-    "flyway_schema_history" -> Coverage.Excluded("the migration history of the schema; no account")
+    "flyway_schema_history" -> Coverage.Excluded("the migration history of the schema; no account"),
+    // V10: the archive holds the opened values instead (AccountArchive); a wrapped key is no record of the user.
+    "account_keys" -> Coverage.Excluded("wrapped data keys: secrets, not records"),
+    "service_keys" -> Coverage.Excluded("wrapped service keys; no account")
   )
 end ExportCoverage

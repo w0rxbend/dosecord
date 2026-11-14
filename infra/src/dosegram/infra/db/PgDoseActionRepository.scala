@@ -4,6 +4,7 @@ import dosegram.core.domain.Actor
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.copy.DoseActionKind
 import dosegram.core.ports.DoseActionRepository
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.NewDoseAction
 import dosegram.core.ports.StoredDoseAction
 
@@ -12,16 +13,21 @@ import java.util.UUID
 import scala.language.implicitConversions
 
 /** Postgres `dose_actions` (R27): append-only — `seq` is assigned as `max(seq) + 1` per occurrence inside the same
-  * transaction; the V1 trigger rejects any UPDATE/DELETE (the erasure GUC excepted, M4.4).
+  * transaction; the V1 trigger rejects any UPDATE/DELETE (the erasure GUC excepted, M4.4). A note is sealed with the
+  * account's data key (V10, ARCHITECTURE SEC-01).
   */
-final class PgDoseActionRepository(conn: Connection) extends DoseActionRepository:
+final class PgDoseActionRepository(conn: Connection, keys: KeyService) extends DoseActionRepository:
+  import SealedColumns.DoseNote
+
   private given Connection = conn
 
   private given RowMapper[StoredDoseAction] = rs =>
+    val id = rs.uuid("id")
+    val accountId = rs.uuid("account_id")
     StoredDoseAction(
-      id = rs.uuid("id"),
+      id = id,
       occurrenceId = rs.uuid("occurrence_id"),
-      accountId = rs.uuid("account_id"),
+      accountId = accountId,
       seq = rs.getInt("seq"),
       action = DoseActionKind.fromDbValue(rs.getString("action")),
       actor = if rs.getString("actor_type") == Actor.User.dbValue then Actor.User else Actor.System,
@@ -31,7 +37,7 @@ final class PgDoseActionRepository(conn: Connection) extends DoseActionRepositor
       newStatus = OccurrenceStatus.fromDbValue(rs.getString("new_status")),
       effectiveAt = rs.optInstant("effective_at"),
       reasonCode = rs.optString("reason_code"),
-      note = rs.optString("note"),
+      note = Option(rs.getBytes("note_enc")).map(keys.openText(DoseNote.forAccount(accountId, id), _)),
       undoesSeq = rs.optInt("undoes_seq"),
       catchUp = rs.getBoolean("catch_up"),
       correlationId = rs.getString("correlation_id"),
@@ -43,21 +49,22 @@ final class PgDoseActionRepository(conn: Connection) extends DoseActionRepositor
     )
 
   override def append(row: NewDoseAction): Unit =
+    val note = row.note.map(keys.sealText(DoseNote.forAccount(row.accountId, row.id), _))
     sql"""INSERT INTO dose_actions
             (id, occurrence_id, account_id, seq, action, actor_type, idempotency_key, occurred_at,
-             prior_status, new_status, effective_at, reason_code, note, undoes_seq, catch_up,
+             prior_status, new_status, effective_at, reason_code, note_enc, undoes_seq, catch_up,
              correlation_id, metadata, vendor, platform_identity_id, platform_message_id)
           SELECT ${row.id}, ${row.occurrenceId}, ${row.accountId}, COALESCE(MAX(seq), 0) + 1,
                  ${row.action.dbValue}::dose_action, ${row.actor.dbValue}, ${row.idempotencyKey}, ${row.occurredAt},
                  ${row.priorStatus.dbValue}::occ_status, ${row.newStatus.dbValue}::occ_status, ${row.effectiveAt},
-                 ${row.reasonCode}, ${row.note}, ${row.undoesSeq}, ${row.catchUp}, ${row.correlationId},
+                 ${row.reasonCode}, $note, ${row.undoesSeq}, ${row.catchUp}, ${row.correlationId},
                  ${Jsonb(row.metadata)}, ${row.vendor}, ${row.platformIdentityId}, ${row.platformMessageId}
           FROM dose_actions
           WHERE occurrence_id = ${row.occurrenceId}""".execute()
 
   override def listForOccurrence(occurrenceId: UUID): List[StoredDoseAction] =
     sql"""SELECT id, occurrence_id, account_id, seq, action, actor_type, occurred_at, recorded_at,
-                 prior_status, new_status, effective_at, reason_code, note, undoes_seq, catch_up,
+                 prior_status, new_status, effective_at, reason_code, note_enc, undoes_seq, catch_up,
                  correlation_id, idempotency_key, metadata, vendor, platform_identity_id, platform_message_id
           FROM dose_actions
           WHERE occurrence_id = $occurrenceId

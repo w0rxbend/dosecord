@@ -1,5 +1,6 @@
 package dosegram.simulation
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.ChatRef
 import dosegram.contracts.EventId
 import dosegram.contracts.Inbound
@@ -61,7 +62,7 @@ final case class PersonaRuntime(
   */
 final class SimulationHarness(dataSource: DataSource, val clock: MutableClock, transcript: SimTranscript)(using ox.Ox):
 
-  val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock)
+  val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock, DataKeys.development)
   val codec: CallbackCodec =
     CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))
   val fixtures: Fixtures = Fixtures(dataSource)

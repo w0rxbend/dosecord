@@ -28,6 +28,8 @@ services:
       CONSOLE_USER_ID: owner
       DATABASE_URL: jdbc:postgresql://postgres:5432/dosegram?user=dosegram&password=dosegram
       CALLBACK_KEYS: 0:MDEyMzQ1Njc4OWFiY2RlZg
+      # A throwaway key-encryption key of this local stack (ARCHITECTURE SEC-02); never a real one.
+      KEK: "compose:C5KHGJHScRTXAARA+TazwHLdt649MdsM60e5drQsLpA="
       ROLE: all
       LOG_LEVEL: INFO
       LOG_FORMAT: plain

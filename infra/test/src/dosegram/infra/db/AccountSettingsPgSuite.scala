@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.QuietHours
@@ -22,7 +23,7 @@ class AccountSettingsPgSuite extends PgSuite:
 
   private val t0 = Instant.parse("2026-11-13T09:00:00Z")
   private lazy val fixtures = Fixtures(dataSource)
-  private lazy val uow = PgUnitOfWork(dataSource, () => t0)
+  private lazy val uow = PgUnitOfWork(dataSource, () => t0, DataKeys.development)
   private val night = QuietHours(HhMm.unsafe("22:30"), HhMm.unsafe("07:00"))
   private val kyiv = ZoneId.of("Europe/Kyiv")
   private val everyDayAtNine = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))

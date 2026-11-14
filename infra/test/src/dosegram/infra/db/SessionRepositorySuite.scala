@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -36,7 +37,7 @@ class SessionRepositorySuite extends PgSuite:
     )
 
   test("insert, FOR UPDATE load, versioned save; stale version rejected"):
-    val uow = PgUnitOfWork(dataSource, tickingClock)
+    val uow = PgUnitOfWork(dataSource, tickingClock, DataKeys.development)
     val id = UUID.randomUUID()
     uow.transaction(_.sessions.insert(newSession(id, "principal-1")))
 
@@ -56,7 +57,7 @@ class SessionRepositorySuite extends PgSuite:
       uow.transaction(_.sessions.save(newSession(id, "principal-1").copy(step = "stale")))
 
   test("loadForUpdate holds the row lock until commit"):
-    val uow = PgUnitOfWork(dataSource, tickingClock)
+    val uow = PgUnitOfWork(dataSource, tickingClock, DataKeys.development)
     val id = UUID.randomUUID()
     uow.transaction(_.sessions.insert(newSession(id, "principal-2")))
 

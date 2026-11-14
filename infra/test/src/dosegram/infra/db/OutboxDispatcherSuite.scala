@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.CapabilityProfile
 import dosegram.contracts.ChatAdapter
 import dosegram.contracts.ChatError
@@ -176,7 +177,7 @@ class OutboxDispatcherSuite extends PgSuite:
 
   // Acceptance 1: exactly one row per send_key (UNIQUE constraint + insert path, concurrent inserts).
   test("exactly one row per send_key under concurrent inserts"):
-    val uow = PgUnitOfWork(dataSource, Clock.system)
+    val uow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
     val results = new ConcurrentLinkedQueue[Boolean]()
     val threads = (1 to 8).toList.map { _ =>
       new Thread(() =>
@@ -194,7 +195,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // flagged possible_duplicate, no extra state change.
   test("crash after the vendor send yields at most one extra send flagged possible_duplicate and no extra state"):
     val clock = new MutableClock(t0)
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val uow = CrashingUow(pgUow)
     val adapter = newAdapter()
     pgUow.transaction(_.outbox.enqueue(newSend("key-crash", t0)))
@@ -219,7 +220,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Acceptance 3: lease expiry re-claims.
   test("lease expiry re-claims a row stuck in sending"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     uow.transaction(_.outbox.enqueue(newSend("key-lease", t0)))
 
@@ -241,7 +242,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Acceptance 4: two concurrent dispatchers produce exactly-once claiming (SKIP LOCKED).
   test("two concurrent dispatchers claim each row exactly once"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter(sendDelayMillis = 5)
     val keys = (1 to 30).map(i => s"key-conc-$i")
     keys.foreach(k => assert(uow.transaction(_.outbox.enqueue(newSend(k, t0)))))
@@ -266,7 +267,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Acceptance 5: ops_done resume after the primary send is recorded.
   test("a crash after the handle is recorded resumes without a second send"):
     val clock = new MutableClock(t0)
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val uow = CrashingUow(pgUow)
     val adapter = newAdapter()
     pgUow.transaction(_.outbox.enqueue(newSend("key-ops", t0)))
@@ -293,7 +294,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Retryable failure: rescheduled with backoff, no duplicate flag, later claim succeeds.
   test("retryable failure reschedules without the duplicate flag and a later claim succeeds"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     uow.transaction(_.outbox.enqueue(newSend("key-retry", t0)))
 
@@ -314,7 +315,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Edit op: idempotent by content against the recorded target.
   test("edit op edits the target handle and marks sent"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val target =
       adapter.inner.send(ChatRef("fake", "chat-1"), RenderedMessage(chunks = List("old body")), "key-direct")
@@ -384,7 +385,7 @@ class OutboxDispatcherSuite extends PgSuite:
       given Connection = conn
       sql"UPDATE dose_occurrences SET epoch = 5 WHERE id = $occurrenceId".execute()
     }
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     def enqueue(key: String, epoch: Int): Unit = uow.transaction(
       _.outbox.enqueue(
@@ -414,7 +415,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Acceptance: the retry instants follow 5 s..30 min with jitter within bounds; the ninth attempt is dead.
   test("the retry instants of a failing row stay within the jittered backoff envelope and the ninth attempt is dead"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val metrics = RecordingMetrics()
     val random = new scala.util.Random(42)
@@ -486,7 +487,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // A row that cannot be rendered is one poison row, not a stalled dispatcher (live defect of 2026-11-14).
   test("a row that cannot be rendered retries with backoff and a content-free reason, and the batch behind it sends"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val metrics = RecordingMetrics()
     uow.transaction(_.outbox.enqueue(newSend("key-poison", t0.minusMillis(1)))) // claimed first: oldest due
@@ -524,7 +525,7 @@ class OutboxDispatcherSuite extends PgSuite:
       sql"""UPDATE platform_identities SET dm_channel_id = NULL
             WHERE id = (SELECT platform_identity_id FROM delivery_channels WHERE id = $channelId)""".execute()
     }
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val sendKey = s"digest:$accountId:1"
     uow.transaction(
@@ -561,7 +562,7 @@ class OutboxDispatcherSuite extends PgSuite:
     val scheduleId = fixtureSchedule(fixtures, clock, accountId)
     val occurrenceId = fixtures.occurrenceAt(scheduleId, t0, "fixture-render-1", OccurrenceStatus.Due)
     val channelId = fixtures.deliveryChannel(accountId, "fake", "dm:owner", t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val sendKey = s"occ:$occurrenceId:e0:s1:kinitial:c$channelId"
     uow.transaction(
@@ -611,7 +612,7 @@ class OutboxDispatcherSuite extends PgSuite:
     val fixtures = Fixtures(dataSource)
     val accountId = fixtures.account()
     fixtures.deliveryChannel(accountId, "fake", "dm:owner", t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val body = "Something went wrong on my side — please try again in a moment."
     uow.transaction(
@@ -663,7 +664,7 @@ class OutboxDispatcherSuite extends PgSuite:
     val clock = new MutableClock(t0)
     val fixtures = Fixtures(dataSource)
     val channels = twoChannels(fixtures, fixtures.account())
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapterA = newAdapter()
     val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake2"))
     val sendKey = s"reminder-fatal:c${channels.primaryChannelId}"
@@ -710,7 +711,7 @@ class OutboxDispatcherSuite extends PgSuite:
     val scheduleId = fixtureSchedule(fixtures, clock, accountId)
     val occurrenceId = fixtures.occurrenceAt(scheduleId, t0, "fixture-fallback-1", OccurrenceStatus.Due)
     val channels = twoChannels(fixtures, accountId)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapterA = newAdapter()
     val adapterB = TestAdapter(FakeAdapter(CapabilityProfiles.Telegram, vendor = "fake2"))
     val sendKey = s"occ:$occurrenceId:e0:s1:kinitial:c${channels.primaryChannelId}"
@@ -750,7 +751,7 @@ class OutboxDispatcherSuite extends PgSuite:
   // Acceptance: token buckets — per-vendor/per-chat limits respected under a burst.
   test("token buckets throttle a burst per vendor and per chat"):
     val clock = new MutableClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = newAdapter()
     val sleeps = ListBuffer.empty[Duration]
     val buckets = TokenBuckets(

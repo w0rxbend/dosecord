@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.application.hydration.LogWater
@@ -37,7 +38,7 @@ final class ExportFixture(dataSource: DataSource, val now: Instant, val zone: Zo
   private val fixtures = Fixtures(dataSource)
   private val clock = MutableClock(now.minus(Duration.ofDays(ExportFixture.Days.toLong)))
   private val tracking =
-    TransactionalTracking(PgUnitOfWork(dataSource, clock), clock, IdSource.uuidV7(RandomGenerator.getDefault))
+    TransactionalTracking(PgUnitOfWork(dataSource, clock, DataKeys.development), clock, IdSource.uuidV7(RandomGenerator.getDefault))
 
   val account: UUID = fixtures.account(zone.getId)
   val medicationName = "Canary-Cetirizine"

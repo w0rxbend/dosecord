@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
@@ -118,7 +119,7 @@ class DoseActionHandlerPgSuite extends PgSuite:
     )
 
   private def mediator(clock: MutableClock, adapter: SyncAdapter)(using ox.Ox): ChatMediator =
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
     ChatMediator(uow, adapters, codec, Application.handler(uow, adapters, codec, clock)(textOnlyParts(uow, clock)), clock, CommandRegistry.byName)
 

@@ -35,6 +35,7 @@ import dosegram.infra.MicrometerImageMetrics
 import dosegram.infra.MicrometerLoopMetrics
 import dosegram.infra.MicrometerOutboxMetrics
 import dosegram.infra.Settings
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgNotifyWake
 import dosegram.infra.db.PgOpsHealth
@@ -64,7 +65,8 @@ import javax.sql.DataSource
 final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Parts):
 
   private val clock = parts.clock
-  private val uow = PgUnitOfWork(dataSource, clock)
+  private val keys = DataKeys(settings.kek, clock)
+  private val uow = PgUnitOfWork(dataSource, clock, keys)
   private val codec = CallbackCodec(settings.callbackKeys)
 
   /** Starts every worker fork in the order of DESIGN.md section 12: wake listener, materialiser, reminder loop, outbox
@@ -164,7 +166,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     * file id that no send has used for [[Workers.FileIdUnusedFor]].
     */
   private def startImagePurge(passes: WorkerLoop)(using Ox): Unit =
-    val assets = PgRenderAssets(dataSource)
+    val assets = PgRenderAssets(dataSource, keys)
     // Pruning is by last use, whichever bot the file id belongs to.
     val fileIds = PgTelegramFileCache(dataSource, botId = 0L)
     fork:

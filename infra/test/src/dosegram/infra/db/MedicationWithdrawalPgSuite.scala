@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.application.medication.MedicationWithdrawal
@@ -32,7 +33,7 @@ class MedicationWithdrawalPgSuite extends PgSuite:
 
   private final class Rig:
     val clock = MutableClock(start)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val account: UUID = fixtures.medicationAccount("Europe/Kyiv")
     val schedule: UUID = fixtures.schedule(clock, account, "Medication A", everyDayAtNine, kyiv).scheduleId
     val withdrawal = MedicationWithdrawal(ScheduleLifecycle(uow, clock))

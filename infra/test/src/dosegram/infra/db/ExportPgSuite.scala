@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.ExportFile
@@ -30,7 +31,7 @@ class ExportPgSuite extends PgSuite:
   private val zone = ZoneId.of("Europe/Kyiv")
   private lazy val fixtures = Fixtures(dataSource)
 
-  private def uow(at: Instant): PgUnitOfWork = PgUnitOfWork(dataSource, () => at)
+  private def uow(at: Instant): PgUnitOfWork = PgUnitOfWork(dataSource, () => at, DataKeys.development)
 
   private def unzip(bytes: Array[Byte]): Map[String, String] =
     val in = ZipInputStream(ByteArrayInputStream(bytes))

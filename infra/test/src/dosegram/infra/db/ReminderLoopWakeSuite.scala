@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.Rule
@@ -136,8 +137,8 @@ class ReminderLoopWakeSuite extends PgSuite:
 
     val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
     val loop = ReminderLoop(
-      PgUnitOfWork(dataSource, clock),
-      Materialiser(PgUnitOfWork(dataSource, clock), clock),
+      PgUnitOfWork(dataSource, clock, DataKeys.development),
+      Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock),
       wake,
       clock,
       instance = "wake-pg",

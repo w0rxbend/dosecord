@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.application.insights.RollupService
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
@@ -38,7 +39,7 @@ class MealPgSuite extends PgSuite:
   private final class Rig:
     val account: UUID = fixtures.account("Europe/Berlin")
     val clock = MutableClock(noon)
-    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock))
+    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock, DataKeys.development))
     val service = NutritionService(clock, IdSource.uuidV7(RandomGenerator.getDefault))
 
     def log(mealType: MealType, key: String, text: Option[String] = None, owner: UUID = account): MealRecorded =
@@ -149,7 +150,7 @@ class MealPgSuite extends PgSuite:
     withFreshConnection { conn =>
       given Connection = conn
       conn.createStatement().execute("SET ROLE dosegram_app")
-      val meals = PgMealRepository(conn)
+      val meals = PgMealRepository(conn, DataKeys.development.on(conn))
       assertEquals(meals.get(rig.account, meal.entry.id), Some(meal.entry))
       assertEquals(meals.findByClientKey(rig.account, "k1"), Some(meal.entry))
       assertEquals(meals.recentTexts(rig.account, MealType.Lunch, 5).map(_.value), List("soup"))

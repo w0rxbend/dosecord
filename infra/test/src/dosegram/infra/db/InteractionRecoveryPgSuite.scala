@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.chat.*
 import dosegram.core.ports.*
@@ -73,7 +74,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       result
 
   test("vendor-accepted source edit survives lost bookkeeping and dispatcher restart without creating a message"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val fault = FaultUow(pgUow, failAt = 2, afterCommit = false)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
@@ -88,7 +89,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     val stored = pgUow.transaction(_.inboundEvents.find("fake", "recovery-edit-event")).get
     assertEquals(Reply.fromJson(stored.reply.get).replace.flatMap(_.replaces), Some(source))
     val later: Clock = () => now.plusSeconds(31)
-    val restarted = PgUnitOfWork(dataSource, later)
+    val restarted = PgUnitOfWork(dataSource, later, DataKeys.development)
     val dispatcher =
       OutboxDispatcher(restarted, Map("fake" -> adapter), CatalogueOutboxRenderer(restarted, codec, later), later)
     assertEquals(dispatcher.dispatchOnce(), 1)
@@ -110,7 +111,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       finally st.close()
 
   test("a missing source creates one recorded replacement on synchronous recovery"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val missing = upickle.default.writeJs(ChatError.Permanent("missing source", channelFatal = false))
     missing("reason") = ujson.Str("MissingTarget")
@@ -152,7 +153,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     )
 
   test("lost commit acknowledgement with missing source records replacement for dispatcher and repeated replay"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)
     val calls = AtomicInteger(0)
@@ -199,7 +200,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
 
   List(false, true).foreach: dispatcherFailure =>
     test(s"fatal MissingTarget never creates a persistent replacement (dispatcher=$dispatcherFailure)"):
-      val pgUow = PgUnitOfWork(dataSource, clock)
+      val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
       val adapter = FakeAdapter(CapabilityProfiles.Telegram)
       adapter.failNext(
         if dispatcherFailure then ChatError.Retryable("synthetic outage")
@@ -240,7 +241,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       assertEquals(count("rendered_messages"), 0L)
 
   test("dispatcher missing-source replacement resumes its recorded handle after terminal bookkeeping crash"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     adapter.failNext(ChatError.Retryable("synthetic edit outage"))
     val handler = new ChatHandler:
@@ -259,7 +260,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     assertEquals(adapter.sent.size, 1)
     assertEquals(count("rendered_messages"), 1L)
     val afterLease: Clock = () => now.plusSeconds(92)
-    val restarted = PgUnitOfWork(dataSource, afterLease)
+    val restarted = PgUnitOfWork(dataSource, afterLease, DataKeys.development)
     val second = OutboxDispatcher(
       restarted,
       Map("fake" -> adapter),
@@ -275,7 +276,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     assertEquals(second.dispatchOnce(), 0)
 
   test("synchronous source edit replaces the stored callback map"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val callback = codec.encode(CallbackMode.Direct, ActionRegistry.byName("menu.open").get, UUID.randomUUID(), 0).wire
     pgUow.transaction(
@@ -305,7 +306,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     )
 
   test("unlinked reply destination survives restart without a primary delivery channel"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val fault = FaultUow(pgUow, failAt = 2, afterCommit = false)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handler = new ChatHandler:
@@ -316,7 +317,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       mediator.push(inbound("unlinked-reply-event"))
       await(fault.faults.get() == 1)
     val later: Clock = () => now.plusSeconds(31)
-    val restarted = PgUnitOfWork(dataSource, later)
+    val restarted = PgUnitOfWork(dataSource, later, DataKeys.development)
     assertEquals(
       OutboxDispatcher(restarted, Map("fake" -> adapter), CatalogueOutboxRenderer(restarted, codec, later), later)
         .dispatchOnce(),
@@ -326,7 +327,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     assertEquals(restarted.transaction(_.inboundEvents.find("fake", "unlinked-reply-event")).get.accountId, None)
 
   test("unavailable reconciliation is bounded and never claims noncommit"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val calls = AtomicInteger(0)
     val broken = new UnitOfWork:
       override def transaction[A](f: Tx => A): A =
@@ -349,7 +350,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
     assertEquals(pgUow.transaction(_.outbox.recordedHandle("fake", "unavailable-event")), None)
 
   test("source edit retries exhaust the existing attempt budget without named fallback"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     adapter.failNext(ChatError.Retryable("synthetic outage"))
     val handler = new ChatHandler:
@@ -390,7 +391,7 @@ class InteractionRecoveryPgSuite extends PgSuite:
       finally st.close()
 
   test("lost commit acknowledgement reconciles stored reply without asking to repeat a committed action"):
-    val pgUow = PgUnitOfWork(dataSource, clock)
+    val pgUow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val fault = FaultUow(pgUow, failAt = 1, afterCommit = true)
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val handled = AtomicInteger(0)

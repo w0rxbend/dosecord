@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.reminders.ReminderSettings
@@ -32,7 +33,7 @@ class RemindersHubPgSuite extends PgSuite:
     val clock = MutableClock(start)
     val account: UUID = fixtures.account("Europe/Kyiv")
     if consents.nonEmpty then fixtures.grant(account, consents*)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val settings = ReminderSettings(clock, ids)
     val handler = RemindersHandler(
       codec,

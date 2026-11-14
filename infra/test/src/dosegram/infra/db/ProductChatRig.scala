@@ -14,6 +14,7 @@ import dosegram.core.chat.FakeAdapter
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.PurgeList
 import dosegram.core.ports.StatusCards
+import dosegram.infra.crypto.DataKeys
 
 import java.security.SecureRandom
 import java.time.Instant
@@ -31,7 +32,7 @@ final class ProductChatRig(dataSource: DataSource, val clock: MutableClock, purg
 ):
   val codec: CallbackCodec =
     CallbackCodec(CallbackKeys(CallbackKey(1, Array.tabulate[Byte](16)(i => (i + 1).toByte)), None))
-  val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock)
+  val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock, DataKeys.development)
   val adapter: FakeAdapter = FakeAdapter(CapabilityProfiles.Telegram)
   val chat: ChatRef = ChatRef("fake", s"dm:$user")
   private val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)

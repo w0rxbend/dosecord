@@ -14,6 +14,7 @@ import dosegram.core.ports.InboundInbox
 import dosegram.infra.Adapter
 import dosegram.infra.FilePurgeList
 import dosegram.infra.Settings
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgUnitOfWork
 import ox.Ox
 import ox.discard
@@ -57,7 +58,7 @@ object Adapters:
       Ox
   ): List[(String, () => Unit)] =
     val adapters = parts.adapters
-    val uow = PgUnitOfWork(dataSource, parts.clock)
+    val uow = PgUnitOfWork(dataSource, parts.clock, DataKeys(settings.kek, parts.clock))
     val codec = CallbackCodec(settings.callbackKeys)
     val capture = CaptureParts
       .over(uow, parts.clock, IdSource.uuidV7(SecureRandom()), parts.images.cards)

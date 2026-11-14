@@ -2,6 +2,7 @@ package dosegram.infra
 
 import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
+import dosegram.infra.crypto.KekRing
 
 import java.net.InetAddress
 import java.net.URI
@@ -139,7 +140,10 @@ final case class Settings(
     // The chat that gets the owner alerts (OPS-A2); without it, the one user of the Telegram allowlist.
     ownerAlertChat: Option[String] = None,
     // The purge list of ROADMAP G2.17: a file outside the database, appended on every account deletion.
-    purgeListPath: String = Settings.DefaultPurgeListPath
+    purgeListPath: String = Settings.DefaultPurgeListPath,
+    // The key-encryption keys of ARCHITECTURE SEC-02. Production refuses to start without its own; development and
+    // tests use the development key.
+    kek: KekRing = KekRing.development
 ):
   /** Where the owner alerts go (supervisor decision, 2026-11-14, ARCHITECTURE section 18.4): `OWNER_ALERT_CHAT`, else
     * the private chat of the only allowlisted Telegram user (a private chat's id is the user's id). With several
@@ -373,6 +377,14 @@ object Settings:
       "File of deleted account ids, kept outside the database and its backups so a restore deletes them again.",
       DefaultPurgeListPath,
       Some(DefaultPurgeListPath)
+    ),
+    EnvSpec(
+      "KEK",
+      required = false,
+      secret = true,
+      "Key-encryption keys '<id>:<base64 of 32 random bytes>'[,...]; the first wraps, the rest only unwrap. " +
+        "Required in production; keep it outside the database volume and its backups. New key: openssl rand -base64 32.",
+      "kek-2026:REPLACE-WITH-BASE64-OF-32-RANDOM-BYTES"
     )
   )
 
@@ -475,6 +487,17 @@ object Settings:
       Option.when(chat.matches("-?[0-9]{1,20}"))(chat)
     )
 
+    // SEC-02: production holds its own key-encryption key; elsewhere the development key stands in for a missing one.
+    val kek = lookup("KEK") match
+      case Some(raw) =>
+        KekRing.parse(raw) match
+          case Right(ring)   => Some(ring)
+          case Left(problem) => { errors = errors :+ problem; None }
+      case None if environment == Environment.Production =>
+        errors = errors :+ "KEK is required while ENVIRONMENT=production"
+        None
+      case None => Some(KekRing.development)
+
     val keys = required("CALLBACK_KEYS").flatMap(parseCallbackKeys(_) match
       case Right(ks) => Some(ks)
       case Left(err) => { errors = errors :+ err; None })
@@ -538,7 +561,8 @@ object Settings:
           healthAddress = healthAddress,
           httpAddress = httpAddress,
           ownerAlertChat = ownerAlertChat,
-          purgeListPath = lookup("PURGE_LIST_PATH").getOrElse(DefaultPurgeListPath)
+          purgeListPath = lookup("PURGE_LIST_PATH").getOrElse(DefaultPurgeListPath),
+          kek = kek.get
         )
       )
 

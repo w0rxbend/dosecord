@@ -12,6 +12,7 @@ import dosegram.core.ports.IdSource
 import dosegram.core.scheduling.CreateSchedule
 import dosegram.core.scheduling.ScheduleLifecycle
 import dosegram.infra.FilePurgeList
+import dosegram.infra.crypto.DataKeys
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -93,12 +94,13 @@ class DeletionPgSuite extends PgSuite:
     rig.uow.transaction(
       ExportRequests.enqueue(_, IdSource.uuidV7(SecureRandom()), account, image, "img", rig.clock.now())
     )
+    // The drawn image, as the renderer stores it: sealed with the render service key (ROADMAP G2.4b).
+    val renders = PgRenderAssets(dataSource, DataKeys.development)
     withConnection: conn =>
       given Connection = conn
       val now = rig.clock.now()
       List(s"card.sent-$account", other).foreach: key =>
-        sql"""INSERT INTO render_assets (asset_key, mime, byte_size, bytes, created_at, purge_after)
-              VALUES ($key, 'image/png', 1, ${Array[Byte](1)}, $now, ${now.plusSeconds(600)})""".execute()
+        renders.put(key, Array[Byte](1), now)
         sql"""INSERT INTO telegram_file_cache (asset_key, bot_id, media_kind, file_id, created_at, last_used_at)
               VALUES ($key, 1, 'photo', ${s"file-$key"}, $now, $now)""".execute()
       sql"""INSERT INTO miniapp_sessions (token_hash, account_id, initdata_hash, created_at, last_used_at)

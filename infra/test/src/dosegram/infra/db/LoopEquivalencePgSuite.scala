@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.LoopDispatch
 import dosegram.contracts.Weekday
@@ -66,8 +67,8 @@ class LoopEquivalencePgSuite extends PgSuite, munit.ScalaCheckSuite:
       .map(_.id)
       .get
     val l = ReminderLoop(
-      PgUnitOfWork(dataSource, clock),
-      Materialiser(PgUnitOfWork(dataSource, clock), clock),
+      PgUnitOfWork(dataSource, clock, DataKeys.development),
+      Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock),
       Wake.polling,
       clock,
       instance = "equivalence-test"

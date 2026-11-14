@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.Evaluator
@@ -71,7 +72,7 @@ class LiveSlotPropertySuite extends PgSuite, munit.ScalaCheckSuite:
       val clock = MutableClock(start)
       val fixtures = Fixtures(dataSource)
       val lifecycle = fixtures.lifecycle(clock)
-      val materialiser = Materialiser(PgUnitOfWork(dataSource, clock), clock)
+      val materialiser = Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock)
       val accountId = fixtures.account()
       val created = fixtures.schedule(clock, accountId, "Med", dailyAt("09:00", "21:00"), ZoneId.of("Europe/Kyiv"))
 

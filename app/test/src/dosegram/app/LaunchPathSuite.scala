@@ -272,6 +272,8 @@ class LaunchPathSuite extends PgSuite:
         "CONSOLE_USER_ID" -> LaunchRig.ConsoleUser,
         "DATABASE_URL" -> databaseUrl,
         "CALLBACK_KEYS" -> callbackKey,
+        // The fixtures sealed the seeded medication with the development key, which `test` uses (ARCHITECTURE SEC-02).
+        "ENVIRONMENT" -> "test",
         "INSTANCE_ID" -> "launch-sigterm",
         "LOG_FORMAT" -> "plain",
         "HEALTH_PORT" -> freePort().toString

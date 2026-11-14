@@ -52,6 +52,9 @@ object ErasureCoverage:
   private def only(domain: DataDomain): Erasure = Erasure.Domain(Own, Map(domain -> Own))
 
   val tables: List[(String, Erasure)] = List(
+    // Crypto-shredding first (SEC-06, ROADMAP G2.4b): without its data keys no sealed value of the account opens, in
+    // the database, its WAL or a backup, whatever the deletes after this one find.
+    "account_keys" -> Erasure.AccountWide(Own, "the account's wrapped data keys: destroyed first"),
     // The stores of the edges that name no account: found through the account's messages before those go.
     "telegram_file_cache" -> Erasure.AccountWide(s"asset_key IN ($AssetKeys)", "upload handles of images sent"),
     "render_assets" -> Erasure.AccountWide(s"asset_key IN ($AssetKeys)", "drawn images, at most one hour"),
@@ -137,6 +140,7 @@ object ErasureCoverage:
     // Kept without the account.
     "audit_log" -> Erasure.Pseudonymised("evidence of what was done, 13 months; the tombstone replaces the account"),
     "deletion_receipts" -> Erasure.NotOwned("the receipt of a deletion: a tombstone and counts"),
+    "service_keys" -> Erasure.NotOwned("wrapped keys of rows that belong to no account"),
     "worker_heartbeat" -> Erasure.NotOwned("process liveness"),
     "flyway_schema_history" -> Erasure.NotOwned("the migration history of the schema")
   )

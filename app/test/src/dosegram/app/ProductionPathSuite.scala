@@ -28,6 +28,7 @@ import dosegram.infra.Role
 import dosegram.infra.Settings
 import dosegram.infra.TelegramSettings
 import dosegram.infra.TelegramUpdates
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.PgUnitOfWork
@@ -275,7 +276,7 @@ class ProductionPathSuite extends PgSuite:
       onboard(chat)
       addDailyMedication(chat)
     val (accountId, _) = productionAccount()
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys(settings.kek, clock))
     val codec = CallbackCodec(settings.callbackKeys)
     val renderer = Workers.outboxRenderer(uow, codec, clock)
     val occurrence = UUID.fromString(

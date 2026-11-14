@@ -13,6 +13,7 @@ import dosegram.core.ports.ExportKind
 import dosegram.core.ports.ExportRepository
 import dosegram.core.ports.ExportStatus
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.NewExportJob
 import dosegram.core.ports.TicketRedemption
 import dosegram.core.ports.TicketRefusal
@@ -27,9 +28,13 @@ import java.util.UUID
 import scala.language.implicitConversions
 
 /** `export_jobs` and `export_download_tickets` (ARCHITECTURE section 10.13) on the connection of the surrounding
-  * transaction. Every statement on a job of an account names the account.
+  * transaction. Every statement on a job of an account names the account. The file is sealed with the account's data
+  * key while it waits for its download (V10, ARCHITECTURE SEC-04).
   */
-final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog) extends ExportRepository:
+final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog, keys: KeyService)
+    extends ExportRepository:
+  import SealedColumns.ExportContent
+
   private given Connection = conn
 
   private val Columns =
@@ -50,7 +55,8 @@ final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog)
     )
 
   private given RowMapper[ExportFile] = rs =>
-    ExportFile(rs.getString("file_name"), rs.getString("mime"), rs.getBytes("content"))
+    val field = ExportContent.forAccount(rs.uuid("account_id"), rs.uuid("id"))
+    ExportFile(rs.getString("file_name"), rs.getString("mime"), keys.open(field, rs.getBytes("content_enc")))
 
   override def create(job: NewExportJob): ExportJob =
     val confirmedAt = Option.when(job.status == ExportStatus.Queued)(job.at)
@@ -89,24 +95,27 @@ final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog)
     ).queryOne[ExportJob]()
 
   override def complete(id: UUID, file: ExportFile, at: Instant, expiresAt: Instant): Unit =
-    sql"""UPDATE export_jobs
-          SET status = 'ready', file_name = ${file.fileName}, mime = ${file.mime}, byte_size = ${file.bytes.length},
-              content = ${file.bytes}, ready_at = $at, expires_at = $expiresAt
-          WHERE id = $id AND status = 'queued'""".execute()
-    ()
+    sql"SELECT account_id FROM export_jobs WHERE id = $id AND status = 'queued'"
+      .queryOne[UUID]()
+      .foreach: accountId =>
+        val content = keys.seal(ExportContent.forAccount(accountId, id), file.bytes)
+        sql"""UPDATE export_jobs
+              SET status = 'ready', file_name = ${file.fileName}, mime = ${file.mime}, byte_size = ${file.bytes.length},
+                  content_enc = $content, ready_at = $at, expires_at = $expiresAt
+              WHERE id = $id AND status = 'queued'""".execute()
 
   override def fail(id: UUID, at: Instant): Unit =
     sql"UPDATE export_jobs SET status = 'failed' WHERE id = $id AND status = 'queued'".execute()
     ()
 
   override def file(accountId: UUID, id: UUID, now: Instant): Option[ExportFile] =
-    sql"""SELECT file_name, mime, content FROM export_jobs
-          WHERE account_id = $accountId AND id = $id AND content IS NOT NULL AND expires_at > $now"""
+    sql"""SELECT id, account_id, file_name, mime, content_enc FROM export_jobs
+          WHERE account_id = $accountId AND id = $id AND content_enc IS NOT NULL AND expires_at > $now"""
       .queryOne[ExportFile]()
 
   override def fileForDelivery(id: UUID, now: Instant): Option[ExportFile] =
-    sql"""SELECT file_name, mime, content FROM export_jobs
-          WHERE id = $id AND content IS NOT NULL AND expires_at > $now""".queryOne[ExportFile]()
+    sql"""SELECT id, account_id, file_name, mime, content_enc FROM export_jobs
+          WHERE id = $id AND content_enc IS NOT NULL AND expires_at > $now""".queryOne[ExportFile]()
 
   override def markDownloaded(accountId: UUID, id: UUID, at: Instant): Unit =
     sql"""UPDATE export_jobs SET status = 'downloaded', downloaded_at = $at
@@ -115,7 +124,7 @@ final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog)
 
   override def expire(now: Instant, confirmationWindow: Duration): Int =
     val lapsed =
-      sql"""UPDATE export_jobs SET status = 'expired', content = NULL
+      sql"""UPDATE export_jobs SET status = 'expired', content_enc = NULL
             WHERE status IN ('ready', 'downloaded') AND expires_at <= $now""".execute()
     val unconfirmed =
       sql"""UPDATE export_jobs SET status = 'expired'
@@ -167,7 +176,7 @@ final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog)
       )
       found
 
-  override def archive(accountId: UUID, at: Instant): ExportFile = AccountArchive.build(conn, accountId, at)
+  override def archive(accountId: UUID, at: Instant): ExportFile = AccountArchive.build(conn, keys, accountId, at)
 
   private final case class Ticket(
       exportId: UUID,
