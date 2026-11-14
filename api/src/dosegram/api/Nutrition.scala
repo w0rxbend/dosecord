@@ -31,7 +31,7 @@ final class Nutrition(uow: UnitOfWork, tracking: TrackingUseCases):
 
   /** The live meals of a range of local days, oldest first; without a range, those of today. */
   def meals(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, Meals] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         today <- todayOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.single(today.date))
@@ -39,7 +39,7 @@ final class Nutrition(uow: UnitOfWork, tracking: TrackingUseCases):
       yield Meals(range.start, range.end, meals.map(mealView))
 
   def meal(accountId: UUID, mealId: UUID): Either[ApiFailure, MealView] =
-    uow.transaction(tracking.nutrition.get(_, accountId, mealId)).left.map(refusal).map(mealView)
+    uow.transactionAs(accountId)(tracking.nutrition.get(_, accountId, mealId)).left.map(refusal).map(mealView)
 
   /** Records a meal, or with `supersedes` replaces one. `key` is the idempotency key: the same key records once. */
   def record(accountId: UUID, key: UUID, input: MealEntryInput): Either[ApiFailure, MealRecordedView] =
@@ -49,7 +49,7 @@ final class Nutrition(uow: UnitOfWork, tracking: TrackingUseCases):
         .left
         .map(_ => ApiFailure.invalid("description", "text_too_long"))
       command = MealCommand(mealTypeOf(input.mealType), text, input.occurredAt)
-      recorded <- uow.transaction: tx =>
+      recorded <- uow.transactionAs(accountId): tx =>
         val outcome = input.supersedes match
           case Some(original) =>
             tracking.nutrition.change(tx, ChangeMeal(accountId, original, command, EntrySource.MiniApp, s"api:$key"))
@@ -59,7 +59,7 @@ final class Nutrition(uow: UnitOfWork, tracking: TrackingUseCases):
 
   /** Voids a meal of any age and answers with its day. A second delete changes nothing and answers the same. */
   def remove(accountId: UUID, mealId: UUID): Either[ApiFailure, NutritionDay] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       tracking.nutrition
         .delete(tx, accountId, mealId)
         .left
@@ -68,14 +68,14 @@ final class Nutrition(uow: UnitOfWork, tracking: TrackingUseCases):
 
   def recent(accountId: UUID, mealType: MealKind): Either[ApiFailure, MealRecent] =
     uow
-      .transaction(tracking.nutrition.recent(_, accountId, mealTypeOf(mealType)))
+      .transactionAs(accountId)(tracking.nutrition.recent(_, accountId, mealTypeOf(mealType)))
       .left
       .map(refusal)
       .map(texts => MealRecent(mealType, texts.map(_.value)))
 
   /** Today, the days of a range and the weekly line; without a range, the last seven days (MA-FOOD-4). */
   def summary(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, NutritionSummary] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         today <- todayOf(tx, accountId)
         plan <- tracking.nutrition.plan(tx, accountId).left.map(refusal)
@@ -94,14 +94,14 @@ final class Nutrition(uow: UnitOfWork, tracking: TrackingUseCases):
         )
 
   def settings(accountId: UUID): Either[ApiFailure, NutritionSettings] =
-    uow.transaction(tracking.nutrition.plan(_, accountId)).left.map(refusal).map(settingsOf)
+    uow.transactionAs(accountId)(tracking.nutrition.plan(_, accountId)).left.map(refusal).map(settingsOf)
 
   def saveSettings(
       accountId: UUID,
       version: Long,
       input: NutritionSettingsInput
   ): Either[ApiFailure, NutritionSettings] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- tracking.nutrition.plan(tx, accountId).left.map(refusal).map(settingsOf)
         _ <- Either.cond(current.version == version, (), ApiFailure.versionConflict())

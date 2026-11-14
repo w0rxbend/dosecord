@@ -90,7 +90,7 @@ final case class InsightList(
 final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
 
   def month(accountId: UUID, month: Option[String]): Either[ApiFailure, InsightMonth] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         zone <- tx.accounts.timezoneOf(accountId).map(ZoneId.of).toRight(ApiFailure.notFound())
         current = YearMonth.from(LocalDays.dateOf(clock.now(), zone))
@@ -116,7 +116,7 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
         )
 
   def correlations(accountId: UUID): Either[ApiFailure, InsightList] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       tracking.stats
         .insights(tx, accountId, ComparisonWindow.Days28)
         .left

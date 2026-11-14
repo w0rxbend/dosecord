@@ -6,8 +6,9 @@ import dosegram.core.ports.ExportStatus
 import dosegram.core.ports.NewExportJob
 import sttp.tapir.AnyEndpoint
 
-/** ARCHITECTURE API-10 and API-11, ROADMAP G3.1: every route that names a record is called as account B with an
-  * identifier of account A and must answer exactly like an unknown identifier, and A's data must be unchanged. The
+/** ARCHITECTURE API-10 and API-11, ROADMAP G3.1 and G2.3: every route that names a record is called as account B with
+  * an identifier of account A and must answer exactly like an unknown identifier, A's data must be unchanged, and the
+  * route opens no cross-account transaction, so row-level security limits it to B's rows. The
   * registry test at the end fails when a route with an identifier is added without a case here.
   */
 final class CrossAccountSuite extends ApiSuite:
@@ -142,7 +143,9 @@ final class CrossAccountSuite extends ApiSuite:
       val _ = world
       clock.advance(java.time.Duration.ofMinutes(1))
       val before = ownerView()
+      val crossAccount = crossAccountTransactions.get()
       val reply = request(world)
+      assertEquals(crossAccountTransactions.get(), crossAccount, "the route ran a transaction for no one account")
       assertProblem(reply, 404, "not_found")
       assert(!reply.body.contains("Private") && !reply.bodyWithoutRequestId.contains("321"), reply.body)
       assertEquals(ownerView(), before)
@@ -158,6 +161,8 @@ final class CrossAccountSuite extends ApiSuite:
     assertEquals(foreign.status, unknown.status)
 
   test("lists and day views of account B hold nothing of account A"):
+    val _ = world
+    val crossAccount = crossAccountTransactions.get()
     assertEquals(get("/api/v1/medications", world.strangerToken).json("items").arr.toList, Nil)
     assertEquals(get("/api/v1/hydration/entries", world.strangerToken).json("items").arr.toList, Nil)
     assertEquals(get("/api/v1/mood/checkins", world.strangerToken).json("items").arr.toList, Nil)
@@ -168,6 +173,7 @@ final class CrossAccountSuite extends ApiSuite:
     assertEquals(calendar.count(_("swatch")("state").str == "value"), 0)
     assertEquals(get("/api/v1/today", world.strangerToken).json("occurrences").arr.toList, Nil)
     assertEquals(get("/api/v1/today", world.ownerToken).json("occurrences").arr.size, 1)
+    assertEquals(crossAccountTransactions.get(), crossAccount, "a view ran a transaction for no one account")
 
   test("an idempotency key of account A is not a key of account B"):
     val key = newKey()

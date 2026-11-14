@@ -35,12 +35,12 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
   private val lifecycle = ScheduleLifecycle(uow, clock)
 
   def settings(accountId: UUID): Either[ApiFailure, SettingsView] =
-    uow.transaction(stored(_, accountId).map(settingsView))
+    uow.transactionAs(accountId)(stored(_, accountId).map(settingsView))
 
   /** Replaces the editable set. A new time zone moves the schedules that follow the account, in the same transaction.
     */
   def saveSettings(accountId: UUID, version: Long, input: SettingsInput): Either[ApiFailure, SettingsView] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- stored(tx, accountId)
         _ <- Either.cond(settingsView(current).version == version, (), ApiFailure.versionConflict())
@@ -64,14 +64,14 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
         settingsView(Stored(zone.getId, tx.accounts.settingsOf(accountId).get))
 
   def notifications(accountId: UUID): Either[ApiFailure, NotificationSettingsView] =
-    uow.transaction(stored(_, accountId).map(notificationView))
+    uow.transactionAs(accountId)(stored(_, accountId).map(notificationView))
 
   def saveNotifications(
       accountId: UUID,
       version: Long,
       input: NotificationSettingsInput
   ): Either[ApiFailure, NotificationSettingsView] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- stored(tx, accountId)
         _ <- Either.cond(notificationView(current).version == version, (), ApiFailure.versionConflict())
@@ -97,14 +97,14 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
   def preview(accountId: UUID, request: TimeZonePreviewRequest): Either[ApiFailure, TimeZonePreview] =
     for
       zone <- zoneOf(request.timeZone)
-      lines <- uow.transaction: tx =>
+      lines <- uow.transactionAs(accountId): tx =>
         stored(tx, accountId).map: _ =>
           if !tx.consents.isGranted(accountId, ConsentPurpose.Medication) then List(ApiCopy.noSchedulesMove)
           else scheduleLines(tx, accountId)
     yield TimeZonePreview(zone.getId, ApiCopy.timeThere(ClockTime.format(clock.now().atZone(zone))), lines)
 
   def consents(accountId: UUID): Either[ApiFailure, ConsentList] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       stored(tx, accountId).map: _ =>
         val granted = tx.consents.granted(accountId).map(consent => consent.purpose -> consent).toMap
         val items = ConsentPurpose.values.toList.map: purpose =>

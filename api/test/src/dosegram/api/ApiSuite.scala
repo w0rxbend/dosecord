@@ -11,6 +11,8 @@ import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.Tx
+import dosegram.core.ports.UnitOfWork
 import dosegram.infra.db.Fixtures
 import dosegram.infra.db.MutableClock
 import dosegram.infra.db.PgSuite
@@ -73,8 +75,17 @@ trait ApiSuite extends PgSuite:
   private val launches = AtomicLong(0)
   private val telegramUsers = AtomicLong(5000000)
 
+  /** The cross-account transactions the module opened: a route serving a session opens none (API-10, ROADMAP G2.3). */
+  protected val crossAccountTransactions: AtomicLong = AtomicLong(0)
+
+  private lazy val moduleUow: UnitOfWork = new UnitOfWork:
+    override def transaction[A](f: Tx => A): A =
+      crossAccountTransactions.incrementAndGet()
+      uow.transaction(f)
+    override def transactionAs[A](account: UUID)(f: Tx => A): A = uow.transactionAs(account)(f)
+
   private lazy val module = ApiModule(
-    uow,
+    moduleUow,
     clock,
     TelegramInitDataVerifier(ed25519 = None, hmacSecret = Some(InitDataHmac.secretKeyFor(BotToken))),
     sessionStore,

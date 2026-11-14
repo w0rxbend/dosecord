@@ -29,17 +29,17 @@ final class Mood(uow: UnitOfWork, tracking: TrackingUseCases, blob: MoodBlobStat
   import Mood.*
 
   def scale(accountId: UUID): Either[ApiFailure, MoodScale] =
-    uow.transaction(todayOf(_, accountId)).map(_ => Scale.copy(blobRevision = blob.revision))
+    uow.transactionAs(accountId)(todayOf(_, accountId)).map(_ => Scale.copy(blobRevision = blob.revision))
 
   /** The blob states of the current revision; another revision does not exist. */
   def blobStates(accountId: UUID, revision: Option[String]): Either[ApiFailure, MoodBlobStates] =
     uow
-      .transaction(todayOf(_, accountId))
+      .transactionAs(accountId)(todayOf(_, accountId))
       .flatMap(_ => Either.cond(revision.forall(_ == blob.revision), blob, ApiFailure.notFound()))
 
   /** The live check-ins of a range of local days, oldest first; without a range, those of today. */
   def checkins(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, MoodCheckins] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         today <- todayOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.single(today.date))
@@ -51,20 +51,20 @@ final class Mood(uow: UnitOfWork, tracking: TrackingUseCases, blob: MoodBlobStat
       valence <- Valence.of(input.valence).toRight(ApiFailure.invalid("valence", "out_of_range"))
       energy <- energyOf(input.energy)
       command = CheckIn(accountId, valence, energy, Nil, EntryDay.Today, EntrySource.MiniApp, s"api:$key")
-      recorded <- uow.transaction(tracking.mood.checkIn(_, command)).left.map(Refusals.of)
+      recorded <- uow.transactionAs(accountId)(tracking.mood.checkIn(_, command)).left.map(Refusals.of)
     yield MoodRecordedView(checkinView(recorded.checkin), dayView(recorded.day))
 
   /** Voids a check-in of any age and answers with its day. A second delete changes nothing and answers the same. */
   def remove(accountId: UUID, checkinId: UUID): Either[ApiFailure, MoodDayView] =
     uow
-      .transaction(tracking.mood.delete(_, accountId, checkinId))
+      .transactionAs(accountId)(tracking.mood.delete(_, accountId, checkinId))
       .left
       .map(Refusals.of)
       .map(removed => dayView(removed.day))
 
   /** Today and one drawn state per day of a range; without a range, the last seven days (MA-MOOD-8). */
   def summary(accountId: UUID, from: Option[LocalDate], to: Option[LocalDate]): Either[ApiFailure, MoodSummary] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         today <- todayOf(tx, accountId)
         range <- Ranges.of(from, to, DateRange.endingOn(today.date, DefaultSummaryDays))

@@ -193,16 +193,28 @@ final class ChatMediator(
     */
   private def processInTx(event: InboundEvent, tx: Tx, correlationId: String): Outcome =
     val now = clock.now()
+    // The sender is authenticated first, so the rest of the event runs for that account only (ARCHITECTURE API-10,
+    // ROADMAP G2.3). A sender without an account yet (the onboarding) keeps the cross-account transaction.
+    val principal = tx.identities.resolve(event.actor, now)
+    tx.identities.recordDirectChat(principal.identityId, event.chat.chatId)
+    // A typed number or label resolves against the prompts of the sender's own chat, and a wizard records its prompts
+    // without an account, so the resolution reads before the transaction is bound.
+    val resolution = resolve(event, tx)
+    principal.accountId.foreach(account => tx.actAs(account.uuid))
     val inserted = tx.inboundEvents.insert(
-      NewInboundEvent(event.vendor, event.vendorEventId, event.eventId.uuid, event.receivedAt)
+      NewInboundEvent(
+        event.vendor,
+        event.vendorEventId,
+        event.eventId.uuid,
+        event.receivedAt,
+        principal.accountId.map(_.uuid)
+      )
     )
     if !inserted then Outcome.Duplicate
     else
-      val principal = tx.identities.resolve(event.actor, now)
-      tx.identities.recordDirectChat(principal.identityId, event.chat.chatId)
       val stamped = event.copy(principal = Some(principal))
       val reply =
-        resolve(stamped, tx) match
+        resolution match
           case Resolution.Ignore         => Reply.empty
           case Resolution.PassThrough    => dispatchCore(stamped, tx)
           case Resolution.Resolved(body) => dispatchCore(stamped.copy(body = body), tx)

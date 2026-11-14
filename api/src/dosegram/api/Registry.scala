@@ -41,15 +41,15 @@ final class Registry(uow: UnitOfWork, clock: Clock):
     )
 
   def list(accountId: UUID, status: Option[MedicationState]): MedicationList =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       val summaries = tx.medications.listAllForAccount(accountId).map(Rendering.medicationSummary(tx, _))
       MedicationList(summaries.filter(summary => status.forall(_ == summary.status)))
 
   def get(accountId: UUID, id: UUID): Either[ApiFailure, Medication] =
-    uow.transaction(tx => ownedMedication(tx, accountId, id).map(Rendering.medication(tx, _)))
+    uow.transactionAs(accountId)(tx => ownedMedication(tx, accountId, id).map(Rendering.medication(tx, _)))
 
   def create(accountId: UUID, input: MedicationInput): Either[ApiFailure, Medication] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         fields <- MedicationFields.validate(input)
         _ <- nameIsFree(tx, accountId, fields.name, except = None)
@@ -63,7 +63,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
     * the snapshot also appends a revision to each active schedule.
     */
   def update(accountId: UUID, id: UUID, version: Long, input: MedicationInput): Either[ApiFailure, Medication] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- ownedMedication(tx, accountId, id)
         _ <- currentVersion(tx, current, version)
@@ -90,7 +90,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
       change: MedicationChange,
       resumeOn: Option[LocalDate] = None
   ): Either[ApiFailure, Medication] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- ownedMedication(tx, accountId, id)
         _ <- currentVersion(tx, current, version)
@@ -127,7 +127,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
   // ---------- schedules ----------
 
   def scheduleOptions(accountId: UUID): ScheduleOptions =
-    val zone = uow.transaction(zoneOf(_, accountId))
+    val zone = uow.transactionAs(accountId)(zoneOf(_, accountId))
     ScheduleOptions(
       SchedulePattern.values.toList,
       RegistryLimits.ScheduleTimesMax,
@@ -140,7 +140,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
     * materialiser uses. Nothing is written.
     */
   def preview(accountId: UUID, draft: ScheduleDraft): Either[ApiFailure, SchedulePreview] =
-    val zone = uow.transaction(zoneOf(_, accountId))
+    val zone = uow.transactionAs(accountId)(zoneOf(_, accountId))
     val now = clock.now()
     val today = now.atZone(zone).toLocalDate
     ScheduleRules
@@ -168,16 +168,16 @@ final class Registry(uow: UnitOfWork, clock: Clock):
         SchedulePreview(ApiCopy.ruleSummary(rule), zone.getId, days)
 
   def schedules(accountId: UUID, medicationId: UUID): Either[ApiFailure, ScheduleList] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       ownedMedication(tx, accountId, medicationId).map: medication =>
         ScheduleList(tx.schedules.listForMedication(medication.id).map(Rendering.schedule(tx, _)))
 
   def schedule(accountId: UUID, id: UUID): Either[ApiFailure, Schedule] =
-    uow.transaction(tx => ownedSchedule(tx, accountId, id).map(Rendering.schedule(tx, _)))
+    uow.transactionAs(accountId)(tx => ownedSchedule(tx, accountId, id).map(Rendering.schedule(tx, _)))
 
   /** One schedule per medication that has not ended: the chat menu and the reminder card assume it. */
   def createSchedule(accountId: UUID, medicationId: UUID, draft: ScheduleDraft): Either[ApiFailure, Schedule] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         medication <- ownedMedication(tx, accountId, medicationId)
         _ <- Either.cond(
@@ -206,7 +206,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
 
   /** An edit is a new revision on the base revision the client read (ADR-004). */
   def revise(accountId: UUID, id: UUID, baseRevision: Long, draft: ScheduleDraft): Either[ApiFailure, Schedule] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- lockedSchedule(tx, accountId, id)
         _ <- currentRevision(tx, current, baseRevision)
@@ -224,7 +224,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
       change: ScheduleChange,
       endDate: Option[LocalDate] = None
   ): Either[ApiFailure, Schedule] =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       for
         current <- lockedSchedule(tx, accountId, id)
         _ <- currentRevision(tx, current, baseRevision)

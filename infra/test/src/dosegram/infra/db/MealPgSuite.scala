@@ -149,7 +149,7 @@ class MealPgSuite extends PgSuite:
     val meal = rig.log(MealType.Lunch, "k1", Some("soup"))
     withFreshConnection { conn =>
       given Connection = conn
-      conn.createStatement().execute("SET ROLE dosegram_app")
+      asApplication(conn, rig.account)
       val meals = PgMealRepository(conn, DataKeys.development.on(conn))
       assertEquals(meals.get(rig.account, meal.entry.id), Some(meal.entry))
       assertEquals(meals.findByClientKey(rig.account, "k1"), Some(meal.entry))

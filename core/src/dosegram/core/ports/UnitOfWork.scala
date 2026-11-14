@@ -1,5 +1,7 @@
 package dosegram.core.ports
 
+import java.util.UUID
+
 /** One database transaction; exposes the repositories bound to it (DESIGN.md section 7.4:
   * `uow.transaction: tx => ...`).
   */
@@ -75,5 +77,22 @@ trait Tx:
     */
   def savepoint[A](f: => A): A
 
+  /** Narrows this transaction to one account once its principal is authenticated (ARCHITECTURE API-10, section 15.3):
+    * from here on the transaction reads and writes only that account's rows. Binding a second, different account fails.
+    * A transaction double without row-level security keeps this default, which does nothing.
+    */
+  def actAs(account: UUID): Unit = ()
+
 trait UnitOfWork:
+
+  /** A cross-account transaction: the documented exceptions of ARCHITECTURE section 15.3 (the loops, the dispatcher,
+    * the sweepers, the purge replay, and a chat update until its sender is known). Code that serves one authenticated
+    * account uses [[transactionAs]].
+    */
   def transaction[A](f: Tx => A): A
+
+  /** A transaction of one authenticated account: row-level security admits that account's rows only (API-10). */
+  def transactionAs[A](account: UUID)(f: Tx => A): A =
+    transaction: tx =>
+      tx.actAs(account)
+      f(tx)

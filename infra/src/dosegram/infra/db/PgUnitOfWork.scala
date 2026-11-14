@@ -41,12 +41,17 @@ import dosegram.infra.crypto.DataKeys
 
 import java.security.SecureRandom
 import java.sql.Connection
+import java.util.UUID
 import javax.sql.DataSource
 
 /** Postgres [[UnitOfWork]]: one pooled connection, `f` runs against it, commit on success, rollback on any exception
   * (ADR-002/003: one transaction per event). Every repository group, the tracking domains and the consent ledger
   * included, is bound to that one connection (ROADMAP G2.1). The repositories of Class A stores seal and open their
   * values with `keys` on the same connection, so a data key created for a write commits with it (ROADMAP G2.4).
+  *
+  * Row-level security (ROADMAP G2.3, V14): [[transaction]] runs as `dosegram_worker`, the documented cross-account
+  * role, and [[transactionAs]] and [[Tx.actAs]] narrow it to `dosegram_app` with one account as the claim. Both
+  * settings are local to the transaction, so a pooled connection never carries them into the next one.
   */
 final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) extends UnitOfWork:
 
@@ -54,19 +59,26 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
   private val consentEventIds = IdSource.uuidV7(SecureRandom())
 
   override def transaction[A](f: Tx => A): A =
-    val conn = dataSource.getConnection
-    conn.setAutoCommit(false)
-    try
-      val result = f(PgTx(conn))
-      conn.commit()
-      result
-    catch
-      case e: Throwable =>
-        conn.rollback()
-        throw e
-    finally conn.close()
+    inTransaction(None, f)
 
-  private final class PgTx(conn: Connection) extends Tx:
+  override def transactionAs[A](account: UUID)(f: Tx => A): A =
+    inTransaction(Some(account), f)
+
+  private def inTransaction[A](account: Option[UUID], f: Tx => A): A =
+    RowSecurity.transaction(dataSource, account)(conn => f(PgTx(conn, account)))
+
+  private final class PgTx(conn: Connection, initialAccount: Option[UUID]) extends Tx:
+    private var boundAccount = initialAccount
+
+    override def actAs(account: UUID): Unit =
+      boundAccount match
+        case Some(bound) if bound == account => ()
+        case Some(_)                         =>
+          throw IllegalStateException("a transaction acts for one account; it is already bound to another")
+        case None =>
+          RowSecurity.asAccount(conn, account)
+          boundAccount = Some(account)
+
     private lazy val keyService = keys.on(conn)
     override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock)
     override lazy val outbox: OutboxRepository = PgOutboxRepository(conn, keyService)

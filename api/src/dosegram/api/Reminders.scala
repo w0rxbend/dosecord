@@ -127,10 +127,10 @@ final case class ReminderTimeline(date: LocalDate, entries: List[ReminderTimelin
 final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings):
   import Reminders.*
 
-  def view(accountId: UUID): RemindersView = uow.transaction(viewOf(_, accountId))
+  def view(accountId: UUID): RemindersView = uow.transactionAs(accountId)(viewOf(_, accountId))
 
   def presets(accountId: UUID): ReminderPresets =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       val profile = settings.profile(tx, accountId)
       val zone = settings.zone(tx, accountId)
       val now = clock.now()
@@ -155,7 +155,7 @@ final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings)
 
   def apply(accountId: UUID, input: ReminderPlanInput): Either[ApiFailure, RemindersView] =
     presetOf(input).flatMap: preset =>
-      uow.transaction: tx =>
+      uow.transactionAs(accountId): tx =>
         settings.apply(tx, accountId, preset) match
           case Right(_)                             => Right(viewOf(tx, accountId))
           case Left(ReminderRefusal.ConsentMissing) => Left(ApiFailure.consentRequired(purposeOf(preset.kind)))
@@ -166,26 +166,26 @@ final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings)
       .byId(kind)
       .toRight(ApiFailure.notFound())
       .map: found =>
-        uow.transaction: tx =>
+        uow.transactionAs(accountId): tx =>
           settings.turnOff(tx, accountId, found)
           viewOf(tx, accountId)
 
   def pause(accountId: UUID, input: ReminderPauseInput): Either[ApiFailure, RemindersView] =
     if input.hours < 0 || input.hours > MaxPauseHours then Left(ApiFailure.invalid("hours", "out_of_range"))
     else
-      uow.transaction: tx =>
+      uow.transactionAs(accountId): tx =>
         settings.pauseAll(tx, accountId, Option.when(input.hours > 0)(input.hours))
         Right(viewOf(tx, accountId))
 
   def day(accountId: UUID): DayProfileView =
-    uow.transaction(tx => dayView(settings.profile(tx, accountId), isSaved(tx, accountId)))
+    uow.transactionAs(accountId)(tx => dayView(settings.profile(tx, accountId), isSaved(tx, accountId)))
 
   /** Whether the person ever saved a day profile; set-up offers it until then (MINI_APP S-19). */
   private def isSaved(tx: Tx, accountId: UUID): Boolean = tx.reminders.dayProfiles.anchors(accountId).isDefined
 
   def saveDay(accountId: UUID, version: Long, input: DayProfileInput): Either[ApiFailure, DayProfileView] =
     validated(input).flatMap: profile =>
-      uow.transaction: tx =>
+      uow.transactionAs(accountId): tx =>
         val current = dayView(settings.profile(tx, accountId), isSaved(tx, accountId))
         for
           _ <- Either.cond(current.version == version, (), ApiFailure.versionConflict())
@@ -194,7 +194,7 @@ final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings)
 
   /** The reminders of one local day; without a date, tomorrow in the account zone. */
   def timeline(accountId: UUID, date: Option[LocalDate]): ReminderTimeline =
-    uow.transaction: tx =>
+    uow.transactionAs(accountId): tx =>
       val day = date.getOrElse(clock.now().atZone(settings.zone(tx, accountId)).toLocalDate.plusDays(1))
       ReminderTimeline(day, settings.timeline(tx, accountId, day).map(entryOf))
 
