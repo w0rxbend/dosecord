@@ -57,7 +57,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val consent = ConsentFlow(tokens, clock, PrivacyMessages(codec))
   private val water = WaterChat(parts.hydration, parts.cards, parts.delivery, tokens)
   private val mood = MoodChat(parts.mood, parts.cards, parts.delivery, clock, tokens)
-  private val stats = StatsChat(parts, tokens)
+  private val share = ShareChat(parts, tokens)
+  private val stats = StatsChat(parts, tokens, share)
   private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
   private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens)
@@ -228,9 +229,11 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         consent.guarded(fresh, ConsentPurpose.CrossDomainPatterns, Pending.Insights(image = false))(
           months.insights(fresh)
         )
-      case CaptureActions.FoodLog   => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
-      case CaptureActions.FoodImage => imageOf(turn, Pending.FoodImage)(food.image(turn))
-      case _                        => stale(turn)
+      case CaptureActions.FoodLog        => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
+      case CaptureActions.FoodImage      => imageOf(turn, Pending.FoodImage)(food.image(turn))
+      case CaptureActions.StatsShare     => share.picker(turn)
+      case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
+      case _                             => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
   private def waterButton(turn: Turn, value: Long): Reply =

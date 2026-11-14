@@ -13,6 +13,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -197,6 +198,13 @@ trait ImageCopy:
   // Milestone (IMG-14).
   def milestoneLabel(milestone: MilestoneData): String
   def milestoneText(milestone: MilestoneData): String
+
+  // Shareable card (IMG-17): the fact in three lines, its text, and the product's wordmark.
+  def shareDayCount(fact: ShareFact.DayCount): (String, String, String)
+  def shareMoodPeriod: String
+  def shareText(fact: ShareFact): String
+  def shareDiscreet: String
+  def shareWordmark: String = "Dosegram"
 
   // Refill (IMG-15). The label, the count, the unit and the threshold come from the user's own entries.
   def refillTitle: String

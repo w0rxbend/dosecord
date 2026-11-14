@@ -364,6 +364,45 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(uploadOf(photo), Some("png:2"))
       assert(bot.rasteriser.shows(2, "Today") && bot.rasteriser.shows(2, "0 of 1 taken"), "it is the daily summary")
 
+  test("the seven-day /stats shares a card: the facts by their sentences, then the card itself, never medication"):
+    val accountId = seedOwner()
+    val daily = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
+    fixtures.schedule(SteppedClock(monday), accountId, "Vitamin D", daily, ZoneOffset.UTC)
+    grant(accountId, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+    launched: bot =>
+      bot.say("300 ml", expected = 1)
+      bot.say("mood 4", expected = 1)
+      val List(stats) = bot.say("/stats", expected = 1): @unchecked
+      assertEquals(bot.buttons(stats).map(_._1), List("Today", "7 days", "30 days", "Share a card", "Month", "Patterns"))
+      val List(picker) = bot.tap(stats, "Share a card", expected = 1): @unchecked
+      assert(bot.body(picker).contains("Anyone you send this to can keep it."), bot.body(picker))
+      assertEquals(bot.buttons(picker).map(_._1), List("Mood logged on 1 of 7 days", "This week's mood: pleasant"))
+      val List(card) = bot.tap(picker, "Mood logged on 1 of 7 days", expected = 1): @unchecked
+      assertEquals(card.method, "sendPhoto")
+      assertEquals(bot.body(card), "Mood logged on 1 of 7 days this week.")
+      assert(bot.rasteriser.shows(bot.rasteriser.count, "1 of 7 days"), "it is the share card")
+      assert(!bot.rasteriser.shows(bot.rasteriser.count, "Vitamin"), "no medication reaches the card")
+      eventually("the request is finished")(strings("SELECT card_kind FROM report_requests WHERE status = 'sent'").contains("card.share.v1"))
+
+  test("in discreet mode a share asks once more; with the counts switched off only the week's mood is offered"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Medication, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+    PgUnitOfWork(dataSource, () => monday, DataKeys.development).transaction: tx =>
+      tx.accounts.saveSettings(accountId, tx.accounts.settingsOf(accountId).get.copy(isDiscreet = true), monday)
+      tx.accounts.setGamification(accountId, false, monday)
+    launched: bot =>
+      bot.say("mood 2", expected = 1)
+      val List(stats) = bot.say("/stats", expected = 1): @unchecked
+      val List(picker) = bot.tap(stats, "Share a card", expected = 1): @unchecked
+      assertEquals(bot.buttons(picker).map(_._1), List("This week's mood: unpleasant"))
+      val List(confirm) = bot.tap(picker, "This week's mood: unpleasant", expected = 1): @unchecked
+      assert(bot.body(confirm).startsWith("Discreet mode is on."), bot.body(confirm))
+      val List(card) = bot.tap(confirm, "Send the card", expected = 1): @unchecked
+      assertEquals(card.method, "sendPhoto")
+      // The user confirmed sharing it: the caption is the card's own sentence, the photo is behind a spoiler.
+      assertEquals(bot.body(card), "Mood this week, on average: unpleasant.")
+      assertEquals(card.request.params.obj.get("has_spoiler"), Some(ujson.True))
+
   test("withdrawing the medication consent pauses the schedules and cancels the open doses, and /today asks again"):
     val accountId = seedOwner()
     val daily = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))

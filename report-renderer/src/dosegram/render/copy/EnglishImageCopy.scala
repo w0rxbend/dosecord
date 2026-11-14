@@ -15,6 +15,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -413,6 +414,20 @@ object EnglishImageCopy extends ImageCopy:
       case MilestoneKind.FirstYear     => if isOne then "year of records" else "years of records"
 
   def milestoneText(milestone: MilestoneData): String = s"${milestone.count} ${milestoneLabel(milestone)}."
+
+  def shareDayCount(fact: ShareFact.DayCount): (String, String, String) =
+    val headline = fact.domain match
+      case Domain.Water => "Water goal reached on"
+      case Domain.Sleep => "Sleep logged on"
+      case _            => "Mood logged on"
+    (headline, s"${fact.hits} of 7 days", "this week")
+  def shareMoodPeriod: String = "my mood this week, on average"
+  def shareText(fact: ShareFact): String = fact match
+    case days: ShareFact.DayCount =>
+      val (headline, count, period) = shareDayCount(days)
+      s"$headline $count $period."
+    case ShareFact.WeekMood(state) => s"Mood this week, on average: ${valenceName(state.valence).toLowerCase}."
+  def shareDiscreet: String = "A card to share."
 
   def moodCalendarTitle: String = "Mood by day"
   def noCheckIn: String = "No check-in"

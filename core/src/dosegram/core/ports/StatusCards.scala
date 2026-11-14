@@ -65,6 +65,22 @@ final case class WeekDayNight(minutes: Int, goalMinutes: Option[Int])
 /** One day's meals in the weekly card: the main meal types with an entry (VISUALS section 7.5) and the snacks. */
 final case class WeekDayFood(mainMeals: Int, snacks: Int)
 
+/** IMG-17 (VISUALS section 6.18): the one fact of the last seven days the user chose to share. No case holds a
+  * medication, a date, a time or free text (VA-IMG-17a).
+  */
+enum ShareCardView:
+  /** The days, oldest first, with the water goal reached. */
+  case WaterGoal(days: List[Boolean])
+
+  /** The days, oldest first, with a night logged. */
+  case SleepLogged(days: List[Boolean])
+
+  /** The days, oldest first, with a mood check-in. */
+  case MoodLogged(days: List[Boolean])
+
+  /** The mean of the week's check-ins. */
+  case WeekMood(meanValence: Double, meanEnergy: Option[Double])
+
 /** IMG-04: seven days from `from`. A domain that is not shown is absent; a day without a record is `None`. */
 final case class WeekCardView(
     from: LocalDate,
@@ -131,6 +147,9 @@ trait StatusCards:
 
   /** IMG-04: the weekly card. */
   def week(view: WeekCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-17, the shareable card. */
+  def share(view: ShareCardView, look: CardLook): Option[CardPage] = None
 
   /** IMG-09, the food day plate. */
   def food(view: FoodCardView, look: CardLook): Option[CardPage]

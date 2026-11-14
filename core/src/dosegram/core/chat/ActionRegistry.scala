@@ -112,7 +112,11 @@ object ActionRegistry:
     ActionEntry(366, "reminders.report_offer_yes", requiresSession = false),
     ActionEntry(367, "reminders.report_offer_no", requiresSession = false),
     // The gamification switch on the /reminders hub (PRODUCT_SPEC R-GAM-5): value 1 turns the counts on, 0 off.
-    ActionEntry(368, "reminders.counts", requiresSession = false)
+    ActionEntry(368, "reminders.counts", requiresSession = false),
+    // The shareable card from /stats (VISUALS IMG-17): the picker on the account; a fact on the account, its value the
+    // fact's code plus 16 once discreet mode was confirmed (see ShareChat).
+    ActionEntry(369, "stats.share", requiresSession = false),
+    ActionEntry(370, "stats.share_send", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

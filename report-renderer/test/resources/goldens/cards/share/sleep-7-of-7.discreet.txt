@@ -1,0 +1,5 @@
+file: dosegram-share.png
+spoiler: true
+caption: A card to share.
+alt: Sleep logged on 7 of 7 days this week.
+full: Sleep logged on 7 of 7 days this week.

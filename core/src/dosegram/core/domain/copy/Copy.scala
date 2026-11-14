@@ -43,5 +43,6 @@ object Copy:
       TrendCopy.entries ++
       LanguageCopy.entries ++
       PrivacyCopy.entries ++
-      GamificationCopy.entries
+      GamificationCopy.entries ++
+      ShareCopy.entries
 end Copy

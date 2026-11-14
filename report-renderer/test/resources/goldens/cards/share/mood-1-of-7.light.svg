@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<g>
+  <rect x="156" y="194" width="72" height="212" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="272" y="194" width="72" height="212" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="388" y="194" width="72" height="212" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="504" y="194" width="72" height="212" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="620" y="194" width="72" height="212" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="736" y="194" width="72" height="212" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+  <rect x="848" y="190" width="80" height="220" rx="18" fill="#940f52"/>
+</g>
+<text x="540" y="566" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">Mood logged on</text>
+<text x="540" y="732" font-family="Geologica" font-weight="600" font-size="160" fill="#13242e" text-anchor="middle">1 of 7 days</text>
+<text x="540" y="808" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="middle">this week</text>
+<text x="1016" y="960" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Dosegram</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

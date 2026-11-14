@@ -485,6 +485,16 @@ object Samples:
     )
   )
 
+  private def shareDays(domain: dosegram.render.tokens.Domain, marks: String): ShareFact =
+    ShareFact.DayCount(domain, marks.toVector.map(_ == 'x'))
+
+  val shares: Vector[Fixture] = Vector(
+    Fixture("share/water-5-of-7", context => Vector(ShareCard.render(ShareData(shareDays(dosegram.render.tokens.Domain.Water, "xx.xx.x")), context))),
+    Fixture("share/sleep-7-of-7", context => Vector(ShareCard.render(ShareData(shareDays(dosegram.render.tokens.Domain.Sleep, "xxxxxxx")), context))),
+    Fixture("share/mood-1-of-7", context => Vector(ShareCard.render(ShareData(shareDays(dosegram.render.tokens.Domain.Mood, "......x")), context))),
+    Fixture("share/week-mood", context => Vector(ShareCard.render(ShareData(ShareFact.WeekMood(MoodState(5, 3))), context)))
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
-      moreInsights ++ moodCards ++ monthPages ++ foods
+      moreInsights ++ moodCards ++ monthPages ++ foods ++ shares

@@ -294,7 +294,9 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         365 -> "reminders.report_resume",
         366 -> "reminders.report_offer_yes",
         367 -> "reminders.report_offer_no",
-        368 -> "reminders.counts"
+        368 -> "reminders.counts",
+        369 -> "stats.share",
+        370 -> "stats.share_send"
       )
     )
 

@@ -1,0 +1,5 @@
+file: dosegram-share.png
+spoiler: false
+caption: Water goal reached on 5 of 7 days this week.
+alt: Water goal reached on 5 of 7 days this week.
+full: Water goal reached on 5 of 7 days this week.

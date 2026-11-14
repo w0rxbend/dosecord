@@ -116,6 +116,8 @@ private[capture] object CaptureActions:
   val FoodLog: ActionEntry = named("food.log")
   val FoodUndo: ActionEntry = named("food.undo")
   val FoodImage: ActionEntry = named("food.image")
+  val StatsShare: ActionEntry = named("stats.share")
+  val StatsShareSend: ActionEntry = named("stats.share_send")
 
   val all: Set[ActionEntry] = Set(
     ConsentStep,
@@ -148,7 +150,9 @@ private[capture] object CaptureActions:
     InsightsCompare,
     FoodLog,
     FoodUndo,
-    FoodImage
+    FoodImage,
+    StatsShare,
+    StatsShareSend
   )
 
   private def named(name: String): ActionEntry =

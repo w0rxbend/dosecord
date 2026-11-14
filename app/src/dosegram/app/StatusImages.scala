@@ -21,6 +21,7 @@ import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.RefillCardView
+import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
@@ -47,6 +48,9 @@ import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
 import dosegram.render.card.RefillCard
 import dosegram.render.card.RefillData
+import dosegram.render.card.ShareCard
+import dosegram.render.card.ShareData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityCard
 import dosegram.render.card.WaterCard
@@ -61,6 +65,7 @@ import dosegram.render.resvg.ResvgRasteriser
 import dosegram.render.svg.SvgEmitter
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
+import dosegram.render.tokens.Domain
 import dosegram.render.tokens.Theme
 
 import java.nio.file.Files
@@ -192,6 +197,14 @@ final class RenderedStatusCards extends StatusCards:
 
   override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
     Some(page(WeekCard.render(ReportCards.week(view), contextOf(look))))
+
+  override def share(view: ShareCardView, look: CardLook): Option[CardPage] =
+    val fact = view match
+      case ShareCardView.WaterGoal(days)        => ShareFact.DayCount(Domain.Water, days.toVector)
+      case ShareCardView.SleepLogged(days)      => ShareFact.DayCount(Domain.Sleep, days.toVector)
+      case ShareCardView.MoodLogged(days)       => ShareFact.DayCount(Domain.Mood, days.toVector)
+      case ShareCardView.WeekMood(mean, energy) => ShareFact.WeekMood(ReportCards.moodState(mean, energy))
+    Some(page(ShareCard.render(ShareData(fact), contextOf(look))))
 
   override def food(view: FoodCardView, look: CardLook): Option[CardPage] =
     val mains = view.mains.collect { case (mealType, at) if mealType.isMain => mainMealOf(mealType) -> at }

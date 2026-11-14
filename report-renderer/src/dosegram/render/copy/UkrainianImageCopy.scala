@@ -15,6 +15,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -440,6 +441,21 @@ object UkrainianImageCopy extends ImageCopy:
       case MilestoneKind.FirstYear     => form(n, "рік записів", "роки записів", "років записів")
 
   def milestoneText(milestone: MilestoneData): String = s"${milestone.count} ${milestoneLabel(milestone)}."
+
+  def shareDayCount(fact: ShareFact.DayCount): (String, String, String) =
+    val headline = fact.domain match
+      case Domain.Water => "Ціль із води досягнуто"
+      case Domain.Sleep => "Сон записано"
+      case _            => "Настрій записано"
+    (headline, s"${fact.hits} з 7 днів", "цього тижня")
+  def shareMoodPeriod: String = "мій настрій цього тижня в середньому"
+  def shareText(fact: ShareFact): String = fact match
+    case days: ShareFact.DayCount =>
+      val (headline, count, period) = shareDayCount(days)
+      s"$headline за $count $period."
+    case ShareFact.WeekMood(state) =>
+      s"Настрій цього тижня в середньому: ${valenceName(state.valence).toLowerCase}."
+  def shareDiscreet: String = "Картка, щоб поділитися."
 
   def moodCalendarTitle: String = "Настрій по днях"
   def noCheckIn: String = "Без позначки"
