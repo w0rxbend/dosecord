@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/client';
+import { locale, setLocale } from '../../i18n/index.svelte';
 import { createHarness, type Harness } from '../../test/harness';
 import PrivacyScreen from './PrivacyScreen.svelte';
 import QuietHoursScreen from './QuietHoursScreen.svelte';
@@ -24,6 +25,38 @@ describe('Settings', () => {
     expect(await screen.findByText('Saved')).toBeTruthy();
     expect(harness.api.calls).toContain('settings:update');
     expect((await harness.api.settings()).imageTheme).toBe('dark');
+  });
+
+  it('switches the language through the settings API at once and stores it on the account (MA-SET-2)', async () => {
+    const harness = createHarness();
+    const user = open(SettingsScreen, harness);
+    try {
+      await user.selectOptions(await screen.findByRole('combobox', { name: 'Language' }), 'uk');
+
+      expect(await screen.findByRole('heading', { name: 'Налаштування' })).toBeTruthy();
+      expect(await screen.findByText('Збережено')).toBeTruthy();
+      expect(locale()).toBe('uk');
+      expect(harness.api.calls).toContain('settings:update');
+      expect((await harness.api.settings()).language).toBe('uk');
+      expect(document.documentElement.lang).toBe('uk');
+    } finally {
+      setLocale('en');
+    }
+  });
+
+  it('brings the previous language back when saving the new one fails', async () => {
+    const harness = createHarness();
+    harness.api.saveSettings = () => Promise.reject(new ApiError('server', 'REF-3'));
+    const user = open(SettingsScreen, harness);
+    try {
+      await user.selectOptions(await screen.findByRole('combobox', { name: 'Language' }), 'uk');
+
+      expect(await screen.findByRole('alert')).toBeTruthy();
+      expect(locale()).toBe('en');
+      expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy();
+    } finally {
+      setLocale('en');
+    }
   });
 
   it('puts the previous value back with an inline error when the save fails', async () => {
