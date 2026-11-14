@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { csvBatches, csvRecords, jsonBytes } from './csv-batches';
 import { HealthScanner, healthTime, joinNights, scanHealth } from './health';
 import { readHealthFile } from './health-file';
-import { entryStream, zipEntries } from './zip';
+import { entryStream, zipEntries, type ZipLimits } from './zip';
 
 const encoder = new TextEncoder();
 
@@ -57,9 +57,13 @@ function streamOf(text: string, chunk = 4096): ReadableStream<Uint8Array> {
   });
 }
 
-/** A minimal ZIP writer for the tests: deflated or stored entries, optionally with ZIP64 records. */
+/**
+ * A minimal ZIP writer for the tests: deflated or stored entries, optionally with ZIP64 records.
+ * `bytes` gives an entry's content as bytes instead of `text`; `declared` writes a size other than the
+ * real one into the headers, as a zip bomb does.
+ */
 async function zip(
-  files: readonly { name: string; text: string; store?: boolean }[],
+  files: readonly { name: string; text?: string; bytes?: Uint8Array<ArrayBuffer>; store?: boolean; declared?: number }[],
   zip64 = false,
 ): Promise<Uint8Array<ArrayBuffer>> {
   const parts: Uint8Array<ArrayBuffer>[] = [];
@@ -67,20 +71,21 @@ async function zip(
   let offset = 0;
   for (const file of files) {
     const name = encoder.encode(file.name);
-    const raw = encoder.encode(file.text);
+    const raw = file.bytes ?? encoder.encode(file.text ?? '');
+    const size = file.declared ?? raw.length;
     const data = file.store ? raw : await deflateRaw(raw);
     const local = new DataView(new ArrayBuffer(30));
     local.setUint32(0, 0x04034b50, true);
     local.setUint16(8, file.store ? 0 : 8, true);
     local.setUint32(18, data.length, true);
-    local.setUint32(22, raw.length, true);
+    local.setUint32(22, size, true);
     local.setUint16(26, name.length, true);
     parts.push(new Uint8Array(local.buffer), name, data);
     const extra = zip64 ? new DataView(new ArrayBuffer(28)) : new DataView(new ArrayBuffer(0));
     if (zip64) {
       extra.setUint16(0, 0x0001, true);
       extra.setUint16(2, 24, true);
-      extra.setBigUint64(4, BigInt(raw.length), true);
+      extra.setBigUint64(4, BigInt(size), true);
       extra.setBigUint64(12, BigInt(data.length), true);
       extra.setBigUint64(20, BigInt(offset), true);
     }
@@ -88,7 +93,7 @@ async function zip(
     entry.setUint32(0, 0x02014b50, true);
     entry.setUint16(10, file.store ? 0 : 8, true);
     entry.setUint32(20, zip64 ? 0xffffffff : data.length, true);
-    entry.setUint32(24, zip64 ? 0xffffffff : raw.length, true);
+    entry.setUint32(24, zip64 ? 0xffffffff : size, true);
     entry.setUint16(28, name.length, true);
     entry.setUint16(30, extra.byteLength, true);
     entry.setUint32(42, zip64 ? 0xffffffff : offset, true);
@@ -265,5 +270,39 @@ describe('ZIP archives', () => {
     await expect(
       readHealthFile(new Blob([await zip([files[0]!])]), 'export.zip', new Set(['water'])),
     ).rejects.toMatchObject({ reason: 'not_health' });
+  });
+});
+
+describe('ZIP limits', () => {
+  const zeros = new Uint8Array(32 * 1024 * 1024);
+  const small: ZipLimits = { entries: 3, directoryBytes: 4096, totalBytes: 1024 * 1024, ratio: 200 };
+
+  it('stops a zip bomb whose entry decompresses past the size it declared', async () => {
+    const bomb = new Blob([await zip([{ name: 'export.xml', bytes: zeros, declared: 1000 }])]);
+    const [entry] = await zipEntries(bomb);
+    expect(entry?.uncompressedSize).toBe(1000);
+    await expect(text(await entryStream(bomb, entry!))).rejects.toMatchObject({ reason: 'too_large' });
+    await expect(readHealthFile(bomb, 'export.zip', new Set(['water']))).rejects.toMatchObject({
+      reason: 'too_large',
+    });
+  });
+
+  it('refuses an entry that declares more than the ratio allows, before decompressing it', async () => {
+    const honest = new Blob([await zip([{ name: 'export.xml', bytes: zeros }])]);
+    await expect(zipEntries(honest)).rejects.toMatchObject({ reason: 'too_large' });
+    const entry = { name: 'export.xml', method: 8, compressedSize: 10, uncompressedSize: 10_000, localHeaderOffset: 0 };
+    await expect(entryStream(honest, entry)).rejects.toMatchObject({ reason: 'too_large' });
+  });
+
+  it('refuses an archive with too many entries or too many decompressed bytes in all', async () => {
+    const four = ['a', 'b', 'c', 'd'].map((name) => ({ name, text: 'x' }));
+    await expect(zipEntries(new Blob([await zip(four)]), small)).rejects.toMatchObject({ reason: 'too_large' });
+    const stored = new Uint8Array(600 * 1024);
+    const big = [
+      { name: 'a', bytes: stored, store: true },
+      { name: 'b', bytes: stored, store: true },
+    ];
+    await expect(zipEntries(new Blob([await zip(big)]), small)).rejects.toMatchObject({ reason: 'too_large' });
+    expect(await zipEntries(new Blob([await zip(big.slice(0, 1))]), small)).toHaveLength(1);
   });
 });

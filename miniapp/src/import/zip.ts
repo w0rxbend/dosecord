@@ -1,7 +1,10 @@
 // Reads one file out of a ZIP archive without loading the archive (ROADMAP G10.7, MINI_APP S-14):
 // the central directory at the end of the file names each entry and where it starts, and the
 // entry's bytes are streamed through DecompressionStream. ZIP64 archives are read too, since a
-// health export can pass 4 GB.
+// health export can pass 4 GB. An archive is a file from outside: the entry count, the central
+// directory, each entry's ratio of decompressed to compressed bytes and the decompressed bytes of
+// the whole archive are capped, and a stream that yields more than its entry declared is stopped
+// (supervisor decision, 2026-11-15; a zip bomb ends as 'too_large').
 
 export interface ZipEntry {
   readonly name: string;
@@ -12,10 +15,29 @@ export interface ZipEntry {
 }
 
 export class ZipError extends Error {
-  constructor(readonly reason: 'not_zip' | 'unsupported') {
+  constructor(readonly reason: 'not_zip' | 'unsupported' | 'too_large') {
     super(reason);
   }
 }
+
+export interface ZipLimits {
+  /** Entries in one archive. */
+  readonly entries: number;
+  /** Bytes of the central directory, which is read whole. */
+  readonly directoryBytes: number;
+  /** Decompressed bytes of every entry together. */
+  readonly totalBytes: number;
+  /** Decompressed bytes per compressed byte of one entry. */
+  readonly ratio: number;
+}
+
+/** An Apple Health export holds a few thousand files and compresses its XML about twenty times. */
+export const ZIP_LIMITS: ZipLimits = {
+  entries: 100_000,
+  directoryBytes: 64 * 1024 * 1024,
+  totalBytes: 16 * 1024 * 1024 * 1024,
+  ratio: 200,
+};
 
 const EOCD = 0x06054b50;
 const ZIP64_LOCATOR = 0x07064b50;
@@ -33,8 +55,8 @@ async function view(blob: Blob, start: number, end: number): Promise<DataView> {
 
 const big = (data: DataView, offset: number): number => Number(data.getBigUint64(offset, true));
 
-/** Every entry of the archive's central directory. */
-export async function zipEntries(blob: Blob): Promise<ZipEntry[]> {
+/** Every entry of the archive's central directory; 'too_large' when the archive passes `limits`. */
+export async function zipEntries(blob: Blob, limits: ZipLimits = ZIP_LIMITS): Promise<ZipEntry[]> {
   const tailStart = Math.max(0, blob.size - (22 + MAX_COMMENT));
   const tail = await view(blob, tailStart, blob.size);
   let eocd = -1;
@@ -58,6 +80,7 @@ export async function zipEntries(blob: Blob): Promise<ZipEntry[]> {
     size = big(zip64, 40);
     offset = big(zip64, 48);
   }
+  if (count > limits.entries || size > limits.directoryBytes) throw new ZipError('too_large');
   const directory = await view(blob, offset, offset + size);
   const decoder = new TextDecoder();
   const entries: ZipEntry[] = [];
@@ -100,16 +123,40 @@ export async function zipEntries(blob: Blob): Promise<ZipEntry[]> {
     });
     at = extraEnd + commentLength;
   }
+  const total = entries.reduce((sum, e) => sum + e.uncompressedSize, 0);
+  if (total > limits.totalBytes || entries.some((e) => !withinRatio(e, limits))) throw new ZipError('too_large');
   return entries;
 }
 
-/** The decompressed bytes of one entry, as a stream. */
-export async function entryStream(blob: Blob, entry: ZipEntry): Promise<ReadableStream<Uint8Array>> {
+const withinRatio = (entry: ZipEntry, limits: ZipLimits): boolean =>
+  entry.uncompressedSize <= Math.max(entry.compressedSize, 1) * limits.ratio;
+
+/** Passes at most `limit` bytes; one more stops the stream with 'too_large'. */
+function capped(limit: number): TransformStream<Uint8Array, Uint8Array> {
+  let seen = 0;
+  return new TransformStream({
+    transform(chunk, controller) {
+      seen += chunk.byteLength;
+      if (seen > limit) controller.error(new ZipError('too_large'));
+      else controller.enqueue(chunk);
+    },
+  });
+}
+
+/** The decompressed bytes of one entry, as a stream that stops with 'too_large' past what the entry declared. */
+export async function entryStream(
+  blob: Blob,
+  entry: ZipEntry,
+  limits: ZipLimits = ZIP_LIMITS,
+): Promise<ReadableStream<Uint8Array>> {
+  if (entry.uncompressedSize > limits.totalBytes || !withinRatio(entry, limits)) throw new ZipError('too_large');
   const local = await view(blob, entry.localHeaderOffset, entry.localHeaderOffset + 30);
   if (local.getUint32(0, true) !== LOCAL) throw new ZipError('not_zip');
   const start = entry.localHeaderOffset + 30 + local.getUint16(26, true) + local.getUint16(28, true);
   const raw = blob.slice(start, start + entry.compressedSize).stream();
-  if (entry.method === STORED) return raw;
+  if (entry.method === STORED) return raw.pipeThrough(capped(entry.uncompressedSize));
   if (entry.method !== DEFLATE || typeof DecompressionStream === 'undefined') throw new ZipError('unsupported');
-  return raw.pipeThrough(new DecompressionStream('deflate-raw') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>);
+  return raw
+    .pipeThrough(new DecompressionStream('deflate-raw') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>)
+    .pipeThrough(capped(entry.uncompressedSize));
 }

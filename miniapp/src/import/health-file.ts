@@ -23,9 +23,15 @@ async function xmlStream(file: Blob, name: string): Promise<ReadableStream<Uint8
     if (entry === undefined) throw new HealthFileProblem('not_health');
     return await entryStream(file, entry);
   } catch (cause) {
-    if (cause instanceof ZipError) throw new HealthFileProblem(cause.reason === 'unsupported' ? 'unsupported' : 'not_health');
-    throw cause;
+    throw asProblem(cause);
   }
+}
+
+/** A ZIP error as the user is told it; any other error as it is. */
+function asProblem(cause: unknown): unknown {
+  if (!(cause instanceof ZipError)) return cause;
+  if (cause.reason === 'not_zip') return new HealthFileProblem('not_health');
+  return new HealthFileProblem(cause.reason);
 }
 
 /** The records of the selected types, read from `file`; `onProgress` gets the bytes of export.xml read so far. */
@@ -37,6 +43,11 @@ export async function readHealthFile(
   signal?: AbortSignal,
 ): Promise<HealthResult> {
   if (file.size > MAX_HEALTH_BYTES) throw new HealthFileProblem('too_large');
-  const scanner = await scanHealth(await xmlStream(file, name), selected, onProgress, signal);
-  return scanner.result();
+  const stream = await xmlStream(file, name);
+  try {
+    return (await scanHealth(stream, selected, onProgress, signal)).result();
+  } catch (cause) {
+    // An entry that decompresses past what it declared stops while it is read.
+    throw asProblem(cause);
+  }
 }

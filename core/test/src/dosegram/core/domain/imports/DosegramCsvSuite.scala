@@ -140,6 +140,20 @@ class DosegramCsvSuite extends munit.FunSuite:
     assertEquals(CsvReader.rows("a;b\n1,5;2\n").get.map(_.fields), List(Vector("a", "b"), Vector("1,5", "2")))
     assertEquals(CsvReader.rows("a,\"b"), None)
 
+  test("the reader stops at a field, a row or a text past its caps, quoted or not, and keeps what fits"):
+    val small = CsvLimits(totalChars = 64, rowChars = 12, rowFields = 3, fieldChars = 5)
+    assertEquals(CsvReader.rows("a,b,c\n12345,x\n", small).map(_.size), Some(2), "at the caps")
+    assertEquals(CsvReader.rows("a,b\n123456\n", small), None, "a field past its cap")
+    assertEquals(CsvReader.rows("a,b\n\"12\n3456\"\n", small), None, "a quoted field past its cap")
+    assertEquals(CsvReader.rows("a,b,c,d\n", small), None, "a row with too many fields")
+    assertEquals(CsvReader.rows("abcd,efgh,ijklm\n", small), None, "a row past its characters")
+    assertEquals(CsvReader.rows("a\n" * 33, small), None, "a text past its cap")
+    // One unclosed quote over a large file stops at the field cap, not at the end of the file.
+    val endless = "occurred_at,meal_type,description\nx,lunch,\"" + ("y" * (CsvLimits.Default.fieldChars + 1))
+    assertEquals(DosegramCsv.read(endless, kyiv, now), Left(CsvRefusal.Unreadable))
+    val huge = "occurred_at,amount_ml\n" + ("x" * CsvLimits.Default.totalChars)
+    assertEquals(DosegramCsv.read(huge, kyiv, now), Left(CsvRefusal.Unreadable))
+
   test("a staged record and the counts read back from their JSON"):
     val all = records("occurred_at,valence,energy\n2026-11-10T20:00:00Z,4,2\n") ++
       records("onset_at,wake_at,kind,quality\n2026-11-09T21:30:00Z,2026-11-10T05:10:00Z,main,3\n") ++
