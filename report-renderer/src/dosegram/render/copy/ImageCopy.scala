@@ -3,8 +3,10 @@ package dosegram.render.copy
 import dosegram.render.blob.MoodReading
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
+import dosegram.render.card.FoodDayData
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
+import dosegram.render.card.MainMeal
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -62,6 +64,15 @@ trait ImageCopy:
   def estimateOnly: String
   def dayText(day: DayData): String
   def dayDiscreet: String
+
+  // Food (IMG-09).
+  def foodTitle: String
+  def mainMeal(meal: MainMeal): String
+  def snacksLabel: String
+  def snackCount(count: Int): String
+  def foodSummary(food: FoodDayData): String
+  def foodText(food: FoodDayData): String
+  def foodDiscreet: String
 
   // Water (IMG-08).
   def waterTitle: String

@@ -4,6 +4,7 @@ import dosegram.contracts.AppRoute
 import dosegram.contracts.Choice
 import dosegram.contracts.ChoiceStyle
 import dosegram.contracts.Reply
+import dosegram.core.application.nutrition.FoodViews
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.nutrition.MealRefusal
@@ -19,6 +20,7 @@ import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.reminders.DayAnchors
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.ports.Clock
+import dosegram.core.ports.StatusCards
 
 import java.util.UUID
 
@@ -26,14 +28,35 @@ import java.util.UUID
   * quick-log `lunch: soup`, and Undo. A tap records the meal at the current time; the words of a meal are stored as
   * typed and never echoed or interpreted. A photo is not a meal in this wave: it is answered and never downloaded.
   */
-private[capture] final class FoodChat(nutrition: NutritionService, clock: Clock, tokens: Tokens):
+private[capture] final class FoodChat(nutrition: NutritionService, cards: StatusCards, clock: Clock, tokens: Tokens):
 
-  /** The meals logged today and the four meal buttons, the one that fits the time of day marked. */
+  /** The meals logged today and the four meal buttons, the one that fits the time of day marked; with a meal logged,
+    * also "Show as image".
+    */
   def card(turn: Turn, hint: Option[String] = None): Reply =
     answered(turn, nutrition.today(turn.tx, turn.accountId)): day =>
       val logged = day.entries.map(entry => entry.mealType -> turn.localTime(entry.occurredAt))
       val lines = Option.when(logged.nonEmpty)(FoodCopy.today(logged)).toList ++ (FoodCopy.which :: hint.toList)
-      turn.show(turn.message("food.which", lines, buttons(turn)))
+      val image = Option.when(logged.nonEmpty):
+        Choice.callback(FoodCopy.ShowAsImage, tokens.direct(CaptureActions.FoodImage, turn.accountId, 0))
+      turn.show(turn.message("food.which", lines, buttons(turn) :+ image.toList))
+
+  /** IMG-09 for today, sent as a new photo with the day in words as its caption (VISUALS VA-TX-01). */
+  def image(turn: Turn): Reply =
+    val outcome =
+      for
+        day <- nutrition.today(turn.tx, turn.accountId)
+        plan <- nutrition.plan(turn.tx, turn.accountId)
+      yield (day, plan)
+    answered(turn, outcome): (day, plan) =>
+      if day.entries.isEmpty then turn.toast(FoodCopy.imageEmpty)
+      else
+        val logged = day.entries.map(entry => entry.mealType -> turn.localTime(entry.occurredAt))
+        val caption = List(FoodCopy.today(logged), FoodCopy.day(FoodViews.regular(day, plan)))
+        cards.food(FoodViews.card(day, plan), turn.look, Some(turn.event.chat)) match
+          case Some(attachment) =>
+            Reply(followUps = List(turn.message("food.image", caption, Nil).copy(attachment = Some(attachment))))
+          case None => turn.toast(FoodCopy.imageUnavailable)
 
   /** Typed text or the argument of `/food`: a meal line records at once, anything else asks which meal. */
   def typed(turn: Turn, line: MealLine): Reply =

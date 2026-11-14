@@ -1,0 +1,5 @@
+file: dosegram-food.png
+spoiler: false
+caption: Food on Thu 12 Nov: breakfast 08:10, dinner 19:40, 1 snack. 2 of 3 meals, 1 snack.
+alt: Food on Thu 12 Nov: breakfast 08:10, dinner 19:40, 1 snack. 2 of 3 meals, 1 snack.
+full: Food on Thu 12 Nov: breakfast 08:10, dinner 19:40, 1 snack. 2 of 3 meals, 1 snack.

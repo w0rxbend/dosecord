@@ -18,6 +18,7 @@ import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
+import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.nutrition.MealType
@@ -34,6 +35,8 @@ import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
+import dosegram.core.ports.FoodCardView
+import dosegram.core.ports.FoodLineView
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
@@ -60,6 +63,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
     val waters: mutable.ListBuffer[WaterCardView] = mutable.ListBuffer.empty
     val days: mutable.ListBuffer[DayCardView] = mutable.ListBuffer.empty
     val sleeps: mutable.ListBuffer[SleepRegularityFigures] = mutable.ListBuffer.empty
+    val foods: mutable.ListBuffer[FoodCardView] = mutable.ListBuffer.empty
     val looks: mutable.ListBuffer[CardLook] = mutable.ListBuffer.empty
     val chats: mutable.ListBuffer[Option[ChatRef]] = mutable.ListBuffer.empty
 
@@ -89,6 +93,12 @@ class CaptureFlowsSuite extends munit.FunSuite:
       sleeps += view
       looks += look
       image("sleep")
+
+    override def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+      chats += chat
+      foods += view
+      looks += look
+      image("food")
 
   /** The tables behind the rig's transaction, as the tests inspect them. */
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
@@ -638,6 +648,37 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.line("breakfast: oats")
       val today = FoodCopy.today(List(MealType.Breakfast -> "03:00"))
       assertEquals(chat.rig.line("/meal"), List(s"$today\n\n${FoodCopy.which}"))
+
+  test("the food day image needs the images consent and draws today's plate with the day in words (G8.3)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Nutrition)
+      chat.rig.line("breakfast: oats")
+      chat.rig.line("snack: apple")
+      chat.rig.line("/food")
+      val asked = chat.rig.tapOn(FoodCopy.which, FoodCopy.ShowAsImage)
+      assertEquals(texts(asked), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      assertEquals(cards.foods.toList, Nil)
+      chat.grant(ConsentPurpose.ImagesInChat)
+      val sent = chat.rig.tapOn(FoodCopy.which, FoodCopy.ShowAsImage)
+      val view = cards.foods.toList.last
+      assertEquals(view.mains.keySet, Set(MealType.Breakfast))
+      assertEquals((view.snacks, view.line), (1, FoodLineView(1, 3)))
+      val caption = texts(sent).mkString("\n")
+      assert(caption.contains("Today: breakfast 03:00, snack 03:00."), caption)
+      assert(caption.contains("1 of 3 planned meals logged, 1 snack"), caption)
+
+  test("food is in /stats and on the daily summary card when the domain is on (G8.3)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Nutrition, ConsentPurpose.ImagesInChat)
+      chat.rig.line("lunch: soup")
+      val today = chat.rig.line("/stats today").mkString("\n")
+      assert(today.contains("Food: 1 of 3 planned meals logged"), today)
+      val week = chat.rig.line("/stats").mkString("\n")
+      assert(week.contains("Food: 1 meal logged · Breakfast 0, Lunch 1, Dinner 0 of 7 days"), week)
+      chat.rig.tapOn("Food: 1 of 3 planned meals logged", StatsCardCopy.ShowAsImage)
+      assertEquals(cards.days.toList.last.food, Some(FoodLineView(1, 3)))
 
   test("a photo is answered with a neutral notice and nothing is fetched or stored (G8.1, BUX-FOOD-05)"):
     withChat(Profile.Telegram): chat =>

@@ -1,0 +1,5 @@
+file: dosegram-food.png
+spoiler: true
+caption: Food today.
+alt: Food on Thu 12 Nov: lunch 12:30. 1 meal logged.
+full: Food on Thu 12 Nov: lunch 12:30. 1 meal logged.

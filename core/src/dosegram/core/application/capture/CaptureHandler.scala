@@ -57,7 +57,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val mood = MoodChat(parts.mood, parts.cards, clock, tokens)
   private val stats = StatsChat(parts, tokens)
   private val sleep = SleepChat(parts.sleep, parts.cards, clock, tokens)
-  private val food = FoodChat(parts.nutrition, clock, tokens)
+  private val food = FoodChat(parts.nutrition, parts.cards, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -131,7 +131,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         case line             => recordFood(turn, line)
 
   private def recordFood(turn: Turn, line: MealLine): Reply =
-    consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodTyped)(food.typed(turn, line))
+    consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodCard)(food.typed(turn, line))
 
   private def foodButton(turn: Turn, mealType: MealType): Reply =
     consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodLog(mealType.ordinal))(food.tap(turn, mealType))
@@ -200,6 +200,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
       case CaptureActions.FoodLog         => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
+      case CaptureActions.FoodImage       => imageOf(turn, Pending.FoodImage)(food.image(turn))
       case _                              => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
@@ -227,7 +228,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.SleepImage            => sleep.image(fresh)
       case Pending.FoodCard              => food.card(fresh)
       case Pending.FoodLog(code)         => mealOf(code.toLong).map(food.tap(fresh, _)).getOrElse(stale(turn))
-      case Pending.FoodTyped             => food.card(fresh)
+      case Pending.FoodImage             => food.image(fresh)
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =

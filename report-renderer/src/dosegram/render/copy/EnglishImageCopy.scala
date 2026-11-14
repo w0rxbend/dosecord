@@ -3,8 +3,10 @@ package dosegram.render.copy
 import dosegram.render.blob.MoodReading
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
+import dosegram.render.card.FoodDayData
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
+import dosegram.render.card.MainMeal
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MilestoneKind
 import dosegram.render.card.SleepEvidence
@@ -108,7 +110,9 @@ object EnglishImageCopy extends ImageCopy:
     val water = day.water.map { progress =>
       if progress.volumeMl == 0 then "Water: nothing logged yet." else s"Water: ${waterFraction(progress)}."
     }
-    val food = day.food.map(meals => s"Food: ${meals.logged} of ${meals.planned} meals logged.")
+    val food = day.food.map: meals =>
+      if meals.planned <= 0 then s"Food: ${mealsLogged(meals.logged)}."
+      else s"Food: ${meals.logged} of ${meals.planned} meals logged."
     val sleep = day.sleep.map {
       case SleepEvidence.Recorded(minutes, _) => s"Sleep: ${duration(minutes)}, from your check-ins."
       case SleepEvidence.QuietWindowOnly      => "Sleep: an estimate from bot activity only, not a duration."
@@ -117,6 +121,37 @@ object EnglishImageCopy extends ImageCopy:
     (Vector(s"${dayDate(day.date)}.", moodText(day.mood)) ++ medication ++ water ++ food ++ sleep).mkString(" ")
 
   def dayDiscreet: String = "Your day so far."
+
+  def foodTitle: String = "Food"
+
+  def mainMeal(meal: MainMeal): String =
+    meal match
+      case MainMeal.Breakfast => "Breakfast"
+      case MainMeal.Lunch     => "Lunch"
+      case MainMeal.Dinner    => "Dinner"
+
+  def snacksLabel: String = "Snacks"
+  def snackCount(count: Int): String = if count == 1 then "1 snack" else s"$count snacks"
+
+  /** "2 of 3 meals, 1 snack"; with no planned meal a count: "2 meals logged". No word rates the day (VA-IMG-09a). */
+  def foodSummary(food: FoodDayData): String =
+    val meals =
+      if food.progress.planned > 0 then mealsOf(food.progress.logged, food.progress.planned)
+      else if food.mains.isEmpty then "No meal logged"
+      else mealsLogged(food.mains.size)
+    if food.snacks == 0 then meals else s"$meals, ${snackCount(food.snacks)}"
+
+  /** The caption (VISUALS section 6.10): every logged meal at its time, then the snacks. */
+  def foodText(food: FoodDayData): String =
+    val logged = MainMeal.values.toVector.flatMap(meal =>
+      food.mains.get(meal).map(at => s"${mainMeal(meal).toLowerCase(java.util.Locale.ROOT)} ${time(at)}")
+    )
+    val snacks = Option.when(food.snacks > 0)(snackCount(food.snacks)).toVector
+    val listed = logged ++ snacks
+    val meals = if listed.isEmpty then "no meal logged yet" else listed.mkString(", ")
+    s"Food on ${dayDate(food.date)}: $meals. ${foodSummary(food)}."
+
+  def foodDiscreet: String = "Food today."
 
   def waterTitle: String = "Water"
   def waterFraction(progress: WaterProgress): String = s"${litres(progress.volumeMl)} of ${litres(progress.goalMl)} l"

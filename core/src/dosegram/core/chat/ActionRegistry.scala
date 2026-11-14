@@ -59,7 +59,8 @@ object ActionRegistry:
     // Meals (BOT_UX section 11.3): direct mode on the account for a meal-type tap, whose value is the meal type, and on
     // the entry for an Undo.
     ActionEntry(170, "food.log", requiresSession = false),
-    ActionEntry(171, "food.undo", requiresSession = false)
+    ActionEntry(171, "food.undo", requiresSession = false),
+    ActionEntry(172, "food.image", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

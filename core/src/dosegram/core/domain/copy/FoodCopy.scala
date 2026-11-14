@@ -20,6 +20,9 @@ object FoodCopy:
   val undoWindowPassed = "This can no longer be undone here. Change it in the app."
   val noneToday = "No meal logged today."
   val EditInApp = "Edit in app"
+  val ShowAsImage = "Show as image"
+  val imageUnavailable = "The image is not available right now. The meals above are complete."
+  val imageEmpty = "No meal logged today, so there is nothing to draw yet."
 
   def label(mealType: MealType): String =
     mealType match
@@ -60,6 +63,13 @@ object FoodCopy:
     val parts = MealType.main.map(meal => s"${label(meal)} ${period.daysPerMeal.getOrElse(meal, 0)}")
     s"${parts.mkString(", ")} of ${count(period.window.days, "day")}"
 
+  /** The food line of `/stats` for today; absent on a day without a meal. */
+  def statsDay(view: RegularMealDay): String = s"Food: ${day(view)}"
+
+  /** The food line of `/stats` for a period, or `None` when it has no meal (BUX-STAT-02). */
+  def statsPeriod(period: MealPeriod): Option[String] =
+    Option.when(period.meals > 0)(s"Food: ${count(period.meals, "meal")} logged · ${week(period)}")
+
   val entries: List[CopyEntry] =
     List(
       CopyEntry("food.which", which),
@@ -75,10 +85,15 @@ object FoodCopy:
       CopyEntry("food.today", today(List(MealType.Breakfast -> "08:10", MealType.Lunch -> "13:05"))),
       CopyEntry("food.too_long", tooLong(300)),
       CopyEntry("food.edit_in_app", EditInApp),
+      CopyEntry("food.image.button", ShowAsImage),
+      CopyEntry("food.image.unavailable", imageUnavailable),
+      CopyEntry("food.image.empty", imageEmpty),
       CopyEntry("food.not_logged", notLogged),
       CopyEntry("food.day", day(Samples.day(MealPlan.Default))),
       CopyEntry("food.day.no_plan", day(Samples.day(MealPlan(Set.empty)))),
-      CopyEntry("food.week", week(Samples.week))
+      CopyEntry("food.week", week(Samples.week)),
+      CopyEntry("food.stats.day", statsDay(Samples.day(MealPlan.Default))),
+      CopyEntry("food.stats.period", statsPeriod(Samples.week).getOrElse(""))
     ) ++ MealType.values.toList.map(mealType => CopyEntry(s"food.button.${mealType.dbValue}", label(mealType)))
 
   /** Sample figures for the catalogue entries of the parameterised lines. */

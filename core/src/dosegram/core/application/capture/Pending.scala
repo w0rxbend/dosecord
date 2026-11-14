@@ -24,14 +24,15 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   case SleepTyped extends Pending(10, 0)
   case SleepImage extends Pending(11, 0)
 
-  /** `/food` and its meal buttons. */
+  /** `/food` and its meal buttons; also a typed meal, which is typed again after the consent, because the words do not
+    * fit in a button.
+    */
   case FoodCard extends Pending(12, 0)
 
   /** A meal-type tap; `code` is the ordinal of the meal type. */
   case FoodLog(code: Int) extends Pending(13, code)
 
-  /** A typed meal; it is typed again after the consent, because the words do not fit in a button. */
-  case FoodTyped extends Pending(14, 0)
+  case FoodImage extends Pending(14, 0)
 
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
@@ -61,7 +62,7 @@ private[capture] object Pending:
       case 11 => Some(SleepImage)
       case 12 => Some(FoodCard)
       case 13 => Some(FoodLog(argument))
-      case 14 => Some(FoodTyped)
+      case 14 => Some(FoodImage)
       case _  => None
 
 /** The two stages of a consent (BUX-CONS-02) and the two ways out of them. The codes are the wire form. */

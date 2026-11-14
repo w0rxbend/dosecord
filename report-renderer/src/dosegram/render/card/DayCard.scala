@@ -134,6 +134,9 @@ object DayCard:
   private def food(day: DayData, context: CardContext): Option[Row] =
     day.food.map { meals =>
       if meals.logged == 0 then unrecorded(Domain.Food, context)
+      else if meals.planned <= 0 then
+        // Without planned meals there is no rate: the count is stated and the segment stays an unfilled track.
+        Row(Domain.Food, context.copy.mealsLogged(meals.logged), HaloState.Progress(0, 0), Detail.Nothing)
       else
         val value = context.copy.mealsOf(meals.logged, meals.planned)
         Row(Domain.Food, value, HaloState.Progress(meals.share, 0), Detail.Nothing)
