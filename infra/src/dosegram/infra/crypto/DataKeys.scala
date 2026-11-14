@@ -62,15 +62,20 @@ final class DataKeys(val ring: KekRing, clock: Clock):
     ()
 
   /** Adds a new active data key for `owner` (SEC-07, on demand). Values sealed before keep opening with their own
-    * version; a value is sealed with the new key the next time it is written. Returns the new version.
+    * version; a value is sealed with the new key the next time it is written. Returns the new version. The owner's key
+    * rows are locked first, so a concurrent rotation waits and then adds the version after this one; a version that
+    * another transaction stored first (an owner without keys) is not audited, and the rotation tries the next one.
     */
+  @annotation.tailrec
   def rotate(conn: Connection, owner: KeyOwner): Int =
     val store = Store.of(owner)
+    store.lock(conn, owner)
     val next = store.maxVersion(conn, owner) + 1
-    store.insert(conn, owner, next, wrap(owner, next, Aead.freshKey()), clock.now())
-    cache.remove((label(owner), 0))
-    auditAccountKey(conn, owner, AuditEventType.DekRotated, "rotate")
-    next
+    if !store.insert(conn, owner, next, wrap(owner, next, Aead.freshKey()), clock.now()) then rotate(conn, owner)
+    else
+      cache.remove((label(owner), 0))
+      auditAccountKey(conn, owner, AuditEventType.DekRotated, "rotate")
+      next
 
   /** Rewraps every data key that a retired key-encryption key wraps with the active one (SEC-07) and returns how many
     * it rewrapped. Refuses, naming the id only, a data key whose key-encryption key is not configured.
@@ -170,7 +175,8 @@ final class DataKeys(val ring: KekRing, clock: Clock):
     private def create(owner: KeyOwner): DataKey =
       val store = Store.of(owner)
       val wrapped = wrap(owner, 1, Aead.freshKey())
-      store.insert(conn, owner, 1, wrapped, clock.now())
+      // A concurrent creator may store its key first; the read below takes whichever key is stored.
+      val _ = store.insert(conn, owner, 1, wrapped, clock.now())
       val (version, stored) =
         store.find(conn, owner, None).getOrElse(throw IllegalStateException("a data key vanished"))
       val key = unwrap(owner, version, stored)
@@ -229,14 +235,22 @@ object DataKeys:
 
     def maxVersion(conn: Connection, owner: KeyOwner): Int = find(conn, owner, None).fold(0)(_._1)
 
-    def insert(conn: Connection, owner: KeyOwner, version: Int, wrapped: Wrapped, at: Instant): Unit =
+    /** Locks every key row of `owner` until the transaction ends; a later statement sees the rows committed meanwhile.
+      */
+    def lock(conn: Connection, owner: KeyOwner): Unit =
+      given Connection = conn
+      given RowMapper[Int] = _.getInt(1)
+      SqlQuery(s"SELECT version FROM $table WHERE $ownerColumn = ? FOR UPDATE", Vector(bind(owner))).query[Int]()
+      ()
+
+    /** False when the owner already has a key of `version`. */
+    def insert(conn: Connection, owner: KeyOwner, version: Int, wrapped: Wrapped, at: Instant): Boolean =
       given Connection = conn
       SqlQuery(
         s"INSERT INTO $table ($ownerColumn, version, kek_id, wrapped_key, created_at) VALUES (?, ?, ?, ?, ?) " +
           "ON CONFLICT DO NOTHING",
         Vector(bind(owner), version, wrapped.kekId, wrapped.bytes, at)
-      ).execute()
-      ()
+      ).execute() == 1
 
     def rewrap(conn: Connection, keys: DataKeys): Int =
       given Connection = conn

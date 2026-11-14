@@ -215,6 +215,28 @@ class KeyServicePgSuite extends PgSuite, ScalaCheckSuite:
       sql"SELECT count(*)::int FROM account_keys WHERE account_id = $account".queryOne[Int]()
     assertEquals(stored, Some(1))
 
+  test("two rotations at once add two versions and one audit row each"):
+    val keys = DataKeys(ring("rotrace", 11), MutableClock(t0))
+    val account = fixtures.account()
+    inTx(keys)((_, s) => s.seal(field(account), Array[Byte](1)))
+    val pool = Executors.newSingleThreadExecutor()
+    try
+      val (first, second) = withConnection: conn =>
+        conn.setAutoCommit(false)
+        val first = keys.rotate(conn, KeyOwner.Account(account))
+        // The second rotation starts while the first is not committed, and waits for it.
+        val second = pool.submit(() => inTx(keys)((other, _) => keys.rotate(other, KeyOwner.Account(account))))
+        Thread.sleep(300)
+        conn.commit()
+        (first, second.get(30, TimeUnit.SECONDS))
+      assertEquals(Set(first, second), Set(2, 3))
+    finally pool.shutdown()
+    val versions = withConnection: conn =>
+      given Connection = conn
+      sql"SELECT version FROM account_keys WHERE account_id = $account ORDER BY version".query[Int]()
+    assertEquals(versions, List(1, 2, 3))
+    assertEquals(keyEvents(account).count(_.startsWith("key.dek.rotated")), 2)
+
   test("a service key seals rows that belong to no account"):
     val keys = DataKeys(ring("svc", 11), MutableClock(t0))
     val place = SealedField(KeyOwner.Service("render"), "render_assets", "bytes_enc", "card.1")
