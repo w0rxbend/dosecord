@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#0f222b"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Mood</text>
+<text x="1216" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">27 Oct to 9 Nov</text>
+<line x1="364" y1="396" x2="1216" y2="396" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+<text x="64" y="410" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="40" fill="#8b9ba3">Very unpleasant</text>
+<line x1="364" y1="290" x2="1216" y2="290" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+<text x="64" y="304" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Neutral</text>
+<line x1="364" y1="184" x2="1216" y2="184" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+<text x="64" y="198" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Very pleasant</text>
+<line x1="394.43" y1="343" x2="455.29" y2="250.25" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="455.29" y1="250.25" x2="516.14" y2="329.75" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="516.14" y1="329.75" x2="577" y2="237" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="577" y1="237" x2="637.86" y2="316.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="759.57" y1="303.25" x2="820.43" y2="210.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="820.43" y1="210.5" x2="881.29" y2="290" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1003" y1="276.75" x2="1063.86" y2="184" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1063.86" y1="184" x2="1124.71" y2="263.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1124.71" y1="263.5" x2="1185.57" y2="343" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<g>
+  <circle cx="394.43" cy="343" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="455.29" y1="290" x2="455.29" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="455.29" cy="250.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="516.14" y1="343" x2="516.14" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="516.14" cy="329.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="577" cy="237" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="637.86" y1="343" x2="637.86" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="637.86" cy="316.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="759.57" cy="303.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="820.43" y1="237" x2="820.43" y2="184" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="820.43" cy="210.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="881.29" y1="290" x2="881.29" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="881.29" cy="290" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1003" y1="290" x2="1003" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1003" cy="276.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="1063.86" cy="184" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="1124.71" cy="263.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1185.57" y1="343" x2="1185.57" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1185.57" cy="343" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="394.43" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">27</text>
+<text x="516.14" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">29</text>
+<text x="637.86" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">31</text>
+<text x="759.57" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">2</text>
+<text x="881.29" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">4</text>
+<text x="1003" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">6</text>
+<text x="1124.71" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">8</text>
+<text x="64" y="520" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Energy</text>
+<g>
+  <path d="M447.29 520 L447.29 505.6 A8 8 0 0 1 455.29 497.6 L455.29 497.6 A8 8 0 0 1 463.29 505.6 L463.29 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M508.14 520 L508.14 494.4 A8 8 0 0 1 516.14 486.4 L516.14 486.4 A8 8 0 0 1 524.14 494.4 L524.14 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M569 520 L569 483.2 A8 8 0 0 1 577 475.2 L577 475.2 A8 8 0 0 1 585 483.2 L585 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M751.57 520 L751.57 505.6 A8 8 0 0 1 759.57 497.6 L759.57 497.6 A8 8 0 0 1 767.57 505.6 L767.57 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M812.43 520 L812.43 494.4 A8 8 0 0 1 820.43 486.4 L820.43 486.4 A8 8 0 0 1 828.43 494.4 L828.43 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M995 520 L995 516.8 A8 8 0 0 1 1003 508.8 L1003 508.8 A8 8 0 0 1 1011 516.8 L1011 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M1055.86 520 L1055.86 505.6 A8 8 0 0 1 1063.86 497.6 L1063.86 497.6 A8 8 0 0 1 1071.86 505.6 L1071.86 520 Z" fill="#bf3f75"/>
+</g>
+<g>
+  <path d="M1177.57 520 L1177.57 483.2 A8 8 0 0 1 1185.57 475.2 L1185.57 475.2 A8 8 0 0 1 1193.57 483.2 L1193.57 520 Z" fill="#bf3f75"/>
+</g>
+<text x="64" y="584" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">12 check-in days of 14. Lines join consecutive days only.</text>
+<text x="64" y="656" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>

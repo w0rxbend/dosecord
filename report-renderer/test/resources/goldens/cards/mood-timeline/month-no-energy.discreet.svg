@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#0f222b"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Mood</text>
+<text x="1216" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">11 Oct to 9 Nov</text>
+<line x1="364" y1="396" x2="1216" y2="396" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+<text x="64" y="410" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="40" fill="#8b9ba3">Very unpleasant</text>
+<line x1="364" y1="290" x2="1216" y2="290" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+<text x="64" y="304" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Neutral</text>
+<line x1="364" y1="184" x2="1216" y2="184" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+<text x="64" y="198" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Very pleasant</text>
+<line x1="378.2" y1="343" x2="406.6" y2="250.25" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="406.6" y1="250.25" x2="435" y2="329.75" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="435" y1="329.75" x2="463.4" y2="237" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="463.4" y1="237" x2="491.8" y2="316.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="548.6" y1="303.25" x2="577" y2="210.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="577" y1="210.5" x2="605.4" y2="290" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="662.2" y1="276.75" x2="690.6" y2="184" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="690.6" y1="184" x2="719" y2="263.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="719" y1="263.5" x2="747.4" y2="343" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="747.4" y1="343" x2="775.8" y2="250.25" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="775.8" y1="250.25" x2="804.2" y2="329.75" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="804.2" y1="329.75" x2="832.6" y2="237" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="832.6" y1="237" x2="861" y2="316.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="861" y1="316.5" x2="889.4" y2="223.75" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="889.4" y1="223.75" x2="917.8" y2="303.25" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="917.8" y1="303.25" x2="946.2" y2="210.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="946.2" y1="210.5" x2="974.6" y2="290" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="974.6" y1="290" x2="1003" y2="197.25" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1003" y1="197.25" x2="1031.4" y2="276.75" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1031.4" y1="276.75" x2="1059.8" y2="184" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1059.8" y1="184" x2="1088.2" y2="263.5" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1088.2" y1="263.5" x2="1116.6" y2="343" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1116.6" y1="343" x2="1145" y2="250.25" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1145" y1="250.25" x2="1173.4" y2="329.75" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="1173.4" y1="329.75" x2="1201.8" y2="237" stroke="#bf3f75" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<g>
+  <circle cx="378.2" cy="343" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="406.6" y1="290" x2="406.6" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="406.6" cy="250.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="435" y1="343" x2="435" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="435" cy="329.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="463.4" cy="237" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="491.8" y1="343" x2="491.8" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="491.8" cy="316.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="548.6" cy="303.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="577" y1="237" x2="577" y2="184" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="577" cy="210.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="605.4" y1="290" x2="605.4" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="605.4" cy="290" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="662.2" y1="290" x2="662.2" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="662.2" cy="276.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="690.6" cy="184" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="719" cy="263.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="747.4" y1="343" x2="747.4" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="747.4" cy="343" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="775.8" y1="290" x2="775.8" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="775.8" cy="250.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="804.2" cy="329.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="832.6" y1="237" x2="832.6" y2="184" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="832.6" cy="237" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="861" y1="343" x2="861" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="861" cy="316.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="889.4" cy="223.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="917.8" y1="343" x2="917.8" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="917.8" cy="303.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="946.2" y1="237" x2="946.2" y2="184" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="946.2" cy="210.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="974.6" cy="290" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1003" y1="237" x2="1003" y2="184" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1003" cy="197.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1031.4" y1="290" x2="1031.4" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1031.4" cy="276.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="1059.8" cy="184" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1088.2" y1="290" x2="1088.2" y2="237" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1088.2" cy="263.5" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1116.6" y1="343" x2="1116.6" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1116.6" cy="343" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="1145" cy="250.25" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1173.4" y1="343" x2="1173.4" y2="290" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1173.4" cy="329.75" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <line x1="1201.8" y1="237" x2="1201.8" y2="184" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1201.8" cy="237" r="10" fill="#bf3f75" stroke="#0f222b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="378.2" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">11</text>
+<text x="577" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">18</text>
+<text x="775.8" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">25</text>
+<text x="974.6" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">1</text>
+<text x="1173.4" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">8</text>
+<text x="64" y="584" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">28 check-in days of 30. Lines join consecutive days only.</text>
+<text x="64" y="656" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>

@@ -1,12 +1,17 @@
 package dosegram.render.copy
 
 import dosegram.render.blob.MoodReading
+import dosegram.render.card.DayAdherence
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MilestoneKind
+import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthNightsData
+import dosegram.render.card.MoodCalendarData
+import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -320,6 +325,9 @@ object EnglishImageCopy extends ImageCopy:
       case InsightRule.WaterGoalMood => if isFirst then "Water goal reached" else "Water logged, goal not reached"
       case InsightRule.SleepGoalMood =>
         if isFirst then "After nights at or above your sleep goal" else "After shorter nights"
+      case InsightRule.BedtimeMood =>
+        if isFirst then "After nights begun near your usual bedtime" else "After the other nights"
+      case InsightRule.WorkDayMood => if isFirst then "Work days" else "Free days"
 
   def insightValue(value: Double): String =
     BigDecimal(value).setScale(1, BigDecimal.RoundingMode.HALF_UP).toString
@@ -340,6 +348,13 @@ object EnglishImageCopy extends ImageCopy:
       case InsightRule.SleepGoalMood =>
         s"On the ${plural(first.days, "day")} after a night at or above your sleep goal, your average mood was " +
           s"${insightValue(first.value)}. On the ${second.days} other days it was ${insightValue(second.value)}."
+      case InsightRule.BedtimeMood =>
+        s"On the ${plural(first.days, "day")} after a night that began within 30 minutes of your usual bedtime, " +
+          s"your average mood was ${insightValue(first.value)}. On the ${second.days} other days it was " +
+          s"${insightValue(second.value)}."
+      case InsightRule.WorkDayMood =>
+        s"On your ${plural(first.days, "work day")} your average mood was ${insightValue(first.value)}. On your " +
+          s"${plural(second.days, "free day")} it was ${insightValue(second.value)}."
     Vector(
       s"$insightTitle, ${dateRange(insight.from, insight.to)}.",
       groups,
@@ -359,6 +374,98 @@ object EnglishImageCopy extends ImageCopy:
       case MilestoneKind.FirstYear     => if isOne then "year of records" else "years of records"
 
   def milestoneText(milestone: MilestoneData): String = s"${milestone.count} ${milestoneLabel(milestone)}."
+
+  def moodCalendarTitle: String = "Mood by day"
+  def noCheckIn: String = "No check-in"
+  def moodCalendarFact(checkInDays: Int): String = s"${plural(checkInDays, "check-in day")}."
+
+  def moodCalendarText(calendar: MoodCalendarData): String =
+    val levels = calendar.days.flatten.map(_.valence)
+    val counts = levels.groupMapReduce(identity)(_ => 1)(_ + _)
+    def named(level: Int): String = s"${valenceName(level)} (${plural(counts(level), "day")})"
+    val spread = Option.when(levels.nonEmpty) {
+      val frequent = counts.toVector.maxBy((level, count) => (count, -level))._1
+      Vector(s"Most frequent: ${named(frequent)}.", s"Lowest: ${named(levels.min)}.", s"Highest: ${named(levels.max)}.")
+    }
+    val gaps = calendar.days.count(_.isEmpty)
+    val gapLine = Option.when(gaps > 0)(
+      if gaps == 1 then "1 day has no check-in." else s"$gaps days have no check-in."
+    )
+    (Vector(s"${monthYear(calendar.month)}: ${plural(calendar.checkInDays, "check-in day")}.") ++
+      spread.getOrElse(Vector.empty) ++ gapLine).mkString(" ")
+
+  def moodCalendarDiscreet: String = "Your mood by day."
+  def moodTimelineTitle: String = "Mood"
+  def energyLabel: String = "Energy"
+  def moodTimelineFact(checkInDays: Int, days: Int): String =
+    s"${plural(checkInDays, "check-in day")} of $days. Lines join consecutive days only."
+
+  def moodTimelineText(timeline: MoodTimelineData): String =
+    val points = timeline.days.flatten
+    def level(mean: Double): Int = dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence
+    val range = Option.when(points.nonEmpty) {
+      val levels = points.map(point => level(point.mean))
+      val frequent = levels.groupMapReduce(identity)(_ => 1)(_ + _).toVector.maxBy((lvl, count) => (count, -lvl))._1
+      s"Daily mood ranged from ${valenceName(levels.min)} to ${valenceName(levels.max)}, most often " +
+        s"${valenceName(frequent)}."
+    }
+    val changes =
+      timeline.days.sliding(2).collect { case Vector(Some(a), Some(b)) => Math.abs(b.mean - a.mean) }.toVector
+    val change = Option.when(changes.size >= 4)(
+      s"Day-to-day change averaged ${insightValue(changes.sum / changes.size)} levels."
+    )
+    val gaps = timeline.days.count(_.isEmpty)
+    val gapLine = Option.when(gaps > 0)(
+      if gaps == 1 then "1 day has no check-in and is shown as a gap."
+      else s"$gaps days have no check-in and are shown as gaps."
+    )
+    (Vector(
+      s"Mood, ${dateRange(timeline.from, timeline.to)}.",
+      s"${plural(timeline.checkInDays, "check-in day")} of ${timeline.days.size}."
+    ) ++ range ++ change ++ gapLine).mkString(" ")
+
+  def moodTimelineDiscreet: String = "Your mood over these days."
+  def monthDaysTitle: String = "Day by day"
+  def monthNightsTitle: String = "Nights and water"
+  def sleepNights(nights: Int): String = s"${plural(nights, "night")} from your check-ins."
+
+  def monthWaterFact(goalDays: Option[GoalDays], recordedDays: Int): String =
+    goalDays match
+      case Some(days) => s"Goal reached on ${days.reached} of ${plural(days.recorded, "recorded day")}."
+      case None       => s"${plural(recordedDays, "day")} with water recorded."
+
+  def waterLoggedMark: String = "Water logged"
+  def napMark: String = "Nap"
+
+  def monthDaysText(page: MonthDaysData): String =
+    val medication = page.medication.map { calendar =>
+      val resolved = calendar.days.collect { case DayAdherence.Resolved(taken, all, _) => (taken, all) }
+      val (taken, all) = (resolved.map(_._1).sum, resolved.map(_._2).sum)
+      val unknown = Option.when(calendar.unknownDoseCount > 0)(s" ${unknownDosesNotCounted(calendar.unknownDoseCount)}")
+      s"Medication: ${if all == 0 then s"$noData." else resolvedDosesTaken(taken, all)}${unknown.getOrElse("")}"
+    }
+    (Vector(s"${monthYear(page.month)}, day by day.") ++ medication ++ page.mood.map(moodCalendarText)).mkString(" ")
+
+  def monthNightsText(page: MonthNightsData): String =
+    val sleep = page.sleep.filter(_.bars.nonEmpty).map { nights =>
+      val average = nights.averageMinutes.fold(sleepNights(nights.nights))(minutes =>
+        s"${duration(minutes)} on average over ${plural(nights.nights, "night")} from your check-ins."
+      )
+      val spread = for
+        bedtime <- nights.bedtimeSpreadMinutes
+        wake <- nights.wakeSpreadMinutes
+      yield s" Bedtime varied by about $bedtime min, wake time by about $wake min."
+      s"Sleep: $average${spread.getOrElse("")}"
+    }
+    val water = page.water.filter(_.exists(_.isDefined)).map { days =>
+      val recorded = days.flatten
+      val withGoal = recorded.filter(_.goalMl.isDefined)
+      val goal = Option.when(withGoal.nonEmpty)(
+        GoalDays(withGoal.count(day => day.goalMl.exists(day.volumeMl >= _)), withGoal.size)
+      )
+      s"Water: ${monthWaterFact(goal, recorded.size)}"
+    }
+    (Vector(s"${monthYear(page.month)}, nights and water.") ++ sleep ++ water).mkString(" ")
 
   // The adherence percentage is shown only from five counted doses up (VISUALS section 6.5).
   private val MinimumDosesForPercent = 5

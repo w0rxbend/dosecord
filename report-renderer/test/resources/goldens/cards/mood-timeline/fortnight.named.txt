@@ -1,0 +1,5 @@
+file: dosegram-mood-days.png
+spoiler: false
+caption: Mood, 27 Oct to 9 Nov. 12 check-in days of 14. Daily mood ranged from Unpleasant to Very pleasant, most often Neutral. Day-to-day change averaged 1.6 levels. 2 days have no check-in and are shown as gaps.
+alt: Mood, 27 Oct to 9 Nov. 12 check-in days of 14. Daily mood ranged from Unpleasant to Very pleasant, most often Neutral. Day-to-day change averaged 1.6 levels. 2 days have no check-in and are shown as gaps.
+full: Mood, 27 Oct to 9 Nov. 12 check-in days of 14. Daily mood ranged from Unpleasant to Very pleasant, most often Neutral. Day-to-day change averaged 1.6 levels. 2 days have no check-in and are shown as gaps.

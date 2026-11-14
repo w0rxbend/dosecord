@@ -1,0 +1,5 @@
+file: dosegram-mood-month.png
+spoiler: true
+caption: Your mood by day.
+alt: February 2026: 28 check-in days. Most frequent: Very unpleasant (4 days). Lowest: Very unpleasant (4 days). Highest: Very pleasant (4 days).
+full: February 2026: 28 check-in days. Most frequent: Very unpleasant (4 days). Lowest: Very unpleasant (4 days). Highest: Very pleasant (4 days).

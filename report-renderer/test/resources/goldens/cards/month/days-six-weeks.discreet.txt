@@ -1,0 +1,5 @@
+file: dosegram-month-days.png
+spoiler: true
+caption: Your month.
+alt: August 2026, day by day. Medication: 90 of 104 resolved doses taken. 2 doses: no record, not counted. August 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.
+full: August 2026, day by day. Medication: 90 of 104 resolved doses taken. 2 doses: no record, not counted. August 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.

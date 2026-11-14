@@ -334,4 +334,97 @@ object Samples:
     )
   )
 
-  val all: Vector[Fixture] = moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights
+  val moreInsights: Vector[Fixture] = Vector(
+    Fixture(
+      "insight/bedtime-mood",
+      context =>
+        val data = InsightData(InsightRule.BedtimeMood, LocalDate.of(2026, 10, 13), LocalDate.of(2026, 11, 9), InsightGroup(16, 3.9), InsightGroup(11, 3.2))
+        Vector(InsightCard.render(data, context))
+    ),
+    Fixture(
+      "insight/work-day-mood",
+      context =>
+        val data = InsightData(InsightRule.WorkDayMood, LocalDate.of(2026, 10, 13), LocalDate.of(2026, 11, 9), InsightGroup(20, 3.1), InsightGroup(8, 3.8))
+        Vector(InsightCard.render(data, context))
+    )
+  )
+
+  private val OctoberMonth = YearMonth.of(2026, 10)
+
+  // 22 check-in days spread over the seven levels; days 7, 13, 14, 20, 21, 27, 28, 30 and 31 have none.
+  private val octoberMoods: Vector[Option[MoodState]] =
+    Vector.tabulate(31) { index =>
+      val day = index + 1
+      Option.unless(Set(7, 13, 14, 20, 21, 27, 28, 30, 31)(day))(MoodState(1 + (day * 5) % 7, 1 + day % 5))
+    }
+
+  private val moodOctober = MoodCalendarData(OctoberMonth, DayOfWeek.MONDAY, octoberMoods)
+
+  private def moodPoint(day: Int): Option[MoodDayPoint] =
+    Option.unless(Set(5, 9)(day)) {
+      val mean = StrictMath.min(5.0, 2.0 + (day * 7 % 13) / 4.0)
+      val checkIns = 1 + day % 3
+      val (low, high) = if checkIns == 1 then (mean.round.toInt, mean.round.toInt) else (StrictMath.floor(mean).toInt, StrictMath.ceil(mean).toInt.max(StrictMath.floor(mean).toInt + 1).min(5))
+      MoodDayPoint(mean, low, high, checkIns, Option.when(day % 4 != 0)(1.0 + day % 5))
+    }
+
+  val moodCards: Vector[Fixture] = Vector(
+    Fixture("mood-calendar/typical", context => Vector(MoodCalendarCard.render(moodOctober, context))),
+    Fixture(
+      "mood-calendar/every-day",
+      context =>
+        val february = MoodCalendarData(YearMonth.of(2026, 2), DayOfWeek.SUNDAY, Vector.tabulate(28)(day => Some(MoodState(1 + day % 7, 3))))
+        Vector(MoodCalendarCard.render(february, context))
+    ),
+    Fixture("mood-timeline/fortnight", context => Vector(MoodTimelineCard.render(MoodTimelineData(LocalDate.of(2026, 10, 27), Vector.tabulate(14)(day => moodPoint(day))), context))),
+    Fixture(
+      "mood-timeline/month-no-energy",
+      context =>
+        val days = Vector.tabulate(30)(day => moodPoint(day).map(_.copy(energy = None)))
+        Vector(MoodTimelineCard.render(MoodTimelineData(LocalDate.of(2026, 10, 11), days), context))
+    )
+  )
+
+  // October's nights on the clock: bedtimes 22:30 to 00:45 and wake times 06:15 to 08:00, five nights missing.
+  private val octoberNights: SleepRegularityData =
+    val bars = (1 to 31).filterNot(Set(6, 12, 19, 25, 30)).toVector.map { day =>
+      SleepNightBar(OctoberMonth.atDay(day), 270 + (day * 37) % 135, 735 + (day * 29) % 105, isNap = false)
+    } :+ SleepNightBar(OctoberMonth.atDay(18), 1200, 1240, isNap = true)
+    SleepRegularityData(OctoberMonth.atDay(1), OctoberMonth.atEndOfMonth, bars, 26, Some(428), Some(38), Some(26), Some(23 * 60 + 40), Some(7 * 60 + 10), Some(450))
+
+  private val octoberWater: Vector[Option[MonthWaterDay]] =
+    Vector.tabulate(31) { index =>
+      Option.unless(Set(3, 14, 15, 22, 29)(index + 1))(MonthWaterDay(1300 + (index * 173) % 1200, Option.when(index >= 4)(2000)))
+    }
+
+  val monthPages: Vector[Fixture] = Vector(
+    Fixture(
+      "month/report",
+      context =>
+        Vector(
+          MonthCard.render(october2026, context),
+          MonthPages.days(MonthDaysData(OctoberMonth, Some(october), Some(moodOctober)), context),
+          MonthPages.nights(MonthNightsData(OctoberMonth, Some(octoberNights), Some(octoberWater)), context)
+        )
+    ),
+    Fixture(
+      "month/days-mood-only",
+      context => Vector(MonthPages.days(MonthDaysData(OctoberMonth, None, Some(moodOctober)), context))
+    ),
+    Fixture(
+      "month/nights-water-only",
+      context => Vector(MonthPages.nights(MonthNightsData(OctoberMonth, None, Some(octoberWater)), context))
+    ),
+    Fixture(
+      "month/days-six-weeks",
+      context =>
+        val august = YearMonth.of(2026, 8)
+        val calendar = october.copy(month = august, today = None)
+        val mood = MoodCalendarData(august, DayOfWeek.MONDAY, octoberMoods)
+        Vector(MonthPages.days(MonthDaysData(august, Some(calendar), Some(mood)), context))
+    )
+  )
+
+  val all: Vector[Fixture] =
+    moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
+      moreInsights ++ moodCards ++ monthPages

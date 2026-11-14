@@ -99,9 +99,12 @@ class CardSuite extends munit.FunSuite:
     assertEquals(long.caption, "Your week. Details below.")
     assertEquals(long.altText.length, TextEquivalent.CaptionLimit)
 
-  test("cards use the square and portrait canvases, both within the 1280 px long side"):
+  test("cards use the square and portrait canvases, both within the 1280 px long side, and timelines the wide one"):
     everyVariant.foreach { (name, card, _) =>
-      assert(Set(CardFrame.Square, CardFrame.Portrait)(card.scene.size), s"$name: ${card.scene.size}")
+      assert(Set(CardFrame.Square, CardFrame.Portrait, CardFrame.Wide)(card.scene.size), s"$name: ${card.scene.size}")
+    }
+    everyVariant.filter((_, card, _) => card.scene.size == CardFrame.Wide).foreach { (name, card, _) =>
+      assert(card.scene.templateId == dosegram.render.card.MoodTimelineCard.TemplateId, s"$name is wide")
     }
 
   test("a strip paginates beyond its row limit and drops no medication (VA-LA-03)"):

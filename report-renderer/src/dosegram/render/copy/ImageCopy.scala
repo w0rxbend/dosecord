@@ -6,6 +6,10 @@ import dosegram.render.card.DoseCounts
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
 import dosegram.render.card.MilestoneData
+import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthNightsData
+import dosegram.render.card.MoodCalendarData
+import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -141,6 +145,28 @@ trait ImageCopy:
   def insightNotCause: String
   def insightText(insight: InsightData): String
   def insightDiscreet: String
+
+  // Mood calendar (IMG-11) and mood timeline (IMG-10).
+  def moodCalendarTitle: String
+  def noCheckIn: String
+  def moodCalendarFact(checkInDays: Int): String
+  def moodCalendarText(calendar: MoodCalendarData): String
+  def moodCalendarDiscreet: String
+  def moodTimelineTitle: String
+  def energyLabel: String
+  def moodTimelineFact(checkInDays: Int, days: Int): String
+  def moodTimelineText(timeline: MoodTimelineData): String
+  def moodTimelineDiscreet: String
+
+  // Month, pages 2 and 3 (IMG-05).
+  def monthDaysTitle: String
+  def monthNightsTitle: String
+  def sleepNights(nights: Int): String
+  def monthWaterFact(goalDays: Option[GoalDays], recordedDays: Int): String
+  def waterLoggedMark: String
+  def napMark: String
+  def monthDaysText(page: MonthDaysData): String
+  def monthNightsText(page: MonthNightsData): String
 
   // Milestone (IMG-14).
   def milestoneLabel(milestone: MilestoneData): String

@@ -152,6 +152,12 @@ enum InsightRule:
   /** IR-01: nights at or above the user's sleep goal against shorter nights; outcome the next day's mood mean. */
   case SleepGoalMood
 
+  /** IR-02: nights that began within 30 minutes of the user's own median bedtime against the others; mood that day. */
+  case BedtimeMood
+
+  /** IR-06: the user's own work days against free days; the day's mood mean. */
+  case WorkDayMood
+
   def outcome: Domain = Domain.Mood
 
 /** One group of days: how many, and the mean of the outcome over them on the 1 to 5 scale. */
