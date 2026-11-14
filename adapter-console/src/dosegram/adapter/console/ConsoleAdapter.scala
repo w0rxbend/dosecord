@@ -103,7 +103,7 @@ final class ConsoleAdapter(
   private def handle(n: Int): MessageHandle = MessageHandle(vendor, chat.chatId, n.toString)
 
   override def send(chat: ChatRef, rendered: RenderedMessage, sendKey: String): MessageHandle =
-    if rendered.attachment.isDefined then throw ChatError.Unsupported("media")
+    if rendered.attachment.isDefined || rendered.album.nonEmpty then throw ChatError.Unsupported("media")
     lock.synchronized:
       outSeq += 1
       val handle = MessageHandle(vendor, chat.chatId, outSeq.toString)

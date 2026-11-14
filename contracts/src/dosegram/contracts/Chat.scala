@@ -323,12 +323,24 @@ final case class OutboundMessage(
     /** The message body is the caption. A message with an attachment is always a new message, never an edit. */
     attachment: Option[AttachmentRef] = None,
     dedupeKey: String,
-    correlationId: String
+    correlationId: String,
+    /** The photos of one album, sent together (VISUALS section 6.6), each with its text equivalent as its caption; the
+      * body, if any, follows as text. A profile without media sends the text equivalents instead. An album carries no
+      * controls, because a group of photos cannot carry a keyboard (VISUALS VA-TX-03), and is never an edit.
+      */
+    album: List[AttachmentRef] = Nil
 ) derives ReadWriter:
   require(dedupeKey.nonEmpty, "dedupeKey must not be empty")
   require(correlationId.nonEmpty, "correlationId must not be empty")
+  require(
+    album.isEmpty || attachment.isEmpty && blocks.isEmpty && album.size >= 2 && album.size <= OutboundMessage.MaxAlbum,
+    s"an album has 2 to ${OutboundMessage.MaxAlbum} photos, no other attachment and no controls"
+  )
 
 object OutboundMessage:
+  /** The most photos one album holds (Bot API `sendMediaGroup`: 2 to 10 items). */
+  val MaxAlbum = 10
+
   /** Serialisation lives in contracts so the core stays free of a JSON library. */
   def toJson(message: OutboundMessage): String = upickle.default.write(message)
   def fromJson(json: String): OutboundMessage = upickle.default.read[OutboundMessage](json)

@@ -327,6 +327,58 @@ class TelegramAdapterSuite extends munit.FunSuite:
     assertEquals(rig.messageCalls.last.text("text"), Some(long))
     assertEquals(handle.messageId, "2")
 
+  private val pages = List(
+    AttachmentRef(MediaKind.Photo, "asset-month-1", "image/png", "October <2026>: 27 days with records."),
+    AttachmentRef(MediaKind.Photo, "asset-month-2", "image/png", "Medication by day.")
+  )
+
+  test("an album is one sendMediaGroup, each photo captioned with its text equivalent; the ids are kept and reused"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("asset-month-1", Array[Byte](1))
+    rig.storeAsset("asset-month-2", Array[Byte](2))
+    val handle = rig.adapter.send(chat, RenderedMessage(chunks = Nil, album = pages), "k1")
+    val group = rig.messageCalls.last
+    assertEquals(rig.messageCalls.map(_.method), List("sendMediaGroup"))
+    val media = group.request.params("media").arr.toList
+    assertEquals(media.map(_("caption").str), List("October &lt;2026&gt;: 27 days with records.", "Medication by day."))
+    assertEquals(group.request.files.map(_.bytes.toList), List(List[Byte](1), List[Byte](2)))
+    assert(!group.request.params.obj.contains("reply_markup"))
+    assertEquals(handle.messageId, "m1")
+    assertEquals(
+      pages.map(page => rig.fileIds.get(page.assetKey, MediaKind.Photo)),
+      List(Some("fake-photo-1"), Some("fake-photo-2"))
+    )
+
+    rig.timer.advance(Duration.ofSeconds(5))
+    rig.adapter.send(chat, RenderedMessage(chunks = List("Details below."), album = pages), "k2")
+    val List(again, text) = rig.messageCalls.drop(1): @unchecked
+    assertEquals(again.request.params("media").arr.map(_("media").str).toList, List("fake-photo-1", "fake-photo-2"))
+    assertEquals(again.request.files, Nil)
+    assertEquals((text.method, text.text("text")), ("sendMessage", Some("Details below.")))
+
+  test("an album whose cached ids are rejected is sent once more from its bytes"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("asset-month-1", Array[Byte](1))
+    rig.storeAsset("asset-month-2", Array[Byte](2))
+    pages.foreach(page => rig.fileIds.put(page.assetKey, MediaKind.Photo, "stale-file-id"))
+    val rejected = BotApiFixtures.error("wrong-file-id-400")
+    rig.wire.replyNext("sendMediaGroup", rejected.status, rejected.body)
+    rig.adapter.send(chat, RenderedMessage(chunks = Nil, album = pages), "k1")
+    assertEquals(rig.messageCalls.map(_.request.files.size), List(0, 2))
+    assertEquals(rig.fileIds.get("asset-month-2", MediaKind.Photo), Some("fake-photo-2"))
+
+  test("an album with a page's bytes gone is sent as the text equivalents of its pages"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("asset-month-1", Array[Byte](1))
+    rig.adapter.send(chat, RenderedMessage(chunks = Nil, album = pages), "k1")
+    val call = rig.messageCalls.last
+    assertEquals(rig.messageCalls.map(_.method), List("sendMessage"))
+    assertEquals(
+      call.text("text"),
+      Some("[image: October &lt;2026&gt;: 27 days with records.]\n\n[image: Medication by day.]")
+    )
+    assertEquals(rig.logs, List("telegram asset unavailable: sent the album's text equivalents (photos=2)"))
+
   test("a document goes out with sendDocument under its file name"):
     val rig = TelegramRig().started()
     rig.storeAsset("asset-export", Array[Byte](7))

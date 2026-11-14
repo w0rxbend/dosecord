@@ -81,9 +81,9 @@ final class ReportViews(stats: StatsQueryService):
   def look(tx: Tx, accountId: UUID): CardLook =
     CardLook.of(tx.accounts.settingsOf(accountId).getOrElse(AccountSettings.Default))
 
-/** A due report as the outbox sends it: the images first, each its own photo message with its caption, then `main`, the
-  * text with the "Stop these" control, which is the message the report's prompt row names. A photo album cannot carry a
-  * keyboard, so the text message does (VISUALS section 6.6).
+/** A due report as the outbox sends it: its pages first, one photo or one album of every page (VISUALS section 6.6),
+  * then `main`, the text with the "Stop these" control, which is the message the report's prompt row names. A photo
+  * album cannot carry a keyboard, so the text message does.
   */
 final case class ComposedReport(images: List[OutboundMessage], main: OutboundMessage)
 
@@ -216,16 +216,30 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       key: String,
       silent: Boolean
   ): ComposedReport =
-    val photos = images.zipWithIndex.map { (image, index) =>
-      val photoKey = ReportComposer.imageKey(key, index)
-      OutboundMessage(
-        body = List(Node.Paragraph(List(Inline.Text(image.altText)))),
-        attachment = Some(image),
-        silent = silent,
-        dedupeKey = photoKey,
-        correlationId = key
-      )
-    }
+    // Pages of one report go as one album, each page captioned with its text equivalent (VISUALS section 6.6); a
+    // single page is a photo with its caption.
+    val photos = images match
+      case Nil          => Nil
+      case List(single) =>
+        List(
+          OutboundMessage(
+            body = List(Node.Paragraph(List(Inline.Text(single.altText)))),
+            attachment = Some(single),
+            silent = silent,
+            dedupeKey = ReportComposer.imageKey(key, 0),
+            correlationId = key
+          )
+        )
+      case pages =>
+        List(
+          OutboundMessage(
+            body = Nil,
+            album = pages.take(OutboundMessage.MaxAlbum),
+            silent = silent,
+            dedupeKey = ReportComposer.imageKey(key, 0),
+            correlationId = key
+          )
+        )
     val entry = ActionRegistry
       .byName(ReportComposer.StopAction)
       .getOrElse(throw IllegalStateException(s"action '${ReportComposer.StopAction}' is missing"))

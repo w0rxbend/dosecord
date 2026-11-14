@@ -279,6 +279,7 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
     part match
       case OutgoingPart.Text(html)                 => sendText(envelope, html)
       case OutgoingPart.Media(attachment, caption) => sendMedia(envelope, attachment, caption)
+      case OutgoingPart.Album(pictures)            => sendAlbum(envelope, pictures)
 
   private def sendText(envelope: Envelope, html: String): MessageRef =
     gate.beforeMessageCall(envelope.chatId)
@@ -331,6 +332,60 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
 
   private def mediaRef(sent: SentMessage): MessageRef = MessageRef(sent.messageId, carriesMedia = true)
 
+  /** One `sendMediaGroup` (VISUALS section 6.6), each photo captioned with its text equivalent. Cached `file_id`s are
+    * used where held; a rejected one forgets the album's cached ids and the album is sent once more from its bytes
+    * (TG-36). When a page's bytes are gone, the text equivalents are sent instead, so nothing the album said is lost.
+    * The handle names the first photo: an album has no keyboard, so no tap comes from it.
+    */
+  private def sendAlbum(envelope: Envelope, pictures: List[AttachmentRef]): MessageRef =
+    val cached = pictures.map(picture => runtime.fileIds.get(picture.assetKey, picture.kind))
+    val viaCache =
+      if cached.forall(_.isDefined) then Some(tryAlbum(envelope, pictures, cached.flatten.map(MediaPayload.Cached(_))))
+      else None
+    viaCache match
+      case Some(Right(sent))                  => mediaRef(sent)
+      case Some(Left(TelegramError.BadMedia)) =>
+        pictures.foreach(picture => runtime.fileIds.remove(picture.assetKey, picture.kind))
+        uploadAlbum(envelope, pictures, Nil)
+      case Some(Left(error)) => failed(error, envelope.chatId, "send")
+      case None              => uploadAlbum(envelope, pictures, cached)
+
+  /** Uploads every page whose `file_id` is not in `cached` (empty: none is). */
+  private def uploadAlbum(envelope: Envelope, pictures: List[AttachmentRef], cached: List[Option[String]]): MessageRef =
+    val fileIds = if cached.isEmpty then pictures.map(_ => None) else cached
+    val payloads = pictures
+      .zip(fileIds)
+      .map: (picture, fileId) =>
+        fileId
+          .map(MediaPayload.Cached(_))
+          .orElse:
+            runtime.media.load(picture.assetKey).map(MediaPayload.Upload(fileNameOf(picture), picture.mimeType, _))
+    if payloads.exists(_.isEmpty) then
+      runtime.log(s"telegram asset unavailable: sent the album's text equivalents (photos=${pictures.size})")
+      sendText(envelope, pictures.map(textEquivalent(_, None)).mkString("\n\n"))
+    else mediaRef(sentOrThrow(tryAlbum(envelope, pictures, payloads.flatten), envelope.chatId, "send"))
+
+  /** One call; on success each photo's `file_id` is kept for the next send of the same page. */
+  private def tryAlbum(
+      envelope: Envelope,
+      pictures: List[AttachmentRef],
+      payloads: List[MediaPayload]
+  ): Either[TelegramError, SentMessage] =
+    // Every photo of a group is a message against the chat's limits.
+    pictures.foreach(_ => gate.beforeMessageCall(envelope.chatId))
+    val photos = pictures
+      .zip(payloads)
+      .map: (picture, payload) =>
+        val caption = VendorMarkup.render(plain(picture.altText), capabilities.markup)
+        AlbumPhoto(payload, Some(caption), picture.hasSpoiler)
+    api
+      .sendMediaGroup(envelope.chatId, photos, envelope.delivery)
+      .flatMap: sent =>
+        pictures
+          .zip(sent)
+          .foreach((picture, message) => message.fileId.foreach(runtime.fileIds.put(picture.assetKey, picture.kind, _)))
+        sent.headOption.toRight(TelegramError.Unavailable)
+
   private def textEquivalent(attachment: AttachmentRef, caption: Option[String]): String =
     val label = attachment.kind match
       case MediaKind.Photo    => "image"
@@ -344,7 +399,7 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
     */
   override def edit(handle: MessageHandle, rendered: RenderedMessage): MessageHandle =
     // ADR-015: a message with an attachment is always a new message.
-    if rendered.attachment.isDefined then throw ChatError.Unsupported("editMedia")
+    if rendered.attachment.isDefined || rendered.album.nonEmpty then throw ChatError.Unsupported("editMedia")
     val chatId = chatIdOf(handle.chatId)
     val ref = messageRefOf(handle)
     val keyboard = keyboards.inline(rendered.controls)
@@ -472,12 +527,14 @@ object TelegramAdapter:
   private enum OutgoingPart:
     case Text(html: String)
     case Media(attachment: AttachmentRef, caption: Option[String])
+    case Album(pictures: List[AttachmentRef])
 
   private object OutgoingPart:
     /** TG-39: a first chunk that fits a caption is the caption; a longer one follows the image as text. */
     def of(rendered: RenderedMessage): List[OutgoingPart] =
       (rendered.attachment, rendered.chunks) match
-        case (None, chunks)                                                       => chunks.map(Text(_))
+        case (None, chunks) if rendered.album.nonEmpty => Album(rendered.album) :: chunks.map(Text(_))
+        case (None, chunks)                            => chunks.map(Text(_))
         case (Some(attachment), first :: rest) if first.length <= MaxCaptionChars =>
           Media(attachment, Some(first)) :: rest.map(Text(_))
         case (Some(attachment), chunks) => Media(attachment, None) :: chunks.map(Text(_))

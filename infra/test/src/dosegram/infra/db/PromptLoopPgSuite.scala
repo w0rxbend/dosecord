@@ -32,8 +32,11 @@ import dosegram.core.domain.reminders.TimeRef
 import dosegram.core.domain.reminders.PromptStatus
 import dosegram.core.domain.reminders.SuppressReason
 import dosegram.core.ports.CardDrawing
+import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.PromptOccurrence
 import dosegram.core.ports.StatusCards
 import dosegram.core.scheduling.CatalogueOutboxRenderer
@@ -71,7 +74,9 @@ class PromptLoopPgSuite extends PgSuite:
   private final class Rig(
       start: Instant = kyiv("09:00"),
       preset: PromptPreset = PromptPresets.WaterWorkHours,
-      consent: ConsentPurpose = ConsentPurpose.Hydration
+      consent: ConsentPurpose = ConsentPurpose.Hydration,
+      cards: StatusCards = StatusCards.textOnly,
+      drawing: CardDrawing = CardDrawing.unavailable
   ):
     val clock = MutableClock(start)
     // One rig at a time: the plans and queued rows of the earlier tests stay out of this one's loop and wire.
@@ -89,7 +94,7 @@ class PromptLoopPgSuite extends PgSuite:
     val errors = scala.collection.mutable.ListBuffer.empty[Throwable]
 
     def loop(): PromptLoop =
-      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), StatusCards.textOnly, CardDrawing.unavailable, codec)
+      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), cards, drawing, codec)
       PromptLoop(uow, clock, ids, PromptMessages(codec), hydration, settings, reports, (_, e) => errors += e)
 
     val dispatcher = OutboxDispatcher(
@@ -469,6 +474,29 @@ class PromptLoopPgSuite extends PgSuite:
     assert(message.toString.contains("Your month"), message)
     assert(message.toString.contains("November 2026"), message)
     assert(message.toString.contains("14 days with records"), message)
+
+  test("a monthly report of three pages goes as one album, each page captioned, then its text with Stop these (6.6)"):
+    val pages = StatusCards.textOnly
+    val threePages = new StatusCards:
+      export pages.{mood, water, day, sleep, food}
+      override def month(view: MonthCardView, look: CardLook): List[CardPage] =
+        (1 to 3).toList.map(page => CardPage(s"card.month.p$page", "<svg/>", s"Page $page of the month.", "month.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val first = Instant.parse("2026-12-01T09:00:00+02:00")
+    val rig = Rig(start = first, preset = PromptPresets.MonthlyReport, cards = threePages, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    (1 to 14).foreach { day =>
+      rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
+      rig.drink(500, s"album-$day")
+    }
+    rig.clock.at = Instant.parse("2026-12-01T10:00:05+02:00")
+    rig.tickAndSend()
+    val List((_, album), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(album.album.map(_.altText), List("Page 1 of the month.", "Page 2 of the month.", "Page 3 of the month."))
+    assertEquals((album.attachment, album.controls, album.chunks), (None, Nil, Nil))
+    assert(text.toString.contains("Your month"), text)
+    assertEquals(rig.labels(text), List("Stop these"))
 
   test("a monthly report of a month short of the gate sends nothing"):
     val first = Instant.parse("2027-01-01T09:00:00+02:00")

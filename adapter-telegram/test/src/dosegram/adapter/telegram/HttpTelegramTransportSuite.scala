@@ -83,6 +83,22 @@ class HttpTelegramTransportSuite extends munit.FunSuite:
           "\r\n--test-boundary--\r\n"
       assertEquals(body, expected)
 
+  test("an album upload is one multipart body with a part per file, after the parameters"):
+    withServer(200, """{"ok":true,"result":[]}"""): (transport, seen) =>
+      val first = WireFile("photo0", "a.png", "image/png", Array[Byte](1))
+      val second = WireFile("photo1", "b.png", "image/png", Array[Byte](2))
+      val album = WireRequest("sendMediaGroup", ujson.Obj("chat_id" -> 7001), None, Duration.ofSeconds(5), List(first, second))
+      transport.call(album)
+      val body = String(seen.get().body, ISO_8859_1)
+      val expected =
+        "--test-boundary\r\nContent-Disposition: form-data; name=\"chat_id\"\r\n\r\n7001\r\n" +
+          "--test-boundary\r\nContent-Disposition: form-data; name=\"photo0\"; filename=\"a.png\"\r\n" +
+          "Content-Type: image/png\r\n\r\n" + String(Array[Byte](1), ISO_8859_1) + "\r\n" +
+          "--test-boundary\r\nContent-Disposition: form-data; name=\"photo1\"; filename=\"b.png\"\r\n" +
+          "Content-Type: image/png\r\n\r\n" + String(Array[Byte](2), ISO_8859_1) +
+          "\r\n--test-boundary--\r\n"
+      assertEquals(body, expected)
+
   test("a reply slower than the call's timeout is a Timeout failure"):
     withServer(200, "{}", delay = Duration.ofMillis(600)): (transport, _) =>
       assertEquals(

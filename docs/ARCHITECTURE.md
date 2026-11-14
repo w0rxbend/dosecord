@@ -478,6 +478,7 @@ A `file_id` is persistent, bound to one bot, and cannot change media type; resen
 | TG-39 | When a caption would exceed 1,024 characters, the caption is one short line and the text equivalent follows as a text message. |
 | TG-40 | `sendChatAction(upload_photo)` `V[S3]` is sent when a render is expected to take longer than 500 ms. |
 | TG-41 | User media is fetched by the backend with `getFile` (20 MB limit `V[S3]`); the Telegram file URL contains the bot token and never reaches the Mini App or a log line. |
+| TG-42 | An album (the monthly report's pages, VISUALS section 6.6) is one `sendMediaGroup` of 2 to 10 photos, each captioned with its text equivalent and with no keyboard. Uploads go as multipart parts named by `attach://` references beside the cached `file_id`s; each returned photo's `file_id` is stored as in TG-35. A rejected cached `file_id` forgets the album's rows and the album is uploaded once (TG-36); a page whose bytes are gone sends the pages' text equivalents instead (supervisor decision, 2026-11-14). |
 
 How Telegram recompresses uploaded PNG photos is `A` (spike S4 of brief 04). The canvas rules in section 12.4 assume a long side of at most 1,280 px.
 

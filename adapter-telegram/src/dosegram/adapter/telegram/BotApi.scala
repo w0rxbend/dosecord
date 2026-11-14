@@ -43,6 +43,9 @@ final case class OutgoingMedia(
     hasSpoiler: Boolean = false
 )
 
+/** One photo of an album: its media, its caption (the first non-empty caption is the album's) and its spoiler. */
+final case class AlbumPhoto(payload: MediaPayload, captionHtml: Option[String], hasSpoiler: Boolean = false)
+
 enum MenuButton:
   case Commands
   case WebApp(text: String, url: String)
@@ -106,6 +109,37 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
       case MediaPayload.Upload(fileName, mimeType, bytes) => Some(WireFile(fieldName, fileName, mimeType, bytes))
     send(WireRequest(method, params, file, if file.isDefined then UploadTimeout else callTimeout))
       .flatMap(decoded(TelegramModels.decodeSent))
+
+  /** `sendMediaGroup`: 2 to 10 photos as one album, in one call. Uploads go as multipart parts named by `attach://`
+    * references, cached `file_id`s in place; the answer is one message per photo, in order. A group carries no
+    * keyboard.
+    */
+  def sendMediaGroup(
+      chatId: Long,
+      photos: List[AlbumPhoto],
+      delivery: Delivery
+  ): Either[TelegramError, List[SentMessage]] =
+    val files = List.newBuilder[WireFile]
+    val media = photos.zipWithIndex.map: (photo, index) =>
+      val item = ujson.Obj("type" -> "photo")
+      photo.payload match
+        case MediaPayload.Cached(fileId)                    => item("media") = fileId
+        case MediaPayload.Upload(fileName, mimeType, bytes) =>
+          val field = s"photo$index"
+          files += WireFile(field, fileName, mimeType, bytes)
+          item("media") = s"attach://$field"
+      photo.captionHtml.foreach: caption =>
+        item("caption") = caption
+        item("parse_mode") = ParseMode
+      if photo.hasSpoiler then item("has_spoiler") = true
+      item
+    val params = ujson.Obj("chat_id" -> chatId.toDouble, "media" -> ujson.Arr.from(media))
+    applyDelivery(params, delivery)
+    val uploads = files.result()
+    send(WireRequest("sendMediaGroup", params, None, if uploads.isEmpty then callTimeout else UploadTimeout, uploads))
+      .flatMap(result =>
+        result.arrOpt.map(_.toList.flatMap(TelegramModels.decodeSent)).toRight(TelegramError.Unavailable)
+      )
 
   def editMessageText(target: MessageTarget, html: String, keyboard: InlineKeyboard): Either[TelegramError, Unit] =
     val params = targetParams(target)
