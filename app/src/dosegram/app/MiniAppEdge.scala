@@ -89,7 +89,7 @@ object MiniAppEdge:
       verifier(settings, miniApp),
       PgSessionStore(PgMiniAppSessions(dataSource)),
       PgIdempotencyStore(PgIdempotencyKeys(dataSource), parts.clock),
-      TrackingUseCases(tracking.stats, tracking.hydration, tracking.mood, tracking.sleep),
+      TrackingUseCases(tracking.stats, tracking.hydration, tracking.mood, tracking.sleep, tracking.nutrition),
       MoodBlobAsset.states,
       log
     )

@@ -36,7 +36,7 @@ describe('Router.start', () => {
   });
 
   it('opens Today with the notice for a route query parameter that names no screen', () => {
-    const router = startAt('/app/?route=food');
+    const router = startAt('/app/?route=photos');
     expect(router.route).toEqual({ screen: 'today' });
     expect(router.unmatched).toBe(true);
     expect(window.location.search).toBe('');

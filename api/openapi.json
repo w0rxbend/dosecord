@@ -3179,6 +3179,474 @@
           }
         ]
       }
+    },
+    "/api/v1/meals" : {
+      "get" : {
+        "operationId" : "listMeals",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "description" : "First local day; with `to`, at most 366 days",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "description" : "Last local day",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Meals"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "post" : {
+        "description" : "A meal; with `supersedes`, a change of a recorded meal, which the new one replaces.",
+        "operationId" : "createMeal",
+        "parameters" : [
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID per user action; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MealEntryInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MealRecordedView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/meals/recent" : {
+      "get" : {
+        "operationId" : "listRecentMeals",
+        "parameters" : [
+          {
+            "name" : "mealType",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "$ref" : "#/components/schemas/MealKind"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MealRecent"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/meals/{id}" : {
+      "get" : {
+        "operationId" : "getMeal",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MealView"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "delete" : {
+        "description" : "Voids the meal and answers with its day; a second delete answers the same.",
+        "operationId" : "deleteMeal",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NutritionDay"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/nutrition/summary" : {
+      "get" : {
+        "operationId" : "getNutritionSummary",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "description" : "First local day; with `to`, at most 366 days",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "description" : "Last local day",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NutritionSummary"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/nutrition/settings" : {
+      "get" : {
+        "operationId" : "getNutritionSettings",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NutritionSettings"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      },
+      "patch" : {
+        "operationId" : "updateNutritionSettings",
+        "parameters" : [
+          {
+            "name" : "If-Match",
+            "in" : "header",
+            "description" : "The ETag the edit is based on; required",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NutritionSettingsInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "headers" : {
+              "ETag" : {
+                "description" : "\"v<version>\" of the representation (API-17)",
+                "required" : true,
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NutritionSettings"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
     }
   },
   "components" : {
@@ -4224,6 +4692,139 @@
           }
         }
       },
+      "MealEntryInput" : {
+        "title" : "MealEntryInput",
+        "type" : "object",
+        "required" : [
+          "mealType"
+        ],
+        "properties" : {
+          "mealType" : {
+            "$ref" : "#/components/schemas/MealKind"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "supersedes" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "MealKind" : {
+        "title" : "MealKind",
+        "type" : "string",
+        "enum" : [
+          "breakfast",
+          "dinner",
+          "lunch",
+          "snack"
+        ]
+      },
+      "MealRecent" : {
+        "title" : "MealRecent",
+        "type" : "object",
+        "required" : [
+          "mealType"
+        ],
+        "properties" : {
+          "mealType" : {
+            "$ref" : "#/components/schemas/MealKind"
+          },
+          "descriptions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "MealRecordedView" : {
+        "title" : "MealRecordedView",
+        "type" : "object",
+        "required" : [
+          "meal",
+          "day"
+        ],
+        "properties" : {
+          "meal" : {
+            "$ref" : "#/components/schemas/MealView"
+          },
+          "day" : {
+            "$ref" : "#/components/schemas/NutritionDay"
+          }
+        }
+      },
+      "MealView" : {
+        "title" : "MealView",
+        "type" : "object",
+        "required" : [
+          "id",
+          "date",
+          "time",
+          "occurredAt",
+          "mealType",
+          "label",
+          "text"
+        ],
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "time" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "mealType" : {
+            "$ref" : "#/components/schemas/MealKind"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Meals" : {
+        "title" : "Meals",
+        "type" : "object",
+        "required" : [
+          "from",
+          "to"
+        ],
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MealView"
+            }
+          }
+        }
+      },
       "Medication" : {
         "title" : "Medication",
         "type" : "object",
@@ -4703,6 +5304,149 @@
           },
           "quietHours" : {
             "$ref" : "#/components/schemas/QuietHoursView"
+          }
+        }
+      },
+      "NutritionDay" : {
+        "title" : "NutritionDay",
+        "type" : "object",
+        "required" : [
+          "date",
+          "label",
+          "text",
+          "meals",
+          "snacks",
+          "planned",
+          "plannedLogged"
+        ],
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "meals" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "snacks" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "planned" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "plannedLogged" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "logged" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MealKind"
+            }
+          },
+          "notLogged" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MealKind"
+            }
+          }
+        }
+      },
+      "NutritionMealDays" : {
+        "title" : "NutritionMealDays",
+        "type" : "object",
+        "required" : [
+          "mealType",
+          "label",
+          "days"
+        ],
+        "properties" : {
+          "mealType" : {
+            "$ref" : "#/components/schemas/MealKind"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "days" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "NutritionSettings" : {
+        "title" : "NutritionSettings",
+        "type" : "object",
+        "required" : [
+          "version"
+        ],
+        "properties" : {
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "planned" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MealKind"
+            }
+          }
+        }
+      },
+      "NutritionSettingsInput" : {
+        "title" : "NutritionSettingsInput",
+        "type" : "object",
+        "properties" : {
+          "planned" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MealKind"
+            }
+          }
+        }
+      },
+      "NutritionSummary" : {
+        "title" : "NutritionSummary",
+        "type" : "object",
+        "required" : [
+          "from",
+          "to",
+          "today",
+          "text"
+        ],
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "today" : {
+            "$ref" : "#/components/schemas/NutritionDay"
+          },
+          "days" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NutritionDay"
+            }
+          },
+          "perMeal" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NutritionMealDays"
+            }
+          },
+          "text" : {
+            "type" : "string"
           }
         }
       },

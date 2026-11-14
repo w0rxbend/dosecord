@@ -62,7 +62,15 @@ final class OpenApiSuite extends munit.FunSuite:
     "POST /api/v1/reminders/pause",
     "GET /api/v1/reminders/day",
     "PATCH /api/v1/reminders/day",
-    "GET /api/v1/reminders/timeline"
+    "GET /api/v1/reminders/timeline",
+    "GET /api/v1/meals",
+    "POST /api/v1/meals",
+    "GET /api/v1/meals/recent",
+    "GET /api/v1/meals/{id}",
+    "DELETE /api/v1/meals/{id}",
+    "GET /api/v1/nutrition/summary",
+    "GET /api/v1/nutrition/settings",
+    "PATCH /api/v1/nutrition/settings"
   )
 
   private val document = ujson.read(OpenApiDocument.json)

@@ -21,6 +21,7 @@ import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodRemoved
 import dosegram.core.application.mood.MoodService
 import dosegram.core.application.mood.SetEnergy
+import dosegram.core.application.nutrition.NutritionService
 import dosegram.core.application.sleep.EnterSleep
 import dosegram.core.application.sleep.SleepRecorded
 import dosegram.core.application.sleep.SleepRefusal
@@ -51,6 +52,7 @@ final class TransactionalTracking(val uow: UnitOfWork, clock: Clock, ids: IdSour
   val moodService: MoodService = MoodService(clock, ids)
   val statsService: StatsQueryService = StatsQueryService(rollups, clock)
   val sleepService: SleepService = SleepService(clock, ids)
+  val nutritionService: NutritionService = NutritionService(clock, ids)
 
   object water:
     def log(command: LogWater): Either[HydrationRefusal, WaterLogged] =

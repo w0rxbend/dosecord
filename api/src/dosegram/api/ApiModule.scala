@@ -55,6 +55,7 @@ final class ApiModule(
   private val hydration = Hydration(uow, tracking)
   private val mood = Mood(uow, tracking, blobStates)
   private val sleep = Sleep(uow, tracking, clock)
+  private val nutrition = Nutrition(uow, tracking)
   private val reminders = Reminders(uow, clock, Application.reminderSettings(clock))
   private val accountSettings = AccountSettingsApi(uow, clock)
 
@@ -409,6 +410,49 @@ final class ApiModule(
       .handle(session => date => guarded(Right(reminders.timeline(session.accountId, date))))
   )
 
+  // `GET /meals/recent` is mounted before `GET /meals/{id}`, so "recent" is never read as an id.
+  private val nutritionEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    Endpoints.listMeals
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(nutrition.meals(session.accountId, from, to))),
+    Endpoints.createMeal
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              recorded <- idempotency.once(session.accountId, parsedKey, hashOf("meals", input)):
+                nutrition.record(session.accountId, parsedKey, input)
+            yield recorded
+    ,
+    Endpoints.listRecentMeals
+      .handleSecurity(authenticate)
+      .handle(session => mealType => guarded(nutrition.recent(session.accountId, mealType))),
+    Endpoints.getMeal
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(nutrition.meal(session.accountId, id))),
+    Endpoints.deleteMeal
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(nutrition.remove(session.accountId, id))),
+    Endpoints.getNutritionSummary
+      .handleSecurity(authenticate)
+      .handle(session => (from, to) => guarded(nutrition.summary(session.accountId, from, to))),
+    Endpoints.getNutritionSettings
+      .handleSecurity(authenticate)
+      .handle(session =>
+        _ => guarded(nutrition.settings(session.accountId).map(view => (Rendering.etag(view.version), view)))
+      ),
+    Endpoints.updateNutritionSettings
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (ifMatch, input) =>
+          guarded:
+            versionOf(ifMatch)
+              .flatMap(nutrition.saveSettings(session.accountId, _, input))
+              .map(view => (Rendering.etag(view.version), view))
+  )
+
   private val calendarEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.getInsightCalendar
       .handleSecurity(authenticate)
@@ -418,7 +462,8 @@ final class ApiModule(
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
-      hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints :+
+      hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
+      nutritionEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

@@ -1,4 +1,5 @@
 import type { LocalDate, SleepEpisodeInput, SleepKind } from '../../api/types';
+import { localInstant } from '../../forms/instant';
 
 export interface NightDraft {
   readonly kind: SleepKind;
@@ -8,14 +9,6 @@ export interface NightDraft {
   readonly wakeTime: string;
 }
 
-const pad = (value: number): string => String(Math.floor(Math.abs(value))).padStart(2, '0');
-
-/** The offset this device has at a wall-clock time, as `+02:00`. */
-function offsetAt(date: LocalDate, time: string): string {
-  const minutes = -new Date(`${date}T${time}:00`).getTimezoneOffset();
-  return `${minutes < 0 ? '-' : '+'}${pad(minutes / 60)}:${pad(minutes % 60)}`;
-}
-
 /**
  * The wall-clock times as instants with the device offset. The server stores instants, so a
  * duration is the difference of instants, also on a clock-change night (MA-SLEEP-6).
@@ -23,8 +16,8 @@ function offsetAt(date: LocalDate, time: string): string {
 export function toEpisodeInput(draft: NightDraft): SleepEpisodeInput {
   return {
     kind: draft.kind,
-    onsetAt: `${draft.onsetDate}T${draft.onsetTime}:00${offsetAt(draft.onsetDate, draft.onsetTime)}`,
-    wakeAt: `${draft.wakeDate}T${draft.wakeTime}:00${offsetAt(draft.wakeDate, draft.wakeTime)}`,
+    onsetAt: localInstant(draft.onsetDate, draft.onsetTime),
+    wakeAt: localInstant(draft.wakeDate, draft.wakeTime),
   };
 }
 

@@ -708,6 +708,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMeals"];
+        put?: never;
+        /** @description A meal; with `supersedes`, a change of a recorded meal, which the new one replaces. */
+        post: operations["createMeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meals/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listRecentMeals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMeal"];
+        put?: never;
+        post?: never;
+        /** @description Voids the meal and answers with its day; a second delete answers the same. */
+        delete: operations["deleteMeal"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nutrition/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNutritionSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nutrition/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNutritionSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateNutritionSettings"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1033,6 +1115,52 @@ export interface components {
             /** Format: int32 */
             scheduleTimesMax: number;
         };
+        /** MealEntryInput */
+        MealEntryInput: {
+            mealType: components["schemas"]["MealKind"];
+            /** Format: date-time */
+            occurredAt?: string;
+            description?: string;
+            /** Format: uuid */
+            supersedes?: string;
+        };
+        /**
+         * MealKind
+         * @enum {string}
+         */
+        MealKind: "breakfast" | "dinner" | "lunch" | "snack";
+        /** MealRecent */
+        MealRecent: {
+            mealType: components["schemas"]["MealKind"];
+            descriptions?: string[];
+        };
+        /** MealRecordedView */
+        MealRecordedView: {
+            meal: components["schemas"]["MealView"];
+            day: components["schemas"]["NutritionDay"];
+        };
+        /** MealView */
+        MealView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            date: string;
+            time: string;
+            /** Format: date-time */
+            occurredAt: string;
+            mealType: components["schemas"]["MealKind"];
+            label: string;
+            text: string;
+            description?: string;
+        };
+        /** Meals */
+        Meals: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            items?: components["schemas"]["MealView"][];
+        };
         /** Medication */
         Medication: {
             /** Format: uuid */
@@ -1192,6 +1320,51 @@ export interface components {
             /** Format: int64 */
             version: number;
             quietHours?: components["schemas"]["QuietHoursView"];
+        };
+        /** NutritionDay */
+        NutritionDay: {
+            /** Format: date */
+            date: string;
+            label: string;
+            text: string;
+            /** Format: int32 */
+            meals: number;
+            /** Format: int32 */
+            snacks: number;
+            /** Format: int32 */
+            planned: number;
+            /** Format: int32 */
+            plannedLogged: number;
+            logged?: components["schemas"]["MealKind"][];
+            notLogged?: components["schemas"]["MealKind"][];
+        };
+        /** NutritionMealDays */
+        NutritionMealDays: {
+            mealType: components["schemas"]["MealKind"];
+            label: string;
+            /** Format: int32 */
+            days: number;
+        };
+        /** NutritionSettings */
+        NutritionSettings: {
+            /** Format: int64 */
+            version: number;
+            planned?: components["schemas"]["MealKind"][];
+        };
+        /** NutritionSettingsInput */
+        NutritionSettingsInput: {
+            planned?: components["schemas"]["MealKind"][];
+        };
+        /** NutritionSummary */
+        NutritionSummary: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            today: components["schemas"]["NutritionDay"];
+            days?: components["schemas"]["NutritionDay"][];
+            perMeal?: components["schemas"]["NutritionMealDays"][];
+            text: string;
         };
         /** PreviewDay */
         PreviewDay: {
@@ -3345,6 +3518,264 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReminderTimeline"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMeals: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Meals"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMeal: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID per user action; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MealEntryInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealRecordedView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRecentMeals: {
+        parameters: {
+            query: {
+                mealType: components["schemas"]["MealKind"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealRecent"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteMeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionDay"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNutritionSummary: {
+        parameters: {
+            query?: {
+                /** @description First local day; with `to`, at most 366 days */
+                from?: string;
+                /** @description Last local day */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionSummary"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNutritionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionSettings"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateNutritionSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the edit is based on; required */
+                "If-Match"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NutritionSettingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    /** @description "v<version>" of the representation (API-17) */
+                    ETag: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionSettings"];
                 };
             };
             default: {

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Domain } from '../api/types';
+  import type { TrackedDomain } from '../api/types';
   import { en } from '../i18n/en';
 
-  let { domain }: { domain: Domain } = $props();
+  let { domain }: { domain: TrackedDomain } = $props();
 </script>
 
 <!-- MINI_APP 8.2 "Consent needed": what is off and how it is turned on. Consent is given in the

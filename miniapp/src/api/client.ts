@@ -15,6 +15,9 @@ import type {
   MoodSummary,
   NotificationSettings,
   NotificationSettingsInput,
+  NutritionDay,
+  NutritionSettings,
+  NutritionSummary,
   Off,
   SleepCheckinKind,
   DayProfile,
@@ -37,6 +40,10 @@ import type {
   WaterSummary,
   InsightsOverview,
   LocalDate,
+  Meal,
+  MealInput,
+  MealKind,
+  MealRecorded,
   Medication,
   MedicationDraft,
   MedicationOptions,
@@ -119,6 +126,16 @@ export interface ApiClient {
   sleepCheckIn(kind: SleepCheckinKind, idempotencyKey: string): Promise<SleepStatus>;
   sleepSettings(): Promise<SleepSettings>;
   saveSleepSettings(goalMinutes: number | undefined, version: number): Promise<SleepSettings>;
+
+  // food (MINI_APP 7.8): a write carries the key made when the person acted; an edit names the meal it replaces.
+  /** The week ending on `to`; without a range, the last seven days ending today in the account zone. */
+  nutritionSummary(from?: LocalDate, to?: LocalDate): Promise<NutritionSummary>;
+  meals(from: LocalDate, to: LocalDate): Promise<readonly Meal[]>;
+  addMeal(input: MealInput, idempotencyKey: string): Promise<MealRecorded>;
+  removeMeal(id: string): Promise<NutritionDay>;
+  recentMeals(mealType: MealKind): Promise<readonly string[]>;
+  nutritionSettings(): Promise<NutritionSettings>;
+  saveNutritionSettings(planned: readonly MealKind[], version: number): Promise<NutritionSettings>;
 
   // reminders (ADR-023): a write carries the key made when the person acted.
   reminders(): Promise<Reminders>;

@@ -13,9 +13,14 @@ import type {
   InsightCalendar,
   InsightRange,
   InsightsOverview,
+  Meal,
+  MealRecorded,
   MoodScale,
   MoodSummary,
   NotificationSettings,
+  NutritionDay,
+  NutritionSettings,
+  NutritionSummary,
   SceneNode,
   SleepStatus,
   SleepSummary,
@@ -349,6 +354,33 @@ export function toSleepSummary(wire: Wire['SleepSummary']): SleepSummary {
     chart: wire.chart && toChart(wire.chart),
     noDataText: wire.noDataText,
   };
+}
+
+// ---------- food ----------
+
+export function toMeal(wire: Wire['MealView']): Meal {
+  return { ...wire };
+}
+
+export function toNutritionDay(wire: Wire['NutritionDay']): NutritionDay {
+  return { ...wire, logged: wire.logged ?? [], notLogged: wire.notLogged ?? [] };
+}
+
+export function toMealRecorded(wire: Wire['MealRecordedView']): MealRecorded {
+  return { meal: toMeal(wire.meal), day: toNutritionDay(wire.day) };
+}
+
+export function toNutritionSummary(wire: Wire['NutritionSummary']): NutritionSummary {
+  return {
+    today: toNutritionDay(wire.today),
+    days: (wire.days ?? []).map(toNutritionDay),
+    perMeal: wire.perMeal ?? [],
+    text: wire.text,
+  };
+}
+
+export function toNutritionSettings(wire: Wire['NutritionSettings']): NutritionSettings {
+  return { planned: wire.planned ?? [], version: wire.version };
 }
 
 // ---------- calendar ----------

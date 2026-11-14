@@ -130,6 +130,25 @@ export class MockBackend implements ApiClient {
       return result;
     });
 
+  nutritionSummary: ApiClient['nutritionSummary'] = (from, to) =>
+    this.respond('nutrition/summary', () => this.tracking.food.summary(from, to));
+
+  meals: ApiClient['meals'] = (from, to) => this.respond('meals', () => this.tracking.food.mealsIn(from, to));
+
+  addMeal: ApiClient['addMeal'] = (input, key) =>
+    this.respond('meals:create', () => this.once(key, () => this.tracking.food.add(input)));
+
+  removeMeal: ApiClient['removeMeal'] = (id) => this.respond('meals/{id}:delete', () => this.tracking.food.remove(id));
+
+  recentMeals: ApiClient['recentMeals'] = (mealType) =>
+    this.respond('meals/recent', () => this.tracking.food.recent(mealType));
+
+  nutritionSettings: ApiClient['nutritionSettings'] = () =>
+    this.respond('nutrition/settings', () => this.tracking.food.settings());
+
+  saveNutritionSettings: ApiClient['saveNutritionSettings'] = (planned, version) =>
+    this.respond('nutrition/settings:update', () => this.tracking.food.saveSettings(planned, version));
+
   sleepSummary: ApiClient['sleepSummary'] = () => this.respond('sleep/summary', () => this.tracking.sleep.summary());
 
   sleepEpisodes: ApiClient['sleepEpisodes'] = (from, to) =>

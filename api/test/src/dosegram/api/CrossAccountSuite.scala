@@ -55,8 +55,20 @@ final class CrossAccountSuite extends ApiSuite:
   /** An account with every consent of the routes under test, so a refusal can only come from the identifier. */
   private def trackingAccount(): ApiSuite.TelegramAccount =
     val account = telegramAccount()
-    fixtures.grant(account.accountId, ConsentPurpose.Hydration, ConsentPurpose.Mood, ConsentPurpose.Sleep)
+    fixtures.grant(
+      account.accountId,
+      ConsentPurpose.Hydration,
+      ConsentPurpose.Mood,
+      ConsentPurpose.Sleep,
+      ConsentPurpose.Nutrition
+    )
     account
+
+  /** A meal of account A, with words that must not reach account B. */
+  private lazy val mealId: String =
+    val meal = post("/api/v1/meals", ujson.Obj("mealType" -> "lunch", "description" -> "Private"), world.ownerToken, newKey())
+    assertEquals(meal.status, 201, meal.body)
+    meal.json("meal")("id").str
 
   private def ownerView(): (ujson.Value, ujson.Value, ujson.Value, ujson.Value, ujson.Value) =
     (
@@ -89,11 +101,16 @@ final class CrossAccountSuite extends ApiSuite:
     ),
     "deleteHydrationEntry" -> (w => delete(s"/api/v1/hydration/entries/${w.waterId}", w.strangerToken)),
     "deleteMoodCheckin" -> (w => delete(s"/api/v1/mood/checkins/${w.checkinId}", w.strangerToken)),
-    "deleteSleepEpisode" -> (w => delete(s"/api/v1/sleep/episodes/${w.nightId}", w.strangerToken))
+    "deleteSleepEpisode" -> (w => delete(s"/api/v1/sleep/episodes/${w.nightId}", w.strangerToken)),
+    "getMeal" -> (w => get(s"/api/v1/meals/$mealId", w.strangerToken)),
+    "deleteMeal" -> (w => delete(s"/api/v1/meals/$mealId", w.strangerToken))
   )
 
   cases.foreach: (route, request) =>
     test(s"$route: an identifier of another account answers 404 not_found and changes nothing"):
+      // Each case starts a fresh minute of the read budget (API-18): the number of cases must not decide which one
+      // is answered 429.
+      clock.at = clock.now().plusSeconds(61)
       val before = ownerView()
       val reply = request(world)
       assertProblem(reply, 404, "not_found")

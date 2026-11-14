@@ -36,6 +36,7 @@
   const mood = () => import('../screens/mood/MoodScreen.svelte');
   const moodNew = () => import('../screens/mood/MoodCheckInScreen.svelte');
   const sleep = () => import('../screens/sleep/SleepScreen.svelte');
+  const food = () => import('../screens/food/FoodScreen.svelte');
   const reminders = () => import('../screens/reminders/RemindersScreen.svelte');
   const history = () => import('../screens/history/HistoryScreen.svelte');
   const settings = () => import('../screens/settings/SettingsScreen.svelte');
@@ -79,6 +80,8 @@
         <Lazy load={moodNew} props={{}} />
       {:else if route.screen === 'sleep'}
         <Lazy load={sleep} props={{}} />
+      {:else if route.screen === 'food'}
+        <Lazy load={food} props={{}} />
       {:else if route.screen === 'history'}
         <Lazy load={history} props={{}} />
       {:else if route.screen === 'day'}

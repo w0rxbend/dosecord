@@ -1,5 +1,9 @@
 package dosegram.core.domain.copy
 
+import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.MealPeriod
+import dosegram.core.domain.insights.RegularMealDay
+import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.nutrition.MealType
 
 /** The meal copy of the chat (BOT_UX sections 11.3 and 22.2). It states what the user recorded and nothing else: no
@@ -39,6 +43,23 @@ object FoodCopy:
         .map((mealType, time) => s"${label(mealType).toLowerCase(java.util.Locale.ROOT)} $time")
         .mkString("Today: ", ", ", ".")
 
+  val notLogged = "Not logged"
+
+  private def count(n: Int, noun: String): String = if n == 1 then s"1 $noun" else s"$n ${noun}s"
+
+  /** The regular-meal view of a day (R-NUT-3): planned meals as "2 of 3 planned meals", without a plan a count only. */
+  def day(view: RegularMealDay): String =
+    val main = view.logged.size
+    val meals =
+      if view.plan.planned.isEmpty then if main == 0 then "No meal logged" else s"${count(main, "meal")} logged"
+      else s"${view.plannedLogged} of ${count(view.plan.planned.size, "planned meal")} logged"
+    if view.snacks == 0 then meals else s"$meals, ${count(view.snacks, "snack")}"
+
+  /** Per main meal, the days it was logged on (MINI_APP MA-FOOD-4): counts, no percentages. */
+  def week(period: MealPeriod): String =
+    val parts = MealType.main.map(meal => s"${label(meal)} ${period.daysPerMeal.getOrElse(meal, 0)}")
+    s"${parts.mkString(", ")} of ${count(period.window.days, "day")}"
+
   val entries: List[CopyEntry] =
     List(
       CopyEntry("food.which", which),
@@ -53,6 +74,25 @@ object FoodCopy:
       CopyEntry("food.none_today", noneToday),
       CopyEntry("food.today", today(List(MealType.Breakfast -> "08:10", MealType.Lunch -> "13:05"))),
       CopyEntry("food.too_long", tooLong(300)),
-      CopyEntry("food.edit_in_app", EditInApp)
+      CopyEntry("food.edit_in_app", EditInApp),
+      CopyEntry("food.not_logged", notLogged),
+      CopyEntry("food.day", day(Samples.day(MealPlan.Default))),
+      CopyEntry("food.day.no_plan", day(Samples.day(MealPlan(Set.empty)))),
+      CopyEntry("food.week", week(Samples.week))
     ) ++ MealType.values.toList.map(mealType => CopyEntry(s"food.button.${mealType.dbValue}", label(mealType)))
+
+  /** Sample figures for the catalogue entries of the parameterised lines. */
+  private object Samples:
+    private val date = java.time.LocalDate.parse("2026-11-12")
+
+    def day(plan: MealPlan): RegularMealDay =
+      RegularMealDay(date, plan, Set(MealType.Breakfast, MealType.Dinner), snacks = 1)
+
+    val week: MealPeriod =
+      MealPeriod(
+        DateRange.endingOn(date, 7),
+        meals = 19,
+        daysWithMeals = 7,
+        daysPerMeal = Map(MealType.Breakfast -> 6, MealType.Lunch -> 5, MealType.Dinner -> 7)
+      )
 end FoodCopy

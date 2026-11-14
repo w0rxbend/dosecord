@@ -111,6 +111,17 @@ object ConsentApiSuite:
       "updateNotificationSettings",
       "getInsightCalendar"
     ) ++
+      // The meal routes check the nutrition consent (NutritionApiSuite).
+      Set(
+        "listMeals",
+        "createMeal",
+        "listRecentMeals",
+        "getMeal",
+        "deleteMeal",
+        "getNutritionSummary",
+        "getNutritionSettings",
+        "updateNutritionSettings"
+      ) ++
       // The reminders routes check the consent of the plan's own domain, and the timeline shows doses only with the
       // medication consent (ReminderApiSuite).
       Set(

@@ -74,7 +74,13 @@ trait ApiSuite extends PgSuite:
     TelegramInitDataVerifier(ed25519 = None, hmacSecret = Some(InitDataHmac.secretKeyFor(BotToken))),
     sessionStore,
     InMemoryIdempotencyStore(),
-    TrackingUseCases(tracking.statsService, tracking.hydrationService, tracking.moodService, tracking.sleepService),
+    TrackingUseCases(
+      tracking.statsService,
+      tracking.hydrationService,
+      tracking.moodService,
+      tracking.sleepService,
+      tracking.nutritionService
+    ),
     ApiSuite.BlobStates,
     line => logged.synchronized { logged += line; () }
   )

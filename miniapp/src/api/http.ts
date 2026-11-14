@@ -8,9 +8,14 @@ import {
   toConsents,
   toFieldError,
   toInsightsOverview,
+  toMeal,
+  toMealRecorded,
   toMoodScale,
   toMoodSummary,
   toNotificationSettings,
+  toNutritionDay,
+  toNutritionSettings,
+  toNutritionSummary,
   toWaterSettings,
   toSleepStatus,
   toDayProfile,
@@ -211,6 +216,33 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
     saveSleepSettings: (goalMinutes, version) => {
       const body: Wire['SleepSettingsInput'] = { goalMinutes };
       return request<Wire['SleepSettings']>('sleep/settings', { method: 'PATCH', body, headers: versionTag(version) });
+    },
+
+    nutritionSummary: async (from, to) => {
+      const query = from !== undefined && to !== undefined ? `?${range(from, to)}` : '';
+      return toNutritionSummary(await request<Wire['NutritionSummary']>(`nutrition/summary${query}`));
+    },
+    meals: async (from, to) => ((await request<Wire['Meals']>(`meals?${range(from, to)}`)).items ?? []).map(toMeal),
+    addMeal: async (input, key) => {
+      const body: Wire['MealEntryInput'] = { ...input };
+      return toMealRecorded(
+        await request<Wire['MealRecordedView']>('meals', { method: 'POST', body, headers: command(key) }),
+      );
+    },
+    removeMeal: async (mealId) =>
+      toNutritionDay(await request<Wire['NutritionDay']>(`meals/${id(mealId)}`, { method: 'DELETE' })),
+    recentMeals: async (mealType) =>
+      (await request<Wire['MealRecent']>(`meals/recent?mealType=${id(mealType)}`)).descriptions ?? [],
+    nutritionSettings: async () => toNutritionSettings(await request<Wire['NutritionSettings']>('nutrition/settings')),
+    saveNutritionSettings: async (planned, version) => {
+      const body: Wire['NutritionSettingsInput'] = { planned: [...planned] };
+      return toNutritionSettings(
+        await request<Wire['NutritionSettings']>('nutrition/settings', {
+          method: 'PATCH',
+          body,
+          headers: versionTag(version),
+        }),
+      );
     },
 
     reminders: async () => toReminders(await request<Wire['RemindersView']>('reminders')),
