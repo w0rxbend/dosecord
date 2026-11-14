@@ -117,7 +117,8 @@ object ApiCopy:
   /** `Thu`: a day of the mood strip. */
   def weekday(date: LocalDate): String = date.format(Weekday3)
 
-  def monthLabel(month: YearMonth): String = month.format(MonthYear)
+  /** `November 2026`, `Листопад 2026`: a heading, so the Ukrainian standalone month starts with a capital. */
+  def monthLabel(month: YearMonth): String = month.format(MonthYear).capitalize
   def monthName(month: YearMonth): String = month.format(MonthOnly)
 
   /** The daily mean with the name of its level: `3.5 (slightly pleasant)`. No surface shows a bare mood number. */

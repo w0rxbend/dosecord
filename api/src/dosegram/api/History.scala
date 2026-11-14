@@ -119,9 +119,10 @@ object History:
           case Some((swatch, words, value)) => CalendarDay(date, swatch, s"$prefix, $words", Some(value))
           case None                         => CalendarDay(date, Empty, s"$prefix, $emptyWords")
 
+  /** The start of a summary sentence, so the Ukrainian month, lower case on its own, takes a capital. */
   private def period(month: YearMonth, isCurrent: Boolean): String =
-    if isCurrent then tr(s"${ApiCopy.monthName(month)} so far", s"${ApiCopy.monthName(month)} на цю мить")
-    else ApiCopy.monthName(month)
+    val name = ApiCopy.monthName(month).capitalize
+    if isCurrent then tr(s"$name so far", s"$name на цю мить") else name
 
   private final case class MedicationCells(days: Map[LocalDate, MedicationDay]) extends Cells:
     val steps = 3

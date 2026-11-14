@@ -221,6 +221,17 @@ final class TrackingApiSuite extends ApiSuite:
     assertProblem(get("/api/v1/insights/calendar?domain=hydration&month=soon", token), 422, "validation_failed")
     assertProblem(get("/api/v1/insights/calendar?domain=food", token), 400, "validation_failed")
 
+  test("a Ukrainian calendar names its month with a capital, as the heading and at the start of the summary (G2.22)"):
+    val (_, token) = tracker(ConsentPurpose.Hydration)
+    drink(token, 500)
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val calendar = get("/api/v1/insights/calendar?domain=hydration", token)
+    assertEquals(calendar.status, 200, calendar.body)
+    assertEquals(calendar.json("monthLabel").str, "Листопад 2026")
+    assert(calendar.json("summary").str.startsWith("Листопад на цю мить: "), calendar.json("summary").str)
+
   test("the mood calendar steps by the rounded daily mean with the colour of its drawn state"):
     val (_, token) = tracker(ConsentPurpose.Mood)
     feel(token, 4)
