@@ -11,6 +11,8 @@ import type {
   Chart,
   Consents,
   InsightCalendar,
+  InsightList,
+  InsightMonth,
   InsightRange,
   InsightsOverview,
   MoodScale,
@@ -238,6 +240,38 @@ export function toInsightsOverview(wire: Wire['InsightsOverview'], asked: Insigh
       charts: (block.charts ?? []).map(toChart),
       vessel: block.vessel,
     })),
+    notice: wire.notice,
+  };
+}
+
+export function toInsightMonth(wire: Wire['InsightMonth']): InsightMonth {
+  return {
+    month: wire.month,
+    monthLabel: wire.monthLabel,
+    previousMonth: wire.previousMonth,
+    nextMonth: wire.nextMonth,
+    reportable: wire.reportable,
+    daysWithRecords: wire.daysWithRecords,
+    summary: wire.summary,
+    domains: (wire.domains ?? []).map((domain) => ({
+      id: domain.id,
+      title: domain.title,
+      recordedDays: domain.recordedDays,
+      meetsGate: domain.meetsGate,
+      lines: domain.lines ?? [],
+      gateText: domain.gateText,
+    })),
+    medications: (wire.medications ?? []).map((row) => ({ ...row })),
+    notice: wire.notice,
+  };
+}
+
+export function toInsightList(wire: Wire['InsightList']): InsightList {
+  return {
+    windowLabel: wire.windowLabel,
+    crossDomain: wire.crossDomain,
+    items: (wire.items ?? []).map((item) => ({ id: item.id, text: item.text, howWorkedOut: item.howWorkedOut ?? [] })),
+    close: wire.close ?? [],
     notice: wire.notice,
   };
 }

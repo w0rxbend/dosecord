@@ -5,7 +5,8 @@ package dosegram.core.domain.copy
   */
 class InsightPhrasesSuite extends munit.FunSuite:
 
-  private val linted: List[CopyEntry] = StatsCopy.entries ++ MoodLabels.entries
+  private val linted: List[CopyEntry] =
+    StatsCopy.entries ++ MoodLabels.entries ++ InsightCopy.entries ++ MonthCopy.entries
 
   test("every statistic, insight and mood label string is free of causal, evaluative and clinical wording"):
     val violations = linted.flatMap(entry => InsightPhrases.violations(entry.text).map(p => s"${entry.id}: '$p'"))

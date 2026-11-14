@@ -25,10 +25,27 @@ class ComparisonSuite extends munit.ScalaCheckSuite:
 
   test("no rule of the registry reads a medication measure (VA-IN-13, AC-INS-5)"):
     InsightRule.values.foreach { rule =>
-      assertNotEquals(rule.grouping.domain, RollupDomain.Medication, clue(rule))
-      assertNotEquals(rule.outcome.domain, RollupDomain.Medication, clue(rule))
+      assertNotEquals(rule.grouping.source, InsightSource.Medication, clue(rule))
+      assertNotEquals(rule.outcome.source, InsightSource.Medication, clue(rule))
     }
-    assertEquals(InsightRule.values.map(_.id).toList, List("IR-04"))
+    assert(InsightVariable.values.forall(_.source != InsightSource.Medication))
+    assertEquals(
+      InsightRule.values.map(_.id).toList,
+      List("IR-04", "IR-01", "IR-02", "IR-06", "IR-06", "IR-06")
+    )
+
+  test("the registry holds the minimum differences of the rule table (VISUALS section 8.4)"):
+    assertEquals(
+      InsightRule.values.map(rule => rule -> rule.minimumDifference).toMap,
+      Map(
+        InsightRule.WaterGoalAndMood -> 0.3,
+        InsightRule.SleepGoalAndMood -> 0.3,
+        InsightRule.BedtimeAndMood -> 0.3,
+        InsightRule.WorkDaysAndSleep -> 30.0,
+        InsightRule.WorkDaysAndWater -> 300.0,
+        InsightRule.WorkDaysAndMood -> 0.3
+      )
+    )
 
   test("a stable difference of at least 0.3 levels is shown with both group sizes and means"):
     Comparisons.compare(rule, paired(List.fill(8)(4.0), List.fill(8)(3.0)), window) match

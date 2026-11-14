@@ -277,6 +277,58 @@ export interface InsightsOverview {
   readonly notice?: string;
 }
 
+/** One domain of a month: its lines when it met the month's gate, else the gate with its progress. */
+export interface InsightMonthDomain {
+  readonly id: Domain;
+  readonly title: string;
+  readonly recordedDays: number;
+  readonly meetsGate: boolean;
+  readonly lines: readonly string[];
+  readonly gateText?: string;
+}
+
+/** One medication of the month, with its own counts; `percent` only from five resolved doses. */
+export interface InsightMedicationRow {
+  readonly id: string;
+  readonly name: string;
+  readonly archived: boolean;
+  /** The row in the server's words, the counts first. */
+  readonly line: string;
+  readonly taken: number;
+  readonly resolved: number;
+  readonly percent?: number;
+  readonly asNeededLogs: number;
+}
+
+export interface InsightMonth {
+  readonly month: string;
+  readonly monthLabel: string;
+  readonly previousMonth: string;
+  readonly nextMonth?: string;
+  readonly reportable: boolean;
+  readonly daysWithRecords: number;
+  readonly summary: string;
+  readonly domains: readonly InsightMonthDomain[];
+  readonly medications: readonly InsightMedicationRow[];
+  readonly notice?: string;
+}
+
+/** One pattern that passed the checks, with how it was worked out (VISUALS VA-IN-03). */
+export interface InsightItem {
+  readonly id: string;
+  readonly text: string;
+  readonly howWorkedOut: readonly string[];
+}
+
+export interface InsightList {
+  readonly windowLabel: string;
+  readonly crossDomain: boolean;
+  readonly items: readonly InsightItem[];
+  /** The patterns close to their minimum data, with the count still needed. */
+  readonly close: readonly string[];
+  readonly notice?: string;
+}
+
 // ---------- tracking domains (MINI_APP 7.7, 7.9, 7.12) ----------
 // Amounts are whole millilitres, the stored unit (MA-HYD-3). Every sentence is the server's.
 

@@ -6,15 +6,18 @@ import dosegram.adapter.telegram.MediaStore
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
+import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.ImageTheme
+import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WaterCardView
+import dosegram.core.ports.WeekCardView
 import dosegram.infra.RenderSettings
 import dosegram.infra.db.PgRenderAssets
 import dosegram.infra.db.PgTelegramFileCache
@@ -26,15 +29,17 @@ import dosegram.render.card.CardContext
 import dosegram.render.card.CardOutput
 import dosegram.render.card.DayCard
 import dosegram.render.card.DayData
+import dosegram.render.card.InsightCard
+import dosegram.render.card.MonthCard
+import dosegram.render.card.MonthPages
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
 import dosegram.render.card.SleepEvidence
-import dosegram.render.card.SleepNightBar
 import dosegram.render.card.SleepRegularityCard
-import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterCard
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
+import dosegram.render.card.WeekCard
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.resvg.ResvgConfig
@@ -164,19 +169,28 @@ final class RenderedStatusCards(
     personal(DayCard.render(data, contextOf(look)), chat)
 
   override def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
-    val data = SleepRegularityData(
-      from = view.window.start,
-      to = view.window.end,
-      bars = view.bars.map(bar => SleepNightBar(bar.date, bar.fromMinute, bar.toMinute, bar.isNap)).toVector,
-      nights = view.nights,
-      averageMinutes = view.averageMinutes,
-      bedtimeSpreadMinutes = view.bedtimeSpreadMinutes,
-      wakeSpreadMinutes = view.wakeSpreadMinutes,
-      typicalBedtime = view.typicalBedtime,
-      typicalWake = view.typicalWake,
-      goalMinutes = view.goalMinutes
-    )
-    personal(SleepRegularityCard.render(data, contextOf(look)), chat)
+    personal(SleepRegularityCard.render(ReportCards.regularity(view), contextOf(look)), chat)
+
+  /** IMG-05: page 1, then pages 2 and 3 when they have a panel. A page that cannot be drawn ends the album there, so
+    * the pages that are sent are always the first ones, in order.
+    */
+  override def month(view: MonthCardView, look: CardLook, chat: Option[ChatRef]): List[AttachmentRef] =
+    val context = contextOf(look)
+    val figures = view.figures
+    val days = ReportCards.monthDays(figures, view)
+    val nights = ReportCards.monthNights(figures, view)
+    val pages = LazyList(
+      Some(() => MonthCard.render(ReportCards.monthPage(figures), context)),
+      Option.unless(days.isEmpty)(() => MonthPages.days(days, context)),
+      Option.unless(nights.isEmpty)(() => MonthPages.nights(nights, context))
+    ).flatten
+    pages.map(page => personal(page(), chat)).takeWhile(_.isDefined).flatten.toList
+
+  override def insight(view: Comparison.Shown, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+    ReportCards.insight(view).flatMap(data => personal(InsightCard.render(data, contextOf(look)), chat))
+
+  override def week(view: WeekCardView, look: CardLook, chat: Option[ChatRef]): Option[AttachmentRef] =
+    personal(WeekCard.render(ReportCards.week(view), contextOf(look)), chat)
 
   /** A personal card is keyed by its own bytes: the same picture is stored once, and the key says nothing. */
   private def personal(card: CardOutput, chat: Option[ChatRef]): Option[AttachmentRef] =

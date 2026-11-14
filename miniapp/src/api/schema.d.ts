@@ -592,6 +592,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/insights/month": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One calendar month: one block per domain whose consent is active, and each medication's counts. */
+        get: operations["getInsightMonth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/insights/correlations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The patterns of the last 28 days that passed every check, and those close to their data. */
+        get: operations["listInsightCorrelations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reminders": {
         parameters: {
             query?: never;
@@ -999,6 +1033,62 @@ export interface components {
          * @enum {string}
          */
         InsightDomain: "hydration" | "medication" | "mood" | "sleep";
+        /** InsightItem */
+        InsightItem: {
+            id: string;
+            text: string;
+            howWorkedOut?: string[];
+        };
+        /** InsightList */
+        InsightList: {
+            /** Format: int32 */
+            windowDays: number;
+            windowLabel: string;
+            crossDomain: boolean;
+            items?: components["schemas"]["InsightItem"][];
+            close?: string[];
+            notice?: string;
+        };
+        /** InsightMedicationRow */
+        InsightMedicationRow: {
+            id: string;
+            name: string;
+            archived: boolean;
+            line: string;
+            /** Format: int32 */
+            taken: number;
+            /** Format: int32 */
+            resolved: number;
+            /** Format: int32 */
+            percent?: number;
+            /** Format: int32 */
+            asNeededLogs: number;
+        };
+        /** InsightMonth */
+        InsightMonth: {
+            month: string;
+            monthLabel: string;
+            previousMonth: string;
+            nextMonth?: string;
+            timeZone: string;
+            reportable: boolean;
+            /** Format: int32 */
+            daysWithRecords: number;
+            summary: string;
+            domains?: components["schemas"]["InsightMonthDomain"][];
+            medications?: components["schemas"]["InsightMedicationRow"][];
+            notice?: string;
+        };
+        /** InsightMonthDomain */
+        InsightMonthDomain: {
+            id: components["schemas"]["InsightDomain"];
+            title: string;
+            /** Format: int32 */
+            recordedDays: number;
+            meetsGate: boolean;
+            lines?: string[];
+            gateText?: string;
+        };
         /** InsightVessel */
         InsightVessel: {
             /** Format: int32 */
@@ -3091,6 +3181,65 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightsOverview"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInsightMonth: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM; absent is the current month */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightMonth"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listInsightCorrelations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightList"];
                 };
             };
             default: {

@@ -7,6 +7,7 @@
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import LinkRow from '../../ui/LinkRow.svelte';
+  import MonthAndPatterns from './MonthAndPatterns.svelte';
   import Screen from '../../ui/Screen.svelte';
 
   /** Offered until the first answer names the periods the backend computes. */
@@ -68,6 +69,7 @@
           </section>
         {/each}
       </div>
+      {#if data.blocks.length > 0}<MonthAndPatterns />{/if}
       <div class="section section-body">
         <LinkRow path="/insights/history" label={en.insights.history} hint={en.insights.historyHint} />
       </div>

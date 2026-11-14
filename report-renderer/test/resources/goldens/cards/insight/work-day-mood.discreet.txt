@@ -1,0 +1,5 @@
+file: dosegram-pattern.png
+spoiler: true
+caption: A pattern in your records.
+alt: A pattern in your records, 13 Oct to 9 Nov. On your 20 work days your average mood was 3.1. On your 8 free days it was 3.8. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.
+full: A pattern in your records, 13 Oct to 9 Nov. On your 20 work days your average mood was 3.1. On your 8 free days it was 3.8. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.

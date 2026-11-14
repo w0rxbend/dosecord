@@ -1,0 +1,5 @@
+file: dosegram-pattern.png
+spoiler: true
+caption: A pattern in your records.
+alt: A pattern in your records, 13 Oct to 9 Nov. On the 16 days after a night that began within 30 minutes of your usual bedtime, your average mood was 3.9. On the 11 other days it was 3.2. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.
+full: A pattern in your records, 13 Oct to 9 Nov. On the 16 days after a night that began within 30 minutes of your usual bedtime, your average mood was 3.9. On the 11 other days it was 3.2. Mood is the daily average on the 1 to 5 scale. This compares your own days. It does not show a cause.

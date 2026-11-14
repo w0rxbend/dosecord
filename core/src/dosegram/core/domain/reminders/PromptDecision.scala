@@ -40,6 +40,9 @@ enum SuppressReason(val db: String):
   case CatchUp extends SuppressReason("catch_up")
   case Stale extends SuppressReason("stale")
 
+  /** A report whose period has no record: nothing is sent (VISUALS VA-PS-05). */
+  case NoRecords extends SuppressReason("no_records")
+
 object SuppressReason:
   def fromDb(db: String): SuppressReason =
     values.find(_.db == db).getOrElse(throw IllegalArgumentException(s"unknown suppress reason '$db'"))

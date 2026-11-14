@@ -247,7 +247,14 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         113 -> "reminders.apply",
         114 -> "reminders.off",
         115 -> "reminders.pause_all",
-        116 -> "reminders.day"
+        116 -> "reminders.day",
+        // Analytics: the month in /stats, /insights, and "Stop these" on a scheduled report.
+        190 -> "stats.month",
+        191 -> "stats.month_image",
+        192 -> "insights.show",
+        193 -> "insights.image",
+        194 -> "insights.compare",
+        195 -> "reminders.report_stop"
       )
     )
 

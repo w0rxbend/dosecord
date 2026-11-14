@@ -100,7 +100,7 @@ object AdherenceCalendarCard:
     )
 
   // Taken and resolved doses over the month.
-  private def totals(calendar: CalendarData): (Int, Int) =
+  private[card] def totals(calendar: CalendarData): (Int, Int) =
     calendar.days.foldLeft((0, 0)) {
       case ((taken, resolved), DayAdherence.Resolved(dayTaken, dayResolved, _)) =>
         (taken + dayTaken, resolved + dayResolved)
@@ -110,7 +110,7 @@ object AdherenceCalendarCard:
   private def filterLabel(calendar: CalendarData, context: CardContext): Option[String] =
     calendar.medicationName.map(name => if context.privacy.showsNames then name else context.copy.itemLabel(1))
 
-  private def dayClass(day: DayAdherence): Option[DayClass] =
+  private[card] def dayClass(day: DayAdherence): Option[DayClass] =
     day match
       case DayAdherence.Resolved(taken, resolved, hasMissed) if resolved > 0 =>
         Some(
@@ -126,7 +126,7 @@ object AdherenceCalendarCard:
       case DayAdherence.Open             => Some(DayClass.StillOpen)
       case DayAdherence.NothingScheduled => None
 
-  private def cell(dayClass: DayClass, box: Box, tokens: Tokens): Node =
+  private[card] def cell(dayClass: DayClass, box: Box, tokens: Tokens): Node =
     def heat(step: Int): Node =
       val square = Node.filledRect(box, box.width * CornerShare, tokens.spruceHeat(step))
       Node.Mark(MarkMeta(s"calendar.$dayClass", Set(Channel.Colour, Channel.Label)), Vector(square))
@@ -146,7 +146,7 @@ object AdherenceCalendarCard:
       :+ frame.text(number.toString, Point(box.center.x, box.bottom + NumberBaselinePx), numberLook, SlotPx)
 
   // A day with nothing scheduled is an empty cell: the card's surface tone in the panel, a slot with nothing in it.
-  private def nothingScheduled(box: Box, tokens: Tokens): Node =
+  private[card] def nothingScheduled(box: Box, tokens: Tokens): Node =
     Node.Mark(
       MarkMeta("calendar.none", Set(Channel.Shape, Channel.Label)),
       Vector(Node.filledRect(box, box.width * CornerShare, tokens.surface))
@@ -166,7 +166,7 @@ object AdherenceCalendarCard:
 
   // One entry per class present, in the fixed order of the class list, and the empty cell of a day with nothing
   // scheduled when the month has one.
-  private def legendItems(
+  private[card] def legendItems(
       classes: Vector[Option[DayClass]],
       tokens: Tokens,
       context: CardContext

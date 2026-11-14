@@ -51,6 +51,7 @@ final class ApiModule(
   private val registry = Registry(uow, clock)
   private val days = DayViews(uow, clock)
   private val insights = Insights(uow, tracking, clock)
+  private val insightReports = InsightReports(uow, tracking, clock)
   private val history = History(uow, tracking, clock)
   private val hydration = Hydration(uow, tracking)
   private val mood = Mood(uow, tracking, blobStates)
@@ -195,7 +196,13 @@ final class ApiModule(
   private val insightEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.insightsOverview
       .handleSecurity(authenticate)
-      .handle(session => rangeDays => guarded(insights.overview(session.accountId, rangeDays)))
+      .handle(session => rangeDays => guarded(insights.overview(session.accountId, rangeDays))),
+    Endpoints.insightMonth
+      .handleSecurity(authenticate)
+      .handle(session => month => guarded(insightReports.month(session.accountId, month))),
+    Endpoints.insightCorrelations
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(insightReports.correlations(session.accountId)))
   )
 
   private def grantedPurposes(accountId: UUID): List[String] =

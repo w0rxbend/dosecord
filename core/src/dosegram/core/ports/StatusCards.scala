@@ -2,6 +2,8 @@ package dosegram.core.ports
 
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
+import dosegram.core.domain.insights.Comparison
+import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
@@ -32,6 +34,29 @@ final case class DayCardView(
     sleep: Option[SleepCardView]
 )
 
+/** A month as the pages of its report draw it (VISUALS section 6.6): the figures, the month's nights on the clock when
+  * the sleep consent is given, and the account's current local day, which the calendar marks.
+  */
+final case class MonthCardView(figures: MonthFigures, sleep: Option[SleepRegularityFigures], today: LocalDate)
+
+/** One day's water in the weekly card, against the user's own goal of that day when there is one. */
+final case class WeekDayWater(totalMl: Int, goalMl: Option[Int])
+
+/** One day's mood in the weekly card: the daily mean and the mean energy on the stored 1 to 5 scales. */
+final case class WeekDayMood(mean: Double, energyMean: Option[Double])
+
+/** One night in the weekly card, with the user's own sleep goal when there is one. */
+final case class WeekDayNight(minutes: Int, goalMinutes: Option[Int])
+
+/** IMG-04: seven days from `from`. A domain that is not shown is absent; a day without a record is `None`. */
+final case class WeekCardView(
+    from: LocalDate,
+    doses: Option[List[List[DoseMark]]],
+    water: Option[List[Option[WeekDayWater]]],
+    mood: Option[List[Option[WeekDayMood]]],
+    sleep: Option[List[Option[WeekDayNight]]]
+)
+
 /** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
   * (VA-PV-03). Both are account settings the Mini App changes.
   */
@@ -53,6 +78,15 @@ trait StatusCards:
 
   /** IMG-12, the sleep regularity chart of the recent nights. */
   def sleep(view: SleepRegularityFigures, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
+
+  /** IMG-05: the pages of a month in order; empty when no page can be drawn now. */
+  def month(view: MonthCardView, look: CardLook, chat: Option[ChatRef] = None): List[AttachmentRef] = Nil
+
+  /** IMG-13: one comparison the insight engine passed; `None` for a rule the card cannot draw. */
+  def insight(view: Comparison.Shown, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef] = None
+
+  /** IMG-04: the weekly card. */
+  def week(view: WeekCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef] = None
 
 object StatusCards:
 

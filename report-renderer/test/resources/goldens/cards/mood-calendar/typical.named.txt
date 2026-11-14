@@ -1,0 +1,5 @@
+file: dosegram-mood-month.png
+spoiler: false
+caption: October 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.
+alt: October 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.
+full: October 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.

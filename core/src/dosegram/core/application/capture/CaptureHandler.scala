@@ -52,6 +52,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val mood = MoodChat(parts.mood, parts.cards, clock, tokens)
   private val stats = StatsChat(parts, tokens)
   private val sleep = SleepChat(parts.sleep, parts.cards, clock, tokens)
+  private val months = MonthAndInsightsChat(parts, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -81,14 +82,20 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
 
   private def onCommand(turn: Turn, name: String, argument: String): Reply =
     name match
-      case WaterCommand => waterCommand(turn, argument)
-      case MoodCommand  => moodCommand(turn, argument)
-      case StatsCommand => statsCommand(turn, argument)
-      case SleepCommand => sleepCommand(turn, argument)
+      case WaterCommand    => waterCommand(turn, argument)
+      case MoodCommand     => moodCommand(turn, argument)
+      case StatsCommand    => statsCommand(turn, argument)
+      case SleepCommand    => sleepCommand(turn, argument)
+      case InsightsCommand => months.insights(turn)
       // The fourth capture command, `/privacy`: `route` lets no other name in.
       case _ => consent.privacy(turn)
 
   private def statsCommand(turn: Turn, argument: String): Reply =
+    if argument == MonthArgument then
+      consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(months.month(turn, months.currentIndex(turn)))
+    else statsPeriod(turn, argument)
+
+  private def statsPeriod(turn: Turn, argument: String): Reply =
     StatsChat.periodOf(argument) match
       case Some(period) => consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(stats.card(turn, period))
       case None         => turn.toast(StatsCardCopy.usage)
@@ -170,7 +177,17 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
       case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
-      case _                              => stale(turn)
+      case CaptureActions.StatsMonth      => months.month(turn, value.toInt)
+      case CaptureActions.StatsMonthImage =>
+        imageOf(turn, Pending.MonthImage(value.toInt))(months.monthImage(turn, value.toInt))
+      case CaptureActions.InsightsShow    => months.insights(turn)
+      case CaptureActions.InsightsImage   => imageOf(turn, Pending.Insights(image = true))(months.insightImage(turn))
+      case CaptureActions.InsightsCompare =>
+        val fresh = turn.copy(source = None)
+        consent.guarded(fresh, ConsentPurpose.CrossDomainPatterns, Pending.Insights(image = false))(
+          months.insights(fresh)
+        )
+      case _ => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
   private def waterButton(turn: Turn, value: Long): Reply =
@@ -195,6 +212,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.SleepCard             => sleep.card(fresh)
       case Pending.SleepTyped            => sleep.card(fresh)
       case Pending.SleepImage            => sleep.image(fresh)
+      case Pending.Insights(image)       => if image then months.insightImage(fresh) else months.insights(fresh)
+      case Pending.MonthImage(index)     => months.monthImage(fresh, index)
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =
@@ -233,7 +252,11 @@ private object CaptureHandler:
   val MoodCommand: String = CommandRegistry.Mood.name
   val StatsCommand: String = CommandRegistry.Stats.name
   val SleepCommand: String = CommandRegistry.Sleep.name
-  val commandNames: Set[String] = CommandRegistry.capture.map(_.name).toSet
+  val InsightsCommand: String = CommandRegistry.Insights.name
+  val commandNames: Set[String] = (CommandRegistry.capture :+ CommandRegistry.Insights).map(_.name).toSet
+
+  /** `/stats month`: the current month so far. */
+  val MonthArgument = "month"
 
   /** Free text is parsed before the consent is known, so a glass has the default size here; [[WaterChat.typed]] sizes
     * it by the user's own preset.

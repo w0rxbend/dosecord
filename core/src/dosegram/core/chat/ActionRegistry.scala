@@ -55,7 +55,14 @@ object ActionRegistry:
     ActionEntry(113, "reminders.apply", requiresSession = false),
     ActionEntry(114, "reminders.off", requiresSession = false),
     ActionEntry(115, "reminders.pause_all", requiresSession = false),
-    ActionEntry(116, "reminders.day", requiresSession = false)
+    ActionEntry(116, "reminders.day", requiresSession = false),
+    // Analytics (190 to 209): the month in `/stats`, `/insights`, and "Stop these" on a scheduled report.
+    ActionEntry(190, "stats.month", requiresSession = false),
+    ActionEntry(191, "stats.month_image", requiresSession = false),
+    ActionEntry(192, "insights.show", requiresSession = false),
+    ActionEntry(193, "insights.image", requiresSession = false),
+    ActionEntry(194, "insights.compare", requiresSession = false),
+    ActionEntry(195, "reminders.report_stop", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

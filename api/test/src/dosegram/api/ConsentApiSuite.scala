@@ -122,4 +122,7 @@ object ConsentApiSuite:
         "getDayProfile",
         "updateDayProfile",
         "getReminderTimeline"
-      ) ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))
+      ) ++
+      // The month and the patterns leave out each domain without its consent, as the overview does
+      // (InsightsApiSuite).
+      Set("getInsightMonth", "listInsightCorrelations") ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

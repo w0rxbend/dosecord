@@ -2,6 +2,9 @@ package dosegram.core.scheduling
 
 import dosegram.contracts.OutboundMessage
 import dosegram.core.application.hydration.HydrationService
+import dosegram.core.application.insights.ComposedReport
+import dosegram.core.application.insights.ReportComposer
+import dosegram.core.application.insights.ReportOutcome
 import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.domain.EntryDay
@@ -55,6 +58,7 @@ final class PromptLoop(
     messages: PromptMessages,
     hydration: HydrationService,
     settings: ReminderSettings,
+    reports: ReportComposer,
     onError: (UUID, Throwable) => Unit
 ):
 
@@ -120,8 +124,13 @@ final class PromptLoop(
     PromptDecision.decide(input) match
       case PromptOutcome.Send(notice) =>
         val target = channel.get // `reachable` held
-        previous.foreach(replace(tx, _, target, progress, now))
-        send(tx, plan, slot, notice, target, now)
+        if PromptLoop.isReport(plan.kind) then
+          val monthlyToday =
+            accountDay.exists(o => o.kind == PromptKind.MonthlyReport && o.status.wasSent && o.scheduleId != plan.id)
+          sendReport(tx, plan, slot, previous, target, withImages = !monthlyToday, now)
+        else
+          previous.foreach(replace(tx, _, target, progress, now))
+          send(tx, plan, slot, notice, target, now)
       case PromptOutcome.Suppress(reason, announce) =>
         record(tx, plan, slot, PromptStatus.Suppressed, Some(reason))
         if announce then
@@ -161,6 +170,58 @@ final class PromptLoop(
       )
       ()
 
+  /** A report is composed when it falls due, from the records of its period; a period without records is recorded as
+    * passed over and sends nothing (VA-PS-05). A sent report stays in the chat: the next one closes it, never deletes
+    * it. Its images go first and its text with the "Stop these" control last, under the prompt's send key.
+    */
+  private def sendReport(
+      tx: Tx,
+      plan: PromptSchedule,
+      slot: NudgeSlot,
+      previous: Option[PromptOccurrence],
+      target: DeliveryTarget,
+      withImages: Boolean,
+      now: Instant
+  ): Unit =
+    val id = ids.next(now)
+    val sendKey = s"prompt:$id"
+    val silent = !plan.sound
+    val outcome =
+      if plan.kind == PromptKind.MonthlyReport then reports.monthly(tx, plan.accountId, slot.planDate, sendKey, silent)
+      else reports.weekly(tx, plan.accountId, slot.planDate, sendKey, silent, withImages)
+    outcome match
+      case ReportOutcome.NoRecords    => record(tx, plan, slot, PromptStatus.Suppressed, Some(SuppressReason.NoRecords))
+      case ReportOutcome.Send(report) =>
+        previous.filter(_.status == PromptStatus.Sent).foreach(close(tx, _, DomainProgress.Empty, now))
+        val inserted = tx.reminders.prompts.insert(
+          occurrence(plan, slot, id, PromptStatus.Sent, None, now).copy(sendKey = Some(sendKey))
+        )
+        if inserted then enqueueReport(tx, plan, report, target, now)
+
+  private def enqueueReport(
+      tx: Tx,
+      plan: PromptSchedule,
+      report: ComposedReport,
+      target: DeliveryTarget,
+      now: Instant
+  ): Unit =
+    (report.images :+ report.main).foreach { message =>
+      tx.outbox.enqueue(
+        NewOutboxMessage(
+          id = ids.next(now),
+          sendKey = message.dedupeKey,
+          op = OutboxOp.Send,
+          kind = PromptLoop.OutboxKind,
+          vendor = target.vendor,
+          accountId = Some(plan.accountId),
+          channelId = Some(target.channelId),
+          payload = OutboundMessage.toJson(message),
+          importance = "info",
+          nextAttemptAt = now
+        )
+      )
+    }
+
   private def render(
       tx: Tx,
       plan: PromptSchedule,
@@ -177,8 +238,9 @@ final class PromptLoop(
         messages.water(id, figures, presets, notice, silent, key)
       case PromptKind.Mood                                   => messages.mood(plan.accountId, id, notice, silent, key)
       case PromptKind.SleepBedtime | PromptKind.SleepMorning => messages.sleep(plan.kind, id, notice, silent, key)
-      case PromptKind.Meal | PromptKind.WeeklyReport | PromptKind.MonthlyReport =>
-        throw IllegalStateException(s"no sender for prompt kind ${plan.kind.id}")
+      case PromptKind.Meal => throw IllegalStateException(s"no sender for prompt kind ${plan.kind.id}")
+      case PromptKind.WeeklyReport | PromptKind.MonthlyReport =>
+        throw IllegalStateException(s"a report is composed by sendReport, not rendered: ${plan.kind.id}")
 
   /** The previous prompt of the plan leaves the chat: an open one is closed (answered when an entry followed it) and
     * its message removed, and so is the pause notice it may have become. A prompt answered by a tap stays: its message
@@ -330,6 +392,8 @@ final class PromptLoop(
       case _ => None
 
 object PromptLoop:
+
+  def isReport(kind: PromptKind): Boolean = kind == PromptKind.WeeklyReport || kind == PromptKind.MonthlyReport
 
   /** The outbox kind of every prompt row: a send, the delete of a replaced prompt, the edit to the pause notice. */
   val OutboxKind = "prompt"

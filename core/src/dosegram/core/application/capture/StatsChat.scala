@@ -4,6 +4,7 @@ import dosegram.contracts.Choice
 import dosegram.contracts.Reply
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.StatsPeriod
@@ -23,7 +24,8 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
   def card(turn: Turn, period: StatsPeriod): Reply =
     parts.stats.summary(turn.tx, turn.accountId, period) match
       case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
-      case Right(summary) => turn.show(turn.message("stats.card", summary.lines, rows(turn, period)))
+      case Right(summary) =>
+        turn.show(turn.message("stats.card", summary.lines, rows(turn, period) :+ more(turn, summary.window.end)))
 
   /** The tap on a period button; the value is the number of days of the period. */
   def show(turn: Turn, days: Long): Reply =
@@ -82,6 +84,14 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
     val image = Option.when(period == StatsPeriod.Today):
       Choice.callback(StatsCardCopy.ShowAsImage, tokens.direct(CaptureActions.StatsImage, turn.accountId, 0))
     List(periods, image.toList)
+
+  /** The month so far and the patterns: one tap away from any period (VISUALS sections 6.6 and 8.5). */
+  private def more(turn: Turn, today: LocalDate): List[Choice] =
+    val month = MonthAndInsightsChat.indexOf(java.time.YearMonth.from(today)).toLong
+    List(
+      Choice.callback(ReportCopy.ThisMonth, tokens.direct(CaptureActions.StatsMonth, turn.accountId, month)),
+      Choice.callback(ReportCopy.Patterns, tokens.direct(CaptureActions.InsightsShow, turn.accountId, 0))
+    )
 
 private[capture] object StatsChat:
 

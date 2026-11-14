@@ -6,6 +6,8 @@ import type {
   Consents,
   Domain,
   InsightCalendar,
+  InsightList,
+  InsightMonth,
   InsightRange,
   MoodCheckin,
   MoodCheckinInput,
@@ -157,6 +159,10 @@ export interface ApiClient {
   reviseSchedule(id: string, draft: ScheduleDraft, revision: number): Promise<Schedule>;
 
   insightsOverview(rangeDays: InsightRange): Promise<InsightsOverview>;
+  /** One calendar month; absent is the current month. */
+  insightMonth(month?: string): Promise<InsightMonth>;
+  /** The patterns of the last 28 days. */
+  insightList(): Promise<InsightList>;
 }
 
 /**

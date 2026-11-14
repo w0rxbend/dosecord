@@ -13,7 +13,7 @@ import {
 } from './data';
 import { toLocalDate } from './dates';
 import { MockDay, otherDay } from './day';
-import { buildOverview, doseHistory } from './insights';
+import { buildInsightList, buildMonth, buildOverview, doseHistory } from './insights';
 import { buildPreview } from './preview';
 import { MockReminders } from './reminders';
 import { MockTracking } from './tracking';
@@ -316,6 +316,24 @@ export class MockBackend implements ApiClient {
     this.respond('insights/overview', () =>
       buildOverview(rangeDays, this.localToday(), this.tracking, this.scenario !== 'empty'),
     );
+
+  insightMonth: ApiClient['insightMonth'] = (month) =>
+    this.respond('insights/month', () =>
+      buildMonth(
+        month,
+        this.localToday(),
+        this.tracking,
+        this.records.map(({ medication }) => ({
+          id: medication.id,
+          name: medication.name,
+          archived: medication.status === 'archived',
+        })),
+        this.scenario !== 'empty',
+      ),
+    );
+
+  insightList: ApiClient['insightList'] = () =>
+    this.respond('insights/correlations', () => buildInsightList(this.tracking, this.scenario !== 'empty'));
 
   private preview(medicationId: string, draft: ScheduleDraft) {
     const { doseUnit } = this.find(medicationId).medication;

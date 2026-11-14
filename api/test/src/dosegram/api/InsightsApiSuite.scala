@@ -121,4 +121,55 @@ final class InsightsApiSuite extends ApiSuite:
     clock.advance(Duration.ofSeconds(1))
     assert(tracking.consents.withdraw(account.accountId, ConsentPurpose.Mood, clock.now()))
     assertEquals(blocks(get("/api/v1/insights/overview?range=7", token)), Nil)
+  // ---------- GET /insights/month and GET /insights/correlations ----------
+
+  test("the month without a consent has no block, says where consents are given, and names the months around it"):
+    val month = get("/api/v1/insights/month", login(accountWithoutConsent()))
+    assertEquals(month.status, 200, month.body)
+    assertEquals(month.json("month").str, "2026-11")
+    assertEquals(month.json("previousMonth").str, "2026-10")
+    assert(!month.json.obj.contains("nextMonth"), "the current month has no next month")
+    assertEquals(month.json("domains").arr.toList, Nil)
+    assertEquals(month.json("medications").arr.toList, Nil)
+    assertEquals(month.json("notice").str, "Statistics appear here for the records you turned on in the chat.")
+
+  test("a domain short of 14 days shows the gate with its progress, never a figure (R-INS-11)"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    drink(account, 900)
+    checkIn(account, 4)
+    val month = get("/api/v1/insights/month?month=2026-11", login(account))
+    assertEquals(month.status, 200, month.body)
+    assertEquals(month.json("reportable").bool, false)
+    val domains = month.json("domains").arr.toList
+    assertEquals(domains.map(_("id").str), List("hydration", "mood"))
+    assertEquals(domains.map(_("meetsGate").bool), List(false, false))
+    assertEquals(
+      domains.head("gateText").str,
+      "Water: 13 more days with records for the month's figures (1 of 14)"
+    )
+    assertEquals(domains.head("lines").arr.toList, Nil)
+    assertEquals(month.json("summary").str, "1 day with records")
+    assertEquals(InsightPhrases.violations(month.body), Nil)
+
+  test("a month after the current one or of another shape is a validation error"):
+    val token = login(accountWithoutConsent())
+    assertEquals(get("/api/v1/insights/month?month=2026-12", token).fieldErrors, List("month" -> "in_future"))
+    assertEquals(get("/api/v1/insights/month?month=november", token).fieldErrors, List("month" -> "invalid"))
+    assertEquals(get("/api/v1/insights/month?month=2026-10", token).json("nextMonth").str, "2026-11")
+
+  test("the patterns run no comparison between areas without its consent, and say where it is given"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    drink(account, 900)
+    val list = get("/api/v1/insights/correlations", login(account))
+    assertEquals(list.status, 200, list.body)
+    assertEquals(list.json("crossDomain").bool, false)
+    assertEquals(list.json("windowDays").num.toInt, 28)
+    assertEquals(list.json("items").arr.toList, Nil)
+    assert(list.json("notice").str.startsWith("Comparisons between areas are off."), list.body)
+
+  test("the month and the patterns need a session"):
+    assertProblem(get("/api/v1/insights/month"), 401, "unauthenticated")
+    assertProblem(get("/api/v1/insights/correlations"), 401, "unauthenticated")
 end InsightsApiSuite

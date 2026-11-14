@@ -1,7 +1,7 @@
 // ROADMAP G3.12: the user's main paths through the production build against the real application. Each test opens
 // the app as Telegram would and fails on any policy violation, page error or foreign request (support/fixture.ts).
 import { expect, test } from './support/fixture';
-import { chrome, pressMainButton } from './support/telegram';
+import { chrome, pressBackButton, pressMainButton } from './support/telegram';
 
 const MEDICATION = 'Vitamin D';
 
@@ -58,7 +58,7 @@ test('launch data from another key opens the "session has ended" gate, not the a
   await expect(page.getByRole('heading', { name: 'This session has ended.' })).toBeVisible();
 });
 
-test('log water from the deep link: the amount is recorded and shown', async ({ app }) => {
+test('log water from the deep link: the amount is recorded, shown, and counted in the month', async ({ app }) => {
   const page = await app.launch({ startParam: 'water' });
   await expect(page.getByRole('heading', { level: 1, name: 'Water' })).toBeVisible();
 
@@ -70,6 +70,21 @@ test('log water from the deep link: the amount is recorded and shown', async ({ 
   expect((await saved).status()).toBe(201);
   await expect(page.getByText(`Added ${amount} ml`)).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(`^Remove ${amount} ml at`) })).toBeVisible();
+
+  // The month and the patterns of the Insights screen come from the real backend in its own words.
+  await pressBackButton(page);
+  await expect(page.getByRole('heading', { level: 1, name: 'Log' })).toBeVisible();
+  const month = page.waitForResponse((r) => /\/api\/v1\/insights\/month$/.test(r.url()));
+  const patterns = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/correlations'));
+  await page.getByRole('link', { name: 'Insights' }).click();
+  expect((await month).status()).toBe(200);
+  expect((await patterns).status()).toBe(200);
+  await expect(page.getByRole('heading', { level: 2, name: 'Patterns in your records' })).toBeVisible();
+  await expect(page.getByText(/^Water: 13 more days with records for the month's figures \(1 of 14\)$/)).toBeVisible();
+  const previous = page.waitForResponse((r) => /\/api\/v1\/insights\/month\?month=\d{4}-\d{2}$/.test(r.url()));
+  await page.getByRole('button', { name: 'Previous month' }).click();
+  expect((await previous).status()).toBe(200);
+  await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
 });
 
 test('mood check-in: the slider is moved, Save on the bottom button records it', async ({ app }) => {

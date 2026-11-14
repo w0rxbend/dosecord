@@ -173,33 +173,25 @@ object StatsCopy:
   def comparison(result: Comparison): Option[String] =
     result match
       case Comparison.Shown(rule, first, second, _) =>
-        val sentence = rule match
-          case InsightRule.WaterGoalAndMood =>
-            s"On the ${first.days} days you reached your water goal, your average mood was " +
-              s"${meanWithLevel(first.mean)}. On the ${second.days} other days it was ${meanWithLevel(second.mean)}."
-        Some(s"$sentence $NotACause")
+        Some(s"${InsightCopy.sentence(rule, first, second)} $NotACause")
       case Comparison.TooFewDays(rule, n, required, _) =>
-        Some(s"${more(required - n, "day")} with both ${recordsOf(rule)} for this comparison.")
+        Some(s"${more(required - n, "day")} with ${InsightCopy.recordsOf(rule)} for this comparison.")
       case Comparison.TooFewInGroup(_, n, required, _) =>
         Some(s"${more(required - n, "day")} in the smaller group of days for this comparison.")
       case _: Comparison.NoVariation | _: Comparison.Withheld => None
 
-  private def recordsOf(rule: InsightRule): String =
-    rule match
-      case InsightRule.WaterGoalAndMood => "water and mood records"
-
-  private def meanWithLevel(mean: Double): String =
+  private[copy] def meanWithLevel(mean: Double): String =
     s"${oneDecimal(mean)} (${MoodLabels.level(MoodLevel.ofMean(mean)).toLowerCase(Locale.ROOT)})"
 
   private def coverage(recorded: Int, window: DateRange): String = s"$recorded of ${window.days} days have data"
 
-  private def more(missing: Int, noun: String): String = s"$missing more ${plural(missing, noun)}"
+  private[copy] def more(missing: Int, noun: String): String = s"$missing more ${plural(missing, noun)}"
 
-  private def count(n: Int, noun: String): String = s"$n ${plural(n, noun)}"
+  private[copy] def count(n: Int, noun: String): String = s"$n ${plural(n, noun)}"
 
-  private def plural(n: Int, noun: String): String = if n == 1 then noun else s"${noun}s"
+  private[copy] def plural(n: Int, noun: String): String = if n == 1 then noun else s"${noun}s"
 
-  private def oneDecimal(value: Double): String =
+  private[copy] def oneDecimal(value: Double): String =
     java.math.BigDecimal.valueOf(value).setScale(1, RoundingMode.HALF_UP).toPlainString
 
   /** Litres with at most `decimals` places and at least one: "1.25", "0.5", "2.0". */

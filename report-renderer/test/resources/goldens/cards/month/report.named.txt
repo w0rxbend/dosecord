@@ -1,0 +1,17 @@
+file: dosegram-month.png
+spoiler: false
+caption: October 2026. Medication: 112 of 119 scheduled doses recorded as taken (94%), 4 skipped, 3 not confirmed. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. Sleep: 7 h 05 min on average over 24 nights from your check-ins. 29 days with records. September: 91% of scheduled doses taken.
+alt: October 2026. Medication: 112 of 119 scheduled doses recorded as taken (94%), 4 skipped, 3 not confirmed. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. Sleep: 7 h 05 min on average over 24 nights from your check-ins. 29 days with records. September: 91% of scheduled doses taken.
+full: October 2026. Medication: 112 of 119 scheduled doses recorded as taken (94%), 4 skipped, 3 not confirmed. Water: goal reached on 18 of 26 recorded days. Mood: 22 check-in days. Sleep: 7 h 05 min on average over 24 nights from your check-ins. 29 days with records. September: 91% of scheduled doses taken.
+
+file: dosegram-month-days.png
+spoiler: false
+caption: October 2026, day by day. Medication: 90 of 104 resolved doses taken. 2 doses: no record, not counted. October 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.
+alt: October 2026, day by day. Medication: 90 of 104 resolved doses taken. 2 doses: no record, not counted. October 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.
+full: October 2026, day by day. Medication: 90 of 104 resolved doses taken. 2 doses: no record, not counted. October 2026: 22 check-in days. Most frequent: Pleasant (5 days). Lowest: Unpleasant (4 days). Highest: Very pleasant (4 days). 9 days have no check-in.
+
+file: dosegram-month-nights.png
+spoiler: false
+caption: October 2026, nights and water. Sleep: 7 h 08 min on average over 26 nights from your check-ins. Bedtime varied by about 38 min, wake time by about 26 min. Water: Goal reached on 10 of 23 recorded days.
+alt: October 2026, nights and water. Sleep: 7 h 08 min on average over 26 nights from your check-ins. Bedtime varied by about 38 min, wake time by about 26 min. Water: Goal reached on 10 of 23 recorded days.
+full: October 2026, nights and water. Sleep: 7 h 08 min on average over 26 nights from your check-ins. Bedtime varied by about 38 min, wake time by about 26 min. Water: Goal reached on 10 of 23 recorded days.

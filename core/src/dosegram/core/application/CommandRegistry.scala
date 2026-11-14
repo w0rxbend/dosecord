@@ -120,7 +120,7 @@ object CommandRegistry:
   val Stats: CommandSpec = CommandSpec(
     name = "stats",
     description = "Show statistics.",
-    args = List(CommandArg("period", "today, 7 or 30; omitted shows the last 7 days", required = false))
+    args = List(CommandArg("period", "today, 7, 30 or month; omitted shows the last 7 days", required = false))
   )
 
   val Privacy: CommandSpec = CommandSpec(
@@ -154,7 +154,14 @@ object CommandRegistry:
     args = List(CommandArg("setting", "e.g. wake 06:30, work mon-fri 09:00-18:00, pause 1", required = false))
   )
 
-  val withCaptureByName: Map[String, CommandSpec] = (withCapture :+ Reminders).map(spec => spec.name -> spec).toMap
+  /** `/insights` (VISUALS section 8.5): hidden like `/reminders`, so the listed set does not grow (BUX-CMD-06). */
+  val Insights: CommandSpec = CommandSpec(
+    name = "insights",
+    description = "Patterns in your records."
+  )
+
+  val withCaptureByName: Map[String, CommandSpec] =
+    (withCapture :+ Reminders :+ Insights).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

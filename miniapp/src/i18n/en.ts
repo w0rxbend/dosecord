@@ -235,6 +235,17 @@ export const en = {
     selected: 'Selected',
     pickHint: 'Tap a bar or a dot, or use the arrow keys, to see its value.',
     marksOf: (title: string) => `${title}: values`,
+    patterns: 'Patterns in your records',
+    loadingPatterns: 'Loading patterns',
+    noPattern: 'No pattern passed the checks yet.',
+    howWorkedOut: 'How was this worked out?',
+    close: 'Close to the minimum data',
+    compareInChat: 'Send /insights in the chat to turn comparisons on.',
+    month: 'Month',
+    loadingMonth: 'Loading the month',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    byMedication: 'By medication',
   },
 
   // MINI_APP 8.2 "Consent needed": consent is given in chat only (ARCHITECTURE API-19).

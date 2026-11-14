@@ -7,6 +7,8 @@ import {
   toCalendar,
   toConsents,
   toFieldError,
+  toInsightList,
+  toInsightMonth,
   toInsightsOverview,
   toMoodScale,
   toMoodSummary,
@@ -315,6 +317,11 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
 
     insightsOverview: async (rangeDays) =>
       toInsightsOverview(await request<Wire['InsightsOverview']>(`insights/overview?range=${rangeDays}`), rangeDays),
+    insightMonth: async (month) => {
+      const query = month === undefined ? '' : `?month=${id(month)}`;
+      return toInsightMonth(await request<Wire['InsightMonth']>(`insights/month${query}`));
+    },
+    insightList: async () => toInsightList(await request<Wire['InsightList']>('insights/correlations')),
   };
 
   return { open, client };

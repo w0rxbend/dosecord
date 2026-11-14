@@ -5,6 +5,9 @@ import dosegram.core.application.capture.CaptureHandler
 import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
+import dosegram.core.application.insights.ReportComposer
+import dosegram.core.application.insights.RollupService
+import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
@@ -77,7 +80,8 @@ class PromptLoopPgSuite extends PgSuite:
     val errors = scala.collection.mutable.ListBuffer.empty[Throwable]
 
     def loop(): PromptLoop =
-      PromptLoop(uow, clock, ids, PromptMessages(codec), hydration, settings, (_, e) => errors += e)
+      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), StatusCards.textOnly, codec)
+      PromptLoop(uow, clock, ids, PromptMessages(codec), hydration, settings, reports, (_, e) => errors += e)
 
     val dispatcher = OutboxDispatcher(
       uow,
@@ -226,6 +230,74 @@ class PromptLoopPgSuite extends PgSuite:
     assert(!rig.adapter.ops.contains(VendorOp.Delete(handle)), rig.adapter.ops)
     assertEquals(rig.prompts.map(_.status), List(PromptStatus.Answered, PromptStatus.Sent))
     assertEquals(rig.open.size, 2, "the recorded check-in and the new prompt")
+
+  // ---------- scheduled reports (VISUALS_AND_ANALYTICS section 10) ----------
+
+  private val sunday = "2026-11-22"
+  private def sundayAt(hhmm: String): Instant = Instant.parse(s"${sunday}T$hhmm:00+02:00")
+
+  test("a weekly report over a week without records sends nothing and is recorded as no records (VA-PS-05)"):
+    val rig = Rig(start = sundayAt("18:00"), preset = PromptPresets.WeeklyReport)
+    rig.clock.at = sundayAt("19:00").plusSeconds(5)
+    rig.tickAndSend()
+    assertEquals(rig.allPrompts.map(p => (p.status, p.reason)), List(PromptStatus.Suppressed -> Some(SuppressReason.NoRecords)))
+    assertEquals(rig.open, Nil)
+
+  test("a weekly report sends the week's text with Stop these; Stop these turns the plan off in the same message"):
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.WeeklyReport)
+    rig.clock.at = sundayAt("09:10")
+    rig.drink(700, "w-sunday")
+    rig.clock.at = sundayAt("19:00").plusSeconds(5)
+    rig.tickAndSend()
+    assertEquals(rig.allPrompts.map(_.status), List(PromptStatus.Sent))
+    val (handle, message) = rig.open.lastOption.getOrElse(fail("no report was sent"))
+    assert(message.toString.contains("Your week: the last 7 days"), message)
+    assert(message.toString.contains("Water: "), message)
+    assertEquals(rig.labels(message), List("Stop these"))
+    // A second pass on the same Sunday sends nothing more: one report per period (VA-PS-09).
+    rig.clock.at = sundayAt("19:20")
+    rig.tickAndSend()
+    assertEquals(rig.open.size, 1)
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
+    val token =
+      codec.encode(CallbackMode.Direct, ActionRegistry.byName("reminders.report_stop").get, rig.account, 5L)
+    val reply = rig.tap(handler, handle, token.wire, "stop-1")
+    val edited = reply.replace.getOrElse(fail(s"expected an edit of the report, got $reply"))
+    assertEquals(edited.replaces, Some(handle))
+    assertEquals(edited.blocks, Nil)
+    assert(edited.body.toString.contains("Weekly summaries are off."), edited.body)
+    assert(rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptPresets.WeeklyReport.kind)).forall(!_.enabled))
+
+  test("a monthly report goes out on the 1st only when a domain has records on 14 days of the month (R-INS-11)"):
+    val first = Instant.parse("2026-12-01T09:00:00+02:00")
+    val rig = Rig(start = first, preset = PromptPresets.MonthlyReport)
+    (1 to 14).foreach { day =>
+      rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
+      rig.drink(500, s"m-$day")
+    }
+    rig.clock.at = Instant.parse("2026-12-01T10:00:05+02:00")
+    rig.tickAndSend()
+    assertEquals(rig.allPrompts.filter(_.planDate == LocalDate.parse("2026-12-01")).map(_.status), List(PromptStatus.Sent))
+    val (_, message) = rig.open.lastOption.getOrElse(fail("no report was sent"))
+    assert(message.toString.contains("Your month"), message)
+    assert(message.toString.contains("November 2026"), message)
+    assert(message.toString.contains("14 days with records"), message)
+
+  test("a monthly report of a month short of the gate sends nothing"):
+    val first = Instant.parse("2027-01-01T09:00:00+02:00")
+    val rig = Rig(start = first, preset = PromptPresets.MonthlyReport)
+    (1 to 13).foreach { day =>
+      rig.clock.at = Instant.parse(f"2026-12-$day%02dT12:00:00+02:00")
+      rig.drink(500, s"d-$day")
+    }
+    rig.clock.at = Instant.parse("2027-01-01T10:00:05+02:00")
+    rig.tickAndSend()
+    assertEquals(
+      rig.allPrompts.filter(_.planDate == LocalDate.parse("2027-01-01")).map(p => (p.status, p.reason)),
+      List(PromptStatus.Suppressed -> Some(SuppressReason.NoRecords))
+    )
+    assertEquals(rig.open, Nil)
 
   test("catch-up after downtime sends at most the newest prompt, and nothing once it is stale"):
     val rig = Rig()
