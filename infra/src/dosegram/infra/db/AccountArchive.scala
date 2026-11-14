@@ -1,6 +1,7 @@
 package dosegram.infra.db
 
 import dosegram.core.ports.ExportFile
+import dosegram.core.ports.KeyService
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets.UTF_8
@@ -22,7 +23,8 @@ final case class ArchivedTable(name: String, columns: List[(String, String)], ro
 /** The full export of one account (PRODUCT_SPEC R-IMX-1, ROADMAP G3.10): every table that [[ExportCoverage]] covers,
   * read on the caller's connection, written as one ZIP with `export.json`, its JSON Schema `schema.json`, one CSV file
   * per table and a short readable `README.txt`. Instants carry the offset of the account's time zone, whose id is in
-  * the file. Names and notes are included: the export is for the account's owner.
+  * the file. Names and notes are included: the export is for the account's owner, so every sealed column is opened and
+  * written under its plaintext name, and the sealed and lookup columns are left out (V10, V11).
   */
 object AccountArchive:
 
@@ -31,19 +33,42 @@ object AccountArchive:
 
   private val FileDate = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-  def build(conn: Connection, accountId: UUID, at: Instant): ExportFile =
+  def build(conn: Connection, keys: KeyService, accountId: UUID, at: Instant): ExportFile =
     given Connection = conn
     val zone = ZoneId.of(
       sql"SELECT timezone FROM users WHERE id = $accountId".queryOne[String]().getOrElse("UTC")
     )
-    val tables = read(conn, accountId, zone)
+    val tables = read(conn, keys, accountId, zone)
     val name = s"dosegram-export-${FileDate.format(at.atZone(zone))}.zip"
     ExportFile(name, Mime, zip(tables, zone, at))
 
   /** The covered tables in name order, empty ones included, so the archive always lists every domain. */
-  def read(conn: Connection, accountId: UUID, zone: ZoneId): List[ArchivedTable] =
+  def read(conn: Connection, keys: KeyService, accountId: UUID, zone: ZoneId): List[ArchivedTable] =
     baseTables(conn).flatMap: (table, hasOwner) =>
-      selectOf(table, hasOwner).map(select => query(conn, table, select, accountId, zone))
+      selectOf(table, hasOwner).map(select => opened(query(conn, table, select, accountId, zone), keys, accountId))
+
+  /** `table` with each sealed value opened into its plaintext column, and without the sealed and lookup columns. */
+  private def opened(table: ArchivedTable, keys: KeyService, accountId: UUID): ArchivedTable =
+    val sealedHere = SealedColumns.all.filter(_.table == table.name)
+    val hidden = sealedHere.flatMap(column => column.encrypted :: column.lookup.map(_.column).toList).toSet
+    val names = table.columns.map(_._1)
+    val types = table.columns.toMap
+    def open(row: Map[String, ujson.Value], column: SealedColumn): Map[String, ujson.Value] =
+      (row.get(column.encrypted), row.get(column.rowKey)) match
+        case (Some(ujson.Str(encoded)), Some(ujson.Str(rowKey))) =>
+          val bytes = keys.open(column.forAccount(accountId, rowKey), Base64.getDecoder.decode(encoded))
+          row.updated(column.plain, plainValue(types.getOrElse(column.plain, "text"), bytes))
+        case _ => row
+    val rows = table.rows.map: row =>
+      val byName = sealedHere.foldLeft(names.zip(row).toMap)(open)
+      names.filterNot(hidden).map(byName)
+    ArchivedTable(table.name, table.columns.filterNot((name, _) => hidden(name)), rows)
+
+  private def plainValue(typeName: String, bytes: Array[Byte]): ujson.Value =
+    typeName match
+      case "jsonb" | "json" => ujson.read(String(bytes, UTF_8))
+      case "bytea"          => ujson.Str(Base64.getEncoder.encodeToString(bytes))
+      case _                => ujson.Str(String(bytes, UTF_8))
 
   /** Every base table of the public schema, and whether it has an `account_id` column. */
   def baseTables(conn: Connection): List[(String, Boolean)] =

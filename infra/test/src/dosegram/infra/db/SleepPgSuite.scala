@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.application.sleep.AdjustEpisode
 import dosegram.core.application.sleep.EnterSleep
 import dosegram.core.application.sleep.RateEpisode
@@ -40,7 +41,7 @@ class SleepPgSuite extends PgSuite:
   private final class Rig:
     val account: UUID = fixtures.account("Europe/Berlin")
     val clock = MutableClock(bedtime)
-    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock))
+    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock, DataKeys.development))
     val service = SleepService(clock, IdSource.uuidV7(RandomGenerator.getDefault))
 
     def input(key: String): SleepInput = SleepInput(account, EntrySource.Bot, key)

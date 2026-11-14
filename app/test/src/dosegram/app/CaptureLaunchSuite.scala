@@ -1,5 +1,6 @@
 package dosegram.app
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.adapter.telegram.FakeTelegramTransport
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
@@ -218,7 +219,7 @@ class CaptureLaunchSuite extends PgSuite:
     val rasteriser = NumberingRasteriser()
     supervised:
       val config = settings
-      val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock)
+      val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock, DataKeys.development)
       val images = StatusImages.over(drawingWith.getOrElse(rasteriser), stores, _ => ())
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), idle, images), log = _ => ())
@@ -237,7 +238,7 @@ class CaptureLaunchSuite extends PgSuite:
 
   private def grant(accountId: UUID, purposes: ConsentPurpose*): Unit =
     val notice = ConsentNotice(1, "seeded for the test", "en")
-    PgUnitOfWork(dataSource, () => monday).transaction(tx => purposes.foreach(tx.consents.grant(accountId, _, notice, ConsentTaps(monday, monday))))
+    PgUnitOfWork(dataSource, () => monday, DataKeys.development).transaction(tx => purposes.foreach(tx.consents.grant(accountId, _, notice, ConsentTaps(monday, monday))))
 
   private def strings(query: String): List[String] = withConnection { conn =>
     val st = conn.createStatement()

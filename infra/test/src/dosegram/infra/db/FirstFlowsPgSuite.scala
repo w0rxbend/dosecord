@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.CommandRegistry
 import dosegram.core.application.FirstFlows
@@ -101,7 +102,7 @@ class FirstFlowsPgSuite extends PgSuite:
       finally pending.remove(id)
 
   private final class Rig(using ox.Ox):
-    val uow = PgUnitOfWork(dataSource, FixedClock(t0))
+    val uow = PgUnitOfWork(dataSource, FixedClock(t0), DataKeys.development)
     val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
     val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
     // One event can send several messages (the consent receipt, then the welcome): a reply is complete only when the

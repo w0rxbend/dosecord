@@ -6,6 +6,7 @@ import dosegram.core.domain.DstKind
 import dosegram.core.domain.Occurrence
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.UnknownReason
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.NewOccurrence
 import dosegram.core.ports.OccurrenceOrigin
 import dosegram.core.ports.OccurrenceRepository
@@ -23,15 +24,20 @@ import scala.language.implicitConversions
 
 /** Postgres `dose_occurrences` (ADR-004): no-target `ON CONFLICT DO NOTHING` inserts (every unique index arbitrates,
   * including the cross-revision live-slot index), the edit transaction's `FOR UPDATE` lock on open rows, and
-  * reconciliation cancels. Every query takes `now` as a bind parameter (ADR-011).
+  * reconciliation cancels. Every query takes `now` as a bind parameter (ADR-011). The dose snapshot names the
+  * medication, so it is sealed with the account's data key (V10).
   */
-final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepository:
+final class PgOccurrenceRepository(conn: Connection, keys: KeyService) extends OccurrenceRepository:
+  import SealedColumns.OccurrenceSnapshot
+
   private given Connection = conn
 
   private given RowMapper[StoredOccurrence] = rs =>
+    val id = rs.uuid("id")
+    val accountId = rs.uuid("account_id")
     StoredOccurrence(
-      id = rs.uuid("id"),
-      accountId = rs.uuid("account_id"),
+      id = id,
+      accountId = accountId,
       medicationId = rs.uuid("medication_id"),
       scheduleId = rs.optUuid("schedule_id"),
       revision = rs.optInt("revision"),
@@ -63,18 +69,20 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
         unknownReason = rs.optString("unknown_reason").map(UnknownReason.fromDbValue),
         epoch = rs.getInt("epoch")
       ),
-      doseSnapshot = rs.optJsonb("dose_snapshot").map(json => read[DoseSnapshot](json.value))
+      doseSnapshot = Option(rs.getBytes("dose_snapshot_enc"))
+        .map(snapshot => read[DoseSnapshot](keys.openText(OccurrenceSnapshot.forAccount(accountId, id), snapshot)))
     )
 
   override def insertAll(rows: List[NewOccurrence]): Int =
     rows.map(insert).count(_ == 1)
 
   private def insert(row: NewOccurrence): Int =
+    val snapshot = keys.sealText(OccurrenceSnapshot.forAccount(row.accountId, row.id), write(row.doseSnapshot))
     sql"""INSERT INTO dose_occurrences
             (id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
              tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
              epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-             skipped_at, missed_at, next_action_at, unknown_reason, error_count, dose_snapshot, version)
+             skipped_at, missed_at, next_action_at, unknown_reason, error_count, dose_snapshot_enc, version)
           VALUES (${row.id}, ${row.accountId}, ${row.medicationId}, ${row.scheduleId}, ${row.revision},
                   ${row.origin.dbValue}, ${row.localDate},
                   ${row.localTime.map(t => LocalTime.of(t.hour, t.minute))}, ${row.slotKey},
@@ -83,21 +91,21 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
                   ${row.state.epoch}, ${row.state.reminderSeq}, ${row.state.snoozeCount}, ${row.state.snoozedUntil},
                   ${row.state.lastRemindedAt}, ${row.state.takenAt}, ${row.state.effectiveAt},
                   ${row.state.skippedAt}, ${row.state.missedAt}, ${row.state.nextActionAt},
-                  ${row.state.unknownReason.map(_.dbValue)}, 0, ${Jsonb(write(row.doseSnapshot))}, 1)
+                  ${row.state.unknownReason.map(_.dbValue)}, 0, $snapshot, 1)
           ON CONFLICT DO NOTHING""".execute()
 
   override def get(id: UUID): Option[StoredOccurrence] =
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
           FROM dose_occurrences WHERE id = $id""".queryOne[StoredOccurrence]()
 
   override def lockById(id: UUID): Option[StoredOccurrence] =
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
           FROM dose_occurrences WHERE id = $id
           FOR UPDATE""".queryOne[StoredOccurrence]()
 
@@ -111,7 +119,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
         sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                      tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                      epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                     skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                     skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
               FROM dose_occurrences
               WHERE account_id = $accountId AND medication_id = $medId AND status IN ('pending', 'due', 'snoozed')
                 AND scheduled_for <= $now
@@ -121,7 +129,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
         sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                      tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                      epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                     skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                     skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
               FROM dose_occurrences
               WHERE account_id = $accountId AND status IN ('pending', 'due', 'snoozed')
                 AND scheduled_for <= $now
@@ -132,7 +140,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
           FROM dose_occurrences WHERE schedule_id = $scheduleId
           ORDER BY scheduled_for, local_date, slot_key""".query[StoredOccurrence]()
 
@@ -140,7 +148,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
           FROM dose_occurrences
           WHERE schedule_id = $scheduleId AND status IN ('pending', 'due', 'snoozed')
           ORDER BY scheduled_for
@@ -167,7 +175,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
           FROM dose_occurrences
           WHERE status IN ('pending', 'due', 'snoozed') AND next_action_at <= $now
             AND error_count < $threshold
@@ -217,7 +225,7 @@ final class PgOccurrenceRepository(conn: Connection) extends OccurrenceRepositor
     sql"""SELECT id, account_id, medication_id, schedule_id, revision, origin, local_date, local_time, slot_key,
                  tz, dst_kind, scheduled_for, due_window_start, due_window_end, miss_deadline, status,
                  epoch, reminder_seq, snooze_count, snoozed_until, last_reminded_at, taken_at, effective_at,
-                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot
+                 skipped_at, missed_at, next_action_at, unknown_reason, cancel_reason, version, dose_snapshot_enc
           FROM dose_occurrences
           WHERE account_id = $accountId AND local_date >= $from AND local_date <= $to
           ORDER BY scheduled_for, id""".query[StoredOccurrence]()

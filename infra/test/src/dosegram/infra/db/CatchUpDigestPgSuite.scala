@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.DigestItem
 import dosegram.contracts.HhMm
 import dosegram.contracts.LoopDispatch
@@ -57,8 +58,8 @@ class CatchUpDigestPgSuite extends PgSuite:
 
   private def loop(clock: MutableClock): ReminderLoop =
     ReminderLoop(
-      PgUnitOfWork(dataSource, clock),
-      Materialiser(PgUnitOfWork(dataSource, clock), clock, MicrometerLoopMetrics()),
+      PgUnitOfWork(dataSource, clock, DataKeys.development),
+      Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock, MicrometerLoopMetrics()),
       Wake.polling,
       clock,
       instance = "catchup-test",
@@ -70,9 +71,9 @@ class CatchUpDigestPgSuite extends PgSuite:
   private def dispatcher(clock: MutableClock, adapter: FakeAdapter): OutboxDispatcher =
     val codec = CallbackCodec(CallbackKeys(CallbackKey(1, Array.fill[Byte](32)(7)), None))
     OutboxDispatcher(
-      PgUnitOfWork(dataSource, clock),
+      PgUnitOfWork(dataSource, clock, DataKeys.development),
       Map("fake" -> adapter),
-      CatalogueOutboxRenderer(PgUnitOfWork(dataSource, clock), codec, clock),
+      CatalogueOutboxRenderer(PgUnitOfWork(dataSource, clock, DataKeys.development), codec, clock),
       clock
     )
 
@@ -211,7 +212,7 @@ class CatchUpDigestPgSuite extends PgSuite:
       OccurrenceStatus.Due
     )
     val bucket = monday.plus(Duration.ofHours(1)).getEpochSecond / ReminderLoop.DigestBucketSeconds
-    PgUnitOfWork(dataSource, clock).transaction(
+    PgUnitOfWork(dataSource, clock, DataKeys.development).transaction(
       _.outbox.enqueue(
         NewOutboxMessage(
           id = UUID.randomUUID(),

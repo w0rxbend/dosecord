@@ -7,7 +7,8 @@ class RenderSettingsSuite extends munit.FunSuite:
     "ENABLED_ADAPTERS" -> "console",
     "DATABASE_URL" -> "jdbc:postgresql://localhost:5432/dosegram",
     "CALLBACK_KEYS" -> "0:MDEyMzQ1Njc4OWFiY2RlZg",
-    "CONSOLE_USER_ID" -> "owner"
+    "CONSOLE_USER_ID" -> "owner",
+    "KEK" -> "test:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
   )
 
   private def parse(env: Map[String, String]) = Settings.parse(env, path => sys.error(s"no secret file $path"))

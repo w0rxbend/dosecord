@@ -22,12 +22,18 @@ final class Migrator(dataSource: DataSource):
     * in `pg_advisory_lock` until the first one commits and releases.
     */
   def migrateLocked(lockKey: Long = Migrator.AdvisoryLockKey): MigrateResult =
+    withLock(lockKey)(locked => Flyway.configure().dataSource(locked).load().migrate())
+
+  /** Runs `body` while this process holds the migration lock; `body` gets the lock-holding connection as a `DataSource`
+    * for Flyway, and may use the pool for other work.
+    */
+  def withLock[A](lockKey: Long = Migrator.AdvisoryLockKey)(body: DataSource => A): A =
     val conn = dataSource.getConnection
     try
       val stmt = conn.createStatement()
       try stmt.execute(s"SELECT pg_advisory_lock($lockKey)")
       finally stmt.close()
-      try Flyway.configure().dataSource(Migrator.SingleConnection(conn)).load().migrate()
+      try body(Migrator.SingleConnection(conn))
       finally
         val unlock = conn.createStatement()
         try unlock.execute(s"SELECT pg_advisory_unlock($lockKey)")

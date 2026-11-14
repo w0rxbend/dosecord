@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.Event
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
@@ -48,8 +49,8 @@ class ReminderLoopPgSuite extends PgSuite:
 
   private def loop(clock: MutableClock): ReminderLoop =
     ReminderLoop(
-      PgUnitOfWork(dataSource, clock),
-      Materialiser(PgUnitOfWork(dataSource, clock), clock),
+      PgUnitOfWork(dataSource, clock, DataKeys.development),
+      Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock),
       Wake.polling,
       clock,
       instance = "pg-test"
@@ -230,7 +231,7 @@ class ReminderLoopPgSuite extends PgSuite:
     fixtures.deliveryChannel(accountId, "console", "dm:owner", monday)
     clock.advance(Duration.ofMinutes(65))
     val now = clock.now()
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
 
     val claimed = uow.transaction(_.occurrences.claimDue(now, 50)).head
 

@@ -7,7 +7,8 @@ class MiniAppSettingsSuite extends munit.FunSuite:
     "ENABLED_ADAPTERS" -> "console",
     "DATABASE_URL" -> "jdbc:postgresql://localhost:5432/dosegram",
     "CALLBACK_KEYS" -> "0:MDEyMzQ1Njc4OWFiY2RlZg",
-    "CONSOLE_USER_ID" -> "owner"
+    "CONSOLE_USER_ID" -> "owner",
+    "KEK" -> "test:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
   )
   private val enabled = base ++ Map("ENVIRONMENT" -> "development", "MINIAPP_ENABLED" -> "true")
   private val testKey = "40055058a4ee38156a06562e52eece92a771bcd8346a8c4615cb7376eddf72ec"

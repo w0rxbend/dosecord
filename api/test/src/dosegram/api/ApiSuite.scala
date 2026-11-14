@@ -1,5 +1,6 @@
 package dosegram.api
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.api.auth.InMemorySessionStore
 import dosegram.api.auth.InitDataHmac
 import dosegram.api.auth.InitDataSuite
@@ -60,7 +61,7 @@ trait ApiSuite extends PgSuite:
   protected val sessionStore: InMemorySessionStore = InMemorySessionStore()
   protected val logged: ListBuffer[String] = ListBuffer.empty
   protected lazy val fixtures: Fixtures = Fixtures(dataSource)
-  protected lazy val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock)
+  protected lazy val uow: PgUnitOfWork = PgUnitOfWork(dataSource, clock, DataKeys.development)
 
   // The tracking use cases over the same database: the module reads through them, a test seeds through them.
   protected lazy val tracking: TransactionalTracking =

@@ -2,6 +2,7 @@ package dosegram.infra
 
 import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
+import dosegram.infra.crypto.KekRing
 
 import java.net.InetAddress
 import java.net.URI
@@ -135,7 +136,10 @@ final case class Settings(
     // The interfaces the two listeners bind to. Both default to the loopback interface: `/healthz` is for the host
     // (ARCHITECTURE section 9.1), and the public origin is reached through a TLS proxy (docs/DEPLOY_MINIAPP.md).
     healthAddress: String = Settings.DefaultBindAddress,
-    httpAddress: String = Settings.DefaultBindAddress
+    httpAddress: String = Settings.DefaultBindAddress,
+    // The key-encryption keys of ARCHITECTURE SEC-02. Production refuses to start without its own; development and
+    // tests use the development key.
+    kek: KekRing = KekRing.development
 )
 
 object Settings:
@@ -345,6 +349,14 @@ object Settings:
       "IP address the public listener (/app/, /api/v1/) binds to; the TLS proxy connects to it.",
       DefaultBindAddress,
       Some(DefaultBindAddress)
+    ),
+    EnvSpec(
+      "KEK",
+      required = false,
+      secret = true,
+      "Key-encryption keys '<id>:<base64 of 32 random bytes>'[,...]; the first wraps, the rest only unwrap. " +
+        "Required in production; keep it outside the database volume and its backups. New key: openssl rand -base64 32.",
+      "kek-2026:REPLACE-WITH-BASE64-OF-32-RANDOM-BYTES"
     )
   )
 
@@ -444,6 +456,17 @@ object Settings:
 
     val databaseUrl = required("DATABASE_URL")
 
+    // SEC-02: production holds its own key-encryption key; elsewhere the development key stands in for a missing one.
+    val kek = lookup("KEK") match
+      case Some(raw) =>
+        KekRing.parse(raw) match
+          case Right(ring)   => Some(ring)
+          case Left(problem) => { errors = errors :+ problem; None }
+      case None if environment == Environment.Production =>
+        errors = errors :+ "KEK is required while ENVIRONMENT=production"
+        None
+      case None => Some(KekRing.development)
+
     val keys = required("CALLBACK_KEYS").flatMap(parseCallbackKeys(_) match
       case Right(ks) => Some(ks)
       case Left(err) => { errors = errors :+ err; None })
@@ -505,7 +528,8 @@ object Settings:
           telegramToken = telegramToken.map(Secret(_)),
           render = render,
           healthAddress = healthAddress,
-          httpAddress = httpAddress
+          httpAddress = httpAddress,
+          kek = kek.get
         )
       )
 

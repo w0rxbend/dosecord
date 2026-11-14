@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.CancelReason
@@ -250,9 +251,9 @@ class ScheduleLifecycleSuite extends PgSuite:
       .get
 
     clock.advance(Duration.ofHours(19)) // Tue 03:00Z
-    Materialiser(PgUnitOfWork(dataSource, clock), clock).runOnce()
+    Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock).runOnce()
     val toUtc = fixtures.lifecycle(clock).changeTimezone(created.scheduleId, utc)
-    Materialiser(PgUnitOfWork(dataSource, clock), clock).runOnce()
+    Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock).runOnce()
 
     // Revision 3 (UTC) governs from the next UTC midnight; rev2's Wed 09:00 Lord_Howe row fires before the cutover,
     // so it is kept and flagged — and through uq_occ_live_slot it suppresses rev3's (Wed, t0900) candidate.

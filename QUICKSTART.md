@@ -32,6 +32,7 @@ Needs JDK 25 and a reachable PostgreSQL 18. `./mill` downloads the build tool.
    export ENABLED_ADAPTERS=console CONSOLE_USER_ID=owner
    export DATABASE_URL='jdbc:postgresql://localhost:5432/dosegram?user=dosegram&password=dosegram'
    export CALLBACK_KEYS='0:MDEyMzQ1Njc4OWFiY2RlZg'   # the example key; never a real one
+   export ENVIRONMENT=development   # the development key-encryption key; production refuses to start without KEK
    ```
 
 3. Apply the schema, then start:

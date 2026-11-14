@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
@@ -75,7 +76,7 @@ class MedicationWizardPgSuite extends PgSuite:
 
   private final class Rig(using ox.Ox):
     val clock = FixedClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
     val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)
     val mediator = ChatMediator(
@@ -209,18 +210,22 @@ class MedicationWizardPgSuite extends PgSuite:
       instructions: Option[String],
       status: String
   )
-  private given RowMapper[MedicationRow] = rs =>
-    MedicationRow(
-      rs.getString("name"),
-      Option(rs.getBigDecimal("dose_amount")).map(BigDecimal(_)),
-      rs.optString("dose_unit"),
-      rs.optString("instructions"),
-      rs.getString("status")
-    )
-
+  // The name and the instructions are sealed (V10, V11): every row of the table, opened with the test key.
   private def medicationRows(): List[MedicationRow] = withConnection { conn =>
     given Connection = conn
-    sql"SELECT name, dose_amount, dose_unit, instructions, status FROM medications".query[MedicationRow]()
+    val keys = DataKeys.development.on(conn)
+    given RowMapper[MedicationRow] = rs =>
+      val (id, account) = (rs.uuid("id"), rs.uuid("user_id"))
+      MedicationRow(
+        keys.openText(SealedColumns.MedicationName.forAccount(account, id), rs.getBytes("name_enc")),
+        Option(rs.getBigDecimal("dose_amount")).map(BigDecimal(_)),
+        rs.optString("dose_unit"),
+        Option(rs.getBytes("instructions_enc"))
+          .map(keys.openText(SealedColumns.MedicationInstructions.forAccount(account, id), _)),
+        rs.getString("status")
+      )
+    sql"SELECT id, user_id, name_enc, dose_amount, dose_unit, instructions_enc, status FROM medications"
+      .query[MedicationRow]()
   }
 
   private final case class OccurrenceRow(scheduledFor: Instant, status: String, revision: Int)
@@ -511,7 +516,12 @@ class MedicationWizardPgSuite extends PgSuite:
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — unknown")), s"unknown: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — scheduled")), s"today: $history")
 
+  // The name is sealed (V10, V11): every row of the table, opened with the test key.
   private def medicationIdOf(name: String): UUID = withConnection { conn =>
     given Connection = conn
-    sql"SELECT id FROM medications WHERE name = $name".queryOne[UUID]()
+    val keys = DataKeys.development.on(conn)
+    given RowMapper[(UUID, String)] = rs =>
+      val (id, account) = (rs.uuid("id"), rs.uuid("user_id"))
+      id -> keys.openText(SealedColumns.MedicationName.forAccount(account, id), rs.getBytes("name_enc"))
+    sql"SELECT id, user_id, name_enc FROM medications".query[(UUID, String)]().collectFirst { case (id, `name`) => id }
   }.get

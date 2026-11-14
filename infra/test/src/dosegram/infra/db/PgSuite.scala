@@ -8,7 +8,7 @@ import com.dimafeng.testcontainers.munit.TestContainerForAll
 import com.zaxxer.hikari.HikariDataSource
 import org.testcontainers.utility.DockerImageName
 
-/** Testcontainers Postgres 18 harness: one container per suite, migrated to head in `beforeAll`.
+/** Testcontainers Postgres 18 harness: one container per suite, migrated to head in `beforeAll` unless the suite opts out.
   */
 trait PgSuite extends munit.FunSuite, TestContainerForAll:
 
@@ -21,9 +21,12 @@ trait PgSuite extends munit.FunSuite, TestContainerForAll:
   protected lazy val dataSource: HikariDataSource =
     Database.pooled(pg.jdbcUrl, pg.username, pg.password)
 
+  /** Whether `beforeAll` migrates the suite's database to head; a suite that starts from an older schema says no. */
+  protected def migrateOnStart: Boolean = true
+
   override def beforeAll(): Unit =
     super.beforeAll()
-    Migrator(dataSource).migrate()
+    if migrateOnStart then Migrator(dataSource).migrate()
 
   override def afterAll(): Unit =
     if dataSource != null then dataSource.close()

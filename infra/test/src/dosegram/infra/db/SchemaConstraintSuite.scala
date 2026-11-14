@@ -23,13 +23,13 @@ class SchemaConstraintSuite extends PgSuite:
     sql"""INSERT INTO dose_occurrences
             (id, account_id, medication_id, schedule_id, revision, origin, local_date, slot_key, tz,
              scheduled_for, due_window_start, due_window_end, miss_deadline, status, taken_at,
-             next_action_at, dose_snapshot)
+             next_action_at, dose_snapshot_enc)
           VALUES ($id, ${UUID.randomUUID()}, ${UUID.randomUUID()}, $scheduleId, $revision, 'scheduled',
                   DATE '2026-09-20', $slotKey, 'Europe/Kyiv',
                   TIMESTAMPTZ '2026-09-20 09:00:00+00', TIMESTAMPTZ '2026-09-20 09:00:00+00',
                   TIMESTAMPTZ '2026-09-20 10:00:00+00', TIMESTAMPTZ '2026-09-20 11:00:00+00',
                   ${literal(status)}, $takenAt,
-                  $nextAction, ${Jsonb("{}")})""".execute()
+                  $nextAction, ${Array[Byte](0)})""".execute()
     id
 
   /** SQL text fragment as a bind-free literal (enum values, which pgjdbc cannot bind from a String without a cast).

@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.ChoiceMapEntry
 import dosegram.contracts.MessageHandle
 import dosegram.contracts.PlatformIdentity
@@ -29,7 +30,7 @@ class MediatorRepositorySuite extends PgSuite:
       finally st.close()
     }
 
-  private def newUow = PgUnitOfWork(dataSource, Clock.system)
+  private def newUow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
 
   test("inbound_events: insert, duplicate rejected, complete stores reply and account id"):
     val uow = newUow

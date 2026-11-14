@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.MedicationEdit
 import dosegram.core.ports.MedicationRepository
 import dosegram.core.ports.MedicationStatus
@@ -11,64 +12,95 @@ import java.time.Instant
 import java.util.UUID
 import scala.language.implicitConversions
 
-final class PgMedicationRepository(conn: Connection) extends MedicationRepository:
+/** Postgres `medications`. The name and the instructions are sealed with the account's data key (ROADMAP G2.4,
+  * ARCHITECTURE SEC-01); `name_hmac`, the keyed hash of the normalised name, replaces `name_norm` for find-or-create
+  * and for the one-live-medication-per-name index. A prefix search opens the account's names and filters them here: a
+  * keyed hash matches whole names only.
+  */
+final class PgMedicationRepository(conn: Connection, keys: KeyService) extends MedicationRepository:
+  import SealedColumns.MedicationInstructions
+  import SealedColumns.MedicationName
+
   private given Connection = conn
 
+  private val Columns =
+    "id, user_id, name_enc, dose_amount, dose_unit, instructions_enc, status, created_at, updated_at"
+
   private given RowMapper[StoredMedication] = rs =>
+    val id = rs.uuid("id")
+    val accountId = rs.uuid("user_id")
+    val name = keys.openText(MedicationName.forAccount(accountId, id), rs.getBytes("name_enc"))
     StoredMedication(
-      id = rs.uuid("id"),
-      accountId = rs.uuid("user_id"),
-      name = rs.getString("name"),
-      nameNorm = rs.getString("name_norm"),
+      id = id,
+      accountId = accountId,
+      name = name,
+      nameNorm = SealedColumns.medicationNameNorm(name),
       doseAmount = Option(rs.getBigDecimal("dose_amount")).map(BigDecimal(_)),
       doseUnit = rs.optString("dose_unit"),
-      instructions = rs.optString("instructions"),
+      instructions = Option(rs.getBytes("instructions_enc"))
+        .map(keys.openText(MedicationInstructions.forAccount(accountId, id), _)),
       status = MedicationStatus.fromDbValue(rs.getString("status")),
       createdAt = rs.instant("created_at"),
       updatedAt = rs.instant("updated_at")
     )
 
+  private final case class Sealed(name: Array[Byte], nameHmac: Array[Byte], instructions: Option[Array[Byte]])
+
+  private def sealedOf(accountId: UUID, id: UUID, name: String, instructions: Option[String]): Sealed =
+    Sealed(
+      keys.sealText(MedicationName.forAccount(accountId, id), name),
+      keys.lookup(MedicationName, accountId, name),
+      instructions.map(keys.sealText(MedicationInstructions.forAccount(accountId, id), _))
+    )
+
+  private def select(where: String, binds: SqlBind*): List[StoredMedication] =
+    SqlQuery(s"SELECT $Columns FROM medications WHERE $where", binds.toVector).query[StoredMedication]()
+
   override def insert(row: NewMedication, now: Instant): Unit =
-    sql"""INSERT INTO medications (id, user_id, name, dose_amount, dose_unit, instructions, status,
+    val sealedRow = sealedOf(row.accountId, row.id, row.name, row.instructions)
+    sql"""INSERT INTO medications (id, user_id, name_enc, name_hmac, dose_amount, dose_unit, instructions_enc, status,
                                    created_at, updated_at)
-          VALUES (${row.id}, ${row.accountId}, ${row.name}, ${row.doseAmount}, ${row.doseUnit},
-                  ${row.instructions}, 'active', $now, $now)""".execute()
+          VALUES (${row.id}, ${row.accountId}, ${sealedRow.name}, ${sealedRow.nameHmac}, ${row.doseAmount}, ${row.doseUnit},
+                  ${sealedRow.instructions}, 'active', $now, $now)""".execute()
+    ()
 
   override def get(id: UUID): Option[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
-          FROM medications WHERE id = $id""".queryOne[StoredMedication]()
+    select("id = ?", id).headOption
 
   override def findByNameNorm(accountId: UUID, nameNorm: String): Option[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
-          FROM medications
-          WHERE user_id = $accountId AND name_norm = $nameNorm AND status <> 'archived'"""
-      .queryOne[StoredMedication]()
+    select(
+      "user_id = ? AND name_hmac = ? AND status <> 'archived'",
+      accountId,
+      keys.lookup(MedicationName, accountId, nameNorm)
+    ).headOption
 
   override def listForAccount(accountId: UUID): List[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
-          FROM medications
-          WHERE user_id = $accountId AND status <> 'archived'
-          ORDER BY created_at, id""".query[StoredMedication]()
+    select("user_id = ? AND status <> 'archived' ORDER BY created_at, id", accountId)
 
-  // strpos rather than LIKE: a prefix containing LIKE wildcards must stay literal.
   override def searchByNameNormPrefix(accountId: UUID, prefix: String, limit: Int): List[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
-          FROM medications
-          WHERE user_id = $accountId AND status <> 'archived' AND strpos(name_norm, $prefix) = 1
-          ORDER BY name_norm
-          LIMIT $limit""".query[StoredMedication]()
+    listForAccount(accountId).filter(_.nameNorm.startsWith(prefix)).sortBy(_.nameNorm).take(limit)
 
   override def listAllForAccount(accountId: UUID): List[StoredMedication] =
-    sql"""SELECT id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at, updated_at
-          FROM medications
-          WHERE user_id = $accountId
-          ORDER BY created_at, id""".query[StoredMedication]()
+    select("user_id = ? ORDER BY created_at, id", accountId)
 
   override def replace(edit: MedicationEdit, now: Instant): Option[StoredMedication] =
-    sql"""UPDATE medications
-          SET name = ${edit.name}, dose_amount = ${edit.doseAmount}, dose_unit = ${edit.doseUnit},
-              instructions = ${edit.instructions}, status = ${edit.status.dbValue},
-              updated_at = GREATEST($now, updated_at + interval '1 microsecond')
-          WHERE id = ${edit.id} AND user_id = ${edit.accountId} AND updated_at = ${edit.expectedUpdatedAt}
-          RETURNING id, user_id, name, name_norm, dose_amount, dose_unit, instructions, status, created_at,
-                    updated_at""".queryOne[StoredMedication]()
+    val sealedRow = sealedOf(edit.accountId, edit.id, edit.name, edit.instructions)
+    SqlQuery(
+      s"""UPDATE medications
+          SET name_enc = ?, name_hmac = ?, dose_amount = ?, dose_unit = ?, instructions_enc = ?, status = ?,
+              updated_at = GREATEST(?, updated_at + interval '1 microsecond')
+          WHERE id = ? AND user_id = ? AND updated_at = ?
+          RETURNING $Columns""",
+      Vector[SqlBind](
+        sealedRow.name,
+        sealedRow.nameHmac,
+        edit.doseAmount,
+        edit.doseUnit,
+        sealedRow.instructions,
+        edit.status.dbValue,
+        now,
+        edit.id,
+        edit.accountId,
+        edit.expectedUpdatedAt
+      )
+    ).queryOne[StoredMedication]()

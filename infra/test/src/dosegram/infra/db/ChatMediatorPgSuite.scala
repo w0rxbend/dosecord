@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.chat.*
 import dosegram.core.domain.copy.ReminderCopy
@@ -167,7 +168,7 @@ class ChatMediatorPgSuite extends PgSuite:
   test("duplicate vendor_event_id yields one inbound_events row and the replayed reply"):
     ox.supervised:
       seedLinkedAccount()
-      val uow = PgUnitOfWork(dataSource, Clock.system)
+      val uow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
       val handler = RecordingHandler(_ => Reply(followUps = List(outbound("hello", "reply-1"))))
       val m = mediator(uow, adapter, handler)
@@ -187,7 +188,7 @@ class ChatMediatorPgSuite extends PgSuite:
   test("stored reply and domain_events row carry the resolved account id, type and source"):
     ox.supervised:
       val accountId = seedLinkedAccount()
-      val uow = PgUnitOfWork(dataSource, Clock.system)
+      val uow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
       val domainEvent = Event.MoodCheckinRecorded(AccountId(accountId), MoodLevel.unsafe(8), None, Nil)
       val handler = RecordingHandler(_ =>
@@ -228,7 +229,7 @@ class ChatMediatorPgSuite extends PgSuite:
   test("quoted reply resolves by target; bare digit against the latest pending prompt only"):
     ox.supervised:
       seedLinkedAccount()
-      val uow = PgUnitOfWork(dataSource, Clock.system)
+      val uow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
@@ -279,7 +280,7 @@ class ChatMediatorPgSuite extends PgSuite:
   test("a tampered token yields the toast and an auth_audit_log row; nothing reaches the core"):
     ox.supervised:
       seedLinkedAccount()
-      val uow = PgUnitOfWork(dataSource, Clock.system)
+      val uow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)
@@ -310,7 +311,7 @@ class ChatMediatorPgSuite extends PgSuite:
     ox.supervised:
       seedLinkedAccount()
       val pausable = PausableDataSource(dataSource)
-      val uow = PgUnitOfWork(pausable, Clock.system)
+      val uow = PgUnitOfWork(pausable, Clock.system, DataKeys.development)
       val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
       val handler = RecordingHandler(_ => Reply.empty)
       val m = mediator(uow, adapter, handler)

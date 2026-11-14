@@ -1,5 +1,6 @@
 package dosegram.app
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.application.exports.ExportMessages
 import dosegram.core.application.exports.RecordSummaries
 import dosegram.core.application.insights.RollupService
@@ -36,7 +37,7 @@ class RecordSummaryPdfSuite extends PgSuite:
 
   test("the record summary of a fixture account as a PDF"):
     val fixture = ExportFixture(dataSource, now, zone).seed()
-    val uow = PgUnitOfWork(dataSource, () => now)
+    val uow = PgUnitOfWork(dataSource, () => now, DataKeys.development)
     val period = DateRange.endingOn(LocalDate.ofInstant(now, zone), 30)
     val document = uow.transaction(RecordSummaries(RollupService(uow, () => now)).document(_, fixture.account, period, zone, now))
     val renderer = PdfRecordSummaryRenderer.from(Some(RenderSettings("unused", fonts)))
@@ -59,7 +60,7 @@ class RecordSummaryPdfSuite extends PgSuite:
 
   test("the adapters' store gives the file of an export until it expires"):
     val clock = MutableClock(now)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val account = dosegram.infra.db.Fixtures(dataSource).account()
     val id = UUID.randomUUID()
     uow.transaction: tx =>

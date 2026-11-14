@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import java.sql.Connection
 import java.sql.SQLException
 import java.time.Duration
@@ -39,8 +40,8 @@ class EdgeStoresPgSuite extends PgSuite:
 
   test("an image is read back by another store object until its hour has passed, and not after"):
     val png = Array[Byte](1, 2, 3, 4)
-    PgRenderAssets(dataSource).put("card.a", png, t0)
-    val afterRestart = PgRenderAssets(dataSource)
+    PgRenderAssets(dataSource, DataKeys.development).put("card.a", png, t0)
+    val afterRestart = PgRenderAssets(dataSource, DataKeys.development)
     assertEquals(afterRestart.load("card.a", t0.plusSeconds(3599)).map(_.toList), Some(png.toList))
     assert(afterRestart.holds("card.a", t0.plusSeconds(3599)))
     assertEquals(afterRestart.load("card.a", t0.plusSeconds(3600)), None, "an expired image is not there")
@@ -48,7 +49,7 @@ class EdgeStoresPgSuite extends PgSuite:
     assertEquals(afterRestart.load("card.unknown", t0), None)
 
   test("the deleting job removes the bytes one hour after the image was drawn and not before"):
-    val assets = PgRenderAssets(dataSource)
+    val assets = PgRenderAssets(dataSource, DataKeys.development)
     assets.put("card.early", Array[Byte](1), t0)
     assets.put("card.late", Array[Byte](2), t0.plusSeconds(1800))
     assertEquals(assets.purge(t0.plusSeconds(3599)), 0, "nothing is deleted before the hour")
@@ -57,7 +58,7 @@ class EdgeStoresPgSuite extends PgSuite:
     assertEquals(assets.purge(t0.plusSeconds(5400)), 1)
 
   test("storing an image again replaces it and restarts its hour"):
-    val assets = PgRenderAssets(dataSource)
+    val assets = PgRenderAssets(dataSource, DataKeys.development)
     assets.put("card.again", Array[Byte](1), t0)
     assets.put("card.again", Array[Byte](9, 9), t0.plusSeconds(3000))
     assertEquals(assets.load("card.again", t0.plusSeconds(3700)).map(_.toList), Some(List[Byte](9, 9)))
@@ -145,12 +146,12 @@ class EdgeStoresPgSuite extends PgSuite:
   test("a key is reserved once; its outcome survives a restart; a second reservation finds it"):
     val account = fixtures.account()
     val key = UUID.randomUUID()
-    val keys = PgIdempotencyKeys(dataSource)
+    val keys = PgIdempotencyKeys(dataSource, DataKeys.development)
     assert(keys.reserve(account, key, t0))
     assert(!keys.reserve(account, key, t0.plusSeconds(1)), "the key is taken while its request runs")
     assertEquals(keys.find(account, key), Some(IdempotencyRow(None, t0)), "in flight: no outcome yet")
     keys.complete(account, key, IdempotencyOutcome("hash-1", """{"id":"1"}"""), t0.plusSeconds(2))
-    val afterRestart = PgIdempotencyKeys(dataSource)
+    val afterRestart = PgIdempotencyKeys(dataSource, DataKeys.development)
     assertEquals(
       afterRestart.find(account, key),
       Some(IdempotencyRow(Some(IdempotencyOutcome("hash-1", """{"id":"1"}""")), t0.plusSeconds(2)))
@@ -161,7 +162,7 @@ class EdgeStoresPgSuite extends PgSuite:
   test("a released key is free again; an answered key is not released and not taken over"):
     val account = fixtures.account()
     val (refused, answered) = (UUID.randomUUID(), UUID.randomUUID())
-    val keys = PgIdempotencyKeys(dataSource)
+    val keys = PgIdempotencyKeys(dataSource, DataKeys.development)
     keys.reserve(account, refused, t0)
     keys.release(account, refused)
     assertEquals(keys.find(account, refused), None)
@@ -174,7 +175,7 @@ class EdgeStoresPgSuite extends PgSuite:
   test("a reservation whose request never finished is taken over once it is stale, by one caller"):
     val account = fixtures.account()
     val key = UUID.randomUUID()
-    val keys = PgIdempotencyKeys(dataSource)
+    val keys = PgIdempotencyKeys(dataSource, DataKeys.development)
     keys.reserve(account, key, t0)
     assert(!keys.takeOver(account, key, staleBefore = t0, now = t0.plusSeconds(30)), "not stale yet")
     assert(keys.takeOver(account, key, staleBefore = t0.plusSeconds(1), now = t0.plusSeconds(61)))
@@ -182,7 +183,7 @@ class EdgeStoresPgSuite extends PgSuite:
 
   test("the deleting job removes the keys created before the cutoff"):
     val account = fixtures.account()
-    val keys = PgIdempotencyKeys(dataSource)
+    val keys = PgIdempotencyKeys(dataSource, DataKeys.development)
     val before = count("idempotency_keys")
     val (old, fresh) = (UUID.randomUUID(), UUID.randomUUID())
     keys.reserve(account, old, t0.minus(Duration.ofHours(25)))

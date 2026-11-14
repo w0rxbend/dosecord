@@ -1,5 +1,6 @@
 package dosegram.app
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.api.IdempotencyRecord
 import dosegram.api.auth.Session
 import dosegram.core.ports.Clock
@@ -29,7 +30,7 @@ class DurableApiStoresSuite extends PgSuite:
     try conn.createStatement().execute("TRUNCATE render_assets, telegram_file_cache, miniapp_sessions, idempotency_keys")
     finally conn.close()
 
-  private def idempotency(): PgIdempotencyStore = PgIdempotencyStore(PgIdempotencyKeys(dataSource), clock)
+  private def idempotency(): PgIdempotencyStore = PgIdempotencyStore(PgIdempotencyKeys(dataSource, DataKeys.development), clock)
 
   private def record(hash: String): IdempotencyRecord = IdempotencyRecord(hash, s"""{"made":"$hash"}""", t0)
 
@@ -79,7 +80,7 @@ class DurableApiStoresSuite extends PgSuite:
 
   test("a reservation left by a process that died is taken over after a minute, not before"):
     val (account, key) = (fixtures.account(), UUID.randomUUID())
-    val keys = PgIdempotencyKeys(dataSource)
+    val keys = PgIdempotencyKeys(dataSource, DataKeys.development)
     assert(keys.reserve(account, key, t0.minus(PgIdempotencyStore.TakeOverAfter).minusSeconds(1)))
     assertEquals(idempotency().getOrCreate(account, key, () => Some(record("retry"))), Some(record("retry")))
 

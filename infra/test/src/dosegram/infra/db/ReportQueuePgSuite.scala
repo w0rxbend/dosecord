@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.ChatRef
 import dosegram.contracts.Inline
 import dosegram.contracts.Node
@@ -27,7 +28,7 @@ class ReportQueuePgSuite extends PgSuite:
     withConnection(_.createStatement().execute("TRUNCATE report_requests"))
     ()
 
-  private def uow = PgUnitOfWork(dataSource, () => t0)
+  private def uow = PgUnitOfWork(dataSource, () => t0, DataKeys.development)
 
   private def page(n: Int, shared: Option[String] = None): ReportPage =
     ReportPage(
@@ -80,7 +81,7 @@ class ReportQueuePgSuite extends PgSuite:
     uow.transaction(_.reports.enqueue(older))
     val pair = uow.transaction: tx =>
       val one = tx.reports.claim(t0.plusSeconds(2), lease)
-      val two = PgUnitOfWork(dataSource, () => t0).transaction(_.reports.claim(t0.plusSeconds(2), lease))
+      val two = PgUnitOfWork(dataSource, () => t0, DataKeys.development).transaction(_.reports.claim(t0.plusSeconds(2), lease))
       (one.map(_.id), two.map(_.id))
     assertEquals(pair, (Some(older.id), Some(newer.id)))
 

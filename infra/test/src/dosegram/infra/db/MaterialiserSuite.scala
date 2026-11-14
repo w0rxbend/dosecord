@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.Evaluator
@@ -39,7 +40,7 @@ class MaterialiserSuite extends PgSuite:
     Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, times.toList.map(HhMm.unsafe))))
 
   private def materialiser(clock: MutableClock): Materialiser =
-    Materialiser(PgUnitOfWork(dataSource, clock), clock)
+    Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock)
 
   test("runOnce extends the horizon, advances materialized_through, and a second run inserts nothing"):
     val clock = MutableClock(monday)

@@ -1,16 +1,18 @@
 package dosegram.app
 
+import dosegram.core.ports.Clock
 import dosegram.infra.Metrics
 import dosegram.infra.Settings
 import dosegram.infra.Telemetry
 import dosegram.infra.TzdbGuard
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.Database
-import dosegram.infra.db.Migrator
+import dosegram.infra.db.SchemaUpgrade
 import ox.releaseAfterScope
 
 /** Composition root (DESIGN.md section 3): settings, scribe telemetry (M0.11), tzdb startup assertion (M0.7 remedy),
-  * Flyway under `pg_advisory_lock`, then one Ox `supervised` root scope that runs the [[Launch]] assembly until
-  * SIGTERM.
+  * Flyway with the sealing backfill under `pg_advisory_lock` ([[SchemaUpgrade]]), then one Ox `supervised` root scope
+  * that runs the [[Launch]] assembly until SIGTERM.
   */
 object Main:
   def main(args: Array[String]): Unit =
@@ -42,9 +44,12 @@ object Main:
     )
     val dataSource = Database.pooled(settings.databaseUrl, 10)
     try
-      val result = Migrator(dataSource).migrateLocked()
-      val target = Option(result.targetSchemaVersion).getOrElse("unchanged")
-      info(s"migrate: ${result.migrationsExecuted} migration(s) applied, target $target")
+      // Migrations, the sealing backfill between V10 and V11, and the rewrap of retired keys (ROADMAP G2.4, G2.4b).
+      val result = SchemaUpgrade.run(dataSource, DataKeys(settings.kek, Clock.system), info)
+      info(
+        s"migrate: ${result.migrationsExecuted} migration(s) applied, schema ${result.schemaVersion}, " +
+          s"${result.valuesSealed} value(s) sealed, ${result.keysRewrapped} key(s) rewrapped"
+      )
       command match
         case Cli.Command.Migrate => 0
         case Cli.Command.Run(_)  =>

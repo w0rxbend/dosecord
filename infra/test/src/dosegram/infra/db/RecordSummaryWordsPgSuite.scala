@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.application.exports.RecordSummaries
 import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.copy.Lang
@@ -20,7 +21,7 @@ class RecordSummaryWordsPgSuite extends PgSuite:
 
   test("a Ukrainian record summary has no English word in its medication table"):
     val fixture = ExportFixture(dataSource, now, zone).seed()
-    val uow = PgUnitOfWork(dataSource, () => now)
+    val uow = PgUnitOfWork(dataSource, () => now, DataKeys.development)
     val period = DateRange.endingOn(LocalDate.ofInstant(now, zone), 30)
     val summaries = RecordSummaries(RollupService(uow, () => now))
     val document = Lang.within(Lang.Uk)(uow.transaction(summaries.document(_, fixture.account, period, zone, now)))

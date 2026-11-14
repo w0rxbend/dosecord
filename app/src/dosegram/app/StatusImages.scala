@@ -25,6 +25,7 @@ import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
 import dosegram.infra.RenderSettings
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgRenderAssets
 import dosegram.infra.db.PgTelegramFileCache
 import dosegram.render.CardRenderer
@@ -347,9 +348,9 @@ object StatusImages:
     /** The durable stores (`render_assets`, `telegram_file_cache`). `botId` is the bot whose file ids these are; a
       * process without that adapter never asks for one.
       */
-    def durable(dataSource: DataSource, botId: Long, clock: Clock): Stores =
+    def durable(dataSource: DataSource, botId: Long, clock: Clock, keys: DataKeys): Stores =
       Stores(
-        PgAssetStore(PgRenderAssets(dataSource), clock),
+        PgAssetStore(PgRenderAssets(dataSource, keys), clock),
         PgFileIdCache(PgTelegramFileCache(dataSource, botId), clock)
       )
 

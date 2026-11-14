@@ -79,6 +79,9 @@ object ExportCoverage:
          FROM export_jobs WHERE account_id = ? ORDER BY created_at, id"""
     ),
     "export_download_tickets" -> Coverage.Excluded("hashes of download tickets"),
-    "flyway_schema_history" -> Coverage.Excluded("the migration history of the schema; no account")
+    "flyway_schema_history" -> Coverage.Excluded("the migration history of the schema; no account"),
+    // V10: the archive holds the opened values instead (AccountArchive); a wrapped key is no record of the user.
+    "account_keys" -> Coverage.Excluded("wrapped data keys: secrets, not records"),
+    "service_keys" -> Coverage.Excluded("wrapped service keys; no account")
   )
 end ExportCoverage

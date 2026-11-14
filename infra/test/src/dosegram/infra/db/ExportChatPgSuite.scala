@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.exports.ExportChat
@@ -45,7 +46,7 @@ class ExportChatPgSuite extends PgSuite:
 
   private final class Rig(val account: UUID):
     val clock = MutableClock(now)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val requests = Application.exportRequests(clock, codec)
     val handler = ExportChat(clock, requests, messages, inner = (_, _, _) => Reply(toast = Some("inner")))
     val summaries = RecordSummaries(RollupService(uow, clock))

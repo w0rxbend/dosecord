@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.application.insights.RollupService
@@ -54,7 +55,7 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
     val clock = MutableClock(start)
     val account: UUID = fixtures.account("Europe/Kyiv")
     val schedule = fixtures.schedule(clock, account, "Medication A", dailyAt("09:00"), kyiv)
-    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock))
+    val uow = TransactionalTracking.everyPurposeGranted(PgUnitOfWork(dataSource, clock, DataKeys.development))
     val tracking = TransactionalTracking(uow, clock, IdSource.uuidV7(java.util.random.RandomGenerator.getDefault))
     export tracking.{rollups, stats}
     val range: DateRange = DateRange.between(LocalDate.parse("2026-09-01"), LocalDate.parse("2026-12-31"))

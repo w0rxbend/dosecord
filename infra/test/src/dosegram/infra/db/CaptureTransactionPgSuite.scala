@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.application.Application
 import dosegram.core.application.CommandRegistry
@@ -51,7 +52,7 @@ class CaptureTransactionPgSuite extends PgSuite:
             VALUES ($identityId, $accountId, 'fake', $user, ${s"chat-$user"}, $t0)""".execute()
       sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
             VALUES (${UUID.randomUUID()}, $accountId, $identityId, 'primary', 0, 'healthy', $t0)""".execute()
-    PgUnitOfWork(dataSource, clock).transaction(_.consents.grant(accountId, ConsentPurpose.Hydration, notice, ConsentTaps(t0, t0)))
+    PgUnitOfWork(dataSource, clock, DataKeys.development).transaction(_.consents.grant(accountId, ConsentPurpose.Hydration, notice, ConsentTaps(t0, t0)))
     accountId
 
   private def count(table: String, account: UUID): Int =
@@ -69,7 +70,7 @@ class CaptureTransactionPgSuite extends PgSuite:
 
   test("an entry rolls back with the transaction of its inbound event, and commits with it"):
     val account = seedConsentedAccount("atomic-1")
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     def capture(vendorEventId: String, failAfterEntry: Boolean): Unit =
       uow.transaction: tx =>
         assert(tx.inboundEvents.insert(NewInboundEvent("fake", vendorEventId, UUID.randomUUID(), t0)))
@@ -86,7 +87,7 @@ class CaptureTransactionPgSuite extends PgSuite:
 
   test("a consent and a withdrawal roll back with their transaction"):
     val account = seedConsentedAccount("atomic-2")
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     intercept[IllegalStateException]:
       uow.transaction: tx =>
         assert(tx.consents.withdraw(account, ConsentPurpose.Hydration, t0))
@@ -102,7 +103,7 @@ class CaptureTransactionPgSuite extends PgSuite:
     try
       val accounts = (1 to events).map(i => s"user-$i" -> seedConsentedAccount(s"user-$i")).toList
       ox.supervised:
-        val uow = PgUnitOfWork(pool, clock)
+        val uow = PgUnitOfWork(pool, clock, DataKeys.development)
         val adapters: Map[String, ChatAdapter] = Map("fake" -> FakeAdapter(CapabilityProfiles.Console))
         val parts = CaptureParts.over(uow, clock, ids, StatusCards.textOnly)
         val handler = Application.handler(uow, adapters, codec, clock)(parts)

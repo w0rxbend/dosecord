@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.*
 import dosegram.core.chat.*
 import dosegram.core.domain.copy.Labels
@@ -147,7 +148,7 @@ class WizardEnginePgSuite extends PgSuite:
 
   private final class Rig:
     val clock = TickingClock(t0)
-    val uow = PgUnitOfWork(dataSource, clock)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val inner = RecordingHandler(_ => Reply(followUps = List(outbound("inner handled", "inner-1"))))
     val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Console))
     val adapters: Map[String, ChatAdapter] = Map("fake" -> adapter)

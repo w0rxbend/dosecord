@@ -34,6 +34,7 @@ import dosegram.core.ports.TrackingRepositories
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.WorkerHeartbeatRepository
+import dosegram.infra.crypto.DataKeys
 
 import java.security.SecureRandom
 import java.sql.Connection
@@ -41,9 +42,10 @@ import javax.sql.DataSource
 
 /** Postgres [[UnitOfWork]]: one pooled connection, `f` runs against it, commit on success, rollback on any exception
   * (ADR-002/003: one transaction per event). Every repository group, the tracking domains and the consent ledger
-  * included, is bound to that one connection (ROADMAP G2.1).
+  * included, is bound to that one connection (ROADMAP G2.1). The repositories of Class A stores seal and open their
+  * values with `keys` on the same connection, so a data key created for a write commits with it (ROADMAP G2.4).
   */
-final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWork:
+final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) extends UnitOfWork:
 
   // The ids of consent events: time-ordered, so the ledger reads back in the order it was written.
   private val consentEventIds = IdSource.uuidV7(SecureRandom())
@@ -62,6 +64,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     finally conn.close()
 
   private final class PgTx(conn: Connection) extends Tx:
+    private lazy val keyService = keys.on(conn)
     override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock)
     override lazy val outbox: OutboxRepository = PgOutboxRepository(conn)
     override lazy val renderedMessages: RenderedMessageRepository = PgRenderedMessageRepository(conn)
@@ -72,11 +75,11 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val audit: AuditRepository = PgAuditRepository(conn, clock)
     override lazy val slots: CallbackSlotRepository = PgCallbackSlotRepository(conn)
     override lazy val formRuns: FormRunRepository = PgFormRunRepository(conn)
-    override lazy val medications: MedicationRepository = PgMedicationRepository(conn)
+    override lazy val medications: MedicationRepository = PgMedicationRepository(conn, keyService)
     override lazy val schedules: ScheduleRepository = PgScheduleRepository(conn)
-    override lazy val revisions: ScheduleRevisionRepository = PgScheduleRevisionRepository(conn)
-    override lazy val occurrences: OccurrenceRepository = PgOccurrenceRepository(conn)
-    override lazy val doseActions: DoseActionRepository = PgDoseActionRepository(conn)
+    override lazy val revisions: ScheduleRevisionRepository = PgScheduleRevisionRepository(conn, keyService)
+    override lazy val occurrences: OccurrenceRepository = PgOccurrenceRepository(conn, keyService)
+    override lazy val doseActions: DoseActionRepository = PgDoseActionRepository(conn, keyService)
     override lazy val policies: PolicyRepository = PgPolicyRepository(conn)
     override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
     override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
@@ -87,9 +90,9 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
       override lazy val rollups: RollupRepository = PgRollupRepository(conn)
       override lazy val doseHistory: DoseHistoryRepository = PgDoseHistoryRepository(conn)
       override lazy val sleep: SleepRepository = PgSleepRepository(conn)
-      override lazy val meals: MealRepository = PgMealRepository(conn)
+      override lazy val meals: MealRepository = PgMealRepository(conn, keyService)
     override lazy val reminders: ReminderRepositories = PgReminderRepositories(conn)
-    override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds)
+    override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds, keyService)
     override lazy val reports: ReportQueue = PgReportQueue(conn)
     override lazy val medicationDepth: MedicationDepthRepositories = PgMedicationDepthRepositories(conn)
 

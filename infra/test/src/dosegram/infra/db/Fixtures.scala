@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.Occurrence
@@ -37,7 +38,7 @@ final class MutableClock(var at: Instant) extends Clock:
   */
 final class Fixtures(dataSource: DataSource):
 
-  def uow: PgUnitOfWork = PgUnitOfWork(dataSource, Clock.system)
+  def uow: PgUnitOfWork = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
 
   def lifecycle(clock: Clock): ScheduleLifecycle = ScheduleLifecycle(uow, clock)
 
