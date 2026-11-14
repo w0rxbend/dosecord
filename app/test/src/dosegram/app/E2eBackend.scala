@@ -86,7 +86,8 @@ object E2eSeed:
       ConsentPurpose.Medication,
       ConsentPurpose.Hydration,
       ConsentPurpose.Mood,
-      ConsentPurpose.Sleep
+      ConsentPurpose.Sleep,
+      ConsentPurpose.Nutrition
     )
     val conn = dataSource.getConnection
     try

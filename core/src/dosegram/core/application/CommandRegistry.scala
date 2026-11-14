@@ -173,8 +173,14 @@ object CommandRegistry:
     description = "Patterns in your records."
   )
 
+  /** `/export` (BOT_UX section 20.2): hidden, like `/reminders`, and declared so the mediator acknowledges it. */
+  val Export: CommandSpec = CommandSpec(
+    name = "export",
+    description = "Export your records, or make a record summary."
+  )
+
   val withCaptureByName: Map[String, CommandSpec] =
-    (withCapture :+ Reminders :+ Meal :+ Insights).map(spec => spec.name -> spec).toMap
+    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

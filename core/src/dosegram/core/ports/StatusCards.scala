@@ -101,6 +101,7 @@ trait StatusCards:
 
   /** IMG-04: the weekly card. */
   def week(view: WeekCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef] = None
+
   /** IMG-09, the food day plate. */
   def food(view: FoodCardView, look: CardLook, chat: Option[ChatRef] = None): Option[AttachmentRef]
 

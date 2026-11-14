@@ -1,0 +1,72 @@
+--- page 1
+Record summary
+13 Aug 2026 to 10 Nov 2026
+Scope
+This document lists entries recorded by the user in Dosegram. It is not a medical record and contains no
+medical advice or interpretation.
+Made on 10 Nov 2026 at 11:30, time zone Europe/Kyiv.
+Sections: Medications, Medication records, Sleep, Mood, Water, Definitions.
+Medications
+Medication Dose Schedule Status Instructions
+Metformin 500 mg every day 08:00, 20:00 Active With food
+Vitamin D 1000 IU on Mon, Wed, Fri 09:00 Paused
+Ibuprofen 200 mg as needed Active No more than the label says, as written by me
+Medication records
+Metformin 500 mg
+Month Scheduled On time Late Skipped Not confirmed No record
+Aug 2026 38 33 3 1 1 0
+Sep 2026 38 33 3 1 1 0
+Oct 2026 38 33 3 1 1 0
+Nov 2026 38 33 3 1 1 0
+Taken: 144 of 152 resolved doses (94%).
+Vitamin D 1000 IU
+Month Scheduled On time Late Skipped Not confirmed No record
+Aug 2026 38 33 3 1 1 0
+Sep 2026 38 33 3 1 1 0
+Oct 2026 38 33 3 1 1 0
+Nov 2026 38 33 3 1 1 0
+Taken: 144 of 152 resolved doses (94%).
+Recorded entries only. Not medical advice. Page 1 of 3
+--- page 2
+Sleep
+Month Nights Mean length
+Aug 2026 27 7 h 12 min
+Sep 2026 27 7 h 12 min
+Oct 2026 27 7 h 12 min
+Nov 2026 27 7 h 12 min
+Mood
+Month Check-ins Days with a check-in
+Aug 2026 41 26
+Sep 2026 41 26
+Oct 2026 41 26
+Nov 2026 41 26
+Recorded step Check-ins
+Very pleasant 12
+Pleasant 12
+Neutral 12
+Unpleasant 12
+Very unpleasant 12
+Water
+Month Days recorded Total Mean per recorded day Goal days
+Aug 2026 25 51 250 ml 2 050 ml 18 of 25
+Sep 2026 25 51 250 ml 2 050 ml 18 of 25
+Oct 2026 25 51 250 ml 2 050 ml 18 of 25
+Nov 2026 25 51 250 ml 2 050 ml 18 of 25
+Definitions
+Scheduled: doses a schedule planned in the period. On time and late: doses recorded as taken, inside or
+after the window of the schedule. Not confirmed: doses with no answer before the window closed.
+Record summary 13 Aug 2026 to 10 Nov 2026
+Recorded entries only. Not medical advice. Page 2 of 3
+--- page 3
+Scheduled: doses a schedule planned in the period. On time and late: doses recorded as taken, inside or
+after the window of the schedule. Not confirmed: doses with no answer before the window closed.
+Scheduled: doses a schedule planned in the period. On time and late: doses recorded as taken, inside or
+after the window of the schedule. Not confirmed: doses with no answer before the window closed.
+Scheduled: doses a schedule planned in the period. On time and late: doses recorded as taken, inside or
+after the window of the schedule. Not confirmed: doses with no answer before the window closed.
+Scheduled: doses a schedule planned in the period. On time and late: doses recorded as taken, inside or
+after the window of the schedule. Not confirmed: doses with no answer before the window closed.
+Scheduled: doses a schedule planned in the period. On time and late: doses recorded as taken, inside or
+after the window of the schedule. Not confirmed: doses with no answer before the window closed.
+Record summary 13 Aug 2026 to 10 Nov 2026
+Recorded entries only. Not medical advice. Page 3 of 3

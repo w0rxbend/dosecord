@@ -1,6 +1,9 @@
 package dosegram.api
 
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ExportKind
+import dosegram.core.ports.ExportStatus
+import dosegram.core.ports.NewExportJob
 import sttp.tapir.AnyEndpoint
 
 /** ARCHITECTURE API-10 and API-11, ROADMAP G3.1: every route that names a record is called as account B with an
@@ -20,7 +23,8 @@ final class CrossAccountSuite extends ApiSuite:
       schedule: Reply,
       water: Reply,
       checkin: Reply,
-      night: Reply
+      night: Reply,
+      exportId: java.util.UUID
   ):
     val nightId: String = night.json("id").str
     val waterId: String = water.json("entry")("id").str
@@ -32,7 +36,8 @@ final class CrossAccountSuite extends ApiSuite:
 
   private lazy val world: World =
     startNewDay()
-    val ownerToken = login(trackingAccount())
+    val owner = trackingAccount()
+    val ownerToken = login(owner)
     val medication = post("/api/v1/medications", ujson.Obj("name" -> "Private", "doseAmount" -> "5", "doseUnit" -> "mg"), ownerToken, newKey())
     val schedule = post(s"/api/v1/medications/${medication.json("id").str}/schedules", dailyAtNine, ownerToken, newKey())
     assertEquals(schedule.status, 201, schedule.body)
@@ -42,6 +47,13 @@ final class CrossAccountSuite extends ApiSuite:
     val nightBody = ujson.Obj("kind" -> "night", "onsetAt" -> onset.toString, "wakeAt" -> clock.now().minusSeconds(3600).toString)
     val night = post("/api/v1/sleep/episodes", nightBody, ownerToken, newKey())
     assertEquals((water.status, checkin.status, night.status), (201, 201, 201), water.body + checkin.body + night.body)
+    // Seeded without a request, so the owner's session keeps its request budget (API-18) for the views.
+    val exportId = java.util.UUID.randomUUID()
+    uow.transaction(
+      _.exports.create(
+        NewExportJob(exportId, owner.accountId, ExportKind.FullArchive, None, ExportStatus.AwaitingConfirmation, clock.now())
+      )
+    )
     World(
       ownerToken,
       login(trackingAccount()),
@@ -49,7 +61,8 @@ final class CrossAccountSuite extends ApiSuite:
       schedule,
       water,
       checkin,
-      night
+      night,
+      exportId
     )
 
   /** An account with every consent of the routes under test, so a refusal can only come from the identifier. */
@@ -103,14 +116,17 @@ final class CrossAccountSuite extends ApiSuite:
     "deleteMoodCheckin" -> (w => delete(s"/api/v1/mood/checkins/${w.checkinId}", w.strangerToken)),
     "deleteSleepEpisode" -> (w => delete(s"/api/v1/sleep/episodes/${w.nightId}", w.strangerToken)),
     "getMeal" -> (w => get(s"/api/v1/meals/$mealId", w.strangerToken)),
-    "deleteMeal" -> (w => delete(s"/api/v1/meals/$mealId", w.strangerToken))
+    "deleteMeal" -> (w => delete(s"/api/v1/meals/$mealId", w.strangerToken)),
+    "getExport" -> (w => get(s"/api/v1/exports/${w.exportId}", w.strangerToken)),
+    "createDownloadTicket" -> (w => post(s"/api/v1/exports/${w.exportId}/download-tickets", ujson.Obj(), w.strangerToken))
   )
 
   cases.foreach: (route, request) =>
     test(s"$route: an identifier of another account answers 404 not_found and changes nothing"):
       // Each case starts a fresh minute of the read budget (API-18): the number of cases must not decide which one
       // is answered 429.
-      clock.at = clock.now().plusSeconds(61)
+      val _ = world
+      clock.advance(java.time.Duration.ofMinutes(1))
       val before = ownerView()
       val reply = request(world)
       assertProblem(reply, 404, "not_found")

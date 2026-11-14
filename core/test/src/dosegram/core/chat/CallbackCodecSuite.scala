@@ -259,7 +259,15 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         192 -> "insights.show",
         193 -> "insights.image",
         194 -> "insights.compare",
-        195 -> "reminders.report_stop"
+        195 -> "reminders.report_stop",
+        // The export (BOT_UX section 20.2, ROADMAP G3.10, G10.4).
+        210 -> "export.start",
+        211 -> "export.confirm",
+        212 -> "export.cancel",
+        213 -> "export.summary",
+        214 -> "export.send_ask",
+        215 -> "export.send_agree",
+        216 -> "export.send"
       )
     )
 

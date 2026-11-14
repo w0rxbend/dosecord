@@ -24,6 +24,9 @@ import type {
   SleepCheckinKind,
   DayProfile,
   DayProfileInput,
+  ExportItem,
+  ExportRequest,
+  ExportTicket,
   ReminderPresets,
   Reminders,
   ReminderTimeline,
@@ -77,6 +80,8 @@ export type ApiErrorCode =
   | 'version_conflict'
   | 'quota_exceeded'
   | 'stepup_required'
+  | 'stepup_pending'
+  | 'rate_limited'
   | 'server';
 
 /** A problem document mapped to a typed error; screens map codes, never message texts (8.3). */
@@ -85,6 +90,8 @@ export class ApiError extends Error {
     readonly code: ApiErrorCode,
     readonly reference?: string,
     readonly fields: readonly FieldError[] = [],
+    /** Seconds until the request may be repeated, for `rate_limited` (Retry-After). */
+    readonly retryAfterSeconds?: number,
   ) {
     super(code);
     this.name = 'ApiError';
@@ -180,6 +187,12 @@ export interface ApiClient {
   insightMonth(month?: string): Promise<InsightMonth>;
   /** The patterns of the last 28 days. */
   insightList(): Promise<InsightList>;
+
+  // exports (MINI_APP S-14): a request is confirmed in the chat before anything is made (MA-STEP-1).
+  exports(): Promise<readonly ExportItem[]>;
+  exportItem(id: string): Promise<ExportItem>;
+  requestExport(request: ExportRequest, idempotencyKey: string): Promise<ExportItem>;
+  downloadTicket(id: string): Promise<ExportTicket>;
 }
 
 /**

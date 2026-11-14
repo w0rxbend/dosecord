@@ -3,6 +3,7 @@ import {
   ZERO_INSETS,
   type BottomButtonPort,
   type ColorScheme,
+  type DownloadFileParams,
   type HapticEvent,
   type PerformanceClass,
   type PopupParams,
@@ -167,6 +168,12 @@ export class FakeTelegramPort implements TelegramPort {
   popup = (params: PopupParams): Promise<string | null> => {
     this.popups.push(params);
     return Promise.resolve(this.popupAnswer);
+  };
+
+  readonly downloads: DownloadFileParams[] = [];
+  downloadFile = (params: DownloadFileParams): Promise<boolean> => {
+    this.downloads.push(params);
+    return Promise.resolve(true);
   };
 
   // Controls for the development frame and for tests.

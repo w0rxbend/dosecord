@@ -6,6 +6,7 @@ import dosegram.api.auth.Session
 import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
 import dosegram.core.application.Application
+import dosegram.core.application.exports.ExportRequests
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.UnitOfWork
@@ -41,7 +42,8 @@ final class ApiModule(
     idempotencyStore: IdempotencyStore,
     tracking: TrackingUseCases,
     blobStates: MoodBlobStates,
-    log: String => Unit
+    log: String => Unit,
+    exportRequests: ExportRequests
 ):
   import ApiModule.*
 
@@ -59,6 +61,7 @@ final class ApiModule(
   private val nutrition = Nutrition(uow, tracking)
   private val reminders = Reminders(uow, clock, Application.reminderSettings(clock))
   private val accountSettings = AccountSettingsApi(uow, clock)
+  private val exports = Exports(uow, clock, exportRequests)
 
   /** Deletes expired sessions and idempotency records older than 24 hours; the caller runs it on a period. */
   def sweep(): Int = sessions.sweep() + idempotency.sweep()
@@ -466,11 +469,40 @@ final class ApiModule(
       .handle(session => (domain, month) => guarded(history.calendar(session.accountId, domain, month)))
   )
 
+  // The export routes (ROADMAP G3.10): no consent gate, because the export is the right of access to every record.
+  private val exportEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    ExportEndpoints.createExport
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              view <- idempotency.once(session.accountId, parsedKey, hashOf("exports", input)):
+                exports.request(session.accountId, input)
+            yield view
+    ,
+    ExportEndpoints.listExports
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(Right(exports.list(session.accountId)))),
+    ExportEndpoints.getExport
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(exports.get(session.accountId, id))),
+    ExportEndpoints.createDownloadTicket
+      .handleSecurity(authenticate)
+      .handle(session => id => guarded(exports.ticket(session.accountId, id))),
+    ExportEndpoints.download.handle: (ticket, forwardedFor, remote) =>
+      guarded:
+        exports
+          .download(ticket, Exports.clientAddress(forwardedFor, remote))
+          .map(file => (file.contentDisposition, file.contentType, file.bytes))
+  )
+
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
       hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
-      nutritionEndpoints :+
+      nutritionEndpoints ++ exportEndpoints :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:
