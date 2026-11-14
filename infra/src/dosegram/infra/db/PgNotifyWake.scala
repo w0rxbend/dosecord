@@ -65,7 +65,8 @@ object PgNotifyWake:
     finally listen.close()
 
     def await(timeout: Duration): Unit =
-      if timeout.isZero || timeout.isNegative then { pg.getNotifications(0); () }
+      // pgjdbc reads a timeout of 0 as "block until a NOTIFY"; the no-argument form only drains what is pending.
+      if timeout.isZero || timeout.isNegative then { pg.getNotifications(); () }
       else
         try { pg.getNotifications(math.min(timeout.toMillis, Int.MaxValue.toLong).toInt); () }
         catch

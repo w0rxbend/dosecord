@@ -75,6 +75,19 @@ class ReminderLoopWakeSuite extends PgSuite:
       assert(elapsed.get() >= 0 && elapsed.get() < 10000, s"prompt wake, took ${elapsed.get()} ms")
     finally wake.close()
 
+  // The loop asks for no wait after a full batch; pgjdbc reads a timeout of 0 as "block until a NOTIFY".
+  test("awaitOrTimeout with a zero timeout returns at once when no NOTIFY is pending"):
+    val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
+    try
+      val returned = java.util.concurrent.CountDownLatch(1)
+      val listener = Thread.ofVirtual().start(() => { wake.awaitOrTimeout(Duration.ZERO); returned.countDown() })
+      val promptly = returned.await(5, java.util.concurrent.TimeUnit.SECONDS)
+      if !promptly then
+        listener.interrupt()
+        listener.join(5000)
+      assert(promptly, "a zero wait returned without a NOTIFY")
+    finally wake.close()
+
   test("an interrupt of a fork blocked in the wait ends the wait as a cancellation, not as a database error"):
     val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
     try
