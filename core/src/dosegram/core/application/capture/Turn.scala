@@ -103,6 +103,11 @@ private[capture] object CaptureActions:
   val SleepUndo: ActionEntry = named("sleep.undo")
   val SleepStartUndo: ActionEntry = named("sleep.start_undo")
   val SleepImage: ActionEntry = named("sleep.image")
+  val SleepNap: ActionEntry = named("sleep.nap")
+  val SleepBedtime: ActionEntry = named("sleep.bedtime")
+  val SleepAdjust: ActionEntry = named("sleep.adjust")
+  val SleepAdjustSave: ActionEntry = named("sleep.adjust_save")
+  val SleepAdjustCancel: ActionEntry = named("sleep.adjust_cancel")
   val StatsMonth: ActionEntry = named("stats.month")
   val StatsMonthImage: ActionEntry = named("stats.month_image")
   val InsightsShow: ActionEntry = named("insights.show")
@@ -131,6 +136,11 @@ private[capture] object CaptureActions:
     SleepUndo,
     SleepStartUndo,
     SleepImage,
+    SleepNap,
+    SleepBedtime,
+    SleepAdjust,
+    SleepAdjustSave,
+    SleepAdjustCancel,
     StatsMonth,
     StatsMonthImage,
     InsightsShow,

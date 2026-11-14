@@ -65,6 +65,33 @@ class PromptDecisionSuite extends munit.FunSuite:
     )
     assertEquals(PromptDecision.decide(input().copy(pausedUntil = Some(at("10:00")))), send)
 
+  test("bedtime mode holds every nudge and report for at most twelve hours after Going to sleep"):
+    val asleep = input().copy(bedtimeSince = Some(at("02:00")))
+    assertEquals(PromptDecision.decide(asleep), suppress(SuppressReason.Bedtime))
+    val report = asleep.copy(kind = PromptKind.WeeklyReport, plan = PromptPresets.WeeklyReport.plan)
+    assertEquals(PromptDecision.decide(report), suppress(SuppressReason.Bedtime))
+    val longAgo = input().copy(bedtimeSince = Some(at("10:30").minus(PromptDecision.BedtimeHold)))
+    assertEquals(PromptDecision.decide(longAgo), send)
+    assertEquals(PromptDecision.decide(input().copy(bedtimeSince = Some(at("11:00")))), send, "a later tap is not open yet")
+
+  test("the morning touchpoint is not held by bedtime mode: its I'm up ends it"):
+    val morning = input().copy(
+      kind = PromptKind.SleepMorning,
+      plan = PromptPresets.SleepMorning.plan,
+      ownCap = false,
+      bedtimeSince = Some(at("02:00"))
+    )
+    assertEquals(PromptDecision.decide(morning), send)
+
+  test("an I'm up or a typed night in the twelve hours before the morning touchpoint answers it"):
+    val plan = PromptPresets.SleepMorning.plan
+    val since = PromptExpiry.recentSince(PromptKind.SleepMorning, plan, tenThirty)
+    assertEquals(since, at("10:30").minus(PromptDecision.BedtimeHold))
+    val morning = input().copy(kind = PromptKind.SleepMorning, plan = plan, ownCap = false, recentSince = since)
+    val upAtSix = morning.copy(progress = DomainProgress(Some(at("06:00")), 0, None))
+    assertEquals(PromptDecision.decide(upAtSix), suppress(SuppressReason.RecentEntry))
+    assertEquals(PromptExpiry.recentSince(PromptKind.Water, preset.plan, tenThirty), PromptExpiry.recentSince(preset.plan, tenThirty))
+
   test("a plan with its own cap stops at its slot count; a budgeted plan at the shared budget"):
     val full = (1 to slots.size).toList.map(i => DecidedPrompt(at("09:00").minusSeconds(i.toLong), PromptStatus.Answered, None, None))
     assertEquals(PromptDecision.decide(input().copy(today = full)), suppress(SuppressReason.Budget))

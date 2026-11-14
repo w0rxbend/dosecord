@@ -1122,6 +1122,15 @@ Is that about when you slept?
 | BUX-SLEEP-07 | No sleep score, stage, efficiency, or comparison with a population norm appears in chat. Duration is compared only with the user's own goal, if one is set. No diagnostic word appears. |
 | BUX-SLEEP-08 | A passive daytime gap is never proposed as a nap (research 05 section 7.8). |
 
+Check-ins and touchpoints as built (ROADMAP G7.2; supervisor decision, 2026-11-14):
+
+- The night card carries the line "Prompts are on hold until you are up. Medication reminders are not affected." Bedtime mode (BUX-SLEEP-01) holds every water, mood, meal and bedtime nudge and every scheduled report for at most 12 hours after "Going to sleep"; a held slot is recorded with the reason `bedtime` and is not sent later. The morning touchpoint is not held: its "I'm up" is how bedtime mode ends.
+- The morning touchpoint is answered before it is sent by a wake recorded in the 12 hours before it, from "I'm up" or a typed night, and it is not sent then.
+- A tap on a touchpoint answers with the card of the chat's sleep flow: the night card after "Going to sleep", the night with its rating, "Adjust times" and Undo after "I'm up".
+- "I'm up" without an open night asks `sleep.bedtime.ask` with five chips from one hour before to one hour after the bedtime of the user's day (`/reminders`, default 23:00), half an hour apart; a chip records the night from that clock time to the tap, the bedtime as an entered time. Typing both times still works.
+- "Adjust times" follows BUX-SLEEP-04 without "Type times": the steps travel in the buttons, each edge moves at most 8 hours in chat, and Save records the moved edges as entered times, keeps the rating and keeps the old row as superseded. Cancel shows the night as stored.
+- "Nap" sits beside "Going to sleep" on the `/sleep` card (`sleep.nap`: "Nap started at 14:05." with "I'm up" and Undo). "I'm up" closes the latest open check-in: a nap started after "Going to sleep" is closed first, and closing a nap records no "I'm up" tap, because that tap marks the end of a night for the morning touchpoint. A nap start older than 6 hours (the longest nap of R-SLP-2) is no longer open. A nap is not rated.
+
 ### 11.6 Voice notes
 
 Decision: not adopted at launch. A voice or video note replies with `in.voice.unsupported` ("Voice notes are not supported. Send text or use the buttons.") and nothing is downloaded or stored. Rationale: turning speech into a record needs a speech model; a third-party model is excluded at launch (research 06 open question Q9) and an in-process model is outside the first stages. Rejected alternative: storing the audio as an attachment without transcription, which keeps a large, sensitive recording for no analytic use. Revisit under open question OQ-5.

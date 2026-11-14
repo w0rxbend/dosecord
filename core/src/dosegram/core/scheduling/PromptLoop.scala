@@ -29,7 +29,9 @@ import dosegram.core.domain.reminders.PromptPlanner
 import dosegram.core.domain.reminders.PromptStatus
 import dosegram.core.domain.reminders.SuppressReason
 import dosegram.core.domain.sleep.CheckinKind
+import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DeliveryTarget
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewOutboxMessage
@@ -112,7 +114,7 @@ final class PromptLoop(
       plan = plan.plan,
       ownCap = plan.ownCap,
       slotsToday = NudgeSlots.on(plan.plan, profile, slot.planDate, zone, ReminderSettings.seedOf(accountId)).size,
-      recentSince = PromptExpiry.recentSince(plan.plan, slot),
+      recentSince = PromptExpiry.recentSince(plan.kind, plan.plan, slot),
       window = windowOf(plan.plan, profile, slot, zone),
       quiet = profile.quiet,
       pausedUntil = (plan.pausedUntil.toList ++ tx.reminders.dayProfiles.pausedUntil(accountId)).maxOption,
@@ -123,7 +125,8 @@ final class PromptLoop(
       budget = PromptDecision.DefaultBudget,
       lastOtherPromptAt = accountDay.filter(o => o.scheduleId != plan.id && o.status.wasSent).map(_.dueAt).maxOption,
       consented = settings.consented(tx, accountId, plan.kind),
-      reachable = channel.isDefined
+      reachable = channel.isDefined,
+      bedtimeSince = openNightAt(tx, accountId)
     )
     val previous = tx.reminders.prompts.lastSent(plan.id)
     // A meal nudge is answered by any entry of its meal on its day, however long before the slot it was made (G8.4).
@@ -379,7 +382,9 @@ final class PromptLoop(
         case PromptKind.SleepBedtime =>
           DomainProgress(latestCheckin(tx, plan.accountId, CheckinKind.GoingToSleep), 0, None)
         case PromptKind.SleepMorning =>
-          DomainProgress(latestCheckin(tx, plan.accountId, CheckinKind.ImUp), 0, None)
+          val nights = tx.tracking.sleep.liveEpisodes(plan.accountId, recent).filter(_.kind == SleepKind.Main)
+          val wakes = latestCheckin(tx, plan.accountId, CheckinKind.ImUp).toList ++ nights.map(_.interval.wake.at)
+          DomainProgress(wakes.maxOption, 0, None)
         case PromptKind.Meal =>
           DomainProgress(tx.tracking.meals.listLive(plan.accountId, recent).map(_.occurredAt).maxOption, 0, None)
         case PromptKind.WeeklyReport | PromptKind.MonthlyReport => DomainProgress.Empty
@@ -396,6 +401,15 @@ final class PromptLoop(
 
   private def latestCheckin(tx: Tx, accountId: UUID, kind: CheckinKind): Option[Instant] =
     tx.tracking.sleep.latestLiveCheckin(accountId, kind).map(_.occurredAt)
+
+  /** The "Going to sleep" of the night still open, which puts the account in bedtime mode (R-SLP-23): later than the
+    * wake of every recorded episode. Read only with the sleep consent; [[PromptDecision]] bounds how long it holds.
+    */
+  private def openNightAt(tx: Tx, accountId: UUID): Option[Instant] =
+    if !tx.consents.isGranted(accountId, ConsentPurpose.Sleep) then None
+    else
+      val closedUntil = tx.tracking.sleep.latestLiveEpisode(accountId).map(_.interval.wake.at)
+      latestCheckin(tx, accountId, CheckinKind.GoingToSleep).filter(at => closedUntil.forall(_.isBefore(at)))
 
   private def windowOf(
       plan: NudgePlan,

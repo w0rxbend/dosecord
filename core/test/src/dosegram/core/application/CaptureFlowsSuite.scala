@@ -506,7 +506,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.grant(ConsentPurpose.Sleep)
       assertEquals(chat.rig.command("sleep"), List(SleepCopy.noNight))
       val started = chat.rig.tapOn(SleepCopy.noNight, SleepCopy.GoingToSleep)
-      assertEquals(texts(started), List(SleepCopy.started("03:00")))
+      assertEquals(texts(started), List(s"${SleepCopy.started("03:00")}\n\n${SleepCopy.onHold}"))
       assertEquals(labels(started), List(SleepCopy.ImUp, "Undo"))
       chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofHours(7))
       val woke = chat.rig.tapOn(SleepCopy.started("03:00"), SleepCopy.ImUp)
@@ -516,6 +516,54 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(texts(rated), List(s"$night\n\n${SleepCopy.rated(4)}"))
       assertEquals(chat.world.tracking.sleep.live.map(_.quality.map(_.step)), List(Some(4)))
       assertEquals(chat.rig.command("sleep"), List(night))
+
+  test("Adjust times moves each edge by 15 minutes, stores nothing until Save, and keeps the rating (BUX-SLEEP-04)"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      chat.rig.line("slept 23:30 7:10")
+      chat.rig.tapOn(SleepCopy.qualityAsk, "4")
+      val opened = chat.rig.tapOn(SleepCopy.rated(4), SleepCopy.AdjustTimes)
+      assertEquals(texts(opened), List(SleepCopy.adjusting("23:30", "07:10")))
+      assertEquals(
+        labels(opened),
+        List(SleepCopy.BedtimeEarlier, SleepCopy.BedtimeLater, SleepCopy.WakeEarlier, SleepCopy.WakeLater, SleepCopy.Save, "Cancel")
+      )
+      chat.rig.tapOn(SleepCopy.adjusting("23:30", "07:10"), SleepCopy.BedtimeEarlier)
+      chat.rig.tapOn(SleepCopy.adjusting("23:15", "07:10"), SleepCopy.WakeLater)
+      assertEquals(chat.world.tracking.sleep.live.map(_.duration.toMinutes), List(460L), "nothing stored before Save")
+      val saved = chat.rig.tapOn(SleepCopy.adjusting("23:15", "07:25"), SleepCopy.Save)
+      assertEquals(texts(saved), List(s"Slept 23:15 to 07:25, 8 h 10 min (your entry).\n\n${SleepCopy.rated(4)}"))
+      assertEquals(chat.world.tracking.sleep.live.map(e => (e.duration.toMinutes, e.quality.map(_.step))), List((490L, Some(4))))
+      chat.rig.tapOn(SleepCopy.rated(4), SleepCopy.AdjustTimes)
+      val cancelled = chat.rig.tapOn(SleepCopy.adjusting("23:15", "07:25"), "Cancel")
+      assertEquals(texts(cancelled), List(s"Slept 23:15 to 07:25, 8 h 10 min (your entry).\n\n${SleepCopy.rated(4)}"))
+
+  test("I'm up without an open night asks for the bedtime with chips around the user's bedtime; a chip records it"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      chat.rig.command("sleep")
+      chat.rig.tapOn(SleepCopy.noNight, SleepCopy.GoingToSleep)
+      // 07:00 the next day: the tap of 03:00 is older than an open night may be, so no night is open.
+      chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofHours(28))
+      val asked = chat.rig.tapOn(SleepCopy.started("03:00"), SleepCopy.ImUp)
+      assertEquals(texts(asked), List(SleepCopy.bedtimeAsk))
+      assertEquals(labels(asked), List("22:00", "22:30", "23:00", "23:30", "00:00"))
+      val night = chat.rig.tapOn(SleepCopy.bedtimeAsk, "23:00")
+      assertEquals(texts(night), List(s"Slept 23:00 to 07:00, 8 h 00 min (your entry).\n\n${SleepCopy.qualityAsk}"))
+      assertEquals(chat.world.tracking.sleep.live.map(_.duration.toMinutes), List(480L))
+
+  test("Nap, then I'm up, is a nap from the check-ins without a rating; /sleep offers Nap beside Going to sleep"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      chat.rig.command("sleep")
+      val started = chat.rig.tapOn(SleepCopy.noNight, SleepCopy.Nap)
+      assertEquals(texts(started), List(SleepCopy.napStarted("03:00")))
+      assertEquals(chat.rig.command("sleep"), List(SleepCopy.napStarted("03:00")))
+      chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofMinutes(20))
+      val woke = chat.rig.tapOn(SleepCopy.napStarted("03:00"), SleepCopy.ImUp)
+      assertEquals(texts(woke), List("Napped 03:00 to 03:20, 20 min (your check-ins)."))
+      assertEquals(labels(woke), List(SleepCopy.AdjustTimes, "Undo"))
+      assertEquals(chat.world.tracking.sleep.live.map(_.kind), List(SleepKind.Nap))
 
   test("I'm up without an open night records no night and asks for the times"):
     withChat(Profile.Telegram): chat =>

@@ -43,6 +43,9 @@ enum SuppressReason(val db: String):
   /** A report whose period has no record: nothing is sent (VISUALS VA-PS-05). */
   case NoRecords extends SuppressReason("no_records")
 
+  /** Held in bedtime mode, between "Going to sleep" and "I'm up" (PRODUCT_SPEC R-SLP-23). */
+  case Bedtime extends SuppressReason("bedtime")
+
 object SuppressReason:
   def fromDb(db: String): SuppressReason =
     values.find(_.db == db).getOrElse(throw IllegalArgumentException(s"unknown suppress reason '$db'"))
@@ -78,7 +81,8 @@ object DomainProgress:
 
 /** Everything [[PromptDecision.decide]] reads. `recentSince` is the instant after which an entry makes the prompt
   * unnecessary (the previous slot of an interval plan, three hours before the slot otherwise); `window` is the open and
-  * close of an interval plan's window on the slot's day.
+  * close of an interval plan's window on the slot's day. `bedtimeSince` is the "Going to sleep" of a night that is
+  * still open at the slot, read only with the sleep consent.
   */
 final case class PromptInput(
     slot: NudgeSlot,
@@ -96,7 +100,8 @@ final case class PromptInput(
     budget: Int,
     lastOtherPromptAt: Option[Instant],
     consented: Boolean,
-    reachable: Boolean
+    reachable: Boolean,
+    bedtimeSince: Option[Instant] = None
 )
 
 /** The pure decision of one due prompt (ARCHITECTURE REM-13, REM-14; PRODUCT_SPEC R-SCH-22 to R-SCH-25, R-HYD-10, as
@@ -116,6 +121,9 @@ object PromptDecision:
   /** Unanswered prompts in a row after which the kind pauses for the rest of the day, said once. */
   val PauseAfter = 6
 
+  /** The longest bedtime mode holds nudges and reports (BOT_UX BUX-SLEEP-01). */
+  val BedtimeHold: Duration = Duration.ofHours(12)
+
   def decide(in: PromptInput): PromptOutcome =
     val streak = ignoredStreak(in.today, in.progress.lastEntryAt)
     val previous = in.today.filter(_.dueAt.isBefore(in.slot.at)).maxByOption(_.dueAt)
@@ -124,6 +132,7 @@ object PromptDecision:
       () => Option.unless(in.reachable)(suppress(SuppressReason.Unreachable)),
       () => Option.when(in.quiet.contains(in.slot.local.toLocalTime))(suppress(SuppressReason.QuietHours)),
       () => Option.when(in.pausedUntil.exists(_.isAfter(in.slot.at)))(suppress(SuppressReason.Paused)),
+      () => Option.when(inBedtimeMode(in))(suppress(SuppressReason.Bedtime)),
       () => Option.when(overBudget(in))(suppress(SuppressReason.Budget)),
       () => Option.when(goalReached(in))(suppress(SuppressReason.GoalReached)),
       () =>
@@ -163,6 +172,16 @@ object PromptDecision:
 
   private def suppress(reason: SuppressReason): PromptOutcome = PromptOutcome.Suppress(reason)
 
+  /** Bedtime mode holds every nudge and report for at most [[BedtimeHold]] after "Going to sleep" (R-SLP-23, BOT_UX
+    * BUX-SLEEP-01). The morning touchpoint is not held: its "I'm up" is how bedtime mode ends (supervisor decision,
+    * 2026-11-14). Dose reminders never pass through here.
+    */
+  private def inBedtimeMode(in: PromptInput): Boolean =
+    in.kind != PromptKind.SleepMorning &&
+      in.bedtimeSince.exists(since =>
+        !since.isAfter(in.slot.at) && Duration.between(since, in.slot.at).compareTo(BedtimeHold) < 0
+      )
+
   private def overBudget(in: PromptInput): Boolean =
     if in.ownCap then in.today.count(_.status.wasSent) >= in.slotsToday
     else in.sharedSentToday >= in.budget
@@ -198,3 +217,9 @@ object PromptExpiry:
   def recentSince(plan: NudgePlan, slot: NudgeSlot): Instant = plan match
     case NudgePlan.Interval(_, _, every, _, _) => slot.at.minus(Duration.ofMinutes(every.toLong))
     case _                                     => slot.at.minus(Duration.ofHours(3))
+
+  /** The morning touchpoint asks "I'm up" once a night: a wake recorded in the twelve hours before it, by a tap or a
+    * typed night, answers it before it is sent (ROADMAP G7.2).
+    */
+  def recentSince(kind: PromptKind, plan: NudgePlan, slot: NudgeSlot): Instant =
+    if kind == PromptKind.SleepMorning then slot.at.minus(PromptDecision.BedtimeHold) else recentSince(plan, slot)

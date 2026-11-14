@@ -13,11 +13,14 @@ import dosegram.contracts.OutboundMessage
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
 import dosegram.core.application.capture.CaptureParts
+import dosegram.core.application.capture.SleepCard
+import dosegram.core.application.capture.SleepCards
 import dosegram.core.application.hydration.HydrationRefusal
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.sleep.SleepInput
+import dosegram.core.application.sleep.WokeUp
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -31,6 +34,7 @@ import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.ReportCopy
+import dosegram.core.domain.copy.SleepCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.hydration.AmountOutOfBounds
 import dosegram.core.domain.hydration.WaterAmount
@@ -250,16 +254,32 @@ final class RemindersHandler(
     answered(ctx, occ)
     outcome(ctx, PromptCopy.pausedFor(occ.kind))
 
+  /** A tap on a sleep touchpoint answers it with the card of the chat's sleep flow (BOT_UX section 21.9): the night
+    * card after "Going to sleep"; after "I'm up" the night with its rating, "Adjust times" and Undo, or the bedtime
+    * chips when no night was open (ROADMAP G7.2).
+    */
   private def sleepTap(ctx: Ctx, occ: PromptOccurrence, value: Long): Reply =
     val input = SleepInput(ctx.accountId, EntrySource.Bot, ctx.clientKey)
-    val recorded =
-      if value == PromptMessages.SleepGoing then capture.sleep.goingToSleep(ctx.tx, input).isRight
-      else capture.sleep.wakeUp(ctx.tx, input).isRight
-    if !recorded then stale
-    else
-      answered(ctx, occ)
-      val label = if value == PromptMessages.SleepGoing then PromptCopy.GoingToSleep else PromptCopy.ImUp
-      outcome(ctx, PromptCopy.sleepRecorded(label, when(clock.now(), settings.zone(ctx.tx, ctx.accountId))))
+    val zone = settings.zone(ctx.tx, ctx.accountId)
+    val card =
+      if value == PromptMessages.SleepGoing then
+        capture.sleep.goingToSleep(ctx.tx, input).toOption.map { started =>
+          val since = PromptCopy.sleepRecorded(PromptCopy.GoingToSleep, when(started.checkin.occurredAt, zone))
+          SleepCard(List(since, SleepCopy.onHold), Nil)
+        }
+      else
+        capture.sleep
+          .wakeUp(ctx.tx, input)
+          .toOption
+          .map:
+            case WokeUp.Closed(episode, _) => SleepCards.recorded(episode, zone, token)
+            case WokeUp.NeedsBedtime(tap)  =>
+              SleepCards.bedtimeAsk(tap.id, settings.profile(ctx.tx, ctx.accountId).bedtime, token)
+    card match
+      case None       => stale
+      case Some(sent) =>
+        answered(ctx, occ)
+        show(ctx, "prompt.outcome", sent.lines, sent.rows)
 
   /** One tap on a meal nudge records that meal now and closes the nudge. */
   private def mealTap(ctx: Ctx, occ: PromptOccurrence, value: Long): Reply =

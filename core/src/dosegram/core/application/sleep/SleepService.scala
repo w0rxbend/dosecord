@@ -75,12 +75,15 @@ enum WokeUp:
 
 final case class SleepRecorded(episode: SleepEpisode, replayed: Boolean)
 
-/** What the `/sleep` card shows: the open night if there is one, the latest night and the user's own goal. */
+/** What the `/sleep` card shows: the open night if there is one, the latest night, the user's own goal, and a nap
+  * started after the open night, which "I'm up" closes first.
+  */
 final case class SleepStatus(
     zone: ZoneId,
     open: Option[SleepCheckin],
     latestNight: Option[SleepEpisode],
-    goalMinutes: Option[Int]
+    goalMinutes: Option[Int],
+    openNap: Option[SleepCheckin] = None
 )
 
 /** The sleep use cases (PRODUCT_SPEC section 8.11, tier 2; ROADMAP G7.1). Sleep is what the user says it was: two taps,
@@ -103,27 +106,63 @@ final class SleepService(clock: Clock, ids: IdSource):
           tx.tracking.sleep.insertCheckin(checkin)
           Right(NightStarted(checkin, replaced, replayed = false))
 
-  /** "I'm up": closes the open night with the wake as now, or records the tap and reports that the bedtime is missing.
+  /** "Nap": opens an explicit nap with its start as now (R-SLP-7). A second tap replaces the open start. */
+  def napStart(tx: Tx, input: SleepInput): Either[SleepRefusal, NightStarted] =
+    val accountId = input.accountId
+    consented(tx, accountId): zone =>
+      tx.tracking.sleep.checkinByClientKey(accountId, input.clientKey) match
+        case Some(existing) => Right(NightStarted(existing, replacedOpen = false, replayed = true))
+        case None           =>
+          val now = clock.now()
+          val replaced = openNap(tx, accountId, now)
+            .exists(open => tx.tracking.sleep.voidCheckin(accountId, open.id, VoidReason.Superseded, now))
+          val checkin = tap(input, CheckinKind.NapStart, zone, now)
+          tx.tracking.sleep.insertCheckin(checkin)
+          Right(NightStarted(checkin, replaced, replayed = false))
+
+  /** "I'm up": closes the latest open check-in with the wake as now, a nap as a nap and a night as a night, or records
+    * the tap and reports that the bedtime is missing. Closing a nap records no "I'm up" tap: that tap marks the end of
+    * a night, which the morning touchpoint reads.
     */
   def wakeUp(tx: Tx, input: SleepInput): Either[SleepRefusal, WokeUp] =
     val accountId = input.accountId
     consented(tx, accountId): zone =>
-      tx.tracking.sleep.checkinByClientKey(accountId, input.clientKey) match
-        case Some(existing) => Right(replayOf(tx, existing))
-        case None           =>
+      val replayed = tx.tracking.sleep
+        .episodeByClientKey(accountId, input.clientKey)
+        .map(episode => WokeUp.Closed(episode, replayed = true))
+        .orElse(tx.tracking.sleep.checkinByClientKey(accountId, input.clientKey).map(replayOf(tx, _)))
+      replayed match
+        case Some(earlier) => Right(earlier)
+        case None          =>
           val now = clock.now()
           val wake = tap(input, CheckinKind.ImUp, zone, now)
-          openNight(tx, accountId, now) match
-            case None =>
-              tx.tracking.sleep.insertCheckin(wake)
-              Right(WokeUp.NeedsBedtime(wake))
-            case Some(open) =>
-              val onset = SleepEdge(open.occurredAt, open.zone, EdgeSource.CheckIn)
-              val interval = SleepInterval(onset, SleepEdge(now, zone, EdgeSource.CheckIn))
-              val draft = Draft(input, SleepKind.Main, interval, SleepOrigin.CheckIn, None)
-              record(tx, draft, replaces = None).map: recorded =>
-                tx.tracking.sleep.insertCheckin(wake)
+          val night = openNight(tx, accountId, now)
+          openNap(tx, accountId, now).filter(nap => night.forall(_.occurredAt.isBefore(nap.occurredAt))) match
+            case Some(nap) =>
+              close(tx, input, nap, SleepKind.Nap, zone, now).map(recorded =>
                 WokeUp.Closed(recorded.episode, recorded.replayed)
+              )
+            case None =>
+              night match
+                case None =>
+                  tx.tracking.sleep.insertCheckin(wake)
+                  Right(WokeUp.NeedsBedtime(wake))
+                case Some(open) =>
+                  close(tx, input, open, SleepKind.Main, zone, now).map: recorded =>
+                    tx.tracking.sleep.insertCheckin(wake)
+                    WokeUp.Closed(recorded.episode, recorded.replayed)
+
+  private def close(
+      tx: Tx,
+      input: SleepInput,
+      open: SleepCheckin,
+      kind: SleepKind,
+      zone: ZoneId,
+      now: Instant
+  ): Either[SleepRefusal, SleepRecorded] =
+    val onset = SleepEdge(open.occurredAt, open.zone, EdgeSource.CheckIn)
+    val interval = SleepInterval(onset, SleepEdge(now, zone, EdgeSource.CheckIn))
+    record(tx, Draft(input, kind, interval, SleepOrigin.CheckIn, None), replaces = None)
 
   /** The bedtime for an "I'm up" that had no open night: the latest occurrence of that clock time before the tap. */
   def completeNight(tx: Tx, command: CompleteNight): Either[SleepRefusal, SleepRecorded] =
@@ -197,11 +236,17 @@ final class SleepService(clock: Clock, ids: IdSource):
         case Some(episode) =>
           Right(episode.isLive && tx.tracking.sleep.voidEpisode(accountId, episodeId, VoidReason.Deleted, clock.now()))
 
+  /** One live episode of the account, as "Adjust times" shows it before Save. */
+  def episodeOf(tx: Tx, accountId: UUID, episodeId: UUID): Either[SleepRefusal, SleepEpisode] =
+    consented(tx, accountId)(_ => live(tx, accountId, episodeId))
+
   def status(tx: Tx, accountId: UUID): Either[SleepRefusal, SleepStatus] =
     consented(tx, accountId): zone =>
       val now = clock.now()
       val latest = tx.tracking.sleep.latestLiveEpisode(accountId)
-      Right(SleepStatus(zone, openNight(tx, accountId, now), latest, goalOn(tx, accountId, now, zone)))
+      val night = openNight(tx, accountId, now)
+      val nap = openNap(tx, accountId, now).filter(nap => night.forall(_.occurredAt.isBefore(nap.occurredAt)))
+      Right(SleepStatus(zone, night, latest, goalOn(tx, accountId, now, zone), nap))
 
   /** The user's own goal from today on; `None` removes it. No reference duration exists (R-SLP-19). */
   def setGoal(tx: Tx, accountId: UUID, targetMinutes: Option[Int]): Either[SleepRefusal, Option[Int]] =
@@ -223,6 +268,14 @@ final class SleepService(clock: Clock, ids: IdSource):
     tx.tracking.sleep
       .latestLiveCheckin(accountId, CheckinKind.GoingToSleep)
       .filter(checkin => Duration.between(checkin.occurredAt, now).compareTo(SleepBounds.OpenLimit) <= 0)
+      .filter(checkin => closedUntil.forall(_.isBefore(checkin.occurredAt)))
+
+  /** The "Nap" that "I'm up" would close: live, not older than the longest nap, and later than every recorded wake. */
+  private def openNap(tx: Tx, accountId: UUID, now: Instant): Option[SleepCheckin] =
+    val closedUntil = tx.tracking.sleep.latestLiveEpisode(accountId).map(_.interval.wake.at)
+    tx.tracking.sleep
+      .latestLiveCheckin(accountId, CheckinKind.NapStart)
+      .filter(checkin => Duration.between(checkin.occurredAt, now).compareTo(SleepBounds.NapMaximum) <= 0)
       .filter(checkin => closedUntil.forall(_.isBefore(checkin.occurredAt)))
 
   private def isOpenWake(checkin: SleepCheckin): Boolean = checkin.isLive && checkin.kind == CheckinKind.ImUp

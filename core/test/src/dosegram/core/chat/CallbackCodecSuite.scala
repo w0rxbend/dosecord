@@ -284,7 +284,16 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         303 -> "privacy.keep",
         304 -> "privacy.delete_account_ask",
         305 -> "privacy.delete_account_confirm",
-        306 -> "privacy.delete_account"
+        306 -> "privacy.delete_account",
+        // Sleep, food and report depth (ROADMAP G7.2, G9.2).
+        360 -> "sleep.nap",
+        361 -> "sleep.bedtime",
+        362 -> "sleep.adjust",
+        363 -> "sleep.adjust_save",
+        364 -> "sleep.adjust_cancel",
+        365 -> "reminders.report_resume",
+        366 -> "reminders.report_offer_yes",
+        367 -> "reminders.report_offer_no"
       )
     )
 

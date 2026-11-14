@@ -19,6 +19,17 @@ object SleepCopy:
     "За останні 14 днів не записано жодної ночі, тож зображувати поки нічого."
   )
   def ImUp = tr("I'm up", "Встаю")
+  def Nap = tr("Nap", "Денний сон")
+  def AdjustTimes = tr("Adjust times", "Змінити час")
+  def BedtimeEarlier = tr("Bedtime −15 min", "Відхід −15 хв")
+  def BedtimeLater = tr("Bedtime +15 min", "Відхід +15 хв")
+  def WakeEarlier = tr("Wake −15 min", "Підйом −15 хв")
+  def WakeLater = tr("Wake +15 min", "Підйом +15 хв")
+  def Save = tr("Save", "Зберегти")
+  def bedtimeAsk = tr(
+    "When did you go to sleep? Tap a time, or send bedtime and wake time, for example: slept 23:30 7:10.",
+    "Коли ви лягли спати? Натисніть час або надішліть час, коли лягли і коли встали, наприклад: сон 23:30 7:10."
+  )
   def noNight = tr("No night logged yet.", "Ще не записано жодної ночі.")
   def ask = tr(
     "When did you sleep? Send bedtime and wake time, for example: slept 23:30 7:10.",
@@ -55,6 +66,20 @@ object SleepCopy:
 
   def started(time: String): String = tr(s"Sleep check-in started at $time.", s"Позначку сну почато о $time.")
 
+  /** The night card's second line (BOT_UX section 21.9): bedtime mode holds prompts, never a medication reminder. */
+  def onHold = tr(
+    "Prompts are on hold until you are up. Medication reminders are not affected.",
+    "Нагадування призупинено, доки ви не встанете. Нагадування про ліки працюють як завжди."
+  )
+
+  def napStarted(time: String): String = tr(s"Nap started at $time.", s"Денний сон почато о $time.")
+
+  /** The "Adjust times" view (BOT_UX BUX-SLEEP-04): the two edges as they would be saved. Nothing is stored yet. */
+  def adjusting(bedtime: String, wakeTime: String): String = tr(
+    s"Bedtime $bedtime · wake $wakeTime. Nothing changes until you tap Save.",
+    s"Відхід $bedtime · підйом $wakeTime. Нічого не зміниться, доки ви не натиснете «Зберегти»."
+  )
+
   /** "Slept 23:32 to 07:10, 7 h 38 min (your check-ins)." */
   def slept(episode: SleepEpisode, bedtime: String, wakeTime: String): String =
     val noun = if episode.kind == SleepKind.Nap then tr("Napped", "Денний сон") else tr("Slept", "Сон")
@@ -74,6 +99,17 @@ object SleepCopy:
     List(
       CopyEntry("sleep.button.night", GoingToSleep),
       CopyEntry("sleep.button.up", ImUp),
+      CopyEntry("sleep.button.nap", Nap),
+      CopyEntry("sleep.button.adjust", AdjustTimes),
+      CopyEntry("sleep.adjust.bedtime_earlier", BedtimeEarlier),
+      CopyEntry("sleep.adjust.bedtime_later", BedtimeLater),
+      CopyEntry("sleep.adjust.wake_earlier", WakeEarlier),
+      CopyEntry("sleep.adjust.wake_later", WakeLater),
+      CopyEntry("sleep.adjust.save", Save),
+      CopyEntry("sleep.adjust", adjusting("23:15", "07:10")),
+      CopyEntry("sleep.night.hold", onHold),
+      CopyEntry("sleep.nap", napStarted("14:05")),
+      CopyEntry("sleep.bedtime.ask", bedtimeAsk),
       CopyEntry("sleep.none", noNight),
       CopyEntry("sleep.night", started("23:32")),
       CopyEntry("sleep.ask", ask),

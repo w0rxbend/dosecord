@@ -160,6 +160,9 @@ enum CheckinKind(val dbValue: String):
   case GoingToSleep extends CheckinKind("going_to_sleep")
   case ImUp extends CheckinKind("im_up")
 
+  /** "Nap": the start of an explicit nap, which "I'm up" closes (R-SLP-7). */
+  case NapStart extends CheckinKind("nap_start")
+
 /** One tap, kept as it happened. An episode is made from taps; a tap alone is never a sleep record. */
 final case class SleepCheckin(
     id: UUID,

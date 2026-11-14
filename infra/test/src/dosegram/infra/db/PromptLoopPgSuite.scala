@@ -12,6 +12,8 @@ import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.reminders.PromptMessages
+import dosegram.core.application.sleep.SleepInput
+import dosegram.core.application.sleep.SleepService
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
 import dosegram.core.chat.*
@@ -211,6 +213,49 @@ class PromptLoopPgSuite extends PgSuite:
     rig.tickAndSend()
     assertEquals(rig.prompts.last.reason, Some(SuppressReason.GoalReached))
     assertEquals(rig.adapter.ops.count(_.isInstanceOf[VendorOp.Send]), 1)
+
+  test("bedtime mode (G7.2): after Going to sleep the water prompt is held and recorded as bedtime; I'm up ends it"):
+    val rig = Rig()
+    fixtures.grant(rig.account, ConsentPurpose.Sleep)
+    val sleep = SleepService(rig.clock, ids)
+    rig.at("09:10")
+    rig.uow.transaction(tx => assert(sleep.goingToSleep(tx, SleepInput(rig.account, EntrySource.Bot, "night")).isRight))
+    rig.at("09:30")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.reason)), List("0930" -> Some(SuppressReason.Bedtime)))
+    rig.at("10:45")
+    rig.uow.transaction(tx => assert(sleep.wakeUp(tx, SleepInput(rig.account, EntrySource.Bot, "up")).isRight))
+    rig.at("11:00")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.last.status, PromptStatus.Sent)
+    assertEquals(rig.adapter.ops.count(_.isInstanceOf[VendorOp.Send]), 1)
+
+  test("the morning touchpoint (G7.2) is sent in bedtime mode, and an I'm up before it answers it"):
+    val rig = Rig(start = kyiv("06:00"), preset = PromptPresets.SleepMorning, consent = ConsentPurpose.Sleep)
+    val sleep = SleepService(rig.clock, ids)
+    rig.clock.at = kyiv("06:00").minus(Duration.ofHours(7))
+    rig.uow.transaction(tx => assert(sleep.goingToSleep(tx, SleepInput(rig.account, EntrySource.Bot, "night")).isRight))
+    rig.at("07:00")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.status)), List("0700" -> PromptStatus.Sent))
+    val (handle, _) = rig.open.head
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
+    val up = codec.encode(CallbackMode.Direct, ActionRegistry.byName("prompt.sleep").get, rig.prompts.head.id, 1)
+    rig.at("07:05")
+    val card = rig.tap(handler, handle, up.wire, "up-tap").replace.getOrElse(fail("expected the night card"))
+    assert(card.body.toString.contains("Slept 23:00 to 07:05, 8 h 05 min (your check-ins)."), card.body)
+    val labels = card.blocks.collect { case Block.Choices(set) => set.choices.map(_.label) }.flatten
+    assertEquals(labels, List("1", "2", "3", "4", "5", "Adjust times", "Undo"))
+    assertEquals(rig.prompts.head.status, PromptStatus.Answered)
+    rig.clock.at = Instant.parse("2026-11-16T23:00:00+02:00")
+    rig.uow.transaction(tx => assert(sleep.goingToSleep(tx, SleepInput(rig.account, EntrySource.Bot, "night-2")).isRight))
+    rig.clock.at = Instant.parse("2026-11-17T06:30:00+02:00")
+    rig.uow.transaction(tx => assert(sleep.wakeUp(tx, SleepInput(rig.account, EntrySource.Bot, "up")).isRight))
+    rig.clock.at = Instant.parse("2026-11-17T07:00:05+02:00")
+    rig.tickAndSend()
+    val tuesdayPrompts = rig.uow.transaction(_.reminders.prompts.decidedOn(rig.account, LocalDate.parse("2026-11-17")))
+    assertEquals(tuesdayPrompts.map(_.reason), List(Some(SuppressReason.RecentEntry)))
 
   test("a tap logs the amount, closes the prompt and turns it into its outcome without buttons; a second tap logs nothing"):
     val rig = Rig()
