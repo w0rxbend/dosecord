@@ -29,6 +29,7 @@ import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.Tx
 import dosegram.core.ports.WeekCardView
+import dosegram.core.ports.WeekDayFood
 import dosegram.core.ports.WeekDayMood
 import dosegram.core.ports.WeekDayNight
 import dosegram.core.ports.WeekDayWater
@@ -66,7 +67,10 @@ final class ReportViews(stats: StatsQueryService):
       val goal = NightFacts.goalOn(window.end, tx.tracking.sleep.goals(accountId, window.end))
       window.dates.map(date => days.get(date).map(night => WeekDayNight(night.minutes, goal)))
     }
-    WeekCardView(window.start, doses, water, mood, sleep)
+    val food = stats.mealCalendar(tx, accountId, window).toOption.map { days =>
+      window.dates.map(date => days.get(date).map(day => WeekDayFood(day.logged.size, day.snacks)))
+    }
+    WeekCardView(window.start, doses, water, mood, sleep, food)
 
   /** The theme and discreet mode the account set for its images. */
   def look(tx: Tx, accountId: UUID): CardLook =

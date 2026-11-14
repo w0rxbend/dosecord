@@ -18,6 +18,7 @@ import dosegram.render.card.DoseCounts
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightGroup
 import dosegram.render.card.InsightRule
+import dosegram.render.card.MealDay
 import dosegram.render.card.MonthData
 import dosegram.render.card.MonthDaysData
 import dosegram.render.card.MonthNightsData
@@ -146,7 +147,7 @@ object ReportCards:
       water = view.water.filter(_.flatten.forall(_.goalMl.isDefined)).map { days =>
         days.toVector.map(_.flatMap(day => day.goalMl.map(WaterProgress(day.totalMl, _))))
       },
-      food = None,
+      food = view.food.map(_.toVector.map(_.map(day => MealDay(day.mainMeals, day.snacks)))),
       mood = view.mood.map(_.toVector.map(_.map(day => moodState(day.mean, day.energyMean)))),
       sleep = view.sleep.filter(_.flatten.forall(_.goalMinutes.isDefined)).map { nights =>
         nights.toVector.map {

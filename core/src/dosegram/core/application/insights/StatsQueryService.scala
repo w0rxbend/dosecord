@@ -134,6 +134,12 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
   def moodCalendar(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, Map[LocalDate, MoodDay]] =
     answer(tx, accountId, ConsentPurpose.Mood)(_ => moodDays(tx, accountId, range))
 
+  /** The meal days of a range of local days: a day without a meal is absent. */
+  def mealCalendar(tx: Tx, accountId: UUID, range: DateRange): Either[StatsRefusal, Map[LocalDate, MealDay]] =
+    answer(tx, accountId, ConsentPurpose.Nutrition)(_ =>
+      mealDays(tx, accountId, range).filter((_, day) => day.meals > 0)
+    )
+
   /** The text of `/stats` for a period. A domain without consent is left out, and so is a domain without data; a period
     * with nothing at all says so.
     */

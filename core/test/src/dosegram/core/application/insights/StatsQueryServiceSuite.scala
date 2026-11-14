@@ -9,6 +9,9 @@ import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.mood.CheckIn
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.nutrition.LogMeal
+import dosegram.core.application.nutrition.MealInput
+import dosegram.core.application.nutrition.NutritionService
 import dosegram.core.domain.Adherence
 import dosegram.core.domain.AdherenceInput
 import dosegram.core.domain.EntryDay
@@ -29,7 +32,9 @@ import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.Stat
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.mood.Valence
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.WeekDayFood
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
 
@@ -58,6 +63,7 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     val stats = StatsQueryService(rollups, clock)
     val water = HydrationService(clock, SequentialIds())
     val moods = MoodService(clock, SequentialIds())
+    val nutrition = NutritionService(clock, SequentialIds())
 
     /** Moves the clock to 12:00 UTC of `daysAgo` days before today, records, and returns to now. */
     def on(daysAgo: Int)(record: => Unit): Unit =
@@ -68,6 +74,9 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     def drink(millilitres: Int, key: String): Unit =
       val amount = WaterAmount.ofMillilitres(millilitres).toOption.get
       assert(water.log(tx, LogWater(account, amount, EntryDay.Today, EntrySource.Bot, key)).isRight)
+
+    def eat(mealType: MealType, key: String): Unit =
+      assert(nutrition.log(tx, LogMeal(account, MealInput(mealType, None, None), EntrySource.Bot, key)).isRight)
 
     def feel(valence: Int, key: String): Unit =
       val command = CheckIn(account, Valence.of(valence).get, None, Nil, EntryDay.Today, EntrySource.Bot, key)
@@ -333,6 +342,29 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     assertEquals(view.figures.mood, None)
     assertEquals(view.figures.previousAdherence.shown, Some(Ratio(10, 10)))
     assertEquals(view.figures.medication.map(_.recordedDays), Some(0))
+
+  test("the weekly card counts each day's logged main meals and its snacks, and has no food row without the consent"):
+    val consent = FakeConsent.all(account)
+    // The dose marks read the occurrences, which this double does not hold.
+    consent.withdraw(account, ConsentPurpose.Medication)
+    val rig = Rig(consent)
+    rig.on(1) {
+      rig.eat(MealType.Breakfast, "b1")
+      rig.eat(MealType.Lunch, "l1")
+      rig.eat(MealType.Lunch, "l2")
+      rig.eat(MealType.Snack, "s1")
+    }
+    rig.on(3)(rig.eat(MealType.Dinner, "d3"))
+    val window = DateRange.endingOn(today, 7)
+    val food = ReportViews(rig.stats).week(rig.tx, account, window).food
+    val expected = window.dates.map {
+      case date if date == today.minusDays(1) => Some(WeekDayFood(mainMeals = 2, snacks = 1))
+      case date if date == today.minusDays(3) => Some(WeekDayFood(mainMeals = 1, snacks = 0))
+      case _                                  => None
+    }
+    assertEquals(food, Some(expected))
+    consent.withdraw(account, ConsentPurpose.Nutrition)
+    assertEquals(ReportViews(rig.stats).week(rig.tx, account, window).food, None)
 
   test("the insights list runs no cross-domain rule without its consent, and the single-domain ones without it"):
     val consent = FakeConsent.all(account)

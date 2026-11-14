@@ -18,6 +18,7 @@ import dosegram.core.ports.DoseMark
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.WeekCardView
+import dosegram.core.ports.WeekDayFood
 import dosegram.core.ports.WeekDayMood
 import dosegram.core.ports.WeekDayNight
 import dosegram.core.ports.WeekDayWater
@@ -26,6 +27,7 @@ import dosegram.render.RasterFailure
 import dosegram.render.Rasteriser
 import dosegram.render.blob.MoodState
 import dosegram.render.card.DayAdherence
+import dosegram.render.card.MealDay
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.DayOfWeek
@@ -126,6 +128,14 @@ class ReportCardsSuite extends munit.FunSuite:
     assertEquals(data.water, None)
     assertEquals(data.mood.map(_.last), Some(Some(MoodState(7, 5))))
     assert(data.sleep.isDefined)
+    assert(cards.week(week, look).isDefined)
+
+  test("the weekly card draws the food row from the days' main meals and snacks, and none without it"):
+    val from = LocalDate.of(2026, 11, 16)
+    val food = List.fill(5)(None) ++ List(Some(WeekDayFood(3, 2)), Some(WeekDayFood(1, 0)))
+    val week = WeekCardView(from, doses = None, water = None, mood = None, sleep = None, food = Some(food))
+    assertEquals(ReportCards.week(week).food, Some(Vector.fill(5)(None) ++ Vector(Some(MealDay(3, 2)), Some(MealDay(1, 0)))))
+    assertEquals(ReportCards.week(week.copy(food = None)).food, None)
     assert(cards.week(week, look).isDefined)
 
   test("a daily mean maps to the blob state of section 4.2: the stored scale's ends and middle"):

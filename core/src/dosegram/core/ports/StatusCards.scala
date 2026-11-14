@@ -62,13 +62,17 @@ final case class WeekDayMood(mean: Double, energyMean: Option[Double])
 /** One night in the weekly card, with the user's own sleep goal when there is one. */
 final case class WeekDayNight(minutes: Int, goalMinutes: Option[Int])
 
+/** One day's meals in the weekly card: the main meal types with an entry (VISUALS section 7.5) and the snacks. */
+final case class WeekDayFood(mainMeals: Int, snacks: Int)
+
 /** IMG-04: seven days from `from`. A domain that is not shown is absent; a day without a record is `None`. */
 final case class WeekCardView(
     from: LocalDate,
     doses: Option[List[List[DoseMark]]],
     water: Option[List[Option[WeekDayWater]]],
     mood: Option[List[Option[WeekDayMood]]],
-    sleep: Option[List[Option[WeekDayNight]]]
+    sleep: Option[List[Option[WeekDayNight]]],
+    food: Option[List[Option[WeekDayFood]]] = None
 )
 
 /** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
