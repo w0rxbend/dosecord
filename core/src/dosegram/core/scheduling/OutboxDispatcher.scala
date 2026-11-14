@@ -12,6 +12,7 @@ import dosegram.core.ports.NewOutboxMessage
 import dosegram.core.ports.OutboxMessage
 import dosegram.core.ports.OutboxMetrics
 import dosegram.core.ports.OutboxOp
+import dosegram.core.ports.OutboxReason
 import dosegram.core.ports.UnitOfWork
 
 import java.time.Duration
@@ -144,6 +145,7 @@ final class OutboxDispatcher(
           throttle(row, target.chatId)
           adapter.delete(target)
           uow.transaction(_.outbox.markSent(row.id, requiredTarget(row), now, possibleDuplicate = false))
+          metrics.sent(row.vendor, row.kind)
     catch
       case _: DigestEmpty =>
         // M1.8 (DESIGN.md section 7.5): every digest item resolved or went stale before the send — the digest is
@@ -151,22 +153,21 @@ final class OutboxDispatcher(
         uow.transaction(_.outbox.cancel(row.id))
       case UnrenderableRow(reason)      => retryLater(row, now, reason)
       case ChatError.RateLimited(after) =>
-        retryOrDead(row, now.plus(after), possibleDuplicate = false, error = "rate limited")
-      case e @ (_: ChatError.Retryable | _: ChatError.TooOld) =>
-        val duplicate =
-          row.op == OutboxOp.Send && row.attemptedAt.exists(isPossibleDuplicateWindow(_, now))
-        retryOrDead(row, now.plus(jitteredBackoff(row.attempts, random())), duplicate, error = e.getMessage)
+        retryOrDead(row, now.plus(after), possibleDuplicate = false, error = "rate limited", OutboxReason.RateLimited)
+      case e: ChatError.Retryable         => retryTransient(row, now, e, OutboxReason.Retryable)
+      case e: ChatError.TooOld            => retryTransient(row, now, e, OutboxReason.TooOld)
       case e: ChatError if e.channelFatal =>
         // Channel fallback (DESIGN.md section 7.6): the row is dead, the channel is dead, and the next healthy
         // channel's dispatch is enqueued with a new send_key.
         uow.transaction: tx =>
           tx.outbox.dead(row.id, e.getMessage)
           row.channelId.foreach(tx.channels.markDead(_, e.getMessage, now))
-        metrics.outboxDead()
+        metrics.dead(row.vendor, row.kind, OutboxReason.ChannelFatal)
         fallback(row, now)
       case e: ChatError =>
         // Permanent(channelFatal = false): no channel action (DESIGN.md section 7.6).
         uow.transaction(_.outbox.failPermanently(row.id, e.getMessage))
+        metrics.failed(row.vendor, row.kind, OutboxReason.Permanent)
 
   /** Interaction edits retain a replacement handle before terminal bookkeeping so a lease retry edits that handle
     * instead of creating another replacement. Only a typed missing target permits fallback; permissions and private
@@ -202,6 +203,7 @@ final class OutboxDispatcher(
       else tx.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false)
     if row.kind == "interaction_reply" then
       uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false))
+    metrics.sent(row.vendor, row.kind)
 
   /** Enqueues the next healthy channel's dispatch with a new `send_key` (idempotent per channel through the UNIQUE
     * constraint). Only sends fall back: an edit/delete target is a vendor-specific handle.
@@ -236,11 +238,22 @@ final class OutboxDispatcher(
   private def throttle(row: OutboxMessage, chatId: String): Unit =
     buckets.foreach(_.acquire(row.vendor, chatId, 1))
 
+  /** A vendor failure that may pass: a send attempted long enough ago is flagged as a possible duplicate (ADR-009). */
+  private def retryTransient(row: OutboxMessage, now: Instant, error: ChatError, reason: OutboxReason): Unit =
+    val duplicate = row.op == OutboxOp.Send && row.attemptedAt.exists(isPossibleDuplicateWindow(_, now))
+    retryOrDead(row, now.plus(jitteredBackoff(row.attempts, random())), duplicate, error.getMessage, reason)
+
   /** A row that failed before its vendor call retries with backoff like a vendor failure, so a row whose data is broken
     * spends its attempt budget and goes `dead` instead of stalling the batch claimed with it.
     */
   private def retryLater(row: OutboxMessage, now: Instant, reason: String): Unit =
-    retryOrDead(row, now.plus(jitteredBackoff(row.attempts, random())), possibleDuplicate = false, error = reason)
+    retryOrDead(
+      row,
+      now.plus(jitteredBackoff(row.attempts, random())),
+      possibleDuplicate = false,
+      error = reason,
+      OutboxReason.Unrenderable
+    )
 
   /** The renderer of a claimed row. Only [[UnrenderableRow]] carries a stored reason; any other failure's message may
     * hold payload text, so it becomes the exception's class name.
@@ -251,13 +264,22 @@ final class OutboxDispatcher(
       case e @ (_: DigestEmpty | _: UnrenderableRow) => throw e
       case NonFatal(e) => throw UnrenderableRow(s"unrenderable: ${e.getClass.getSimpleName}")
 
-  /** One retry within the attempt budget, or the terminal `dead` write plus its metric at `MaxAttempts` (ADR-009). */
-  private def retryOrDead(row: OutboxMessage, at: Instant, possibleDuplicate: Boolean, error: String): Unit =
+  /** One retry within the attempt budget, or the terminal `dead` write plus its metric at `MaxAttempts` (ADR-009). The
+    * metric carries `reason`, a fixed code; `error` is what the row stores.
+    */
+  private def retryOrDead(
+      row: OutboxMessage,
+      at: Instant,
+      possibleDuplicate: Boolean,
+      error: String,
+      reason: OutboxReason
+  ): Unit =
     if row.attempts >= MaxAttempts then
       uow.transaction(_.outbox.dead(row.id, error))
-      metrics.outboxDead()
+      metrics.dead(row.vendor, row.kind, reason)
     else
       uow.transaction(_.outbox.retry(row.id, at, possibleDuplicate, error))
+      metrics.retried(row.vendor, row.kind, reason)
       if possibleDuplicate && !row.possibleDuplicate then metrics.possibleDuplicate(row.vendor)
 
   /** Send with two-phase recording: the handle and `choice_map` are committed immediately after the primary send, so a
@@ -293,6 +315,7 @@ final class OutboxDispatcher(
         }
         sent
     uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = resumeDuplicate))
+    metrics.sent(row.vendor, row.kind)
     if resumeDuplicate && !row.possibleDuplicate then metrics.possibleDuplicate(row.vendor)
 
   private def requiredTarget(row: OutboxMessage): String =

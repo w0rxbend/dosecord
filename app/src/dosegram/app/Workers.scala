@@ -14,13 +14,16 @@ import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.application.reports.ReportWorker
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.SessionSweeper
+import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.LoopMetrics
+import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.Wake
 import dosegram.core.scheduling.CatalogueOutboxRenderer
 import dosegram.core.scheduling.Materialiser
 import dosegram.core.scheduling.MedicationDepthLoop
 import dosegram.core.scheduling.OutboxDispatcher
+import dosegram.core.scheduling.OutboxRenderer
 import dosegram.core.scheduling.PromptLoop
 import dosegram.core.scheduling.PromptOutboxRenderer
 import dosegram.core.scheduling.ReminderLoop
@@ -122,11 +125,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     val dispatcher = OutboxDispatcher(
       uow,
       Map(vendor -> adapter),
-      PromptOutboxRenderer(
-        uow,
-        CatalogueOutboxRenderer(uow, codec, clock),
-        Set(PromptLoop.OutboxKind, ExportRequests.OutboxKind)
-      ),
+      Workers.outboxRenderer(uow, codec, clock),
       clock,
       metrics = MicrometerOutboxMetrics(),
       buckets = Some(TokenBuckets(clock, TokenBuckets.defaults))
@@ -273,6 +272,16 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     ()
 
 object Workers:
+
+  /** The renderer every outbox dispatcher of the process uses: the finished messages of the prompt loop and the
+    * exports, then the catalogue for the loop rows and the safety rows of replies.
+    */
+  def outboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock: Clock): OutboxRenderer =
+    PromptOutboxRenderer(
+      uow,
+      CatalogueOutboxRenderer(uow, codec, clock),
+      Set(PromptLoop.OutboxKind, ExportRequests.OutboxKind)
+    )
 
   /** One report worker per raster process (ARCHITECTURE RND-07). */
   private val ReportWorkers = 2
