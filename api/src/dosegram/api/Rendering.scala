@@ -91,6 +91,7 @@ object ApiCopy:
     case InsightDomain.Hydration  => tr("Water", "Вода")
     case InsightDomain.Mood       => tr("Mood", "Настрій")
     case InsightDomain.Sleep      => tr("Sleep", "Сон")
+    case InsightDomain.Nutrition  => tr("Food", "Їжа")
   def overviewTitle(domain: OverviewDomain): String = domain match
     case OverviewDomain.Medication => tr("Medication", "Ліки")
     case OverviewDomain.Hydration  => tr("Water", "Вода")

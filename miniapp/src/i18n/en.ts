@@ -460,7 +460,7 @@ export const en = {
     title: 'History',
     loading: 'Loading the calendar',
     domain: 'Area',
-    domains: { medication: 'Meds', hydration: 'Water', mood: 'Mood', sleep: 'Sleep' },
+    domains: { medication: 'Meds', hydration: 'Water', mood: 'Mood', sleep: 'Sleep', nutrition: 'Food' },
     previous: 'Previous month',
     next: 'Next month',
     weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],

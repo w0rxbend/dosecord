@@ -26,14 +26,14 @@ final class HttpTelegramTransport(
 
   override def call(request: WireRequest): WireReply =
     val http = HttpRequest.newBuilder(methodUri(request.method)).timeout(request.timeout)
-    request.file match
-      case None =>
+    request.files match
+      case Nil =>
         http.header("Content-Type", "application/json")
         http.POST(HttpRequest.BodyPublishers.ofString(ujson.write(request.params), UTF_8))
-      case Some(file) =>
+      case files =>
         val boundary = newBoundary()
         http.header("Content-Type", s"multipart/form-data; boundary=$boundary")
-        http.POST(HttpRequest.BodyPublishers.ofByteArray(multipart(boundary, request.params, file)))
+        http.POST(HttpRequest.BodyPublishers.ofByteArray(multipart(boundary, request.params, files)))
     try
       val response = client.send(http.build(), HttpResponse.BodyHandlers.ofString(UTF_8))
       WireReply.Http(response.statusCode(), response.body())
@@ -49,20 +49,23 @@ final class HttpTelegramTransport(
     */
   private def methodUri(method: String): URI = URI.create(s"$baseUrl/bot${token.secret}/$method")
 
-  /** `multipart/form-data`: every parameter as one text part (a string as it is, anything else as JSON), then the file.
+  /** `multipart/form-data`: every parameter as one text part (a string as it is, anything else as JSON), then the
+    * files.
     */
-  private def multipart(boundary: String, params: ujson.Obj, file: WireFile): Array[Byte] =
+  private def multipart(boundary: String, params: ujson.Obj, files: List[WireFile]): Array[Byte] =
     val out = ByteArrayOutputStream()
     def text(value: String): Unit = out.write(value.getBytes(UTF_8))
     params.value.foreach: (name, value) =>
       text(s"--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n")
       text(value.strOpt.getOrElse(ujson.write(value)))
       text("\r\n")
-    text(s"--$boundary\r\n")
-    text(s"Content-Disposition: form-data; name=\"${file.field}\"; filename=\"${safeFileName(file.fileName)}\"\r\n")
-    text(s"Content-Type: ${file.mimeType}\r\n\r\n")
-    out.write(file.bytes)
-    text(s"\r\n--$boundary--\r\n")
+    files.foreach: file =>
+      text(s"--$boundary\r\n")
+      text(s"Content-Disposition: form-data; name=\"${file.field}\"; filename=\"${safeFileName(file.fileName)}\"\r\n")
+      text(s"Content-Type: ${file.mimeType}\r\n\r\n")
+      out.write(file.bytes)
+      text("\r\n")
+    text(s"--$boundary--\r\n")
     out.toByteArray
 
   /** A file name is a header value here: anything that could end the header or the quoted string is replaced. */

@@ -12,6 +12,8 @@ import dosegram.core.application.insights.StatsQueryService
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.reminders.PromptMessages
+import dosegram.core.application.sleep.SleepInput
+import dosegram.core.application.sleep.SleepService
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
 import dosegram.core.chat.*
@@ -23,14 +25,18 @@ import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.DaySet
 import dosegram.core.domain.reminders.NudgePlan
+import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPreset
 import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.reminders.TimeRef
 import dosegram.core.domain.reminders.PromptStatus
 import dosegram.core.domain.reminders.SuppressReason
 import dosegram.core.ports.CardDrawing
+import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.PromptOccurrence
 import dosegram.core.ports.StatusCards
 import dosegram.core.scheduling.CatalogueOutboxRenderer
@@ -68,7 +74,9 @@ class PromptLoopPgSuite extends PgSuite:
   private final class Rig(
       start: Instant = kyiv("09:00"),
       preset: PromptPreset = PromptPresets.WaterWorkHours,
-      consent: ConsentPurpose = ConsentPurpose.Hydration
+      consent: ConsentPurpose = ConsentPurpose.Hydration,
+      cards: StatusCards = StatusCards.textOnly,
+      drawing: CardDrawing = CardDrawing.unavailable
   ):
     val clock = MutableClock(start)
     // One rig at a time: the plans and queued rows of the earlier tests stay out of this one's loop and wire.
@@ -86,7 +94,7 @@ class PromptLoopPgSuite extends PgSuite:
     val errors = scala.collection.mutable.ListBuffer.empty[Throwable]
 
     def loop(): PromptLoop =
-      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), StatusCards.textOnly, CardDrawing.unavailable, codec)
+      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), cards, drawing, codec)
       PromptLoop(uow, clock, ids, PromptMessages(codec), hydration, settings, reports, (_, e) => errors += e)
 
     val dispatcher = OutboxDispatcher(
@@ -212,6 +220,49 @@ class PromptLoopPgSuite extends PgSuite:
     assertEquals(rig.prompts.last.reason, Some(SuppressReason.GoalReached))
     assertEquals(rig.adapter.ops.count(_.isInstanceOf[VendorOp.Send]), 1)
 
+  test("bedtime mode (G7.2): after Going to sleep the water prompt is held and recorded as bedtime; I'm up ends it"):
+    val rig = Rig()
+    fixtures.grant(rig.account, ConsentPurpose.Sleep)
+    val sleep = SleepService(rig.clock, ids)
+    rig.at("09:10")
+    rig.uow.transaction(tx => assert(sleep.goingToSleep(tx, SleepInput(rig.account, EntrySource.Bot, "night")).isRight))
+    rig.at("09:30")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.reason)), List("0930" -> Some(SuppressReason.Bedtime)))
+    rig.at("10:45")
+    rig.uow.transaction(tx => assert(sleep.wakeUp(tx, SleepInput(rig.account, EntrySource.Bot, "up")).isRight))
+    rig.at("11:00")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.last.status, PromptStatus.Sent)
+    assertEquals(rig.adapter.ops.count(_.isInstanceOf[VendorOp.Send]), 1)
+
+  test("the morning touchpoint (G7.2) is sent in bedtime mode, and an I'm up before it answers it"):
+    val rig = Rig(start = kyiv("06:00"), preset = PromptPresets.SleepMorning, consent = ConsentPurpose.Sleep)
+    val sleep = SleepService(rig.clock, ids)
+    rig.clock.at = kyiv("06:00").minus(Duration.ofHours(7))
+    rig.uow.transaction(tx => assert(sleep.goingToSleep(tx, SleepInput(rig.account, EntrySource.Bot, "night")).isRight))
+    rig.at("07:00")
+    rig.tickAndSend()
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.status)), List("0700" -> PromptStatus.Sent))
+    val (handle, _) = rig.open.head
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
+    val up = codec.encode(CallbackMode.Direct, ActionRegistry.byName("prompt.sleep").get, rig.prompts.head.id, 1)
+    rig.at("07:05")
+    val card = rig.tap(handler, handle, up.wire, "up-tap").replace.getOrElse(fail("expected the night card"))
+    assert(card.body.toString.contains("Slept 23:00 to 07:05, 8 h 05 min (your check-ins)."), card.body)
+    val labels = card.blocks.collect { case Block.Choices(set) => set.choices.map(_.label) }.flatten
+    assertEquals(labels, List("1", "2", "3", "4", "5", "Adjust times", "Undo"))
+    assertEquals(rig.prompts.head.status, PromptStatus.Answered)
+    rig.clock.at = Instant.parse("2026-11-16T23:00:00+02:00")
+    rig.uow.transaction(tx => assert(sleep.goingToSleep(tx, SleepInput(rig.account, EntrySource.Bot, "night-2")).isRight))
+    rig.clock.at = Instant.parse("2026-11-17T06:30:00+02:00")
+    rig.uow.transaction(tx => assert(sleep.wakeUp(tx, SleepInput(rig.account, EntrySource.Bot, "up")).isRight))
+    rig.clock.at = Instant.parse("2026-11-17T07:00:05+02:00")
+    rig.tickAndSend()
+    val tuesdayPrompts = rig.uow.transaction(_.reminders.prompts.decidedOn(rig.account, LocalDate.parse("2026-11-17")))
+    assertEquals(tuesdayPrompts.map(_.reason), List(Some(SuppressReason.RecentEntry)))
+
   test("a tap logs the amount, closes the prompt and turns it into its outcome without buttons; a second tap logs nothing"):
     val rig = Rig()
     rig.at("09:30")
@@ -256,10 +307,16 @@ class PromptLoopPgSuite extends PgSuite:
 
   private val sunday = "2026-11-22"
   private def sundayAt(hhmm: String): Instant = Instant.parse(s"${sunday}T$hhmm:00+02:00")
+  // The weekly report is due on the Monday after the week, at 09:00 (PRODUCT_SPEC R-INS-4).
+  private def mondayAt(hhmm: String, date: String = "2026-11-23"): Instant = Instant.parse(s"${date}T$hhmm:00+02:00")
+
+  /** The messages the fake wire holds in the chat of the rig's own account. */
+  private def chatOf(rig: Rig): List[(MessageHandle, RenderedMessage)] =
+    rig.open.filter(_._1.chatId == s"chat-${rig.account}")
 
   test("a weekly report over a week without records sends nothing and is recorded as no records (VA-PS-05)"):
     val rig = Rig(start = sundayAt("18:00"), preset = PromptPresets.WeeklyReport)
-    rig.clock.at = sundayAt("19:00").plusSeconds(5)
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
     rig.tickAndSend()
     assertEquals(rig.allPrompts.map(p => (p.status, p.reason)), List(PromptStatus.Suppressed -> Some(SuppressReason.NoRecords)))
     assertEquals(rig.open, Nil)
@@ -268,15 +325,16 @@ class PromptLoopPgSuite extends PgSuite:
     val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.WeeklyReport)
     rig.clock.at = sundayAt("09:10")
     rig.drink(700, "w-sunday")
-    rig.clock.at = sundayAt("19:00").plusSeconds(5)
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
     rig.tickAndSend()
     assertEquals(rig.allPrompts.map(_.status), List(PromptStatus.Sent))
     val (handle, message) = rig.open.lastOption.getOrElse(fail("no report was sent"))
     assert(message.toString.contains("Your week: the last 7 days"), message)
     assert(message.toString.contains("Water: "), message)
     assertEquals(rig.labels(message), List("Stop these"))
-    // A second pass on the same Sunday sends nothing more: one report per period (VA-PS-09).
-    rig.clock.at = sundayAt("19:20")
+    assert(message.toString.contains("Days with records: water 1 of 7."), message)
+    // A second pass on the same Monday sends nothing more: one report per period (VA-PS-09).
+    rig.clock.at = mondayAt("09:20")
     rig.tickAndSend()
     assertEquals(rig.open.size, 1)
     val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
@@ -289,6 +347,118 @@ class PromptLoopPgSuite extends PgSuite:
     assertEquals(edited.blocks, Nil)
     assert(edited.body.toString.contains("Weekly summaries are off."), edited.body)
     assert(rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptPresets.WeeklyReport.kind)).forall(!_.enabled))
+
+  test("the weekly report covers the seven days before its Monday; today's records wait for the next one (R-INS-4)"):
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.WeeklyReport)
+    rig.clock.at = sundayAt("10:00")
+    rig.drink(300, "w-sunday")
+    rig.clock.at = mondayAt("08:30")
+    rig.drink(900, "w-monday")
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    val (_, message) = chatOf(rig).lastOption.getOrElse(fail("no report was sent"))
+    // Sunday's entry is in the week and Monday's is not: one day of seven has water.
+    assert(message.toString.contains("1 of 7 days have data"), message)
+    assert(message.toString.contains("Days with records: water 1 of 7."), message)
+
+  test("counts (G9.4): ten water entries in the week pass a milestone, one line each; with the switch off none shows"):
+    val rig = Rig(start = sundayAt("08:00"), preset = PromptPresets.WeeklyReport)
+    (1 to 10).foreach: i =>
+      rig.clock.at = sundayAt("08:00").plusSeconds(60L * i)
+      rig.drink(100, s"ten-$i")
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    val (_, message) = chatOf(rig).lastOption.getOrElse(fail("no report was sent"))
+    assert(message.toString.contains("Days with records: water 1 of 7."), message)
+    assert(message.toString.contains("10 water entries recorded so far."), message)
+    val off = Rig(start = sundayAt("08:00"), preset = PromptPresets.WeeklyReport)
+    off.uow.transaction(_.accounts.setGamification(off.account, false, off.clock.now()))
+    off.clock.at = sundayAt("09:00")
+    off.drink(100, "off-1")
+    off.clock.at = mondayAt("09:00").plusSeconds(5)
+    off.tickAndSend()
+    val (_, quiet) = chatOf(off).lastOption.getOrElse(fail("no report was sent"))
+    assert(!quiet.toString.contains("Days with records"), quiet)
+    assert(!quiet.toString.contains("so far"), quiet)
+
+  test("the weekly report is offered once, after the first week with records on three days, and Yes turns it on (X-19)"):
+    val rig = Rig(start = sundayAt("08:00").minus(Duration.ofDays(6)))
+    List("2026-11-17", "2026-11-19", "2026-11-22").foreach: date =>
+      rig.clock.at = Instant.parse(s"${date}T12:00:00+02:00")
+      rig.drink(250, s"offer-$date")
+    def offers(): List[(MessageHandle, RenderedMessage)] =
+      rig.loop().offerReports()
+      while rig.dispatcher.dispatchOnce() > 0 do ()
+      chatOf(rig).filter(_._2.toString.contains("weekly summary"))
+    rig.clock.at = mondayAt("08:55")
+    assertEquals(offers(), Nil, "not before the report's own time")
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    val List((handle, offer)) = offers(): @unchecked
+    assert(offer.toString.contains("Last week has records on 3 days."), offer)
+    assertEquals(rig.labels(offer), List("Yes, send it", "No, thanks"))
+    val plan = rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.WeeklyReport))
+    assertEquals(plan.map(_.enabled), Some(false), "the offer leaves the plan off until the answer")
+    rig.clock.at = mondayAt("09:30")
+    assertEquals(offers().size, 1, "asked once")
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
+    val yes = offer.choiceMap.find(_.label == "Yes, send it").get.callback
+    val answer = rig.tap(handler, handle, yes, "offer-yes").replace.getOrElse(fail("expected the offer's answer"))
+    assert(answer.body.toString.contains("Weekly summaries are on: Mondays at 09:00."), answer.body)
+    val on = rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.WeeklyReport))
+    assertEquals(on.map(p => (p.enabled, p.presetId)), Some((true, "report.weekly")))
+
+  test("a week with records on two days is not offered a report"):
+    val rig = Rig(start = sundayAt("08:00").minus(Duration.ofDays(6)))
+    List("2026-11-17", "2026-11-19").foreach: date =>
+      rig.clock.at = Instant.parse(s"${date}T12:00:00+02:00")
+      rig.drink(250, s"two-$date")
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.loop().offerReports()
+    while rig.dispatcher.dispatchOnce() > 0 do ()
+    assertEquals(chatOf(rig).filter(_._2.toString.contains("weekly summary")), Nil)
+    assertEquals(rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.WeeklyReport)), None)
+
+  test("three weekly reports in a row not followed by any use pause the report with one line and Resume (VA-PS-06)"):
+    val rig = Rig(start = sundayAt("08:00"), preset = PromptPresets.WeeklyReport)
+    val mondays = List("2026-11-23", "2026-11-30", "2026-12-07")
+    mondays.foreach: date =>
+      rig.clock.at = Instant.parse(s"${date}T08:00:00+02:00").minus(Duration.ofDays(1))
+      rig.drink(400, s"weekly-$date")
+      rig.clock.at = mondayAt("09:00", date).plusSeconds(5)
+      rig.tickAndSend()
+      rig.clock.at = mondayAt("09:10", date).plus(Duration.ofDays(1))
+      rig.tickAndSend()
+    val sent = rig.allPrompts.filter(_.kind == PromptKind.WeeklyReport).filter(_.status.wasSent)
+    assertEquals(sent.map(_.status), List.fill(3)(PromptStatus.Expired))
+    val plan = rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.WeeklyReport)).get
+    assertEquals(plan.enabled, false)
+    val (handle, notice) = chatOf(rig).lastOption.getOrElse(fail("no pause notice"))
+    assert(notice.toString.contains("Weekly summaries are paused for now."), notice)
+    assertEquals(rig.labels(notice), List("Resume"))
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    val handler = RemindersHandler(codec, rig.clock, rig.settings, parts, inner = (_, _, _) => Reply.empty)
+    val resumed = rig.tap(handler, handle, notice.choiceMap.head.callback, "resume").replace.getOrElse(fail("no answer"))
+    assert(resumed.body.toString.contains("Weekly summaries are on again."), resumed.body)
+    val again = rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.WeeklyReport)).get
+    assertEquals(again.enabled, true)
+    rig.clock.at = mondayAt("09:10", "2026-12-08").plus(Duration.ofHours(1))
+    rig.tickAndSend()
+    assert(rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.WeeklyReport)).get.enabled, "Resume starts afresh")
+
+  test("a weekly report followed by a use of the bot within a day counts as seen"):
+    val rig = Rig(start = sundayAt("08:00"), preset = PromptPresets.WeeklyReport)
+    rig.clock.at = sundayAt("09:00")
+    rig.drink(400, "seen-1")
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    withConnection: conn =>
+      given Connection = conn
+      val at = mondayAt("12:00")
+      sql"UPDATE platform_identities SET last_seen_at = $at WHERE user_id = ${rig.account}".execute()
+    rig.clock.at = mondayAt("09:10").plus(Duration.ofDays(1))
+    rig.tickAndSend()
+    assertEquals(rig.allPrompts.filter(_.kind == PromptKind.WeeklyReport).map(_.status), List(PromptStatus.Answered))
 
   test("a monthly report goes out on the 1st only when a domain has records on 14 days of the month (R-INS-11)"):
     val first = Instant.parse("2026-12-01T09:00:00+02:00")
@@ -304,6 +474,29 @@ class PromptLoopPgSuite extends PgSuite:
     assert(message.toString.contains("Your month"), message)
     assert(message.toString.contains("November 2026"), message)
     assert(message.toString.contains("14 days with records"), message)
+
+  test("a monthly report of three pages goes as one album, each page captioned, then its text with Stop these (6.6)"):
+    val pages = StatusCards.textOnly
+    val threePages = new StatusCards:
+      export pages.{mood, water, day, sleep, food}
+      override def month(view: MonthCardView, look: CardLook): List[CardPage] =
+        (1 to 3).toList.map(page => CardPage(s"card.month.p$page", "<svg/>", s"Page $page of the month.", "month.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val first = Instant.parse("2026-12-01T09:00:00+02:00")
+    val rig = Rig(start = first, preset = PromptPresets.MonthlyReport, cards = threePages, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    (1 to 14).foreach { day =>
+      rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
+      rig.drink(500, s"album-$day")
+    }
+    rig.clock.at = Instant.parse("2026-12-01T10:00:05+02:00")
+    rig.tickAndSend()
+    val List((_, album), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(album.album.map(_.altText), List("Page 1 of the month.", "Page 2 of the month.", "Page 3 of the month."))
+    assertEquals((album.attachment, album.controls, album.chunks), (None, Nil, Nil))
+    assert(text.toString.contains("Your month"), text)
+    assertEquals(rig.labels(text), List("Stop these"))
 
   test("a monthly report of a month short of the gate sends nothing"):
     val first = Instant.parse("2027-01-01T09:00:00+02:00")

@@ -1,0 +1,5 @@
+file: dosegram-share.png
+spoiler: true
+caption: A card to share.
+alt: Mood this week, on average: slightly pleasant.
+full: Mood this week, on average: slightly pleasant.

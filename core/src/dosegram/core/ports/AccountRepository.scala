@@ -62,5 +62,10 @@ trait AccountRepository:
   /** Replaces the settings. The time zone is not one of them: it moves through [[setTimezone]], with its schedules. */
   def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit
 
+  /** The gamification switch (PRODUCT_SPEC R-GAM-5): with it off, no day count and no milestone is shown anywhere. */
+  def gamificationOf(accountId: UUID): Boolean
+
+  def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit
+
   /** The language a message for the account is written in, when no inbound event of its own carries one. */
   def languageOf(accountId: UUID): Lang = settingsOf(accountId).fold(Lang.En)(_.lang)

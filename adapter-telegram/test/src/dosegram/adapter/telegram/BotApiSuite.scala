@@ -91,6 +91,41 @@ class BotApiSuite extends munit.FunSuite:
     assertEquals(request.params, ujson.Obj("chat_id" -> 7001, "photo" -> "AgACcached"))
     assertEquals(request.file, None)
 
+  test("an album is one sendMediaGroup: uploads as attach:// parts, cached ids in place, a caption per photo"):
+    val (wire, api) = wired()
+    val photos = List(
+      AlbumPhoto(MediaPayload.Upload("p1.png", "image/png", Array[Byte](1)), Some("Page 1")),
+      AlbumPhoto(MediaPayload.Cached("AgACcached"), Some("Page 2"), hasSpoiler = true),
+      AlbumPhoto(MediaPayload.Upload("p3.png", "image/png", Array[Byte](3)), None)
+    )
+    val sent = api.sendMediaGroup(7001L, photos, Delivery(silent = true, noPreview = false))
+    assertEquals(sent.map(_.map(_.fileId)), Right(List(Some("fake-photo-1"), Some("fake-photo-2"), Some("fake-photo-3"))))
+    val request = wire.calls.last.request
+    assertEquals(request.method, "sendMediaGroup")
+    assertEquals(
+      request.params,
+      ujson.Obj(
+        "chat_id" -> 7001,
+        "media" -> ujson.Arr(
+          ujson.Obj("type" -> "photo", "media" -> "attach://photo0", "caption" -> "Page 1", "parse_mode" -> "HTML"),
+          ujson.Obj(
+            "type" -> "photo",
+            "media" -> "AgACcached",
+            "caption" -> "Page 2",
+            "parse_mode" -> "HTML",
+            "has_spoiler" -> true
+          ),
+          ujson.Obj("type" -> "photo", "media" -> "attach://photo2")
+        ),
+        "disable_notification" -> true
+      )
+    )
+    assertEquals(request.file, None)
+    assertEquals(
+      request.files.map(f => (f.field, f.fileName, f.bytes.toList)),
+      List(("photo0", "p1.png", List[Byte](1)), ("photo2", "p3.png", List[Byte](3)))
+    )
+
   test("a document is sent with sendDocument and returns its file id"):
     val (wire, api) = wired()
     wire.replyNext("sendDocument", 200, BotApiFixtures.response("send-document"))

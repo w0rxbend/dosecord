@@ -138,6 +138,19 @@ final class PgPromptRepository(conn: Connection) extends PromptRepository:
           FROM prompt_occurrences WHERE schedule_id = $scheduleId AND send_key IS NOT NULL
           ORDER BY due_at DESC LIMIT 1""".queryOne[PromptOccurrence]()
 
+  override def recentSent(scheduleId: UUID, limit: Int): List[PromptOccurrence] =
+    sql"""SELECT id, account_id, schedule_id, kind, local_date, slot_key, due_at, status, reason, notice, send_key,
+                 budgeted, decided_at
+          FROM prompt_occurrences WHERE schedule_id = $scheduleId AND send_key IS NOT NULL
+          ORDER BY due_at DESC LIMIT $limit""".query[PromptOccurrence]()
+
+  override def accountsWithout(kind: PromptKind): List[UUID] =
+    sql"""SELECT DISTINCT dc.account_id FROM delivery_channels dc
+          JOIN platform_identities pi ON pi.id = dc.platform_identity_id
+          WHERE dc.role = 'primary' AND dc.state = 'healthy' AND pi.unlinked_at IS NULL AND pi.dm_channel_id IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM prompt_schedules ps WHERE ps.account_id = dc.account_id AND ps.kind = ${kind.id})
+          ORDER BY dc.account_id""".query[UUID]()
+
   override def markNotice(id: UUID, notice: PromptNotice): Unit =
     sql"UPDATE prompt_occurrences SET notice = ${notice.db} WHERE id = $id".execute()
     ()

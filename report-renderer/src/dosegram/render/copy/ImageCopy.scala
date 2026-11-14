@@ -9,9 +9,11 @@ import dosegram.render.card.InsightRule
 import dosegram.render.card.MainMeal
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -181,6 +183,14 @@ trait ImageCopy:
   def sleepNights(nights: Int): String
   def monthWaterFact(goalDays: Option[GoalDays], recordedDays: Int): String
   def waterLoggedMark: String
+
+  /** Food on the month's pages (VISUALS section 6.6): the meals logged and the snacks apart, as the weekly card. */
+  def monthFood(meals: MonthMeals): String
+  def monthFoodFact(meals: MonthMeals, days: Int): String
+  def mealLoggedMark: String
+
+  /** The title of page 3 when it draws the food panel beside at most one of the sleep and water panels. */
+  def monthNightsFoodTitle(withSleep: Boolean, withWater: Boolean): String
   def napMark: String
   def monthDaysText(page: MonthDaysData): String
   def monthNightsText(page: MonthNightsData): String
@@ -188,6 +198,13 @@ trait ImageCopy:
   // Milestone (IMG-14).
   def milestoneLabel(milestone: MilestoneData): String
   def milestoneText(milestone: MilestoneData): String
+
+  // Shareable card (IMG-17): the fact in three lines, its text, and the product's wordmark.
+  def shareDayCount(fact: ShareFact.DayCount): (String, String, String)
+  def shareMoodPeriod: String
+  def shareText(fact: ShareFact): String
+  def shareDiscreet: String
+  def shareWordmark: String = "Dosegram"
 
   // Refill (IMG-15). The label, the count, the unit and the threshold come from the user's own entries.
   def refillTitle: String
@@ -205,7 +222,8 @@ final case class MonthSummary(
     water: Option[GoalDays],
     moodCheckInDays: Option[Int],
     sleep: Option[(Int, Int)],
-    previousAdherence: Option[Int]
+    previousAdherence: Option[Int],
+    meals: Option[MonthMeals] = None
 )
 
 /** The counts behind the calendar's text equivalent. */

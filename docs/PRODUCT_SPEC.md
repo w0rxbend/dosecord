@@ -1399,6 +1399,8 @@ Interaction with the rest of the product
 - AC-GAM-4. A milestone never causes a message of its own. [S]
 - AC-GAM-5. The catalogue contains none of the words of R-GAM-6 in any shipped locale. [O]
 
+Supervisor decision, 2026-11-14 (ROADMAP G9.4). The switch of R-GAM-5 is the account column `gamification_enabled`, on by default as ARCHITECTURE section 10.2 lists it, and is turned on and off by "Counts in reports" on the `/reminders` hub. In this step the module has one surface: with the switch on, the weekly report's text ends with one line of the week's hit days per domain that has any ("Days with records: water 5 of 7, mood 6 of 7.") and one line per milestone the week passed (10, 50 and 100 acts of logging per domain, VISUALS section 7.3). Medication has no line. No milestone card is drawn (IMG-14 is a Later item, ROADMAP X-24). Still open: the Today card line, the Trends surface, the one-year milestone, and hiding the minimum-data gates of `/stats` and the reports when the switch is off (AC-GAM-3).
+
 ### 8.15 `vitals-and-symptoms`
 
 **Decision.** Adopted as a diary only, in V2, after the legal review of Q-02 confirms the position. The product stores and draws what the user typed. It never classifies, compares with a range, smooths into a trend for clinical measures, or alerts. Rationale: recording and displaying manually entered values is outside device scope, while trend analysis, thresholds and alerts on physiological values are listed as medical-device functions (R03 section 8). Rejected alternative: thresholds and "out of range" highlights, which users may expect from other applications.

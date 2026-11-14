@@ -99,7 +99,24 @@ object ActionRegistry:
     ActionEntry(303, "privacy.keep", requiresSession = false),
     ActionEntry(304, "privacy.delete_account_ask", requiresSession = false),
     ActionEntry(305, "privacy.delete_account_confirm", requiresSession = false),
-    ActionEntry(306, "privacy.delete_account", requiresSession = false)
+    ActionEntry(306, "privacy.delete_account", requiresSession = false),
+    // Sleep, food and report depth (360 to 389; ROADMAP G7.2, G9.2). Direct mode: "Nap" on the account; a bedtime chip
+    // on the "I'm up" tap, its value the minute of the day; "Adjust times" on the episode, its value the two shifts in
+    // steps of 15 minutes (see SleepCards.shifts); the report offer and Resume on the account, the value the kind.
+    ActionEntry(360, "sleep.nap", requiresSession = false),
+    ActionEntry(361, "sleep.bedtime", requiresSession = false),
+    ActionEntry(362, "sleep.adjust", requiresSession = false),
+    ActionEntry(363, "sleep.adjust_save", requiresSession = false),
+    ActionEntry(364, "sleep.adjust_cancel", requiresSession = false),
+    ActionEntry(365, "reminders.report_resume", requiresSession = false),
+    ActionEntry(366, "reminders.report_offer_yes", requiresSession = false),
+    ActionEntry(367, "reminders.report_offer_no", requiresSession = false),
+    // The gamification switch on the /reminders hub (PRODUCT_SPEC R-GAM-5): value 1 turns the counts on, 0 off.
+    ActionEntry(368, "reminders.counts", requiresSession = false),
+    // The shareable card from /stats (VISUALS IMG-17): the picker on the account; a fact on the account, its value the
+    // fact's code plus 16 once discreet mode was confirmed (see ShareChat).
+    ActionEntry(369, "stats.share", requiresSession = false),
+    ActionEntry(370, "stats.share_send", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

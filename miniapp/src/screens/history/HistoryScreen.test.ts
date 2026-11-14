@@ -51,6 +51,18 @@ describe('History calendar', () => {
     expect(harness.tg.haptics).toEqual(['selection']);
   });
 
+  it('shows food as a domain of its own: a day with a meal is marked, a day without says so', async () => {
+    const user = open(createHarness());
+    await grid();
+
+    await user.click(await screen.findByLabelText('Food'));
+
+    const month = await grid();
+    const names = within(month).getAllByRole('button').map((button) => button.getAttribute('aria-label') ?? '');
+    expect(names.some((name) => / \d meals? logged/.test(name) || name.endsWith('no meal logged'))).toBe(true);
+    expect(names.filter((name) => / \d meals? logged/.test(name)).length).toBeGreaterThan(0);
+  });
+
   it('prints the values in the cells on request, so the calendar reads without colour', async () => {
     const user = open(createHarness());
     await screen.findByLabelText('Water');

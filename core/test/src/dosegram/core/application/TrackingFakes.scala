@@ -232,6 +232,8 @@ final class TrackingTxDouble(
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit = absent("accounts")
     override def settingsOf(accountId: UUID): Option[AccountSettings] = absent("accounts")
     override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit = absent("accounts")
+    override def gamificationOf(accountId: UUID): Boolean = absent("accounts")
+    override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit = absent("accounts")
   override def sessions: SessionRepository = absent("sessions")
   override def outbox: OutboxRepository = absent("outbox")
   override def renderedMessages: RenderedMessageRepository = absent("renderedMessages")

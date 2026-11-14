@@ -11,9 +11,11 @@ import dosegram.render.card.MainMeal
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MilestoneKind
 import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -350,7 +352,8 @@ object EnglishImageCopy extends ImageCopy:
     val previous = month.previousAdherence
       .filter(_ => month.doses.exists(_.counted >= MinimumDosesForPercent))
       .map(percent => monthPrevious(month.month.minusMonths(1), percent))
-    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ Vector(days) ++ previous)
+    val food = month.meals.map(meals => s"Food: ${monthFood(meals)}.")
+    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ food ++ Vector(days) ++ previous)
       .mkString(" ")
 
   def monthDiscreet: String = "Your month."
@@ -412,6 +415,20 @@ object EnglishImageCopy extends ImageCopy:
 
   def milestoneText(milestone: MilestoneData): String = s"${milestone.count} ${milestoneLabel(milestone)}."
 
+  def shareDayCount(fact: ShareFact.DayCount): (String, String, String) =
+    val headline = fact.domain match
+      case Domain.Water => "Water goal reached on"
+      case Domain.Sleep => "Sleep logged on"
+      case _            => "Mood logged on"
+    (headline, s"${fact.hits} of 7 days", "this week")
+  def shareMoodPeriod: String = "my mood this week, on average"
+  def shareText(fact: ShareFact): String = fact match
+    case days: ShareFact.DayCount =>
+      val (headline, count, period) = shareDayCount(days)
+      s"$headline $count $period."
+    case ShareFact.WeekMood(state) => s"Mood this week, on average: ${valenceName(state.valence).toLowerCase}."
+  def shareDiscreet: String = "A card to share."
+
   def moodCalendarTitle: String = "Mood by day"
   def noCheckIn: String = "No check-in"
   def moodCalendarFact(checkInDays: Int): String = s"${plural(checkInDays, "check-in day")}."
@@ -472,6 +489,16 @@ object EnglishImageCopy extends ImageCopy:
       case None       => s"${plural(recordedDays, "day")} with water recorded."
 
   def waterLoggedMark: String = "Water logged"
+
+  def monthFood(meals: MonthMeals): String =
+    if meals.logged == 0 then s"${snackCount(meals.snacks)} logged"
+    else if meals.snacks == 0 then mealsLogged(meals.logged)
+    else s"${mealsLogged(meals.logged)}, ${snackCount(meals.snacks)}"
+
+  def monthFoodFact(meals: MonthMeals, days: Int): String = s"${monthFood(meals).capitalize} on ${plural(days, "day")}."
+  def mealLoggedMark: String = "Main meal logged"
+  def monthNightsFoodTitle(withSleep: Boolean, withWater: Boolean): String =
+    if withSleep then "Nights and food" else if withWater then "Water and food" else "Food by day"
   def napMark: String = "Nap"
 
   def monthDaysText(page: MonthDaysData): String =
@@ -502,7 +529,12 @@ object EnglishImageCopy extends ImageCopy:
       )
       s"Water: ${monthWaterFact(goal, recorded.size)}"
     }
-    (Vector(s"${monthYear(page.month)}, nights and water.") ++ sleep ++ water).mkString(" ")
+    val food = page.food.filter(_.exists(_.isDefined)).map { days =>
+      val recorded = days.flatten
+      s"Food: ${monthFoodFact(MonthMeals(recorded.map(_.mainMeals).sum, recorded.map(_.snacks).sum), recorded.size)}"
+    }
+    val intro = if food.isDefined then "nights, water and food." else "nights and water."
+    (Vector(s"${monthYear(page.month)}, $intro") ++ sleep ++ water ++ food).mkString(" ")
 
   def refillTitle: String = "Running low"
   def refillDiscreetLabel: String = "One of your items is running low."

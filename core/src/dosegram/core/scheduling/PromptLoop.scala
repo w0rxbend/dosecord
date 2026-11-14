@@ -26,10 +26,14 @@ import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptNotice
 import dosegram.core.domain.reminders.PromptOutcome
 import dosegram.core.domain.reminders.PromptPlanner
+import dosegram.core.domain.reminders.PromptPreset
+import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.reminders.PromptStatus
 import dosegram.core.domain.reminders.SuppressReason
 import dosegram.core.domain.sleep.CheckinKind
+import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DeliveryTarget
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewOutboxMessage
@@ -39,6 +43,7 @@ import dosegram.core.ports.PromptSchedule
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
@@ -74,6 +79,83 @@ final class PromptLoop(
           onError(id, e)
           false
 
+  /** One pass of the report offers (ROADMAP conflict X-19): each report is offered once per account that was never
+    * asked, at its own send time after the first eligible period, never in quiet hours or bedtime mode. The offer
+    * leaves the plan in place, off, so it is never asked again.
+    */
+  def offerReports(): Unit =
+    List(PromptPresets.WeeklyReport, PromptPresets.MonthlyReport).foreach: preset =>
+      uow
+        .transaction(_.reminders.prompts.accountsWithout(preset.kind))
+        .foreach: accountId =>
+          try uow.transaction(tx => Lang.within(tx.accounts.languageOf(accountId))(offer(tx, accountId, preset)))
+          catch case NonFatal(e) => onError(accountId, e)
+
+  private def offer(tx: Tx, accountId: UUID, preset: PromptPreset): Unit =
+    val now = clock.now()
+    val zone = settings.zone(tx, accountId)
+    val profile = settings.profile(tx, accountId)
+    val local = now.atZone(zone)
+    val dueNow = NudgeSlots
+      .on(preset.plan, profile, local.toLocalDate, zone, ReminderSettings.seedOf(accountId))
+      .exists(slot => !slot.at.isAfter(now) && now.isBefore(slot.at.plus(PromptLoop.OfferWindow)))
+    val asleep =
+      openNightAt(tx, accountId).exists(at => Duration.between(at, now).compareTo(PromptDecision.BedtimeHold) < 0)
+    if dueNow && !asleep && !profile.quiet.contains(local.toLocalTime) then
+      for
+        target <- tx.channels.activePrimaryChannels(accountId).find(_.chatId.isDefined)
+        message <- reports.offer(
+          tx,
+          accountId,
+          preset.kind,
+          local.toLocalDate,
+          s"report-offer:${preset.kind.id}:$accountId"
+        )
+      do
+        settings.markOffered(tx, accountId, preset)
+        enqueueTo(tx, accountId, target, message, now)
+
+  /** VA-PS-06: a report the user did not follow by any use of the bot or the Mini App within 24 hours is closed as
+    * expired, one followed is answered; after three expired reports in a row the report type is turned off and one line
+    * says so with Resume. Only reports sent since the plan last took its form count, so Resume starts afresh.
+    */
+  private def settleReport(tx: Tx, plan: PromptSchedule, now: Instant): Boolean =
+    tx.reminders.prompts
+      .lastSent(plan.id)
+      .filter(open => open.status == PromptStatus.Sent && !open.dueAt.plus(PromptLoop.ReportSeenWithin).isAfter(now))
+      .foreach: open =>
+        val seen = tx.identities.lastInteraction(plan.accountId).exists(_.isAfter(open.dueAt))
+        tx.reminders.prompts.close(open.id, if seen then PromptStatus.Answered else PromptStatus.Expired, now)
+    val recent =
+      tx.reminders.prompts.recentSent(plan.id, PromptLoop.PauseAfterUnseen).filter(_.dueAt.isAfter(plan.activeFrom))
+    val unseen = recent.size == PromptLoop.PauseAfterUnseen && recent.forall(_.status == PromptStatus.Expired)
+    if unseen then
+      settings.turnOff(tx, plan.accountId, plan.kind)
+      tx.channels
+        .activePrimaryChannels(plan.accountId)
+        .find(_.chatId.isDefined)
+        .foreach: target =>
+          val notice = reports.pausedNotice(plan.kind, plan.accountId, s"report-paused:${recent.head.id}")
+          enqueueTo(tx, plan.accountId, target, notice, now)
+    unseen
+
+  private def enqueueTo(tx: Tx, accountId: UUID, target: DeliveryTarget, message: OutboundMessage, now: Instant): Unit =
+    tx.outbox.enqueue(
+      NewOutboxMessage(
+        id = ids.next(now),
+        sendKey = message.dedupeKey,
+        op = OutboxOp.Send,
+        kind = PromptLoop.OutboxKind,
+        vendor = target.vendor,
+        accountId = Some(accountId),
+        channelId = Some(target.channelId),
+        payload = OutboundMessage.toJson(message),
+        importance = "info",
+        nextAttemptAt = now
+      )
+    )
+    ()
+
   private def decidePlan(tx: Tx, planId: UUID): Boolean =
     tx.reminders.prompts.lockEnabled(planId) match
       case None => false
@@ -82,6 +164,10 @@ final class PromptLoop(
 
   private def decideLocked(tx: Tx, plan: PromptSchedule): Boolean =
     val now = clock.now()
+    if PromptLoop.isReport(plan.kind) && settleReport(tx, plan, now) then true
+    else decideSlots(tx, plan, now)
+
+  private def decideSlots(tx: Tx, plan: PromptSchedule, now: Instant): Boolean =
     val zone = settings.zone(tx, plan.accountId)
     val profile = settings.profile(tx, plan.accountId)
     val due = NudgeSlots.dueBy(plan.plan, profile, zone, ReminderSettings.seedOf(plan.accountId), now)
@@ -112,7 +198,7 @@ final class PromptLoop(
       plan = plan.plan,
       ownCap = plan.ownCap,
       slotsToday = NudgeSlots.on(plan.plan, profile, slot.planDate, zone, ReminderSettings.seedOf(accountId)).size,
-      recentSince = PromptExpiry.recentSince(plan.plan, slot),
+      recentSince = PromptExpiry.recentSince(plan.kind, plan.plan, slot),
       window = windowOf(plan.plan, profile, slot, zone),
       quiet = profile.quiet,
       pausedUntil = (plan.pausedUntil.toList ++ tx.reminders.dayProfiles.pausedUntil(accountId)).maxOption,
@@ -123,7 +209,8 @@ final class PromptLoop(
       budget = PromptDecision.DefaultBudget,
       lastOtherPromptAt = accountDay.filter(o => o.scheduleId != plan.id && o.status.wasSent).map(_.dueAt).maxOption,
       consented = settings.consented(tx, accountId, plan.kind),
-      reachable = channel.isDefined
+      reachable = channel.isDefined,
+      bedtimeSince = openNightAt(tx, accountId)
     )
     val previous = tx.reminders.prompts.lastSent(plan.id)
     // A meal nudge is answered by any entry of its meal on its day, however long before the slot it was made (G8.4).
@@ -214,22 +301,7 @@ final class PromptLoop(
       target: DeliveryTarget,
       now: Instant
   ): Unit =
-    (report.images :+ report.main).foreach { message =>
-      tx.outbox.enqueue(
-        NewOutboxMessage(
-          id = ids.next(now),
-          sendKey = message.dedupeKey,
-          op = OutboxOp.Send,
-          kind = PromptLoop.OutboxKind,
-          vendor = target.vendor,
-          accountId = Some(plan.accountId),
-          channelId = Some(target.channelId),
-          payload = OutboundMessage.toJson(message),
-          importance = "info",
-          nextAttemptAt = now
-        )
-      )
-    }
+    (report.images :+ report.main).foreach(enqueueTo(tx, plan.accountId, target, _, now))
 
   private def render(
       tx: Tx,
@@ -379,7 +451,9 @@ final class PromptLoop(
         case PromptKind.SleepBedtime =>
           DomainProgress(latestCheckin(tx, plan.accountId, CheckinKind.GoingToSleep), 0, None)
         case PromptKind.SleepMorning =>
-          DomainProgress(latestCheckin(tx, plan.accountId, CheckinKind.ImUp), 0, None)
+          val nights = tx.tracking.sleep.liveEpisodes(plan.accountId, recent).filter(_.kind == SleepKind.Main)
+          val wakes = latestCheckin(tx, plan.accountId, CheckinKind.ImUp).toList ++ nights.map(_.interval.wake.at)
+          DomainProgress(wakes.maxOption, 0, None)
         case PromptKind.Meal =>
           DomainProgress(tx.tracking.meals.listLive(plan.accountId, recent).map(_.occurredAt).maxOption, 0, None)
         case PromptKind.WeeklyReport | PromptKind.MonthlyReport => DomainProgress.Empty
@@ -396,6 +470,15 @@ final class PromptLoop(
 
   private def latestCheckin(tx: Tx, accountId: UUID, kind: CheckinKind): Option[Instant] =
     tx.tracking.sleep.latestLiveCheckin(accountId, kind).map(_.occurredAt)
+
+  /** The "Going to sleep" of the night still open, which puts the account in bedtime mode (R-SLP-23): later than the
+    * wake of every recorded episode. Read only with the sleep consent; [[PromptDecision]] bounds how long it holds.
+    */
+  private def openNightAt(tx: Tx, accountId: UUID): Option[Instant] =
+    if !tx.consents.isGranted(accountId, ConsentPurpose.Sleep) then None
+    else
+      val closedUntil = tx.tracking.sleep.latestLiveEpisode(accountId).map(_.interval.wake.at)
+      latestCheckin(tx, accountId, CheckinKind.GoingToSleep).filter(at => closedUntil.forall(_.isBefore(at)))
 
   private def windowOf(
       plan: NudgePlan,
@@ -422,3 +505,12 @@ object PromptLoop:
 
   /** The outbox kind of every prompt row: a send, the delete of a replaced prompt, the edit to the pause notice. */
   val OutboxKind = "prompt"
+
+  /** How long after its send time a report may still be offered, so a restart late in the day asks nothing. */
+  val OfferWindow: Duration = Duration.ofHours(3)
+
+  /** A report followed by a use of the bot or the Mini App within this time was seen (VA-PS-06). */
+  val ReportSeenWithin: Duration = Duration.ofHours(24)
+
+  /** Reports in a row not seen after which the report type pauses (VA-PS-06). */
+  val PauseAfterUnseen = 3

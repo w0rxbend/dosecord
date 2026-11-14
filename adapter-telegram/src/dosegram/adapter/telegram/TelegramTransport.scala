@@ -23,8 +23,18 @@ object BotToken:
 /** One file part of a multipart upload. A plain class: the bytes take no part in equality or in a `toString`. */
 final class WireFile(val field: String, val fileName: String, val mimeType: String, val bytes: Array[Byte])
 
-/** One Bot API call as the transport sends it: the method name, its JSON parameters and, for an upload, one file. */
-final case class WireRequest(method: String, params: ujson.Obj, file: Option[WireFile], timeout: Duration)
+/** One Bot API call as the transport sends it: the method name, its JSON parameters and, for an upload, one file; an
+  * album's uploads are `moreFiles`, each named by the `attach://` reference of its item.
+  */
+final case class WireRequest(
+    method: String,
+    params: ujson.Obj,
+    file: Option[WireFile],
+    timeout: Duration,
+    moreFiles: List[WireFile] = Nil
+):
+  /** Every file part of the call, in order. */
+  def files: List[WireFile] = file.toList ++ moreFiles
 
 /** Why a call produced no HTTP response. It carries no text: an exception message of the HTTP client may contain the
   * request URL, and the URL contains the token.

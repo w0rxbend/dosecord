@@ -53,6 +53,13 @@ final class PgAccountRepository(conn: Connection) extends AccountRepository:
             WHERE id = $accountId""".execute()
     require(updated == 1, s"account $accountId vanished before saveSettings")
 
+  override def gamificationOf(accountId: UUID): Boolean =
+    sql"SELECT gamification_enabled FROM users WHERE id = $accountId".queryOne[Boolean]().getOrElse(false)
+
+  override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit =
+    sql"UPDATE users SET gamification_enabled = $enabled, updated_at = $now WHERE id = $accountId".execute()
+    ()
+
 object PgAccountRepository:
   private given RowMapper[AccountSettings] = rs =>
     AccountSettings(

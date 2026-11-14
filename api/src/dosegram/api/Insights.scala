@@ -141,13 +141,13 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
       val chart =
         if frame.period.byWeek then Some(Charts.mealsByWeek(view.days, frame.weeks, frame.current))
         else DaySeries.of(view.days, frame.current).shown.map(Charts.mealsByDay(_, frame.current))
-      val counts = frame.buckets.map(bucket => Some(bucket.dates.flatMap(view.days.get).map(_.meals).sum.toDouble))
+      val counts = frame.buckets.map(bucket => Some(bucket.dates.flatMap(view.days.get).map(_.mainMeals).sum.toDouble))
       block(
         OverviewDomain.Nutrition,
         TrendCopy.foodFigures(view.period),
         chart.toList,
         TrendCopy.food(frame.period.days, previous.period),
-        Option.when(view.period.meals > 0)(Charts.spark(counts, SceneTone.Nutrition)).flatten
+        Option.when(view.period.hasEntries)(Charts.spark(counts, SceneTone.Nutrition)).flatten
       )
 
   /** Today against the user's own goal; without a goal there is nothing to fill. */

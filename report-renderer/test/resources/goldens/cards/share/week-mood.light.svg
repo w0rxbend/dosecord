@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="471" cy="298" r="253"><stop offset="0" stop-color="#aecba8"/><stop offset="1" stop-color="#88ae80"/></radialGradient>
+</defs>
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<g>
+  <ellipse cx="540" cy="661.4" rx="149.5" ry="6.9" fill="#cdd6db"/>
+  <path d="M779.49 390 C782.13 434.96 762.07 495.47 733.58 530.65 C705.1 565.82 652.24 589.41 608.58 601.06 C564.91 612.71 514.44 612.91 471.58 600.57 C428.72 588.23 379.52 562.12 351.41 527.02 C323.3 491.92 302.76 435.54 302.94 390 C303.12 344.46 324.56 289.38 352.5 253.78 C380.45 218.17 427.41 190.41 470.59 176.39 C513.77 162.37 570.4 155.59 611.59 169.67 C652.78 183.75 689.75 224.15 717.73 260.87 C745.71 297.59 776.85 345.04 779.49 390 Z" fill="url(#g1)" stroke="#435561" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="475.6" cy="362.4" rx="12.65" ry="9.49" fill="#13242e"/>
+  <ellipse cx="604.4" cy="362.4" rx="12.65" ry="9.49" fill="#13242e"/>
+  <path d="M494 440.6 Q540 449.8 586 440.6" fill="none" stroke="#13242e" stroke-width="8.05" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="540" y="750" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">Slightly pleasant</text>
+<text x="540" y="822" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="middle">my mood this week, on average</text>
+<text x="1016" y="960" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">Dosegram</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

@@ -368,7 +368,7 @@ export class MockTracking {
       days,
       legend: LEGENDS[domain],
       summary: `${monthName}${shown === today.slice(0, 7) ? ' so far' : ''}: ${valued.length === 0 ? 'nothing recorded' : `records on ${count(valued.length, 'day')}`}.`,
-      domains: (['medication', 'hydration', 'mood', 'sleep'] as const).filter((candidate) => this.consented.has(candidate)),
+      domains: (['medication', 'hydration', 'mood', 'sleep', 'nutrition'] as const).filter((candidate) => this.consented.has(candidate)),
     };
   }
 
@@ -396,6 +396,14 @@ export class MockTracking {
         name: `${prefix}, ${duration(minutes)}, your check-ins`,
         value: `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
       };
+    }
+    if (domain === 'nutrition') {
+      const meals = this.food.mealsIn(date, date);
+      if (meals.length === 0) return empty('no meal logged');
+      const main = new Set(meals.filter((meal) => meal.mealType !== 'snack').map((meal) => meal.mealType)).size;
+      const snacks = meals.length - meals.filter((meal) => meal.mealType !== 'snack').length;
+      const words = [`${count(main, 'meal')} logged`, ...(snacks > 0 ? [count(snacks, 'snack')] : [])].join(', ');
+      return { date, swatch: { state: 'value', step: 1, hasNoRecord: false }, name: `${prefix}, ${words}`, value: String(main) };
     }
     if (domain === 'mood') {
       const checkins = this.moodsOn(date);
@@ -490,9 +498,13 @@ export class MockTracking {
   }
 }
 
-const STEPS: Readonly<Record<Domain, number>> = { medication: 3, hydration: 4, mood: 5, sleep: 1 };
+const STEPS: Readonly<Record<Domain, number>> = { medication: 3, hydration: 4, mood: 5, sleep: 1, nutrition: 1 };
 
 const LEGENDS: Readonly<Record<Domain, InsightCalendar['legend']>> = {
+  nutrition: [
+    { label: 'Meal logged', swatch: { state: 'value', step: 1, hasNoRecord: false } },
+    { label: 'No meal logged', swatch: { state: 'empty', hasNoRecord: false } },
+  ],
   sleep: [
     { label: 'Night logged', swatch: { state: 'value', step: 1, hasNoRecord: false } },
     { label: 'No night logged', swatch: { state: 'empty', hasNoRecord: false } },

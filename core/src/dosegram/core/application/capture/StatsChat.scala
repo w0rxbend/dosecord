@@ -21,7 +21,7 @@ import java.time.LocalDate
 /** Statistics in chat (BOT_UX section 12.5): the text of a period first, one tap to change the period, and the daily
   * summary image on request. Text and image come from the same records at the same moment (BUX-STAT-01).
   */
-private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
+private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, share: ShareChat):
 
   def card(turn: Turn, period: StatsPeriod): Reply =
     parts.stats.summary(turn.tx, turn.accountId, period) match
@@ -99,7 +99,9 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens):
       )
     val image = Option.when(period == StatsPeriod.Today):
       Choice.callback(StatsCardCopy.ShowAsImage, tokens.direct(CaptureActions.StatsImage, turn.accountId, 0))
-    List(periods, image.toList)
+    // The shareable card (VISUALS IMG-17) is a fact of the last seven days, so it is offered beside them.
+    val shareable = if period == StatsPeriod.Last7Days then share.button(turn) else None
+    List(periods, image.toList ++ shareable.toList)
 
   /** The month so far and the patterns: one tap away from any period (VISUALS sections 6.6 and 8.5). */
   private def more(turn: Turn, today: LocalDate): List[Choice] =

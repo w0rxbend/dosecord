@@ -249,9 +249,11 @@ final class ChatMediator(
         DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast, appendedEvents)
       )
 
-  /** ADR-015: a message with an attachment is always a new message, so it never edits the message it replaces. */
+  /** ADR-015: a message with an attachment or an album is always a new message, so it never edits the message it
+    * replaces.
+    */
   private def asDelivered(message: OutboundMessage): OutboundMessage =
-    if message.attachment.isDefined then message.copy(replaces = None) else message
+    if message.attachment.isDefined || message.album.nonEmpty then message.copy(replaces = None) else message
 
   /** The core boundary: only stamped events reach a handler (R8). */
   private[chat] def dispatchCore(event: InboundEvent, tx: Tx): Reply =

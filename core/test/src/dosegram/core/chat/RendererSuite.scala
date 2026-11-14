@@ -258,6 +258,31 @@ class RendererSuite extends munit.FunSuite:
     assertEquals(message.attachment, None)
     assert(message.chunks.head.startsWith("[image: Week 45: 12 of 14 doses taken.]\n\nYour week."), message.chunks.head)
 
+  private val monthPages = List(
+    AttachmentRef(MediaKind.Photo, "asset-month-1", "image/png", "October: 27 days with records."),
+    AttachmentRef(MediaKind.Photo, "asset-month-2", "image/png", "Medication by day.")
+  )
+
+  test("an album travels whole on a media profile and is its pages' text equivalents on the console (VISUALS 6.6)"):
+    val album = OutboundMessage(body = Nil, album = monthPages, dedupeKey = "d", correlationId = "c")
+    val (telegram, report) = Renderer.render(album, chat, CapabilityProfiles.Telegram, "k1")
+    assertEquals(report.rungs("attachment"), Renderer.Rung.AttachmentMedia)
+    assertEquals(sends(telegram).map(s => (s.message.album, s.message.chunks)), List((monthPages, Nil)))
+    val (console, _) = Renderer.render(album, chat, CapabilityProfiles.Console, "k1")
+    assertEquals(sends(console).map(_.message.album), List(Nil))
+    assertEquals(
+      sends(console).head.message.chunks,
+      List("[image: October: 27 days with records.]\n\n[image: Medication by day.]")
+    )
+
+  test("an album holds 2 to 10 photos and carries no controls"):
+    intercept[IllegalArgumentException](
+      OutboundMessage(body = Nil, album = monthPages.take(1), dedupeKey = "d", correlationId = "c")
+    )
+    intercept[IllegalArgumentException](
+      OutboundMessage(body = Nil, album = monthPages, blocks = cardMessage.blocks, dedupeKey = "d", correlationId = "c")
+    )
+
   test("a document on the console is named by its text equivalent"):
     val csv =
       AttachmentRef(MediaKind.Document, "asset-export", "text/csv", "Your export, 214 rows.", Some("export.csv"))

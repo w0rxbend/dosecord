@@ -925,6 +925,8 @@ Page 1 is drawn by `card.month.v1`: the hero with its counts beside it, then one
 
 Example caption on the first photo: "October 2026. Details below." Text equivalent message: the same content as IMG-04 for the month, one paragraph per domain.
 
+Food on the month (supervisor decision, 2026-11-14): food that meets the gate has a row on page 1 (its headline the meals logged of section 7.5, one bar per week of meals logged on the row's own scale) and its month by day on page 3 (`card.month.nights.v1`): one dot per main meal logged, up to three, and a hollow dot above for a snack. Page 3 holds at most two panels, because three do not fit the portrait; sleep and water come first, and the food panel is drawn when one of them is absent. Food keeps its page 1 row either way. The Mini App month (`GET /insights/month`) has a food block, and the history calendar (`GET /insights/calendar?domain=nutrition`) marks each day with a meal in one step, its value the meals logged, with no ramp (VA-ME-40).
+
 ### 6.7 IMG-06 Adherence calendar heatmap
 
 | Field | Specification |
@@ -1349,6 +1351,8 @@ Example caption: "Weight, 13 Oct to 9 Nov: 12 entries, from 80.9 to 82.3 kg, lat
 | VA-IMG-17a | The share view-model type has no field for a medication, a date, a time or a free-text string. A canary test confirms that no such value can reach the image or its caption. |
 | VA-IMG-17b | The preview shows the exact image and the sentence "Anyone you send this to can keep it." before the user confirms. |
 
+Supervisor decision, 2026-11-14 (ROADMAP G12.11, the manual-forward fallback of assumption A9). The chat entry is "Share a card" on the seven-day `/stats`, shown only with the "Images in chat" consent. It opens one message with the sentence of VA-IMG-17b and one button per fact the last seven days have, each worded as its card's sentence ("Mood logged on 4 of 7 days", "This week's mood: pleasant"); that sentence is the chat's preview, and the tap sends the card to the user's own chat, captioned with the same sentence, through the report queue like every other image. The whitelist is water goal days, nights logged and mood check-in days, each only above zero and only with the gamification switch on (PRODUCT_SPEC R-GAM-5), and the week's mean mood. The marks carry no weekday letters, because the seven days end today and the letters would name days. In discreet mode a second message asks once more and the photo is behind a spoiler. Nothing is sent with `protect_content` in the product yet (TG-38 is open), so the share card needs no exception. The Mini App builder with the image preview is not built.
+
 ### 6.19 IMG-18 Gate and empty-state art
 
 Global L0 cards that show progress toward a minimum-data gate or explain an empty state, for example "3 more nights of sleep check-ins until your first sleep summary" drawn as 5 cells with 2 filled. The count comes from the gate definition in section 7 or 8, never from an invented unlock. One asset per gate size, filled count, theme and locale.
@@ -1557,6 +1561,8 @@ Edge cases: a tracked day with no entry is "no record", not zero. Deleting or ed
 | Unit | 1 kcal is 4.184 kJ. |
 
 Edge cases: entries without numbers count as meals and not toward energy. An entry with energy but no macros counts toward energy only, and the macro bar's coverage line says so. A value from a lookup or a model is `estimated`. No calorie budget, deficit, remaining amount or weight-linked figure is computed.
+
+Meals logged over a period (supervisor decision, 2026-11-14): the sum over its days of the distinct main meal types with an entry, the count the weekly card draws as dots, with snacks counted apart ("19 meals logged, 3 snacks"; a period with snacks only says "2 snacks logged"). Two breakfasts on one day are one meal logged. `/stats`, the weekly and monthly report text, the record summary, the Mini App figures and the weekly card use this one count.
 
 | ID | Requirement |
 |---|---|
@@ -1906,6 +1912,8 @@ BOT_UX.md owns reminders, prompts and touchpoints. This section governs the repo
 | VA-PS-11 | The delivery state of every scheduled item (sent, skipped: no records, skipped: budget, skipped: quiet hours, skipped: not rendered, paused) is recorded without content and kept for 90 days. |
 | VA-PS-12 | No scheduled message contains urgency, countdowns, a reference to what the user failed to do, or a comparison with other people. Forbidden-phrase lint. |
 | VA-PS-13 | Minimum-data gates are mentioned only inside a message the user asked for or inside a report, as a count ("3 more nights of sleep check-ins until the first sleep summary"). They are never sent as their own message. |
+
+Supervisor decision, 2026-11-14 (ROADMAP G9.2). The offer of section 10.1 is the one question of ROADMAP conflict X-19: a silent text message with "Yes, send it" and "No, thanks", sent at the report's own send time (the weekly one on Monday at 09:00 until the account has a week-start setting, the monthly one on the 1st at 10:00), at most 3 hours after it, never in quiet hours or in bedtime mode. It is asked once per account and report type: asking records the report's plan, switched off, so "No" and no answer leave it off and the question never returns; "Yes" turns the default plan on. Onboarding asks nothing about reports, and the reports stay in `/reminders` beside the other prompts, where they can be turned on without waiting for the offer. The interaction of VA-PS-06 is the latest `last_seen_at` of the account's linked identities or `last_used_at` of its Mini App sessions after the report's send time; a report without one within 24 hours is closed as expired, one with it as answered. Only reports sent since the plan last took its form count, so "Resume" starts the count afresh. The monthly report's pages go as one album, each page captioned with its text equivalent, followed by its text with the controls (section 6.6, ARCHITECTURE TG-42); the weekly report has one page and goes as one photo.
 
 ## 11. Acceptance: test layers and hand-offs
 

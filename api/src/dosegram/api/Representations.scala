@@ -268,6 +268,7 @@ enum InsightDomain(val wire: String):
   case Hydration extends InsightDomain("hydration")
   case Mood extends InsightDomain("mood")
   case Sleep extends InsightDomain("sleep")
+  case Nutrition extends InsightDomain("nutrition")
 
 object InsightDomain:
   given ReadWriter[InsightDomain] = ApiJson.wireEnum(values, _.wire)

@@ -122,9 +122,11 @@ object PromptPresets:
     ownCap = false
   )
 
-  /** The weekly summary on Sunday evening, of the seven days that end that day. */
+  /** The weekly summary on Monday at 09:00, of the seven complete days before it (PRODUCT_SPEC R-INS-4: the first day
+    * of the week at 09:00; weeks start on Monday until the account has a week-start setting).
+    */
   val WeeklyReport: PromptPreset =
-    PromptPreset("report.weekly", PromptKind.WeeklyReport, NudgePlan.Weekly(DayOfWeek.SUNDAY, at(19)), ownCap = false)
+    PromptPreset("report.weekly", PromptKind.WeeklyReport, NudgePlan.Weekly(DayOfWeek.MONDAY, at(9)), ownCap = false)
 
   /** The monthly summary on the 1st, of the previous calendar month. */
   val MonthlyReport: PromptPreset =

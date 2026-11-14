@@ -241,6 +241,23 @@ final class TrackingApiSuite extends ApiSuite:
     assertEquals(day("swatch")("blobState").str, "blob.v7.e3", "a mean of 4.5 is level V7")
     assertEquals(day("name").str, "Friday 13 November, 4.5 (very pleasant)")
 
+  test("the food calendar marks each day with a meal, prints its meals logged, and is refused without the consent"):
+    val (_, token) = tracker(ConsentPurpose.Nutrition)
+    def meal(kind: String): Unit =
+      assertEquals(post("/api/v1/meals", ujson.Obj("mealType" -> kind), token, newKey()).status, 201)
+    List("breakfast", "breakfast", "lunch", "snack").foreach(meal)
+    val calendar = get("/api/v1/insights/calendar?domain=nutrition", token)
+    assertEquals(calendar.status, 200, calendar.body)
+    assertEquals(calendar.json("domains").arr.map(_.str).toList, List("nutrition"))
+    val today = calendar.json("days")(12)
+    assertEquals(today("swatch")("step").num.toInt, 1)
+    assertEquals(today("name").str, "Friday 13 November, 2 meals logged, 1 snack")
+    assertEquals(today("value").str, "2")
+    assertEquals(calendar.json("days")(11)("name").str, "Thursday 12 November, no meal logged")
+    assertEquals(calendar.json("summary").str, "November so far: 2 meals logged, 1 snack on 1 day.")
+    val (_, other) = tracker(ConsentPurpose.Mood)
+    assertEquals(get("/api/v1/insights/calendar?domain=nutrition", other).status, 403)
+
   // ---------- overview charts ----------
 
   test("the overview carries a chart of water and of mood by day, each with its table and a mark per day"):

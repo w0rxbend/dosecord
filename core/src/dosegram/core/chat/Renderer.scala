@@ -174,10 +174,12 @@ object Renderer:
       sendKey: String,
       ctx: RenderContext = RenderContext()
   ): (List[VendorOp], RenderReport) =
-    // Ladder: media (the attachment travels beside the caption) -> its text equivalent heads the text.
+    // Ladder: media (the attachment or album travels beside the caption) -> its text equivalents head the text.
+    val pictures = msg.attachment.toList ++ msg.album
     val media = msg.attachment.filter(_ => profile.media)
-    val body = msg.attachment.filterNot(_ => profile.media).map(textEquivalent).toList ++ msg.body
-    var rungs = msg.attachment
+    val album = msg.album.filter(_ => profile.media)
+    val body = pictures.filterNot(_ => profile.media).map(textEquivalent) ++ msg.body
+    var rungs = pictures.headOption
       .map(_ => "attachment" -> (if profile.media then Rung.AttachmentMedia else Rung.AttachmentText))
       .toMap
     var renderedForm = Option.empty[RenderedForm]
@@ -219,7 +221,8 @@ object Renderer:
         silent = msg.silent,
         suppressPreview = msg.discreet,
         choiceMap = map,
-        attachment = attachment
+        attachment = attachment,
+        album = album
       )
 
     // Digest paging: one message carries at most `buttonBudget` buttons; longer sets are paged.

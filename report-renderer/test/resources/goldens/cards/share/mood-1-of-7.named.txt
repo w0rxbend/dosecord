@@ -1,0 +1,5 @@
+file: dosegram-share.png
+spoiler: false
+caption: Mood logged on 1 of 7 days this week.
+alt: Mood logged on 1 of 7 days this week.
+full: Mood logged on 1 of 7 days this week.

@@ -58,9 +58,10 @@ class ReportCardsSuite extends munit.FunSuite:
       medicationDays: Option[Map[LocalDate, MedicationDay]] = None,
       water: Option[Map[LocalDate, HydrationDay]] = None,
       mood: Option[Map[LocalDate, MoodDay]] = None,
-      sleep: Option[Map[LocalDate, SleepNight]] = None
+      sleep: Option[Map[LocalDate, SleepNight]] = None,
+      food: Option[Map[LocalDate, dosegram.core.domain.insights.MealDay]] = None
   ): MonthFigures =
-    MonthStats.of(october, DayOfWeek.MONDAY, medicationDays.map(_ -> Nil), water, mood, sleep, None)
+    MonthStats.of(october, DayOfWeek.MONDAY, medicationDays.map(_ -> Nil), water, mood, sleep, None, food)
 
   private def view(month: MonthFigures): MonthCardView = MonthCardView(month, None, october.atDay(31))
 
@@ -86,6 +87,19 @@ class ReportCardsSuite extends munit.FunSuite:
     assertEquals(page.water.map(goal => (goal.reached, goal.recorded)), Some((0, 20)))
     assertEquals(page.previousAdherence, None)
     assertEquals(page.weeks.size, 5)
+
+  test("food at its gate has a row on page 1, a bar per week of meals logged, and its dots on page 3"):
+    val meals = days(1 to 14)(day => dosegram.core.domain.insights.MealDay(2, 1, if day % 2 == 0 then 1 else 0, day % 3))
+    val month = figures(food = Some(meals))
+    val page = ReportCards.monthPage(month)
+    assertEquals(page.meals.map(m => (m.logged, m.snacks)), Some((meals.values.map(_.mainMeals).sum, meals.values.map(_.snacks).sum)))
+    assertEquals(page.weeks.map(_.mealsLogged.isDefined), Vector(true, true, true, false, false))
+    val nights = ReportCards.monthNights(month, view(month))
+    assertEquals(nights.food.map(_.flatten.size), Some(14))
+    val pages = cards.month(view(month), look)
+    assertEquals(pages.size, 2)
+    assert(pages.last.altText.contains("Food: "), pages.last.altText)
+    assertEquals(ReportCards.monthPage(figures(food = Some(days(1 to 13)(_ => meals.values.head)))).meals, None)
 
   test("a calendar day takes its class from its resolved doses, and a day with only open doses is open"):
     val mixed = Map(

@@ -107,10 +107,13 @@ class NudgeSlotsProperties extends munit.ScalaCheckSuite:
 
   test("weekly and monthly plans fall on their day only"):
     val zone = ZoneId.of("UTC")
-    val sunday = LocalDate.of(2026, 11, 15)
-    assertEquals(sunday.getDayOfWeek, DayOfWeek.SUNDAY)
-    assertEquals(NudgeSlots.on(PromptPresets.WeeklyReport.plan, profile, sunday, zone, 1L).size, 1)
-    assertEquals(NudgeSlots.on(PromptPresets.WeeklyReport.plan, profile, sunday.plusDays(1), zone, 1L), Nil)
+    // PRODUCT_SPEC R-INS-4: the first day of the week, Monday until a week-start setting exists, at 09:00.
+    val monday = LocalDate.of(2026, 11, 16)
+    assertEquals(monday.getDayOfWeek, DayOfWeek.MONDAY)
+    val slots = NudgeSlots.on(PromptPresets.WeeklyReport.plan, profile, monday, zone, 1L)
+    assertEquals(slots.map(_.local.toLocalTime), List(LocalTime.of(9, 0)))
+    assertEquals(NudgeSlots.on(PromptPresets.WeeklyReport.plan, profile, monday.minusDays(1), zone, 1L), Nil)
+    assertEquals(NudgeSlots.on(PromptPresets.WeeklyReport.plan, profile, monday.plusDays(1), zone, 1L), Nil)
     assertEquals(NudgeSlots.on(PromptPresets.MonthlyReport.plan, profile, LocalDate.of(2026, 12, 1), zone, 1L).size, 1)
 
   test("the plan survives its jsonb round trip"):

@@ -85,6 +85,14 @@ trait PromptRepository:
   /** Records that the prompt's message now carries `notice` (the pause notice it was edited to). */
   def markNotice(id: UUID, notice: PromptNotice): Unit
 
+  /** The newest `limit` prompts of the plan that reached the chat, newest first (the adaptive pause, VA-PS-06). */
+  def recentSent(scheduleId: UUID, limit: Int): List[PromptOccurrence]
+
+  /** The accounts with a reachable chat and no plan of `kind`, on or off: the accounts a report may still be offered to
+    * (ROADMAP conflict X-19).
+    */
+  def accountsWithout(kind: PromptKind): List[UUID]
+
 /** `day_profiles`: the anchors and work hours, and the pause of every prompt of the account. */
 trait DayProfileRepository:
   def anchors(accountId: UUID): Option[DayAnchors]

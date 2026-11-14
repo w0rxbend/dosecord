@@ -1,5 +1,6 @@
 package dosegram.api
 
+import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.UkForms
@@ -9,6 +10,8 @@ import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseBuckets
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.LocalDays
+import dosegram.core.domain.insights.MealDay
+import dosegram.core.domain.insights.MealStats
 import dosegram.core.domain.insights.MedicationDay
 import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.SleepNight
@@ -70,6 +73,8 @@ final class History(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
         read(tracking.stats.moodCalendar(tx, accountId, _).left.map(Refusals.of)).map(MoodCells(_))
       case InsightDomain.Sleep =>
         read(tracking.stats.sleepCalendar(tx, accountId, _).left.map(Refusals.of)).map(SleepCells(_))
+      case InsightDomain.Nutrition =>
+        read(tracking.stats.mealCalendar(tx, accountId, _).left.map(Refusals.of)).map(FoodCells(_))
 
   private def consented(tx: Tx, accountId: UUID): List[InsightDomain] =
     InsightDomain.values.toList.filter(domain => tx.consents.isGranted(accountId, purposeOf(domain)))
@@ -82,6 +87,7 @@ object History:
     case InsightDomain.Hydration  => ConsentPurpose.Hydration
     case InsightDomain.Mood       => ConsentPurpose.Mood
     case InsightDomain.Sleep      => ConsentPurpose.Sleep
+    case InsightDomain.Nutrition  => ConsentPurpose.Nutrition
 
   /** `YYYY-MM`, not after the current month; absent is the current month. */
   private def monthOf(month: Option[String], current: YearMonth): Either[ApiFailure, YearMonth] =
@@ -263,5 +269,33 @@ object History:
         tr(
           s"${period(month, isCurrent)}: ${ApiCopy.count(days.size, "night")} logged, from your check-ins.",
           s"${period(month, isCurrent)}: записано ${ApiCopy.count(days.size, "night")} з ваших позначок."
+        )
+  // One step only, like sleep: the number of meals is presence, not a target (VISUALS VA-ME-40, VA-ME-41).
+  private final case class FoodCells(days: Map[LocalDate, MealDay]) extends Cells:
+    val steps = 1
+    protected val emptyWords = tr("no meal logged", "прийомів їжі не записано")
+
+    protected def recorded(date: LocalDate): Option[(CalendarSwatch, String, String)] =
+      days
+        .get(date)
+        .filter(_.meals > 0)
+        .map: day =>
+          val words = FoodCopy.logged(MealStats.period(Map(date -> day), DateRange.single(date)))
+          (CalendarSwatch(CalendarCellState.Value, Some(1)), words, day.mainMeals.toString)
+
+    val legend: List[CalendarLegendEntry] = List(
+      CalendarLegendEntry(tr("Meal logged", "Прийом їжі записано"), CalendarSwatch(CalendarCellState.Value, Some(1))),
+      CalendarLegendEntry(tr("No meal logged", "Прийомів їжі не записано"), Empty)
+    )
+
+    def summary(month: YearMonth, isCurrent: Boolean): String =
+      val logged = days.filter((_, day) => day.meals > 0)
+      if logged.isEmpty then
+        tr(s"${period(month, isCurrent)}: no meal logged.", s"${period(month, isCurrent)}: прийомів їжі не записано.")
+      else
+        val figures = MealStats.period(logged, DateRange.between(logged.keys.min, logged.keys.max))
+        tr(
+          s"${period(month, isCurrent)}: ${FoodCopy.logged(figures)} on ${ApiCopy.count(logged.size, "day")}.",
+          s"${period(month, isCurrent)}: ${FoodCopy.logged(figures)} за ${UkForms("день", "дні", "днів").count(logged.size)}."
         )
 end History

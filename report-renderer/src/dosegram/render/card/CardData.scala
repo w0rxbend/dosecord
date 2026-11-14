@@ -3,6 +3,7 @@ package dosegram.render.card
 import dosegram.render.blob.MoodReading
 import dosegram.render.blob.MoodState
 import dosegram.render.chart.DoseStatus
+import dosegram.render.tokens.Domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -11,6 +12,29 @@ import java.time.YearMonth
 
 // The view models of the cards: plain, immutable snapshots with no behaviour beyond derived counts. Builders in the
 // application layer fill them from records; this module only ever sees synthetic or already-authorised values.
+
+/** IMG-17: the one fact of the shareable card (VISUALS section 6.18). No field can hold a medication, a date, a time or
+  * a free-text string (VA-IMG-17a): the period is always the last seven days, said as "this week".
+  */
+sealed trait ShareFact
+
+object ShareFact:
+
+  /** Which of the last seven days, oldest first, have the fact: the water goal reached, a night logged, a mood
+    * check-in. Only water, sleep and mood are on the whitelist; medication never is.
+    */
+  final case class DayCount(domain: Domain, days: Vector[Boolean]) extends ShareFact:
+    require(DayCount.Domains(domain), s"$domain is not on the share whitelist")
+    require(days.size == 7 && days.contains(true), "seven days, at least one with the fact")
+    def hits: Int = days.count(identity)
+
+  object DayCount:
+    val Domains: Set[Domain] = Set(Domain.Water, Domain.Sleep, Domain.Mood)
+
+  /** The week's average mood, as its blob and level name. */
+  final case class WeekMood(state: MoodState) extends ShareFact
+
+final case class ShareData(fact: ShareFact)
 
 /** Water logged against the user's own goal, in millilitres. */
 final case class WaterProgress(volumeMl: Int, goalMl: Int):

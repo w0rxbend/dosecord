@@ -3,6 +3,8 @@ package dosegram.core.application.capture
 import dosegram.contracts.Choice
 import dosegram.contracts.Reply
 import dosegram.core.application.reports.CardDelivery
+import dosegram.core.application.sleep.AdjustEpisode
+import dosegram.core.application.sleep.CompleteNight
 import dosegram.core.application.sleep.EnterSleep
 import dosegram.core.application.sleep.RateEpisode
 import dosegram.core.application.sleep.SleepInput
@@ -10,6 +12,7 @@ import dosegram.core.application.sleep.SleepRefusal
 import dosegram.core.application.sleep.SleepService
 import dosegram.core.application.sleep.WokeUp
 import dosegram.core.chat.ActionEntry
+import dosegram.core.chat.ActionRegistry
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
@@ -18,6 +21,7 @@ import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.SleepRegularity
 import dosegram.core.domain.insights.SleepStats
+import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.sleep.ClockNights
 import dosegram.core.domain.sleep.Quality
 import dosegram.core.domain.sleep.SleepEpisode
@@ -35,6 +39,8 @@ import java.util.UUID
   * the typed night or nap. Sleep is what the user said it was: an "I'm up" without an open night records no night and
   * asks for the times. Nothing here reads Telegram presence.
   */
+private val MinutesInDay = 24 * 60
+
 private[capture] final class SleepChat(
     sleep: SleepService,
     cards: StatusCards,
@@ -43,19 +49,25 @@ private[capture] final class SleepChat(
     tokens: Tokens
 ):
 
-  /** Where sleep stands: the open check-in or the latest night, and the one button that fits. */
+  /** Where sleep stands: the open nap or night, or the latest night, and the buttons that fit. */
   def card(turn: Turn): Reply =
     answered(turn, sleep.status(turn.tx, turn.accountId)): status =>
-      status.open match
-        case Some(open) =>
+      (status.openNap, status.open) match
+        case (Some(nap), _) =>
+          val rows = List(List(button(turn, CaptureActions.SleepUp, SleepCopy.ImUp)))
+          turn.show(turn.message("sleep.card", List(SleepCopy.napStarted(turn.localTime(nap.occurredAt))), rows))
+        case (None, Some(open)) =>
           val rows = List(List(button(turn, CaptureActions.SleepUp, SleepCopy.ImUp)))
           turn.show(turn.message("sleep.card", List(SleepCopy.started(turn.localTime(open.occurredAt))), rows))
-        case None =>
+        case (None, None) =>
           val line = status.latestNight.fold(SleepCopy.noNight)(sleptLine(turn, _))
           val image =
             Option.when(status.latestNight.nonEmpty)(button(turn, CaptureActions.SleepImage, SleepCopy.ShowAsImage))
-          val rows = List(button(turn, CaptureActions.SleepStart, SleepCopy.GoingToSleep) :: image.toList)
-          turn.show(turn.message("sleep.card", List(line), rows))
+          val start = List(
+            button(turn, CaptureActions.SleepStart, SleepCopy.GoingToSleep),
+            button(turn, CaptureActions.SleepNap, SleepCopy.Nap)
+          )
+          turn.show(turn.message("sleep.card", List(line), List(start, image.toList)))
 
   /** IMG-12 for the last 14 sleep days, sent as a new photo with the figures of `/stats` as its caption. */
   def image(turn: Turn): Reply =
@@ -72,20 +84,50 @@ private[capture] final class SleepChat(
               Reply(followUps = turn.images(delivery, List(card -> turn.message("sleep.image", List(caption), Nil))))
             case None => turn.toast(SleepCopy.imageUnavailable)
 
+  /** "Going to sleep": the night card says that prompts are held until "I'm up" (BOT_UX section 21.9). */
   def goingToSleep(turn: Turn): Reply =
     answered(turn, sleep.goingToSleep(turn.tx, input(turn))): started =>
-      val rows = List(
-        List(
-          button(turn, CaptureActions.SleepUp, SleepCopy.ImUp),
-          Choice.callback(Labels.Undo, tokens.direct(CaptureActions.SleepStartUndo, started.checkin.id, 0))
-        )
-      )
-      turn.show(turn.message("sleep.night", List(SleepCopy.started(turn.localTime(started.checkin.occurredAt))), rows))
+      val lines = List(SleepCopy.started(turn.localTime(started.checkin.occurredAt)), SleepCopy.onHold)
+      turn.show(turn.message("sleep.night", lines, List(openRow(turn, started.checkin.id))))
+
+  /** "Nap": an explicit nap, which "I'm up" closes (PRODUCT_SPEC R-SLP-7). */
+  def nap(turn: Turn): Reply =
+    answered(turn, sleep.napStart(turn.tx, input(turn))): started =>
+      val line = SleepCopy.napStarted(turn.localTime(started.checkin.occurredAt))
+      turn.show(turn.message("sleep.nap", List(line), List(openRow(turn, started.checkin.id))))
 
   def wakeUp(turn: Turn): Reply =
     answered(turn, sleep.wakeUp(turn.tx, input(turn))):
-      case WokeUp.Closed(episode, _) => recorded(turn, episode)
-      case WokeUp.NeedsBedtime(_)    => turn.show(turn.message("sleep.ask", List(SleepCopy.ask), Nil))
+      case WokeUp.Closed(episode, _)    => recorded(turn, episode)
+      case WokeUp.NeedsBedtime(checkin) =>
+        show(turn, "sleep.ask", SleepCards.bedtimeAsk(checkin.id, bedtimeOf(turn), token))
+
+  /** A bedtime chip under "When did you go to sleep?": the night from that clock time to the "I'm up" tap. */
+  def bedtime(turn: Turn, wakeCheckinId: UUID, minute: Long): Reply =
+    if minute < 0 || minute >= MinutesInDay then turn.toast(ReminderCopy.staleControlToast)
+    else
+      val command = CompleteNight(input(turn), wakeCheckinId, LocalTime.ofSecondOfDay(minute * 60))
+      answered(turn, sleep.completeNight(turn.tx, command))(entered => recorded(turn, entered.episode))
+
+  /** "Adjust times" and each step in it: the edges as Save would store them; nothing is stored yet (BUX-SLEEP-04). */
+  def adjust(turn: Turn, episodeId: UUID, value: Long): Reply =
+    SleepShifts.of(value) match
+      case None         => turn.toast(ReminderCopy.staleControlToast)
+      case Some(shifts) =>
+        answered(turn, sleep.episodeOf(turn.tx, turn.accountId, episodeId)): episode =>
+          show(turn, "sleep.adjust", SleepCards.adjusting(episode, shifts, turn.zone, token))
+
+  /** Save: the moved edges become entered times, the night keeps its rating, the old row stays as superseded. */
+  def adjustSave(turn: Turn, episodeId: UUID, value: Long): Reply =
+    SleepShifts.of(value) match
+      case None         => turn.toast(ReminderCopy.staleControlToast)
+      case Some(shifts) =>
+        val command = AdjustEpisode(input(turn), episodeId, shifts.onset, shifts.wake)
+        answered(turn, sleep.adjust(turn.tx, command))(adjusted => recorded(turn, adjusted.episode))
+
+  /** Cancel: back to the night as it is stored. */
+  def adjustCancel(turn: Turn, episodeId: UUID): Reply =
+    answered(turn, sleep.episodeOf(turn.tx, turn.accountId, episodeId))(recorded(turn, _))
 
   /** A typed night or nap: `slept 23:30 7:10`, `/sleep 23:30 7:10`, `nap 20 min`. A length without an edge is not
     * guessed: the user is asked for both times.
@@ -104,8 +146,7 @@ private[capture] final class SleepChat(
       case None          => turn.toast(ReminderCopy.staleControlToast)
       case Some(quality) =>
         answered(turn, sleep.rate(turn.tx, RateEpisode(input(turn), episodeId, quality))): rated =>
-          val lines = List(sleptLine(turn, rated.episode), SleepCopy.rated(quality.step))
-          turn.show(turn.message("sleep.rated", lines, List(List(undoButton(rated.episode.id)))))
+          show(turn, "sleep.rated", SleepCards.recorded(rated.episode, turn.zone, token))
 
   def undo(turn: Turn, episodeId: UUID): Reply =
     answered(turn, sleep.undoEpisode(turn.tx, turn.accountId, episodeId)): _ =>
@@ -123,22 +164,32 @@ private[capture] final class SleepChat(
   private def record(turn: Turn, command: EnterSleep): Reply =
     answered(turn, sleep.enter(turn.tx, command))(entered => recorded(turn, entered.episode))
 
-  /** The night with the rating question; a nap is not rated. */
+  /** The night with the rating question, "Adjust times" and Undo; a nap is not rated. */
   private def recorded(turn: Turn, episode: SleepEpisode): Reply =
-    val rate = Option.when(episode.kind == SleepKind.Main):
-      Quality.steps.map: step =>
-        Choice.callback(step.step.toString, tokens.direct(CaptureActions.SleepRate, episode.id, step.step.toLong))
-    val lines = sleptLine(turn, episode) :: rate.map(_ => SleepCopy.qualityAsk).toList
-    turn.show(turn.message("sleep.morning", lines, rate.toList :+ List(undoButton(episode.id))))
+    show(turn, "sleep.morning", SleepCards.recorded(episode, turn.zone, token))
 
-  private def sleptLine(turn: Turn, episode: SleepEpisode): String =
-    SleepCopy.slept(episode, turn.localTime(episode.interval.onset.at), turn.localTime(episode.interval.wake.at))
+  private def show(turn: Turn, kind: String, card: SleepCard): Reply =
+    turn.show(turn.message(kind, card.lines, card.rows))
+
+  private def sleptLine(turn: Turn, episode: SleepEpisode): String = SleepCards.sleptLine(episode, turn.zone)
+
+  /** The bedtime of the user's day: the anchor of `/reminders`, or the default day's. */
+  private def bedtimeOf(turn: Turn): LocalTime =
+    turn.tx.reminders.dayProfiles.anchors(turn.accountId).fold(DayProfile.Default.bedtime)(_.bedtime)
+
+  private def token(action: String, subject: UUID, value: Long): String =
+    val entry = ActionRegistry.byName(action).getOrElse(throw IllegalStateException(s"action '$action' is missing"))
+    tokens.direct(entry, subject, value)
 
   private def button(turn: Turn, action: ActionEntry, label: String): Choice =
     Choice.callback(label, tokens.direct(action, turn.accountId, 0))
 
-  private def undoButton(episodeId: UUID): Choice =
-    Choice.callback(Labels.Undo, tokens.direct(CaptureActions.SleepUndo, episodeId, 0))
+  /** "I'm up" and Undo under an open night or nap. */
+  private def openRow(turn: Turn, checkinId: UUID): List[Choice] =
+    List(
+      button(turn, CaptureActions.SleepUp, SleepCopy.ImUp),
+      Choice.callback(Labels.Undo, tokens.direct(CaptureActions.SleepStartUndo, checkinId, 0))
+    )
 
   private def input(turn: Turn): SleepInput = SleepInput(turn.accountId, EntrySource.Bot, turn.clientKey)
 

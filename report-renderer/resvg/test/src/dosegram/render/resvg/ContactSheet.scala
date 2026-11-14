@@ -8,6 +8,9 @@ import dosegram.render.blob.MoodState
 import dosegram.render.card.CardOutput
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
+import dosegram.render.copy.EnglishImageCopy
+import dosegram.render.copy.ImageCopy
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.scene.Box
 import dosegram.render.scene.Node
 import dosegram.render.scene.Placement
@@ -42,13 +45,14 @@ object ContactSheet:
   val Variants: Vector[(String, Theme, Privacy)] =
     Vector(("light", Theme.Light, Privacy.Named), ("dark", Theme.Dark, Privacy.Named), ("discreet", Theme.Dark, Privacy.Discreet))
 
-  /** Every fixture page in every variant, in fixture order. */
-  def entries(fixtures: Vector[Fixture]): Vector[SheetEntry] =
+  /** Every fixture page in every variant, in fixture order; with the Ukrainian catalogue each name ends in `-uk`. */
+  def entries(fixtures: Vector[Fixture], copy: ImageCopy = EnglishImageCopy): Vector[SheetEntry] =
+    val suffix = if copy == EnglishImageCopy then "" else "-uk"
     for
       fixture <- fixtures
       (variant, theme, privacy) <- Variants
-      (card, page) <- fixture.render(Samples.context(theme, privacy)).zipWithIndex
-    yield SheetEntry(s"${fixture.name.replace('/', '-')}-$variant${if page == 0 then "" else s"-p${page + 1}"}", card)
+      (card, page) <- fixture.render(Samples.context(theme, privacy, copy)).zipWithIndex
+    yield SheetEntry(s"${fixture.name.replace('/', '-')}-$variant${if page == 0 then "" else s"-p${page + 1}"}$suffix", card)
 
   def sheet(entries: Vector[SheetEntry]): Scene =
     val tokens = Tokens.Dark
@@ -80,12 +84,14 @@ object ContactSheet:
 
 /** Writes every fixture as its own PNG and the overview sheet into the directory given as the first argument:
   * `./mill report-renderer.resvg.test.runMain dosegram.render.resvg.renderContactSheet out/report-renderer/preview`.
+  * A second argument `uk` draws the Ukrainian catalogue; a third keeps only the fixtures whose name starts with it.
   */
-@main def renderContactSheet(outputDir: String): Unit =
+@main def renderContactSheet(outputDir: String, language: String = "en", prefix: String = ""): Unit =
   val binary = ResvgBinary.locate.getOrElse(throw IllegalStateException("resvg is not on the PATH and DOSEGRAM_RESVG is not set"))
   val directory = Files.createDirectories(Path.of(outputDir))
   val renderer = CardRenderer(ResvgRasteriser(ResvgBinary.config(binary)))
-  val entries = ContactSheet.entries(Samples.all)
+  val copy = if language == "uk" then UkrainianImageCopy else EnglishImageCopy
+  val entries = ContactSheet.entries(Samples.all.filter(_.name.startsWith(prefix)), copy)
   entries.foreach { entry =>
     renderer.render(entry.card) match
       case Right(image)  => Files.write(directory.resolve(s"${entry.name}.png"), image.png.toArray)

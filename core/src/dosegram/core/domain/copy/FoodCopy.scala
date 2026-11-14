@@ -104,12 +104,17 @@ object FoodCopy:
 
   /** The food line of `/stats` for a period, or `None` when it has no meal (BUX-STAT-02). */
   def statsPeriod(period: MealPeriod): Option[String] =
-    Option.when(period.meals > 0)(
-      tr(
-        s"Food: ${count(period.meals, "meal")} logged · ${week(period)}",
-        s"Їжа: записано ${Meals.count(period.meals)} · ${week(period)}"
-      )
+    Option.when(period.hasEntries)(
+      tr(s"Food: ${logged(period)} · ${week(period)}", s"Їжа: ${logged(period)} · ${week(period)}")
     )
+
+  /** "19 meals logged, 3 snacks": the meals logged as the weekly card counts them, snacks apart (VISUALS 7.5). */
+  def logged(period: MealPeriod): String =
+    val snacks = tr(count(period.snacks, "snack"), Snacks.count(period.snacks))
+    if period.meals == 0 then tr(s"$snacks logged", s"записано $snacks")
+    else
+      val meals = tr(s"${count(period.meals, "meal")} logged", s"записано ${Meals.count(period.meals)}")
+      if period.snacks == 0 then meals else s"$meals, $snacks"
 
   /** A meal nudge (G8.4): it names the meal and offers the tap; it says nothing about what or how much to eat. */
   def nudge(meal: Option[MealType]): String =

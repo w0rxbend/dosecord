@@ -72,6 +72,7 @@ final class FakeTelegramTransport(
       case "getMe"                                      => ok(identityJson)
       case "getUpdates"                                 => ok(ujson.Arr.from(takeUpdates(request.params)))
       case "sendMessage" | "sendPhoto" | "sendDocument" => floodChecked(request)(sentMessage(request))
+      case "sendMediaGroup"                             => floodChecked(request)(sentAlbum(request))
       case "editMessageText" | "editMessageCaption" | "editMessageReplyMarkup" | "deleteMessage" =>
         floodChecked(request)(ok(ujson.True))
       case "setMyCommands" =>
@@ -107,6 +108,20 @@ final class FakeTelegramTransport(
       case "sendDocument" => message("document") = ujson.Obj("file_id" -> s"fake-document-$messageSeq")
       case _              => ()
     ok(message)
+
+  /** One photo message per item of the group, each with its own `message_id` and `file_id`, as the reference answers.
+    */
+  private def sentAlbum(request: WireRequest): WireReply =
+    val items = request.params.obj.get("media").flatMap(_.arrOpt).map(_.size).getOrElse(0)
+    val messages = (1 to items).map: _ =>
+      messageSeq += 1
+      ujson.Obj(
+        "message_id" -> messageSeq.toDouble,
+        "chat" -> ujson.Obj("id" -> request.params("chat_id"), "type" -> "private"),
+        "date" -> clock.now().getEpochSecond.toDouble,
+        "photo" -> ujson.Arr(ujson.Obj("file_id" -> s"fake-photo-$messageSeq", "width" -> 1280, "height" -> 853))
+      )
+    ok(ujson.Arr.from(messages))
 
   /** A token bucket per chat on the fake's clock: the documented "one message per second, short bursts tolerated". */
   private def floodChecked(request: WireRequest)(reply: => WireReply): WireReply =

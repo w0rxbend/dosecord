@@ -95,10 +95,13 @@ final case class RenderedMessage(
     silent: Boolean = false,
     suppressPreview: Boolean = false,
     choiceMap: List[ChoiceMapEntry] = Nil,
-    attachment: Option[AttachmentRef] = None
+    attachment: Option[AttachmentRef] = None,
+    /** The photos of an album, sent as one group before the text chunks (see [[OutboundMessage.album]]). */
+    album: List[AttachmentRef] = Nil
 ) derives ReadWriter:
   require(chunks.forall(_.nonEmpty), "text chunks must not be empty")
-  require(chunks.nonEmpty || attachment.isDefined, "a message has text or an attachment")
+  require(chunks.nonEmpty || attachment.isDefined || album.nonEmpty, "a message has text or an attachment")
+  require(album.isEmpty || attachment.isEmpty && controls.isEmpty, "an album has no other attachment and no controls")
 
 /** Which ladder rung each block resolved to (DESIGN.md section 4.3: the report names the rung). Keys: choice set / form
   * ids and `finalize`.

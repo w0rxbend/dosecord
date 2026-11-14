@@ -239,4 +239,37 @@ class SleepServiceSuite extends munit.FunSuite:
     assertEquals(rig.service.setGoal(rig.tx, account, Some(30)), Left(SleepRefusal.GoalOutOfBounds))
     assertEquals(rig.service.setGoal(rig.tx, account, None), Right(None))
     assertEquals(rig.service.status(rig.tx, account).map(_.goalMinutes), Right(None))
+
+  test("Nap, then I'm up 25 minutes later, is one nap from the check-ins and records no I'm up tap (R-SLP-7)"):
+    val rig = Rig()
+    val afternoon = Instant.parse("2026-11-12T13:00:00Z")
+    rig.clock.set(afternoon)
+    val started = rig.service.napStart(rig.tx, rig.input("nap")).toOption.get
+    assertEquals(started.checkin.kind, CheckinKind.NapStart)
+    assertEquals(rig.service.status(rig.tx, account).map(_.openNap.map(_.id)), Right(Some(started.checkin.id)))
+    rig.clock.set(afternoon.plus(Duration.ofMinutes(25)))
+    val nap = rig.service.wakeUp(rig.tx, rig.input("up")) match
+      case Right(WokeUp.Closed(episode, false)) => episode
+      case other                                => fail(s"expected a closed nap, got $other")
+    assertEquals((nap.kind, nap.duration, nap.origin), (SleepKind.Nap, Duration.ofMinutes(25), SleepOrigin.CheckIn))
+    assertEquals(rig.tables.sleep.checkins.values.map(_.kind).toList, List(CheckinKind.NapStart))
+    assertEquals(rig.service.wakeUp(rig.tx, rig.input("up")), Right(WokeUp.Closed(nap, replayed = true)))
+    assertEquals(rig.service.status(rig.tx, account).map(_.openNap), Right(None))
+
+  test("a nap started after Going to sleep is closed first; the night then ends before it"):
+    val rig = Rig()
+    rig.service.goingToSleep(rig.tx, rig.input("night"))
+    rig.clock.set(bedtime.plus(Duration.ofMinutes(30)))
+    rig.service.napStart(rig.tx, rig.input("nap"))
+    rig.clock.set(bedtime.plus(Duration.ofMinutes(50)))
+    val first = rig.service.wakeUp(rig.tx, rig.input("up-1"))
+    assertEquals(first.map { case WokeUp.Closed(e, _) => e.kind; case other => fail(s"$other") }, Right(SleepKind.Nap))
+    assertEquals(rig.service.status(rig.tx, account).map(_.open), Right(None), "the nap's wake closes the night")
+
+  test("a nap start older than the longest nap is no longer open: I'm up asks for the bedtime"):
+    val rig = Rig()
+    rig.clock.set(Instant.parse("2026-11-12T08:00:00Z"))
+    rig.service.napStart(rig.tx, rig.input("nap"))
+    rig.clock.set(Instant.parse("2026-11-12T14:30:00Z"))
+    assert(rig.service.wakeUp(rig.tx, rig.input("up")).exists(_.isInstanceOf[WokeUp.NeedsBedtime]))
 end SleepServiceSuite

@@ -69,6 +69,7 @@ private object ConsoleFlowFakes:
     override def find(actor: PlatformIdentity): Option[Principal] =
       this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
     override def recordDirectChat(identityId: IdentityId, chatId: String): Unit = ()
+    override def lastInteraction(accountId: UUID): Option[Instant] = None
 
   final class CreatedAccount(val accountId: UUID, val identityId: UUID, timezone: String):
     val displayName: Option[String] = None
@@ -94,6 +95,11 @@ private object ConsoleFlowFakes:
       this.synchronized(rows.find(_.accountId == accountId).map(_.settings))
     override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.settings = settings))
+
+    private val gamificationOff = scala.collection.mutable.Set.empty[UUID]
+    override def gamificationOf(accountId: UUID): Boolean = this.synchronized(!gamificationOff(accountId))
+    override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit =
+      this.synchronized(if enabled then gamificationOff -= accountId else gamificationOff += accountId)
 
   final class InMemoryRenderedMessages extends RenderedMessageRepository:
     private val rows = ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean, Option[String], Option[UUID])]

@@ -49,6 +49,18 @@ class ChatAdditionsSuite extends munit.FunSuite:
     intercept[IllegalArgumentException](RenderedMessage(chunks = Nil))
     intercept[IllegalArgumentException](RenderedMessage(chunks = List(""), attachment = Some(photo)))
 
+  test("an album is a message of its own: photos without controls, read back from a payload written before it existed"):
+    val pages = List(1, 2).map(n => AttachmentRef(MediaKind.Photo, s"asset-$n", "image/png", s"Page $n."))
+    assertEquals(RenderedMessage(chunks = Nil, album = pages).album, pages)
+    val keyboard = RenderedControls.Buttons(Nil)
+    intercept[IllegalArgumentException](RenderedMessage(chunks = Nil, album = pages, controls = List(keyboard)))
+    intercept[IllegalArgumentException](RenderedMessage(chunks = Nil, album = pages, attachment = pages.headOption))
+    val message = OutboundMessage(body = Nil, album = pages, dedupeKey = "k", correlationId = "c")
+    assertEquals(OutboundMessage.fromJson(OutboundMessage.toJson(message)), message)
+    val earlier = OutboundMessage.toJson(message.copy(album = Nil)).replace(",\"album\":[]", "")
+    assert(!earlier.contains("album"), earlier)
+    assertEquals(OutboundMessage.fromJson(earlier).album, Nil)
+
   test("a rendered callback choice is numbered from 1 and a link choice is never numbered"):
     assertEquals(RenderedChoice(1, "Stats", ChoiceAction.Callback("dc:token")).index, 1)
     assertEquals(RenderedChoice(0, "Open app", ChoiceAction.OpenApp(AppRoute("today"))).index, 0)

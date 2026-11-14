@@ -11,9 +11,11 @@ import dosegram.render.card.MainMeal
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MilestoneKind
 import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
@@ -376,7 +378,8 @@ object UkrainianImageCopy extends ImageCopy:
     val previous = month.previousAdherence
       .filter(_ => month.doses.exists(_.counted >= MinimumDosesForPercent))
       .map(percent => monthPrevious(month.month.minusMonths(1), percent))
-    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ Vector(days) ++ previous)
+    val food = month.meals.map(meals => s"Їжа: ${monthFood(meals)}.")
+    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ food ++ Vector(days) ++ previous)
       .mkString(" ")
 
   def monthDiscreet: String = "Ваш місяць."
@@ -439,6 +442,21 @@ object UkrainianImageCopy extends ImageCopy:
 
   def milestoneText(milestone: MilestoneData): String = s"${milestone.count} ${milestoneLabel(milestone)}."
 
+  def shareDayCount(fact: ShareFact.DayCount): (String, String, String) =
+    val headline = fact.domain match
+      case Domain.Water => "Ціль із води досягнуто"
+      case Domain.Sleep => "Сон записано"
+      case _            => "Настрій записано"
+    (headline, s"${fact.hits} з 7 днів", "цього тижня")
+  def shareMoodPeriod: String = "мій настрій цього тижня в середньому"
+  def shareText(fact: ShareFact): String = fact match
+    case days: ShareFact.DayCount =>
+      val (headline, count, period) = shareDayCount(days)
+      s"$headline за $count $period."
+    case ShareFact.WeekMood(state) =>
+      s"Настрій цього тижня в середньому: ${valenceName(state.valence).toLowerCase}."
+  def shareDiscreet: String = "Картка, щоб поділитися."
+
   def moodCalendarTitle: String = "Настрій по днях"
   def noCheckIn: String = "Без позначки"
   def moodCalendarFact(checkInDays: Int): String = s"${this.checkInDays(checkInDays).capitalize}."
@@ -498,6 +516,17 @@ object UkrainianImageCopy extends ImageCopy:
       case None       => s"Днів із записаною водою: $recordedDays."
 
   def waterLoggedMark: String = "Воду записано"
+
+  def monthFood(meals: MonthMeals): String =
+    if meals.logged == 0 then s"записано ${snackCount(meals.snacks)}"
+    else if meals.snacks == 0 then mealsLogged(meals.logged)
+    else s"${mealsLogged(meals.logged)}, ${snackCount(meals.snacks)}"
+
+  def monthFoodFact(meals: MonthMeals, days: Int): String =
+    s"${monthFood(meals).capitalize} за ${counted(days, "день", "дні", "днів")}."
+  def mealLoggedMark: String = "Основний прийом їжі записано"
+  def monthNightsFoodTitle(withSleep: Boolean, withWater: Boolean): String =
+    if withSleep then "Ночі та їжа" else if withWater then "Вода та їжа" else "Їжа за днями"
   def napMark: String = "Денний сон"
 
   def monthDaysText(page: MonthDaysData): String =
@@ -528,7 +557,12 @@ object UkrainianImageCopy extends ImageCopy:
       )
       s"Вода: ${monthWaterFact(goal, recorded.size)}"
     }
-    (Vector(s"${monthYear(page.month)}, ночі й вода.") ++ sleep ++ water).mkString(" ")
+    val food = page.food.filter(_.exists(_.isDefined)).map { days =>
+      val recorded = days.flatten
+      s"Їжа: ${monthFoodFact(MonthMeals(recorded.map(_.mainMeals).sum, recorded.map(_.snacks).sum), recorded.size)}"
+    }
+    val intro = if food.isDefined then "ночі, вода та їжа." else "ночі й вода."
+    (Vector(s"${monthYear(page.month)}, $intro") ++ sleep ++ water ++ food).mkString(" ")
 
   def refillTitle: String = "Залишок закінчується"
   def refillDiscreetLabel: String = "Одна з ваших позицій закінчується."

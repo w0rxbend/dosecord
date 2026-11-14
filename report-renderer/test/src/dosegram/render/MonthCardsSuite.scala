@@ -46,6 +46,21 @@ class MonthCardsSuite extends munit.FunSuite:
     Vector.tabulate(31)(index => Option.when(index % 3 == 0)(MoodState(2 + index % 5, 3)))
   )
 
+  test("food on the month (VISUALS 6.6): a row on page 1 and dots by day on page 3, which keeps at most two panels"):
+    val withFood = page("month/with-food")
+    assertEquals(marks(withFood, "month.food").size, 4, "a bar per week with meals, a dotted slot for the other")
+    assert(withFood.text.full.contains("Food: 54 meals logged, 7 snacks."), withFood.text.full)
+    val nights = page("month/nights-with-food")
+    assertEquals(marks(nights, "month.food.day").size, Samples.octoberFood.flatten.size)
+    assert(nights.text.full.contains("Food: 52 meals logged, 7 snacks on 27 days."), nights.text.full)
+    val all = MonthPages.nights(
+      MonthNightsData(october, Some(Samples.octoberNights), Some(Samples.octoberWater), Some(Samples.octoberFood)),
+      context
+    )
+    assertEquals(marks(all, "month.food.day"), Vector.empty, "sleep and water fill the page")
+    assert(!all.text.full.contains("Food:"), "the page's text equivalent says what the page draws")
+    assert(texts(all).forall(_.anchor.y <= CardFrame.Portrait.height - CardFrame.MarginPx), "nothing below the footer")
+
   test("the mood calendar draws a blob per check-in day and a dot for a day without one, never a low mood"):
     val card = MoodCalendarCard.render(sparse, context)
     // One blob per check-in day plus the seven of the legend.

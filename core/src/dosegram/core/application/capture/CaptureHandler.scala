@@ -57,7 +57,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val consent = ConsentFlow(tokens, clock, PrivacyMessages(codec))
   private val water = WaterChat(parts.hydration, parts.cards, parts.delivery, tokens)
   private val mood = MoodChat(parts.mood, parts.cards, parts.delivery, clock, tokens)
-  private val stats = StatsChat(parts, tokens)
+  private val share = ShareChat(parts, tokens)
+  private val stats = StatsChat(parts, tokens, share)
   private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
   private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens)
@@ -187,13 +188,17 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
 
   private def onTap(turn: Turn, ref: CallbackRef): Reply =
     ActionRegistry.byId(ref.actionId) match
-      case Some(CaptureActions.WaterUndo)      => water.undo(turn, ref.subject)
-      case Some(CaptureActions.MoodEnergy)     => mood.energyStep(turn, ref.subject, ref.value)
-      case Some(CaptureActions.MoodUndo)       => mood.undo(turn, ref.subject)
-      case Some(CaptureActions.SleepRate)      => sleep.rate(turn, ref.subject, ref.value)
-      case Some(CaptureActions.SleepUndo)      => sleep.undo(turn, ref.subject)
-      case Some(CaptureActions.SleepStartUndo) => sleep.undoStart(turn, ref.subject)
-      case Some(CaptureActions.FoodUndo)       => food.undo(turn, ref.subject)
+      case Some(CaptureActions.WaterUndo)         => water.undo(turn, ref.subject)
+      case Some(CaptureActions.MoodEnergy)        => mood.energyStep(turn, ref.subject, ref.value)
+      case Some(CaptureActions.MoodUndo)          => mood.undo(turn, ref.subject)
+      case Some(CaptureActions.SleepRate)         => sleep.rate(turn, ref.subject, ref.value)
+      case Some(CaptureActions.SleepUndo)         => sleep.undo(turn, ref.subject)
+      case Some(CaptureActions.SleepStartUndo)    => sleep.undoStart(turn, ref.subject)
+      case Some(CaptureActions.SleepBedtime)      => sleep.bedtime(turn, ref.subject, ref.value)
+      case Some(CaptureActions.SleepAdjust)       => sleep.adjust(turn, ref.subject, ref.value)
+      case Some(CaptureActions.SleepAdjustSave)   => sleep.adjustSave(turn, ref.subject, ref.value)
+      case Some(CaptureActions.SleepAdjustCancel) => sleep.adjustCancel(turn, ref.subject)
+      case Some(CaptureActions.FoodUndo)          => food.undo(turn, ref.subject)
       // Every other button names the account it was made for: a tap from another account is a stale button.
       case Some(action) if ref.subject == turn.accountId => onAccountTap(turn, action, ref.value)
       case _                                             => stale(turn)
@@ -211,6 +216,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsShow       => stats.show(turn, value)
       case CaptureActions.SleepStart      => sleep.goingToSleep(turn)
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
+      case CaptureActions.SleepNap        => sleep.nap(turn)
       case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
       case CaptureActions.StatsMonth      => months.month(turn, value.toInt)
@@ -223,9 +229,11 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         consent.guarded(fresh, ConsentPurpose.CrossDomainPatterns, Pending.Insights(image = false))(
           months.insights(fresh)
         )
-      case CaptureActions.FoodLog   => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
-      case CaptureActions.FoodImage => imageOf(turn, Pending.FoodImage)(food.image(turn))
-      case _                        => stale(turn)
+      case CaptureActions.FoodLog        => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
+      case CaptureActions.FoodImage      => imageOf(turn, Pending.FoodImage)(food.image(turn))
+      case CaptureActions.StatsShare     => share.picker(turn)
+      case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
+      case _                             => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
   private def waterButton(turn: Turn, value: Long): Reply =
