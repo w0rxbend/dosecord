@@ -20,19 +20,39 @@ import scala.util.control.NonFatal
   */
 final class PgNotifyWake private (open: () => Connection) extends Wake, AutoCloseable:
 
-  @volatile private var listener: Option[PgNotifyWake.Listener] = Some(PgNotifyWake.listening(open()))
+  private val lock = new Object
+  // Both guarded by `lock`; `listener` is None between a broken connection and the next wait.
+  private var listener: Option[PgNotifyWake.Listener] = Some(PgNotifyWake.listening(open()))
+  private var closed = false
 
+  /** Blocks for a NOTIFY or `timeout`. Once [[close]] has run, every wait, the one in progress included, ends with an
+    * `InterruptedException`: a closed wake means a cancelled scope, which the worker loop never retries.
+    */
   override def awaitOrTimeout(timeout: Duration): Unit =
-    val current = listener.getOrElse(PgNotifyWake.listening(open()))
-    listener = Some(current)
+    val current = lock.synchronized:
+      if closed then throw PgNotifyWake.stopped("closed")
+      val l = listener.getOrElse(PgNotifyWake.listening(open()))
+      listener = Some(l)
+      l
     try current.await(timeout)
     catch
       case e: SQLException =>
-        listener = None
+        val stop = lock.synchronized:
+          if listener.contains(current) then listener = None
+          closed
         PgNotifyWake.closeQuietly(current.conn)
-        throw e
+        if stop then throw PgNotifyWake.stopped(e.getClass.getSimpleName) else throw e
 
-  override def close(): Unit = listener.foreach(_.close())
+  /** Safe from any thread and more than once. It aborts the listening connection, which ends a wait blocked in its read
+    * at once, whether or not the waiting thread was interrupted (the shutdown hang of 2026-11-14).
+    */
+  override def close(): Unit =
+    val current = lock.synchronized:
+      closed = true
+      val l = listener
+      listener = None
+      l
+    current.foreach(l => PgNotifyWake.abortQuietly(l.conn))
 
 object PgNotifyWake:
   private val Channel = "dosegram_wake"
@@ -56,6 +76,15 @@ object PgNotifyWake:
     try conn.close()
     catch case NonFatal(_) => ()
 
+  // JDBC's abort is the close meant for another thread: it closes the socket without the lock a blocked read holds.
+  private def abortQuietly(conn: Connection): Unit =
+    try conn.abort(_.run())
+    catch case NonFatal(_) => ()
+
+  private def stopped(reason: String): InterruptedException = new InterruptedException(
+    s"wake listener stopped: $reason"
+  )
+
   /** One LISTENing connection. */
   private final class Listener(val conn: Connection):
     conn.setAutoCommit(true)
@@ -73,8 +102,5 @@ object PgNotifyWake:
           case e: SQLException =>
             // A cancelled loop fork interrupts the blocking read; end the fork quietly instead of crashing the scope.
             // A connection the database closed is a broken connection, not a cancellation.
-            if Thread.currentThread().isInterrupted then
-              throw new InterruptedException(s"wake listener stopped: ${e.getClass.getSimpleName}")
+            if Thread.currentThread().isInterrupted then throw stopped(e.getClass.getSimpleName)
             else throw e
-
-    def close(): Unit = conn.close()

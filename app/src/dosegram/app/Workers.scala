@@ -35,6 +35,7 @@ import dosegram.infra.db.PgUnitOfWork
 import dosegram.infra.db.PgVendorLocks
 import ox.Ox
 import ox.fork
+import ox.never
 import ox.useCloseableInScope
 
 import java.time.Duration
@@ -63,6 +64,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
   def start(gate: ClaimGate, log: String => Unit)(using Ox): Unit =
     val passes = WorkerLoop.standard(log)
     val wake = useCloseableInScope(PgNotifyWake(settings.databaseUrl))
+    Workers.closeOnCancel(wake)
     val loopMetrics = MicrometerLoopMetrics()
     val materialiser = Materialiser(uow, clock, loopMetrics)
     startMaterialiser(materialiser, passes)
@@ -220,6 +222,16 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     ()
 
 object Workers:
+
+  /** Closes `wake` as soon as the scope is cancelled, not only after every fork has ended: the scope interrupts this
+    * fork together with the others, and closing the wake ends a blocking wait for a NOTIFY even when the interrupt of
+    * the waiting fork was lost (the shutdown hang of 2026-11-14).
+    */
+  private[app] def closeOnCancel(wake: AutoCloseable)(using Ox): Unit =
+    fork:
+      try never
+      finally wake.close()
+    ()
 
   /** The dirty keys one rollup step takes. */
   private val RollupBatch = 100
