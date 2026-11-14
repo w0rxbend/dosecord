@@ -57,6 +57,34 @@ final class MedicationDepthApiSuite extends ApiSuite:
     assertProblem(put(path, ujson.Obj("onHand" -> "9", "perIntake" -> "1"), token, newKey() ++ ifMatch(first)), 412, "version_conflict")
     assertProblem(put(path, ujson.Obj("onHand" -> "9", "perIntake" -> "1"), token, newKey()), 428, "precondition_required")
 
+  test("a repeated threshold-only edit answers with the first answer, not 412 (API-16)"):
+    clock.at = utcMorning
+    val token = login(telegramAccount("UTC"))
+    val id = medication(token)
+    val path = s"/api/v1/medications/$id/inventory"
+    val first = put(path, ujson.Obj("onHand" -> "20", "perIntake" -> "1"), token, newKey())
+    val key = newKey()
+    val edit = put(path, ujson.Obj("onHand" -> "20", "perIntake" -> "1", "thresholdDays" -> 3), token, key ++ ifMatch(first))
+    assertEquals(edit.status, 200, edit.body)
+    val repeat = put(path, ujson.Obj("onHand" -> "20", "perIntake" -> "1", "thresholdDays" -> 3), token, key ++ ifMatch(first))
+    assertEquals(repeat.status, 200, repeat.body)
+    assertEquals(repeat.json, edit.json)
+    assertEquals(repeat.header("ETag"), edit.header("ETag"))
+    val other = put(path, ujson.Obj("onHand" -> "20", "perIntake" -> "1", "thresholdDays" -> 5), token, key ++ ifMatch(edit))
+    assertProblem(other, 422, "idempotency_key_reuse")
+
+  test("a repeated refill answers with the first answer and adds once"):
+    clock.at = utcMorning
+    val token = login(telegramAccount("UTC"))
+    val id = medication(token)
+    put(s"/api/v1/medications/$id/inventory", ujson.Obj("onHand" -> "2", "perIntake" -> "1"), token, newKey())
+    val key = newKey()
+    val first = post(s"/api/v1/medications/$id/refills", ujson.Obj("quantity" -> "30"), token, key)
+    val again = post(s"/api/v1/medications/$id/refills", ujson.Obj("quantity" -> "30"), token, key)
+    assertEquals((first.status, again.status), (201, 201))
+    assertEquals(again.json, first.json)
+    assertEquals(again.json("onHand").str, "32")
+
   test("a Ukrainian account reads the count's summary with the unit in Ukrainian"):
     clock.at = utcMorning
     val token = login(telegramAccount("UTC"))

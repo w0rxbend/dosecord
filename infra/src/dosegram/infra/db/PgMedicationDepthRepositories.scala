@@ -58,6 +58,10 @@ final class PgInventoryRepository(conn: Connection) extends InventoryRepository:
       Vector(accountId)
     ).query[Inventory]()
 
+  /** The row is locked before the key is looked up, so a repeat waits for the request it repeats. A first count that
+    * meets another first count committed meanwhile is that request's repeat when the key is the same, and otherwise a
+    * version conflict: the count it would create exists now (API-17).
+    */
   override def save(
       settings: InventorySettings,
       expectedVersion: Option[Int],
@@ -66,28 +70,45 @@ final class PgInventoryRepository(conn: Connection) extends InventoryRepository:
     val owned = sql"""SELECT EXISTS (SELECT 1 FROM medications WHERE id = ${settings.medicationId}
                       AND user_id = ${settings.accountId})""".queryOne[Boolean]().contains(true)
     if !owned then Left(InventoryRefusal.NotFound)
-    else if alreadyApplied(settings.key) then current(settings).toRight(InventoryRefusal.NotFound)
     else
-      val (days, units) = thresholdColumns(settings.threshold)
-      lockedRow(settings.accountId, settings.medicationId) match
-        case None if expectedVersion.isEmpty =>
-          sql"""INSERT INTO medication_inventory (medication_id, account_id, on_hand, per_intake, threshold_days,
-                  threshold_units, updated_at)
-                VALUES (${settings.medicationId}, ${settings.accountId}, ${settings.onHand}, ${settings.perIntake},
-                        $days, $units, $now)""".execute()
-          setEvent(settings, now)
-          current(settings).toRight(InventoryRefusal.NotFound)
-        case None                                                => Left(InventoryRefusal.NotFound)
-        case Some(row) if !expectedVersion.contains(row.version) => Left(InventoryRefusal.VersionConflict(row))
-        case Some(row)                                           =>
-          val countChanged = row.onHand != settings.onHand
-          sql"""UPDATE medication_inventory SET on_hand = ${settings.onHand}, per_intake = ${settings.perIntake},
-                  threshold_days = $days, threshold_units = $units,
-                  count_off = count_off AND NOT $countChanged, notices_stopped = notices_stopped AND NOT $countChanged,
-                  version = version + 1, updated_at = $now
-                WHERE medication_id = ${settings.medicationId}""".execute()
-          if countChanged then setEvent(settings, now)
-          current(settings).toRight(InventoryRefusal.NotFound)
+      val locked = lockedRow(settings.accountId, settings.medicationId)
+      if alreadyApplied(settings.accountId, settings.medicationId, settings.key) then current(settings)
+      else
+        locked match
+          case None if expectedVersion.isEmpty                     => create(settings, now)
+          case None                                                => Left(InventoryRefusal.NotFound)
+          case Some(row) if !expectedVersion.contains(row.version) => Left(InventoryRefusal.VersionConflict(row))
+          case Some(row)                                           => replace(settings, row, now)
+
+  private def create(settings: InventorySettings, now: Instant): Either[InventoryRefusal, Inventory] =
+    val (days, units) = thresholdColumns(settings.threshold)
+    // ON CONFLICT waits for a concurrent first count of the same medication and then inserts nothing.
+    val inserted =
+      sql"""INSERT INTO medication_inventory (medication_id, account_id, on_hand, per_intake, threshold_days,
+              threshold_units, updated_at)
+            VALUES (${settings.medicationId}, ${settings.accountId}, ${settings.onHand}, ${settings.perIntake},
+                    $days, $units, $now)
+            ON CONFLICT (medication_id) DO NOTHING""".execute() == 1
+    if inserted then
+      setEvent(settings, now)
+      current(settings)
+    else if alreadyApplied(settings.accountId, settings.medicationId, settings.key) then current(settings)
+    else
+      Left(
+        lockedRow(settings.accountId, settings.medicationId)
+          .fold(InventoryRefusal.NotFound)(InventoryRefusal.VersionConflict(_))
+      )
+
+  private def replace(settings: InventorySettings, row: Inventory, now: Instant): Either[InventoryRefusal, Inventory] =
+    val (days, units) = thresholdColumns(settings.threshold)
+    val countChanged = row.onHand != settings.onHand
+    sql"""UPDATE medication_inventory SET on_hand = ${settings.onHand}, per_intake = ${settings.perIntake},
+            threshold_days = $days, threshold_units = $units,
+            count_off = count_off AND NOT $countChanged, notices_stopped = notices_stopped AND NOT $countChanged,
+            version = version + 1, updated_at = $now
+          WHERE medication_id = ${settings.medicationId}""".execute()
+    if countChanged then setEvent(settings, now)
+    current(settings)
 
   override def refill(
       accountId: UUID,
@@ -97,7 +118,7 @@ final class PgInventoryRepository(conn: Connection) extends InventoryRepository:
       now: Instant
   ): Option[Inventory] =
     lockedRow(accountId, medicationId).map: row =>
-      if !alreadyApplied(key) then
+      if !alreadyApplied(accountId, medicationId, key) then
         sql"""UPDATE medication_inventory SET on_hand = on_hand + $quantity, last_refill = $quantity,
                 notices_stopped = false, count_off = false, version = version + 1, updated_at = $now
               WHERE medication_id = $medicationId""".execute()
@@ -132,7 +153,8 @@ final class PgInventoryRepository(conn: Connection) extends InventoryRepository:
           WHERE medication_id = $medicationId AND count_off""".execute()
     ()
 
-  private def current(settings: InventorySettings): Option[Inventory] = get(settings.accountId, settings.medicationId)
+  private def current(settings: InventorySettings): Either[InventoryRefusal, Inventory] =
+    get(settings.accountId, settings.medicationId).toRight(InventoryRefusal.NotFound)
 
   private def lockedRow(accountId: UUID, medicationId: UUID): Option[Inventory] =
     SqlQuery(
@@ -140,8 +162,10 @@ final class PgInventoryRepository(conn: Connection) extends InventoryRepository:
       Vector(accountId, medicationId)
     ).queryOne[Inventory]()
 
-  private def alreadyApplied(key: String): Boolean =
-    sql"SELECT EXISTS (SELECT 1 FROM inventory_events WHERE idempotency_key = $key)".queryOne[Boolean]().contains(true)
+  /** A key names one request for one account's medication (V9): the same key elsewhere is another request. */
+  private def alreadyApplied(accountId: UUID, medicationId: UUID, key: String): Boolean =
+    sql"""SELECT EXISTS (SELECT 1 FROM inventory_events WHERE account_id = $accountId AND medication_id = $medicationId
+            AND idempotency_key = $key)""".queryOne[Boolean]().contains(true)
 
   private def setEvent(settings: InventorySettings, now: Instant): Unit =
     sql"""INSERT INTO inventory_events (id, account_id, medication_id, kind, quantity, on_hand_after, idempotency_key,

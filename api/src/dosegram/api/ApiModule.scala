@@ -547,7 +547,9 @@ final class ApiModule(
             for
               version <- ifMatch.fold(Right(None))(tag => versionOf(Some(tag)).map(Some(_)))
               parsedKey <- idempotencyKeyOf(key)
-              doc <- depth.save(session.accountId, id, version, parsedKey, input)
+              // A repeat answers with the stored outcome, also of an edit that changed no count (API-16).
+              doc <- idempotency.once(session.accountId, parsedKey, hashOf(s"medications/$id/inventory", input)):
+                depth.save(session.accountId, id, version, parsedKey, input)
             yield (Rendering.etag(doc.version), doc)
     ,
     MedicationDepthEndpoints.createRefill
@@ -557,7 +559,8 @@ final class ApiModule(
           medication(session):
             for
               parsedKey <- idempotencyKeyOf(key)
-              doc <- depth.refill(session.accountId, id, parsedKey, input)
+              doc <- idempotency.once(session.accountId, parsedKey, hashOf(s"medications/$id/refills", input)):
+                depth.refill(session.accountId, id, parsedKey, input)
             yield (Rendering.etag(doc.version), doc)
   )
 

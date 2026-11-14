@@ -141,6 +141,108 @@ class InventoryPgSuite extends PgSuite:
     )
     assertEquals(foreign, Left(InventoryRefusal.NotFound))
 
+  test("an idempotency key belongs to one account's medication: the same key elsewhere is another request"):
+    val mine = scheduled()
+    val theirs = scheduled()
+    val other = fixtures.medication(mine.account, "Zinc", monday)
+    val key = "shared-key"
+    assert(fixtures.uow.transaction(_.medicationDepth.inventory.save(settings(mine, 10, key = key), None, monday)).isRight)
+    val second = fixtures.uow.transaction(_.medicationDepth.inventory.save(settings(theirs, 4, key = key), None, monday))
+    assertEquals(second.map(_.onHand), Right(BigDecimal(4)), "another account's first count with the same key")
+    val third = fixtures.uow.transaction(
+      _.medicationDepth.inventory.save(settings(mine, 7, key = key).copy(medicationId = other), None, monday)
+    )
+    assertEquals(third.map(_.onHand), Right(BigDecimal(7)), "another medication of the account with the same key")
+    val refillKey = "refill-key"
+    val repo = (tx: dosegram.core.ports.Tx) => tx.medicationDepth.inventory
+    fixtures.uow.transaction(tx => repo(tx).refill(mine.account, mine.medication, 5, refillKey, monday))
+    val refilled = fixtures.uow.transaction(tx => repo(tx).refill(theirs.account, theirs.medication, 5, refillKey, monday))
+    assertEquals(refilled.map(_.onHand), Some(BigDecimal(9)))
+    assertEquals(inventory(mine).onHand, BigDecimal(15))
+
+  test("two first counts at once: the one that waits is refused as a version conflict, never an error"):
+    val med = scheduled()
+    val holding = java.util.concurrent.CountDownLatch(1)
+    val release = java.util.concurrent.CountDownLatch(1)
+    val first = java.util.concurrent.CompletableFuture.supplyAsync: () =>
+      fixtures.uow.transaction: tx =>
+        val saved = tx.medicationDepth.inventory.save(settings(med, 10), None, monday)
+        holding.countDown()
+        release.await()
+        saved
+    holding.await()
+    val second = java.util.concurrent.CompletableFuture.supplyAsync: () =>
+      fixtures.uow.transaction(_.medicationDepth.inventory.save(settings(med, 20), None, monday))
+    waitForALockWait()
+    release.countDown()
+    assertEquals(first.get().map(_.onHand), Right(BigDecimal(10)))
+    second.get() match
+      case Left(InventoryRefusal.VersionConflict(current)) => assertEquals(current.onHand, BigDecimal(10))
+      case other                                           => fail(s"expected a version conflict: $other")
+
+  test("the same first count sent twice at once is applied once and both answer with it"):
+    val med = scheduled()
+    val holding = java.util.concurrent.CountDownLatch(1)
+    val release = java.util.concurrent.CountDownLatch(1)
+    val same = settings(med, 10)
+    val first = java.util.concurrent.CompletableFuture.supplyAsync: () =>
+      fixtures.uow.transaction: tx =>
+        val saved = tx.medicationDepth.inventory.save(same, None, monday)
+        holding.countDown()
+        release.await()
+        saved
+    holding.await()
+    val second = java.util.concurrent.CompletableFuture.supplyAsync: () =>
+      fixtures.uow.transaction(_.medicationDepth.inventory.save(same, None, monday))
+    waitForALockWait()
+    release.countDown()
+    assertEquals(first.get().map(_.onHand), Right(BigDecimal(10)))
+    assertEquals(second.get().map(_.onHand), Right(BigDecimal(10)))
+    assertEquals(events(med), List("set" -> BigDecimal(10)))
+
+  test("Undo after a new count: the count the user entered after the dose is kept, nothing is given back"):
+    val med = scheduled()
+    assert(save(med, 10).isRight)
+    val dose = fixtures.occurrenceAt(med.schedule, monday.plus(Duration.ofDays(3)), "t0900x")
+    setStatus(dose, OccurrenceStatus.Taken, monday.plusSeconds(60))
+    assertEquals(inventory(med).onHand, BigDecimal(9))
+    val recount = fixtures.uow.transaction(
+      _.medicationDepth.inventory.save(settings(med, 20), Some(inventory(med).version), monday.plusSeconds(90))
+    )
+    assertEquals(recount.map(_.onHand), Right(BigDecimal(20)))
+    setStatus(dose, OccurrenceStatus.Due, monday.plusSeconds(120))
+    assertEquals(inventory(med).onHand, BigDecimal(20), "Undo never lifts the count above what the user entered")
+    assertEquals(events(med).map(_._1), List("set", "intake", "set"))
+    // Taken again after the new count deducts from it, and its own Undo gives back what it took.
+    setStatus(dose, OccurrenceStatus.Taken, monday.plusSeconds(180))
+    assertEquals(inventory(med).onHand, BigDecimal(19))
+    setStatus(dose, OccurrenceStatus.Due, monday.plusSeconds(240))
+    assertEquals(inventory(med).onHand, BigDecimal(20))
+
+  test("Undo after a refill gives back what the dose took: a refill adds to the count, it does not replace it"):
+    val med = scheduled()
+    assert(save(med, 10).isRight)
+    val dose = fixtures.occurrenceAt(med.schedule, monday.plus(Duration.ofDays(3)), "t0900x")
+    setStatus(dose, OccurrenceStatus.Taken, monday.plusSeconds(60))
+    fixtures.uow.transaction(_.medicationDepth.inventory.refill(med.account, med.medication, 30, "r1", monday.plusSeconds(90)))
+    assertEquals(inventory(med).onHand, BigDecimal(39))
+    setStatus(dose, OccurrenceStatus.Due, monday.plusSeconds(120))
+    assertEquals(inventory(med).onHand, BigDecimal(40))
+
+  /** Waits until a backend of this database waits for a lock: the second transaction has reached the first's row. */
+  private def waitForALockWait(): Unit =
+    val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos
+    def waiting: Boolean =
+      withConnection { conn =>
+        given Connection = conn
+        sql"SELECT count(*) > 0 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()"
+          .queryOne[Boolean]()
+          .contains(true)
+      }
+    while !waiting do
+      assert(System.nanoTime() < deadline, "the second transaction never waited for the first")
+      Thread.onSpinWait()
+
   test("a stopped notice is cleared by a refill; candidates are the counts with a threshold not sent since"):
     val med = scheduled()
     assert(save(med, 10).isRight)
