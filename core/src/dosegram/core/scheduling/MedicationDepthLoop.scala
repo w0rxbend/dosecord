@@ -22,10 +22,12 @@ import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.MedicationEdit
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.NewOutboxMessage
 import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.PausedSchedule
+import dosegram.core.ports.StoredMedication
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
@@ -94,7 +96,9 @@ final class MedicationDepthLoop(
       case None           => false
       case Some(schedule) =>
         lifecycle.resumeInTx(tx, schedule.id, now)
-        val name = tx.medications.get(schedule.medicationId).map(_.name).getOrElse("")
+        val medication = tx.medications.get(schedule.medicationId)
+        medication.filter(_.status == MedicationStatus.Paused).foreach(markActive(tx, _, now))
+        val name = medication.map(_.name).getOrElse("")
         enqueue(
           tx,
           due.accountId,
@@ -103,6 +107,22 @@ final class MedicationDepthLoop(
           Nil,
           now
         )
+
+  /** A medication paused with its schedules (the Mini App's pause) is active again with them (R-REG-5). */
+  private def markActive(tx: Tx, medication: StoredMedication, now: Instant): Unit =
+    tx.medications.replace(
+      MedicationEdit(
+        medication.id,
+        medication.accountId,
+        medication.updatedAt,
+        medication.name,
+        medication.doseAmount,
+        medication.doseUnit,
+        medication.instructions,
+        MedicationStatus.Active
+      ),
+      now
+    ): Unit
 
   private def notice(tx: Tx, candidate: Inventory, now: Instant): Boolean =
     val medication = tx.medications.get(candidate.medicationId).filter(_.status != MedicationStatus.Archived)

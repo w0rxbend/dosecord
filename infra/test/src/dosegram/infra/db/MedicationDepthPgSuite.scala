@@ -9,6 +9,7 @@ import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.inventory.RefillThreshold
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.InventorySettings
+import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.ScheduleStatus
 import dosegram.core.ports.StatusCards
 import dosegram.core.scheduling.MedicationDepthLoop
@@ -184,5 +185,19 @@ class MedicationDepthPgSuite extends PgSuite:
     // Nothing is backfilled: the next reminder is today's 09:00, after the resume.
     val next = fixtures.uow.transaction(_.occurrences.nextScheduledAfter(rig.schedule, rig.clock.now()))
     assertEquals(next, Some(local(24, "09:00")))
+    assertEquals(rig.errors.toList, Nil)
+
+  test("a medication paused with a resume date in the Mini App is active again with its schedule on that date"):
+    val rig = Rig(onHand = 50)
+    rig.clock.at = local(21, "10:00")
+    rig.tap("med.pause_for", 3)
+    // The Mini App's pause marks the medication too (Registry.changeState with resumeOn).
+    withConnection: conn =>
+      given Connection = conn
+      sql"UPDATE medications SET status = 'paused' WHERE id = ${rig.medication}".execute()
+    rig.clock.at = local(24, "00:00")
+    rig.loop.tick()
+    assertEquals(fixtures.uow.transaction(_.schedules.get(rig.schedule).get.status), ScheduleStatus.Active)
+    assertEquals(fixtures.uow.transaction(_.medications.get(rig.medication).get.status), MedicationStatus.Active)
     assertEquals(rig.errors.toList, Nil)
 end MedicationDepthPgSuite
