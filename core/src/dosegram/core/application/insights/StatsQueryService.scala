@@ -184,9 +184,14 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
   /** The text of `/stats` for a period. A domain without consent is left out, and so is a domain without data; a period
     * with nothing at all says so.
     */
-  def summary(tx: Tx, accountId: UUID, period: StatsPeriod): Either[StatsRefusal, PeriodSummary] =
+  def summary(
+      tx: Tx,
+      accountId: UUID,
+      period: StatsPeriod,
+      endingOn: Option[LocalDate] = None
+  ): Either[StatsRefusal, PeriodSummary] =
     zoneOf(tx, accountId).map: zone =>
-      val range = window(period, zone)
+      val range = endingOn.fold(window(period, zone))(period.window)
       def block(purpose: ConsentPurpose)(lines: => List[String]): List[String] =
         if tx.consents.isGranted(accountId, purpose) then lines else Nil
       val blocks =
@@ -322,6 +327,34 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       case StatsPeriod.Last7Days | StatsPeriod.Last30Days => FoodCopy.statsPeriod(MealStats.period(days, range))
     line.toList
 
+  /** The days of the range with a record, per domain whose consent is active: the hit days of VISUALS section 7.3. A
+    * sleep day counts with a night. Read at every use; nothing is stored.
+    */
+  def recordedDays(tx: Tx, accountId: UUID, range: DateRange): Map[ConsentPurpose, Set[LocalDate]] =
+    def when(purpose: ConsentPurpose)(days: => Iterable[LocalDate]): Option[(ConsentPurpose, Set[LocalDate])] =
+      Option.when(tx.consents.isGranted(accountId, purpose))(purpose -> days.toSet)
+    List(
+      when(ConsentPurpose.Medication)(medicationDays(tx, accountId, range).filter((_, d) => !d.total.isEmpty).keys),
+      when(ConsentPurpose.Hydration)(hydrationDays(tx, accountId, range).filter((_, d) => d.entries > 0).keys),
+      when(ConsentPurpose.Mood)(moodDays(tx, accountId, range).filter((_, d) => d.n > 0).keys),
+      when(ConsentPurpose.Sleep)(sleepDays(tx, accountId, range).keys),
+      when(ConsentPurpose.Nutrition)(mealDays(tx, accountId, range).filter((_, d) => d.meals > 0).keys)
+    ).flatten.toMap
+
+  /** The acts of logging up to `upTo` in each non-medication domain with consent: water entries, mood check-ins, nights
+    * and naps, meals and snacks (the milestones of VISUALS section 7.3). Medication has none (R-GAM-2).
+    */
+  def loggingCounts(tx: Tx, accountId: UUID, upTo: LocalDate): Map[ConsentPurpose, Int] =
+    val ever = DateRange.between(StatsQueryService.FirstDay, upTo)
+    def when(purpose: ConsentPurpose)(count: => Int): Option[(ConsentPurpose, Int)] =
+      Option.when(tx.consents.isGranted(accountId, purpose))(purpose -> count)
+    List(
+      when(ConsentPurpose.Hydration)(hydrationDays(tx, accountId, ever).values.map(_.entries).sum),
+      when(ConsentPurpose.Mood)(moodDays(tx, accountId, ever).values.map(_.n).sum),
+      when(ConsentPurpose.Sleep)(tx.tracking.sleep.liveEpisodes(accountId, ever).size),
+      when(ConsentPurpose.Nutrition)(mealDays(tx, accountId, ever).values.map(_.meals).sum)
+    ).flatten.toMap
+
   private def mealDays(tx: Tx, accountId: UUID, range: DateRange): Map[LocalDate, MealDay] =
     rollups.refresh(tx, accountId, RollupDomain.Nutrition, range)
     tx.tracking.rollups
@@ -360,3 +393,8 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       .list(accountId, RollupDomain.Mood, range)
       .collect { case (date, RollupMetrics.Mood(day)) => date -> day }
 end StatsQueryService
+
+object StatsQueryService:
+
+  /** The first day an act of logging is counted from: earlier than any record the product holds. */
+  val FirstDay: LocalDate = LocalDate.of(2000, 1, 1)

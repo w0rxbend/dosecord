@@ -70,7 +70,22 @@ object ForbiddenPhrases:
     "лінива"
   )
 
-  val all: List[String] = clinicalAdvice ++ shaming ++ ukrainian
+  /** The words of loss and runs that PRODUCT_SPEC R-GAM-6 bans, in both shipped locales. */
+  val gamification: List[String] = List(
+    "streak",
+    "you lost",
+    "lose your",
+    "broken",
+    "don't miss",
+    "do not miss",
+    "серія",
+    "серію",
+    "втратите",
+    "втратили",
+    "не пропустіть"
+  )
+
+  val all: List[String] = clinicalAdvice ++ shaming ++ ukrainian ++ gamification
 
   /** Every forbidden phrase found in `text` (case-insensitive). */
   def violations(text: String): List[String] =

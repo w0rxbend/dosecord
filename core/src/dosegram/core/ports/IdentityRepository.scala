@@ -5,6 +5,7 @@ import dosegram.contracts.PlatformIdentity
 import dosegram.contracts.Principal
 
 import java.time.Instant
+import java.util.UUID
 
 /** The IdentityResolver port (DESIGN.md sections 3 and 4.6 step 4): identity resolution is core-only — there is no
   * field for an account id on the wire (R8).
@@ -22,3 +23,8 @@ trait IdentityRepository:
     * deliver direct chats only (a Telegram group update is dropped), so every inbound chat is one.
     */
   def recordDirectChat(identityId: IdentityId, chatId: String): Unit
+
+  /** The latest instant the account's user wrote to the bot or used the Mini App: the only signal that a report was
+    * seen, because a bot receives no read receipts (VISUALS VA-PS-06).
+    */
+  def lastInteraction(accountId: UUID): Option[Instant]

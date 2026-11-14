@@ -1911,6 +1911,8 @@ BOT_UX.md owns reminders, prompts and touchpoints. This section governs the repo
 | VA-PS-12 | No scheduled message contains urgency, countdowns, a reference to what the user failed to do, or a comparison with other people. Forbidden-phrase lint. |
 | VA-PS-13 | Minimum-data gates are mentioned only inside a message the user asked for or inside a report, as a count ("3 more nights of sleep check-ins until the first sleep summary"). They are never sent as their own message. |
 
+Supervisor decision, 2026-11-14 (ROADMAP G9.2). The offer of section 10.1 is the one question of ROADMAP conflict X-19: a silent text message with "Yes, send it" and "No, thanks", sent at the report's own send time (the weekly one on Monday at 09:00 until the account has a week-start setting, the monthly one on the 1st at 10:00), at most 3 hours after it, never in quiet hours or in bedtime mode. It is asked once per account and report type: asking records the report's plan, switched off, so "No" and no answer leave it off and the question never returns; "Yes" turns the default plan on. Onboarding asks nothing about reports, and the reports stay in `/reminders` beside the other prompts, where they can be turned on without waiting for the offer. The interaction of VA-PS-06 is the latest `last_seen_at` of the account's linked identities or `last_used_at` of its Mini App sessions after the report's send time; a report without one within 24 hours is closed as expired, one with it as answered. Only reports sent since the plan last took its form count, so "Resume" starts the count afresh.
+
 ## 11. Acceptance: test layers and hand-offs
 
 ### 11.1 Test layers

@@ -95,6 +95,7 @@ object MediatorFakes:
     override def find(actor: PlatformIdentity): Option[Principal] =
       this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
     override def recordDirectChat(identityId: IdentityId, chatId: String): Unit = ()
+    override def lastInteraction(accountId: UUID): Option[Instant] = None
 
   /** In-memory account creates (M0.12d): every created account records `displayName = None` — the neutral default the
     * Postgres write guarantees by never selecting the vendor nickname (K8).
@@ -123,6 +124,11 @@ object MediatorFakes:
       this.synchronized(rows.find(_.accountId == accountId).map(_.settings))
     override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.settings = settings))
+
+    private val gamificationOff = scala.collection.mutable.Set.empty[UUID]
+    override def gamificationOf(accountId: UUID): Boolean = this.synchronized(!gamificationOff(accountId))
+    override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit =
+      this.synchronized(if enabled then gamificationOff -= accountId else gamificationOff += accountId)
 
   final class InMemoryAudit extends AuditRepository:
     private val entries = ListBuffer.empty[AuditEntry]
@@ -665,6 +671,8 @@ object MediatorFakes:
       override def close(id: UUID, status: PromptStatus, at: Instant): Boolean = false
       override def lastSent(scheduleId: UUID): Option[PromptOccurrence] = None
       override def markNotice(id: UUID, notice: PromptNotice): Unit = unsupported("markNotice")
+      override def recentSent(scheduleId: UUID, limit: Int): List[PromptOccurrence] = Nil
+      override def accountsWithout(kind: PromptKind): List[UUID] = Nil
 
     override val dayProfiles: DayProfileRepository = new DayProfileRepository:
       override def anchors(accountId: UUID): Option[DayAnchors] = None

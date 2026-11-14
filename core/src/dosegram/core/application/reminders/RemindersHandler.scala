@@ -30,6 +30,7 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.Formats
+import dosegram.core.domain.copy.GamificationCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
@@ -118,6 +119,10 @@ final class RemindersHandler(
       case Some("reminders.pause_all")              => pauseAll(ctx, Option.when(ref.value > 0)(ref.value.toInt))
       case Some("reminders.day")                    => dayCard(ctx, None)
       case Some("reminders.report_stop")            => kindOf(ref.value).fold(stale)(stopReport(ctx, _))
+      case Some("reminders.report_offer_yes")       => reportOf(ref.value).fold(stale)(takeOffer(ctx, _))
+      case Some("reminders.report_offer_no")        => reportOf(ref.value).fold(stale)(declineOffer(ctx, _))
+      case Some("reminders.report_resume")          => reportOf(ref.value).fold(stale)(resumeReport(ctx, _))
+      case Some("reminders.counts")                 => counts(ctx, ref.value == 1)
       case _                                        => stale
 
   private def hub(ctx: Ctx, headline: Option[String]): Reply =
@@ -143,7 +148,16 @@ final class RemindersHandler(
     val pause =
       if view.pausedUntil.isDefined then List(button(ctx, PromptCopy.Resume, "reminders.pause_all", 0))
       else PauseHours.map(h => button(ctx, PromptCopy.Pause(h), "reminders.pause_all", h))
-    show(ctx, "reminders.hub", text, List(kinds, pause, List(button(ctx, PromptCopy.DayProfile, "reminders.day", 0))))
+    val countsOn = ctx.tx.accounts.gamificationOf(ctx.accountId)
+    val countsButton =
+      if countsOn then button(ctx, GamificationCopy.CountsOn, "reminders.counts", 0)
+      else button(ctx, GamificationCopy.CountsOff, "reminders.counts", 1)
+    show(
+      ctx,
+      "reminders.hub",
+      text,
+      List(kinds, pause, List(button(ctx, PromptCopy.DayProfile, "reminders.day", 0), countsButton))
+    )
 
   private def choose(ctx: Ctx, kind: PromptKind): Reply =
     val presets = PromptPresets
@@ -189,6 +203,33 @@ final class RemindersHandler(
     else
       settings.turnOff(ctx.tx, ctx.accountId, kind)
       show(ctx, "reminders.report_stopped", List(ReportCopy.stopped(kind)), Nil)
+
+  /** "Yes" to the report offer of ROADMAP conflict X-19: the report's preset is turned on. */
+  private def takeOffer(ctx: Ctx, preset: PromptPreset): Reply =
+    settings.apply(ctx.tx, ctx.accountId, preset) match
+      case Right(_) => show(ctx, "reminders.report_offer", List(ReportCopy.offerTaken(preset.kind)), Nil)
+      case Left(_)  => stale
+
+  /** "No": the plan stays off, and the offer is never made again. */
+  private def declineOffer(ctx: Ctx, preset: PromptPreset): Reply =
+    settings.turnOff(ctx.tx, ctx.accountId, preset.kind)
+    show(ctx, "reminders.report_offer", List(ReportCopy.offerDeclined(preset.kind)), Nil)
+
+  /** Resume after the adaptive pause (VA-PS-06): the plan the user had, on again from now. */
+  private def resumeReport(ctx: Ctx, preset: PromptPreset): Reply =
+    settings.resume(ctx.tx, ctx.accountId, preset.kind) match
+      case Some(_) => show(ctx, "reminders.report_resumed", List(ReportCopy.resumed(preset.kind)), Nil)
+      case None    => stale
+
+  /** The gamification switch (R-GAM-5): the hub again, headed by what the reports now show. */
+  private def counts(ctx: Ctx, on: Boolean): Reply =
+    ctx.tx.accounts.setGamification(ctx.accountId, on, clock.now())
+    hub(ctx, Some(if on then GamificationCopy.countsTurnedOn else GamificationCopy.countsTurnedOff))
+
+  private def reportOf(value: Long): Option[PromptPreset] =
+    kindOf(value).collect:
+      case PromptKind.WeeklyReport  => PromptPresets.WeeklyReport
+      case PromptKind.MonthlyReport => PromptPresets.MonthlyReport
 
   private def pauseAll(ctx: Ctx, hours: Option[Int]): Reply =
     settings.pauseAll(ctx.tx, ctx.accountId, hours)

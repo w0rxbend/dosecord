@@ -213,6 +213,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     fork:
       passes.repeat("prompt loop"): () =>
         loop.tick()
+        loop.offerReports()
         Thread.sleep(parts.cadence.reminderPoll.toMillis)
         true
     ()

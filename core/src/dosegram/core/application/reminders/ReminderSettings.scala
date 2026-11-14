@@ -104,6 +104,31 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
       )
       Right(tx.reminders.prompts.save(schedule, now))
 
+  /** Records that a report was offered (ROADMAP conflict X-19): its plan exists, off, so it is never offered again and
+    * stays off until the user turns it on.
+    */
+  def markOffered(tx: Tx, accountId: UUID, preset: PromptPreset): PromptSchedule =
+    val now = clock.now()
+    val schedule = PromptSchedule(
+      id = ids.next(now),
+      accountId = accountId,
+      kind = preset.kind,
+      presetId = preset.id,
+      plan = preset.plan,
+      ownCap = preset.ownCap,
+      enabled = false,
+      sound = false,
+      pausedUntil = None,
+      activeFrom = now
+    )
+    tx.reminders.prompts.save(schedule, now)
+
+  /** Turns a plan that was switched off back on as it was, from now on (Resume of VA-PS-06). */
+  def resume(tx: Tx, accountId: UUID, kind: PromptKind): Option[PromptSchedule] =
+    tx.reminders.prompts
+      .schedule(accountId, kind)
+      .map(plan => tx.reminders.prompts.save(plan.copy(enabled = true, activeFrom = clock.now()), clock.now()))
+
   def turnOff(tx: Tx, accountId: UUID, kind: PromptKind): Boolean =
     tx.reminders.prompts.setEnabled(accountId, kind, enabled = false, clock.now())
 

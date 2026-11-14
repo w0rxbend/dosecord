@@ -129,6 +129,7 @@ final class InMemoryIdentities extends IdentityRepository:
   override def find(actor: PlatformIdentity): Option[Principal] =
     this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
   override def recordDirectChat(identityId: IdentityId, chatId: String): Unit = ()
+  override def lastInteraction(accountId: UUID): Option[Instant] = None
 
 final class InMemoryRenderedMessages extends RenderedMessageRepository:
   private val rows = ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean)]

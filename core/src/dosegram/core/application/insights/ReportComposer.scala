@@ -11,12 +11,15 @@ import dosegram.core.application.capture.DoseMarks
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
+import dosegram.core.domain.copy.GamificationCopy
 import dosegram.core.domain.copy.InsightCopy
 import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.insights.Consistency
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.InsightEngine
+import dosegram.core.domain.insights.LoggingDomain
 import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.NightFacts
 import dosegram.core.domain.insights.SleepRegularity
@@ -100,8 +103,10 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
 
   private val views = ReportViews(stats)
 
-  /** The week that ends on `planDate`, the day the report is due. `withImages` is false on a day that already had the
-    * monthly report, which takes precedence (VA-PS-03): the week is then sent as its text.
+  /** The seven complete days before `planDate`, the day the report is due (PRODUCT_SPEC R-INS-4). `withImages` is false
+    * on a day that already had the monthly report, which takes precedence (VA-PS-03): the week is then sent as its
+    * text. With the gamification switch on, the week's day counts and the milestones it passed close the text
+    * (R-GAM-4).
     */
   def weekly(
       tx: Tx,
@@ -111,7 +116,8 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       silent: Boolean,
       withImages: Boolean
   ): ReportOutcome =
-    stats.summary(tx, accountId, StatsPeriod.Last7Days) match
+    val week = DateRange.endingOn(planDate.minusDays(1), 7)
+    stats.summary(tx, accountId, StatsPeriod.Last7Days, Some(week.end)) match
       case Left(_)                                                       => ReportOutcome.NoRecords
       case Right(summary) if summary.lines.tail == List(StatsCopy.Empty) => ReportOutcome.NoRecords
       case Right(summary)                                                =>
@@ -121,13 +127,10 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
           .toOption
           .flatMap(view => InsightEngine.forReport(view.list))
           .map(InsightCopy.text)
-        val lines = ReportCopy.weeklyTitle :: summary.lines.tail ++ pattern.toList
+        val lines = ReportCopy.weeklyTitle :: summary.lines.tail ++ pattern.toList ++ counts(tx, accountId, week)
         val images =
           if !withImages || !imagesAllowed(tx, accountId) then Nil
-          else
-            drawn(
-              cards.week(views.week(tx, accountId, DateRange.endingOn(planDate, 7)), views.look(tx, accountId)).toList
-            )
+          else drawn(cards.week(views.week(tx, accountId, week), views.look(tx, accountId)).toList)
         ReportOutcome.Send(compose(PromptKind.WeeklyReport, accountId, lines, images, key, silent))
 
   /** The calendar month before `planDate`; produced only when a domain meets the gate of R-INS-11. */
@@ -141,6 +144,62 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
           if !imagesAllowed(tx, accountId) then Nil
           else drawn(cards.month(views.month(tx, accountId, view.figures, planDate), views.look(tx, accountId)))
         ReportOutcome.Send(compose(PromptKind.MonthlyReport, accountId, lines, images, key, silent))
+
+  /** The day counts of the week and the milestones it passed, in the non-medication domains only (PRODUCT_SPEC section
+    * 8.14); nothing with the switch off.
+    */
+  private def counts(tx: Tx, accountId: UUID, week: DateRange): List[String] =
+    if !tx.accounts.gamificationOf(accountId) then Nil
+    else
+      val recorded = ReportComposer.logging(stats.recordedDays(tx, accountId, week))
+      val before = ReportComposer.logging(stats.loggingCounts(tx, accountId, week.start.minusDays(1)))
+      val after = ReportComposer.logging(stats.loggingCounts(tx, accountId, week.end))
+      GamificationCopy.consistency(Consistency.weekly(recorded, week)).toList ++
+        Consistency.milestones(before, after).map(GamificationCopy.milestone)
+
+  /** The question of ROADMAP conflict X-19, when the week or month before `today` is the first one eligible (VISUALS
+    * section 10.1): a weekly report after a week with records on 3 or more days, a monthly one after a month that meets
+    * the gate of R-INS-11. `None` when the period is not eligible.
+    */
+  def offer(tx: Tx, accountId: UUID, kind: PromptKind, today: LocalDate, key: String): Option[OutboundMessage] =
+    val days =
+      if kind == PromptKind.MonthlyReport then
+        stats
+          .month(tx, accountId, YearMonth.from(today).minusMonths(1))
+          .toOption
+          .filter(_.figures.isReportable)
+          .map(_.figures.daysWithRecords)
+      else
+        val week = DateRange.endingOn(today.minusDays(1), 7)
+        Some(stats.recordedDays(tx, accountId, week).values.flatten.toSet.size)
+          .filter(_ >= ReportComposer.WeekOfferDays)
+    days.map: count =>
+      val choices = List(
+        control(ReportComposer.OfferYesAction, accountId, kind, ReportCopy.OfferYes),
+        control(ReportComposer.OfferNoAction, accountId, kind, ReportCopy.OfferNo)
+      )
+      textMessage(List(ReportCopy.offer(kind, count)), choices, key)
+
+  /** The one line of VA-PS-06 a paused report type leaves, with Resume. */
+  def pausedNotice(kind: PromptKind, accountId: UUID, key: String): OutboundMessage =
+    textMessage(
+      List(ReportCopy.paused(kind)),
+      List(control(ReportComposer.ResumeAction, accountId, kind, ReportCopy.Resume)),
+      key
+    )
+
+  private def control(action: String, accountId: UUID, kind: PromptKind, label: String): Choice =
+    val entry = ActionRegistry.byName(action).getOrElse(throw IllegalStateException(s"action '$action' is missing"))
+    Choice.callback(label, codec.encode(CallbackMode.Direct, entry, accountId, kind.ordinal.toLong).wire)
+
+  private def textMessage(lines: List[String], choices: List[Choice], key: String): OutboundMessage =
+    OutboundMessage(
+      body = lines.map(line => Node.Paragraph(List(Inline.Text(line)))),
+      blocks = List(Block.Choices(ChoiceSet("report.0", choices = choices))),
+      silent = true,
+      dedupeKey = key,
+      correlationId = key
+    )
 
   /** The pages that could be drawn, in order; a page that cannot be drawn ends the album there. */
   private def drawn(pages: List[CardPage]): List[AttachmentRef] =
@@ -188,6 +247,24 @@ object ReportComposer:
 
   /** The "Stop these" control of a scheduled report (VA-PS-01); its value is the ordinal of the report's kind. */
   val StopAction = "reminders.report_stop"
+
+  val OfferYesAction = "reminders.report_offer_yes"
+  val OfferNoAction = "reminders.report_offer_no"
+  val ResumeAction = "reminders.report_resume"
+
+  /** A week with records on this many days is the first one a weekly report is offered for (VISUALS section 10.1). */
+  val WeekOfferDays = 3
+
+  /** The counted domains of a reading per consent purpose: medication is never one of them (R-GAM-2). */
+  def logging[A](byPurpose: Map[ConsentPurpose, A]): Map[LoggingDomain, A] =
+    byPurpose.flatMap: (purpose, value) =>
+      val domain = purpose match
+        case ConsentPurpose.Hydration => Some(LoggingDomain.Water)
+        case ConsentPurpose.Mood      => Some(LoggingDomain.Mood)
+        case ConsentPurpose.Sleep     => Some(LoggingDomain.Sleep)
+        case ConsentPurpose.Nutrition => Some(LoggingDomain.Food)
+        case _                        => None
+      domain.map(_ -> value)
 
   /** The send key of a report's image `index` (0-based), next to the key of its text. */
   def imageKey(key: String, index: Int): String = s"$key:image${index + 1}"

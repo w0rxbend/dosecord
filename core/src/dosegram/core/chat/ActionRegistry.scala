@@ -110,7 +110,9 @@ object ActionRegistry:
     ActionEntry(364, "sleep.adjust_cancel", requiresSession = false),
     ActionEntry(365, "reminders.report_resume", requiresSession = false),
     ActionEntry(366, "reminders.report_offer_yes", requiresSession = false),
-    ActionEntry(367, "reminders.report_offer_no", requiresSession = false)
+    ActionEntry(367, "reminders.report_offer_no", requiresSession = false),
+    // The gamification switch on the /reminders hub (PRODUCT_SPEC R-GAM-5): value 1 turns the counts on, 0 off.
+    ActionEntry(368, "reminders.counts", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

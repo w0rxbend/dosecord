@@ -36,6 +36,12 @@ final class PgIdentityRepository(conn: Connection) extends IdentityRepository:
         // A concurrent first-contact on another chat may have won the insert; re-read either way.
         find(actor).getOrElse(Principal(IdentityId(id), None, linked = false))
 
+  override def lastInteraction(accountId: UUID): Option[Instant] =
+    sql"""SELECT latest FROM (SELECT GREATEST(
+            (SELECT max(last_seen_at) FROM platform_identities WHERE user_id = $accountId AND unlinked_at IS NULL),
+            (SELECT max(last_used_at) FROM miniapp_sessions WHERE account_id = $accountId)) AS latest) seen
+          WHERE latest IS NOT NULL""".queryOne[Instant]()
+
   override def recordDirectChat(identityId: IdentityId, chatId: String): Unit =
     sql"""UPDATE platform_identities SET dm_channel_id = $chatId
           WHERE id = ${identityId.uuid} AND dm_channel_id IS DISTINCT FROM $chatId""".execute()
