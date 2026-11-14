@@ -1740,6 +1740,14 @@ export interface components {
             minGapMinutes?: number;
             /** Format: date */
             endDate?: string;
+            /** Format: int32 */
+            everyDays?: number;
+            /** Format: int32 */
+            onDays?: number;
+            /** Format: int32 */
+            offDays?: number;
+            /** Format: date */
+            anchorDate?: string;
         };
         /**
          * ScheduleChange
@@ -1759,6 +1767,14 @@ export interface components {
             startDate?: string;
             /** Format: date */
             endDate?: string;
+            /** Format: int32 */
+            everyDays?: number;
+            /** Format: int32 */
+            onDays?: number;
+            /** Format: int32 */
+            offDays?: number;
+            /** Format: date */
+            anchorDate?: string;
         };
         /** ScheduleList */
         ScheduleList: {
@@ -1779,7 +1795,7 @@ export interface components {
          * SchedulePattern
          * @enum {string}
          */
-        SchedulePattern: "as_needed" | "fixed_times";
+        SchedulePattern: "as_needed" | "cycle" | "every_n_days" | "fixed_times";
         /** SchedulePreview */
         SchedulePreview: {
             summary: string;

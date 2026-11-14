@@ -9,6 +9,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 /** One generated occurrence of a schedule revision, before persistence: DESIGN.md section 7.2's `Candidate` minus
   * `doseSnapshot`, which the M1.5 materialiser job fills from the medication row. Fits the `dose_occurrences` row
@@ -58,8 +59,9 @@ object Evaluator:
     * (idempotent re-materialisation).
     *
     * `AsNeeded` produces nothing: as-needed doses are manual-log driven (`manual:{uuid}` keys are created at log time,
-    * DESIGN.md section 7.1/7.2). The M7 kinds and `Paused` are declared, inert and materialise nothing (ROADMAP M1.1,
-    * ADR-004). Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
+    * DESIGN.md section 7.1/7.2). `EveryNDays` and `Cycle` expand on their dates like fixed times (ROADMAP G9.8). The
+    * remaining kinds and `Paused` are declared, inert and materialise nothing (ROADMAP M1.1, ADR-004). Exhaustive on
+    * purpose: a new [[Rule]] case without an arm here fails compilation.
     */
   def occurrences(revision: ScheduleRevision, from: Instant, to: Instant): List[OccurrenceCandidate] =
     require(from.isBefore(to), s"window start $from must be before its end $to")
@@ -90,14 +92,25 @@ object Evaluator:
           (instant, kind) = Dst.resolveLocal(date, LocalTime.of(time.hour, time.minute), revision.zone)
         yield OccurrenceCandidate(date, time, fixedSlotKey(time), instant, kind)
       case Rule.AsNeeded(_, _) => Nil // manual-log driven: no scheduled occurrences (DESIGN.md section 7.1/7.2)
-      // Declared, inert until M7 (ROADMAP M1.1); a Paused revision materialises nothing (ADR-004).
-      case _: Rule.EveryNDays         => Nil
+      case Rule.EveryNDays(everyDays, times, anchor) =>
+        if Math.floorMod(ChronoUnit.DAYS.between(anchor, date), everyDays.toLong) == 0 then
+          wallTimes(revision, date, times)
+        else Nil
+      case Rule.Cycle(onDays, offDays, times, anchor) =>
+        val dayOfCycle = Math.floorMod(ChronoUnit.DAYS.between(anchor, date), (onDays + offDays).toLong)
+        if dayOfCycle < onDays then wallTimes(revision, date, times) else Nil
+      // Declared, inert until their slice (ROADMAP M1.1, G9.8); a Paused revision materialises nothing (ADR-004).
       case _: Rule.EveryNWeeks        => Nil
-      case _: Rule.Cycle              => Nil
       case _: Rule.IntervalFixedStart => Nil
       case _: Rule.Chain              => Nil
       case _: Rule.Taper              => Nil
       case Rule.Paused                => Nil
+
+  /** One candidate per wall time on `date`, keyed like a fixed time so the slot key survives a revision. */
+  private def wallTimes(revision: ScheduleRevision, date: LocalDate, times: List[HhMm]): List[OccurrenceCandidate] =
+    times.map: time =>
+      val (instant, kind) = Dst.resolveLocal(date, LocalTime.of(time.hour, time.minute), revision.zone)
+      OccurrenceCandidate(date, time, fixedSlotKey(time), instant, kind)
 
   /** Local dates whose candidates can land in `[from, to)`: the dates of the window bounds plus a two-day margin on
     * each side, because a gap resolution shifts an instant forward by up to the gap length (a full day for the 2011

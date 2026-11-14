@@ -5,6 +5,7 @@ import dosegram.contracts.Weekday
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 
+import java.time.LocalDate
 import scala.util.matching.Regex
 
 /** The limits of the registry, published in the bootstrap document and in the option resources. */
@@ -50,15 +51,24 @@ object MedicationFields:
     else Right(MedicationFields(name, amount.map(BigDecimal(_)), unit, instructions))
 
 /** A schedule draft and the engine rule, in both directions. Only the kinds the engine accepts today exist here
-  * (`Rule.isSupportedInMvp`).
+  * (`Rule.isSupportedInMvp`). `today` is the account's local date: the default anchor of a periodic rule.
   */
 object ScheduleRules:
   private val IsoDays = 1 to 7
 
-  def validate(draft: ScheduleDraft): Either[ApiFailure, Rule] =
+  def validate(draft: ScheduleDraft, today: LocalDate): Either[ApiFailure, Rule] =
     val errors = draft.pattern match
-      case SchedulePattern.FixedTimes => fixedTimesErrors(draft)
-      case SchedulePattern.AsNeeded   => asNeededErrors(draft)
+      case SchedulePattern.FixedTimes => fixedTimesErrors(draft) ++ periodNotAllowed(draft)
+      case SchedulePattern.AsNeeded   => asNeededErrors(draft) ++ periodNotAllowed(draft)
+      case SchedulePattern.EveryNDays =>
+        periodicTimesErrors(draft) ++ periodErrors("everyDays", draft.everyDays) ++
+          List(
+            Option.when(draft.onDays.isDefined)(FieldError("onDays", "not_allowed")),
+            Option.when(draft.offDays.isDefined)(FieldError("offDays", "not_allowed"))
+          ).flatten
+      case SchedulePattern.Cycle =>
+        periodicTimesErrors(draft) ++ periodErrors("onDays", draft.onDays) ++ periodErrors("offDays", draft.offDays) ++
+          Option.when(draft.everyDays.isDefined)(FieldError("everyDays", "not_allowed")).toList
     val dateErrors =
       for
         start <- draft.startDate
@@ -66,7 +76,25 @@ object ScheduleRules:
         if end.isBefore(start)
       yield FieldError("endDate", "before_start")
     val all = errors ++ dateErrors
-    if all.nonEmpty then Left(ApiFailure.invalid(all)) else Right(ruleOf(draft))
+    if all.nonEmpty then Left(ApiFailure.invalid(all)) else Right(ruleOf(draft, today))
+
+  private def periodNotAllowed(draft: ScheduleDraft): List[FieldError] =
+    List(
+      "everyDays" -> draft.everyDays,
+      "onDays" -> draft.onDays,
+      "offDays" -> draft.offDays,
+      "anchorDate" -> draft.anchorDate
+    ).collect { case (field, Some(_)) => FieldError(field, "not_allowed") }
+
+  private def periodErrors(field: String, value: Option[Int]): List[FieldError] = value match
+    case None                                       => List(FieldError(field, "required"))
+    case Some(n) if n < 1 || n > Rule.MaxPeriodDays => List(FieldError(field, "out_of_range"))
+    case Some(_)                                    => Nil
+
+  /** The times of a periodic rule are checked like fixed times; it has no weekdays and no as-needed limits. */
+  private def periodicTimesErrors(draft: ScheduleDraft): List[FieldError] =
+    fixedTimesErrors(draft) ++
+      Option.when(draft.weekdays.nonEmpty)(FieldError("weekdays", "not_allowed")).toList
 
   private def fixedTimesErrors(draft: ScheduleDraft): List[FieldError] =
     List(
@@ -93,12 +121,21 @@ object ScheduleRules:
     ).flatten
 
   // The as-needed defaults are those of the chat wizard (AddMedicationFlow).
-  private def ruleOf(draft: ScheduleDraft): Rule = draft.pattern match
+  private def ruleOf(draft: ScheduleDraft, today: LocalDate): Rule = draft.pattern match
     case SchedulePattern.FixedTimes =>
       val isoDays = if draft.weekdays.isEmpty then IsoDays.toList else draft.weekdays.sorted
       Rule.FixedTimes(List(SlotGroup(isoDays.map(weekdayOf), draft.times.sorted.map(HhMm.unsafe))))
     case SchedulePattern.AsNeeded =>
       Rule.AsNeeded(draft.maxPerDay.getOrElse(10), draft.minGapMinutes.getOrElse(0))
+    case SchedulePattern.EveryNDays =>
+      Rule.EveryNDays(draft.everyDays.get, sortedTimes(draft), anchorOf(draft, today))
+    case SchedulePattern.Cycle =>
+      Rule.Cycle(draft.onDays.get, draft.offDays.get, sortedTimes(draft), anchorOf(draft, today))
+
+  private def sortedTimes(draft: ScheduleDraft): List[HhMm] = draft.times.sorted.map(HhMm.unsafe)
+
+  private def anchorOf(draft: ScheduleDraft, today: LocalDate): LocalDate =
+    draft.anchorDate.orElse(draft.startDate).getOrElse(today)
 
   /** The builder's view of a stored rule. Slot groups are flattened: the builder knows one set of days and times. */
   final case class RuleView(
@@ -106,7 +143,11 @@ object ScheduleRules:
       times: List[String],
       weekdays: List[Int],
       maxPerDay: Option[Int],
-      minGapMinutes: Option[Int]
+      minGapMinutes: Option[Int],
+      everyDays: Option[Int] = None,
+      onDays: Option[Int] = None,
+      offDays: Option[Int] = None,
+      anchorDate: Option[LocalDate] = None
   )
 
   def view(rule: Rule): RuleView = rule match
@@ -116,8 +157,28 @@ object ScheduleRules:
       RuleView(SchedulePattern.FixedTimes, times, days, None, None)
     case Rule.AsNeeded(maxPerDay, minGapMinutes) =>
       RuleView(SchedulePattern.AsNeeded, Nil, Nil, Some(maxPerDay), Some(minGapMinutes))
-    case _: Rule.EveryNDays | _: Rule.EveryNWeeks | _: Rule.Cycle | _: Rule.IntervalFixedStart | _: Rule.Chain |
-        _: Rule.Taper | Rule.Paused =>
+    case Rule.EveryNDays(everyDays, times, anchor) =>
+      RuleView(
+        SchedulePattern.EveryNDays,
+        times.map(_.value).sorted,
+        Nil,
+        None,
+        None,
+        everyDays = Some(everyDays),
+        anchorDate = Some(anchor)
+      )
+    case Rule.Cycle(onDays, offDays, times, anchor) =>
+      RuleView(
+        SchedulePattern.Cycle,
+        times.map(_.value).sorted,
+        Nil,
+        None,
+        None,
+        onDays = Some(onDays),
+        offDays = Some(offDays),
+        anchorDate = Some(anchor)
+      )
+    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
       throw IllegalStateException(s"rule kind ${Rule.kindTag(rule)} has no representation in the API")
 
   private def weekdayOf(iso: Int): Weekday = Weekday.fromOrdinal(iso - 1)

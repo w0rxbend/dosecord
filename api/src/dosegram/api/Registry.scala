@@ -103,12 +103,12 @@ final class Registry(uow: UnitOfWork, clock: Clock):
     * materialiser uses. Nothing is written.
     */
   def preview(accountId: UUID, draft: ScheduleDraft): Either[ApiFailure, SchedulePreview] =
+    val zone = uow.transaction(zoneOf(_, accountId))
+    val now = clock.now()
+    val today = now.atZone(zone).toLocalDate
     ScheduleRules
-      .validate(draft)
+      .validate(draft, today)
       .map: rule =>
-        val zone = uow.transaction(zoneOf(_, accountId))
-        val now = clock.now()
-        val today = now.atZone(zone).toLocalDate
         val revision = ScheduleRevision(
           rule,
           zone,
@@ -153,7 +153,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
           (),
           ApiFailure.invalid("medication", "schedule_exists")
         )
-        rule <- ScheduleRules.validate(draft)
+        rule <- ScheduleRules.validate(draft, clock.now().atZone(zoneOf(tx, accountId)).toLocalDate)
         plan = AddSchedule(
           medicationId,
           rule,
@@ -174,7 +174,7 @@ final class Registry(uow: UnitOfWork, clock: Clock):
         current <- lockedSchedule(tx, accountId, id)
         _ <- currentRevision(tx, current, baseRevision)
         _ <- Either.cond(current.status == ScheduleStatus.Active, (), ApiFailure.invalid("status", "not_active"))
-        rule <- ScheduleRules.validate(draft)
+        rule <- ScheduleRules.validate(draft, clock.now().atZone(current.tz).toLocalDate)
         _ <- unchangedSince(tx, current, draft)
       yield
         lifecycle.editInTx(tx, id, rule, None, None, clock.now())

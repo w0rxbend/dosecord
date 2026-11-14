@@ -1,6 +1,7 @@
 package dosegram.core.domain
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -23,8 +24,35 @@ class EvaluatorProperties extends munit.ScalaCheckSuite:
   private val genRevision: Gen[ScheduleRevision] =
     for
       zone <- genZone
-      rule <- Gen.oneOf(ScheduleGens.genFixedTimes, ScheduleGens.genAsNeeded)
+      rule <- Gen.oneOf(
+        ScheduleGens.genFixedTimes,
+        ScheduleGens.genAsNeeded,
+        ScheduleGens.genEveryNDays,
+        ScheduleGens.genCycle
+      )
     yield ScheduleRevision(rule, zone)
+
+  private val genPeriodic: Gen[ScheduleRevision] =
+    for
+      zone <- genZone
+      rule <- Gen.oneOf(ScheduleGens.genEveryNDays, ScheduleGens.genCycle)
+    yield ScheduleRevision(rule, zone)
+
+  /** The dates a periodic rule reminds, computed independently of the evaluator by stepping day by day. */
+  private def remindedOn(rule: Rule, date: LocalDate): Boolean = rule match
+    case Rule.EveryNDays(n, _, anchor) =>
+      Iterator.iterate(anchor)(d => if date.isBefore(anchor) then d.minusDays(n.toLong) else d.plusDays(n.toLong))
+        .takeWhile(d => if date.isBefore(anchor) then !d.isBefore(date) else !d.isAfter(date))
+        .contains(date)
+    case Rule.Cycle(on, off, _, anchor) =>
+      val offset = java.time.temporal.ChronoUnit.DAYS.between(anchor, date)
+      ((offset % (on + off)) + (on + off)) % (on + off) < on
+    case _ => throw IllegalArgumentException("not a periodic rule")
+
+  private def timesOf(rule: Rule): List[dosegram.contracts.HhMm] = rule match
+    case Rule.EveryNDays(_, times, _) => times
+    case Rule.Cycle(_, _, times, _)   => times
+    case _                            => Nil
 
   property("determinism: the same revision and window always produce the same candidates"):
     forAll(genRevision, genWindow) { (revision, window) =>
@@ -71,4 +99,18 @@ class EvaluatorProperties extends munit.ScalaCheckSuite:
       val rematerialized = (first ++ second).distinctBy(c => (c.localDate, c.slotKey))
       assertEquals(second, first)
       assertEquals(rematerialized, first)
+    }
+
+  property("G9.8: a periodic rule reminds every time of exactly the dates its period selects"):
+    forAll(genPeriodic, Gen.choose(0L, 20000L)) { (revision, epochDay) =>
+      val first = LocalDate.ofEpochDay(epochDay)
+      // Two margin days on each side keep a gap-shifted instant of an edge date inside the window.
+      val dates = (2L until 38L).map(first.plusDays).toList
+      val from = first.atStartOfDay(revision.zone).toInstant
+      val to = first.plusDays(40).atStartOfDay(revision.zone).toInstant
+      val byDate = Evaluator.occurrences(revision, from, to).groupBy(_.localDate)
+      dates.foreach { date =>
+        val expected = if remindedOn(revision.rule, date) then timesOf(revision.rule).map(_.value).sorted else Nil
+        assertEquals(byDate.getOrElse(date, Nil).map(_.localTime.value).sorted, expected, clue(date))
+      }
     }

@@ -200,7 +200,7 @@ class ScheduleLifecycleSuite extends PgSuite:
     val accountId = fixtures.account()
     val result = fixtures
       .lifecycle(clock)
-      .create(CreateSchedule(accountId, "Med", Rule.EveryNDays(2, List(HhMm.unsafe("09:00"))), utc))
+      .create(CreateSchedule(accountId, "Med", Rule.EveryNWeeks(2, List(Weekday.Mon), List(HhMm.unsafe("09:00"))), utc))
     assert(result.isLeft)
     withConnection { conn =>
       given Connection = conn

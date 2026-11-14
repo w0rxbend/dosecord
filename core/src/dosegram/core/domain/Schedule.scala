@@ -32,12 +32,15 @@ final case class TaperPhase(from: LocalDate, until: LocalDate, rule: Rule) deriv
 /** Schedule rule kinds, one case per kind of DESIGN.md section 7.1, stored as jsonb on `schedule_revisions.rule` and
   * validated on every write. The enum is deliberately exhaustive from the start: `Rule.validate` and
   * `Rule.isSupportedInMvp` match on every case without a wildcard arm, so adding a case fails compilation under
-  * `-Werror` (the M1.1 negative test). Only `FixedTimes` and `AsNeeded` are accepted until M7; the remaining kinds are
-  * declared, explicitly inert, and never silently dropped.
+  * `-Werror` (the M1.1 negative test). `FixedTimes`, `AsNeeded`, and from ROADMAP G9.8 `EveryNDays` and `Cycle` are
+  * accepted; the remaining kinds are declared, explicitly inert, and never silently dropped.
+  *
+  * `EveryNDays` falls on `anchorDate` and every `everyDays`-th local date from it, in both directions. `Cycle` counts
+  * `onDays` reminded dates from `anchorDate`, then `offDays` dates without a reminder, and repeats.
   */
 enum Rule derives ReadWriter:
   case FixedTimes(slotGroups: List[SlotGroup])
-  case EveryNDays(everyDays: Int, times: List[HhMm])
+  case EveryNDays(everyDays: Int, times: List[HhMm], anchorDate: LocalDate)
   case EveryNWeeks(everyWeeks: Int, days: List[Weekday], times: List[HhMm])
   case Cycle(onDays: Int, offDays: Int, times: List[HhMm], anchorDate: LocalDate)
   case IntervalFixedStart(anchorTime: HhMm, intervalMinutes: Int, maxPerDay: Int, activeDays: List[Weekday])
@@ -55,13 +58,18 @@ enum Rule derives ReadWriter:
 
 object Rule:
 
-  /** Whether the MVP accepts the kind on schedule writes (ROADMAP M1.1: only `FixedTimes` and `AsNeeded` until M7).
-    * Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
+  /** The longest period of an every-N-days rule and of either phase of a cycle (supervisor decision, 2026-11-14). */
+  val MaxPeriodDays = 365
+
+  /** The most reminder times of one day (PRODUCT_SPEC R-SCH-2). */
+  val MaxTimesPerDay = 12
+
+  /** Whether schedule writes accept the kind: `FixedTimes` and `AsNeeded` since M1.1, `EveryNDays` and `Cycle` since
+    * ROADMAP G9.8. Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
     */
   def isSupportedInMvp(rule: Rule): Boolean = rule match
-    case _: Rule.FixedTimes | _: Rule.AsNeeded => true
-    case _: Rule.EveryNDays | _: Rule.EveryNWeeks | _: Rule.Cycle | _: Rule.IntervalFixedStart | _: Rule.Chain |
-        _: Rule.Taper | Rule.Paused =>
+    case _: Rule.FixedTimes | _: Rule.AsNeeded | _: Rule.EveryNDays | _: Rule.Cycle                     => true
+    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
       false
 
   /** Field-level validation errors for the kinds the MVP accepts. The M7 kinds below are declared for exhaustivity but
@@ -75,10 +83,12 @@ object Rule:
         Option.when(maxPerDay < 1)(s"maxPerDay must be >= 1, got $maxPerDay"),
         Option.when(minGapMinutes < 0)(s"minGapMinutes must be >= 0, got $minGapMinutes")
       ).flatten
-    // M7 gate: declared, inert until M7 (ROADMAP M1.1).
-    case _: Rule.EveryNDays         => Nil
+    case Rule.EveryNDays(everyDays, times, _) =>
+      periodErrors("everyDays", everyDays) ++ timesErrors(times)
+    case Rule.Cycle(onDays, offDays, times, _) =>
+      periodErrors("onDays", onDays) ++ periodErrors("offDays", offDays) ++ timesErrors(times)
+    // M7 gate: declared, inert until their slice (ROADMAP M1.1, G9.8).
     case _: Rule.EveryNWeeks        => Nil
-    case _: Rule.Cycle              => Nil
     case _: Rule.IntervalFixedStart => Nil
     case _: Rule.Chain              => Nil
     case _: Rule.Taper              => Nil
@@ -115,6 +125,16 @@ object Rule:
     case _: Rule.Taper              => "taper"
     case _: Rule.AsNeeded           => "as_needed"
     case Rule.Paused                => "paused"
+
+  private def periodErrors(field: String, days: Int): List[String] =
+    Option.when(days < 1 || days > MaxPeriodDays)(s"$field must be in 1..$MaxPeriodDays, got $days").toList
+
+  private def timesErrors(times: List[HhMm]): List[String] =
+    List(
+      Option.when(times.isEmpty)("at least one time is needed"),
+      Option.when(times.distinct.size != times.size)("duplicate times"),
+      Option.when(times.size > MaxTimesPerDay)(s"at most $MaxTimesPerDay times a day")
+    ).flatten
 
   private def validateFixedTimes(slotGroups: List[SlotGroup]): List[String] =
     if slotGroups.isEmpty then List("FixedTimes needs at least one slot group")

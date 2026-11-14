@@ -5,6 +5,7 @@ import dosegram.core.domain.DstKind
 import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.insights.DateRange
@@ -129,9 +130,12 @@ object ApiCopy:
         else if days.sortBy(_.ordinal) == Workdays then WizardCopy.cadenceWeekdays
         else WizardCopy.cadenceDays(days.sortBy(_.ordinal).map(_.toString))
       s"$cadence ${times.mkString(", ")}"
-    case _: Rule.AsNeeded => asNeeded
-    case _: Rule.EveryNDays | _: Rule.EveryNWeeks | _: Rule.Cycle | _: Rule.IntervalFixedStart | _: Rule.Chain |
-        _: Rule.Taper | Rule.Paused =>
+    case _: Rule.AsNeeded                          => asNeeded
+    case Rule.EveryNDays(everyDays, times, anchor) =>
+      s"${MedicationDepthCopy.everyNDays(everyDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
+    case Rule.Cycle(onDays, offDays, times, anchor) =>
+      s"${MedicationDepthCopy.cycle(onDays, offDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
+    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
       Rule.kindTag(rule)
 
   def doseText(amount: Option[BigDecimal], unit: Option[String]): Option[String] =
@@ -201,7 +205,11 @@ object Rendering:
       summary = scheduleSummary(stored.status, rule),
       maxPerDay = view.maxPerDay,
       minGapMinutes = view.minGapMinutes,
-      endDate = stored.endDate
+      endDate = stored.endDate,
+      everyDays = view.everyDays,
+      onDays = view.onDays,
+      offDays = view.offDays,
+      anchorDate = view.anchorDate
     )
 
   private def scheduleSummary(status: ScheduleStatus, rule: Rule): String =

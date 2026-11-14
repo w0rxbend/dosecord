@@ -724,6 +724,8 @@ The scheduling engine already exists and is tested: schedule rules, the evaluato
 | Every N weeks | every 2 weeks on Monday at 09:00 | `EveryNWeeks` | V1 |
 | Cycle | 21 days on, 7 days off | `Cycle` | V1 |
 | Interval from a fixed start | every 6 hours from 06:00, at most 4 per day | `IntervalFixedStart` | V1 |
+
+Every N days and cycle as built in G9.8 (supervisor decision, 2026-11-14, owner asleep). Both rules count local dates from an anchor date: every N days falls on the anchor and on every N-th date from it; a cycle reminds on its days on from the anchor, then rests for its days off, and repeats. The anchor defaults to the start date, else the day the schedule is made, and the review text names it ("every other day from Mon 16 Nov 09:00", "21 days on, 7 days off from Mon 16 Nov 09:00"). N, the days on and the days off are each 1 to 365. The times follow the rules of fixed times (R-SCH-2), with the same slot key, so a daylight-saving gap or fold is resolved as R-SCH-13 says. Every N weeks and the interval from a fixed start stay unbuilt.
 | Interval after each dose | 8 hours after the previous dose was taken | `Chain` | V2 |
 | Taper | week 1: 2 tablets, week 2: 1 tablet | `Taper` | V2 |
 

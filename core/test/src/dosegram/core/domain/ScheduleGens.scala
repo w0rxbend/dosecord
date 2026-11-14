@@ -37,7 +37,8 @@ object ScheduleGens:
   val genFixedTimes: Gen[Rule.FixedTimes] =
     Gen.choose(1, 3).flatMap(Gen.listOfN(_, genSlotGroup)).map(Rule.FixedTimes.apply)
   val genAsNeeded: Gen[Rule.AsNeeded] = Gen.zip(Gen.choose(1, 12), Gen.choose(0, 720)).map(Rule.AsNeeded.apply)
-  val genEveryNDays: Gen[Rule.EveryNDays] = Gen.zip(Gen.choose(1, 90), genTimes).map(Rule.EveryNDays.apply)
+  val genEveryNDays: Gen[Rule.EveryNDays] =
+    Gen.zip(Gen.choose(1, 90), genTimes, genLocalDate).map(Rule.EveryNDays.apply)
   val genEveryNWeeks: Gen[Rule.EveryNWeeks] =
     Gen.zip(Gen.choose(1, 12), genDays, genTimes).map(Rule.EveryNWeeks.apply)
   val genCycle: Gen[Rule.Cycle] =

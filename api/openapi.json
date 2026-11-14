@@ -6636,6 +6636,22 @@
           "endDate" : {
             "type" : "string",
             "format" : "date"
+          },
+          "everyDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "offDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "anchorDate" : {
+            "type" : "string",
+            "format" : "date"
           }
         }
       },
@@ -6684,6 +6700,22 @@
             "format" : "date"
           },
           "endDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "everyDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "onDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "offDays" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "anchorDate" : {
             "type" : "string",
             "format" : "date"
           }
@@ -6739,6 +6771,8 @@
         "type" : "string",
         "enum" : [
           "as_needed",
+          "cycle",
+          "every_n_days",
           "fixed_times"
         ]
       },

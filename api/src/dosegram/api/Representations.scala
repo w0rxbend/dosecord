@@ -33,6 +33,8 @@ object ScheduleState:
 enum SchedulePattern(val wire: String):
   case FixedTimes extends SchedulePattern("fixed_times")
   case AsNeeded extends SchedulePattern("as_needed")
+  case EveryNDays extends SchedulePattern("every_n_days")
+  case Cycle extends SchedulePattern("cycle")
 
 object SchedulePattern:
   given ReadWriter[SchedulePattern] = ApiJson.wireEnum(values, _.wire)
@@ -141,7 +143,8 @@ final case class MedicationOptions(doseUnits: List[String], limits: Limits) deri
 
 /** A schedule as the builder edits it. `weekdays` are ISO numbers, 1 is Monday; an empty list means every day.
   * `fixed_times` needs `times`; `as_needed` takes `maxPerDay` and `minGapMinutes`. The dates are set when a schedule is
-  * created and cannot be changed by a revision.
+  * created and cannot be changed by a revision. `every_n_days` needs `times` and `everyDays`; `cycle` needs `times`,
+  * `onDays` and `offDays`; both count from `anchorDate`, which defaults to the start date, else today (ROADMAP G9.8).
   */
 final case class ScheduleDraft(
     pattern: SchedulePattern,
@@ -150,7 +153,11 @@ final case class ScheduleDraft(
     maxPerDay: Option[Int] = None,
     minGapMinutes: Option[Int] = None,
     startDate: Option[LocalDate] = None,
-    endDate: Option[LocalDate] = None
+    endDate: Option[LocalDate] = None,
+    everyDays: Option[Int] = None,
+    onDays: Option[Int] = None,
+    offDays: Option[Int] = None,
+    anchorDate: Option[LocalDate] = None
 ) derives ReadWriter,
       Schema
 
@@ -167,7 +174,11 @@ final case class Schedule(
     summary: String,
     maxPerDay: Option[Int] = None,
     minGapMinutes: Option[Int] = None,
-    endDate: Option[LocalDate] = None
+    endDate: Option[LocalDate] = None,
+    everyDays: Option[Int] = None,
+    onDays: Option[Int] = None,
+    offDays: Option[Int] = None,
+    anchorDate: Option[LocalDate] = None
 ) derives ReadWriter,
       Schema
 
