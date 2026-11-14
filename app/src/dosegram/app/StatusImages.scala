@@ -6,6 +6,7 @@ import dosegram.adapter.telegram.MediaStore
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.nutrition.MealType
@@ -50,6 +51,7 @@ import dosegram.render.card.WaterProgress
 import dosegram.render.card.WeekCard
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.resvg.ResvgConfig
 import dosegram.render.resvg.ResvgRasteriser
 import dosegram.render.svg.SvgEmitter
@@ -264,12 +266,17 @@ object RenderedStatusCards:
     val theme = look.theme match
       case ImageTheme.Light                  => Theme.Light
       case ImageTheme.Dark | ImageTheme.Auto => Theme.Dark
-    CardContext(theme, if look.isDiscreet then Privacy.Discreet else Privacy.Aggregate, EnglishImageCopy, fitter)
+    val copy = Lang.current match
+      case Lang.En => EnglishImageCopy
+      case Lang.Uk => UkrainianImageCopy
+    CardContext(theme, if look.isDiscreet then Privacy.Discreet else Privacy.Aggregate, copy, fitter)
 
   /** Theme and privacy are part of every cache key (VISUALS section 3.3.3). */
   private def keyOf(context: CardContext): String =
     val theme = context.theme.toString.toLowerCase(java.util.Locale.ROOT)
-    if context.privacy == Privacy.Discreet then s"$theme.discreet" else theme
+    // The words are part of a shared card, so a language other than English is part of its key (ROADMAP G2.22).
+    val language = if context.copy == EnglishImageCopy then theme else s"$theme.${Lang.current.code}"
+    if context.privacy == Privacy.Discreet then s"$language.discreet" else language
 
   private def mainMealOf(mealType: MealType): MainMeal =
     mealType match

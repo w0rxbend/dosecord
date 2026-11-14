@@ -62,7 +62,7 @@ object SleepRegularityCard:
       val look = TextLook(TextStyle.Label, frame.tokens.ink2, Align.Start, TextKind.Axis)
       val labelAt = Point(frame.left + PanelPadPx, plot.rowCentre(index) + 14)
       val label = frame.text(copy.sleepRowDate(date), labelAt, look, LabelColumn - 8)
-      label +: sleep.bars.filter(_.date == date).map(bar => barNode(bar, plot, index, frame))
+      label +: sleep.bars.filter(_.date == date).map(bar => barNode(bar, plot, index, frame, copy.sleepNapLetter))
     }
     val typical = (sleep.typicalBedtime.toVector ++ sleep.typicalWake.toVector).map { clock =>
       val x = plot.x(Math.floorMod(clock - AxisStartMinute, DayMinutes))
@@ -84,7 +84,7 @@ object SleepRegularityCard:
     val text = TextEquivalent.of(copy.sleepText(sleep), copy.sleepDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-sleep.png", context.privacy == Privacy.Discreet)
 
-  private def barNode(bar: SleepNightBar, plot: Plot, index: Int, frame: CardFrame): Node =
+  private def barNode(bar: SleepNightBar, plot: Plot, index: Int, frame: CardFrame, napLetter: String): Node =
     val height = if bar.isNap then NapBarPx else NightBarPx
     val centre = plot.rowCentre(index)
     val box = Box(
@@ -95,7 +95,12 @@ object SleepRegularityCard:
     )
     val shape = Node.filledRect(box, height / 2, frame.tokens.dusk)
     if bar.isNap then
-      val mark = frame.text("n", Point(box.right + 8, centre + 14), frame.look(TextStyle.Label, frame.tokens.ink2), 40)
+      val mark = frame.text(
+        napLetter,
+        Point(box.right + 8, centre + 14),
+        frame.look(TextStyle.Label, frame.tokens.ink2),
+        40
+      )
       Node.Mark(MarkMeta("sleep.nap", Set(Channel.Colour, Channel.Position, Channel.Label)), Vector(shape, mark))
     else Node.Mark(MarkMeta("sleep.night", Set(Channel.Colour, Channel.Position)), Vector(shape))
 

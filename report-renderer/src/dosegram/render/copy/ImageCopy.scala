@@ -74,6 +74,9 @@ trait ImageCopy:
   def mainMeal(meal: MainMeal): String
   def snacksLabel: String
   def snackCount(count: Int): String
+
+  /** The value under the snacks label of the food card, which has room for a short word. */
+  def snackSlot(count: Int): String
   def foodSummary(food: FoodDayData): String
   def foodText(food: FoodDayData): String
   def foodDiscreet: String
@@ -132,6 +135,9 @@ trait ImageCopy:
   def sleepSpread(bedtimeMinutes: Int, wakeMinutes: Int): String
   def sleepEntriesMark: String
   def sleepNapMark: String
+
+  /** The letter beside a nap bar, which the legend explains (VA-ID-04: no word in a template). */
+  def sleepNapLetter: String
   def sleepTypicalMark: String
   def sleepGoal(minutes: Int): String
   def sleepNoNights: String

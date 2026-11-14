@@ -40,7 +40,7 @@ object FoodDayCard:
       Slot(copy.mainMeal(MainMeal.Breakfast), food.mains.get(MainMeal.Breakfast).map(copy.time), quadrant = 3),
       Slot(copy.mainMeal(MainMeal.Lunch), food.mains.get(MainMeal.Lunch).map(copy.time), quadrant = 0),
       Slot(copy.mainMeal(MainMeal.Dinner), food.mains.get(MainMeal.Dinner).map(copy.time), quadrant = 2),
-      Slot(copy.snacksLabel, Option.when(food.snacks > 0)(copy.snackCount(food.snacks)), quadrant = 1)
+      Slot(copy.snacksLabel, Option.when(food.snacks > 0)(copy.snackSlot(food.snacks)), quadrant = 1)
     )
     val summaryLook = TextLook(TextStyle.Value, frame.tokens.ink, Align.Middle, TextKind.Value)
     val nodes = frame.header(copy.foodTitle, copy.dayDate(food.date))

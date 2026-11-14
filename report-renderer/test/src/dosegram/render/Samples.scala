@@ -6,6 +6,7 @@ import dosegram.render.card.*
 import dosegram.render.chart.DoseStatus
 import dosegram.render.chart.DoseStatus.*
 import dosegram.render.copy.EnglishImageCopy
+import dosegram.render.copy.ImageCopy
 import dosegram.render.copy.GoalDays as GoalDaysOf
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
@@ -32,7 +33,8 @@ object Samples:
   val HostileName =
     "<script>alert(\"x\")</script> & 'Ωmega' ‮evil⁦ \u0007 🚀 שלום مرحبا — a name that goes on and on and on and on"
 
-  def context(theme: Theme, privacy: Privacy): CardContext = CardContext(theme, privacy, EnglishImageCopy, Fitter)
+  def context(theme: Theme, privacy: Privacy, copy: ImageCopy = EnglishImageCopy): CardContext =
+    CardContext(theme, privacy, copy, Fitter)
 
   private val Today = LocalDate.of(2026, 11, 12)
 

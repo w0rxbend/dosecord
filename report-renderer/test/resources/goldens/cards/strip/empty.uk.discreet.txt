@@ -1,0 +1,5 @@
+file: dosegram-medication-days.png
+spoiler: true
+caption: За ліками.
+alt: 2–8 листопада. За ці дні записів про ліки немає.
+full: 2–8 листопада. За ці дні записів про ліки немає.

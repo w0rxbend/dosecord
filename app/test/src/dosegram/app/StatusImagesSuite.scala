@@ -9,6 +9,7 @@ import dosegram.adapter.telegram.WireRequest
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
@@ -100,6 +101,21 @@ class StatusImagesSuite extends munit.FunSuite:
       Right(PngImage(IArray.unsafeFromArray(s"png:${svg.hashCode}".getBytes(UTF_8))))
 
   private val chat = dosegram.contracts.ChatRef("telegram", "7001")
+
+  test("a card laid out in Ukrainian is drawn with the Ukrainian words and cached apart from the English one (G2.22)"):
+    val rasteriser = CountingRasteriser()
+    val rig = Rig(rasteriser)
+    val english = rig.images.cards.water(water, light).get
+    val ukrainian = Lang.within(Lang.Uk)(rig.images.cards.water(water, light)).get
+    assert(english.altText.contains("1.25 of 2.0 l"), english.altText)
+    assert(ukrainian.altText.contains("1,25 з 2,0 л"), ukrainian.altText)
+    assert(ukrainian.svg.contains("Вода"), "the image itself is in Ukrainian")
+    // The mood card is shared between accounts by its state: the language is part of the key.
+    val view = MoodCardView(pleasant, None)
+    val englishMood = rig.images.cards.mood(view, light).get
+    val ukrainianMood = Lang.within(Lang.Uk)(rig.images.cards.mood(view, light)).get
+    assertNotEquals(ukrainianMood.sharedKey, englishMood.sharedKey)
+    assert(ukrainianMood.altText.contains("Приємно"), ukrainianMood.altText)
 
   test("a drawing that runs past a second shows the photo upload status in its chat, once (VISUALS VA-FB-02)"):
     val shown = java.util.concurrent.ConcurrentLinkedQueue[dosegram.contracts.ChatRef]()
