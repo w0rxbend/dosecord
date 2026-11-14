@@ -12,15 +12,21 @@
 #      than the code may have pending migrations; those are allowed);
 #   6. removes the container and the key material, whatever the outcome.
 #
+#   7. with PURGE_LIST_FILE, counts the accounts of the purge list that the
+#      restored backup still holds: the replay at the first start of the
+#      application (`dosegram migrate`) deletes them again before anything
+#      serves (ARCHITECTURE SEC-16); PurgeReplayPgSuite tests that replay on a
+#      backup restored the same way.
+#
 # Usage: scripts/restore-drill.sh BACKUP_FILE
 # Settings (environment):
 #   BACKUP_GPG_PRIVATE_KEY_FILE   the backup private key, armoured
 #   BACKUP_GPG_PASSPHRASE_FILE    its passphrase, when it has one
+#   PURGE_LIST_FILE               the live purge list (PURGE_LIST_PATH), optional
 #
 # It never connects to any database but the one it starts. Prints table names
-# and counts only. Not yet part of it: the replay of the purge list, which
-# arrives with account deletion (G2.17), and the decryption of a canary
-# account, which arrives with field encryption (G2.4b).
+# and counts only. Not yet part of it: the decryption of a canary account
+# (G2.4b).
 set -euo pipefail
 # shellcheck source=scripts/ops-lib.sh
 . "$(dirname "$0")/ops-lib.sh"
@@ -111,4 +117,18 @@ docker run --rm --network host \
 }
 version="$(drill_sql "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1")"
 echo "restore-drill: flyway validate ok at V$version"
+
+if [ -n "${PURGE_LIST_FILE:-}" ]; then
+  [ -r "$PURGE_LIST_FILE" ] || die "cannot read $PURGE_LIST_FILE"
+  listed=0
+  present=0
+  while read -r _ account; do
+    [ -n "${account:-}" ] || continue
+    [[ "$account" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+      die "the purge list holds a line that is not an instant and an account id"
+    listed=$((listed + 1))
+    present=$((present + $(drill_sql "SELECT count(*) FROM users WHERE id = '$account'")))
+  done <"$PURGE_LIST_FILE"
+  echo "restore-drill: purge list: $present of $listed listed account(s) in this backup; the first start replays the list and deletes them"
+fi
 echo "restore-drill: PASS"

@@ -27,8 +27,16 @@ final class Deletions(clock: Clock, ids: IdSource, purgeList: PurgeList):
     * keep the tombstone.
     */
   def account(tx: Tx, accountId: UUID, channel: AuditChannel): ErasureReceipt =
+    purgeList.append(accountId, clock.now())
+    erase(tx, accountId, channel)
+
+  /** The account deletion once more, for an account the purge list holds and a restored database still has: the same
+    * erasure, receipt and audit rows, without listing the account again.
+    */
+  def replay(tx: Tx, accountId: UUID): ErasureReceipt = erase(tx, accountId, AuditChannel.Scheduler)
+
+  private def erase(tx: Tx, accountId: UUID, channel: AuditChannel): ErasureReceipt =
     val now = clock.now()
-    purgeList.append(accountId, now)
     val tombstone = ids.next(now)
     val receipt = tx.erasure.eraseAccount(accountId, tombstone, now)
     tx.auditLog.record(

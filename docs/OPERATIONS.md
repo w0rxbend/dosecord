@@ -122,8 +122,11 @@ scripts/restore-drill.sh /path/to/dosegram-20261114T031500Z.dump.gpg
 
 It checks the `.sha256` when it lies next to the backup, restores, compares the rows of every table
 with the rows the dump carries, and runs `flyway validate` with the repository's migrations
-(migrations newer than the backup are allowed). It ends with `restore-drill: PASS`. Not checked
-yet: the replay of the purge list (G2.17) and the decryption of a canary account (G2.4b).
+(migrations newer than the backup are allowed). With `PURGE_LIST_FILE=<copy of the live purge
+list>` it also counts the deleted accounts the backup still holds
+(`restore-drill: purge list: N of M listed account(s) in this backup`): those are the accounts the
+first start of a real restore deletes again (section 6). It ends with `restore-drill: PASS`. Not
+checked yet: the decryption of a canary account (G2.4b).
 
 `scripts/test-ops-scripts.sh` runs the backup, the drill and the live smoke report end to end on
 throwaway databases; CI runs it in the job `ops-scripts`.
@@ -136,9 +139,15 @@ unattended:
 
 1. Stop the bot. Keep the old database volume; never drop it.
 2. Restore the chosen backup into a new database with `pg_restore --no-owner`, after creating the
-   roles `dosegram_app` and `dosegram_erasure`, as `scripts/restore-drill.sh` does.
-3. Run `scripts/live-smoke.sh` against it and read the due outbox rows before the bot starts.
-4. Start the bot on the new database; it applies newer migrations at start.
+   roles `dosegram_app` and `dosegram_erasure`, as `scripts/restore-drill.sh` does, and check that
+   the login role may take `dosegram_erasure` (step 3 of section 8).
+3. Run `dosegram migrate` against it with the live `PURGE_LIST_PATH` and `KEK_FILE`. It applies newer
+   migrations and then replays the purge list: every account deleted since the backup was taken is
+   deleted again, with a new deletion receipt and audit row (`purge: replayed N deletion(s) of the
+   purge list`). Every start replays the list too, so a start without this step still deletes them
+   before it serves; a replay that cannot delete (no erasure role) stops the start.
+4. Run `scripts/live-smoke.sh` against it and read the due outbox rows before the bot starts.
+5. Start the bot on the new database.
 
 ## 7. Secret scanning
 

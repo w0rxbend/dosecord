@@ -39,7 +39,9 @@ PGHOST=127.0.0.1 PGPORT="$port" "$repo/scripts/flyway-validate.sh" >"$work/flywa
   { cat "$work/flyway.log" >&2; exit 1; }
 
 export PGHOST=127.0.0.1 PGPORT="$port" PGUSER=dosegram PGPASSWORD=dosegram PGDATABASE=dosegram
+deleted_account=0b0b0b0b-0000-4000-8000-000000000001
 psql_at "
+  INSERT INTO users (id, status) VALUES ('$deleted_account', 'active');
   INSERT INTO worker_heartbeat (instance, role, last_tick_at) VALUES ('ops-test', 'all', now());
   INSERT INTO outbox_messages (id, send_key, op, kind, vendor, importance, payload, status, next_attempt_at,
                                attempted_at, sent_at, last_error)
@@ -98,6 +100,15 @@ else
   fail "restore-drill.sh failed: $(cat "$work/drill.log")"
 fi
 if grep -q "$canary" "$work/drill.log"; then fail "the drill printed user data"; else pass "the drill printed no user data"; fi
+printf '2026-11-14T08:00:00Z %s\n2026-11-14T08:01:00Z %s\n' "$deleted_account" \
+  0b0b0b0b-0000-4000-8000-000000000002 >"$work/purge-list.txt"
+if BACKUP_GPG_PRIVATE_KEY_FILE="$work/backup.key.asc" PURGE_LIST_FILE="$work/purge-list.txt" \
+  "$repo/scripts/restore-drill.sh" "$dump" >"$work/drill-purge.log" 2>&1 &&
+  grep -q 'restore-drill: purge list: 1 of 2 listed account(s) in this backup' "$work/drill-purge.log"; then
+  pass "restore-drill.sh counts the listed accounts the backup still holds"
+else
+  fail "restore-drill.sh with a purge list: $(cat "$work/drill-purge.log")"
+fi
 cp "$dump" "$work/tampered.dump.gpg"
 echo "0000000000000000000000000000000000000000000000000000000000000000  tampered.dump.gpg" >"$work/tampered.dump.gpg.sha256"
 if BACKUP_GPG_PRIVATE_KEY_FILE="$work/backup.key.asc" \

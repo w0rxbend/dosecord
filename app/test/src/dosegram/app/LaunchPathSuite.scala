@@ -254,6 +254,31 @@ class LaunchPathSuite extends PgSuite:
       assert(rig.messages(2).contains(WizardCopy.setupCancelled), rig.messages(2))
       assertEquals(count("conversation_sessions"), 0)
 
+  test("dosegram migrate replays the purge list: an account it lists and the database holds is deleted again"):
+    val account = fixtures.account()
+    val purgeFile = java.nio.file.Files.createTempFile("purge-list", ".txt")
+    java.nio.file.Files.writeString(purgeFile, s"2026-11-14T08:00:00Z $account\n")
+    val child = ChildJvm.start(
+      "dosegram.app.Main",
+      List("migrate"),
+      Map(
+        "ENABLED_ADAPTERS" -> "console",
+        "CONSOLE_USER_ID" -> LaunchRig.ConsoleUser,
+        "DATABASE_URL" -> databaseUrl,
+        "CALLBACK_KEYS" -> callbackKey,
+        "ENVIRONMENT" -> "test",
+        "INSTANCE_ID" -> "launch-purge",
+        "LOG_FORMAT" -> "plain",
+        "PURGE_LIST_PATH" -> purgeFile.toString
+      )
+    )
+    assertEquals(child.exitCode(within = 60.seconds), Some(0), s"output:\n${child.output}")
+    assert(child.output.contains("purge: replayed 1 deletion(s) of the purge list"), child.output)
+    assertEquals(withConnection { conn =>
+      given java.sql.Connection = conn
+      sql"SELECT count(*) FROM users WHERE id = $account".queryOne[Int]()
+    }, Some(0))
+
   // The console's per-chat token bucket holds 5 sends and refills 1 per second (TokenBuckets.Default), so one batch
   // of 14 due reminders stays in flight for about 9 s after the fifth is printed. SIGTERM lands in the middle of it,
   // and the batch outlasts the stop of the HTTP edge (about 4 s), so it is still in flight when claiming stops.
