@@ -92,8 +92,14 @@ object E2eSeed:
     val conn = dataSource.getConnection
     try
       given Connection = conn
-      sql"""INSERT INTO platform_identities (id, user_id, vendor, vendor_user_id, linked_at)
-            VALUES (${UUID.randomUUID()}, $accountId, 'telegram', ${telegramUserId.toString}, ${Clock.system.now()})"""
+      // As onboarding leaves it: the identity with its private chat, and the chat as the primary channel, where a
+      // confirmation the app asks for is sent (MINI_APP 8.8).
+      val identityId = UUID.randomUUID()
+      sql"""INSERT INTO platform_identities (id, user_id, vendor, vendor_user_id, dm_channel_id, linked_at)
+            VALUES ($identityId, $accountId, 'telegram', ${telegramUserId.toString}, ${telegramUserId.toString},
+                    ${Clock.system.now()})""".execute()
+      sql"""INSERT INTO delivery_channels (id, account_id, platform_identity_id, role, priority, state, updated_at)
+            VALUES (${UUID.randomUUID()}, $accountId, $identityId, 'primary', 0, 'healthy', ${Clock.system.now()})"""
         .execute()
     finally conn.close()
     val times = List(HhMm.unsafe("09:00"), HhMm.unsafe("21:00"))

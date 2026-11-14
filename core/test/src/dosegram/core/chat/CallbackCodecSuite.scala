@@ -277,7 +277,14 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         255 -> "take.limit_cancel",
         // The language choice (ROADMAP G2.22).
         270 -> "language.open",
-        271 -> "language.set"
+        271 -> "language.set",
+        300 -> "privacy.delete_menu",
+        301 -> "privacy.delete_domain_ask",
+        302 -> "privacy.delete_domain",
+        303 -> "privacy.keep",
+        304 -> "privacy.delete_account_ask",
+        305 -> "privacy.delete_account_confirm",
+        306 -> "privacy.delete_account"
       )
     )
 

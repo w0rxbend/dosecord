@@ -473,6 +473,7 @@ private object MedicationWizardRig:
           // An export skips a member the trait already defines, so the group with a default is forwarded by hand.
           override def reminders: ReminderRepositories = tx.reminders
           override def reports: ReportQueue = tx.reports
+          override def auditLog: AuditLog = tx.auditLog
           override val inboundEvents: InboundEventRepository = new InboundEventRepository:
             export inbound.complete
             override def insert(event: NewInboundEvent): Boolean =

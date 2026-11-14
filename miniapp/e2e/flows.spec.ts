@@ -2,7 +2,7 @@
 // the app as Telegram would and fails on any policy violation, page error or foreign request (support/fixture.ts).
 import { expect, test } from './support/fixture';
 import { gotoPastNetworkChange, routeTo } from './support/navigation';
-import { chrome, pressBackButton, pressMainButton } from './support/telegram';
+import { answerPopup, chrome, pressBackButton, pressMainButton } from './support/telegram';
 
 const MEDICATION = 'Vitamin D';
 
@@ -209,6 +209,21 @@ test('reminders: a preset is turned on, then off again; the language is switched
   const toEnglish = page.waitForResponse((r) => r.url().endsWith('/api/v1/settings') && r.request().method() === 'PATCH');
   await page.getByRole('combobox', { name: 'Мова' }).selectOption('en');
   expect((await toEnglish).status()).toBe(200);
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+
+  // Deletion (MA-SET-7, ROADMAP G2.17): a danger button, a native confirmation, then the confirmation in the chat
+  // (MA-STEP-1). The suite shares one account, so only the request of one area is made, and it deletes nothing
+  // before the tap in the chat.
+  await page.getByRole('link', { name: /^Delete data/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Delete data' })).toBeVisible();
+  await page.getByLabel('Mood').check();
+  await page.getByRole('button', { name: "Delete this area's data" }).click();
+  await expect.poll(async () => (await chrome(page)).popups.at(-1)).toBe('Delete all mood records? This cannot be undone.');
+  const deletion = page.waitForResponse((r) => r.url().endsWith('/api/v1/domains/mood/data'));
+  await answerPopup(page, 'delete');
+  expect((await deletion).status()).toBe(202);
+  await expect(page.getByRole('status').filter({ hasText: 'Confirm in your chat with Dosegram' })).toBeVisible();
+  await pressBackButton(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
 
   await page.getByRole('link', { name: /^Export everything/ }).click();

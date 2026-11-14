@@ -3,6 +3,9 @@ package dosegram.core.application.exports
 import dosegram.contracts.OutboundMessage
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.LocalDays
+import dosegram.core.ports.AuditChannel
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ExportJob
 import dosegram.core.ports.ExportKind
@@ -49,7 +52,7 @@ final class ExportRequests(clock: Clock, ids: IdSource, messages: ExportMessages
   import ExportRequests.*
 
   def fromChat(tx: Tx, accountId: UUID, order: ExportOrder): Either[ExportRefusal, ExportJob] =
-    create(tx, accountId, order, ExportStatus.Queued)
+    create(tx, accountId, order, ExportStatus.Queued).map(audited(tx, _, AuditChannel.Bot))
 
   /** The request of the Mini App and its confirmation message in the account's chat. Without a chat to confirm in, the
     * request stays waiting and ends after the confirmation window.
@@ -57,7 +60,17 @@ final class ExportRequests(clock: Clock, ids: IdSource, messages: ExportMessages
   def fromApp(tx: Tx, accountId: UUID, order: ExportOrder): Either[ExportRefusal, ExportJob] =
     create(tx, accountId, order, ExportStatus.AwaitingConfirmation).map: job =>
       ExportRequests.enqueue(tx, ids, accountId, messages.confirmation(job), s"export:${job.id}:confirm", clock.now())
-      job
+      tx.auditLog.record(
+        AuditEvent.byUser(
+          AuditEventType.StepUpRequested,
+          accountId,
+          "export",
+          Some(job.id),
+          "export",
+          AuditChannel.MiniApp
+        )
+      )
+      audited(tx, job, AuditChannel.MiniApp)
 
   /** The record summary of the last `days` days in the account's zone, today included. */
   def lastDays(tx: Tx, accountId: UUID, days: Int): Either[ExportRefusal, ExportOrder] =
@@ -85,6 +98,13 @@ final class ExportRequests(clock: Clock, ids: IdSource, messages: ExportMessages
       _ <- zoneOf(tx, accountId)
       _ <- withinLimit(tx, accountId, now)
     yield tx.exports.create(NewExportJob(ids.next(now), accountId, order.kind, order.period, status, now))
+
+  /** `data.export.requested` (research brief 06 section 10.3), on the transaction of the request. */
+  private def audited(tx: Tx, job: ExportJob, channel: AuditChannel): ExportJob =
+    tx.auditLog.record(
+      AuditEvent.byUser(AuditEventType.ExportRequested, job.accountId, "export", Some(job.id), "export", channel)
+    )
+    job
 
   private def withinLimit(tx: Tx, accountId: UUID, now: Instant): Either[ExportRefusal, Unit] =
     val requested = tx.exports.requestedSince(accountId, now.minus(Window))

@@ -1,6 +1,7 @@
 // In-memory backend for browser development and tests. It must not ship (MA-TEST-2).
 import { ApiError, type ApiClient, type FieldError } from '../api/client';
 import type {
+  DeletionRequest,
   ExportItem,
   InventoryView,
   Medication,
@@ -425,6 +426,20 @@ export class MockBackend implements ApiClient {
   // ---------- exports (MINI_APP S-14) ----------
 
   exports: ApiClient['exports'] = () => this.respond('exports', () => [...this.exportItems]);
+
+  /** The deletion requests the app sent (MA-SET-7): each waits for its confirmation in the chat. */
+  deletionRequests: readonly string[] = [];
+
+  requestAccountDeletion: ApiClient['requestAccountDeletion'] = () =>
+    this.respond('deletion:account', () => this.deletionSent('account'));
+
+  requestDomainDeletion: ApiClient['requestDomainDeletion'] = (domain) =>
+    this.respond('deletion:domain', () => this.deletionSent(domain));
+
+  private deletionSent(target: string): DeletionRequest {
+    this.deletionRequests = [...this.deletionRequests, target];
+    return { status: 'confirmation_sent', expiresAt: new Date(this.now().getTime() + 600_000).toISOString() };
+  }
 
   exportItem: ApiClient['exportItem'] = (id) => this.respond('exports:item', () => this.findExport(id));
 

@@ -149,4 +149,6 @@ object ConsentApiSuite:
       Set("getInsightMonth", "listInsightCorrelations") ++
       // The export is the right of access to every record, whatever is turned on (PRODUCT_SPEC R-IMX-1); the record
       // summary leaves out a domain without its consent (ExportChatPgSuite).
-      ExportEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))
+      ExportEndpoints.documented.flatMap(_.info.name).toSet ++
+      // Deleting is the right of every account, whatever is turned on (PRODUCT_SPEC R-IDC-19, R-IDC-20).
+      DeletionEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

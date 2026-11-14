@@ -5,7 +5,9 @@ import dosegram.core.chat.Flow
 import dosegram.core.chat.FlowContext
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.Clock
+import dosegram.core.ports.SettingsAudit
 import dosegram.core.scheduling.ScheduleLifecycle
 
 import java.time.ZoneId
@@ -36,6 +38,7 @@ object AccountTimezoneFlow:
         val zoneId = data(AccountCreateFlow.TimezoneKey)
         val now = clock.now()
         ctx.tx.accounts.setTimezone(account.uuid, zoneId, now)
+        ctx.tx.auditLog.record(SettingsAudit.changed(account.uuid, AuditChannel.Bot, List("timezone")))
         lifecycle.rezoneFollowingSchedulesInTx(ctx.tx, account.uuid, ZoneId.of(zoneId), now)
         val local = now.atZone(ZoneId.of(zoneId))
         Reply(

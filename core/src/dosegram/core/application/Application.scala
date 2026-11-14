@@ -12,6 +12,10 @@ import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
 import dosegram.core.application.medication.MedicationDepthChat
 import dosegram.core.application.menu.MenuHandler
+import dosegram.core.application.privacy.DeletionRequests
+import dosegram.core.application.privacy.Deletions
+import dosegram.core.application.privacy.PrivacyChat
+import dosegram.core.application.privacy.PrivacyMessages
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
 import dosegram.core.chat.CallbackCodec
@@ -19,9 +23,14 @@ import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.Flow
 import dosegram.core.chat.WizardEngine
 import dosegram.core.ports.Clock
+import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.scheduling.ScheduleLifecycle
+
+import java.security.SecureRandom
+import java.util.UUID
 
 /** The handler composition (DESIGN.md sections 3 and 4.6 step 6): the identity gate in front of the [[WizardEngine]] —
   * which owns the account-create, add-medication and account-timezone flows' sessions — in front of the M1.10
@@ -54,7 +63,13 @@ object Application:
     val menu = new MenuHandler(codec, clock, lifecycle, inner = help)
     val reminders = new RemindersHandler(codec, clock, Application.reminderSettings(clock), capture, inner = menu)
     val exports = ExportChat(clock, exportRequests(clock, codec), ExportMessages(codec), inner = reminders)
-    val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = exports))
+    // Deletion (ROADMAP G2.17, G5.7): the deletion menu and its confirmations; a domain deletion withdraws the consent
+    // and stops what it kept running, as a withdrawal from /privacy does.
+    val deletions = Deletions(clock, IdSource.uuidV7(SecureRandom()), capture.purgeList)
+    val stopMedication = (tx: Tx, account: UUID, purpose: ConsentPurpose) =>
+      if purpose == ConsentPurpose.Medication then capture.withdrawal.stop(tx, account, clock.now())
+    val privacy = PrivacyChat(clock, deletions, PrivacyMessages(codec), stopMedication, inner = exports)
+    val dose = new DoseIntakeHandler(codec, clock, inner = new CaptureHandler(codec, clock, capture, inner = privacy))
     // Medication depth (ROADMAP G9.10, G9.12): refill and pause taps, and the question before an as-needed log above
     // the user's own limit, ahead of the dose handler that records the log.
     val depth = MedicationDepthChat(codec, clock, lifecycle, capture, inner = dose)
@@ -73,6 +88,10 @@ object Application:
   /** The export requests, as the chat and the Mini App API share them (ROADMAP G3.10). */
   def exportRequests(clock: Clock, codec: CallbackCodec): ExportRequests =
     ExportRequests(clock, IdSource.uuidV7(java.security.SecureRandom()), ExportMessages(codec))
+
+  /** The deletion requests of the Mini App, which send their confirmation into the chat (ROADMAP G2.17). */
+  def deletionRequests(clock: Clock, codec: CallbackCodec): DeletionRequests =
+    DeletionRequests(clock, IdSource.uuidV7(SecureRandom()), PrivacyMessages(codec))
 
   /** The settings use cases of the prompts, as the handler and the prompt loop share them (ADR-023). */
   def reminderSettings(clock: Clock): ReminderSettings =

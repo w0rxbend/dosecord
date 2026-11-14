@@ -79,6 +79,13 @@ object ExportCoverage:
          FROM export_jobs WHERE account_id = ? ORDER BY created_at, id"""
     ),
     "export_download_tickets" -> Coverage.Excluded("hashes of download tickets"),
+    // The audit rows about the account (ROADMAP G2.16): codes and outcomes only, part of the access history.
+    "audit_log" -> Coverage.Selected(
+      """SELECT id, occurred_at, event_type, actor_type, object_type, object_id, action, outcome, reason_code, channel,
+                changed_fields
+         FROM audit_log WHERE subject_ref = ? ORDER BY occurred_at, id"""
+    ),
+    "deletion_receipts" -> Coverage.Excluded("receipts of deletions: a tombstone and counts, no account"),
     "flyway_schema_history" -> Coverage.Excluded("the migration history of the schema; no account")
   )
 end ExportCoverage

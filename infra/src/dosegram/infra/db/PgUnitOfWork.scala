@@ -1,6 +1,7 @@
 package dosegram.infra.db
 
 import dosegram.core.ports.AccountRepository
+import dosegram.core.ports.AuditLog
 import dosegram.core.ports.AuditRepository
 import dosegram.core.ports.CallbackSlotRepository
 import dosegram.core.ports.Clock
@@ -9,6 +10,7 @@ import dosegram.core.ports.DeliveryChannelRepository
 import dosegram.core.ports.DomainEventRepository
 import dosegram.core.ports.DoseActionRepository
 import dosegram.core.ports.DoseHistoryRepository
+import dosegram.core.ports.ErasureRepository
 import dosegram.core.ports.ExportRepository
 import dosegram.core.ports.FormRunRepository
 import dosegram.core.ports.HydrationRepository
@@ -80,7 +82,9 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
     override lazy val policies: PolicyRepository = PgPolicyRepository(conn)
     override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
     override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
-    override lazy val consents: ConsentLedger = PgConsentLedger(conn, consentEventIds)
+    override lazy val auditLog: AuditLog = PgAuditLog(conn, clock, consentEventIds)
+    override lazy val erasure: ErasureRepository = PgErasure(conn)
+    override lazy val consents: ConsentLedger = PgConsentLedger(conn, consentEventIds, auditLog)
     override lazy val tracking: TrackingRepositories = new TrackingRepositories:
       override lazy val hydration: HydrationRepository = PgHydrationRepository(conn)
       override lazy val mood: MoodRepository = PgMoodRepository(conn)
@@ -89,7 +93,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock) extends UnitOfWor
       override lazy val sleep: SleepRepository = PgSleepRepository(conn)
       override lazy val meals: MealRepository = PgMealRepository(conn)
     override lazy val reminders: ReminderRepositories = PgReminderRepositories(conn)
-    override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds)
+    override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds, auditLog)
     override lazy val reports: ReportQueue = PgReportQueue(conn)
     override lazy val medicationDepth: MedicationDepthRepositories = PgMedicationDepthRepositories(conn)
 

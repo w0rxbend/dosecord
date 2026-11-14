@@ -137,7 +137,9 @@ final case class Settings(
     healthAddress: String = Settings.DefaultBindAddress,
     httpAddress: String = Settings.DefaultBindAddress,
     // The chat that gets the owner alerts (OPS-A2); without it, the one user of the Telegram allowlist.
-    ownerAlertChat: Option[String] = None
+    ownerAlertChat: Option[String] = None,
+    // The purge list of ROADMAP G2.17: a file outside the database, appended on every account deletion.
+    purgeListPath: String = Settings.DefaultPurgeListPath
 ):
   /** Where the owner alerts go (supervisor decision, 2026-11-14, ARCHITECTURE section 18.4): `OWNER_ALERT_CHAT`, else
     * the private chat of the only allowlisted Telegram user (a private chat's id is the user's id). With several
@@ -155,6 +157,9 @@ object Settings:
 
   /** The interface both listeners bind to unless `HEALTH_ADDRESS` or `HTTP_ADDRESS` names another. */
   val DefaultBindAddress: String = "127.0.0.1"
+
+  /** The purge list file unless `PURGE_LIST_PATH` names another (ARCHITECTURE SEC-16). */
+  val DefaultPurgeListPath: String = "data/purge-list.txt"
 
   /** Declarative description of one env var: the single source for parsing, validation and `.env.example` generation,
     * so the committed example cannot drift from the case class (DESIGN.md section 12).
@@ -360,6 +365,14 @@ object Settings:
       secret = false,
       "Telegram chat id for owner alerts (dead outbox rows, quarantined updates); default: the only allowlisted user.",
       "123456789"
+    ),
+    EnvSpec(
+      "PURGE_LIST_PATH",
+      required = false,
+      secret = false,
+      "File of deleted account ids, kept outside the database and its backups so a restore deletes them again.",
+      DefaultPurgeListPath,
+      Some(DefaultPurgeListPath)
     )
   )
 
@@ -524,7 +537,8 @@ object Settings:
           render = render,
           healthAddress = healthAddress,
           httpAddress = httpAddress,
-          ownerAlertChat = ownerAlertChat
+          ownerAlertChat = ownerAlertChat,
+          purgeListPath = lookup("PURGE_LIST_PATH").getOrElse(DefaultPurgeListPath)
         )
       )
 

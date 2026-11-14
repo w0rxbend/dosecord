@@ -830,3 +830,12 @@ export interface InventoryInput {
   readonly perIntake: Decimal;
   readonly thresholdDays?: number;
 }
+
+/** A domain whose records can be deleted on their own (ROADMAP G5.7, PRODUCT_SPEC R-IDC-20). */
+export type DeletionDomain = 'medication' | 'hydration' | 'mood' | 'sleep' | 'nutrition';
+
+/** A deletion request: the confirmation waits in the chat until `expiresAt` (MINI_APP 8.8). */
+export interface DeletionRequest {
+  readonly status: 'confirmation_sent';
+  readonly expiresAt: string;
+}

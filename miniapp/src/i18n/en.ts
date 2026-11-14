@@ -511,6 +511,8 @@ export const en = {
     data: 'Your data',
     exportAll: 'Export everything',
     exportHint: 'One file with all your records, confirmed in the chat',
+    deleteData: 'Delete data',
+    deleteHint: 'One area or your whole account, confirmed in the chat',
     about: 'Dosegram records what you log and reminds you of what you set. It gives no medical advice.',
   },
 
@@ -661,6 +663,34 @@ export const en = {
     loading: 'Loading your consents',
     on: 'On',
     off: 'Off',
+  },
+
+  // Deletion (MINI_APP 7.15 "Your data", MA-SET-7; ROADMAP G2.17, G5.7). Each danger button opens a native
+  // confirmation, then the confirmation in the chat; the app deletes nothing by itself (MA-STEP-1).
+  deletion: {
+    title: 'Delete data',
+    domainTitle: 'Delete the data of one area',
+    domainHelp: 'Deletes every record of the area and its daily figures, and turns the area off. Other areas stay.',
+    domains: {
+      medication: 'Medication',
+      hydration: 'Water',
+      mood: 'Mood',
+      sleep: 'Sleep',
+      nutrition: 'Food',
+    },
+    domainButton: "Delete this area's data",
+    domainConfirm: (area: string) => `Delete all ${area.toLowerCase()} records? This cannot be undone.`,
+    accountTitle: 'Delete account',
+    accountDeletes: 'Deletes all your records, schedules, settings, consents and generated files.',
+    accountStops: 'All reminders stop at once.',
+    accountKeeps: 'Messages and images already in your Telegram chat stay there until you delete them.',
+    accountBackups: 'Your records become unreadable at once; encrypted backups expire within 35 days.',
+    accountButton: 'Delete account',
+    accountConfirm: 'Delete your account and all your records? This cannot be undone.',
+    keep: 'Keep',
+    delete: 'Delete',
+    sent: 'Confirm in your chat with Dosegram. We sent you a message with the confirmation; it is valid for 10 minutes.',
+    notSent: 'The request could not be sent. Try again.',
   },
 };
 

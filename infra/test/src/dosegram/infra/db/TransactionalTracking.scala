@@ -30,6 +30,7 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.mood.Energy
+import dosegram.core.ports.AuditLog
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentLedger
 import dosegram.core.ports.ConsentNotice
@@ -107,6 +108,8 @@ object TransactionalTracking:
     override def transaction[A](f: Tx => A): A = inner.transaction: tx =>
       f(new Tx:
         export tx.{consents as _, *}
+        // An export skips a member the trait already defines, so the audit log is forwarded by hand.
+        override def auditLog: AuditLog = tx.auditLog
         override val consents: ConsentLedger = new ConsentLedger:
           override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean = true
           override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =

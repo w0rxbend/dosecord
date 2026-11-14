@@ -12,6 +12,7 @@ import type {
   Chart,
   Consents,
   InventoryView,
+  DeletionRequest,
   ExportItem,
   InsightCalendar,
   InsightList,
@@ -526,6 +527,11 @@ export function toReminderTimeline(wire: Wire['ReminderTimeline']): ReminderTime
 
 export function toExportItem(wire: Wire['ExportView']): ExportItem {
   return { ...wire };
+}
+
+export function toDeletionRequest(wire: Wire['DeletionRequestView']): DeletionRequest {
+  if (wire.status !== 'confirmation_sent') throw new Error(`unknown deletion request status ${wire.status}`);
+  return { status: wire.status, expiresAt: wire.expiresAt };
 }
 
 export function toInventory(wire: Wire['InventoryDocument']): InventoryView {

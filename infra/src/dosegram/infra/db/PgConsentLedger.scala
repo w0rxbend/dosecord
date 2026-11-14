@@ -1,5 +1,9 @@
 package dosegram.infra.db
 
+import dosegram.core.ports.AuditChannel
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
+import dosegram.core.ports.AuditLog
 import dosegram.core.ports.ConsentLedger
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
@@ -16,9 +20,10 @@ import scala.language.implicitConversions
 
 /** Postgres consent ledger: `consent_events` (append-only) and its projection `consent_state`, both written on the
   * connection of the surrounding transaction. Every query names the account, so one account never reads the consent of
-  * another.
+  * another. Every grant and withdrawal writes its audit row on the same connection (ROADMAP G2.16): a consent is only
+  * ever recorded in the chat, so the channel is the bot.
   */
-final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedger:
+final class PgConsentLedger(conn: Connection, ids: IdSource, audit: AuditLog) extends ConsentLedger:
   private given Connection = conn
 
   private given RowMapper[GrantedConsent] = rs =>
@@ -47,6 +52,7 @@ final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedg
     if changed then
       val shown = ShownNotice(hashOf(notice.statement), notice.locale, taps.agreedAt)
       append(ConsentEvent(accountId, purpose, "granted", notice.policyVersion, Some(shown)), at)
+      audited(AuditEventType.ConsentGranted, accountId, purpose, "grant", notice.policyVersion)
     changed
 
   override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
@@ -54,7 +60,9 @@ final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedg
       sql"""UPDATE consent_state SET granted = false, updated_at = $at
             WHERE account_id = $accountId AND purpose = ${purpose.id} AND granted
             RETURNING policy_version""".queryOne[Int]()
-    version.foreach(v => append(ConsentEvent(accountId, purpose, "withdrawn", v, shown = None), at))
+    version.foreach: v =>
+      append(ConsentEvent(accountId, purpose, "withdrawn", v, shown = None), at)
+      audited(AuditEventType.ConsentWithdrawn, accountId, purpose, "revoke", v)
     version.isDefined
 
   override def granted(accountId: UUID): List[GrantedConsent] =
@@ -81,6 +89,19 @@ final class PgConsentLedger(conn: Connection, ids: IdSource) extends ConsentLedg
       )}, 'bot', $at)"""
       .execute()
     ()
+
+  private def audited(
+      eventType: AuditEventType,
+      accountId: UUID,
+      purpose: ConsentPurpose,
+      action: String,
+      version: Int
+  ): Unit =
+    audit.record(
+      AuditEvent
+        .byUser(eventType, accountId, "consent", None, action, AuditChannel.Bot)
+        .copy(reasonCode = Some(purpose.id), policyVersion = Some(s"v$version"))
+    )
 
   private def hashOf(statement: String): Array[Byte] =
     MessageDigest.getInstance("SHA-256").digest(statement.getBytes(UTF_8))

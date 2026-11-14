@@ -46,10 +46,10 @@ object ConsentCopy:
     */
   private final case class Wording(mine: String, yours: String, short: String, later: String, stopped: String)
 
-  /** No deletion of one domain exists yet (ROADMAP G2.17), so a withdrawal says that the stored records stay. */
+  /** A withdrawal keeps the stored records unless the user deletes them (BUX-CONS-06, ROADMAP G2.17). */
   private def RecordsKept: String = tr(
-    "The records already stored are kept: this version cannot delete them yet.",
-    "Уже збережені записи лишаються: ця версія поки не вміє їх видаляти."
+    "The records already stored are kept unless you delete them.",
+    "Уже збережені записи лишаються, якщо ви їх не видалите."
   )
 
   private def wording(purpose: ConsentPurpose): Wording =
@@ -252,8 +252,8 @@ object ConsentCopy:
     "Цей чат не має наскрізного шифрування: месенджер може читати повідомлення й зображення, які надсилає бот.",
     "Ваші записи зберігаються на сервері Dosegram. Тут їх бачите лише ви; люди, які обслуговують сервіс, мають " +
       "доступ до бази даних.",
-    "Ви погоджуєтеся на кожен вид записів окремо й можете відкликати згоду будь-коли через /privacy. Видалення " +
-      "та експорт збережених записів у цій версії поки недоступні.",
+    "Ви погоджуєтеся на кожен вид записів окремо й можете відкликати згоду будь-коли через /privacy. Там же " +
+      "можна видалити збережені записи, а експортувати їх — через /export.",
     "Нагадування надсилаються без гарантії: якесь може запізнитися або не прийти. Dosegram не дає медичних порад.",
     "З чого хочете почати? Решту можна ввімкнути пізніше."
   )
@@ -265,8 +265,8 @@ object ConsentCopy:
     "This chat is not end-to-end encrypted: the messenger can read the messages and images the bot sends.",
     "Your records are kept on the Dosegram server. Only you see them here; the people who run the service can " +
       "access the database.",
-    "You agree to each kind of record separately and can withdraw at any time with /privacy. Deleting stored " +
-      "records and exporting them are not available in this version yet.",
+    "You agree to each kind of record separately and can withdraw at any time with /privacy. You can also " +
+      "delete your stored records there, and export them with /export.",
     "Reminders are best effort: one can be late or missing. Dosegram gives no medical advice.",
     "What do you want to start with? You can turn on the others later."
   )

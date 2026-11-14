@@ -3,6 +3,7 @@ package dosegram.core.application.capture
 import dosegram.contracts.InboundEvent
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
+import dosegram.core.application.privacy.PrivacyMessages
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -18,7 +19,7 @@ import java.util.UUID
   */
 final class MedicationConsentGate(codec: CallbackCodec, clock: Clock):
 
-  private val consent = ConsentFlow(Tokens(codec), clock)
+  private val consent = ConsentFlow(Tokens(codec), clock, PrivacyMessages(codec))
 
   /** Runs `granted` for an account whose consent is on. An account without it gets stage 1 of the consent as a message
     * of its own, so the card the request came from stays as it is. An event without an account passes: the handler

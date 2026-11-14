@@ -2,7 +2,10 @@ package dosegram.api.auth
 
 import dosegram.api.ApiFailure
 import dosegram.contracts.PlatformIdentity
+import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.AuditEntry
+import dosegram.core.ports.AuditEvent
+import dosegram.core.ports.AuditEventType
 import dosegram.core.ports.Clock
 import dosegram.core.ports.UnitOfWork
 
@@ -143,7 +146,9 @@ final class SessionService(
         store.touch(tokenHash, now)
         Right(session.copy(lastUsedAt = now))
 
-  def end(session: Session): Unit = store.delete(session.tokenHash)
+  def end(session: Session): Unit =
+    store.delete(session.tokenHash)
+    audited(AuditEventType.SessionRevoked, session.accountId, "revoke")
 
   def idleTimeout: Duration = policy.idle
 
@@ -166,6 +171,7 @@ final class SessionService(
     val token = Base64.getUrlEncoder.withoutPadding.encodeToString(bytes)
     val session = Session(sha256Hex(token), account.id, verified.digest, createdAt = now, lastUsedAt = now)
     store.insert(session)
+    audited(AuditEventType.SessionCreated, account.id, "login")
     evictBeyondLimit(account.id)
     IssuedSession(token, session, policy.expiresAt(session), account.timeZone)
 
@@ -178,6 +184,12 @@ final class SessionService(
 
   private def recordReuse(accountId: UUID): Unit =
     uow.transaction(_.audit.append(AuditEntry("initdata.reused", "session_replaced", Vendor, userId = Some(accountId))))
+
+  // The session store is not on the transaction, so the row follows the session write it records.
+  private def audited(eventType: AuditEventType, accountId: UUID, action: String): Unit =
+    uow.transaction(
+      _.auditLog.record(AuditEvent.byUser(eventType, accountId, "session", None, action, AuditChannel.MiniApp))
+    )
 
   private def tooMany(wait: Duration): ApiFailure = ApiFailure.rateLimited(math.max(1L, wait.toSeconds))
 

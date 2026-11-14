@@ -207,8 +207,11 @@ final class ChatMediator(
           case Resolution.PassThrough    => dispatchCore(stamped, tx)
           case Resolution.Resolved(body) => dispatchCore(stamped.copy(body = body), tx)
       // The handler may have linked the account inside this transaction (M0.12d account create): re-resolve so the
-      // stored reply, the outbox rows and the domain events all carry the effective account id (C2).
-      val effectivePrincipal = tx.identities.resolve(event.actor, now)
+      // stored reply, the outbox rows and the domain events all carry the effective account id (C2). It may also have
+      // deleted the account (ROADMAP G2.17): the identity is then gone, nothing recreates it, and the answer names no
+      // account.
+      val effectivePrincipal =
+        tx.identities.find(event.actor).getOrElse(Principal(principal.identityId, None, linked = false))
       val appendedEvents =
         reply.domainEvents.map(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
       val sends = (reply.replace.toList ++ reply.followUps)

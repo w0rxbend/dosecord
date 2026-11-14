@@ -1747,6 +1747,8 @@ Account deletion page: what is deleted (all records, schedules, settings, consen
 
 Requirements:
 
+Supervisor decision, 2026-11-14 (ROADMAP G2.17, G5.7): "Delete the data of one area" and "Delete account" share one page, "Delete data" (`/settings/delete`), reached from "Your data". Each danger button opens the native confirmation and then calls `DELETE domains/{domain}/data` or `POST account/deletion`, which send the confirmation into the chat and answer 202 with its expiry; the page then says to confirm in the chat. The pending-action resource and its polling of section 8.8 are not built yet, so the page does not learn the outcome, and the choice of a 7-day delay is not offered (PRODUCT_SPEC, supervisor decision of the same date).
+
 MA-SET-1. A toggle or single-choice setting saves on change with an optimistic update, shows "Saved" through a polite live region, and reverts with an inline error if the request fails. A sub-page with several dependent fields (quiet hours, time zone, optional prompts) saves with `MainButton`. [M]
 
 MA-SET-2. Changing the language re-renders every visible string without a reload, sets the document's `lang` and `dir`, and persists on the server so that the bot's messages follow. [M]

@@ -7,7 +7,7 @@ This chat is not end-to-end encrypted: the messenger can read the messages and i
 
 Your records are kept on the Dosegram server. Only you see them here; the people who run the service can access the database.
 
-You agree to each kind of record separately and can withdraw at any time with /privacy. Deleting stored records and exporting them are not available in this version yet.
+You agree to each kind of record separately and can withdraw at any time with /privacy. You can also delete your stored records there, and export them with /export.
 
 Reminders are best effort: one can be late or missing. Dosegram gives no medical advice.
 

@@ -24,6 +24,8 @@ import type {
   SleepCheckinKind,
   DayProfile,
   DayProfileInput,
+  DeletionDomain,
+  DeletionRequest,
   ExportItem,
   ExportRequest,
   ExportTicket,
@@ -201,6 +203,11 @@ export interface ApiClient {
   exportItem(id: string): Promise<ExportItem>;
   requestExport(request: ExportRequest, idempotencyKey: string): Promise<ExportItem>;
   downloadTicket(id: string): Promise<ExportTicket>;
+
+  // deletion (MA-SET-7, ROADMAP G2.17, G5.7): the request sends the confirmation into the chat; nothing is deleted
+  // before the tap there (MA-STEP-1).
+  requestAccountDeletion(): Promise<DeletionRequest>;
+  requestDomainDeletion(domain: DeletionDomain): Promise<DeletionRequest>;
 }
 
 /**

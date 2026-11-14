@@ -26,3 +26,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 .tmp/
+
+# The purge list of a local run (PURGE_LIST_PATH)
+data/

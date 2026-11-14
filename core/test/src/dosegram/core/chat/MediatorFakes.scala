@@ -128,6 +128,12 @@ object MediatorFakes:
     def all: List[AuditEntry] = this.synchronized(entries.toList)
     override def append(entry: AuditEntry): Unit = this.synchronized(entries += entry)
 
+  /** The audit rows of ROADMAP G2.16, in the order they were written. */
+  final class InMemoryAuditLog extends AuditLog:
+    private val events = ListBuffer.empty[AuditEvent]
+    def all: List[AuditEvent] = this.synchronized(events.toList)
+    override def record(event: AuditEvent): Unit = this.synchronized(events += event)
+
   final class InMemoryRenderedMessages extends RenderedMessageRepository:
     private val rows =
       ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean, Option[String], Option[UUID])]
@@ -590,6 +596,7 @@ object MediatorFakes:
     val identities = InMemoryIdentities()
     val accounts = InMemoryAccounts(identities)
     val audit = InMemoryAudit()
+    val auditLog = InMemoryAuditLog()
     val renderedMessages = InMemoryRenderedMessages()
     val outbox = InMemoryOutbox()
     val sessions = InMemorySessions()
@@ -616,6 +623,7 @@ object MediatorFakes:
       override def identities: IdentityRepository = InMemoryUnitOfWork.this.identities
       override def accounts: AccountRepository = InMemoryUnitOfWork.this.accounts
       override def audit: AuditRepository = InMemoryUnitOfWork.this.audit
+      override def auditLog: AuditLog = InMemoryUnitOfWork.this.auditLog
       override def slots: CallbackSlotRepository = InMemoryUnitOfWork.this.slots
       override def formRuns: FormRunRepository = InMemoryUnitOfWork.this.formRuns
       override def medications: MedicationRepository = InMemoryUnitOfWork.this.medications

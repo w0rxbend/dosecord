@@ -7,6 +7,7 @@ import dosegram.contracts.MediaKind
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
 import dosegram.core.application.CommandRegistry
+import dosegram.core.application.privacy.PrivacyMessages
 import dosegram.core.application.reminders.WaterOffer
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
@@ -52,7 +53,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   import CaptureHandler.*
 
   private val tokens = Tokens(codec)
-  private val consent = ConsentFlow(tokens, clock)
+  private val consent = ConsentFlow(tokens, clock, PrivacyMessages(codec))
   private val water = WaterChat(parts.hydration, parts.cards, parts.delivery, tokens)
   private val mood = MoodChat(parts.mood, parts.cards, parts.delivery, clock, tokens)
   private val stats = StatsChat(parts, tokens)

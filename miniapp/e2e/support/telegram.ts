@@ -144,3 +144,8 @@ export function pressMainButton(page: Page): Promise<void> {
 export function pressBackButton(page: Page): Promise<void> {
   return page.evaluate(() => (window as unknown as StubWindow).__telegramStub.pressBack());
 }
+
+/** Answers the open native popup with the button `id`, as the user would. */
+export function answerPopup(page: Page, id: string): Promise<void> {
+  return page.evaluate((button) => (window as unknown as StubWindow).__telegramStub.answerPopup(button), id);
+}
