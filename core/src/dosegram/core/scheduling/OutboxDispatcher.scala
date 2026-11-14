@@ -17,6 +17,7 @@ import dosegram.core.ports.UnitOfWork
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import scala.util.control.NonFatal
 
 /** Renders one claimed outbox row into the chat it targets and the message to execute. The row's `payload` is opaque to
   * the dispatcher; the production implementation ([[CatalogueOutboxRenderer]]) resolves the delivery channel and
@@ -30,6 +31,11 @@ trait OutboxRenderer:
   * call (ROADMAP M1.8).
   */
 final case class DigestEmpty(sendKey: String) extends RuntimeException(s"digest $sendKey has no live items")
+
+/** Thrown when a row cannot become a message: the data it needs is missing (no chat for its channel, no dose snapshot).
+  * `reason` is a fixed phrase with no user content, so the dispatcher stores it as the row's `last_error`.
+  */
+final case class UnrenderableRow(reason: String) extends RuntimeException(reason)
 
 object OutboxDispatcher:
   val MaxAttempts = 8
@@ -143,6 +149,7 @@ final class OutboxDispatcher(
         // M1.8 (DESIGN.md section 7.5): every digest item resolved or went stale before the send — the digest is
         // skipped without a vendor call.
         uow.transaction(_.outbox.cancel(row.id))
+      case UnrenderableRow(reason)      => retryLater(row, now, reason)
       case ChatError.RateLimited(after) =>
         retryOrDead(row, now.plus(after), possibleDuplicate = false, error = "rate limited")
       case e @ (_: ChatError.Retryable | _: ChatError.TooOld) =>
@@ -167,7 +174,7 @@ final class OutboxDispatcher(
     */
   private def dispatchEdit(row: OutboxMessage, adapter: ChatAdapter, now: Instant): Unit =
     val target = decodeHandle(row.vendor, row.platformMessageId.getOrElse(requiredTarget(row)))
-    val (_, rendered) = renderer.render(row, adapter.capabilities)
+    val (_, rendered) = render(row, adapter)
     throttle(row, target.chatId)
     val handle =
       if adapter.capabilities.editOwn == EditCapability.NoEdit then
@@ -229,6 +236,21 @@ final class OutboxDispatcher(
   private def throttle(row: OutboxMessage, chatId: String): Unit =
     buckets.foreach(_.acquire(row.vendor, chatId, 1))
 
+  /** A row that failed before its vendor call retries with backoff like a vendor failure, so a row whose data is broken
+    * spends its attempt budget and goes `dead` instead of stalling the batch claimed with it.
+    */
+  private def retryLater(row: OutboxMessage, now: Instant, reason: String): Unit =
+    retryOrDead(row, now.plus(jitteredBackoff(row.attempts, random())), possibleDuplicate = false, error = reason)
+
+  /** The renderer of a claimed row. Only [[UnrenderableRow]] carries a stored reason; any other failure's message may
+    * hold payload text, so it becomes the exception's class name.
+    */
+  private def render(row: OutboxMessage, adapter: ChatAdapter): (ChatRef, RenderedMessage) =
+    try renderer.render(row, adapter.capabilities)
+    catch
+      case e @ (_: DigestEmpty | _: UnrenderableRow) => throw e
+      case NonFatal(e) => throw UnrenderableRow(s"unrenderable: ${e.getClass.getSimpleName}")
+
   /** One retry within the attempt budget, or the terminal `dead` write plus its metric at `MaxAttempts` (ADR-009). */
   private def retryOrDead(row: OutboxMessage, at: Instant, possibleDuplicate: Boolean, error: String): Unit =
     if row.attempts >= MaxAttempts then
@@ -242,14 +264,14 @@ final class OutboxDispatcher(
     * crash before the row is marked sent leaves resolvable controls and `ops_done` stops a second send (ADR-009).
     */
   private def dispatchSend(row: OutboxMessage, adapter: ChatAdapter, now: Instant): Unit =
-    val (chat, rendered) = renderer.render(row, adapter.capabilities)
+    val (chat, rendered) = render(row, adapter)
     val resumeDuplicate = row.previousAttemptedAt.exists(isPossibleDuplicateWindow(_, now))
     val handle =
       if sendRecorded(row.opsDone) then
         decodeHandle(
           row.vendor,
           row.platformMessageId.getOrElse(
-            throw new IllegalStateException(s"outbox row ${row.id}: send sub-op done but no handle recorded")
+            throw UnrenderableRow("send recorded without a handle")
           )
         )
       else
@@ -274,7 +296,7 @@ final class OutboxDispatcher(
     if resumeDuplicate && !row.possibleDuplicate then metrics.possibleDuplicate(row.vendor)
 
   private def requiredTarget(row: OutboxMessage): String =
-    row.target.getOrElse(throw new IllegalStateException(s"outbox row ${row.id}: ${row.op.db} op without a target"))
+    row.target.getOrElse(throw UnrenderableRow(s"${row.op.db} op without a target"))
 
   private def isPossibleDuplicateWindow(attemptedAt: Instant, now: Instant): Boolean =
     Duration.between(attemptedAt, now).compareTo(PossibleDuplicateAfter) > 0

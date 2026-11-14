@@ -93,6 +93,7 @@ object MediatorFakes:
 
     override def find(actor: PlatformIdentity): Option[Principal] =
       this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
+    override def recordDirectChat(identityId: IdentityId, chatId: String): Unit = ()
 
   /** In-memory account creates (M0.12d): every created account records `displayName = None` — the neutral default the
     * Postgres write guarantees by never selecting the vendor nickname (K8).

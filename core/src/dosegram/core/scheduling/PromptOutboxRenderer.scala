@@ -25,7 +25,7 @@ final class PromptOutboxRenderer(uow: UnitOfWork, next: OutboxRenderer, kinds: S
       val (ops, _) = Renderer.render(OutboundMessage.fromJson(row.payload), chat, capabilities, row.sendKey)
       val rendered = ops
         .collectFirst { case VendorOp.Send(_, sent, _, _) => sent }
-        .getOrElse(throw IllegalStateException(s"outbox row ${row.id}: renderer produced no send op"))
+        .getOrElse(throw UnrenderableRow("no send op"))
       (chat, rendered)
 
   private def chatIdOf(row: OutboxMessage): String =
@@ -34,4 +34,4 @@ final class PromptOutboxRenderer(uow: UnitOfWork, next: OutboxRenderer, kinds: S
       case None         =>
         row.channelId
           .flatMap(id => uow.transaction(_.channels.byId(id)).flatMap(_.chatId))
-          .getOrElse(throw IllegalStateException(s"outbox row ${row.id}: no channel chat for a prompt"))
+          .getOrElse(throw UnrenderableRow("no channel chat"))

@@ -454,6 +454,80 @@ class OutboxDispatcherSuite extends PgSuite:
       "the duplicate counter is registered under its DESIGN.md name"
     )
 
+  /** Renders like [[renderer]] except the row under `poisonKey`, whose render throws with user text in its message. */
+  private def poisonRenderer(poisonKey: String): OutboxRenderer = new OutboxRenderer:
+    override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
+      if row.sendKey == poisonKey then throw IllegalStateException("Vitamin D 1000 IU")
+      else renderer(false).render(row, capabilities)
+
+  // A row that cannot be rendered is one poison row, not a stalled dispatcher (live defect of 2026-11-14).
+  test("a row that cannot be rendered retries with backoff and a content-free reason, and the batch behind it sends"):
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock)
+    val adapter = newAdapter()
+    val metrics = RecordingMetrics()
+    uow.transaction(_.outbox.enqueue(newSend("key-poison", t0.minusMillis(1)))) // claimed first: oldest due
+    uow.transaction(_.outbox.enqueue(newSend("key-behind", t0)))
+    val d = OutboxDispatcher(uow, Map("fake" -> adapter), poisonRenderer("key-poison"), clock, metrics = metrics)
+
+    assertEquals(d.dispatchOnce(), 2)
+    assertEquals(rowBySendKey("key-behind").status, OutboxStatus.Sent, "the row behind the poison row is sent")
+    val poisoned = rowBySendKey("key-poison")
+    assertEquals(poisoned.status, OutboxStatus.FailedRetry)
+    assertEquals(poisoned.leaseUntil, None, "the lease is released")
+    assertEquals(poisoned.nextAttemptAt, t0.plusSeconds(5), "first backoff rung is 5 s")
+    assertEquals(poisoned.lastError, Some("unrenderable: IllegalStateException"), "the message is never stored")
+
+    (2 to OutboxDispatcher.MaxAttempts).foreach { attempt =>
+      clock.at = rowBySendKey("key-poison").nextAttemptAt
+      assertEquals(d.dispatchOnce(), 1, s"attempt $attempt")
+    }
+    assertEquals(rowBySendKey("key-poison").status, OutboxStatus.Dead, "the budget is spent")
+    assertEquals(metrics.deadCount.get(), 1)
+    assertEquals(sendsOf(adapter).size, 1, "only the healthy row reached the vendor")
+
+  // The live row of 2026-11-14: a catch-up digest to a channel whose identity has no direct chat recorded.
+  test("a digest to a channel without a chat is retried with a fixed reason and no vendor call"):
+    val clock = new MutableClock(t0)
+    val fixtures = Fixtures(dataSource)
+    val accountId = fixtures.account()
+    val scheduleId = fixtureSchedule(fixtures, clock, accountId)
+    val occurrenceId = fixtures.occurrenceAt(scheduleId, t0, "fixture-digest-nochat", OccurrenceStatus.Due)
+    val channelId = fixtures.deliveryChannel(accountId, "fake", "dm:owner", t0)
+    withConnection { conn =>
+      given Connection = conn
+      sql"""UPDATE platform_identities SET dm_channel_id = NULL
+            WHERE id = (SELECT platform_identity_id FROM delivery_channels WHERE id = $channelId)""".execute()
+    }
+    val uow = PgUnitOfWork(dataSource, clock)
+    val adapter = newAdapter()
+    val sendKey = s"digest:$accountId:1"
+    uow.transaction(
+      _.outbox.enqueue(
+        NewOutboxMessage(
+          id = UUID.randomUUID(),
+          sendKey = sendKey,
+          op = OutboxOp.Send,
+          kind = "digest",
+          vendor = "fake",
+          accountId = Some(accountId),
+          channelId = Some(channelId),
+          payload = LoopDispatch.toJson(
+            LoopDispatch.Digest(accountId, 1L, List(dosegram.contracts.DigestItem(occurrenceId, 0)))
+          ),
+          importance = "reminder",
+          nextAttemptAt = t0
+        )
+      )
+    )
+
+    val d = OutboxDispatcher(uow, Map("fake" -> adapter), CatalogueOutboxRenderer(uow, codec, clock), clock)
+    assertEquals(d.dispatchOnce(), 1)
+    val row = rowBySendKey(sendKey)
+    assertEquals(row.status, OutboxStatus.FailedRetry)
+    assertEquals(row.lastError, Some("no channel chat"))
+    assertEquals(sendsOf(adapter), Nil)
+
   // Acceptance: reminder text rendered from the M1.4a catalogue at send time (Postgres path, loop-shaped row).
   test("a loop reminder row renders from the catalogue at send time"):
     val clock = new MutableClock(t0)

@@ -83,7 +83,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     ChatRef(
       row.vendor,
       chatId.getOrElse(
-        throw new IllegalStateException(s"outbox row ${row.id}: no delivery channel chat for vendor ${row.vendor}")
+        throw UnrenderableRow("no channel chat")
       )
     )
 
@@ -191,7 +191,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
   private def digestFacts(row: OutboxMessage, dispatch: LoopDispatch.Digest): DigestFacts =
     uow.transaction: tx =>
       val chatId = channelChatId(tx, row).getOrElse(
-        throw new IllegalStateException(s"outbox row ${row.id}: no channel chat for digest ${row.sendKey}")
+        throw UnrenderableRow("no channel chat")
       )
       val seen = scala.collection.mutable.HashSet[UUID]()
       val items = dispatch.items.flatMap: item =>
@@ -213,7 +213,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     */
   private def digestItem(occ: StoredOccurrence): DigestItemFacts =
     val snapshot = occ.doseSnapshot.getOrElse(
-      throw new IllegalStateException(s"occurrence ${occ.id} carries no dose snapshot")
+      throw UnrenderableRow("no dose snapshot")
     )
     val line = DigestCopy.item(snapshot.medicationName, doseText(snapshot), formatTime(occ, occ.state.scheduledFor))
     val choices = occ.state.status match
@@ -246,17 +246,17 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     val dispatch = row.payloadAs[LoopDispatch.FinalizeControls]("reminder_finalize")
     val target = OutboxDispatcher.decodeHandle(
       row.vendor,
-      row.target.getOrElse(throw new IllegalStateException(s"outbox row ${row.id}: finalize op without a target"))
+      row.target.getOrElse(throw UnrenderableRow("finalize op without a target"))
     )
     val occ = uow.transaction(
       _.occurrences
         .get(dispatch.occurrenceId)
         .getOrElse(
-          throw new IllegalStateException(s"outbox row ${row.id}: unknown occurrence ${dispatch.occurrenceId}")
+          throw UnrenderableRow("unknown occurrence")
         )
     )
     val snapshot = occ.doseSnapshot.getOrElse(
-      throw new IllegalStateException(s"occurrence ${occ.id} carries no dose snapshot")
+      throw UnrenderableRow("no dose snapshot")
     )
     val summary = occ.state.status match
       case OccurrenceStatus.Taken =>
@@ -312,9 +312,9 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     uow.transaction: tx =>
       val occ = tx.occurrences
         .get(occurrenceId)
-        .getOrElse(throw new IllegalStateException(s"outbox row ${row.id}: unknown occurrence $occurrenceId"))
+        .getOrElse(throw UnrenderableRow("unknown occurrence"))
       val snapshot = occ.doseSnapshot.getOrElse(
-        throw new IllegalStateException(s"occurrence ${occ.id} carries no dose snapshot")
+        throw UnrenderableRow("no dose snapshot")
       )
       val (policy, _) = tx.policies.forOccurrence(occ)
       val nextOccurrence = occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor))
@@ -325,7 +325,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
         ChatRef(
           row.vendor,
           chatId.getOrElse(
-            throw new IllegalStateException(s"outbox row ${row.id}: no chat for occurrence $occurrenceId")
+            throw UnrenderableRow("no channel chat")
           )
         ),
         occ,
@@ -349,7 +349,7 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     val (ops, _) = Renderer.render(message, chat, capabilities, row.sendKey)
     val rendered = ops
       .collectFirst { case VendorOp.Send(_, sent, _, _) => sent }
-      .getOrElse(throw new IllegalStateException(s"outbox row ${row.id}: renderer produced no send op"))
+      .getOrElse(throw UnrenderableRow("no send op"))
     (chat, rendered)
 
   private def token(action: String, subject: UUID, value: Long): String =

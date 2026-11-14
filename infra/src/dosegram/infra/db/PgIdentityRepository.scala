@@ -35,3 +35,8 @@ final class PgIdentityRepository(conn: Connection) extends IdentityRepository:
               ON CONFLICT DO NOTHING""".execute()
         // A concurrent first-contact on another chat may have won the insert; re-read either way.
         find(actor).getOrElse(Principal(IdentityId(id), None, linked = false))
+
+  override def recordDirectChat(identityId: IdentityId, chatId: String): Unit =
+    sql"""UPDATE platform_identities SET dm_channel_id = $chatId
+          WHERE id = ${identityId.uuid} AND dm_channel_id IS DISTINCT FROM $chatId""".execute()
+    ()

@@ -1,5 +1,6 @@
 package dosegram.core.ports
 
+import dosegram.contracts.IdentityId
 import dosegram.contracts.PlatformIdentity
 import dosegram.contracts.Principal
 
@@ -16,3 +17,8 @@ trait IdentityRepository:
 
   /** Read-only lookup of an identity by its vendor key. */
   def find(actor: PlatformIdentity): Option[Principal]
+
+  /** Records the chat the identity last wrote from as its direct chat, the chat its delivery channels send to. Adapters
+    * deliver direct chats only (a Telegram group update is dropped), so every inbound chat is one.
+    */
+  def recordDirectChat(identityId: IdentityId, chatId: String): Unit

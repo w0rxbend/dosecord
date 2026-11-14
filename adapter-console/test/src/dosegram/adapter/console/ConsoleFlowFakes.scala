@@ -67,6 +67,7 @@ private object ConsoleFlowFakes:
       )
     override def find(actor: PlatformIdentity): Option[Principal] =
       this.synchronized(principals.get((actor.vendor, actor.vendorUserId)))
+    override def recordDirectChat(identityId: IdentityId, chatId: String): Unit = ()
 
   final class CreatedAccount(val accountId: UUID, val identityId: UUID, timezone: String):
     val displayName: Option[String] = None

@@ -223,6 +223,12 @@ class FirstFlowsPgSuite extends PgSuite:
             .queryOne[Long]().get
         assertEquals(channels, 1L, "the delivery channel row exists")
       }
+      // The loops send to the channel's chat: the direct chat the account was created in.
+      assertEquals(
+        rig.uow.transaction(_.channels.activePrimaryChannels(user.id)).map(_.chatId),
+        List(Some("dm:user-1")),
+        "the primary channel resolves to the user's direct chat"
+      )
 
       // BOT_UX BUX-CMD-08: /mood is not a command before the mood slice ships; it records nothing.
       val moodReply = rig.line("/mood 8")

@@ -199,6 +199,7 @@ final class ChatMediator(
     if !inserted then Outcome.Duplicate
     else
       val principal = tx.identities.resolve(event.actor, now)
+      tx.identities.recordDirectChat(principal.identityId, event.chat.chatId)
       val stamped = event.copy(principal = Some(principal))
       val reply =
         resolve(stamped, tx) match
