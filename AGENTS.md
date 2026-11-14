@@ -39,11 +39,15 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-14, after six rounds of parallel tracks were
-merged and wired together (the sixth: operations, audit and deletion,
-encryption at rest; migrations V9 to V12), plus the fixes of that day's
-verification (V13). `docs/OPERATIONS.md` sections 8 and 9 are the owner's
-deploys to V12 and V13.
+State of `main` on 2026-11-14 (`3d84fd6` and the docs after it), after
+seven rounds of parallel tracks were merged and wired together (the sixth:
+operations, audit and deletion, encryption at rest, V9 to V12; the seventh:
+sleep, food and report depth, imports, row-level security, V14 to V17),
+plus the fixes of that day's verification (V13). The migrations are V1 to
+V17. The live database is at V12: `docs/OPERATIONS.md` section 11 is the
+owner's deploy of V13 to V17 in one start (sections 8 to 10 explain each
+part). Deploy `3d84fd6` or later, never `6ca39ec` or `5e74c20`: they lack
+V14, which could not be applied afterwards.
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -114,6 +118,24 @@ Appendix B and its status notes are the record; this is the short form.
   and keeps the audit rows under a tombstone. It also deletes the onboarding
   rows of the account's chat (`chat_key`, V13); a domain deletion deletes the
   export files. Every start replays the purge list (`PurgeReplay`).
+- Row-level security (G2.3, V14, V17, ADR-021): every account-owned table
+  has forced row-level security with four policies; `RlsSuite` fails for a
+  new table that neither calls `dosegram_protect_account_table` in its
+  migration nor is listed with a reason. `UnitOfWork.transactionAs(account)`
+  and `Tx.actAs` run as `dosegram_app` with the claim; `transaction` runs as
+  `dosegram_worker` for the cross-account work. Every Mini App route binds to
+  the session's account; a chat update binds once its sender is known.
+- Imports (G10.5, G10.7, V15): the Dosegram CSV template and the Apple
+  Health export (sleep and water, desktop only), read on the device, with a
+  preview, duplicates found by a keyed hash, commit and undo, behind the
+  `import` consent; the hidden `/import` points to the Mini App. Imported
+  entries are labelled in the API and Mini App lists.
+- Sleep, food and report depth (G7.2, G9.2, G9.4, V16): bedtime mode, the
+  touchpoint cards, "Adjust times", bedtime chips and nap check-ins; meals
+  counted the same way everywhere, food on the month pages, the Mini App
+  month and the history calendar; the report offer, the adaptive pause, the
+  weekly report on Monday 09:00, the monthly pages as one album; the "Counts
+  in reports" switch; "Share a card" from the seven-day `/stats` (IMG-17).
 - Operations (G0.8, G2.18 and G2.19 in part): `/readyz` and `/metrics` on the
   health listener, one owner alert per hour for dead outbox rows and
   quarantined updates, `scripts/backup.sh`, `restore-drill.sh`,
@@ -159,14 +181,16 @@ Useful next, in this order:
    stage, the font pack and the built Mini App (G1.2, G1.9).
 3. What G1.7 left open: live smoke LS-2 after G1.8 and OA-6, OA-7; TG-05
    under load; rotation with two header secrets.
-4. Sleep: the bedtime and morning touchpoints (G7.2), "Adjust times" and nap
-   check-ins.
-5. What the fourth round left open: food on the month's pages, in the Mini
-   App month, the history calendar and the Insights overview; the weekly
-   text and card count meals differently; the owner's choice of the weekly
-   report's timing (R-INS-4); the album send; the opt-in and adaptive pause
-   of the reports (G9.2); the step-up, `/privacy` button and e2e flow of the
-   export (G3.10).
+4. What the seventh round left open: of G2.3 the `SECURITY DEFINER` claim
+   functions for the loops, a fail-closed `transaction`, the chat-keyed
+   tables and the unbound idempotency and session stores; of G9.2 the 60-day
+   simulation and pre-rendering; of G9.4 the Today and Trends lines and the
+   gates with the switch off; of G10.7 keeping a device night next to a
+   self-reported one, the device name and G10.6 (OA-12); the Mini App share
+   builder; checkpoints CP2-a, CP10-a, CP10-b; live sends of the album, the
+   share card and the report offer.
+5. What the fourth round left open: the step-up, `/privacy` button and e2e
+   flow of the export (G3.10).
 6. What the fifth round left open: the native-speaker review of the
    Ukrainian copy; every N weeks, interval from a fixed start and several day
    groups (G9.8, G9.9); the refill notice against the nudge budget, the

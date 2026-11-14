@@ -274,7 +274,7 @@ owner's:
    - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 14.
    - `SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity;`
      returns 43.
-   - `SELECT rolname FROM pg_roles WHERE rolname LIKE 'dosegram%' AND (rolsuper OR rolbypassrls OR rolcanlogin);`
+   - `SELECT rolname FROM pg_roles WHERE rolname IN ('dosegram_app', 'dosegram_worker', 'dosegram_erasure') AND (rolsuper OR rolbypassrls OR rolcanlogin);`
      returns no row.
    - `BEGIN; SET LOCAL ROLE dosegram_app; SELECT count(*) FROM medications; ROLLBACK;` returns 0:
      without the claim the application role reads nothing.
@@ -284,3 +284,60 @@ owner's:
 Rollback: start the previous release. It runs as the login role, which the `schema_owner` policy
 admits (or which bypasses the policies as a superuser), and Flyway ignores the applied V14 as a
 future migration. No restore is needed.
+
+The counts above are those of a release with V14 alone. The `main` of the integration of
+2026-11-14 also carries V15 to V17: section 11 has its steps and its counts.
+
+## 11. Deploying `main` after the integration of 2026-11-14 (V13 to V17 in one start)
+
+The live database is at V12. The head of `main` carries V13 (section 9), V14 (section 10),
+V15 (imports: `import_jobs`, `import_staging`, the import indexes of the entry tables and the
+sleep origin `import_file`), V16 (the suppress reason `bedtime`, the check-in kind `nap_start`,
+`users.gamification_enabled`) and V17 (the four row-level security policies on the two import
+tables). The start applies them in order. Flyway runs without `outOfOrder`, so a release that has
+V16 but not V14 and V15 (commit `6ca39ec` of `main`), or V15 and V16 but not V14 (`5e74c20`), must
+never start against the live database: V14 could not be applied after it. Deploy `3d84fd6` or a
+later commit (supervisor decision, 2026-11-14). No new environment variable. Every step is the
+owner's:
+
+1. Back up the database as in step 4 of section 8 (`umask 077`, off shared storage), and keep the
+   file until step 4 below has passed.
+2. Check the login role, read-only, as in step 2 of section 10 and step 3 of section 8. Run the
+   GRANT statements they name as a superuser when a check returns `f`.
+3. Stop the running bot, then start the new release from a fresh worktree of that commit. Its log
+   shows the sealing of `outbox_messages.payload` and `inbound_events.reply` and
+   `sealing: vacuumed outbox_messages, inbound_events` (section 9), then
+   `migrate: 5 migration(s) applied, schema 17, N value(s) sealed, 0 key(s) rewrapped` and
+   `purge: replayed N deletion(s) of the purge list`.
+4. Check, read-only:
+   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 17.
+   - `SELECT count(*) FROM outbox_messages WHERE payload IS NOT NULL;` and
+     `SELECT count(*) FROM inbound_events WHERE reply IS NOT NULL;` return 0.
+   - The row-level security count query of section 10 returns 45 (43 from V14, 2 from V17), and
+     `SELECT count(*) FROM pg_policies WHERE tablename IN ('import_jobs', 'import_staging');`
+     returns 8.
+   - The role query of section 10 returns no row, and
+     `BEGIN; SET LOCAL ROLE dosegram_app; SELECT count(*) FROM medications; ROLLBACK;` returns 0.
+   - `SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'gamification_enabled';`
+     returns 1.
+   - `curl -fsS http://127.0.0.1:<HEALTH_PORT>/readyz` answers 200; `scripts/live-smoke.sh` exits 0.
+   - `/today`, `/water`, `/sleep`, `/stats`, the Mini App medication list and an export show the
+     real values.
+5. Optional, with the bot stopped: the `VACUUM (FULL, ANALYZE)` of section 9.
+
+What changes for the user after this deploy, none of it checked on a live client yet:
+
+- The weekly report of a new or re-applied plan goes on Monday at 09:00; stored plans keep their
+  time. On the first eligible Monday 09:00 (or the 1st at 10:00), an account with no report plan
+  gets one offer message. Three unused reports in a row pause that report, with a Resume button.
+- The monthly report's pages go as one album (`sendMediaGroup`). `/stats` has "Share a card".
+- "Going to sleep" holds nudges and reports for at most 12 hours; "Nap" and "Adjust times" exist.
+- `/import` is a hidden command that asks for the `import` consent at first use; the Mini App
+  import page needs `MINIAPP_ENABLED`. The health worker uses the Trusted Types policy
+  `dosegram-health-worker`: a `trusted-types` CSP directive added later must name it.
+
+After the deploy, check once with a real client: the album, the share card, the report offer.
+
+Rollback: restore the backup of step 1 and start the previous release. The previous release
+cannot read a payload V13 sealed. Starting an older release against the V17 schema without a
+restore was not tested.
