@@ -70,6 +70,18 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
     assertEquals(List(1L, 2L, 5L, 21L, 22L, 11L).map(days.count), List("1 день", "2 дні", "5 днів", "21 день", "22 дні", "11 днів"))
     assertEquals(days.of(PluralCategory.Other), "дня")
 
+  test("a count after \"раз на\" and after \"з\" takes the case of its number"):
+    Lang.within(Lang.Uk):
+      val from = java.time.LocalDate.of(2026, 11, 16)
+      assert(MedicationDepthCopy.everyNDays(3, from).startsWith("раз на 3 дні,"), MedicationDepthCopy.everyNDays(3, from))
+      assert(MedicationDepthCopy.everyNDays(5, from).startsWith("раз на 5 днів,"))
+      assert(MedicationDepthCopy.everyNDays(21, from).startsWith("раз на 21 день,"))
+      val end = java.time.LocalDate.parse("2026-11-07")
+      val days = List.tabulate(21)(back => end.minusDays(back.toLong) -> dosegram.core.domain.insights.HydrationDay(1500, 3, Some(1000))).toMap
+      val water = dosegram.core.domain.insights.HydrationStats.period(days, dosegram.core.domain.insights.DateRange.endingOn(end, 30))
+      val line = TrendCopy.water(30, water)
+      assert(line.contains("з 21 дня із записами"), line)
+
   test("numbers use the decimal separator of the locale (R-LOC-4)"):
     assertEquals(Lang.within(Lang.En)(WaterCopy.volume(1250)), "1.25 l")
     assertEquals(Lang.within(Lang.Uk)(WaterCopy.volume(1250)), "1,25 л")

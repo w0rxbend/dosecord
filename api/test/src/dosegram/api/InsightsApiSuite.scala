@@ -247,6 +247,25 @@ final class InsightsApiSuite extends ApiSuite:
       English.foreach(word => assert(!words.contains(word), s"range $range: '$word' in $words"))
       assert(words.contains("Попередні"), words)
 
+  test("the Ukrainian dashboard and month name their counts in the case of the number, with one full stop (G2.22)"):
+    val account = accountWithoutConsent("Europe/Kyiv")
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    assert(tracking.water.setGoal(account.accountId, Some(500)).isRight)
+    drink(account, 600)
+    checkIn(account, 4)
+    val token = login(account)
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val words = blocks(get("/api/v1/insights/overview?range=30", token)).flatMap(wordsOf).mkString("\n")
+    assert(words.contains("Ціль досягнуто в 1 з 1 дня із записами."), words)
+    assert(!words.contains(".."), words)
+    val month = get("/api/v1/insights/month?month=2026-11", token)
+    assertEquals(month.status, 200, month.body)
+    val gates = month.json("domains").arr.toList.map(_("gateText").str)
+    assert(gates.head.startsWith("Вода: "), gates.toString)
+    assert(gates(1).startsWith("Настрій: "), gates.toString)
+
   // Last in the suite: it moves the shared clock on by a week.
   test("a record of the week before is the previous period of the 7-day view and not part of its own figures"):
     val account = accountWithoutConsent()

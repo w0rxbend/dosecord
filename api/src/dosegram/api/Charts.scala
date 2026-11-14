@@ -74,15 +74,15 @@ object Charts:
       goal.map(_ =>
         tr(
           s" The goal was reached on ${recorded.count(_.isGoalDay)} of ${recorded.size} recorded days.",
-          s" Ціль досягнуто в ${recorded.count(_.isGoalDay)} з ${recorded.size} днів із записами."
+          s" Ціль досягнуто в ${recorded.count(_.isGoalDay)} з ${UkDaysOf.count(recorded.size)} із записами."
         )
       )
     Chart(
       id = "water-by-day",
       title = tr("Water per day", "Вода за день"),
       summary = tr(
-        s"Water per day, ${ApiCopy.rangeLabel(window)}. Entries on ${recorded.size} of ${points.size} days.",
-        s"Вода за день, ${ApiCopy.rangeLabel(window)}. Записи є за ${recorded.size} з ${points.size} днів."
+        s"Water per day, ${rangeSentence(window)} Entries on ${recorded.size} of ${points.size} days.",
+        s"Вода за день, ${rangeSentence(window)} Записи є за ${recorded.size} з ${UkDaysOf.count(points.size)}."
       ) +
         reached.getOrElse(""),
       scene = Scene(
@@ -146,7 +146,7 @@ object Charts:
       ) +
         tr(
           s"Nights logged on ${recorded.size} of ${points.size} days.$goal",
-          s"Ночі записано за ${recorded.size} з ${points.size} днів.$goal"
+          s"Ночі записано за ${recorded.size} з ${UkDaysOf.count(points.size)}.$goal"
         ),
       scene = Scene(
         Width,
@@ -190,8 +190,8 @@ object Charts:
       id = "mood-by-day",
       title = tr("Mood per day", "Настрій за день"),
       summary = tr(
-        s"Daily mood, ${ApiCopy.rangeLabel(window)}. Check-ins on ${recorded.size} of ${points.size} days. ",
-        s"Денний настрій, ${ApiCopy.rangeLabel(window)}. Позначки є за ${recorded.size} з ${points.size} днів. "
+        s"Daily mood, ${rangeSentence(window)} Check-ins on ${recorded.size} of ${points.size} days. ",
+        s"Денний настрій, ${rangeSentence(window)} Позначки є за ${recorded.size} з ${UkDaysOf.count(points.size)}. "
       ) +
         tr("A day without a check-in is a gap.", "День без позначки показано як пропуск."),
       scene = Scene(
@@ -292,10 +292,10 @@ object Charts:
       id = "doses-by-day",
       title = tr("Doses by day", "Дози за днями"),
       summary = tr(
-        s"Scheduled doses by day, ${ApiCopy.rangeLabel(window)}. Every scheduled dose was recorded as taken " +
+        s"Scheduled doses by day, ${rangeSentence(window)} Every scheduled dose was recorded as taken " +
           s"on $complete of ${withDoses.size} days with doses.",
-        s"Заплановані дози за днями, ${ApiCopy.rangeLabel(window)}. Усі заплановані дози записано як прийняті " +
-          s"за $complete з ${withDoses.size} днів із дозами."
+        s"Заплановані дози за днями, ${rangeSentence(window)} Усі заплановані дози записано як прийняті " +
+          s"за $complete з ${UkDaysOf.count(withDoses.size)} із дозами."
       ),
       scene = Scene(Width, PlotHeight + LabelRoom, bars ++ frame(days, 0) ++ days.indices.map(columns.hit)),
       table = ChartTable(
@@ -330,6 +330,11 @@ object Charts:
 
   /** The local day of every mark of a chart of days, so that a picked mark opens that day (S-13). */
   private def datesOf[A](points: List[DayPoint[A]]): Option[List[String]] = Some(points.map(_.date.toString))
+
+  /** The range ending a sentence with one full stop: the Ukrainian month is abbreviated with its own ("14 лист."). */
+  private def rangeSentence(window: DateRange): String =
+    val label = ApiCopy.rangeLabel(window)
+    if label.endsWith(".") then label else s"$label."
 
   /** After "з" ("за 3 з 7 днів"): the genitive of the count (ROADMAP G2.22). */
   private val UkDaysOf = UkForms("дня", "днів", "днів")
@@ -507,9 +512,9 @@ object Charts:
       "doses-by-week",
       tr("Doses by week", "Дози за тиждень"),
       tr(
-        s"Scheduled doses by week, ${ApiCopy.rangeLabel(window)}. ${total.resolved.taken} of " +
+        s"Scheduled doses by week, ${rangeSentence(window)} ${total.resolved.taken} of " +
           s"${ApiCopy.count(scheduledIn(total), "scheduled dose")} were recorded as taken.",
-        s"Заплановані дози за тиждень, ${ApiCopy.rangeLabel(window)}. Як прийняті записано ${total.resolved.taken} з " +
+        s"Заплановані дози за тиждень, ${rangeSentence(window)} Як прийняті записано ${total.resolved.taken} з " +
           s"${UkScheduledDosesOf.count(scheduledIn(total))}."
       ),
       SceneTone.Recorded,
@@ -536,8 +541,8 @@ object Charts:
       "meals-by-week",
       tr("Meals per week", "Прийоми їжі за тиждень"),
       tr(
-        s"Meals logged per week, ${ApiCopy.rangeLabel(window)}. A count of entries, with no amount.",
-        s"Записані прийоми їжі за тиждень, ${ApiCopy.rangeLabel(window)}. Кількість записів, без обсягу."
+        s"Meals logged per week, ${rangeSentence(window)} A count of entries, with no amount.",
+        s"Записані прийоми їжі за тиждень, ${rangeSentence(window)} Кількість записів, без обсягу."
       ),
       SceneTone.Nutrition,
       columns,
@@ -580,8 +585,8 @@ object Charts:
       id = "meals-by-day",
       title = tr("Meals per day", "Прийоми їжі за день"),
       summary = tr(
-        s"Main meals logged per day, ${ApiCopy.rangeLabel(window)}. Meals on $logged of ${points.size} days.",
-        s"Основні прийоми їжі за день, ${ApiCopy.rangeLabel(window)}. Записи є за $logged з ${UkDaysOf.count(points.size)}."
+        s"Main meals logged per day, ${rangeSentence(window)} Meals on $logged of ${points.size} days.",
+        s"Основні прийоми їжі за день, ${rangeSentence(window)} Записи є за $logged з ${UkDaysOf.count(points.size)}."
       ),
       scene = Scene(
         Width,

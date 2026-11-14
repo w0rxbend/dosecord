@@ -6,6 +6,7 @@ import dosegram.core.application.insights.ComparisonWindow
 import dosegram.core.domain.copy.InsightCopy
 import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.Insight
 import dosegram.core.domain.insights.LocalDays
 import dosegram.core.domain.insights.MedicationFigures
@@ -152,15 +153,15 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
             gateText = Some(MonthCopy.gate(name, month))
           )
     List(
-      block(InsightDomain.Medication, "Doses", figures.medication)(period =>
+      block(InsightDomain.Medication, tr("Doses", "Дози"), figures.medication)(period =>
         StatsCopy.doseFigures(period.total) ++
           MonthCopy
             .previous(figures.month, figures.previousAdherence)
             .filter(_ => period.total.adherence.shown.isDefined)
       ),
-      block(InsightDomain.Hydration, "Water", figures.hydration)(StatsCopy.waterFigures),
-      block(InsightDomain.Mood, "Mood", figures.mood)(StatsCopy.moodFigures),
-      block(InsightDomain.Sleep, "Sleep", figures.sleep)(StatsCopy.sleepFigures)
+      block(InsightDomain.Hydration, tr("Water", "Вода"), figures.hydration)(StatsCopy.waterFigures),
+      block(InsightDomain.Mood, tr("Mood", "Настрій"), figures.mood)(StatsCopy.moodFigures),
+      block(InsightDomain.Sleep, tr("Sleep", "Сон"), figures.sleep)(StatsCopy.sleepFigures)
     ).flatten
 
   /** The medications of the month in registry order, each with its own counts; one without a dose this month is left

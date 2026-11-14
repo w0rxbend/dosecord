@@ -17,7 +17,7 @@ object MedicationDepthCopy:
     val cadence = everyDays match
       case 1 => tr("every day", "щодня")
       case 2 => tr("every other day", "через день")
-      case n => tr(s"every $n days", s"раз на $n ${UkNouns.DaysOf(n)}")
+      case n => tr(s"every $n days", s"раз на ${UkNouns.Days.count(n.toLong)}")
     tr(s"$cadence from ${date(anchor)}", s"$cadence, з ${date(anchor)}")
 
   /** `21 days on, 7 days off from Mon 16 Nov`. */

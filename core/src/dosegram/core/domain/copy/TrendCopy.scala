@@ -59,7 +59,7 @@ object TrendCopy:
               .map: ratio =>
                 tr(
                   s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days",
-                  s"ціль досягнуто в ${ratio.numerator} з ${ratio.denominator} днів із записами"
+                  s"ціль досягнуто в ${ratio.numerator} з ${UkNouns.DaysOf.count(ratio.denominator)} із записами"
                 )
             val average = tr(
               s"average ${StatsCopy.litres(millilitres, 1)} l a day",
