@@ -1,10 +1,15 @@
 package dosegram.api
 
 import dosegram.api.ApiSuite.TelegramAccount
+import dosegram.contracts.HhMm
+import dosegram.contracts.Weekday
+import dosegram.core.domain.Rule
+import dosegram.core.domain.SlotGroup
 import dosegram.core.ports.ConsentPurpose
 
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /** The reminders routes of ADR-023 over HTTP: the hub, the presets with their previews, plans on and off with an
   * idempotency key and the domain's consent, the day profile on the version the client read, the pause, the timeline,
@@ -124,6 +129,17 @@ final class ReminderApiSuite extends ApiSuite:
     val entries = timeline.json("entries").arr
     assertEquals(entries.size, 12, "every hour from 09:00 to 20:00")
     assert(entries.forall(_("kind").str == "water"))
+
+  test("a Ukrainian account reads tomorrow's medication reminders under the Ukrainian name of the area (G2.22)"):
+    val (account, token) = user(ConsentPurpose.Medication)
+    val everyDay = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
+    fixtures.schedule(clock, account.accountId, "Vitamin D", everyDay, ZoneId.of("Europe/Kyiv"))
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val entries = get("/api/v1/reminders/timeline", token).json("entries").arr.filter(_("kind").str == "medication")
+    assert(entries.nonEmpty, "the schedule reminds tomorrow")
+    assertEquals(entries.map(_("name").str).distinct.toList, List("Ліки"))
 
   test("one account's plans are never another's"):
     val (_, mine) = user(ConsentPurpose.Hydration)

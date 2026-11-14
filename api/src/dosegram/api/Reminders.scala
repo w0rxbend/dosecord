@@ -9,6 +9,7 @@ import dosegram.core.application.reminders.TimelineItem
 import dosegram.core.domain.QuietHours
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.PromptCopy
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.DaySet
 import dosegram.core.domain.reminders.MedicationPresetParams
@@ -314,7 +315,7 @@ object Reminders:
     item.kind match
       case Some(kind) =>
         ReminderTimelineEntry(item.at, kind.id, item.presetId.fold(PromptCopy.kindName(kind))(PromptCopy.presetName))
-      case None => ReminderTimelineEntry(item.at, "medication", "Medication")
+      case None => ReminderTimelineEntry(item.at, "medication", tr("Medication", "Ліки"))
 
   /** The schedule editor's draft of a rule the engine reminds: fixed times on days, or as needed. */
   private def draftOf(rule: Rule): ScheduleDraft = rule match
