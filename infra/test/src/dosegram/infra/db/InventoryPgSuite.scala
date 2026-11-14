@@ -145,14 +145,14 @@ class InventoryPgSuite extends PgSuite:
     val med = scheduled()
     assert(save(med, 10).isRight)
     val repo = (tx: dosegram.core.ports.Tx) => tx.medicationDepth.inventory
-    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday, 10)).map(_.medicationId), List(med.medication))
+    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday, None, 10)).map(_.medicationId), List(med.medication))
     fixtures.uow.transaction(repo(_).markNotice(med.medication, monday))
-    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday, 10)), Nil)
-    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday.plusSeconds(1), 10)).size, 1)
+    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday, None, 10)), Nil)
+    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday.plusSeconds(1), None, 10)).size, 1)
     assert(fixtures.uow.transaction(repo(_).stopNotices(med.account, med.medication, monday)))
-    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday.plusSeconds(1), 10)), Nil)
+    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday.plusSeconds(1), None, 10)), Nil)
     fixtures.uow.transaction(repo(_).refill(med.account, med.medication, 30, UUID.randomUUID().toString, monday))
-    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday.plusSeconds(1), 10)).size, 1)
+    assertEquals(fixtures.uow.transaction(repo(_).noticeCandidates(monday.plusSeconds(1), None, 10)).size, 1)
 
   test("AC-REG-7 on stored schedules: every other day with 5 units covers 10 days, and a pause moves it out"):
     val account = fixtures.account("UTC")

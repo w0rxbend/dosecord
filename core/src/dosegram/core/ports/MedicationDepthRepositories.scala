@@ -40,8 +40,10 @@ trait InventoryRepository:
   /** Adds `quantity` (R-REG-15) once per `key`, remembers it as the last refill and clears a stopped notice. */
   def refill(accountId: UUID, medicationId: UUID, quantity: BigDecimal, key: String, now: Instant): Option[Inventory]
 
-  /** Counts with a threshold whose notice is not stopped and was last sent before `sentBefore` (or never). */
-  def noticeCandidates(sentBefore: Instant, limit: Int): List[Inventory]
+  /** Counts with a threshold whose notice is not stopped and was last sent before `sentBefore` (or never), in
+    * medication order after `after`: one page of at most `limit`.
+    */
+  def noticeCandidates(sentBefore: Instant, after: Option[UUID], limit: Int): List[Inventory]
 
   def markNotice(medicationId: UUID, at: Instant): Unit
   def stopNotices(accountId: UUID, medicationId: UUID, now: Instant): Boolean

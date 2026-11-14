@@ -59,7 +59,7 @@ class MedicationDepthPgSuite extends PgSuite:
     val medication: UUID = fixtures.uow.transaction(_.schedules.get(schedule).get.medicationId)
     fixtures.uow.transaction(
       _.medicationDepth.inventory
-        .save(InventorySettings(medication, account, onHand, 1, Some(RefillThreshold.Days(7)), "count-1"), None, clock.now())
+        .save(InventorySettings(medication, account, onHand, 1, Some(RefillThreshold.Days(7)), s"count-$account"), None, clock.now())
     )
     val lifecycle = ScheduleLifecycle(fixtures.uow, clock)
     val loop = MedicationDepthLoop(fixtures.uow, clock, ids, codec, lifecycle, (_, e) => errors += e)
@@ -116,6 +116,24 @@ class MedicationDepthPgSuite extends PgSuite:
     rig.loop.tick()
     assertEquals(rig.notices.size, 2, "again after 3 days")
     assertEquals(rig.errors.toList, Nil)
+
+  test("counts that owe no notice never hold back a later one: the loop reads every page of candidates"):
+    val first = Rig(onHand = 100)
+    val second = Rig(onHand = 100)
+    // The count last in Postgres order is the low one, so a page of one candidate starts with a count that owes nothing.
+    val last = withConnection: conn =>
+      given Connection = conn
+      sql"SELECT medication_id FROM medication_inventory ORDER BY medication_id DESC LIMIT 1".queryOne[UUID]().get
+    val low = List(first, second).find(_.medication == last).get
+    withConnection: conn =>
+      given Connection = conn
+      sql"UPDATE medication_inventory SET on_hand = 3 WHERE medication_id = $last".execute()
+    low.clock.at = local(21, "07:30")
+    val loop = MedicationDepthLoop(fixtures.uow, low.clock, ids, codec, low.lifecycle, (_, e) => low.errors += e, batch = 1)
+    loop.tick()
+    assertEquals(low.notices.size, 1)
+    assertEquals(List(first, second).filterNot(_ eq low).flatMap(_.notices), Nil)
+    assertEquals(low.errors.toList, Nil)
 
   test("the refill notice is written in the account's language (ROADMAP G2.22)"):
     val rig = Rig(onHand = 3)

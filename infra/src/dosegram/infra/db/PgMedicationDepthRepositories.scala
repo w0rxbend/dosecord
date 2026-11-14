@@ -107,13 +107,15 @@ final class PgInventoryRepository(conn: Connection) extends InventoryRepository:
                       $key, $now)""".execute()
       get(accountId, medicationId).getOrElse(row)
 
-  override def noticeCandidates(sentBefore: Instant, limit: Int): List[Inventory] =
+  override def noticeCandidates(sentBefore: Instant, after: Option[UUID], limit: Int): List[Inventory] =
+    // The first page starts after the nil uuid, the smallest in Postgres order, so one statement serves every page.
+    val from = after.getOrElse(new UUID(0L, 0L))
     SqlQuery(
       s"""SELECT $Columns FROM medication_inventory
           WHERE (threshold_days IS NOT NULL OR threshold_units IS NOT NULL) AND NOT notices_stopped
-            AND (last_notice_at IS NULL OR last_notice_at < ?)
+            AND (last_notice_at IS NULL OR last_notice_at < ?) AND medication_id > ?
           ORDER BY medication_id LIMIT ?""",
-      Vector(sentBefore, limit)
+      Vector(sentBefore, from, limit)
     ).query[Inventory]()
 
   override def markNotice(medicationId: UUID, at: Instant): Unit =

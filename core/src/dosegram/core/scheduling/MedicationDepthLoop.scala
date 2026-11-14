@@ -52,24 +52,31 @@ final class MedicationDepthLoop(
     ids: IdSource,
     codec: CallbackCodec,
     lifecycle: ScheduleLifecycle,
-    onError: (UUID, Throwable) => Unit
+    onError: (UUID, Throwable) => Unit,
+    batch: Int = MedicationDepthLoop.Batch
 ):
   import MedicationDepthLoop.*
 
   /** One pass: the due resumes, then the refill notices; returns the number of messages queued. */
   def tick(): Int =
     val now = clock.now()
-    val resumes = uow.transaction(_.medicationDepth.pauses.dueResumes(now, Batch))
+    val resumes = uow.transaction(_.medicationDepth.pauses.dueResumes(now, batch))
     val resumed =
       resumes.count(due =>
         guarded(due.scheduleId)(uow.transaction(tx => inLanguage(tx, due.accountId)(resume(tx, due, now))))
       )
-    val candidates = uow.transaction(_.medicationDepth.inventory.noticeCandidates(now.minus(Repeat), Batch))
-    resumed + candidates.count(inventory =>
+    resumed + notices(now, after = None)
+
+  /** Every page of candidates: a page of counts that owe nothing must not hold back the counts after it. */
+  @scala.annotation.tailrec
+  private def notices(now: Instant, after: Option[UUID], sent: Int = 0): Int =
+    val page = uow.transaction(_.medicationDepth.inventory.noticeCandidates(now.minus(Repeat), after, batch))
+    val total = sent + page.count(inventory =>
       guarded(inventory.medicationId)(
         uow.transaction(tx => inLanguage(tx, inventory.accountId)(notice(tx, inventory, now)))
       )
     )
+    if page.size < batch then total else notices(now, page.lastOption.map(_.medicationId), total)
 
   /** Each notice is written in its account's language (ROADMAP G2.22), as the prompt loop writes its plans. */
   private def inLanguage[A](tx: Tx, accountId: UUID)(body: => A): A =
@@ -193,4 +200,4 @@ end MedicationDepthLoop
 object MedicationDepthLoop:
   /** R-REG-14 (PROPOSED): the notice repeats every 3 days. */
   val Repeat: Duration = Duration.ofDays(3)
-  private val Batch = 100
+  val Batch = 100
