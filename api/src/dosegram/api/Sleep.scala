@@ -7,6 +7,7 @@ import dosegram.core.application.sleep.SleepStatus
 import dosegram.core.application.sleep.WokeUp
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DaySeries
 import dosegram.core.domain.insights.LocalDays
@@ -117,7 +118,7 @@ object Sleep:
   val Limits: SleepLimits = SleepLimits(SleepBounds.MinGoalMinutes, SleepBounds.MaxGoalMinutes)
 
   /** Where every sleep value comes from (MA-SLEEP-1): every stored episode is the user's own entry. */
-  val Source = "From your check-ins"
+  def Source: String = tr("From your check-ins", "З ваших позначок")
 
   private def inputOf(accountId: UUID, key: UUID): SleepInput = SleepInput(accountId, EntrySource.MiniApp, s"api:$key")
 
@@ -142,7 +143,7 @@ object Sleep:
     val bedtime = ApiCopy.clock(episode.interval.onset.at, episode.interval.onset.zone)
     val wakeTime = ApiCopy.clock(episode.interval.wake.at, episode.interval.wake.zone)
     val kind = if episode.kind == SleepKind.Nap then SleepEpisodeKind.Nap else SleepEpisodeKind.Night
-    val noun = if kind == SleepEpisodeKind.Nap then "Nap" else "Night"
+    val noun = if kind == SleepEpisodeKind.Nap then tr("Nap", "Денний сон") else tr("Night", "Ніч")
     SleepEpisodeView(
       id = episode.id,
       kind = kind,
@@ -154,7 +155,10 @@ object Sleep:
       minutes = minutes,
       duration = StatsCopy.duration(minutes),
       source = Source,
-      text = s"$noun of ${ApiCopy.dayLabel(episode.sleepDay)}: $bedtime to $wakeTime, ${StatsCopy.duration(minutes)}",
+      text = tr(
+        s"$noun of ${ApiCopy.dayLabel(episode.sleepDay)}: $bedtime to $wakeTime, ${StatsCopy.duration(minutes)}",
+        s"$noun, ${ApiCopy.dayLabel(episode.sleepDay)}: з $bedtime до $wakeTime, ${StatsCopy.duration(minutes)}"
+      ),
       quality = episode.quality.map(_.step)
     )
 
@@ -162,19 +166,26 @@ object Sleep:
     val last = status.latestNight.map(episodeView)
     val open = status.open.map(checkin => ApiCopy.clock(checkin.occurredAt, checkin.zone))
     val text = open match
-      case Some(since) => s"Going to sleep recorded at $since."
+      case Some(since) => tr(s"Going to sleep recorded at $since.", s"«Лягаю спати» записано о $since.")
       case None        =>
-        last.fold(NoNight)(night => s"Last: ${night.bedtime} to ${night.wakeTime}, ${night.duration}.")
+        last.fold(NoNight)(night =>
+          tr(
+            s"Last: ${night.bedtime} to ${night.wakeTime}, ${night.duration}.",
+            s"Остання ніч: з ${night.bedtime} до ${night.wakeTime}, ${night.duration}."
+          )
+        )
     SleepStatusView(
       text = text,
       openSince = open,
       lastNight = last,
       goalMinutes = status.goalMinutes,
-      goalText = status.goalMinutes.map(minutes => s"Your goal: ${StatsCopy.duration(minutes)}")
+      goalText = status.goalMinutes.map(minutes =>
+        tr(s"Your goal: ${StatsCopy.duration(minutes)}", s"Ваша ціль: ${StatsCopy.duration(minutes)}")
+      )
     )
 
-  val NoNight = "No night logged yet"
+  def NoNight: String = tr("No night logged yet", "Ще не записано жодної ночі")
 
   private def summaryDay(date: LocalDate, night: Option[SleepNight]): SleepSummaryDay =
-    val value = night.fold("no night logged")(recorded => StatsCopy.duration(recorded.minutes))
+    val value = night.fold(tr("no night logged", "ніч не записано"))(recorded => StatsCopy.duration(recorded.minutes))
     SleepSummaryDay(date, ApiCopy.weekday(date), s"${ApiCopy.dayLabel(date)}: $value", night.map(_.minutes))

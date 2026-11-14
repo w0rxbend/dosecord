@@ -27,7 +27,7 @@ final class SettingsApiSuite extends ApiSuite:
       (read.json("language").str, read.json("timeZone").str, read.json("imageTheme").str),
       ("en", "Europe/Kyiv", "auto")
     )
-    assertEquals(read.json("languages").arr.map(_("code").str).toList, List("en"))
+    assertEquals(read.json("languages").arr.map(_("code").str).toList, List("en", "uk"))
 
     val saved = patch("/api/v1/settings", settingsBody("Europe/Kyiv", "dark"), token, ifMatch(read))
     assertEquals(saved.status, 200, saved.body)
@@ -40,6 +40,21 @@ final class SettingsApiSuite extends ApiSuite:
     assertProblem(refused, 422, "validation_failed")
     assertEquals(refused.fieldErrors.toSet, Set("language" -> "unsupported", "timeZone" -> "unknown"))
     assertProblem(patch("/api/v1/settings", settingsBody("Europe/Kyiv", "sepia"), token, ifMatch(saved)), 400, "validation_failed")
+
+  test("Ukrainian is offered in its own name; once chosen, the bootstrap and the server's sentences follow (G2.22)"):
+    val account = telegramAccount("Europe/Kyiv")
+    val token = login(account)
+    val read = get("/api/v1/settings", token)
+    assertEquals(read.json("languages").arr.map(_("label").str).toList, List("English", "Українська"))
+    assertEquals(exchange(initDataFor(account.telegramUserId)).json("bootstrap")("language").str, "en")
+    val chosen = patch("/api/v1/settings", settingsBody("Europe/Kyiv", language = "uk"), token, ifMatch(read))
+    assertEquals(chosen.status, 200, chosen.body)
+    assertEquals(chosen.json("language").str, "uk")
+    val again = exchange(initDataFor(account.telegramUserId))
+    assertEquals(again.json("bootstrap")("language").str, "uk")
+    val consents = get("/api/v1/consents", again.json("token").str)
+    assertEquals(consents.status, 200, consents.body)
+    assert(consents.body.contains("Щоб відкликати згоду, надішліть /privacy у чаті."), consents.body)
 
   test("a new time zone is previewed first, then moves the schedules that follow the account"):
     val account = telegramAccount("Europe/Kyiv")

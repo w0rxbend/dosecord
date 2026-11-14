@@ -7,6 +7,7 @@ import dosegram.api.auth.SessionService
 import dosegram.api.auth.SessionStore
 import dosegram.core.application.Application
 import dosegram.core.application.exports.ExportRequests
+import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.UnitOfWork
@@ -103,7 +104,12 @@ final class ApiModule(
               issued.token,
               issued.expiresAt,
               sessions.idleTimeout.toSeconds,
-              Bootstrap(issued.timeZone, RegistryLimits.published, grantedPurposes(issued.session.accountId))
+              Bootstrap(
+                issued.timeZone,
+                RegistryLimits.published,
+                grantedPurposes(issued.session.accountId),
+                language = Some(languageOf(issued.session).code)
+              )
             )
     ,
     Endpoints.deleteSession.handleSecurity(authenticate).handle(session => _ => guarded(Right(sessions.end(session)))),
@@ -208,6 +214,29 @@ final class ApiModule(
       .handleSecurity(authenticate)
       .handle(session => _ => guarded(insightReports.correlations(session.accountId)))
   )
+
+  private def languageOf(session: Session): Lang = uow.transaction(_.accounts.languageOf(session.accountId))
+
+  /** Every text a route of a session writes is in the account's language (ROADMAP G2.22, MINI_APP 5.7 rule 8). */
+  private def localised(endpoint: ServerEndpoint[Any, Identity]): ServerEndpoint[Any, Identity] =
+    ServerEndpoint[
+      endpoint.SECURITY_INPUT,
+      endpoint.PRINCIPAL,
+      endpoint.INPUT,
+      endpoint.ERROR_OUTPUT,
+      endpoint.OUTPUT,
+      Any,
+      Identity
+    ](
+      endpoint.endpoint,
+      endpoint.securityLogic,
+      monad =>
+        principal =>
+          input =>
+            principal match
+              case session: Session => Lang.within(languageOf(session))(endpoint.logic(monad)(principal)(input))
+              case _                => endpoint.logic(monad)(principal)(input)
+    )
 
   private def grantedPurposes(accountId: UUID): List[String] =
     uow.transaction(_.consents.granted(accountId)).map(_.purpose.id)
@@ -500,9 +529,9 @@ final class ApiModule(
 
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
-    sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
+    (sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
       hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
-      nutritionEndpoints ++ exportEndpoints :+
+      nutritionEndpoints ++ exportEndpoints).map(localised) :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 
 object ApiModule:

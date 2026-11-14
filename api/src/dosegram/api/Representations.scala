@@ -90,7 +90,14 @@ final case class Limits(medicationNameMax: Int, instructionsMax: Int, doseUnitMa
 
 /** `consents` are the purposes the account has granted now, so the first screen asks only for the domains it may show.
   */
-final case class Bootstrap(timeZone: String, limits: Limits, consents: List[String] = Nil) derives ReadWriter, Schema
+/** `language` is the account's locale, which the Mini App shows its screens in (ROADMAP G2.22). */
+final case class Bootstrap(
+    timeZone: String,
+    limits: Limits,
+    consents: List[String] = Nil,
+    language: Option[String] = None
+) derives ReadWriter,
+      Schema
 
 /** The token is returned once and is never stored by the server in this form (API-05). */
 final case class SessionCreated(token: String, expiresAt: Instant, idleTimeoutSeconds: Long, bootstrap: Bootstrap)

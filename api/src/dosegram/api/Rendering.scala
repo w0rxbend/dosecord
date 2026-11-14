@@ -5,8 +5,13 @@ import dosegram.core.domain.DstKind
 import dosegram.core.domain.OccurrenceCandidate
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.Formats
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.MoodLabels
+import dosegram.core.domain.copy.UkForms
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.copy.decimal
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MoodDay
 import dosegram.core.ports.ConsentPurpose
@@ -31,19 +36,19 @@ import java.util.Locale
   * configured and say nothing about health.
   */
 object ApiCopy:
-  private val DayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
-  private val DayMonth = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
+  private def DayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Formats.locale)
+  private def DayMonth = DateTimeFormatter.ofPattern("d MMM", Formats.locale)
   private val Clock = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
-  private val FullDay = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH)
-  private val Weekday3 = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
-  private val MonthYear = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)
-  private val MonthOnly = DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)
+  private def FullDay = DateTimeFormatter.ofPattern("EEEE d MMMM", Formats.locale)
+  private def Weekday3 = DateTimeFormatter.ofPattern("EEE", Formats.locale)
+  private def MonthYear = DateTimeFormatter.ofPattern("LLLL yyyy", Formats.locale)
+  private def MonthOnly = DateTimeFormatter.ofPattern("LLLL", Formats.locale)
   private val Workdays = List(Weekday.Mon, Weekday.Tue, Weekday.Wed, Weekday.Thu, Weekday.Fri)
 
-  val noSchedule = "No schedule"
-  val asNeeded = "as needed"
-  def paused(summary: String): String = s"paused: $summary"
-  def ended(summary: String): String = s"ended: $summary"
+  def noSchedule: String = tr("No schedule", "Без розкладу")
+  def asNeeded: String = tr("as needed", "за потреби")
+  def paused(summary: String): String = tr(s"paused: $summary", s"призупинено: $summary")
+  def ended(summary: String): String = tr(s"ended: $summary", s"завершено: $summary")
 
   def dayLabel(date: LocalDate): String = date.format(DayLabel)
 
@@ -51,30 +56,51 @@ object ApiCopy:
   def dayMonth(date: LocalDate): String = date.format(DayMonth)
 
   /** `1 check-in`, `3 check-ins`. */
-  def count(n: Int, noun: String): String = if n == 1 then s"1 $noun" else s"$n ${noun}s"
+  def count(n: Int, noun: String): String =
+    Lang.current match
+      case Lang.En => if n == 1 then s"1 $noun" else s"$n ${noun}s"
+      case Lang.Uk => UkrainianNouns.get(noun).fold(s"$n $noun")(_.count(n))
+
+  /** The Ukrainian forms of the nouns this API counts (ROADMAP G2.22). */
+  private val UkrainianNouns: Map[String, UkForms] = Map(
+    "check-in" -> UkForms("позначка", "позначки", "позначок"),
+    "day" -> UkForms("день", "дні", "днів"),
+    "night" -> UkForms("ніч", "ночі", "ночей"),
+    "schedule" -> UkForms("розклад", "розклади", "розкладів"),
+    "scheduled dose" -> UkForms("запланована доза", "заплановані дози", "запланованих доз")
+  )
 
   /** `7 Nov to 13 Nov`: the days a statistics period covers. */
-  def rangeLabel(window: DateRange): String = s"${window.start.format(DayMonth)} to ${window.end.format(DayMonth)}"
+  def rangeLabel(window: DateRange): String = tr(
+    s"${window.start.format(DayMonth)} to ${window.end.format(DayMonth)}",
+    s"${window.start.format(DayMonth)} – ${window.end.format(DayMonth)}"
+  )
 
-  val noDataInPeriod = "No data in this period"
-  val noConsentedDomain = "Statistics appear here for the records you turned on in the chat."
+  def noDataInPeriod: String = tr("No data in this period", "За цей період даних немає")
+  def noConsentedDomain: String = tr(
+    "Statistics appear here for the records you turned on in the chat.",
+    "Тут з’являється статистика для записів, які ви ввімкнули в чаті."
+  )
 
   def insightTitle(domain: InsightDomain): String = domain match
-    case InsightDomain.Medication => "Medication"
-    case InsightDomain.Hydration  => "Water"
-    case InsightDomain.Mood       => "Mood"
-    case InsightDomain.Sleep      => "Sleep"
+    case InsightDomain.Medication => tr("Medication", "Ліки")
+    case InsightDomain.Hydration  => tr("Water", "Вода")
+    case InsightDomain.Mood       => tr("Mood", "Настрій")
+    case InsightDomain.Sleep      => tr("Sleep", "Сон")
   def clock(at: Instant, zone: ZoneId): String = Clock.format(at.atZone(zone))
 
   // ---------- tracking ----------
 
-  val nothingLogged = "Nothing logged yet"
-  val noCheckIn = "No check-in yet"
+  def nothingLogged: String = tr("Nothing logged yet", "Поки нічого не записано")
+  def noCheckIn: String = tr("No check-in yet", "Позначок поки немає")
 
   /** MINI_APP MA-MOOD-7: shown on every mood screen, for every value. */
-  val moodStatement = "Dosegram records how you feel. It does not assess it."
+  def moodStatement: String = tr(
+    "Dosegram records how you feel. It does not assess it.",
+    "Dosegram записує, як ви почуваєтеся. Він цього не оцінює."
+  )
 
-  def millilitres(amount: Int): String = s"$amount ml"
+  def millilitres(amount: Int): String = tr(s"$amount ml", s"$amount мл")
 
   /** `Thursday 12 November`: the date in the accessible name of a calendar cell (MINI_APP MA-HIST-1). */
   def fullDay(date: LocalDate): String = date.format(FullDay)
@@ -87,37 +113,66 @@ object ApiCopy:
 
   /** The daily mean with the name of its level: `3.5 (slightly pleasant)`. No surface shows a bare mood number. */
   def moodMean(day: MoodDay): String =
-    val mean = java.math.BigDecimal.valueOf(day.mean).setScale(1, RoundingMode.HALF_UP).toPlainString
+    val mean = decimal(java.math.BigDecimal.valueOf(day.mean).setScale(1, RoundingMode.HALF_UP).toPlainString)
     s"$mean (${MoodLabels.level(day.level).toLowerCase(Locale.ROOT)})"
 
   // ---------- consents and settings ----------
 
   /** Research brief 06 fact F2, shown with the consents (MINI_APP section 7.15). */
-  val chatIsNotEncrypted =
-    "Telegram can read the messages and images in your chat with Dosegram. Bot chats are not end-to-end encrypted."
-  val withdrawInChat = "To withdraw a consent, send /privacy in the chat. The app records no consent of its own."
+  def chatIsNotEncrypted: String =
+    tr(
+      "Telegram can read the messages and images in your chat with Dosegram. Bot chats are not end-to-end encrypted.",
+      "Telegram може читати повідомлення й зображення у вашому чаті з Dosegram. Чати з ботами не мають наскрізного шифрування."
+    )
+  def withdrawInChat: String = tr(
+    "To withdraw a consent, send /privacy in the chat. The app records no consent of its own.",
+    "Щоб відкликати згоду, надішліть /privacy у чаті. Застосунок сам згод не записує."
+  )
 
   /** How a purpose is turned on: in the chat only (ARCHITECTURE API-19). */
   def consentOff(purpose: ConsentPurpose): String = purpose match
-    case ConsentPurpose.Medication          => "Off. Send /meds in the chat to turn it on."
-    case ConsentPurpose.Hydration           => "Off. Send /water in the chat to turn it on."
-    case ConsentPurpose.Mood                => "Off. Send /mood in the chat to turn it on."
-    case ConsentPurpose.Sleep               => "Off. The chat cannot turn sleep records on yet."
-    case ConsentPurpose.CrossDomainPatterns => "Off. The chat asks for it when a comparison is first requested."
-    case ConsentPurpose.ImagesInChat        => "Off. The chat asks for it when an image is first requested."
-    case ConsentPurpose.Nutrition           => "Off. Send /food in the chat to turn it on."
+    case ConsentPurpose.Medication =>
+      tr("Off. Send /meds in the chat to turn it on.", "Вимкнено. Надішліть /meds у чаті, щоб увімкнути.")
+    case ConsentPurpose.Hydration =>
+      tr("Off. Send /water in the chat to turn it on.", "Вимкнено. Надішліть /water у чаті, щоб увімкнути.")
+    case ConsentPurpose.Mood =>
+      tr("Off. Send /mood in the chat to turn it on.", "Вимкнено. Надішліть /mood у чаті, щоб увімкнути.")
+    case ConsentPurpose.Sleep =>
+      tr("Off. The chat cannot turn sleep records on yet.", "Вимкнено. Чат поки не вміє вмикати записи сну.")
+    case ConsentPurpose.CrossDomainPatterns =>
+      tr(
+        "Off. The chat asks for it when a comparison is first requested.",
+        "Вимкнено. Чат попросить згоду, коли ви вперше запросите порівняння."
+      )
+    case ConsentPurpose.ImagesInChat =>
+      tr(
+        "Off. The chat asks for it when an image is first requested.",
+        "Вимкнено. Чат попросить згоду, коли ви вперше запросите зображення."
+      )
+    case ConsentPurpose.Nutrition =>
+      tr("Off. Send /food in the chat to turn it on.", "Вимкнено. Надішліть /food у чаті, щоб увімкнути.")
 
-  val quietHoursNote =
-    "A medication reminder that falls inside quiet hours follows the quiet-hours rule of its schedule."
-  val discreetNote =
-    "This choice is saved with your account. Reminders in the chat do not use it yet: they still show the name."
+  def quietHoursNote: String =
+    tr(
+      "A medication reminder that falls inside quiet hours follows the quiet-hours rule of its schedule.",
+      "Нагадування про ліки, що припадає на тихі години, діє за правилом тихих годин свого розкладу."
+    )
+  def discreetNote: String =
+    tr(
+      "This choice is saved with your account. Reminders in the chat do not use it yet: they still show the name.",
+      "Цей вибір зберігається з вашим акаунтом. Нагадування в чаті поки його не враховують: вони й далі показують назву."
+    )
 
-  def timeThere(time: String): String = s"It is $time there now."
-  val noSchedulesMove = "No schedule is changed by this."
+  def timeThere(time: String): String = tr(s"It is $time there now.", s"Там зараз $time.")
+  def noSchedulesMove: String = tr("No schedule is changed by this.", "Жоден розклад від цього не зміниться.")
   def schedulesFollow(count: Int): String =
-    s"${ApiCopy.count(count, "schedule")} ${if count == 1 then "follows" else "follow"} your time zone and " +
-      s"${if count == 1 then "keeps its" else "keep their"} clock times."
-  def scheduleStays(medicationName: String, zone: ZoneId): String = s"$medicationName stays on ${zone.getId} time."
+    tr(
+      s"${ApiCopy.count(count, "schedule")} ${if count == 1 then "follows" else "follow"} your time zone and " +
+        s"${if count == 1 then "keeps its" else "keep their"} clock times.",
+      s"Розкладів, що йдуть за вашим часовим поясом і зберігають свій час: $count."
+    )
+  def scheduleStays(medicationName: String, zone: ZoneId): String =
+    tr(s"$medicationName stays on ${zone.getId} time.", s"$medicationName лишається за часом ${zone.getId}.")
 
   /** `every day 09:00, 21:00`, in the words of the chat wizard. */
   def ruleSummary(rule: Rule): String = rule match
@@ -127,7 +182,7 @@ object ApiCopy:
       val cadence =
         if days.size == Weekday.values.length then WizardCopy.cadenceEveryDay
         else if days.sortBy(_.ordinal) == Workdays then WizardCopy.cadenceWeekdays
-        else WizardCopy.cadenceDays(days.sortBy(_.ordinal).map(_.toString))
+        else WizardCopy.cadenceDays(days.sortBy(_.ordinal).map(day => WizardCopy.weekdayLabels(day.ordinal)))
       s"$cadence ${times.mkString(", ")}"
     case _: Rule.AsNeeded => asNeeded
     case _: Rule.EveryNDays | _: Rule.EveryNWeeks | _: Rule.Cycle | _: Rule.IntervalFixedStart | _: Rule.Chain |
@@ -142,9 +197,19 @@ object ApiCopy:
     case DstKind.None => None
     case DstKind.Gap  =>
       val actual = clock(candidate.scheduledFor, zone)
-      Some(s"Clock change: ${candidate.localTime.value} does not exist on this day. The reminder comes at $actual.")
+      Some(
+        tr(
+          s"Clock change: ${candidate.localTime.value} does not exist on this day. The reminder comes at $actual.",
+          s"Перехід на інший час: ${candidate.localTime.value} цього дня не існує. Нагадування надійде о $actual."
+        )
+      )
     case DstKind.Fold =>
-      Some(s"Clock change: ${candidate.localTime.value} happens twice on this day. The reminder comes the first time.")
+      Some(
+        tr(
+          s"Clock change: ${candidate.localTime.value} happens twice on this day. The reminder comes the first time.",
+          s"Перехід на інший час: ${candidate.localTime.value} цього дня буде двічі. Нагадування надійде першого разу."
+        )
+      )
 
 /** Stored rows to API documents. Every function takes rows the caller has already authorised. */
 object Rendering:
