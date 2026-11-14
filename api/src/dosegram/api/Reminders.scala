@@ -43,7 +43,8 @@ final case class DayProfileView(
     workStart: String,
     workEnd: String,
     quietStart: String,
-    quietEnd: String
+    quietEnd: String,
+    saved: Boolean = false
 ) derives ReadWriter,
       Schema
 
@@ -175,16 +176,20 @@ final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings)
         settings.pauseAll(tx, accountId, Option.when(input.hours > 0)(input.hours))
         Right(viewOf(tx, accountId))
 
-  def day(accountId: UUID): DayProfileView = uow.transaction(tx => dayView(settings.profile(tx, accountId)))
+  def day(accountId: UUID): DayProfileView =
+    uow.transaction(tx => dayView(settings.profile(tx, accountId), isSaved(tx, accountId)))
+
+  /** Whether the person ever saved a day profile; set-up offers it until then (MINI_APP S-19). */
+  private def isSaved(tx: Tx, accountId: UUID): Boolean = tx.reminders.dayProfiles.anchors(accountId).isDefined
 
   def saveDay(accountId: UUID, version: Long, input: DayProfileInput): Either[ApiFailure, DayProfileView] =
     validated(input).flatMap: profile =>
       uow.transaction: tx =>
-        val current = dayView(settings.profile(tx, accountId))
+        val current = dayView(settings.profile(tx, accountId), isSaved(tx, accountId))
         for
           _ <- Either.cond(current.version == version, (), ApiFailure.versionConflict())
-          saved <- settings.saveProfile(tx, accountId, profile).left.map(_ => ApiFailure.notFound())
-        yield dayView(saved)
+          stored <- settings.saveProfile(tx, accountId, profile).left.map(_ => ApiFailure.notFound())
+        yield dayView(stored, saved = true)
 
   /** The reminders of one local day; without a date, tomorrow in the account zone. */
   def timeline(accountId: UUID, date: Option[LocalDate]): ReminderTimeline =
@@ -205,7 +210,13 @@ final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings)
         line.flatMap(_.plan).map(p => PromptCopy.presetName(p.presetId)),
         line.flatMap(_.next)
       )
-    RemindersView(hub.zone.getId, kinds, hub.medicationSchedules, dayView(hub.profile), hub.pausedUntil)
+    RemindersView(
+      hub.zone.getId,
+      kinds,
+      hub.medicationSchedules,
+      dayView(hub.profile, isSaved(tx, accountId)),
+      hub.pausedUntil
+    )
 
 object Reminders:
 
@@ -214,7 +225,7 @@ object Reminders:
 
   private def clock(t: LocalTime): String = PromptCopy.clock(t)
 
-  def dayView(p: DayProfile): DayProfileView =
+  def dayView(p: DayProfile, saved: Boolean): DayProfileView =
     val fields = List(
       clock(p.wake),
       clock(p.breakfast),
@@ -238,7 +249,8 @@ object Reminders:
       fields(6),
       fields(7),
       fields(8),
-      fields(9)
+      fields(9),
+      saved
     )
 
   /** Field by field, so the screen can name every wrong field at once. */

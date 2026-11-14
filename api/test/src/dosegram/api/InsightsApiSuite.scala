@@ -48,7 +48,7 @@ final class InsightsApiSuite extends ApiSuite:
     assertEquals(blocks(overview), Nil)
     assertEquals(overview.json("notice").str, "Statistics appear here for the records you turned on in the chat.")
     assertEquals(overview.json("rangeDays").num.toInt, 7)
-    assertEquals(overview.json("ranges").arr.toList.map(_.num.toInt), List(7, 30), "the periods the client may offer")
+    assertEquals(overview.json("ranges").arr.toList.map(_.num.toInt), List(7, 30, 90), "the periods the client may offer")
     assertEquals(overview.json("rangeLabel").str, "7 Nov to 13 Nov")
     assertEquals(overview.header("Cache-Control"), None, "the edge, not the module, sets the cache header")
 
@@ -91,12 +91,13 @@ final class InsightsApiSuite extends ApiSuite:
     val everyLine = blocks(overview).flatMap(_("lines").arr.toList.map(_.str))
     assertEquals(everyLine.flatMap(InsightPhrases.violations), Nil, "no line states a cause or judges a value")
 
-  test("the range is 7 or 30 days; anything else is a validation error that names the member"):
+  test("the range is 7, 30 or 90 days (MA-INS-1); anything else is a validation error that names the member"):
     val account = accountWithoutConsent()
     grant(account, ConsentPurpose.Hydration)
     val token = login(account)
     assertEquals(get("/api/v1/insights/overview?range=30", token).json("rangeDays").num.toInt, 30)
-    val refused = get("/api/v1/insights/overview?range=90", token)
+    assertEquals(get("/api/v1/insights/overview?range=90", token).json("rangeDays").num.toInt, 90)
+    val refused = get("/api/v1/insights/overview?range=14", token)
     assertProblem(refused, 422, "validation_failed")
     assertEquals(refused.fieldErrors, List("range" -> "invalid"))
     assertProblem(get("/api/v1/insights/overview", token), 400, "validation_failed")
@@ -172,4 +173,56 @@ final class InsightsApiSuite extends ApiSuite:
   test("the month and the patterns need a session"):
     assertProblem(get("/api/v1/insights/month"), 401, "unauthenticated")
     assertProblem(get("/api/v1/insights/correlations"), 401, "unauthenticated")
+
+  test("90 days are drawn by week, and a chart of days names the day of every mark so a pick opens it"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    drink(account, 600)
+    checkIn(account, 4)
+    val token = login(account)
+    val week = blocks(get("/api/v1/insights/overview?range=7", token))
+    val waterByDay = week.head("charts").arr.head
+    assertEquals(waterByDay("id").str, "water-by-day")
+    val dates = waterByDay("markDates").arr.toList.map(_.str)
+    assertEquals(dates.size, waterByDay("marks").arr.size)
+    assertEquals(dates.last, "2026-11-13")
+    val quarter = blocks(get("/api/v1/insights/overview?range=90", token))
+    assertEquals(quarter.map(_("charts").arr.head("id").str), List("water-by-week", "mood-by-week"))
+    val waterByWeek = quarter.head("charts").arr.head
+    assertEquals(waterByWeek("marks").arr.size, 13, "12 whole weeks and the 6 days before them")
+    assert(!waterByWeek.obj.contains("markDates"), "a week is not one day")
+    assert(waterByWeek("marks").arr.last.str.endsWith(": average 0.6 l a day on 1 day"), waterByWeek.toString)
+
+  test("every block names the previous period of the same length in words, with no arrow and no change in percent"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.Mood, ConsentPurpose.Sleep, ConsentPurpose.Nutrition)
+    val overview = get("/api/v1/insights/overview?range=30", login(account))
+    assertEquals(overview.status, 200, overview.body)
+    assertEquals(blocks(overview).map(_("id").str), List("medication", "hydration", "mood", "sleep", "nutrition"))
+    assertEquals(blocks(overview).last("title").str, "Food")
+    assertEquals(
+      blocks(overview).map(_("comparison").str),
+      List.fill(5)("Previous 30 days: No data"),
+      "a previous period without a record is No data (MA-INS-4)"
+    )
+    assertEquals(InsightPhrases.violations(overview.body), Nil)
+    assert(!overview.body.contains("↑") && !overview.body.contains("↓"), overview.body)
+
+  test("mood by day of the week stays hidden until a weekday has 3 days with a check-in"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Mood)
+    checkIn(account, 3)
+    val mood = blocks(get("/api/v1/insights/overview?range=30", login(account))).head
+    assertEquals(mood("charts").arr.toList.map(_("id").str), List("mood-by-day"))
+    assert(!mood.obj.contains("spark"), "one day has no line")
+
+  // Last in the suite: it moves the shared clock on by a week.
+  test("a record of the week before is the previous period of the 7-day view and not part of its own figures"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Hydration)
+    drink(account, 800)
+    clock.advance(Duration.ofDays(7))
+    val water = blocks(get("/api/v1/insights/overview?range=7", login(account))).head
+    assertEquals(water("noDataText").str, "No data in this period")
+    assertEquals(water("comparison").str, "Previous 7 days: water logged on 1 day")
 end InsightsApiSuite

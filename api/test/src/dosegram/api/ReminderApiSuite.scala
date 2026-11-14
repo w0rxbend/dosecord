@@ -88,6 +88,7 @@ final class ReminderApiSuite extends ApiSuite:
     turnOn(token, "water.work_hours_30")
     val read = get("/api/v1/reminders/day", token)
     assertEquals(read.status, 200, read.body)
+    assert(!read.json.obj.contains("saved"), "a day never saved is the default, and set-up offers it")
     val edited = read.json.obj.clone()
     edited.remove("version")
     edited("workStart") = "10:00"
@@ -95,6 +96,8 @@ final class ReminderApiSuite extends ApiSuite:
     val saved = patch("/api/v1/reminders/day", ujson.Obj.from(edited), token, ifMatch(read))
     assertEquals(saved.status, 200, saved.body)
     assertEquals(saved.json("workStart").str, "10:00")
+    assertEquals(saved.json("saved").bool, true)
+    assertEquals(get("/api/v1/reminders", token).json("day")("saved").bool, true)
     assertProblem(patch("/api/v1/reminders/day", ujson.Obj.from(edited), token, ifMatch(read)), 412, "version_conflict")
     val next = Instant.parse(kind(get("/api/v1/reminders", token).json, "water")("nextAt").str)
     assertEquals(next.atZone(java.time.ZoneId.of("Europe/Kyiv")).toLocalTime.toString, "10:30")

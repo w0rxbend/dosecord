@@ -52,7 +52,7 @@ final class ApiModule(
   private val idempotency = Idempotency(idempotencyStore, clock)
   private val registry = Registry(uow, clock)
   private val days = DayViews(uow, clock)
-  private val insights = Insights(uow, tracking, clock)
+  private val insights = Insights(uow, tracking)
   private val insightReports = InsightReports(uow, tracking, clock)
   private val history = History(uow, tracking, clock)
   private val hydration = Hydration(uow, tracking)

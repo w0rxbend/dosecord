@@ -106,7 +106,8 @@ final class SleepApiSuite extends ApiSuite:
     night(token, hoursAgo(10.5), hoursAgo(3))
     val block = get("/api/v1/insights/overview?range=7", token).json("blocks").arr.find(_("id").str == "sleep").get
     assertEquals(block("title").str, "Sleep")
-    assertEquals(block("charts").arr.map(_("id").str).toList, List("sleep-by-day"))
+    assertEquals(block("charts").arr.map(_("id").str).toList, List("sleep-by-day", "sleep-times"))
+    assertEquals(block("details").arr.map(_.str).toList, List("4 more nights for bedtime regularity"))
     val calendar = get("/api/v1/insights/calendar?domain=sleep", token)
     assertEquals(calendar.status, 200, calendar.body)
     assertEquals(calendar.json("domains").arr.map(_.str).toList, List("sleep"))

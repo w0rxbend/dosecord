@@ -3,6 +3,7 @@ package dosegram.core.domain.insights
 import dosegram.core.domain.mood.MoodCheckin
 import dosegram.core.domain.mood.MoodLevel
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 /** The mood rollup of one local day with at least one check-in. Sums are stored, not means, so the day value is exact
@@ -39,6 +40,9 @@ final case class MoodPeriod(
     energyAverage: Stat[Double]
 )
 
+/** The check-in days of one day of the week in a period and the mean of their daily means, behind its gate. */
+final case class WeekdayMood(day: DayOfWeek, days: Int, mean: Stat[Double])
+
 /** Mood metrics. A day without a check-in is a gap: it has no [[MoodDay]] and enters no figure. */
 object MoodStats:
 
@@ -68,6 +72,19 @@ object MoodStats:
       dayToDayChange = Stat.gated(changes.size, MinimumSample.DayToDayPairs, window, Basis.Recorded)(mean(changes)),
       energyAverage = Stat.gated(energyMeans.size, meanMinimum, window, Basis.Recorded)(mean(energyMeans))
     )
+
+  /** Monday to Sunday: the mean of the daily means of each weekday's check-in days in the window. A description of the
+    * user's own days with no comparison drawn between them (VISUALS section 9.2, supervisor decision of 2026-11-14).
+    */
+  def byWeekday(days: Map[LocalDate, MoodDay], window: DateRange): List[WeekdayMood] =
+    val inWindow = days.view.filterKeys(window.contains).toList
+    DayOfWeek.values.toList.map: weekday =>
+      val means = inWindow.collect { case (date, day) if date.getDayOfWeek == weekday => day.mean }
+      WeekdayMood(
+        weekday,
+        means.size,
+        Stat.gated(means.size, MinimumSample.WeekdayMeanDays, window, Basis.Recorded)(mean(means))
+      )
 
   private def dayToDayChanges(days: Map[LocalDate, MoodDay]): List[Double] =
     days.toList.flatMap { (date, today) =>
