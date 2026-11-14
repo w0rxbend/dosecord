@@ -39,9 +39,9 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-14, after three rounds of parallel tracks were
-merged and wired together (the third: durable inbox, images in the container,
-Mini App production).
+State of `main` on 2026-11-14, after four rounds of parallel tracks were
+merged and wired together (the fourth: month and insights, nutrition,
+export and the record summary; migrations V4 to V6).
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -69,25 +69,42 @@ Appendix B and its status notes are the record; this is the short form.
   statistics, one comparison rule, the sleep regularity figures, and the
   consent ledger (`consent_events`, `consent_state`). The tracking repositories and the ledger are groups of
   the one transaction handle (`Tx.tracking`, `Tx.consents`).
+- Nutrition (G8.1 to G8.4, ADR-026 Proposed, V4 `meals` and `meal_plans`):
+  the `nutrition` consent, a meal journal by type with optional words (plain
+  text until G2.4b), the regular-meal view by the user's plan, a nutrition
+  rollup of counts, the food day card (IMG-09) and meal nudges. No numbers,
+  photos or estimates.
+- Month and insights (analytics track, V5): the month's figures with the
+  14-day gate, food included; insight rules IR-01, IR-02, IR-06 behind the
+  cross-domain consent, IR-07 and IR-11; month pages, mood calendar and
+  timeline; weekly and monthly reports sent by the prompt loop, the weekly
+  card with a food row.
+- Export (G3.10, G10.4, V6 `export_jobs`, `export_download_tickets`): one ZIP
+  of every account-owned table (`ExportCoverage` decides each table), download
+  tickets, the file into the chat after two taps, and the record summary PDF
+  (DOC-01) with a food section of counts.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
   withdrawing it pauses every schedule and cancels every open dose in the
   same transaction. `Application.handler` is the one handler composition.
-- Chat: besides the medication flows, `/water`, `/mood`, `/sleep`, `/stats`
-  and `/privacy` with the two-stage consent at first use, quick-capture text
-  ("250 ml", "mood 4", "slept 23:30 7:10"), the mood image as the answer to a
+- Chat: besides the medication flows, `/water`, `/mood`, `/sleep`, `/food`,
+  `/stats` (with `/stats month`) and `/privacy` with the two-stage consent at
+  first use, the hidden `/insights` and `/export`, quick-capture text
+  ("250 ml", "mood 4", "slept 23:30 7:10", "lunch: soup"), the mood image as the answer to a
   check-in, and the vessel, daily summary and sleep images on request
   (`core/application/capture`). Typed times, lengths, days, doses and zones
   are read leniently (`core/domain/input`, BOT_UX 15.6).
 - API and Mini App (`api`, `miniapp`, ADR-016, ADR-020): session exchange,
-  Today read, the medication and schedule registry, water, mood and sleep
-  routes, the history calendar, settings, consents and
-  `GET /insights/overview` behind `MINIAPP_ENABLED`, which production accepts only with an https
+  Today read, the medication and schedule registry, water, mood, sleep and
+  meal routes, the history calendar, settings, consents, exports and download
+  tickets, `GET /insights/overview`, `/insights/month` and
+  `/insights/correlations` behind `MINIAPP_ENABLED`, which production accepts only with an https
   `MINI_APP_URL` and an explicit `HTTP_PORT` (ADR-016 addendum).
   Sessions and idempotency records are rows of `miniapp_sessions` and
   `idempotency_keys`. Screens: Today, medications, Log, water, mood, sleep,
-  Insights, history and day detail, settings. The app records and withdraws
+  food, Insights (with month and patterns), reports and export, history and
+  day detail, settings. The app records and withdraws
   no consent; dose actions over HTTP do not exist. The container image
   serves the built Mini App, `docs/DEPLOY_MINIAPP.md` is the deploy guide,
   and `pnpm --dir miniapp run e2e` is the browser suite (G3.12).
@@ -105,15 +122,22 @@ Useful next, in this order:
    stage, the font pack and the built Mini App (G1.2, G1.9).
 3. What G1.7 left open: live smoke LS-2 after G1.8 and OA-6, OA-7; TG-05
    under load; rotation with two header secrets.
-4. Sleep: the bedtime and morning touchpoints (G7.2), "Adjust times", nap
-   check-ins, and the weekly card (G9.1, G9.2), which sleep would join.
-5. What the consent and store work of 2026-11-13 left open: the rest of
+4. Sleep: the bedtime and morning touchpoints (G7.2), "Adjust times" and nap
+   check-ins.
+5. What the fourth round left open: food on the month's pages, in the Mini
+   App month, the history calendar and the Insights overview; the weekly
+   text and card count meals differently; the owner's choice of the weekly
+   report's timing (R-INS-4); the album send; the opt-in and adaptive pause
+   of the reports (G9.2); the step-up, `/privacy` button and e2e flow of the
+   export (G3.10).
+6. What the consent and store work of 2026-11-13 left open: the rest of
    onboarding (adult attestation, region, discreet choice, G2.8), deletion
-   of a domain's data (G2.17), encryption of the stores of the edges
-   (G2.4b), and the `StorageError` port of G2.1, each as a new versioned
+   of a domain's data (G2.17), encryption of the stores of the edges, of the
+   meal words and of the export file (G2.4b), and the `StorageError` port of
+   G2.1, each as a new versioned
    migration. ARCHITECTURE section 10.17 lists the schema areas and the rules
    for adding a table.
-6. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
+7. G0.8 (secret scanning and pinned CI actions) and G2.6 (English catalogue)
    are eligible by dependency and untouched.
 
 ## Agent workflow
