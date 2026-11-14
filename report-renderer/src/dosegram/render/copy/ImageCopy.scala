@@ -9,6 +9,7 @@ import dosegram.render.card.InsightRule
 import dosegram.render.card.MainMeal
 import dosegram.render.card.MilestoneData
 import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
@@ -181,6 +182,14 @@ trait ImageCopy:
   def sleepNights(nights: Int): String
   def monthWaterFact(goalDays: Option[GoalDays], recordedDays: Int): String
   def waterLoggedMark: String
+
+  /** Food on the month's pages (VISUALS section 6.6): the meals logged and the snacks apart, as the weekly card. */
+  def monthFood(meals: MonthMeals): String
+  def monthFoodFact(meals: MonthMeals, days: Int): String
+  def mealLoggedMark: String
+
+  /** The title of page 3 when it draws the food panel beside at most one of the sleep and water panels. */
+  def monthNightsFoodTitle(withSleep: Boolean, withWater: Boolean): String
   def napMark: String
   def monthDaysText(page: MonthDaysData): String
   def monthNightsText(page: MonthNightsData): String
@@ -205,7 +214,8 @@ final case class MonthSummary(
     water: Option[GoalDays],
     moodCheckInDays: Option[Int],
     sleep: Option[(Int, Int)],
-    previousAdherence: Option[Int]
+    previousAdherence: Option[Int],
+    meals: Option[MonthMeals] = None
 )
 
 /** The counts behind the calendar's text equivalent. */

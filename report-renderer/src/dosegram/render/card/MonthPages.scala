@@ -21,6 +21,9 @@ final case class MonthDaysData(month: YearMonth, medication: Option[CalendarData
   require(medication.forall(_.month == month) && mood.forall(_.month == month), "every panel shows the page's month")
   def isEmpty: Boolean = medication.isEmpty && mood.forall(_.checkInDays == 0)
 
+/** The meals of one day of the month: the distinct main meals logged and the snacks (VISUALS section 7.5). */
+final case class MonthFoodDay(mainMeals: Int, snacks: Int)
+
 /** The water of one day of the month against the goal in force that day, if the user had one. */
 final case class MonthWaterDay(volumeMl: Int, goalMl: Option[Int])
 
@@ -30,10 +33,13 @@ final case class MonthWaterDay(volumeMl: Int, goalMl: Option[Int])
 final case class MonthNightsData(
     month: YearMonth,
     sleep: Option[SleepRegularityData],
-    water: Option[Vector[Option[MonthWaterDay]]]
+    water: Option[Vector[Option[MonthWaterDay]]],
+    food: Option[Vector[Option[MonthFoodDay]]] = None
 ):
   require(water.forall(_.size == month.lengthOfMonth), "water has one entry per day of the month")
-  def isEmpty: Boolean = sleep.forall(_.bars.isEmpty) && water.forall(_.forall(_.isEmpty))
+  require(food.forall(_.size == month.lengthOfMonth), "food has one entry per day of the month")
+  def isEmpty: Boolean =
+    sleep.forall(_.bars.isEmpty) && water.forall(_.forall(_.isEmpty)) && food.forall(_.forall(_.isEmpty))
 
 /** Pages 2 and 3 of the monthly report (VISUALS section 6.6). Page 2, `card.month.days.v1`, is the adherence calendar
   * (IMG-06) and the mood calendar (IMG-11) as two panels; page 3, `card.month.nights.v1`, is the month's nights on the
@@ -62,6 +68,10 @@ object MonthPages:
   private val LegendGapPx = 20.0
   private val SleepPlotPx = 236.0
   private val WaterPlotPx = 200.0
+  private val FoodPlotPx = 112.0
+  private val SnackRoomPx = 22.0
+  private val MaxMealDots = 3
+  private val MealDotPx = 9.0
   private val AxisColumnPx = 96.0
   private val DayMinutes = 1440
   private val AxisStartMinute = 18 * 60
@@ -100,15 +110,24 @@ object MonthPages:
     val text = TextEquivalent.of(copy.monthDaysText(page), copy.monthDiscreet, context)
     CardOutput(frame.scene(DaysTemplateId, nodes), text, "dosegram-month-days.png", context.privacy == Privacy.Discreet)
 
-  def nights(page: MonthNightsData, context: CardContext): CardOutput =
+  /** At most two panels fit the page: the food bars are drawn when the sleep or the water panel is absent, and food
+    * keeps its row on page 1 either way (supervisor decision, 2026-11-14).
+    */
+  def nights(full: MonthNightsData, context: CardContext): CardOutput =
+    val hasSleep = full.sleep.exists(_.bars.nonEmpty)
+    val hasWater = full.water.exists(_.exists(_.isDefined))
+    val page = if hasSleep && hasWater then full.copy(food = None) else full
     val copy = context.copy
     val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
     val sections = Vector(
       page.sleep.filter(_.bars.nonEmpty).map(sleepSection(_, frame, context)),
-      page.water.filter(_.exists(_.isDefined)).map(waterSection(page.month, _, frame, context))
+      page.water.filter(_.exists(_.isDefined)).map(waterSection(page.month, _, frame, context)),
+      page.food.filter(_.exists(_.isDefined)).map(foodSection(page.month, _, frame, context))
     ).flatten
-    val nodes =
-      frame.header(copy.monthNightsTitle, copy.monthYear(page.month)) ++ stack(sections, frame) :+ frame.footer
+    val title =
+      if page.food.exists(_.exists(_.isDefined)) then copy.monthNightsFoodTitle(hasSleep, hasWater)
+      else copy.monthNightsTitle
+    val nodes = frame.header(title, copy.monthYear(page.month)) ++ stack(sections, frame) :+ frame.footer
     val text = TextEquivalent.of(copy.monthNightsText(page), copy.monthDiscreet, context)
     CardOutput(
       frame.scene(NightsTemplateId, nodes),
@@ -361,6 +380,72 @@ object MonthPages:
       )
     }
     day +: goal.toVector
+
+  /** One column of dots a day, one per main meal logged (up to three), a small dot above for snacks: presence, not an
+    * amount (VISUALS section 6.5, the food strip of IMG-04).
+    */
+  private def foodSection(
+      month: YearMonth,
+      food: Vector[Option[MonthFoodDay]],
+      frame: CardFrame,
+      context: CardContext
+  ): Section =
+    val copy = context.copy
+    val legend = Legend.flow(foodLegend(food, frame.tokens, context), frame.width - 2 * PanelPadPx, context.fitter)
+    def draw(box: Box, frame: CardFrame): Vector[Node] =
+      val tokens = frame.tokens
+      val slot = box.width / food.size
+      val ticksBaseline = box.y + 28
+      val plotTop = box.y + WeekdayRowPx
+      val baseline = plotTop + FoodPlotPx
+      val radius = StrictMath.min(MealDotPx, slot * 0.3)
+      val pitch = (FoodPlotPx - SnackRoomPx) / MaxMealDots
+      val ticks = (1 to month.lengthOfMonth).filter(day => day % 7 == 1).toVector.map { day =>
+        frame.text(
+          day.toString,
+          Point(box.x + (day - 0.5) * slot, ticksBaseline),
+          TextLook(TextStyle.Label, tokens.ink3, Align.Middle, TextKind.Axis),
+          slot * 6
+        )
+      }
+      val dots = food.zipWithIndex.flatMap { (entry, index) =>
+        val x = box.x + (index + 0.5) * slot
+        entry.toVector.map { day =>
+          val meals = (0 until StrictMath.min(MaxMealDots, day.mainMeals)).toVector.map { row =>
+            Node.filledCircle(Point(x, baseline - pitch * (row + 0.5)), radius, tokens.rye)
+          }
+          val snack = Option.when(day.snacks > 0)(
+            Node.Circle(Point(x, plotTop + SnackRoomPx / 2), radius * 0.6, None, Some(Stroke.butt(tokens.rye, 4)))
+          )
+          Node.Mark(MarkMeta("month.food.day", Set(Channel.Colour, Channel.Position)), meals ++ snack.toVector)
+        }
+      }
+      ticks ++ dots ++ legend.nodes(Point(box.x, baseline + LegendGapPx), frame, context.fitter)
+    val recorded = food.flatten
+    val meals = MonthMeals(recorded.map(_.mainMeals).sum, recorded.map(_.snacks).sum)
+    val panelPx = 2 * PanelPadPx + WeekdayRowPx + FoodPlotPx + LegendGapPx + legend.height - 12
+    Section(copy.foodTitle, panelPx, draw, Vector(copy.monthFoodFact(meals, recorded.size)))
+
+  private def foodLegend(food: Vector[Option[MonthFoodDay]], tokens: Tokens, context: CardContext): Vector[LegendItem] =
+    val meal = LegendItem.of(
+      box =>
+        Node.Mark(
+          MarkMeta("legend.month.food", Set(Channel.Colour, Channel.Shape)),
+          Vector(Node.filledCircle(box.center, 10, tokens.rye))
+        ),
+      context.copy.mealLoggedMark
+    )
+    val snack = Option.when(food.flatten.exists(_.snacks > 0)) {
+      LegendItem.of(
+        box =>
+          Node.Mark(
+            MarkMeta("legend.month.snack", Set(Channel.Shape)),
+            Vector(Node.Circle(box.center, 7, None, Some(Stroke.butt(tokens.rye, 4))))
+          ),
+        context.copy.snacksLabel
+      )
+    }
+    meal +: snack.toVector
 
   private def ceilTo(value: Int, step: Int): Int = StrictMath.floorDiv(value + step - 1, step) * step
 end MonthPages

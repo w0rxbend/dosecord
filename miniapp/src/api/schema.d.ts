@@ -1316,7 +1316,7 @@ export interface components {
          * InsightDomain
          * @enum {string}
          */
-        InsightDomain: "hydration" | "medication" | "mood" | "sleep";
+        InsightDomain: "hydration" | "medication" | "mood" | "nutrition" | "sleep";
         /** InsightItem */
         InsightItem: {
             id: string;

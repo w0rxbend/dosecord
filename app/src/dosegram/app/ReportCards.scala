@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.core.domain.insights.Comparison
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseBuckets
 import dosegram.core.domain.insights.InsightRule as CoreRule
 import dosegram.core.domain.insights.MedicationDay
@@ -21,6 +22,8 @@ import dosegram.render.card.InsightRule
 import dosegram.render.card.MealDay
 import dosegram.render.card.MonthData
 import dosegram.render.card.MonthDaysData
+import dosegram.render.card.MonthFoodDay
+import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MonthWaterDay
 import dosegram.render.card.MonthWeek
@@ -68,7 +71,8 @@ object ReportCards:
         doses = Option.when(!week.doses.isEmpty)(counts(week.doses)),
         waterMeanMl = week.waterMeanMl.shown,
         mood = week.moodMean.shown.map(mean => moodState(mean, None)),
-        sleepMeanMinutes = week.sleepMeanMinutes.shown.map(minutes => Math.round(minutes).toInt)
+        sleepMeanMinutes = week.sleepMeanMinutes.shown.map(minutes => Math.round(minutes).toInt),
+        mealsLogged = mealsIn(figures, week.days)
       )
     }
     MonthData(
@@ -85,8 +89,17 @@ object ReportCards:
         .flatMap(domain =>
           domain.figures.averageMinutes.shown.map(mean => (Math.round(mean).toInt, domain.figures.nights))
         ),
-      previousAdherence = figures.previousAdherence.shown.map(_.percent)
+      previousAdherence = figures.previousAdherence.shown.map(_.percent),
+      meals = figures.food.filter(_.meetsGate).map(domain => MonthMeals(domain.figures.meals, domain.figures.snacks))
     )
+
+  /** The meals logged of a week of the month (VISUALS 7.5); `None` for a week without a meal, drawn as a dotted slot.
+    */
+  private def mealsIn(figures: MonthFigures, week: DateRange): Option[Int] =
+    figures.food.filter(_.meetsGate).flatMap { _ =>
+      val days = week.dates.flatMap(figures.mealDays.get).filter(_.meals > 0)
+      Option.when(days.nonEmpty)(days.map(_.mainMeals).sum)
+    }
 
   /** Page 2: the adherence calendar and the mood calendar; each only for a domain that met its gate. */
   def monthDays(figures: MonthFigures, view: MonthCardView): MonthDaysData =
@@ -107,7 +120,7 @@ object ReportCards:
     }
     MonthDaysData(month, calendar, mood)
 
-  /** Page 3: the month's nights and its water, each only for a domain that met its gate. */
+  /** Page 3: the month's nights, its water and its meals, each only for a domain that met its gate. */
   def monthNights(figures: MonthFigures, view: MonthCardView): MonthNightsData =
     val month = figures.month
     val sleep = for
@@ -121,7 +134,14 @@ object ReportCards:
         .toVector
         .map(date => figures.hydrationDays.get(date).map(day => MonthWaterDay(day.totalMl, day.goalMl)))
     }
-    MonthNightsData(month, sleep, water)
+    val food = figures.food.filter(_.meetsGate).map { _ =>
+      MonthStats
+        .window(month)
+        .dates
+        .toVector
+        .map(date => figures.mealDays.get(date).filter(_.meals > 0).map(day => MonthFoodDay(day.mainMeals, day.snacks)))
+    }
+    MonthNightsData(month, sleep, water, food)
 
   def regularity(view: SleepRegularityFigures): SleepRegularityData =
     SleepRegularityData(

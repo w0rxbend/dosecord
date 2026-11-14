@@ -925,6 +925,8 @@ Page 1 is drawn by `card.month.v1`: the hero with its counts beside it, then one
 
 Example caption on the first photo: "October 2026. Details below." Text equivalent message: the same content as IMG-04 for the month, one paragraph per domain.
 
+Food on the month (supervisor decision, 2026-11-14): food that meets the gate has a row on page 1 (its headline the meals logged of section 7.5, one bar per week of meals logged on the row's own scale) and its month by day on page 3 (`card.month.nights.v1`): one dot per main meal logged, up to three, and a hollow dot above for a snack. Page 3 holds at most two panels, because three do not fit the portrait; sleep and water come first, and the food panel is drawn when one of them is absent. Food keeps its page 1 row either way. The Mini App month (`GET /insights/month`) has a food block, and the history calendar (`GET /insights/calendar?domain=nutrition`) marks each day with a meal in one step, its value the meals logged, with no ramp (VA-ME-40).
+
 ### 6.7 IMG-06 Adherence calendar heatmap
 
 | Field | Specification |

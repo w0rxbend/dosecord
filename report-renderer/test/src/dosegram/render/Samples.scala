@@ -343,6 +343,11 @@ object Samples:
     previousAdherence = Some(91)
   )
 
+  private val october2026WithFood = october2026.copy(
+    weeks = octoberWeeks.zip(Vector(Some(10), Some(17), Some(15), None, Some(12))).map((week, meals) => week.copy(mealsLogged = meals)),
+    meals = Some(MonthMeals(54, 7))
+  )
+
   val months: Vector[Fixture] = Vector(
     Fixture("month/typical", context => Vector(MonthCard.render(october2026, context))),
     Fixture(
@@ -355,7 +360,9 @@ object Samples:
           daysWithRecords = 27
         )
         Vector(MonthCard.render(withoutMedication, context))
-    )
+    ),
+    // Five rows, food included: the tighter rows end above the footer with the comparison line.
+    Fixture("month/with-food", context => Vector(MonthCard.render(october2026WithFood, context)))
   )
 
   val insights: Vector[Fixture] = Vector(
@@ -425,18 +432,32 @@ object Samples:
   )
 
   // October's nights on the clock: bedtimes 22:30 to 00:45 and wake times 06:15 to 08:00, five nights missing.
-  private val octoberNights: SleepRegularityData =
+  val octoberNights: SleepRegularityData =
     val bars = (1 to 31).filterNot(Set(6, 12, 19, 25, 30)).toVector.map { day =>
       SleepNightBar(OctoberMonth.atDay(day), 270 + (day * 37) % 135, 735 + (day * 29) % 105, isNap = false)
     } :+ SleepNightBar(OctoberMonth.atDay(18), 1200, 1240, isNap = true)
     SleepRegularityData(OctoberMonth.atDay(1), OctoberMonth.atEndOfMonth, bars, 26, Some(428), Some(38), Some(26), Some(23 * 60 + 40), Some(7 * 60 + 10), Some(450))
 
-  private val octoberWater: Vector[Option[MonthWaterDay]] =
+  val octoberWater: Vector[Option[MonthWaterDay]] =
     Vector.tabulate(31) { index =>
       Option.unless(Set(3, 14, 15, 22, 29)(index + 1))(MonthWaterDay(1300 + (index * 173) % 1200, Option.when(index >= 4)(2000)))
     }
 
+  val octoberFood: Vector[Option[MonthFoodDay]] =
+    Vector.tabulate(OctoberMonth.lengthOfMonth) { index =>
+      Option.unless(Set(5, 12, 19, 26)(index + 1))(MonthFoodDay(1 + (index * 5) % 3, if index % 4 == 0 then 1 else 0))
+    }
+
   val monthPages: Vector[Fixture] = Vector(
+    Fixture(
+      "month/nights-with-food",
+      context =>
+        Vector(MonthPages.nights(MonthNightsData(OctoberMonth, Some(octoberNights), None, Some(octoberFood)), context))
+    ),
+    Fixture(
+      "month/nights-food-only",
+      context => Vector(MonthPages.nights(MonthNightsData(OctoberMonth, None, None, Some(octoberFood)), context))
+    ),
     Fixture(
       "month/report",
       context =>

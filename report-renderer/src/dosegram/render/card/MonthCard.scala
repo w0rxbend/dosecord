@@ -28,8 +28,14 @@ final case class MonthWeek(
     doses: Option[DoseCounts],
     waterMeanMl: Option[Int],
     mood: Option[MoodState],
-    sleepMeanMinutes: Option[Int]
+    sleepMeanMinutes: Option[Int],
+    mealsLogged: Option[Int] = None
 )
+
+/** The food of a month that met its gate: the meals logged (distinct main meals per day, VISUALS section 7.5) and the
+  * snacks counted apart.
+  */
+final case class MonthMeals(logged: Int, snacks: Int)
 
 /** IMG-05 page 1, `card.month.v1`: a domain that is `None` is not tracked, or did not meet the gate of PRODUCT_SPEC
   * R-IR-11 (records on 14 days of the month), and has no row. `previousAdherence` is the user's own previous month, the
@@ -43,7 +49,8 @@ final case class MonthData(
     water: Option[GoalDays],
     moodCheckInDays: Option[Int],
     sleep: Option[(Int, Int)],
-    previousAdherence: Option[Int]
+    previousAdherence: Option[Int],
+    meals: Option[MonthMeals] = None
 ):
   require(weeks.nonEmpty && weeks.size <= 6, s"a month has 1 to 6 weeks, got ${weeks.size}")
 
@@ -68,6 +75,17 @@ object MonthCard:
 
   final private case class Row(domain: Domain, headline: String, draw: (MonthWeek, Box) => Vector[Node])
 
+  /** The height of a row's headline and strip and the gap under it. Five rows, food included, take the tighter rows so
+    * they and the comparison line end above the portrait's footer.
+    */
+  final private case class RowLayout(headlinePx: Double, stripPx: Double, gapPx: Double):
+    def pitch: Double = headlinePx + stripPx + gapPx
+
+  private object RowLayout:
+    private val MaxRegularRows = 4
+    def of(rows: Int): RowLayout =
+      if rows <= MaxRegularRows then RowLayout(HeadlinePx, StripPx, RowGapPx) else RowLayout(56, 64, 20)
+
   def render(month: MonthData, context: CardContext): CardOutput =
     val copy = context.copy
     val summary = MonthSummary(
@@ -77,21 +95,28 @@ object MonthCard:
       month.water,
       month.moodCheckInDays,
       month.sleep,
-      month.previousAdherence
+      month.previousAdherence,
+      month.meals
     )
-    val rows =
-      Vector(medication(month, context), water(month, context), mood(month, context), sleep(month, context)).flatten
+    val rows = Vector(
+      medication(month, context),
+      water(month, context),
+      mood(month, context),
+      sleep(month, context),
+      food(month, context)
+    ).flatten
+    val layout = RowLayout.of(rows.size)
     // A month with few rows collapses to the square; the comparison line, when there is one, ends the body.
     val hasComparison = month.previousAdherence.isDefined && adherence(month).isDefined
-    val bodyEnd = RowsTop + rows.size * (HeadlinePx + StripPx + RowGapPx) + (if hasComparison then 32.0 else 0.0)
+    val bodyEnd = RowsTop + rows.size * layout.pitch + (if hasComparison then 32.0 else 0.0)
     val frame = CardFrame(context, CardFrame.collapsing(bodyEnd), context.tokens.surface)
     val nodes = frame.header(copy.monthTitle, copy.monthYear(month.month))
       ++ hero(month, frame, context)
       ++ weekHeader(month, frame, context)
       ++ rows.zipWithIndex.flatMap((row, index) =>
-        drawRow(row, month, RowsTop + index * (HeadlinePx + StripPx + RowGapPx), frame, context)
+        drawRow(row, month, RowsTop + index * layout.pitch, layout, frame, context)
       )
-      ++ comparison(month, rows.size, frame, context)
+      ++ comparison(month, rows.size, layout, frame, context)
       :+ frame.footer
     val text = TextEquivalent.of(copy.monthText(summary), copy.monthDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-month.png", context.privacy == Privacy.Discreet)
@@ -132,12 +157,19 @@ object MonthCard:
       )
     }
 
-  private def drawRow(row: Row, month: MonthData, top: Double, frame: CardFrame, context: CardContext): Vector[Node] =
+  private def drawRow(
+      row: Row,
+      month: MonthData,
+      top: Double,
+      layout: RowLayout,
+      frame: CardFrame,
+      context: CardContext
+  ): Vector[Node] =
     val nameLook = frame.look(TextStyle.BodyMedium, frame.tokens.ink)
     val headlineLook = TextLook(TextStyle.BodyStrong, frame.tokens.ink, Align.End, TextKind.Value)
     val slot = slotWidth(month, frame)
     val marks = month.weeks.zipWithIndex.flatMap { (week, index) =>
-      row.draw(week, Box(TextLeft + index * slot, top + HeadlinePx, slot, StripPx))
+      row.draw(week, Box(TextLeft + index * slot, top + layout.headlinePx, slot, layout.stripPx))
     }
     Vector(
       Icons.of(row.domain, Point(frame.left, top), frame.tokens.hue(row.domain)),
@@ -200,6 +232,20 @@ object MonthCard:
       )
     }
 
+  private def food(month: MonthData, context: CardContext): Option[Row] =
+    month.meals.map { meals =>
+      val scale = (month.weeks.flatMap(_.mealsLogged) :+ 1).max.toDouble
+      val tokens = context.tokens
+      Row(
+        Domain.Food,
+        if meals.logged > 0 then context.copy.mealsLogged(meals.logged) else context.copy.monthFood(meals),
+        (week, slot) =>
+          week.mealsLogged match
+            case None        => Vector(emptySlot(slot, tokens))
+            case Some(count) => Vector(bar(slot, count / scale, tokens.rye, "month.food"))
+      )
+    }
+
   // A bar from the baseline of its slot, on the row's own scale; bars start at zero (VISUALS section 3.2).
   private def bar(slot: Box, share: Double, color: dosegram.render.color.Rgb, role: String): Node =
     val height = StrictMath.max(8.0, slot.height * StrictMath.max(0.0, StrictMath.min(1.0, share)))
@@ -220,8 +266,14 @@ object MonthCard:
     )
 
   // The user's own previous month, stated, never judged (VA-PR-07).
-  private def comparison(month: MonthData, rowCount: Int, frame: CardFrame, context: CardContext): Vector[Node] =
-    val baseline = RowsTop + rowCount * (HeadlinePx + StripPx + RowGapPx) + 32
+  private def comparison(
+      month: MonthData,
+      rowCount: Int,
+      layout: RowLayout,
+      frame: CardFrame,
+      context: CardContext
+  ): Vector[Node] =
+    val baseline = RowsTop + rowCount * layout.pitch + 32
     month.previousAdherence
       .filter(_ => adherence(month).isDefined)
       .map { percent =>

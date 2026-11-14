@@ -353,10 +353,10 @@ export interface InsightList {
 // ---------- tracking domains (MINI_APP 7.7, 7.9, 7.12) ----------
 // Amounts are whole millilitres, the stored unit (MA-HYD-3). Every sentence is the server's.
 
-export type Domain = 'medication' | 'hydration' | 'mood' | 'sleep';
+export type Domain = 'medication' | 'hydration' | 'mood' | 'sleep' | 'nutrition';
 
-/** A domain with a consent of its own; meals have no calendar or overview block yet. */
-export type TrackedDomain = Domain | 'nutrition';
+/** A domain with a consent of its own; every one has a calendar and a block of the month. */
+export type TrackedDomain = Domain;
 
 /** A read of a domain whose consent is missing: the screen shows "turned off", not an error. */
 export const OFF = 'off';

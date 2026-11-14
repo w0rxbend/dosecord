@@ -1,0 +1,5 @@
+file: dosegram-month-nights.png
+spoiler: true
+caption: Your month.
+alt: October 2026, nights, water and food. Food: 52 meals logged, 7 snacks on 27 days.
+full: October 2026, nights, water and food. Food: 52 meals logged, 7 snacks on 27 days.

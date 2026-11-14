@@ -162,6 +162,18 @@ final class InsightsApiSuite extends ApiSuite:
     assertEquals(month.json("summary").str, "1 day with records")
     assertEquals(InsightPhrases.violations(month.body), Nil)
 
+  test("food is a block of the month behind its consent, with the gate until 14 days have a meal"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Nutrition)
+    val token = login(account)
+    assertEquals(post("/api/v1/meals", ujson.Obj("mealType" -> "lunch"), token, newKey()).status, 201)
+    val month = get("/api/v1/insights/month?month=2026-11", token)
+    assertEquals(month.status, 200, month.body)
+    val domains = month.json("domains").arr.toList
+    assertEquals(domains.map(_("id").str), List("nutrition"))
+    assertEquals(domains.head("title").str, "Food")
+    assertEquals(domains.head("gateText").str, "Food: 13 more days with records for the month's figures (1 of 14)")
+
   test("a month after the current one or of another shape is a validation error"):
     val token = login(accountWithoutConsent())
     assertEquals(get("/api/v1/insights/month?month=2026-12", token).fieldErrors, List("month" -> "in_future"))

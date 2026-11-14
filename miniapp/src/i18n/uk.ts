@@ -473,7 +473,7 @@ export const uk: Catalogue = {
     title: 'Історія',
     loading: 'Завантаження календаря',
     domain: 'Розділ',
-    domains: { medication: 'Ліки', hydration: 'Вода', mood: 'Настрій', sleep: 'Сон' },
+    domains: { medication: 'Ліки', hydration: 'Вода', mood: 'Настрій', sleep: 'Сон', nutrition: 'Їжа' },
     previous: 'Попередній місяць',
     next: 'Наступний місяць',
     weekdays: ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя'],
