@@ -10,22 +10,24 @@ import java.util.Locale
   */
 object CheckInCopy:
 
-  val prompt = "How are you feeling right now?"
-  val scale = "1 very unpleasant · 3 neutral · 5 very pleasant"
-  val energyAsk = "How much energy do you have?"
-  val energyScale = "1 very low · 5 very high"
-  val AddEnergy = "Add energy"
-  val undone = "Undone. The check-in was removed."
-  val usage = "Send a step from 1 to 5, for example /mood 4."
-  val unknownCheckin = "This check-in is no longer there."
-  val undoWindowPassed = "The undo window has passed."
+  def prompt: String = tr("How are you feeling right now?", "Як ви почуваєтеся зараз?")
+  def scale: String =
+    tr("1 very unpleasant · 3 neutral · 5 very pleasant", "1 дуже неприємно · 3 нейтрально · 5 дуже приємно")
+  def energyAsk: String = tr("How much energy do you have?", "Скільки у вас енергії?")
+  def energyScale: String = tr("1 very low · 5 very high", "1 дуже мало · 5 дуже багато")
+  def AddEnergy: String = tr("Add energy", "Додати енергію")
+  def undone: String = tr("Undone. The check-in was removed.", "Скасовано. Запис настрою видалено.")
+  def usage: String =
+    tr("Send a step from 1 to 5, for example /mood 4.", "Надішліть число від 1 до 5, наприклад /mood 4.")
+  def unknownCheckin: String = tr("This check-in is no longer there.", "Цього запису настрою вже немає.")
+  def undoWindowPassed: String = tr("The undo window has passed.", "Час на скасування минув.")
 
   /** A later tap on a prompt that already recorded its check-in (owner decision 2026-11-13: one prompt, one check-in).
     */
-  def alreadyRecorded(time: String): String = s"Already recorded at $time."
+  def alreadyRecorded(time: String): String = tr(s"Already recorded at $time.", s"Уже записано о $time.")
 
   /** A later tap on a prompt whose check-in was undone or deleted: it records nothing. */
-  val promptUndone = "This check-in was undone."
+  def promptUndone: String = tr("This check-in was undone.", "Цей запис настрою скасовано.")
 
   /** The caption of a check-in and its complete text equivalent (BUX-MOOD-04): "Pleasant · 21:04", or with the energy
     * step "Pleasant. Energy: low. · 21:04".
@@ -36,10 +38,14 @@ object CheckInCopy:
   def label(valence: Valence, energy: Option[Energy]): String =
     energy match
       case Some(level) =>
-        s"${MoodLabels.valence(valence)}. Energy: ${MoodLabels.energy(level).toLowerCase(Locale.ROOT)}."
+        val energyWord = MoodLabels.energy(level).toLowerCase(Locale.ROOT)
+        tr(
+          s"${MoodLabels.valence(valence)}. Energy: $energyWord.",
+          s"${MoodLabels.valence(valence)}. Енергія: $energyWord."
+        )
       case None => MoodLabels.valence(valence)
 
-  val entries: List[CopyEntry] =
+  def entries: List[CopyEntry] =
     List(
       CopyEntry("checkin.prompt", prompt),
       CopyEntry("checkin.scale", scale),

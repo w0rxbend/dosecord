@@ -6,7 +6,6 @@ import dosegram.core.domain.reminders.PromptKind
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.format.TextStyle
-import java.util.Locale
 
 /** The copy of the prompts, the preset catalogue and the `/reminders` hub (ADR-023). A prompt reminds the user of what
   * the user set up; it never says how much to drink or comments on an amount.
@@ -15,124 +14,176 @@ object PromptCopy:
 
   // ---------- the prompts ----------
 
-  def waterNudge(day: HydrationDay): String = s"Water reminder. ${WaterCopy.card(day)}"
-  val bedtimeNudge = "Bedtime reminder. Tap when you go to sleep."
-  val morningNudge = "Good morning. Tap when you are up."
-  val GoingToSleep = "Going to sleep"
-  val ImUp = "I'm up"
+  def waterNudge(day: HydrationDay): String =
+    tr(s"Water reminder. ${WaterCopy.card(day)}", s"Нагадування про воду. ${WaterCopy.card(day)}")
+  def bedtimeNudge =
+    tr("Bedtime reminder. Tap when you go to sleep.", "Нагадування про сон. Натисніть, коли лягатимете спати.")
+  def morningNudge = tr("Good morning. Tap when you are up.", "Доброго ранку. Натисніть, коли встанете.")
+  def GoingToSleep = tr("Going to sleep", "Лягаю спати")
+  def ImUp = tr("I'm up", "Встаю")
 
-  val widened = "The last few reminders went unanswered, so they come less often for the rest of today."
-  val pausedToday = "Water reminders are paused for the rest of today. They start again tomorrow."
-  def pausedTodayOf(kind: PromptKind): String = s"${kindName(kind)} reminders are paused for the rest of today."
+  def widened = tr(
+    "The last few reminders went unanswered, so they come less often for the rest of today.",
+    "Кілька останніх нагадувань лишилися без відповіді, тому до кінця дня вони надходитимуть рідше."
+  )
+  def pausedToday = tr(
+    "Water reminders are paused for the rest of today. They start again tomorrow.",
+    "Нагадування про воду призупинено до кінця дня. Завтра вони відновляться."
+  )
+  def pausedTodayOf(kind: PromptKind): String = tr(
+    s"${kindName(kind)} reminders are paused for the rest of today.",
+    s"Нагадування «${kindName(kind)}» призупинено до кінця дня."
+  )
 
-  val Snooze1h = "Snooze 1 h"
-  val PauseToday = "Pause for today"
-  def logged(millilitres: Int, day: HydrationDay): String = s"Logged $millilitres ml. ${WaterCopy.card(day)}"
-  def snoozed(until: String): String = s"Snoozed. The next reminder comes after $until."
+  def Snooze1h = tr("Snooze 1 h", "Відкласти на 1 год")
+  def PauseToday = tr("Pause for today", "Пауза до кінця дня")
+  def logged(millilitres: Int, day: HydrationDay): String =
+    tr(s"Logged $millilitres ml. ${WaterCopy.card(day)}", s"Записано $millilitres мл. ${WaterCopy.card(day)}")
+  def snoozed(until: String): String =
+    tr(s"Snoozed. The next reminder comes after $until.", s"Відкладено. Наступне нагадування надійде після $until.")
   def pausedFor(kind: PromptKind): String =
-    s"${kindName(kind)} reminders are paused for the rest of today. They start again tomorrow."
-  val alreadyClosed = "This reminder is already closed."
-  def sleepRecorded(label: String, at: String): String = s"Recorded: $label, $at."
+    tr(
+      s"${kindName(kind)} reminders are paused for the rest of today. They start again tomorrow.",
+      s"Нагадування «${kindName(kind)}» призупинено до кінця дня. Завтра вони відновляться."
+    )
+  def alreadyClosed = tr("This reminder is already closed.", "Це нагадування вже закрито.")
+  def sleepRecorded(label: String, at: String): String = tr(s"Recorded: $label, $at.", s"Записано: $label, $at.")
 
   // ---------- the hub ----------
 
-  val hubTitle = "Reminders"
+  def hubTitle = tr("Reminders", "Нагадування")
   def hubLine(kind: PromptKind, preset: Option[String], next: Option[String]): String =
     val state = preset match
-      case None       => "off"
-      case Some(name) => next.fold(name)(at => s"$name, next $at")
+      case None       => tr("off", "вимкнено")
+      case Some(name) => next.fold(name)(at => tr(s"$name, next $at", s"$name, наступне о $at"))
     s"${kindName(kind)}: $state"
   def medicationLine(count: Int): String =
-    if count == 0 then "Medication: no schedules. Add one in /meds."
-    else s"Medication: ${plural(count, "schedule")}, set in /meds."
-  def dayLine(work: String, quiet: String): String = s"Work hours $work. Quiet hours $quiet."
-  def pausedAllUntil(until: String): String = s"All reminders except medication are paused until $until."
-  val pauseAllNote = "Medication reminders are not affected."
-  val AddFromPreset = "Add from preset"
-  val DayProfile = "Day and hours"
-  def Pause(hours: Int): String = s"Pause $hours h"
-  val Resume = "Resume"
-  val Back = "Back"
-  val TurnOff = "Turn off"
-  val TurnOn = "Turn on"
-  val Off = "Off"
+    if count == 0 then
+      tr("Medication: no schedules. Add one in /meds.", "Ліки: розкладів немає. Додайте розклад у /meds.")
+    else
+      tr(
+        s"Medication: ${plural(count, "schedule")}, set in /meds.",
+        s"Ліки: ${UkNouns.Schedules.count(count)}, налаштовуються в /meds."
+      )
+  def dayLine(work: String, quiet: String): String =
+    tr(s"Work hours $work. Quiet hours $quiet.", s"Робочі години: $work. Тихі години: $quiet.")
+  def pausedAllUntil(until: String): String = tr(
+    s"All reminders except medication are paused until $until.",
+    s"Усі нагадування, крім ліків, призупинено до $until."
+  )
+  def pauseAllNote = tr("Medication reminders are not affected.", "Нагадувань про ліки це не стосується.")
+  def AddFromPreset = tr("Add from preset", "Додати з готових")
+  def DayProfile = tr("Day and hours", "День і години")
+  def Pause(hours: Int): String = tr(s"Pause $hours h", s"Пауза на $hours год")
+  def Resume = tr("Resume", "Відновити")
+  def Back = tr("Back", "Назад")
+  def TurnOff = tr("Turn off", "Вимкнути")
+  def TurnOn = tr("Turn on", "Увімкнути")
+  def Off = tr("Off", "Вимкнено")
   def kindButton(kind: PromptKind): String = kindName(kind)
 
   def choosePreset(kind: PromptKind): String =
-    s"${kindName(kind)} reminders. Pick one; you see the times before it starts."
+    tr(
+      s"${kindName(kind)} reminders. Pick one; you see the times before it starts.",
+      s"Нагадування «${kindName(kind)}». Виберіть варіант — час буде видно ще до початку."
+    )
   def preview(name: String, times: List[String]): String =
-    if times.isEmpty then s"$name. No reminder falls in the next days with your current day and hours."
-    else s"$name. Next: ${times.mkString(", ")}."
-  def applied(name: String): String = s"$name is on."
-  def turnedOff(kind: PromptKind): String = s"${kindName(kind)} reminders are off."
-  val needsConsent = "Turn the domain on first: use its command once, for example /water or /mood."
-  val notWired = "This kind of reminder is not available yet."
+    if times.isEmpty then
+      tr(
+        s"$name. No reminder falls in the next days with your current day and hours.",
+        s"$name. З вашим поточним розкладом дня найближчими днями нагадувань не буде."
+      )
+    else tr(s"$name. Next: ${times.mkString(", ")}.", s"$name. Наступні: ${times.mkString(", ")}.")
+  def applied(name: String): String = tr(s"$name is on.", s"«$name» увімкнено.")
+  def turnedOff(kind: PromptKind): String =
+    tr(s"${kindName(kind)} reminders are off.", s"Нагадування «${kindName(kind)}» вимкнено.")
+  def needsConsent = tr(
+    "Turn the domain on first: use its command once, for example /water or /mood.",
+    "Спершу ввімкніть розділ: скористайтеся його командою, наприклад /water чи /mood."
+  )
+  def notWired = tr("This kind of reminder is not available yet.", "Такі нагадування поки недоступні.")
 
-  def dayProfile(lines: List[String]): String = ("Your day" :: lines).mkString("\n")
+  def dayProfile(lines: List[String]): String = (tr("Your day", "Ваш день") :: lines).mkString("\n")
   def anchorLine(name: String, at: LocalTime): String = s"$name: ${clock(at)}"
-  val dayProfileHelp =
-    "Change a time by sending, for example: /reminders wake 06:30, /reminders work mon-fri 09:00-18:00, " +
-      "/reminders quiet 22:00-07:00. Every reminder that uses that time moves with it."
-  val dayUsage =
-    "Send for example /reminders wake 06:30, /reminders work mon-fri 09:00-18:00 or /reminders quiet 22:00-07:00."
-  val daySaved = "Saved. Reminders that use this time have moved."
-  val workOrder = "Work hours must start before they end, on at least one day."
+  def dayProfileHelp =
+    tr(
+      "Change a time by sending, for example: /reminders wake 06:30, /reminders work mon-fri 09:00-18:00, " +
+        "/reminders quiet 22:00-07:00. Every reminder that uses that time moves with it.",
+      "Щоб змінити час, надішліть, наприклад: /reminders wake 06:30, /reminders work mon-fri 09:00-18:00, " +
+        "/reminders quiet 22:00-07:00. Усі нагадування, що залежать від цього часу, зсунуться разом із ним."
+    )
+  def dayUsage =
+    tr(
+      "Send for example /reminders wake 06:30, /reminders work mon-fri 09:00-18:00 or /reminders quiet 22:00-07:00.",
+      "Надішліть, наприклад, /reminders wake 06:30, /reminders work mon-fri 09:00-18:00 або /reminders quiet 22:00-07:00."
+    )
+  def daySaved = tr(
+    "Saved. Reminders that use this time have moved.",
+    "Збережено. Нагадування, що залежать від цього часу, зсунулися."
+  )
+  def workOrder = tr(
+    "Work hours must start before they end, on at least one day.",
+    "Робочі години мають починатися раніше, ніж закінчуються, хоча б в один день."
+  )
 
-  val offerWater = "Would you like water reminders? Pick a plan, or none. You can change it any time in /reminders."
-  val NotNow = "Not now"
+  def offerWater = tr(
+    "Would you like water reminders? Pick a plan, or none. You can change it any time in /reminders.",
+    "Бажаєте отримувати нагадування про воду? Виберіть план або відмовтеся. Змінити це можна будь-коли в /reminders."
+  )
+  def NotNow = tr("Not now", "Не зараз")
 
   // ---------- names ----------
 
   def kindName(kind: PromptKind): String = kind match
-    case PromptKind.Water         => "Water"
-    case PromptKind.Mood          => "Mood"
-    case PromptKind.SleepBedtime  => "Bedtime"
-    case PromptKind.SleepMorning  => "Morning"
-    case PromptKind.Meal          => "Meals"
-    case PromptKind.WeeklyReport  => "Weekly summary"
-    case PromptKind.MonthlyReport => "Monthly summary"
+    case PromptKind.Water         => tr("Water", "Вода")
+    case PromptKind.Mood          => tr("Mood", "Настрій")
+    case PromptKind.SleepBedtime  => tr("Bedtime", "Відхід до сну")
+    case PromptKind.SleepMorning  => tr("Morning", "Ранок")
+    case PromptKind.Meal          => tr("Meals", "Їжа")
+    case PromptKind.WeeklyReport  => tr("Weekly summary", "Тижневий підсумок")
+    case PromptKind.MonthlyReport => tr("Monthly summary", "Місячний підсумок")
 
   /** The name of each preset of the catalogue, by id. */
   def presetName(id: String): String = id match
-    case "water.work_hours_30"  => "Work hours, every 30 min"
-    case "water.hourly"         => "Every hour, 08:00 to 21:00"
-    case "water.gentle"         => "Gentle: 4 a day at meal times"
-    case "water.behind_goal"    => "Only when behind my goal"
-    case "water.custom"         => "Custom interval"
-    case "mood.evening"         => "Once in the evening"
-    case "mood.midday_evening"  => "Midday and evening"
-    case "mood.random3"         => "Three moments, 10:00 to 20:00"
-    case "sleep.bedtime"        => "30 min before bedtime"
-    case "sleep.morning"        => "At wake time"
-    case "meal.anchors"         => "At meal times, if not logged"
-    case "report.weekly"        => "Sunday evening"
-    case "report.monthly"       => "On the 1st"
-    case "med.morning"          => "Once in the morning"
-    case "med.evening"          => "Once in the evening"
-    case "med.twice_daily"      => "Twice a day, at wake and bedtime"
-    case "med.three_with_meals" => "Three times a day, with meals"
-    case "med.every_8h"         => "Every 8 hours from wake"
-    case "med.every_12h"        => "Every 12 hours from wake"
-    case "med.weekdays"         => "Weekdays only"
-    case "med.weekly"           => "Once a week"
-    case "med.every_other_day"  => "Every other day"
-    case "med.cycle"            => "Days on, days off"
-    case "med.as_needed"        => "As needed, no reminder"
+    case "water.work_hours_30" => tr("Work hours, every 30 min", "Робочі години, кожні 30 хв")
+    case "water.hourly"        => tr("Every hour, 08:00 to 21:00", "Щогодини, з 08:00 до 21:00")
+    case "water.gentle"        => tr("Gentle: 4 a day at meal times", "М’яко: 4 рази на день під час їжі")
+    case "water.behind_goal"   => tr("Only when behind my goal", "Лише коли я відстаю від цілі")
+    case "water.custom"        => tr("Custom interval", "Свій інтервал")
+    case "mood.evening"        => tr("Once in the evening", "Раз увечері")
+    case "mood.midday_evening" => tr("Midday and evening", "Удень і ввечері")
+    case "mood.random3"        => tr("Three moments, 10:00 to 20:00", "Тричі, з 10:00 до 20:00")
+    case "sleep.bedtime"       => tr("30 min before bedtime", "За 30 хв до сну")
+    case "sleep.morning"       => tr("At wake time", "У час пробудження")
+    case "meal.anchors"        => tr("At meal times, if not logged", "Під час їжі, якщо не записано")
+    case "report.weekly"       => tr("Sunday evening", "Неділя ввечері")
+    case "report.monthly"      => tr("On the 1st", "Першого числа")
+    case "med.morning"         => tr("Once in the morning", "Раз уранці")
+    case "med.evening"         => tr("Once in the evening", "Раз увечері")
+    case "med.twice_daily" => tr("Twice a day, at wake and bedtime", "Двічі на день: після пробудження й перед сном")
+    case "med.three_with_meals" => tr("Three times a day, with meals", "Тричі на день, під час їжі")
+    case "med.every_8h"         => tr("Every 8 hours from wake", "Кожні 8 годин від пробудження")
+    case "med.every_12h"        => tr("Every 12 hours from wake", "Кожні 12 годин від пробудження")
+    case "med.weekdays"         => tr("Weekdays only", "Лише в будні")
+    case "med.weekly"           => tr("Once a week", "Раз на тиждень")
+    case "med.every_other_day"  => tr("Every other day", "Через день")
+    case "med.cycle"            => tr("Days on, days off", "Дні прийому й перерви")
+    case "med.as_needed"        => tr("As needed, no reminder", "За потреби, без нагадування")
     case other                  => other
 
   def clock(at: LocalTime): String = f"${at.getHour}%02d:${at.getMinute}%02d"
 
   def days(days: Set[DayOfWeek]): String =
     val sorted = days.toList.sortBy(_.getValue)
-    val names = sorted.map(_.getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
+    val names = sorted.map(_.getDisplayName(TextStyle.SHORT, Formats.locale))
     val consecutive = sorted.size > 2 && sorted.map(_.getValue).sliding(2).forall(p => p(1) == p(0) + 1)
-    if consecutive then s"${names.head} to ${names.last}" else names.mkString(", ")
+    if consecutive then tr(s"${names.head} to ${names.last}", s"${names.head}–${names.last}") else names.mkString(", ")
 
   private def plural(n: Int, noun: String): String = if n == 1 then s"1 $noun" else s"$n ${noun}s"
 
-  private val sampleDay = HydrationDay(totalMl = 750, entries = 3, goalMl = Some(2000))
+  private def sampleDay = HydrationDay(totalMl = 750, entries = 3, goalMl = Some(2000))
 
-  val entries: List[CopyEntry] = List(
+  def entries: List[CopyEntry] = List(
     CopyEntry("prompt.water", waterNudge(sampleDay)),
     CopyEntry("prompt.bedtime", bedtimeNudge),
     CopyEntry("prompt.morning", morningNudge),
@@ -156,9 +207,12 @@ object PromptCopy:
     CopyEntry("reminders.paused_all", pausedAllUntil("15:00")),
     CopyEntry("reminders.pause_note", pauseAllNote),
     CopyEntry("reminders.choose", choosePreset(PromptKind.Water)),
-    CopyEntry("reminders.preview", preview("Work hours, every 30 min", List("09:30", "10:00"))),
-    CopyEntry("reminders.preview.empty", preview("Work hours, every 30 min", Nil)),
-    CopyEntry("reminders.applied", applied("Work hours, every 30 min")),
+    CopyEntry(
+      "reminders.preview",
+      preview(tr("Work hours, every 30 min", "Робочі години, кожні 30 хв"), List("09:30", "10:00"))
+    ),
+    CopyEntry("reminders.preview.empty", preview(tr("Work hours, every 30 min", "Робочі години, кожні 30 хв"), Nil)),
+    CopyEntry("reminders.applied", applied(tr("Work hours, every 30 min", "Робочі години, кожні 30 хв"))),
     CopyEntry("reminders.turned_off", turnedOff(PromptKind.Water)),
     CopyEntry("reminders.needs_consent", needsConsent),
     CopyEntry("reminders.not_wired", notWired),

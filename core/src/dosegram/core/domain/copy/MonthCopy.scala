@@ -29,25 +29,40 @@ object MonthCopy:
   import StatsCopy.more
 
   def name(month: YearMonth): String =
-    s"${month.getMonth.getDisplayName(TextStyle.FULL_STANDALONE, Locale.ENGLISH)} ${month.getYear}"
+    tr(
+      s"${month.getMonth.getDisplayName(TextStyle.FULL_STANDALONE, Locale.ENGLISH)} ${month.getYear}",
+      s"${month.getMonth.getDisplayName(TextStyle.FULL_STANDALONE, Formats.locale).capitalize} ${month.getYear}"
+    )
 
   def header(month: YearMonth, zone: ZoneId): String = s"${name(month)} · ${zone.getId}"
 
   /** R-INS-11: a month without a domain at the gate has no monthly summary; the text says what is still needed. */
   def gateTitle: String =
-    s"A monthly summary needs one area with records on at least ${MinimumSample.MonthlyReportDays.required} days."
+    tr(
+      s"A monthly summary needs one area with records on at least ${MinimumSample.MonthlyReportDays.required} days.",
+      s"Для місячного підсумку потрібен розділ, у якому записи є щонайменше за ${UkNouns.Days.count(MinimumSample.MonthlyReportDays.required)}."
+    )
 
-  def daysWithRecords(days: Int): String = s"${StatsCopy.count(days, "day")} with records"
+  def daysWithRecords(days: Int): String =
+    tr(s"${StatsCopy.count(days, "day")} with records", s"${UkNouns.Days.count(days)} із записами")
 
   def gate(domainName: String, domain: MonthDomain[?]): String =
-    s"$domainName: ${more(domain.missingDays, "day")} with records for the month's figures " +
-      s"(${domain.recordedDays} of ${MinimumSample.MonthlyReportDays.required})"
+    tr(
+      s"$domainName: ${more(domain.missingDays, "day")} with records for the month's figures " +
+        s"(${domain.recordedDays} of ${MinimumSample.MonthlyReportDays.required})",
+      s"$domainName: для цифр місяця потрібно ще ${UkNouns.Days.count(domain.missingDays)} із записами " +
+        s"(${domain.recordedDays} з ${MinimumSample.MonthlyReportDays.required})"
+    )
 
   /** The user's own previous month, stated, never judged (VISUALS VA-PR-07). */
   def previous(month: YearMonth, adherence: Stat[dosegram.core.domain.insights.Ratio]): Option[String] =
     adherence.shown.map(ratio =>
-      s"Previous month (${name(month.minusMonths(1))}): ${ratio.numerator} of ${ratio.denominator} taken " +
-        s"(${ratio.percent}%)"
+      tr(
+        s"Previous month (${name(month.minusMonths(1))}): ${ratio.numerator} of ${ratio.denominator} taken " +
+          s"(${ratio.percent}%)",
+        s"Попередній місяць (${name(month.minusMonths(1))}): прийнято ${ratio.numerator} з ${ratio.denominator} " +
+          s"(${ratio.percent}%)"
+      )
     )
 
   /** Every line of the month's text: the header, the days with records, then one block per domain. */
@@ -59,24 +74,25 @@ object MonthCopy:
             previous(figures.month, figures.previousAdherence).filter(_ =>
               domain.figures.total.adherence.shown.isDefined
             )
-        else List(gate("Doses", domain))
+        else List(gate(tr("Doses", "Дози"), domain))
       ) ++
         figures.hydration.toList.flatMap(domain =>
-          if domain.meetsGate then StatsCopy.water(domain.figures).toList else List(gate("Water", domain))
+          if domain.meetsGate then StatsCopy.water(domain.figures).toList else List(gate(tr("Water", "Вода"), domain))
         ) ++
         figures.mood.toList.flatMap(domain =>
-          if domain.meetsGate then StatsCopy.mood(domain.figures).toList else List(gate("Mood", domain))
+          if domain.meetsGate then StatsCopy.mood(domain.figures).toList else List(gate(tr("Mood", "Настрій"), domain))
         ) ++
         figures.sleep.toList.flatMap(domain =>
-          if domain.meetsGate then StatsCopy.sleep(domain.figures).toList else List(gate("Sleep", domain))
+          if domain.meetsGate then StatsCopy.sleep(domain.figures).toList else List(gate(tr("Sleep", "Сон"), domain))
         ) ++
         figures.food.toList.flatMap(domain =>
-          if domain.meetsGate then FoodCopy.statsPeriod(domain.figures).toList else List(gate("Food", domain))
+          if domain.meetsGate then FoodCopy.statsPeriod(domain.figures).toList
+          else List(gate(tr("Food", "Їжа"), domain))
         )
     val intro = if figures.isReportable then Nil else List(gateTitle)
     header(figures.month, zone) :: daysWithRecords(figures.daysWithRecords) :: intro ++ blocks
 
-  val entries: List[CopyEntry] = Samples.entries
+  def entries: List[CopyEntry] = Samples.entries
 
   private object Samples:
     private val month = YearMonth.of(2026, 10)
@@ -113,7 +129,7 @@ object MonthCopy:
         previousMedication = Some(previous)
       )
 
-    val entries: List[CopyEntry] =
+    def entries: List[CopyEntry] =
       List(
         CopyEntry("stats.month", lines(figures(22), kyiv).mkString("\n")),
         CopyEntry("stats.month.gate", lines(figures(9), kyiv).mkString("\n"))

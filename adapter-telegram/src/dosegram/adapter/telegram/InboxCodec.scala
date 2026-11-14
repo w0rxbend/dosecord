@@ -3,8 +3,9 @@ package dosegram.adapter.telegram
 import dosegram.core.ports.InboxEntry
 
 /** The inbox form of an update (ADR-017). The inbox keeps the decoded update written back as the minimal JSON that
-  * [[TelegramModels.decodeUpdate]] reads, not the body Telegram sent: what the adapter does not read (names, language,
-  * entities) is never stored. Decoding the stored body gives back the same [[Update]].
+  * [[TelegramModels.decodeUpdate]] reads, not the body Telegram sent: what the adapter does not read (names, the raw
+  * language tag, entities) is never stored; of the language only the shipped locale it names is kept. Decoding the
+  * stored body gives back the same [[Update]].
   */
 object InboxCodec:
 
@@ -88,7 +89,10 @@ object InboxCodec:
   private def chatJson(chat: TgChat): ujson.Obj =
     ujson.Obj("id" -> number(chat.id), "type" -> (if chat.isPrivate then "private" else "other"))
 
-  private def userJson(user: TgUser): ujson.Obj = ujson.Obj("id" -> number(user.id))
+  private def userJson(user: TgUser): ujson.Obj =
+    val json = ujson.Obj("id" -> number(user.id))
+    user.locale.foreach(code => json("locale") = code)
+    json
 
   /** Identifiers have at most 52 significant bits (research brief 02, section 3), so a JSON number holds them. */
   private def number(value: Long): ujson.Num = ujson.Num(value.toDouble)

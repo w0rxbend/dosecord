@@ -50,9 +50,14 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
       channelId: UUID
   )
 
-  private def seed(state: Occurrence): Seed =
+  private def seed(state: Occurrence, locale: Option[String] = None): Seed =
     val uow = MediatorFakes.InMemoryUnitOfWork()
-    val accountId = UUID.randomUUID()
+    val accountId = locale match
+      case None       => UUID.randomUUID()
+      case Some(code) =>
+        val id = uow.accounts.createAccount(dosegram.contracts.IdentityId(UUID.randomUUID()), "UTC", t0).uuid
+        uow.accounts.saveSettings(id, dosegram.core.ports.AccountSettings.Default.copy(locale = Some(code)), t0)
+        id
     val medicationId = UUID.randomUUID()
     val scheduleId = UUID.randomUUID()
     val occurrenceId = UUID.randomUUID()
@@ -157,6 +162,19 @@ class CatalogueOutboxRendererSuite extends munit.FunSuite:
     )
     assertEquals(decoded.map(_.value), List(0L, 10L, 0L, 30L, 60L))
     assert(decoded.forall(_.subject == s.occurrenceId), "every token is bound to the occurrence")
+
+  test("a reminder of a Ukrainian account renders in Ukrainian at send time (ROADMAP G2.22)"):
+    val s = seed(dueState, locale = Some("uk"))
+    val dispatch = LoopDispatch.Reminder(s.occurrenceId, Some("dm:owner"), "initial", 1, silent = false)
+    val (_, rendered) = renderer(s.uow).render(row(s, "reminder", LoopDispatch.toJson(dispatch)), CapabilityProfiles.Telegram)
+
+    val text = rendered.chunks.mkString("\n")
+    assert(text.contains("Нагадування: Vitamin D, 1000 IU."), s"body was: $text")
+    rendered.controls match
+      case List(RenderedControls.Buttons(row1), RenderedControls.Buttons(row2)) =>
+        assertEquals(row1.flatten.map(_.label), List("Прийнято", "Відкласти на 10 хв", "Пропустити"))
+        assertEquals(row2.flatten.map(_.label), List("Відкласти на 30 хв", "Відкласти на 1 год"))
+      case other => fail(s"unexpected controls: $other")
 
   test("a spent snooze budget renders [Taken][Skip] only"):
     val spent = dueState.copy(snoozeCount = ReminderPolicy.Default.maxSnoozes)

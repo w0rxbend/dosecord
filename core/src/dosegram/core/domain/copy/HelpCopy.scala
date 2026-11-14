@@ -5,29 +5,30 @@ package dosegram.core.domain.copy
   */
 object HelpCopy:
 
-  val intro = "Dosegram keeps track of your medications and reminders."
+  def intro =
+    tr("Dosegram keeps track of your medications and reminders.", "Dosegram веде облік ваших ліків і нагадувань.")
 
   /** Fallbacks for input that matches no command (the console is free-text). */
-  val unknownCommand = "I don't know that command — try /help."
-  val unknownMessage = "I didn't understand that — try /help."
+  def unknownCommand = tr("I don't know that command — try /help.", "Такої команди я не знаю — спробуйте /help.")
+  def unknownMessage = tr("I didn't understand that — try /help.", "Не вдалося зрозуміти — спробуйте /help.")
 
   /** (usage, description) per command, in display order. */
-  val commands: List[(String, String)] = List(
-    "/start" -> "Create your account and pick a timezone.",
-    "/today" -> "Show today's doses and record them.",
-    "/meds" -> "Show your medications.",
-    "/history" -> "Show the last 7 days.",
-    "/taken [medication]" -> "Record a dose as taken.",
-    "/snooze <minutes>" -> "Snooze the current reminder.",
-    "/skip [medication]" -> "Mark a dose as skipped.",
-    "/log <medication>" -> "Log an as-needed dose.",
-    "/menu" -> "Open the main menu.",
-    "/app" -> "Open the app.",
-    "/cancel" -> "Cancel the current setup.",
-    "/help" -> "Show this help."
+  def commands: List[(String, String)] = List(
+    "/start" -> tr("Create your account and pick a timezone.", "Створити акаунт і вибрати часовий пояс."),
+    "/today" -> tr("Show today's doses and record them.", "Показати сьогоднішні дози й записати їх."),
+    "/meds" -> tr("Show your medications.", "Показати ваші ліки."),
+    "/history" -> tr("Show the last 7 days.", "Показати останні 7 днів."),
+    "/taken [medication]" -> tr("Record a dose as taken.", "Записати дозу як прийняту."),
+    "/snooze <minutes>" -> tr("Snooze the current reminder.", "Відкласти поточне нагадування."),
+    "/skip [medication]" -> tr("Mark a dose as skipped.", "Позначити дозу як пропущену."),
+    "/log <medication>" -> tr("Log an as-needed dose.", "Записати дозу за потреби."),
+    "/menu" -> tr("Open the main menu.", "Відкрити головне меню."),
+    "/app" -> tr("Open the app.", "Відкрити застосунок."),
+    "/cancel" -> tr("Cancel the current setup.", "Скасувати поточне налаштування."),
+    "/help" -> tr("Show this help.", "Показати цю довідку.")
   )
 
-  val entries: List[CopyEntry] =
+  def entries: List[CopyEntry] =
     List(
       CopyEntry("help.intro", intro),
       CopyEntry("help.unknown_command", unknownCommand),

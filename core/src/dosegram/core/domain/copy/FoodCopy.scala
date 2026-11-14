@@ -11,32 +11,58 @@ import dosegram.core.domain.nutrition.MealType
   * as missing (PRODUCT_SPEC R-NUT-3, R-NUT-5; BUX-FOOD-04).
   */
 object FoodCopy:
-  val which = "Which meal?"
-  val photoLater = "Photos cannot be saved yet. Send the meal as text, for example: lunch: pasta."
-  val ambiguousHint = "To save your words with it, start with the meal and a colon, for example: lunch: soup."
-  val usage = "Send /food, or the meal and a colon, for example: /food lunch: soup."
-  val undone = "Meal removed."
-  val unknown = "That meal is no longer there."
-  val undoWindowPassed = "This can no longer be undone here. Change it in the app."
-  val noneToday = "No meal logged today."
-  val EditInApp = "Edit in app"
-  val ShowAsImage = "Show as image"
-  val imageUnavailable = "The image is not available right now. The meals above are complete."
-  val imageEmpty = "No meal logged today, so there is nothing to draw yet."
+  import UkNouns.{DaysOf, Meals, PlannedMeals, Snacks}
+  def which = tr("Which meal?", "Який прийом їжі?")
+  def photoLater = tr(
+    "Photos cannot be saved yet. Send the meal as text, for example: lunch: pasta.",
+    "Фото поки не зберігаються. Надішліть прийом їжі текстом, наприклад: обід: паста."
+  )
+  def ambiguousHint = tr(
+    "To save your words with it, start with the meal and a colon, for example: lunch: soup.",
+    "Щоб зберегти й ваші слова, почніть із назви прийому їжі та двокрапки, наприклад: обід: суп."
+  )
+  def usage = tr(
+    "Send /food, or the meal and a colon, for example: /food lunch: soup.",
+    "Надішліть /food або назву прийому їжі з двокрапкою, наприклад: /food обід: суп."
+  )
+  def undone = tr("Meal removed.", "Прийом їжі видалено.")
+  def unknown = tr("That meal is no longer there.", "Цього прийому їжі вже немає.")
+  def undoWindowPassed = tr(
+    "This can no longer be undone here. Change it in the app.",
+    "Тут це вже не скасувати. Змініть запис у застосунку."
+  )
+  def noneToday = tr("No meal logged today.", "Сьогодні прийомів їжі не записано.")
+  def EditInApp = tr("Edit in app", "Змінити в застосунку")
+  def ShowAsImage = tr("Show as image", "Показати зображенням")
+  def imageUnavailable = tr(
+    "The image is not available right now. The meals above are complete.",
+    "Зображення зараз недоступне. Перелік прийомів їжі вище повний."
+  )
+  def imageEmpty = tr(
+    "No meal logged today, so there is nothing to draw yet.",
+    "Сьогодні прийомів їжі не записано, тож зображувати поки нічого."
+  )
 
   def label(mealType: MealType): String =
     mealType match
-      case MealType.Breakfast => "Breakfast"
-      case MealType.Lunch     => "Lunch"
-      case MealType.Dinner    => "Dinner"
-      case MealType.Snack     => "Snack"
+      case MealType.Breakfast => tr("Breakfast", "Сніданок")
+      case MealType.Lunch     => tr("Lunch", "Обід")
+      case MealType.Dinner    => tr("Dinner", "Вечеря")
+      case MealType.Snack     => tr("Snack", "Перекус")
 
   /** `food.saved`: "Lunch saved at 13:05." The words themselves are not echoed. */
   def saved(mealType: MealType, time: String, withNote: Boolean): String =
-    if withNote then s"${label(mealType)} saved at $time, with your note."
-    else s"${label(mealType)} saved at $time."
+    if withNote then
+      tr(
+        s"${label(mealType)} saved at $time, with your note.",
+        s"${label(mealType)}: збережено о $time, разом із вашою нотаткою."
+      )
+    else tr(s"${label(mealType)} saved at $time.", s"${label(mealType)}: збережено о $time.")
 
-  def tooLong(limit: Int): String = s"A meal note can be at most $limit characters. Send a shorter one."
+  def tooLong(limit: Int): String = tr(
+    s"A meal note can be at most $limit characters. Send a shorter one.",
+    s"Нотатка до прийому їжі може мати щонайбільше $limit символів. Надішліть коротшу."
+  )
 
   /** The meals logged today in time order: "Today: breakfast 08:10, lunch 13:05." */
   def today(meals: List[(MealType, String)]): String =
@@ -44,9 +70,9 @@ object FoodCopy:
     else
       meals
         .map((mealType, time) => s"${label(mealType).toLowerCase(java.util.Locale.ROOT)} $time")
-        .mkString("Today: ", ", ", ".")
+        .mkString(tr("Today: ", "Сьогодні: "), ", ", ".")
 
-  val notLogged = "Not logged"
+  def notLogged = tr("Not logged", "Не записано")
 
   private def count(n: Int, noun: String): String = if n == 1 then s"1 $noun" else s"$n ${noun}s"
 
@@ -54,31 +80,57 @@ object FoodCopy:
   def day(view: RegularMealDay): String =
     val main = view.logged.size
     val meals =
-      if view.plan.planned.isEmpty then if main == 0 then "No meal logged" else s"${count(main, "meal")} logged"
-      else s"${view.plannedLogged} of ${count(view.plan.planned.size, "planned meal")} logged"
-    if view.snacks == 0 then meals else s"$meals, ${count(view.snacks, "snack")}"
+      if view.plan.planned.isEmpty then
+        if main == 0 then tr("No meal logged", "Прийомів їжі не записано")
+        else tr(s"${count(main, "meal")} logged", s"записано: ${Meals.count(main)}")
+      else
+        tr(
+          s"${view.plannedLogged} of ${count(view.plan.planned.size, "planned meal")} logged",
+          s"записано ${view.plannedLogged} з ${PlannedMeals.count(view.plan.planned.size)}"
+        )
+    if view.snacks == 0 then meals
+    else tr(s"$meals, ${count(view.snacks, "snack")}", s"$meals, ${Snacks.count(view.snacks)}")
 
   /** Per main meal, the days it was logged on (MINI_APP MA-FOOD-4): counts, no percentages. */
   def week(period: MealPeriod): String =
     val parts = MealType.main.map(meal => s"${label(meal)} ${period.daysPerMeal.getOrElse(meal, 0)}")
-    s"${parts.mkString(", ")} of ${count(period.window.days, "day")}"
+    tr(
+      s"${parts.mkString(", ")} of ${count(period.window.days, "day")}",
+      s"${parts.mkString(", ")} з ${DaysOf.count(period.window.days)}"
+    )
 
   /** The food line of `/stats` for today; absent on a day without a meal. */
-  def statsDay(view: RegularMealDay): String = s"Food: ${day(view)}"
+  def statsDay(view: RegularMealDay): String = tr(s"Food: ${day(view)}", s"Їжа: ${day(view)}")
 
   /** The food line of `/stats` for a period, or `None` when it has no meal (BUX-STAT-02). */
   def statsPeriod(period: MealPeriod): Option[String] =
-    Option.when(period.meals > 0)(s"Food: ${count(period.meals, "meal")} logged · ${week(period)}")
+    Option.when(period.meals > 0)(
+      tr(
+        s"Food: ${count(period.meals, "meal")} logged · ${week(period)}",
+        s"Їжа: записано ${Meals.count(period.meals)} · ${week(period)}"
+      )
+    )
 
   /** A meal nudge (G8.4): it names the meal and offers the tap; it says nothing about what or how much to eat. */
   def nudge(meal: Option[MealType]): String =
-    meal.fold("Meal reminder. Tap the meal you had to log it.")(mealType =>
-      s"Meal reminder: ${label(mealType).toLowerCase(java.util.Locale.ROOT)}. Tap to log it."
+    meal.fold(
+      tr(
+        "Meal reminder. Tap the meal you had to log it.",
+        "Нагадування про їжу. Натисніть на прийом їжі, щоб його записати."
+      )
+    )(mealType =>
+      tr(
+        s"Meal reminder: ${label(mealType).toLowerCase(java.util.Locale.ROOT)}. Tap to log it.",
+        s"Нагадування про їжу: ${label(mealType).toLowerCase(java.util.Locale.ROOT)}. Натисніть, щоб записати."
+      )
     )
 
-  def logButton(mealType: MealType): String = s"Log ${label(mealType).toLowerCase(java.util.Locale.ROOT)}"
+  def logButton(mealType: MealType): String = tr(
+    s"Log ${label(mealType).toLowerCase(java.util.Locale.ROOT)}",
+    s"Записати: ${label(mealType).toLowerCase(java.util.Locale.ROOT)}"
+  )
 
-  val entries: List[CopyEntry] =
+  def entries: List[CopyEntry] =
     List(
       CopyEntry("food.which", which),
       CopyEntry("food.saved", saved(MealType.Lunch, "13:05", withNote = false)),

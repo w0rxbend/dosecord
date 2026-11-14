@@ -1,6 +1,7 @@
 package dosegram.core.application.menu
 
 import dosegram.contracts.*
+import dosegram.core.application.LanguageChat
 import dosegram.core.application.capture.MedicationConsentGate
 import dosegram.core.application.capture.MedicationScreen
 import dosegram.core.application.dose.LogDosePicker
@@ -15,6 +16,7 @@ import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.WizardEngine
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
+import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.MenuCopy
@@ -34,7 +36,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.UUID
 
 /** Which menu entries are shipped (ROADMAP M1.9: unshipped entries are hidden by flag, never shown as "under
@@ -299,7 +300,8 @@ final class MenuHandler(
               ChoiceSet(
                 id = "menu.account",
                 choices = List(
-                  Choice.callback(Labels.Timezone, mint(chat, accountId, MenuOpenAction, KeyTimezone, tx).wire),
+                  Choice.callback(Labels.Timezone, mint(chat, accountId, MenuOpenAction, KeyTimezone, tx).wire)
+                ) ++ accountId.map(id => Choice.callback(Labels.Language, LanguageChat.openToken(codec, id))) ++ List(
                   Choice.callback(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire)
                 )
               )
@@ -467,7 +469,7 @@ final class MenuHandler(
     val snapshot = occ.doseSnapshot
     val title = snapshot
       .map(s => doseTitle(s.medicationName, s.doseAmount, s.doseUnit))
-      .getOrElse("Your dose")
+      .getOrElse(MenuCopy.yourDose)
     val time = occ.localTime.map(t => f"${t.getHour}%02d:${t.getMinute}%02d").getOrElse("")
     paragraph(s"$time $title — ${statusText(occ)}")
 
@@ -634,13 +636,13 @@ final class MenuHandler(
     DateTimeFormatter.ofPattern("HH:mm").withZone(zone).format(at)
 
   private def formatDay(at: Instant, zone: ZoneId): String =
-    DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH).withZone(zone).format(at)
+    DateTimeFormatter.ofPattern("EEE", Formats.locale).withZone(zone).format(at)
 
   private def formatDayTime(at: Instant, zone: ZoneId): String =
-    DateTimeFormatter.ofPattern("EEE HH:mm", Locale.ENGLISH).withZone(zone).format(at)
+    DateTimeFormatter.ofPattern("EEE HH:mm", Formats.locale).withZone(zone).format(at)
 
   private def formatDayHeader(day: LocalDate): String =
-    day.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH))
+    day.format(DateTimeFormatter.ofPattern("EEE d MMM", Formats.locale))
 
 private object MenuHandler:
   val CommandMenu = "menu"

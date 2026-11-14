@@ -82,6 +82,21 @@ class SleepRulesSuite extends munit.FunSuite:
     test(s"'$text' reads as $expected"):
       assertEquals(SleepTextParser.free(text), expected)
 
+  // ROADMAP G2.22: the Ukrainian words of the same grammar.
+  List(
+    "сон 23:30 7:10" -> SleepText.Night(time("23:30"), time("07:10")),
+    "спав 23:40 до 07:10" -> SleepText.Night(time("23:40"), time("07:10")),
+    "спала 0:15-6:45" -> SleepText.Night(time("00:15"), time("06:45")),
+    "Спав 7 год" -> SleepText.SleptFor(Duration.ofHours(7)),
+    "спала 7 год 30 хв" -> SleepText.SleptFor(Duration.ofMinutes(450)),
+    "дрімав 20 хв" -> SleepText.NapFor(Duration.ofMinutes(20)),
+    "дрімала 13:00 13:40" -> SleepText.NapBetween(time("13:00"), time("13:40")),
+    "денний сон 1 год" -> SleepText.NapFor(Duration.ofHours(1)),
+    "спав добре" -> SleepText.NotSleep
+  ).foreach: (text, expected) =>
+    test(s"'$text' reads as $expected"):
+      assertEquals(SleepTextParser.free(text), expected)
+
   test("the argument of /sleep is two clock times and nothing else"):
     assertEquals(SleepTextParser.times("23:30 7:10"), Some((time("23:30"), time("07:10"))))
     assertEquals(SleepTextParser.times("23:30"), None)

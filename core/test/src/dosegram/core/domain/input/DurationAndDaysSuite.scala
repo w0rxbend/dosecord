@@ -73,6 +73,27 @@ class DurationAndDaysSuite extends munit.ScalaCheckSuite:
     assertEquals(DoseText.parse("1/99999999999999999999 tab"), (None, Some("1/99999999999999999999 tab")))
     assertEquals(DoseText.parse("0 mg"), (None, Some("0 mg")))
 
+  test("snooze: the Ukrainian units and half an hour (ROADMAP G2.22)"):
+    assertEquals(minutes("10 хв"), 10)
+    assertEquals(minutes("15 хвилин"), 15)
+    assertEquals(minutes("1 год"), 60)
+    assertEquals(minutes("2 години"), 120)
+    assertEquals(minutes("1,5 год"), 90)
+    assertEquals(minutes("1 год 30 хв"), 90)
+    assertEquals(minutes("пів години"), 30)
+    assertEquals(minutes("на 20 хв"), 20)
+
+  test("days: the Ukrainian names, groups and ranges (ROADMAP G2.22)"):
+    assertEquals(days("пн ср пт"), List(Mon, Wed, Fri))
+    assertEquals(days("понеділок, середа і пʼятниця"), List(Mon, Wed, Fri))
+    assertEquals(days("п'ятниця"), List(Fri))
+    assertEquals(days("будні"), List(Mon, Tue, Wed, Thu, Fri))
+    assertEquals(days("вихідні"), List(Sat, Sun))
+    assertEquals(days("щодня"), Weekday.values.toList)
+    assertEquals(days("кожен день"), Weekday.values.toList)
+    assertEquals(days("пн-пт"), List(Mon, Tue, Wed, Thu, Fri))
+    assertEquals(days("сб нд"), List(Sat, Sun))
+
   property("no snooze, day or dose input throws"):
     forAll(Gen.oneOf(Gen.asciiStr, Gen.listOf(Gen.choose(Char.MinValue, Char.MaxValue)).map(_.mkString))) { text =>
       SnoozeDuration.parse(text)

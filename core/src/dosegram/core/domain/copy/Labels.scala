@@ -5,38 +5,40 @@ package dosegram.core.domain.copy
   */
 object Labels:
 
-  val Taken = "Taken"
-  val Skip = "Skip"
-  val Undo = "Undo"
-  val Correct = "Correct"
-  val ITookIt = "I took it"
-  val KeepMissed = "Keep missed"
-  val Cancel = "Cancel"
-  val Back = "Back"
-  val Create = "Create"
-  val Done = "Done"
-  val Yes = "Yes"
-  val No = "No"
-  val Change = "Change"
-  val Continue = "Continue"
-  val NoNote = "No note"
-  val Now = "Now"
-  val AtScheduledTime = "At scheduled time"
-  val Update = "Update"
-  val Archive = "Archive"
-  val Timezone = "Timezone"
+  def Taken = tr("Taken", "Прийнято")
+  def Skip = tr("Skip", "Пропустити")
+  def Undo = tr("Undo", "Скасувати")
+  def Correct = tr("Correct", "Виправити")
+  def ITookIt = tr("I took it", "Уже прийнято")
+  def KeepMissed = tr("Keep missed", "Лишити пропущеним")
+  def Cancel = tr("Cancel", "Скасувати")
+  def Back = tr("Back", "Назад")
+  def Create = tr("Create", "Створити")
+  def Done = tr("Done", "Готово")
+  def Yes = tr("Yes", "Так")
+  def No = tr("No", "Ні")
+  def Change = tr("Change", "Змінити")
+  def Continue = tr("Continue", "Продовжити")
+  def NoNote = tr("No note", "Без нотатки")
+  def Now = tr("Now", "Зараз")
+  def AtScheduledTime = tr("At scheduled time", "У запланований час")
+  def Update = tr("Update", "Оновити")
+  def Archive = tr("Archive", "В архів")
+  def Timezone = tr("Timezone", "Часовий пояс")
+  def Language = tr("Language", "Мова")
 
   /** Snooze option labels: `Snooze 10m`, `Snooze 1h`. */
   def snooze(minutes: Int): String =
-    if minutes % 60 == 0 then s"Snooze ${minutes / 60}h" else s"Snooze ${minutes}m"
+    if minutes % 60 == 0 then tr(s"Snooze ${minutes / 60}h", s"Відкласти на ${minutes / 60} год")
+    else tr(s"Snooze ${minutes}m", s"Відкласти на $minutes хв")
 
   /** Missed-notice row (recorded decision): [I took it][Skip][Keep missed]. */
-  val missedNotice: List[String] = List(ITookIt, Skip, KeepMissed)
+  def missedNotice: List[String] = List(ITookIt, Skip, KeepMissed)
 
   /** Post-Taken follow-up (recorded decision): [Undo][Correct] (M3.1 appends [Add note]). */
-  val postTaken: List[String] = List(Undo, Correct)
+  def postTaken: List[String] = List(Undo, Correct)
 
-  val entries: List[CopyEntry] = List(
+  def entries: List[CopyEntry] = List(
     CopyEntry("label.taken", Taken),
     CopyEntry("label.skip", Skip),
     CopyEntry("label.undo", Undo),
@@ -57,6 +59,7 @@ object Labels:
     CopyEntry("label.update", Update),
     CopyEntry("label.archive", Archive),
     CopyEntry("label.timezone", Timezone),
+    CopyEntry("label.language", Language),
     CopyEntry("label.snooze.10", snooze(10)),
     CopyEntry("label.snooze.30", snooze(30)),
     CopyEntry("label.snooze.60", snooze(60))

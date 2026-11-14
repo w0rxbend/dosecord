@@ -4,13 +4,16 @@ package dosegram.core.domain.copy
 object ImageCopy:
 
   /** The text equivalent in place of an image, as the adapters write it (ADR-015 CON-02). */
-  def inPlace(altText: String): String = s"[image: $altText]"
+  def inPlace(altText: String): String = tr(s"[image: $altText]", s"[зображення: $altText]")
 
   /** VA-FB-03: the account had its images of the day; `time` is the local time the next one can be drawn. */
   def dailyLimit(limit: Int, time: String): String =
-    s"Images are limited to $limit a day, so this one is sent as text. The next image can be drawn after $time."
+    tr(
+      s"Images are limited to $limit a day, so this one is sent as text. The next image can be drawn after $time.",
+      s"Денний ліміт зображень ($limit) вичерпано, тож це надіслано текстом. Наступне зображення можна буде створити після $time."
+    )
 
-  val entries: List[CopyEntry] =
+  def entries: List[CopyEntry] =
     List(
       CopyEntry("image.in_place", inPlace("Water today: 1.2 of 2.0 l (60%)")),
       CopyEntry("image.daily_limit", dailyLimit(20, "14:05"))

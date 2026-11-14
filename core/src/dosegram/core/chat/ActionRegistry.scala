@@ -79,7 +79,10 @@ object ActionRegistry:
     ActionEntry(213, "export.summary", requiresSession = false),
     ActionEntry(214, "export.send_ask", requiresSession = false),
     ActionEntry(215, "export.send_agree", requiresSession = false),
-    ActionEntry(216, "export.send", requiresSession = false)
+    ActionEntry(216, "export.send", requiresSession = false),
+    // ROADMAP G2.22, the language choice (ids 270 to 289): open the picker; set the language, value = its index.
+    ActionEntry(270, "language.open", requiresSession = false),
+    ActionEntry(271, "language.set", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

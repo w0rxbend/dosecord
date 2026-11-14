@@ -153,6 +153,17 @@ class BotApiSuite extends munit.FunSuite:
     assertEquals(lastParams(wire)("scope"), ujson.Obj("type" -> "all_private_chats"))
     assertEquals(api.getMyCommands(), Right(commands))
 
+  test("setMyCommands with a language registers that language's list beside the default (R-LOC-10)"):
+    val (wire, api) = wired()
+    val english = List(BotCommand("today", "Show today's doses."))
+    val ukrainian = List(BotCommand("today", "Показати сьогоднішні дози."))
+    assertEquals(api.setMyCommands(english), Right(()))
+    assertEquals(api.setMyCommands(ukrainian, languageCode = Some("uk")), Right(()))
+    assertEquals(lastParams(wire)("language_code"), ujson.Str("uk"))
+    assertEquals(lastParams(wire)("scope"), ujson.Obj("type" -> "all_private_chats"))
+    assertEquals(api.getMyCommands(), Right(english))
+    assertEquals(api.getMyCommands(languageCode = Some("uk")), Right(ukrainian))
+
   test("setChatMenuButton sets the default button without a chat and a Mini App button for one chat"):
     val (wire, api) = wired()
     api.setChatMenuButton(None, MenuButton.Commands)

@@ -353,6 +353,19 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(cards.moods.toList, Nil, "no mood card is drawn without the consent")
       assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList.sorted, List(2, 4))
 
+  test("a Ukrainian account types its check-in and water in Ukrainian and is answered in Ukrainian (ROADMAP G2.22)"):
+    withChat(Profile.Telegram, StatusCards.textOnly): chat =>
+      chat.grant(ConsentPurpose.Mood, ConsentPurpose.Hydration)
+      chat.rig.uow.accounts.saveSettings(
+        chat.account,
+        AccountSettings.Default.copy(locale = Some("uk")),
+        chat.rig.clock.now()
+      )
+      assertEquals(chat.rig.line("настрій 4"), List("Приємно · 03:00"))
+      assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList, List(4))
+      chat.rig.line("250 мл")
+      assertEquals(chat.liveWater, List(250))
+
   test("Add energy asks on the same message and the answer names the energy label"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Mood)

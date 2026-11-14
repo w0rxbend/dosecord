@@ -30,24 +30,27 @@ import java.util.Locale
 /** Text statistics and insight sentences (BOT_UX section 12.5; VISUALS_AND_ANALYTICS sections 7 and 8.6; ROADMAP G2.20
   * and G6.8). Every line states counts over the user's own records, with the denominator or the coverage next to the
   * figure. A figure below its minimum sample is printed as what is still needed, never as a number; a zero denominator
-  * is "No data". Nothing here compares the user with anyone, advises anything or names a cause: `InsightPhrases` lints
-  * every entry.
+  * is tr("No data", "Немає даних"). Nothing here compares the user with anyone, advises anything or names a cause:
+  * `InsightPhrases` lints every entry.
   */
 object StatsCopy:
 
-  val NoData: String = "No data"
+  def NoData: String = tr("No data", "Немає даних")
 
   /** The fixed sentence that closes every comparison (VISUALS VA-IN-11). */
-  val NotACause: String = "This compares your own days. It does not show a cause."
+  def NotACause: String = tr(
+    "This compares your own days. It does not show a cause.",
+    "Це порівняння ваших власних днів. Воно не показує причину."
+  )
 
   /** An empty period explains the absence (BOT_UX BUX-STAT-02). */
-  val Empty: String = "Nothing was recorded in this period."
+  def Empty: String = tr("Nothing was recorded in this period.", "За цей період нічого не записано.")
 
   def header(period: StatsPeriod, zone: ZoneId): String =
     val name = period match
-      case StatsPeriod.Today      => "Today"
-      case StatsPeriod.Last7Days  => "Last 7 days"
-      case StatsPeriod.Last30Days => "Last 30 days"
+      case StatsPeriod.Today      => tr("Today", "Сьогодні")
+      case StatsPeriod.Last7Days  => tr("Last 7 days", "Останні 7 днів")
+      case StatsPeriod.Last30Days => tr("Last 30 days", "Останні 30 днів")
     s"$name · ${zone.getId}"
 
   /** The dose lines of a period; empty when the period has no dose at all. Status words follow BOT_UX section 22.4: a
@@ -55,7 +58,7 @@ object StatsCopy:
     */
   def doses(figures: MedicationFigures): List[String] =
     doseFigures(figures) match
-      case first :: rest => s"Doses: $first" :: rest
+      case first :: rest => tr(s"Doses: $first", s"Дози: $first") :: rest
       case Nil           => Nil
 
   /** The dose lines without the domain name in front, for a surface that shows the domain as a heading. */
@@ -66,13 +69,27 @@ object StatsCopy:
       val resolved = buckets.resolved
       List(
         Some(headline(figures)),
-        Option.when(resolved.taken > 0)(s"${resolved.takenOnTime} of ${resolved.taken} taken doses on time"),
-        Option.when(resolved.resolved > 0)(
-          s"${resolved.taken + resolved.skipped} of ${resolved.resolved} answered"
+        Option.when(resolved.taken > 0)(
+          tr(
+            s"${resolved.takenOnTime} of ${resolved.taken} taken doses on time",
+            s"вчасно — ${resolved.takenOnTime} з ${resolved.taken} прийнятих доз"
+          )
         ),
-        Option.when(buckets.unknown > 0)(s"${buckets.unknown} with no record, not counted"),
-        Option.when(buckets.open > 0)(s"${buckets.open} still due, not counted"),
-        Option.when(buckets.asNeeded > 0)(s"As-needed logs: ${buckets.asNeeded}")
+        Option.when(resolved.resolved > 0)(
+          tr(
+            s"${resolved.taken + resolved.skipped} of ${resolved.resolved} answered",
+            s"з відповіддю — ${resolved.taken + resolved.skipped} з ${resolved.resolved}"
+          )
+        ),
+        Option.when(buckets.unknown > 0)(
+          tr(s"${buckets.unknown} with no record, not counted", s"без запису — ${buckets.unknown}, не враховано")
+        ),
+        Option.when(buckets.open > 0)(
+          tr(s"${buckets.open} still due, not counted", s"ще очікують — ${buckets.open}, не враховано")
+        ),
+        Option.when(buckets.asNeeded > 0)(
+          tr(s"As-needed logs: ${buckets.asNeeded}", s"Записи за потреби: ${buckets.asNeeded}")
+        )
       ).flatten
 
   /** One line of the "By medication" view. `label` is the caller's: the name, or "Item 1" in discreet mode. */
@@ -81,18 +98,26 @@ object StatsCopy:
   private def headline(figures: MedicationFigures): String =
     val resolved = figures.buckets.resolved
     val taken = figures.adherence match
-      case Stat.Shown(ratio, _, _, _) => s"${ratio.numerator} of ${ratio.denominator} taken (${ratio.percent}%)"
+      case Stat.Shown(ratio, _, _, _) =>
+        tr(
+          s"${ratio.numerator} of ${ratio.denominator} taken (${ratio.percent}%)",
+          s"прийнято ${ratio.numerator} з ${ratio.denominator} (${ratio.percent}%)"
+        )
       case _: Stat.Insufficient[?] | _: Stat.NoVariation[?] =>
-        if resolved.resolved == 0 then NoData else s"${resolved.taken} of ${resolved.resolved} taken"
+        if resolved.resolved == 0 then NoData
+        else
+          tr(s"${resolved.taken} of ${resolved.resolved} taken", s"прийнято ${resolved.taken} з ${resolved.resolved}")
     List(
       Some(taken),
-      Option.when(resolved.skipped > 0)(s"skipped ${resolved.skipped}"),
-      Option.when(resolved.missed > 0)(s"not confirmed ${resolved.missed}")
+      Option.when(resolved.skipped > 0)(tr(s"skipped ${resolved.skipped}", s"пропущено ${resolved.skipped}")),
+      Option.when(resolved.missed > 0)(tr(s"not confirmed ${resolved.missed}", s"не підтверджено ${resolved.missed}"))
     ).flatten.mkString(" · ")
 
   /** The water line of a 7-day or 30-day period; `None` when the period has no entry. */
   def water(period: HydrationPeriod): Option[String] =
-    Option.when(period.recordedDays > 0)(waterFigures(period).mkString("Water: ", " · ", ""))
+    Option.when(period.recordedDays > 0)(
+      tr(waterFigures(period).mkString("Water: ", " · ", ""), waterFigures(period).mkString("Вода: ", " · ", ""))
+    )
 
   /** The figures of the water line one by one; empty when the period has no entry. */
   def waterFigures(period: HydrationPeriod): List[String] =
@@ -100,14 +125,25 @@ object StatsCopy:
     else
       val goal = period.goalDays.map:
         case Stat.Shown(ratio, _, _, _) =>
-          s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days"
+          tr(
+            s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days",
+            s"ціль досягнуто в ${ratio.numerator} з ${UkNouns.DaysOf.count(ratio.denominator)} із записами"
+          )
         case Stat.Insufficient(n, required, _) =>
-          s"${more(required - n, "recorded day")} with a goal for the goal count"
+          tr(
+            s"${more(required - n, "recorded day")} with a goal for the goal count",
+            s"для підрахунку цілі потрібно ще ${UkNouns.Days.count(required - n)} із записами та ціллю"
+          )
         case Stat.NoVariation(_, _) => NoData
       val average = period.meanMl match
-        case Stat.Shown(millilitres, _, _, _)  => s"average ${litres(millilitres, 1)} l a day"
-        case Stat.Insufficient(n, required, _) => s"${more(required - n, "recorded day")} for an average"
-        case Stat.NoVariation(_, _)            => NoData
+        case Stat.Shown(millilitres, _, _, _) =>
+          tr(s"average ${litres(millilitres, 1)} l a day", s"у середньому ${litres(millilitres, 1)} л на день")
+        case Stat.Insufficient(n, required, _) =>
+          tr(
+            s"${more(required - n, "recorded day")} for an average",
+            s"для середнього потрібно ще ${UkNouns.Days.count(required - n)} із записами"
+          )
+        case Stat.NoVariation(_, _) => NoData
       goal.toList ++ List(average, coverage(period.recordedDays, period.window))
 
   /** The water line of one day: the total, and the progress toward the user's own goal when there is one. */
@@ -115,34 +151,56 @@ object StatsCopy:
     day.map: recorded =>
       recorded.progress match
         case Some(progress) =>
-          s"Water today: ${dayLitres(progress.totalMl)} of ${dayLitres(progress.goalMl)} l (${progress.percent}%)"
-        case None => s"Water today: ${dayLitres(recorded.totalMl)} l"
+          tr(
+            s"Water today: ${dayLitres(progress.totalMl)} of ${dayLitres(progress.goalMl)} l (${progress.percent}%)",
+            s"Вода сьогодні: ${dayLitres(progress.totalMl)} з ${dayLitres(progress.goalMl)} л (${progress.percent}%)"
+          )
+        case None =>
+          tr(s"Water today: ${dayLitres(recorded.totalMl)} l", s"Вода сьогодні: ${dayLitres(recorded.totalMl)} л")
 
   /** The mood line of a 7-day or 30-day period; `None` when the period has no check-in. Variability is a number with no
     * label (VISUALS section 7.6).
     */
   def mood(period: MoodPeriod): Option[String] =
-    Option.when(period.checkInDays > 0)(moodFigures(period).mkString("Mood: ", " · ", ""))
+    Option.when(period.checkInDays > 0)(
+      tr(moodFigures(period).mkString("Mood: ", " · ", ""), moodFigures(period).mkString("Настрій: ", " · ", ""))
+    )
 
   /** The figures of the mood line one by one; empty when the period has no check-in. */
   def moodFigures(period: MoodPeriod): List[String] =
     if period.checkInDays == 0 then Nil
     else
       val average = period.average match
-        case Stat.Shown(mean, _, _, _)         => s"average ${meanWithLevel(mean)}"
-        case Stat.Insufficient(n, required, _) => s"${more(required - n, "day")} with a check-in for an average"
-        case Stat.NoVariation(_, _)            => NoData
-      val change = period.dayToDayChange.shown.map(value => s"day-to-day change averaged ${oneDecimal(value)} levels")
-      List(count(period.checkIns, "check-in"), average) ++ change.toList :+
+        case Stat.Shown(mean, _, _, _) => tr(s"average ${meanWithLevel(mean)}", s"у середньому ${meanWithLevel(mean)}")
+        case Stat.Insufficient(n, required, _) =>
+          tr(
+            s"${more(required - n, "day")} with a check-in for an average",
+            s"для середнього потрібно ще ${UkNouns.Days.count(required - n)} з позначкою"
+          )
+        case Stat.NoVariation(_, _) => NoData
+      val change = period.dayToDayChange.shown.map(value =>
+        tr(
+          s"day-to-day change averaged ${oneDecimal(value)} levels",
+          s"зміна від дня до дня в середньому ${oneDecimal(value)} рівня"
+        )
+      )
+      List(tr(count(period.checkIns, "check-in"), UkNouns.CheckIns.count(period.checkIns)), average) ++ change.toList :+
         coverage(period.checkInDays, period.window)
 
   /** The mood line of one day: the day value, which is the mean of the day's check-ins. */
   def moodDay(day: Option[MoodDay]): Option[String] =
-    day.map(recorded => s"Mood today: ${meanWithLevel(recorded.mean)} · ${count(recorded.n, "check-in")}")
+    day.map(recorded =>
+      tr(
+        s"Mood today: ${meanWithLevel(recorded.mean)} · ${count(recorded.n, "check-in")}",
+        s"Настрій сьогодні: ${meanWithLevel(recorded.mean)} · ${UkNouns.CheckIns.count(recorded.n)}"
+      )
+    )
 
   /** The sleep line of a 7-day or 30-day period; `None` when the period has no night (BOT_UX section 12.5). */
   def sleep(period: SleepPeriod): Option[String] =
-    Option.when(period.nights > 0)(sleepFigures(period).mkString("Sleep: ", " · ", ""))
+    Option.when(period.nights > 0)(
+      tr(sleepFigures(period).mkString("Sleep: ", " · ", ""), sleepFigures(period).mkString("Сон: ", " · ", ""))
+    )
 
   /** The figures of the sleep line one by one; empty when the period has no night. Every figure names its source
     * (MINI_APP MA-SLEEP-1), and no reference duration is ever given (MA-SLEEP-4).
@@ -151,21 +209,37 @@ object StatsCopy:
     if period.nights == 0 then Nil
     else
       val average = period.averageMinutes match
-        case Stat.Shown(minutes, _, _, _)      => s"average ${duration(Math.round(minutes).toInt)}"
-        case Stat.Insufficient(n, required, _) => s"${more(required - n, "night")} for an average"
-        case Stat.NoVariation(_, _)            => NoData
-      List(s"${count(period.nights, "night")} logged", average, SleepSource, coverage(period.nights, period.window))
+        case Stat.Shown(minutes, _, _, _) =>
+          tr(s"average ${duration(Math.round(minutes).toInt)}", s"у середньому ${duration(Math.round(minutes).toInt)}")
+        case Stat.Insufficient(n, required, _) =>
+          tr(
+            s"${more(required - n, "night")} for an average",
+            s"для середнього потрібно ще ${UkNouns.Nights.count(required - n)}"
+          )
+        case Stat.NoVariation(_, _) => NoData
+      List(
+        tr(s"${count(period.nights, "night")} logged", s"записано ${UkNouns.Nights.count(period.nights)}"),
+        average,
+        SleepSource,
+        coverage(period.nights, period.window)
+      )
 
   /** The sleep line of one day: the night that ended on it. */
   def sleepDay(night: Option[SleepNight]): Option[String] =
-    night.map(recorded => s"Sleep last night: ${duration(recorded.minutes)} ($SleepSource)")
+    night.map(recorded =>
+      tr(
+        s"Sleep last night: ${duration(recorded.minutes)} ($SleepSource)",
+        s"Сон минулої ночі: ${duration(recorded.minutes)} ($SleepSource)"
+      )
+    )
 
   /** Where every sleep figure comes from: what the user entered (MA-SLEEP-1). */
-  val SleepSource: String = "your check-ins"
+  def SleepSource: String = tr("your check-ins", "ваші позначки")
 
   /** Hours and minutes, "7 h 05 min", as the images write a duration. */
   def duration(minutes: Int): String =
-    if minutes < 60 then s"$minutes min" else f"${minutes / 60} h ${minutes % 60}%02d min"
+    if minutes < 60 then tr(s"$minutes min", s"$minutes хв")
+    else tr(f"${minutes / 60} h ${minutes % 60}%02d min", f"${minutes / 60} год ${minutes % 60}%02d хв")
 
   /** The text of a comparison: the sentence with both group sizes and the fixed closing sentence, or what is still
     * needed. A comparison that is withheld or has no variation yields nothing: it is omitted, not explained away.
@@ -175,15 +249,26 @@ object StatsCopy:
       case Comparison.Shown(rule, first, second, _) =>
         Some(s"${InsightCopy.sentence(rule, first, second)} $NotACause")
       case Comparison.TooFewDays(rule, n, required, _) =>
-        Some(s"${more(required - n, "day")} with ${InsightCopy.recordsOf(rule)} for this comparison.")
+        Some(
+          tr(
+            s"${more(required - n, "day")} with ${InsightCopy.recordsOf(rule)} for this comparison.",
+            s"Для цього порівняння потрібно ще ${UkNouns.Days.count(required - n)} з ${InsightCopy.recordsOf(rule)}."
+          )
+        )
       case Comparison.TooFewInGroup(_, n, required, _) =>
-        Some(s"${more(required - n, "day")} in the smaller group of days for this comparison.")
+        Some(
+          tr(
+            s"${more(required - n, "day")} in the smaller group of days for this comparison.",
+            s"Для цього порівняння потрібно ще ${UkNouns.Days.count(required - n)} у меншій групі днів."
+          )
+        )
       case _: Comparison.NoVariation | _: Comparison.Withheld => None
 
   private[copy] def meanWithLevel(mean: Double): String =
     s"${oneDecimal(mean)} (${MoodLabels.level(MoodLevel.ofMean(mean)).toLowerCase(Locale.ROOT)})"
 
-  private def coverage(recorded: Int, window: DateRange): String = s"$recorded of ${window.days} days have data"
+  private def coverage(recorded: Int, window: DateRange): String =
+    tr(s"$recorded of ${window.days} days have data", s"дані є за $recorded з ${UkNouns.DaysOf.count(window.days)}")
 
   private[copy] def more(missing: Int, noun: String): String = s"$missing more ${plural(missing, noun)}"
 
@@ -192,7 +277,7 @@ object StatsCopy:
   private[copy] def plural(n: Int, noun: String): String = if n == 1 then noun else s"${noun}s"
 
   private[copy] def oneDecimal(value: Double): String =
-    java.math.BigDecimal.valueOf(value).setScale(1, RoundingMode.HALF_UP).toPlainString
+    decimal(java.math.BigDecimal.valueOf(value).setScale(1, RoundingMode.HALF_UP).toPlainString)
 
   /** Litres with at most `decimals` places and at least one: "1.25", "0.5", "2.0". */
   private[copy] def litres(millilitres: Int, decimals: Int): String =
@@ -207,9 +292,9 @@ object StatsCopy:
   private def litresRounded(millilitres: Int, decimals: Int, mode: RoundingMode): String =
     val rounded = java.math.BigDecimal.valueOf(millilitres.toLong, 3).setScale(decimals, mode)
     val stripped = rounded.stripTrailingZeros
-    (if stripped.scale < 1 then stripped.setScale(1) else stripped).toPlainString
+    decimal((if stripped.scale < 1 then stripped.setScale(1) else stripped).toPlainString)
 
-  val entries: List[CopyEntry] = Samples.entries
+  def entries: List[CopyEntry] = Samples.entries
 
   /** One rendering of every template, over values built by the same statistic functions the product uses. */
   private object Samples:
@@ -248,7 +333,7 @@ object StatsCopy:
     private def sample(id: String, text: Option[String]): CopyEntry =
       CopyEntry(id, text.getOrElse(throw new IllegalStateException(s"copy sample $id rendered nothing")))
 
-    val entries: List[CopyEntry] =
+    def entries: List[CopyEntry] =
       List(
         CopyEntry("stats.header.today", header(StatsPeriod.Today, kyiv)),
         CopyEntry("stats.header.7d", header(StatsPeriod.Last7Days, kyiv)),

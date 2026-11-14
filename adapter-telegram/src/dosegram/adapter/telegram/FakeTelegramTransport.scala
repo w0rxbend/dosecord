@@ -28,7 +28,7 @@ final class FakeTelegramTransport(
   private val recorded = mutable.ListBuffer.empty[RecordedCall]
   private val scripted = mutable.Map.empty[String, mutable.Queue[WireReply]]
   private val pendingUpdates = mutable.ListBuffer.empty[ujson.Value]
-  private var commands: ujson.Value = ujson.Arr()
+  private var commands: Map[String, ujson.Value] = Map.empty
   private var messageSeq = lastMessageId
   private var floodLimits = Option.empty[FloodLimits]
   private val chatBuckets = mutable.Map.empty[Long, (Double, Instant)]
@@ -63,6 +63,10 @@ final class FakeTelegramTransport(
 
   private def isEmptyBatch(reply: WireReply): Boolean = reply == ok(ujson.Arr())
 
+  /** Telegram keeps one command list per `language_code`, and one without it. */
+  private def languageOf(request: WireRequest): String =
+    request.params.obj.get("language_code").flatMap(_.strOpt).getOrElse("")
+
   private def answer(request: WireRequest): WireReply =
     request.method match
       case "getMe"                                      => ok(identityJson)
@@ -71,9 +75,9 @@ final class FakeTelegramTransport(
       case "editMessageText" | "editMessageCaption" | "editMessageReplyMarkup" | "deleteMessage" =>
         floodChecked(request)(ok(ujson.True))
       case "setMyCommands" =>
-        commands = request.params.obj.getOrElse("commands", ujson.Arr())
+        commands = commands.updated(languageOf(request), request.params.obj.getOrElse("commands", ujson.Arr()))
         ok(ujson.True)
-      case "getMyCommands"                                                                  => ok(commands)
+      case "getMyCommands" => ok(commands.getOrElse(languageOf(request), ujson.Arr()))
       case "answerCallbackQuery" | "setChatMenuButton" | "deleteWebhook" | "sendChatAction" => ok(ujson.True)
       case "setWebhook"                                                                     => ok(ujson.True)
       case _                                                                                =>

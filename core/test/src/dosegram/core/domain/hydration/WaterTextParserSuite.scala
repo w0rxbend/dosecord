@@ -20,6 +20,19 @@ class WaterTextParserSuite extends munit.FunSuite:
     assertEquals(recorded("1 litre"), (1000, EnteredAmount(BigDecimal(1), HydrationUnit.Litre)))
     assertEquals(recorded("2 liters water"), (2000, EnteredAmount(BigDecimal(2), HydrationUnit.Litre)))
 
+  test("the Ukrainian units and words record the same amounts (ROADMAP G2.22)"):
+    assertEquals(recorded("250 мл"), (250, EnteredAmount(BigDecimal(250), HydrationUnit.Millilitre)))
+    assertEquals(recorded("вода 0,5 л"), (500, EnteredAmount(BigDecimal("0.5"), HydrationUnit.Litre)))
+    assertEquals(recorded("випив 300 мл")._1, 300)
+    assertEquals(recorded("випила 1 літр")._1, 1000)
+    assertEquals(recorded("2 літри води")._1, 2000)
+    assertEquals(recorded("1,5 літра")._1, 1500)
+    assertEquals(recorded("2 склянки"), (500, EnteredAmount(BigDecimal(2), HydrationUnit.Glass)))
+    assertEquals(recorded("склянка")._1, 250)
+    assertEquals(recorded("5 склянок")._1, 1250)
+    assertEquals(recorded("вода 300")._1, 300)
+    assertEquals(parser.free("300 мг"), WaterText.NotWater)
+
   test("a decimal comma and a decimal point give the same amount"):
     assertEquals(recorded("0,5 l")._1, 500)
     assertEquals(recorded("0.5 l")._1, 500)

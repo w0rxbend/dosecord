@@ -4,6 +4,7 @@ import dosegram.contracts.Weekday
 import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.ExportCopy
+import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.insights.DateRange
@@ -32,7 +33,6 @@ import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.UUID
 
 /** The record summary of a period (PRODUCT_SPEC R-IMX-6, VISUALS_AND_ANALYTICS DOC-01) as a document of text: the
@@ -220,7 +220,7 @@ end RecordSummaries
 
 object RecordSummaries:
 
-  private val MonthFormat = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)
+  private def MonthFormat = DateTimeFormatter.ofPattern("LLL yyyy", Formats.locale)
 
   /** The calendar months of the period, each cut to the period. */
   def monthsOf(period: DateRange): List[DateRange] =

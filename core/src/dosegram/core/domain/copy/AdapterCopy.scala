@@ -9,15 +9,19 @@ object AdapterCopy:
   /** A guild- or group-DM-context interaction: registration already makes these unreachable; this is the last-resort
     * notice shown only to the invoker.
     */
-  val dmOnlyRedirect = "Dosegram works in direct messages only — please open Dosegram's DM."
+  def dmOnlyRedirect: String = tr(
+    "Dosegram works in direct messages only — please open Dosegram's DM.",
+    "Dosegram працює лише в особистих повідомленнях — відкрийте чат із Dosegram."
+  )
 
   /** The one fixed reply to a sender who is not on the allowlist (ROADMAP G1.6): nothing is stored for them. */
-  val notAvailable = "Dosegram is not open to new users yet."
+  def notAvailable: String =
+    tr("Dosegram is not open to new users yet.", "Dosegram поки що не приймає нових користувачів.")
 
   /** The label of the chat menu button that opens the Mini App (BOT_UX BUX-MENU-02: one label, "App"). */
-  val menuButton = "App"
+  def menuButton: String = tr("App", "Застосунок")
 
-  val entries: List[CopyEntry] = List(
+  def entries: List[CopyEntry] = List(
     CopyEntry("adapter.dm_only_redirect", dmOnlyRedirect),
     CopyEntry("adapter.not_available", notAvailable),
     CopyEntry("adapter.menu_button", menuButton)

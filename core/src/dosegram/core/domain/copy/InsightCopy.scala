@@ -31,94 +31,162 @@ object InsightCopy:
   import StatsCopy.oneDecimal
 
   /** The closing sentence of a count that compares no groups of days (VISUALS VA-IN-03). */
-  val CountNotACause: String = "This is a count over your own records. It cannot show a cause."
+  def CountNotACause: String = tr(
+    "This is a count over your own records. It cannot show a cause.",
+    "Це підрахунок ваших власних записів. Він не може показати причину."
+  )
 
-  val title: String = "Patterns in your records"
-  val none: String =
-    "No pattern in the last 28 days passed the checks. A pattern needs at least 14 days with records of both kinds."
-  val closeTitle: String = "Close to the minimum data:"
-  val crossDomainOff: String =
-    "Comparisons between areas are off. One compares your average mood on days you reached your water goal with the other days."
-  val CompareAcrossAreas: String = "Compare areas"
-  val usage: String = "Send /insights to see the patterns in your records."
-  val imageUnavailable: String = "No pattern can be drawn right now. The text above is complete."
+  def title: String = tr("Patterns in your records", "Закономірності у ваших записах")
+  def none: String =
+    tr(
+      "No pattern in the last 28 days passed the checks. A pattern needs at least 14 days with records of both kinds.",
+      "За останні 28 днів жодна закономірність не пройшла перевірок. Для неї потрібно щонайменше 14 днів із записами обох видів."
+    )
+  def closeTitle: String = tr("Close to the minimum data:", "Бракує зовсім трохи даних:")
+  def crossDomainOff: String =
+    tr(
+      "Comparisons between areas are off. One compares your average mood on days you reached your water goal with the other days.",
+      "Порівняння між розділами вимкнено. Одне з них зіставляє ваш середній настрій у дні, коли ви досягли цілі з води, з іншими днями."
+    )
+  def CompareAcrossAreas: String = tr("Compare areas", "Порівнювати розділи")
+  def usage: String = tr(
+    "Send /insights to see the patterns in your records.",
+    "Надішліть /insights, щоб побачити закономірності у ваших записах."
+  )
+  def imageUnavailable: String = tr(
+    "No pattern can be drawn right now. The text above is complete.",
+    "Зараз не вдається зобразити закономірність. Текст вище повний."
+  )
 
-  def header(window: DateRange): String = s"$title · ${window.days} days to ${window.end}"
+  def header(window: DateRange): String = tr(
+    s"$title · ${window.days} days to ${window.end}",
+    s"$title · ${UkNouns.Days.count(window.days)} до ${window.end}"
+  )
 
   /** The group sentence of a rule, without the closing sentence. */
   def sentence(rule: InsightRule, first: GroupMean, second: GroupMean): String =
     rule match
       case InsightRule.WaterGoalAndMood =>
-        s"On the ${first.days} days you reached your water goal, your average mood was " +
-          s"${meanWithLevel(first.mean)}. On the ${second.days} other days it was ${meanWithLevel(second.mean)}."
+        tr(
+          s"On the ${first.days} days you reached your water goal, your average mood was " +
+            s"${meanWithLevel(first.mean)}. On the ${second.days} other days it was ${meanWithLevel(second.mean)}.",
+          s"У дні, коли ви досягли цілі з води (${UkNouns.Days.count(first.days)}), ваш середній настрій був " +
+            s"${meanWithLevel(first.mean)}. В інші дні (${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
+        )
       case InsightRule.SleepGoalAndMood =>
-        s"On the ${first.days} days after a night at or above your sleep goal, your average mood was " +
-          s"${meanWithLevel(first.mean)}. On the ${second.days} other days it was ${meanWithLevel(second.mean)}."
+        tr(
+          s"On the ${first.days} days after a night at or above your sleep goal, your average mood was " +
+            s"${meanWithLevel(first.mean)}. On the ${second.days} other days it was ${meanWithLevel(second.mean)}.",
+          s"У дні після ночі, коли сон досяг вашої цілі (${UkNouns.Days.count(first.days)}), ваш середній настрій був " +
+            s"${meanWithLevel(first.mean)}. В інші дні (${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
+        )
       case InsightRule.BedtimeAndMood =>
-        s"On the ${first.days} days after a night that began within 30 minutes of your usual bedtime, your average " +
-          s"mood was ${meanWithLevel(first.mean)}. On the ${second.days} other days it was " +
-          s"${meanWithLevel(second.mean)}."
+        tr(
+          s"On the ${first.days} days after a night that began within 30 minutes of your usual bedtime, your average " +
+            s"mood was ${meanWithLevel(first.mean)}. On the ${second.days} other days it was " +
+            s"${meanWithLevel(second.mean)}.",
+          s"У дні після ночі, що почалася в межах 30 хвилин від вашого звичного часу відходу до сну " +
+            s"(${UkNouns.Days.count(first.days)}), ваш середній настрій був ${meanWithLevel(first.mean)}. В інші дні " +
+            s"(${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
+        )
       case InsightRule.WorkDaysAndSleep =>
-        s"After your ${first.days} work-day nights you logged ${duration(minutes(first))} of sleep on average. " +
-          s"After your ${second.days} free-day nights, ${duration(minutes(second))}."
+        tr(
+          s"After your ${first.days} work-day nights you logged ${duration(minutes(first))} of sleep on average. " +
+            s"After your ${second.days} free-day nights, ${duration(minutes(second))}.",
+          s"За ночі робочих днів (${UkNouns.Nights.count(first.days)}) ви записали в середньому " +
+            s"${duration(minutes(first))} сну. За ночі вихідних (${UkNouns.Nights.count(second.days)}) — " +
+            s"${duration(minutes(second))}."
+        )
       case InsightRule.WorkDaysAndWater =>
-        s"On your ${first.days} work days you logged ${StatsCopy.litres(millilitres(first), 1)} l of water on " +
-          s"average. On your ${second.days} free days, ${StatsCopy.litres(millilitres(second), 1)} l."
+        tr(
+          s"On your ${first.days} work days you logged ${StatsCopy.litres(millilitres(first), 1)} l of water on " +
+            s"average. On your ${second.days} free days, ${StatsCopy.litres(millilitres(second), 1)} l.",
+          s"У робочі дні (${UkNouns.Days.count(first.days)}) ви записали в середньому " +
+            s"${StatsCopy.litres(millilitres(first), 1)} л води. У вихідні (${UkNouns.Days.count(second.days)}) — " +
+            s"${StatsCopy.litres(millilitres(second), 1)} л."
+        )
       case InsightRule.WorkDaysAndMood =>
-        s"On your ${first.days} work days your average mood was ${meanWithLevel(first.mean)}. On your " +
-          s"${second.days} free days it was ${meanWithLevel(second.mean)}."
+        tr(
+          s"On your ${first.days} work days your average mood was ${meanWithLevel(first.mean)}. On your " +
+            s"${second.days} free days it was ${meanWithLevel(second.mean)}.",
+          s"У робочі дні (${UkNouns.Days.count(first.days)}) ваш середній настрій був ${meanWithLevel(first.mean)}. " +
+            s"У вихідні (${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
+        )
 
   /** What a rule pairs, for the line that says how many days it still needs. */
   def recordsOf(rule: InsightRule): String =
     rule match
-      case InsightRule.WaterGoalAndMood => "both water and mood records"
-      case InsightRule.SleepGoalAndMood => "both a night under your sleep goal and a mood check-in"
-      case InsightRule.BedtimeAndMood   => "both a night and a mood check-in"
-      case InsightRule.WorkDaysAndSleep => "a night recorded"
-      case InsightRule.WorkDaysAndWater => "water recorded"
-      case InsightRule.WorkDaysAndMood  => "a mood check-in"
+      case InsightRule.WaterGoalAndMood => tr("both water and mood records", "записами і про воду, і про настрій")
+      case InsightRule.SleepGoalAndMood =>
+        tr(
+          "both a night under your sleep goal and a mood check-in",
+          "і ніччю, коротшою за вашу ціль сну, і позначкою настрою"
+        )
+      case InsightRule.BedtimeAndMood =>
+        tr("both a night and a mood check-in", "і записаною ніччю, і позначкою настрою")
+      case InsightRule.WorkDaysAndSleep => tr("a night recorded", "записаною ніччю")
+      case InsightRule.WorkDaysAndWater => tr("water recorded", "записом води")
+      case InsightRule.WorkDaysAndMood  => tr("a mood check-in", "позначкою настрою")
 
   /** The short name of a rule in the list of rules that are close to their data. */
   def topic(rule: InsightRule): String =
     rule match
-      case InsightRule.WaterGoalAndMood => "Water goal and mood"
-      case InsightRule.SleepGoalAndMood => "Sleep goal and mood"
-      case InsightRule.BedtimeAndMood   => "Bedtime and mood"
-      case InsightRule.WorkDaysAndSleep => "Work days and sleep"
-      case InsightRule.WorkDaysAndWater => "Work days and water"
-      case InsightRule.WorkDaysAndMood  => "Work days and mood"
+      case InsightRule.WaterGoalAndMood => tr("Water goal and mood", "Ціль з води й настрій")
+      case InsightRule.SleepGoalAndMood => tr("Sleep goal and mood", "Ціль сну й настрій")
+      case InsightRule.BedtimeAndMood   => tr("Bedtime and mood", "Час відходу до сну й настрій")
+      case InsightRule.WorkDaysAndSleep => tr("Work days and sleep", "Робочі дні й сон")
+      case InsightRule.WorkDaysAndWater => tr("Work days and water", "Робочі дні й вода")
+      case InsightRule.WorkDaysAndMood  => tr("Work days and mood", "Робочі дні й настрій")
 
   def slotName(slot: DoseSlot): String =
     slot match
-      case DoseSlot.Morning => "Morning"
-      case DoseSlot.Midday  => "Midday"
-      case DoseSlot.Evening => "Evening"
-      case DoseSlot.Night   => "Night"
+      case DoseSlot.Morning => tr("Morning", "Ранок")
+      case DoseSlot.Midday  => tr("Midday", "День")
+      case DoseSlot.Evening => tr("Evening", "Вечір")
+      case DoseSlot.Night   => tr("Night", "Ніч")
 
   /** IR-07 as counts: the slot with the highest share first. It never suggests changing a schedule (R-INS-7). */
   def timing(highest: SlotShare, lowest: SlotShare): String =
-    s"${slotName(highest.slot)} doses were answered late or not at all ${count(highest.lateOrUnanswered, "time")} " +
-      s"out of ${highest.resolved}. ${slotName(lowest.slot)} doses ${count(lowest.lateOrUnanswered, "time")} out of " +
-      s"${lowest.resolved}."
+    tr(
+      s"${slotName(highest.slot)} doses were answered late or not at all ${count(highest.lateOrUnanswered, "time")} " +
+        s"out of ${highest.resolved}. ${slotName(lowest.slot)} doses ${count(lowest.lateOrUnanswered, "time")} out of " +
+        s"${lowest.resolved}.",
+      s"${slotName(highest.slot)}: на дози відповіли пізніше або не відповіли ${highest.lateOrUnanswered} з " +
+        s"${highest.resolved}. ${slotName(lowest.slot)}: ${lowest.lateOrUnanswered} з ${lowest.resolved}."
+    )
 
-  /** IR-11: the last seven days against the user's previous weeks, worded as "higher", "longer" and their opposites. */
+  /** IR-11: the last seven days against the user's previous weeks, worded as tr("higher", "більше"), tr("longer",
+    * "довше") and their opposites.
+    */
   def baseline(metric: BaselineMetric, current: Double, previous: Double, weeks: Int): String =
-    val earlier = s"your previous ${count(weeks, "week")}"
+    val earlier = tr(s"your previous ${count(weeks, "week")}", s"за ваші попередні ${UkNouns.Weeks.count(weeks)}")
     metric match
       case BaselineMetric.SleepMinutes =>
         val gap = Math.round(Math.abs(current - previous)).toInt
-        val word = if current > previous then "longer" else "shorter"
-        s"In the last 7 days you logged ${duration(Math.round(current).toInt)} of sleep a night on average, " +
-          s"${duration(gap)} $word than $earlier."
+        val word = if current > previous then tr("longer", "довше") else tr("shorter", "коротше")
+        tr(
+          s"In the last 7 days you logged ${duration(Math.round(current).toInt)} of sleep a night on average, " +
+            s"${duration(gap)} $word than $earlier.",
+          s"За останні 7 днів ви записали в середньому ${duration(Math.round(current).toInt)} сну за ніч, " +
+            s"на ${duration(gap)} $word, ніж $earlier."
+        )
       case BaselineMetric.WaterMillilitres =>
         val gap = Math.round(Math.abs(current - previous)).toInt
-        val word = if current > previous then "higher" else "lower"
-        s"In the last 7 days you logged ${StatsCopy.litres(Math.round(current).toInt, 1)} l of water a day on " +
-          s"average, ${StatsCopy.litres(gap, 1)} l $word than $earlier."
+        val word = if current > previous then tr("higher", "більше") else tr("lower", "менше")
+        tr(
+          s"In the last 7 days you logged ${StatsCopy.litres(Math.round(current).toInt, 1)} l of water a day on " +
+            s"average, ${StatsCopy.litres(gap, 1)} l $word than $earlier.",
+          s"За останні 7 днів ви записали в середньому ${StatsCopy.litres(Math.round(current).toInt, 1)} л води на " +
+            s"день, на ${StatsCopy.litres(gap, 1)} л $word, ніж $earlier."
+        )
       case BaselineMetric.MoodLevel =>
-        val word = if current > previous then "higher" else "lower"
-        s"In the last 7 days your average mood was ${meanWithLevel(current)}, " +
-          s"${oneDecimal(Math.abs(current - previous))} levels $word than $earlier."
+        val word = if current > previous then tr("higher", "більше") else tr("lower", "менше")
+        tr(
+          s"In the last 7 days your average mood was ${meanWithLevel(current)}, " +
+            s"${oneDecimal(Math.abs(current - previous))} levels $word than $earlier.",
+          s"За останні 7 днів ваш середній настрій був ${meanWithLevel(current)}, на " +
+            s"${oneDecimal(Math.abs(current - previous))} рівня $word, ніж $earlier."
+        )
 
   /** One shown insight as the chat and the Mini App print it, with its closing sentence. */
   def text(insight: Insight): String =
@@ -137,22 +205,48 @@ object InsightCopy:
     val rules = insight match
       case Insight.Pattern(Comparison.Shown(rule, first, second, window), _) =>
         List(
-          s"Period: ${window.days} days to ${window.end}.",
-          s"Groups: ${topic(rule).toLowerCase(java.util.Locale.ROOT)}; ${first.days} and ${second.days} days.",
-          "Only days with both records are compared: at least 14 such days and 5 in each group, and the " +
-            "difference holds in both halves of the period and without any single day."
+          tr(
+            s"Period: ${window.days} days to ${window.end}.",
+            s"Період: ${UkNouns.Days.count(window.days)} до ${window.end}."
+          ),
+          tr(
+            s"Groups: ${topic(rule).toLowerCase(java.util.Locale.ROOT)}; ${first.days} and ${second.days} days.",
+            s"Групи: ${topic(rule).toLowerCase(java.util.Locale.ROOT)}; ${first.days} і ${UkNouns.Days.count(second.days)}."
+          ),
+          tr(
+            "Only days with both records are compared: at least 14 such days and 5 in each group, and the " +
+              "difference holds in both halves of the period and without any single day.",
+            "Порівнюються лише дні з обома записами: щонайменше 14 таких днів і по 5 у кожній групі, а різниця " +
+              "зберігається в обох половинах періоду й без будь-якого окремого дня."
+          )
         )
       case Insight.Timing(TimingStatement.Shown(highest, lowest, window), _) =>
         List(
-          s"Period: ${window.days} days to ${window.end}.",
-          s"Times of day compared: ${slotName(highest.slot)} (${highest.resolved} answered doses) and " +
-            s"${slotName(lowest.slot)} (${lowest.resolved}).",
-          "Each time of day needs at least 10 answered doses, and the order holds in both halves of the period."
+          tr(
+            s"Period: ${window.days} days to ${window.end}.",
+            s"Період: ${UkNouns.Days.count(window.days)} до ${window.end}."
+          ),
+          tr(
+            s"Times of day compared: ${slotName(highest.slot)} (${highest.resolved} answered doses) and " +
+              s"${slotName(lowest.slot)} (${lowest.resolved}).",
+            s"Порівнювані частини дня: ${slotName(highest.slot).toLowerCase(java.util.Locale.ROOT)} (доз із відповіддю: " +
+              s"${highest.resolved}) і ${slotName(lowest.slot).toLowerCase(java.util.Locale.ROOT)} (${lowest.resolved})."
+          ),
+          tr(
+            "Each time of day needs at least 10 answered doses, and the order holds in both halves of the period.",
+            "Кожна частина дня потребує щонайменше 10 доз із відповіддю, а порядок зберігається в обох половинах періоду."
+          )
         )
       case Insight.Baseline(BaselineStatement.Shown(_, _, _, weeks, window), _) =>
         List(
-          s"Period: the last 7 days, to ${window.end}, against your previous ${count(weeks, "week")}.",
-          "A week counts when it has records on at least 3 days; at least 2 earlier weeks are needed."
+          tr(
+            s"Period: the last 7 days, to ${window.end}, against your previous ${count(weeks, "week")}.",
+            s"Період: останні 7 днів, до ${window.end}, порівняно з вашими попередніми ${UkNouns.WeeksWith.count(weeks)}."
+          ),
+          tr(
+            "A week counts when it has records on at least 3 days; at least 2 earlier weeks are needed.",
+            "Тиждень враховується, якщо записи є щонайменше за 3 дні; потрібно щонайменше 2 попередні тижні."
+          )
         )
     rules :+ CountNotACause
 
@@ -160,11 +254,20 @@ object InsightCopy:
   def gap(gap: InsightGap): String =
     gap match
       case InsightGap.Pattern(rule, missing, false) =>
-        s"${topic(rule)}: ${more(missing, "day")} with ${recordsOf(rule)}."
+        tr(
+          s"${topic(rule)}: ${more(missing, "day")} with ${recordsOf(rule)}.",
+          s"${topic(rule)}: ще ${UkNouns.Days.count(missing)} з ${recordsOf(rule)}."
+        )
       case InsightGap.Pattern(rule, missing, true) =>
-        s"${topic(rule)}: ${more(missing, "day")} in the smaller group of days."
+        tr(
+          s"${topic(rule)}: ${more(missing, "day")} in the smaller group of days.",
+          s"${topic(rule)}: ще ${UkNouns.Days.count(missing)} у меншій групі днів."
+        )
       case InsightGap.Timing(missing) =>
-        s"Dose times: ${more(missing, "answered dose")} in a second time of day."
+        tr(
+          s"Dose times: ${more(missing, "answered dose")} in a second time of day.",
+          s"Час доз: ще ${UkNouns.AnsweredDoses.count(missing)} в іншій частині дня."
+        )
 
   /** The lines of the `/insights` card. */
   def lines(list: InsightList, crossDomain: Boolean): List[String] =
@@ -176,7 +279,7 @@ object InsightCopy:
   private def minutes(group: GroupMean): Int = Math.round(group.mean).toInt
   private def millilitres(group: GroupMean): Int = Math.round(group.mean).toInt
 
-  val entries: List[CopyEntry] = Samples.entries
+  def entries: List[CopyEntry] = Samples.entries
 
   /** One rendering of every template, over values built by the same functions the product uses. */
   private object Samples:
@@ -193,12 +296,12 @@ object InsightCopy:
         case comparison: Comparison.Shown => text(Insight.Pattern(comparison, 1.0))
         case other                        => throw IllegalStateException(s"copy sample ${rule.id} is not shown: $other")
 
-    private val timingSample: String =
+    private def timingSample: String =
       val evening = SlotShare(DoseSlot.Evening, 5, 14)
       val morning = SlotShare(DoseSlot.Morning, 1, 14)
       s"${timing(evening, morning)} $CountNotACause"
 
-    private val baselines: List[CopyEntry] =
+    private def baselines: List[CopyEntry] =
       val values = (0 until 35).map(back => end.minusDays(back.toLong) -> (if back < 7 then 1.0 else 0.0)).toMap
       def sample(metric: BaselineMetric, now: Double, before: Double): CopyEntry =
         val days = values.view.mapValues(isNow => if isNow > 0 then now else before).toMap
@@ -215,7 +318,7 @@ object InsightCopy:
         sample(BaselineMetric.MoodLevel, 3.8, 3.4)
       )
 
-    val entries: List[CopyEntry] =
+    def entries: List[CopyEntry] =
       List(
         CopyEntry("insight.ir01", shown(InsightRule.SleepGoalAndMood, 3.7, 3.0)),
         CopyEntry("insight.ir02", shown(InsightRule.BedtimeAndMood, 3.9, 3.2)),

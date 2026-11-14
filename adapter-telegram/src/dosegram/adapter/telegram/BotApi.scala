@@ -140,13 +140,19 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
     text.foreach(value => params("text") = value.take(MaxToastChars))
     call("answerCallbackQuery", params).map(_ => ())
 
-  /** Registers the command list for every private chat (BOT_UX section 6.1). */
-  def setMyCommands(commands: List[BotCommand]): Either[TelegramError, Unit] =
+  /** Registers the command list for every private chat (BOT_UX section 6.1); with `languageCode`, the list shown to
+    * users whose client has that language (PRODUCT_SPEC R-LOC-10).
+    */
+  def setMyCommands(commands: List[BotCommand], languageCode: Option[String] = None): Either[TelegramError, Unit] =
     val list = commands.map(c => ujson.Obj("command" -> c.command, "description" -> c.description))
-    call("setMyCommands", ujson.Obj("commands" -> ujson.Arr.from(list), "scope" -> privateChatsScope)).map(_ => ())
+    val params = ujson.Obj("commands" -> ujson.Arr.from(list), "scope" -> privateChatsScope)
+    languageCode.foreach(code => params("language_code") = code)
+    call("setMyCommands", params).map(_ => ())
 
-  def getMyCommands(): Either[TelegramError, List[BotCommand]] =
-    call("getMyCommands", ujson.Obj("scope" -> privateChatsScope)).map(TelegramModels.decodeCommands)
+  def getMyCommands(languageCode: Option[String] = None): Either[TelegramError, List[BotCommand]] =
+    val params = ujson.Obj("scope" -> privateChatsScope)
+    languageCode.foreach(code => params("language_code") = code)
+    call("getMyCommands", params).map(TelegramModels.decodeCommands)
 
   /** `chatId = None` sets the default button of every private chat (research brief 02, section 8). */
   def setChatMenuButton(chatId: Option[Long], button: MenuButton): Either[TelegramError, Unit] =

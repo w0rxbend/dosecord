@@ -9,56 +9,84 @@ import dosegram.core.domain.insights.HydrationDay
   */
 object WaterCopy:
 
-  val goalAsk =
-    "Set a daily amount to count towards? Pick any amount that suits you. Dosegram does not recommend an amount."
-  val NoGoal = "No goal"
-  val Goal = "Goal"
-  val ShowAsImage = "Show as image"
-  val nothingLogged = "Water today: nothing logged yet."
-  val usage = "Send an amount, for example /water 300."
-  val undoWindowPassed = "The undo window has passed."
-  val unknownEntry = "This entry is no longer there."
-  val imageUnavailable = "The image is not available right now. The figures above are complete."
-  val imageNeedsGoal = "The image shows progress to your own goal. Set one with Goal first."
+  def goalAsk =
+    tr(
+      "Set a daily amount to count towards? Pick any amount that suits you. Dosegram does not recommend an amount.",
+      "Задати денну кількість, до якої рахувати? Виберіть будь-яку зручну для вас. Dosegram не рекомендує кількість."
+    )
+  def NoGoal = tr("No goal", "Без цілі")
+  def Goal = tr("Goal", "Ціль")
+  def ShowAsImage = tr("Show as image", "Показати зображенням")
+  def nothingLogged = tr("Water today: nothing logged yet.", "Вода сьогодні: поки нічого не записано.")
+  def usage = tr("Send an amount, for example /water 300.", "Надішліть кількість, наприклад /water 300.")
+  def undoWindowPassed = tr("The undo window has passed.", "Час на скасування минув.")
+  def unknownEntry = tr("This entry is no longer there.", "Цього запису вже немає.")
+  def imageUnavailable = tr(
+    "The image is not available right now. The figures above are complete.",
+    "Зображення зараз недоступне. Цифри вище повні."
+  )
+  def imageNeedsGoal = tr(
+    "The image shows progress to your own goal. Set one with Goal first.",
+    "Зображення показує поступ до вашої власної цілі. Спершу задайте її кнопкою «Ціль»."
+  )
 
   /** `water.too_much`: the bound is an input-error guard, not guidance. */
-  val tooMuch = s"One entry can be at most ${HydrationBounds.MaxEntryMl} ml. Send a smaller amount."
+  def tooMuch = tr(
+    s"One entry can be at most ${HydrationBounds.MaxEntryMl} ml. Send a smaller amount.",
+    s"Один запис може мати щонайбільше ${HydrationBounds.MaxEntryMl} мл. Надішліть меншу кількість."
+  )
 
-  def preset(millilitres: Int): String = s"+ $millilitres ml"
+  def preset(millilitres: Int): String = tr(s"+ $millilitres ml", s"+ $millilitres мл")
   def goalChoice(millilitres: Int): String = volume(millilitres)
 
   /** A volume in litres with its unit: "1.25 l", "2.0 l". */
-  def volume(millilitres: Int): String = s"${StatsCopy.dayLitres(millilitres)} l"
+  def volume(millilitres: Int): String =
+    tr(s"${StatsCopy.dayLitres(millilitres)} l", s"${StatsCopy.dayLitres(millilitres)} л")
 
   /** The accessible name of the vessel: the value, the goal and the percent in words (MINI_APP MA-HYD-2). */
   def vesselName(progress: GoalProgress): String =
-    s"Water: ${StatsCopy.dayLitres(progress.totalMl)} of ${StatsCopy.dayLitres(progress.goalMl)} litres, " +
-      s"${progress.percent} percent"
-  def dailyLimit(limit: Int): String = s"A day holds at most $limit water entries."
+    tr(
+      s"Water: ${StatsCopy.dayLitres(progress.totalMl)} of ${StatsCopy.dayLitres(progress.goalMl)} litres, " +
+        s"${progress.percent} percent",
+      s"Вода: ${StatsCopy.dayLitres(progress.totalMl)} л з ${StatsCopy.dayLitres(progress.goalMl)} л, " +
+        UkNouns.Percent.count(progress.percent.toLong)
+    )
+  def dailyLimit(limit: Int): String =
+    tr(s"A day holds at most $limit water entries.", s"За день можна зробити щонайбільше $limit записів води.")
 
   /** The water card of `/water`. */
-  def card(day: HydrationDay): String = if day.entries == 0 then nothingLogged else s"Water today: ${figures(day)}"
+  def card(day: HydrationDay): String =
+    if day.entries == 0 then nothingLogged else tr(s"Water today: ${figures(day)}", s"Вода сьогодні: ${figures(day)}")
 
   /** `water.added`: the echo names the amount and the new daily total; "Daily goal reached." is said once. */
   def added(millilitres: Int, day: HydrationDay, goalReachedNow: Boolean): String =
-    val reached = if goalReachedNow then " Daily goal reached." else ""
-    s"Water +$millilitres ml. Today: ${figures(day)}.$reached"
+    val reached = if goalReachedNow then tr(" Daily goal reached.", " Денну ціль досягнуто.") else ""
+    tr(
+      s"Water +$millilitres ml. Today: ${figures(day)}.$reached",
+      s"Вода +$millilitres мл. Сьогодні: ${figures(day)}.$reached"
+    )
 
-  def undone(day: HydrationDay): String = s"Undone. Water today: ${figures(day)}."
+  def undone(day: HydrationDay): String =
+    tr(s"Undone. Water today: ${figures(day)}.", s"Скасовано. Вода сьогодні: ${figures(day)}.")
 
   def goalSet(millilitres: Option[Int]): String =
-    millilitres.map(goal => s"Daily goal: ${goalChoice(goal)}.").getOrElse("No daily goal.")
+    millilitres
+      .map(goal => tr(s"Daily goal: ${goalChoice(goal)}.", s"Денна ціль: ${goalChoice(goal)}."))
+      .getOrElse(tr("No daily goal.", "Без денної цілі."))
 
   /** The figures of a day without the domain name in front, for a surface that shows the domain as a heading. */
   def figures(day: HydrationDay): String =
     day.progress match
       case Some(progress) =>
-        s"${StatsCopy.dayLitres(progress.totalMl)} of ${StatsCopy.dayLitres(progress.goalMl)} l (${progress.percent}%)"
-      case None => s"${StatsCopy.dayLitres(day.totalMl)} l"
+        tr(
+          s"${StatsCopy.dayLitres(progress.totalMl)} of ${StatsCopy.dayLitres(progress.goalMl)} l (${progress.percent}%)",
+          s"${StatsCopy.dayLitres(progress.totalMl)} з ${StatsCopy.dayLitres(progress.goalMl)} л (${progress.percent}%)"
+        )
+      case None => tr(s"${StatsCopy.dayLitres(day.totalMl)} l", s"${StatsCopy.dayLitres(day.totalMl)} л")
 
-  private val sampleDay = HydrationDay(totalMl = 1250, entries = 4, goalMl = Some(2000))
+  private def sampleDay = HydrationDay(totalMl = 1250, entries = 4, goalMl = Some(2000))
 
-  val entries: List[CopyEntry] = List(
+  def entries: List[CopyEntry] = List(
     CopyEntry("water.goal.ask", goalAsk),
     CopyEntry("water.goal.none", NoGoal),
     CopyEntry("water.goal.button", Goal),

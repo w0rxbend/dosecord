@@ -8,6 +8,7 @@ import dosegram.core.application.insights.ReportOutcome
 import dosegram.core.application.reminders.PromptMessages
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.domain.EntryDay
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.hydration.HydrationBounds
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HydrationDay
@@ -75,19 +76,22 @@ final class PromptLoop(
 
   private def decidePlan(tx: Tx, planId: UUID): Boolean =
     tx.reminders.prompts.lockEnabled(planId) match
-      case None       => false
-      case Some(plan) =>
-        val now = clock.now()
-        val zone = settings.zone(tx, plan.accountId)
-        val profile = settings.profile(tx, plan.accountId)
-        val due = NudgeSlots.dueBy(plan.plan, profile, zone, ReminderSettings.seedOf(plan.accountId), now)
-        val decided = tx.reminders.prompts.decided(plan.id, due.map(_.planDate).distinct)
-        val recorded = decided.map(d => (d.planDate, d.slotKey)).toSet
-        val split = PromptPlanner.split(due, recorded, plan.activeFrom, now, PromptExpiry.of(plan.plan))
-        split.passed.foreach(slot => record(tx, plan, slot, PromptStatus.Suppressed, Some(SuppressReason.CatchUp)))
-        split.stale.foreach(slot => record(tx, plan, slot, PromptStatus.Suppressed, Some(SuppressReason.Stale)))
-        split.current.foreach(decideSlot(tx, plan, profile, zone, _, decided, now))
-        split.passed.nonEmpty || split.stale.nonEmpty || split.current.nonEmpty
+      case None => false
+      // Every prompt, report and notice of the plan is written in the account's language (ROADMAP G2.22).
+      case Some(plan) => Lang.within(tx.accounts.languageOf(plan.accountId))(decideLocked(tx, plan))
+
+  private def decideLocked(tx: Tx, plan: PromptSchedule): Boolean =
+    val now = clock.now()
+    val zone = settings.zone(tx, plan.accountId)
+    val profile = settings.profile(tx, plan.accountId)
+    val due = NudgeSlots.dueBy(plan.plan, profile, zone, ReminderSettings.seedOf(plan.accountId), now)
+    val decided = tx.reminders.prompts.decided(plan.id, due.map(_.planDate).distinct)
+    val recorded = decided.map(d => (d.planDate, d.slotKey)).toSet
+    val split = PromptPlanner.split(due, recorded, plan.activeFrom, now, PromptExpiry.of(plan.plan))
+    split.passed.foreach(slot => record(tx, plan, slot, PromptStatus.Suppressed, Some(SuppressReason.CatchUp)))
+    split.stale.foreach(slot => record(tx, plan, slot, PromptStatus.Suppressed, Some(SuppressReason.Stale)))
+    split.current.foreach(decideSlot(tx, plan, profile, zone, _, decided, now))
+    split.passed.nonEmpty || split.stale.nonEmpty || split.current.nonEmpty
 
   private def decideSlot(
       tx: Tx,

@@ -90,6 +90,9 @@ final case class InboundEvent(
     cursor: Option[String] = None,
     principal: Option[Principal] = None,
     body: Inbound,
+    // The shipped locale the sender's client names, for a sender whose account has not chosen one (PRODUCT_SPEC
+    // R-LOC-1). Optional and possibly stale; the account's own setting always wins.
+    localeHint: Option[String] = None,
     // The live vendor handle the mediator acks through (DESIGN.md section 4.1); never serialised — see the wire
     // surrogate in the companion.
     interaction: Option[InteractionHandle] = None
@@ -108,7 +111,8 @@ object InboundEvent:
       chat: ChatRef,
       cursor: Option[String],
       principal: Option[Principal],
-      body: Inbound
+      body: Inbound,
+      localeHint: Option[String] = None
   ) derives ReadWriter
 
   given ReadWriter[InboundEvent] = readwriter[Wire].bimap(
@@ -123,7 +127,8 @@ object InboundEvent:
         e.chat,
         e.cursor,
         e.principal,
-        e.body
+        e.body,
+        e.localeHint
       ),
     w =>
       InboundEvent(
@@ -136,7 +141,8 @@ object InboundEvent:
         w.chat,
         w.cursor,
         w.principal,
-        w.body
+        w.body,
+        localeHint = w.localeHint
       )
   )
 

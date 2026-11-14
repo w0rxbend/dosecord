@@ -4,6 +4,9 @@ import dosegram.contracts.*
 import dosegram.core.chat.*
 import dosegram.core.chat.MediatorFakes.*
 import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.domain.copy.HelpCopy
+import dosegram.core.domain.copy.IdentityCopy
+import dosegram.core.domain.copy.Lang
 import ox.Ox
 
 import java.nio.file.Files
@@ -70,6 +73,33 @@ class FirstFlowsSuite extends munit.FunSuite:
       assert(out.exists(_.contains(ConsentCopy.notice.head)), s"the notice card: $out")
       assertEquals(rig.uow.sessions.all.size, 1, "a create session started")
 
+  test("a Ukrainian client onboards in Ukrainian and the account keeps the locale (BUX-LANG-01, BUX-LANG-02)"):
+    ox.supervised:
+      val rig = FirstFlowsRig()
+      val notice = rig.push(Inbound.ConversationStarted(None), localeHint = Some("uk"))
+      val ukrainianNotice = Lang.within(Lang.Uk)(ConsentCopy.notice.head)
+      assert(notice.exists(_.contains(ukrainianNotice)), s"the Ukrainian notice card: $notice")
+      (1 to 3).foreach(_ => rig.line("1", localeHint = Some("uk"))) // Ліки, Погоджуюся, Підтвердити
+      rig.line("13", localeHint = Some("uk"))
+      val done = rig.line("1", localeHint = Some("uk"))
+      assert(done.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.accountCreated))), s"got: $done")
+      val account = rig.uow.accounts.all.head
+      assertEquals(rig.uow.accounts.settingsOf(account.accountId).flatMap(_.locale), Some("uk"))
+      // From now on the stored choice wins over a stale client tag.
+      val help = rig.line("/help", localeHint = Some("en"))
+      assert(help.exists(_.contains(Lang.within(Lang.Uk)(HelpCopy.intro))), s"got: $help")
+
+  test("an English or unknown client onboards in English and stores English"):
+    ox.supervised:
+      val rig = FirstFlowsRig()
+      val notice = rig.push(Inbound.ConversationStarted(None), localeHint = Some("pt-BR"))
+      assert(notice.exists(_.contains(ConsentCopy.notice.head)), s"the English notice card: $notice")
+      (1 to 3).foreach(_ => rig.line("1"))
+      rig.line("13")
+      rig.line("1")
+      val account = rig.uow.accounts.all.head
+      assertEquals(rig.uow.accounts.settingsOf(account.accountId).flatMap(_.locale), Some("en"))
+
   // BOT_UX BUX-CMD-08: no command of a domain exists before the domain has a consent purpose.
   test("/mood is not a command: the registry and /help do not list it, and typing it records nothing"):
     ox.supervised:
@@ -111,7 +141,7 @@ private final class FirstFlowsRig(using Ox):
   private var seq = 0
 
   /** Feeds one console-grammar line through the mediator and returns the newly printed chunks. */
-  def line(input: String): List[String] =
+  def line(input: String, localeHint: Option[String] = None): List[String] =
     seq += 1
     val body =
       if input.length > 1 && input.startsWith("/") then
@@ -124,7 +154,8 @@ private final class FirstFlowsRig(using Ox):
       t0,
       actor = actor,
       chat = ChatRef("fake", "dm:user-1"),
-      body = body
+      body = body,
+      localeHint = localeHint
     )
     val before = sendsOf().size
     mediator.push(event)
@@ -133,7 +164,7 @@ private final class FirstFlowsRig(using Ox):
     sendsOf().drop(before).flatMap(_.message.chunks)
 
   /** Pushes a raw inbound body (not console-grammar text) and returns the newly printed chunks. */
-  def push(body: Inbound): List[String] =
+  def push(body: Inbound, localeHint: Option[String] = None): List[String] =
     seq += 1
     val event = InboundEvent(
       EventId(UUID.randomUUID()),
@@ -142,7 +173,8 @@ private final class FirstFlowsRig(using Ox):
       t0,
       actor = actor,
       chat = ChatRef("fake", "dm:user-1"),
-      body = body
+      body = body,
+      localeHint = localeHint
     )
     val before = sendsOf().size
     mediator.push(event)

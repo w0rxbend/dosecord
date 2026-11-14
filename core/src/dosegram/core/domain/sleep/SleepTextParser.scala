@@ -33,15 +33,17 @@ enum SleepText:
 object SleepTextParser:
 
   private val Time = """(\d{1,2}):(\d{2})"""
-  private val Separator = """\s*(?:-|–|to|until|\s)\s*"""
+  private val Separator = """\s*(?:-|–|to|until|до|\s)\s*"""
   private val TwoTimes: Regex = s"$Time$Separator$Time".r
-  private val Hours: Regex = """(\d{1,2})\s*h(?:ours?)?(?:\s*(\d{1,2})\s*(?:m|min)?)?""".r
-  private val Minutes: Regex = """(\d{1,3})\s*(?:m|min)""".r
-  private val Line: Regex = """(slept|sleep|nap)\s+(.+)""".r
+  private val Hours: Regex = """(\d{1,2})\s*(?:h(?:ours?)?|год)(?:\s*(\d{1,2})\s*(?:m|min|хв)?)?""".r
+  private val Minutes: Regex = """(\d{1,3})\s*(?:m|min|хв)""".r
+  // ROADMAP G2.22: "сон", "спав", "спала" read as "slept"; "дрімав", "дрімала", "денний сон" as "nap".
+  private val Line: Regex = """(slept|sleep|nap|сон|спав|спала|дрімав|дрімала|денний сон)\s+(.+)""".r
+  private val NapWords = Set("nap", "дрімав", "дрімала", "денний сон")
 
   def free(text: String): SleepText =
     text.trim.toLowerCase(Locale.ROOT) match
-      case Line("nap", rest) =>
+      case Line(word, rest) if NapWords(word) =>
         times(rest)
           .map(SleepText.NapBetween(_, _))
           .orElse(length(rest).map(SleepText.NapFor(_)))

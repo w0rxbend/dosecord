@@ -179,8 +179,14 @@ object CommandRegistry:
     description = "Export your records, or make a record summary."
   )
 
+  /** `/language` (BOT_UX section 6.1): hidden, and declared so the mediator acknowledges it (ROADMAP G2.22). */
+  val Language: CommandSpec = CommandSpec(
+    name = "language",
+    description = "Change the language."
+  )
+
   val withCaptureByName: Map[String, CommandSpec] =
-    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export).map(spec => spec.name -> spec).toMap
+    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export :+ Language).map(spec => spec.name -> spec).toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

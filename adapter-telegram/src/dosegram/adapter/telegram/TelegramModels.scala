@@ -1,5 +1,7 @@
 package dosegram.adapter.telegram
 
+import dosegram.core.domain.copy.Lang
+
 import java.time.Instant
 
 /** The part of the Bot API object model this adapter reads (ARCHITECTURE section 7.1), decoded by hand from `ujson`.
@@ -7,7 +9,8 @@ import java.time.Instant
   * whose content does not have the expected shape both decode to [[UpdateBody.Unknown]]. No decoder keeps or reports
   * the text it could not read.
   */
-final case class TgUser(id: Long)
+/** `locale` is the shipped locale the user's `language_code` names (PRODUCT_SPEC R-LOC-1), never the raw tag. */
+final case class TgUser(id: Long, locale: Option[String] = None)
 
 final case class TgChat(id: Long, isPrivate: Boolean)
 
@@ -135,7 +138,10 @@ object TelegramModels:
       from <- field(json, "from").flatMap(decodeUser)
     yield TgCallbackQuery(id, from, field(json, "message").flatMap(decodeMessage), str(json, "data"))
 
-  private def decodeUser(json: ujson.Value): Option[TgUser] = long(json, "id").map(TgUser(_))
+  /** The inbox stores the shipped locale as `locale`; an update from Telegram carries the client's `language_code`. */
+  private def decodeUser(json: ujson.Value): Option[TgUser] =
+    val locale = str(json, "locale").orElse(str(json, "language_code")).flatMap(Lang.ofCode).map(_.code)
+    long(json, "id").map(TgUser(_, locale))
 
   private def decodeChat(json: ujson.Value): Option[TgChat] =
     long(json, "id").map(id => TgChat(id, isPrivate = str(json, "type").contains("private")))

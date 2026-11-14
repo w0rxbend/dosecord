@@ -24,7 +24,8 @@ private[telegram] object UpdateMapper:
       userId: Long,
       sentAt: Option[Instant],
       body: Inbound,
-      callback: Option[CallbackSource]
+      callback: Option[CallbackSource],
+      localeHint: Option[String] = None
   )
 
   final case class CallbackSource(queryId: String, source: Option[MessageHandle])
@@ -69,7 +70,7 @@ private[telegram] object UpdateMapper:
       case (_, MessageContent.Other)      => Mapped.Ignore("unsupported_content")
 
   private def deliver(message: TgMessage, from: TgUser, body: Inbound): Mapped =
-    Mapped.Deliver(Draft(message.chat.id, from.id, message.sentAt, body, None))
+    Mapped.Deliver(Draft(message.chat.id, from.id, message.sentAt, body, None, from.locale))
 
   /** The size whose long side is nearest to [[PreferredPhotoSide]]; a decoded photo always has at least one size. */
   private def preferredSize(sizes: List[TgPhotoSize]): TgPhotoSize =
@@ -113,7 +114,7 @@ private[telegram] object UpdateMapper:
       case (Some(message), Some(data)) if message.chat.isPrivate =>
         val source = CallbackSource(query.id, Some(MessageIds.handle(message.chat.id, message.ref)))
         val body = Inbound.InteractionSubmitted(callbackRef(data), source.source)
-        Mapped.Deliver(Draft(message.chat.id, query.from.id, None, body, Some(source)))
+        Mapped.Deliver(Draft(message.chat.id, query.from.id, None, body, Some(source), query.from.locale))
       case _ => Mapped.Dismiss(query.id)
 
   /** The clear-text fields of the token. Data that is not a token of ours keeps its raw form under an action no handler

@@ -267,7 +267,10 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         213 -> "export.summary",
         214 -> "export.send_ask",
         215 -> "export.send_agree",
-        216 -> "export.send"
+        216 -> "export.send",
+        // The language choice (ROADMAP G2.22).
+        270 -> "language.open",
+        271 -> "language.set"
       )
     )
 

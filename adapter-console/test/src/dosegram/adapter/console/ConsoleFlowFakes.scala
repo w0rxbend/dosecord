@@ -71,6 +71,7 @@ private object ConsoleFlowFakes:
   final class CreatedAccount(val accountId: UUID, val identityId: UUID, timezone: String):
     val displayName: Option[String] = None
     @volatile var tz: String = timezone
+    @volatile var settings: AccountSettings = AccountSettings.Default
     def currentTimezone: String = tz
 
   final class InMemoryAccounts(identities: InMemoryIdentities) extends AccountRepository:
@@ -86,11 +87,11 @@ private object ConsoleFlowFakes:
       this.synchronized(rows.find(_.accountId == accountId).map(_.tz))
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
       this.synchronized(rows.find(_.accountId == accountId).foreach(_.tz = timezone))
-    // No suite on this double reads or writes the settings of an account.
+    // Every event reads the account's language (ROADMAP G2.22), and account creation stores it.
     override def settingsOf(accountId: UUID): Option[AccountSettings] =
-      throw UnsupportedOperationException("this double keeps no account settings")
+      this.synchronized(rows.find(_.accountId == accountId).map(_.settings))
     override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
-      throw UnsupportedOperationException("this double keeps no account settings")
+      this.synchronized(rows.find(_.accountId == accountId).foreach(_.settings = settings))
 
   final class InMemoryRenderedMessages extends RenderedMessageRepository:
     private val rows = ListBuffer.empty[(MessageHandle, List[ChoiceMapEntry], Boolean, Option[String], Option[UUID])]

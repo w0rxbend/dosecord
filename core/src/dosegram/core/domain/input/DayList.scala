@@ -13,13 +13,18 @@ object DayList:
     case NotADay(part: String)
 
   private val all: List[Weekday] = Weekday.values.toList
-  private val Fillers = Set("on", "every", "each", "and", "the", "of", "week")
+  private val Fillers = Set("on", "every", "each", "and", "the", "of", "week", "і", "й", "та", "у", "в")
 
   private val Phrases: List[(String, String)] = List(
     "every day" -> "everyday",
     "all days" -> "everyday",
     "work days" -> "weekdays",
-    "week days" -> "weekdays"
+    "week days" -> "weekdays",
+    "кожен день" -> "everyday",
+    "кожного дня" -> "everyday",
+    "усі дні" -> "everyday",
+    "всі дні" -> "everyday",
+    "робочі дні" -> "weekdays"
   )
 
   private val Groups: Map[String, List[Weekday]] = Map(
@@ -30,7 +35,11 @@ object DayList:
     "weekday" -> all.take(5),
     "workdays" -> all.take(5),
     "weekends" -> all.drop(5),
-    "weekend" -> all.drop(5)
+    "weekend" -> all.drop(5),
+    "щодня" -> all,
+    "щоденно" -> all,
+    "будні" -> all.take(5),
+    "вихідні" -> all.drop(5)
   )
 
   private val Names: Map[String, Weekday] =
@@ -41,12 +50,21 @@ object DayList:
       Weekday.Thu -> List("th", "thu", "thur", "thurs", "thursday"),
       Weekday.Fri -> List("fr", "fri", "friday"),
       Weekday.Sat -> List("sa", "sat", "saturday"),
-      Weekday.Sun -> List("su", "sun", "sunday")
+      Weekday.Sun -> List("su", "sun", "sunday"),
+      // Ukrainian (ROADMAP G2.22): the two-letter abbreviation, the short form and the full name.
+      Weekday.Mon -> List("пн", "пон", "понеділок"),
+      Weekday.Tue -> List("вт", "вів", "вівторок"),
+      Weekday.Wed -> List("ср", "сер", "середа"),
+      Weekday.Thu -> List("чт", "чет", "четвер"),
+      Weekday.Fri -> List("пт", "пят", "пʼят", "пʼятниця", "пятниця"),
+      Weekday.Sat -> List("сб", "суб", "субота"),
+      Weekday.Sun -> List("нд", "нед", "неділя")
     ).flatMap((day, names) => names.map(_ -> day)).toMap
 
   def parse(text: String): Either[Rejection, List[Weekday]] =
-    val spoken = Phrases.foldLeft(InputText.withoutTrailingPunctuation(InputText.normalise(text))) {
-      case (acc, (phrase, word)) => acc.replace(phrase, word)
+    val apostrophes = InputText.normalise(text).replace('\'', 'ʼ').replace('’', 'ʼ')
+    val spoken = Phrases.foldLeft(InputText.withoutTrailingPunctuation(apostrophes)) { case (acc, (phrase, word)) =>
+      acc.replace(phrase, word)
     }
     val tokens = spoken.split("[\\s,;/&+]+").toList.filter(t => t.nonEmpty && !Fillers.contains(t))
     if tokens.isEmpty then Left(Rejection.Empty)

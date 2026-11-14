@@ -103,10 +103,85 @@ object InsightPhrases:
     "manic"
   )
 
-  val all: List[String] = causal ++ evaluative ++ advice ++ statistical ++ clinical
+  /** The same five lists for the Ukrainian catalogue (PRODUCT_SPEC R-LOC-8), in the word forms a sentence would use. A
+    * form that the fixed closing sentences need ("причину" in "не може показати причину") is left out, as "cause" is in
+    * English.
+    */
+  val ukrainian: List[String] = List(
+    // causal
+    "спричиняє",
+    "спричинило",
+    "спричинив",
+    "призводить",
+    "призвело",
+    "допомагає",
+    "допомогло",
+    "шкодить",
+    "покращує",
+    "покращило",
+    "погіршує",
+    "погіршило",
+    "впливає",
+    "вплинуло",
+    "тому що",
+    "через це",
+    "завдяки",
+    "отже",
+    "внаслідок",
+    "тож",
+    "бо",
+    // evaluative
+    "краще",
+    "гірше",
+    "кращий",
+    "гірший",
+    "здоровий",
+    "нездоровий",
+    "нормально",
+    "нормальний",
+    "ненормальний",
+    "достатньо",
+    "забагато",
+    "стабільний",
+    "нестабільний",
+    // advice
+    "слід",
+    "варто",
+    "спробуйте",
+    "мусите",
+    "потрібно більше",
+    "рекомендуємо",
+    "рекомендовано",
+    "уникайте",
+    // statistical
+    "значущий",
+    "значуще",
+    "доведено",
+    "кореляція",
+    "корелює",
+    "передбачає",
+    "ризик",
+    "імовірно",
+    "ефект",
+    // clinical
+    "діагноз",
+    "діагностувати",
+    "лікування",
+    "лікувати",
+    "симптом",
+    "дефіцит",
+    "розлад",
+    "безсоння",
+    "зневоднення",
+    "депресія",
+    "тривожність"
+  )
 
+  val all: List[String] = causal ++ evaluative ++ advice ++ statistical ++ clinical ++ ukrainian
+
+  // Unicode classes, so that a word boundary is also found between Cyrillic letters.
   private val patterns: List[(String, Pattern)] =
-    all.map(phrase => phrase -> Pattern.compile(s"\\b${Pattern.quote(phrase)}\\b"))
+    all.map(phrase => phrase -> Pattern.compile(s"\\b${Pattern.quote(phrase)}\\b", Pattern.UNICODE_CHARACTER_CLASS))
 
   /** Every forbidden phrase found in `text`, together with the general list of [[ForbiddenPhrases]]. */
   def violations(text: String): List[String] =

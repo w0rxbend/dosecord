@@ -5,6 +5,8 @@ import dosegram.core.chat.CapabilityProfiles
 import dosegram.core.chat.InboxProcessor
 import dosegram.core.chat.VendorMarkup
 import dosegram.core.domain.copy.AdapterCopy
+import dosegram.core.domain.copy.CommandCopy
+import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.Clock
 import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.PendingInboxEntry
@@ -215,6 +217,7 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
       actor = PlatformIdentity(vendor, draft.userId.toString),
       chat = ChatRef(vendor, draft.chatId.toString),
       cursor = Some(update.updateId.toString),
+      localeHint = draft.localeHint,
       body = draft.body,
       interaction =
         draft.callback.map(source => CallbackAnswer(source.queryId, source.source, config.ack, answers, receivedAt))
@@ -382,11 +385,18 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
         case error: ChatError =>
           runtime.log(s"telegram short-lived message not removed: ${error.getClass.getSimpleName}")
 
+  /** The list without a language is English; every other shipped language registers its own descriptions (PRODUCT_SPEC
+    * R-LOC-10, BOT_UX BUX-LANG-04).
+    */
   override def registerCommands(specs: List[CommandSpec]): Unit =
-    val commands = specs.map(spec => BotCommand(spec.name, spec.description.take(MaxCommandDescriptionChars)))
-    api.setMyCommands(commands) match
-      case Right(())   => ()
-      case Left(error) => failed(error, NoChat, "registerCommands")
+    Lang.values.foreach: lang =>
+      val commands = Lang.within(lang):
+        specs.map: spec =>
+          BotCommand(spec.name, CommandCopy.description(spec.name, spec.description).take(MaxCommandDescriptionChars))
+      val languageCode = Option.when(lang != Lang.En)(lang.code)
+      api.setMyCommands(commands, languageCode) match
+        case Right(())   => ()
+        case Left(error) => failed(error, NoChat, "registerCommands")
 
   /** That the private chat id equals the user id is an assumption (ARCHITECTURE section 7.3). Nothing in the product
     * path relies on this method: a delivery address is the `chat.id` of an update the user sent.

@@ -3,6 +3,7 @@ package dosegram.core.ports
 import dosegram.contracts.AccountId
 import dosegram.contracts.IdentityId
 import dosegram.core.domain.QuietHours
+import dosegram.core.domain.copy.Lang
 
 import java.time.Instant
 import java.util.UUID
@@ -27,7 +28,9 @@ final case class AccountSettings(
     quietHours: Option[QuietHours],
     isDiscreet: Boolean,
     imageTheme: ImageTheme
-)
+):
+  /** The language of everything sent to the account; English until it has chosen one (PRODUCT_SPEC R-LOC-1). */
+  def lang: Lang = Lang.resolve(locale, None)
 
 object AccountSettings:
 
@@ -58,3 +61,6 @@ trait AccountRepository:
 
   /** Replaces the settings. The time zone is not one of them: it moves through [[setTimezone]], with its schedules. */
   def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit
+
+  /** The language a message for the account is written in, when no inbound event of its own carries one. */
+  def languageOf(accountId: UUID): Lang = settingsOf(accountId).fold(Lang.En)(_.lang)
