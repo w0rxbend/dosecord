@@ -1,6 +1,25 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "G0.8: actions stay pinned by commit digest; an update moves the digest and the version comment together",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "The gitleaks binary that CI installs; its checksum line is updated by hand in the same pull request",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
+      "matchStrings": ["gitleaks/releases/download/v(?<currentValue>[0-9.]+)/"],
+      "depNameTemplate": "gitleaks/gitleaks",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
   ]
 }

@@ -1,0 +1,53 @@
+# Secret scanning (ROADMAP G0.8, the secret-scanning half of LB-24). The same
+# rules run in CI on every push and pull request (.github/workflows/ci.yml,
+# job secret-scan) and before each commit (.pre-commit-config.yaml, or
+# scripts/secret-scan.sh --staged as a plain git hook).
+# scripts/test-secret-scan.sh proves that a seeded bot token fails the scan.
+title = "dosegram"
+
+[extend]
+# The upstream rule set (private keys, cloud credentials, the generic Telegram
+# token rule) stays on; the rules below are this project's.
+useDefault = true
+
+[[rules]]
+id = "dosegram-telegram-bot-token"
+description = "Telegram bot token: the bot id, a colon and 35 characters starting with AA"
+regex = '''\b[0-9]{8,10}:AA[0-9A-Za-z_-]{33}\b'''
+keywords = [":aa"]
+
+[[rules]]
+id = "dosegram-webhook-secret"
+description = "Telegram webhook path secret or header secret with a value"
+regex = '''(?i)TELEGRAM_WEBHOOK_(?:PATH_SECRET|SECRET_TOKEN)\s*[=:]\s*["']?([A-Za-z0-9_-]{16,256})'''
+secretGroup = 1
+keywords = ["telegram_webhook_"]
+[[rules.allowlists]]
+regexTarget = "match"
+regexes = ['''change-me''']
+
+[[rules]]
+id = "dosegram-key-material"
+description = "Key-encryption key, data key or callback key material with a value"
+regex = '''(?i)\b(?:KEK|KEY_ENCRYPTION_KEY|DATA_KEY|ENCRYPTION_KEY|CALLBACK_KEYS)\s*[=:]\s*["']?([0-9]+:)?([A-Za-z0-9+/_-]{22,}={0,2})'''
+secretGroup = 2
+keywords = ["kek", "key_encryption_key", "data_key", "encryption_key", "callback_keys"]
+[[rules.allowlists]]
+# The public test key of the repository (base64url of "0123456789abcdef").
+regexTarget = "secret"
+regexes = ['''^MDEyMzQ1Njc4OWFiY2RlZg$''']
+
+[[rules]]
+id = "dosegram-age-or-pgp-private-key"
+description = "An age secret key or an armoured PGP private key block"
+regex = '''AGE-SECRET-KEY-1[0-9A-Z]{58}|-----BEGIN PGP PRIVATE KEY BLOCK-----'''
+keywords = ["age-secret-key-1", "begin pgp private key block"]
+
+[allowlist]
+description = "Generated and third-party files that carry no secret"
+paths = [
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)out/''',
+  '''(^|/)miniapp/dist/''',
+]
