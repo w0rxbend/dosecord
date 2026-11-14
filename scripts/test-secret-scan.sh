@@ -2,8 +2,8 @@
 # Seeded failures of the secret scan (ROADMAP G0.8 acceptance): a fake bot
 # token in a test fixture, a spike note and a transcript each fail the scan of
 # a directory and the pre-commit scan of staged changes; so do a webhook
-# secret and callback key material. A tree with only the repository's public
-# test values passes. The fake values are assembled at run time, so this file
+# secret, callback key material and a key-encryption key (assignment or key
+# file). A tree with only the repository's public test values passes. The fake values are assembled at run time, so this file
 # holds none.
 set -euo pipefail
 
@@ -18,6 +18,10 @@ trap 'rm -rf "$work"' EXIT
 token="123456789:AA$(printf 'k%.0s' $(seq 1 33))"
 webhook="TELEGRAM_WEBHOOK_SECRET_TOKEN=$(printf %s {a..x})"
 callback="CALLBACK_KEYS=1:$(printf %s {A..O}{7,x,Q})"
+# A key-encryption key in the documented form '<id>:<base64 of 32 bytes>'.
+# A digest of a fixed label has the spread of a real key, which a mixed
+# alphabet does not reach under the rule's entropy floor.
+kek_line="kek-2026:$(printf 'dosegram seeded kek' | openssl dgst -sha256 -binary | base64)"
 
 failures=0
 check() { # expected-exit description command...
@@ -57,6 +61,8 @@ cases=(
   "docs/verification/LS-1-transcript.md|> TELEGRAM_TOKEN=$token"
   "docs/verification/LS-2-transcript.md|$webhook"
   "deploy/staging.env|$callback"
+  "deploy/live.env|KEK=$kek_line"
+  "deploy/dosegram-kek|$kek_line"
 )
 
 for entry in "${cases[@]}"; do
@@ -71,6 +77,7 @@ done
 fresh
 seed "app/test/resources/settings.env" "CALLBACK_KEYS=0:MDEyMzQ1Njc4OWFiY2RlZg"
 seed "docs/example.md" "TELEGRAM_WEBHOOK_SECRET_TOKEN=change-me-header-secret"
+seed "docs/example.env" "KEK=kek-2026:REPLACE-WITH-BASE64-OF-32-RANDOM-BYTES"
 seed "app/test/resources/fake.json" '{"token": "555000111:fake-wire-token"}'
 check 0 "the public test values pass the directory scan" "$scan" --dir "$work/tree"
 check 0 "the public test values pass the pre-commit scan" staged

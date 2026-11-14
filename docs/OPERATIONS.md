@@ -181,7 +181,8 @@ database. In order:
    `GRANT dosegram_erasure TO <login role>;`. Without it every deletion fails and
    deletes nothing.
 4. Back up the live database with `pg_dump` and keep that file until step 9 has passed. It holds
-   plaintext: keep it off shared storage, and delete it once the first encrypted nightly backup of
+   plaintext: write it under `umask 077` (a plain `pg_dump` file is readable by every local user),
+   keep it off shared storage, and delete it once the first encrypted nightly backup of
    section 4 has passed a restore drill (supervisor decision, 2026-11-14).
 5. Stop the running bot. The previous release writes plaintext, which V11 then refuses.
 6. Add to the bot's environment: `KEK_FILE=<path of step 1>` (also under

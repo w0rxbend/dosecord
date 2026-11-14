@@ -29,13 +29,24 @@ regexes = ['''change-me''']
 [[rules]]
 id = "dosegram-key-material"
 description = "Key-encryption key, data key or callback key material with a value"
-regex = '''(?i)\b(?:KEK|KEY_ENCRYPTION_KEY|DATA_KEY|ENCRYPTION_KEY|CALLBACK_KEYS)\s*[=:]\s*["']?([0-9]+:)?([A-Za-z0-9+/_-]{22,}={0,2})'''
+# The optional prefix is a key id: a number for CALLBACK_KEYS, a name such as
+# kek-2026 for KEK (KekRing: 1 to 32 of A-Z a-z 0-9 _ -).
+regex = '''(?i)\b(?:KEK|KEY_ENCRYPTION_KEY|DATA_KEY|ENCRYPTION_KEY|CALLBACK_KEYS)\s*[=:]\s*["']?([A-Za-z0-9_-]{1,32}:)?([A-Za-z0-9+/_-]{22,}={0,2})'''
 secretGroup = 2
 keywords = ["kek", "key_encryption_key", "data_key", "encryption_key", "callback_keys"]
 [[rules.allowlists]]
 # The public test key of the repository (base64url of "0123456789abcdef").
 regexTarget = "secret"
-regexes = ['''^MDEyMzQ1Njc4OWFiY2RlZg$''']
+# The placeholder of .env.example, and the throwaway key-encryption key of
+# the local stack in docker/compose.yml (never a real one).
+regexes = ['''^MDEyMzQ1Njc4OWFiY2RlZg$''', '''^REPLACE-WITH-''', '''^C5KHGJHScRTXAARA\+TazwHLdt649MdsM60e5drQsLpA=$''']
+
+[[rules]]
+id = "dosegram-kek-file"
+description = "A key-encryption key file: a key id, a colon and the base64 of 32 bytes on one line"
+regex = '''(?m)^[A-Za-z0-9_-]{1,32}:([A-Za-z0-9+/]{43}=)$'''
+secretGroup = 1
+entropy = 3.5
 
 [[rules]]
 id = "dosegram-age-or-pgp-private-key"
