@@ -70,6 +70,14 @@ object FoodCopy:
   def statsPeriod(period: MealPeriod): Option[String] =
     Option.when(period.meals > 0)(s"Food: ${count(period.meals, "meal")} logged · ${week(period)}")
 
+  /** A meal nudge (G8.4): it names the meal and offers the tap; it says nothing about what or how much to eat. */
+  def nudge(meal: Option[MealType]): String =
+    meal.fold("Meal reminder. Tap the meal you had to log it.")(mealType =>
+      s"Meal reminder: ${label(mealType).toLowerCase(java.util.Locale.ROOT)}. Tap to log it."
+    )
+
+  def logButton(mealType: MealType): String = s"Log ${label(mealType).toLowerCase(java.util.Locale.ROOT)}"
+
   val entries: List[CopyEntry] =
     List(
       CopyEntry("food.which", which),
@@ -92,6 +100,9 @@ object FoodCopy:
       CopyEntry("food.day", day(Samples.day(MealPlan.Default))),
       CopyEntry("food.day.no_plan", day(Samples.day(MealPlan(Set.empty)))),
       CopyEntry("food.week", week(Samples.week)),
+      CopyEntry("food.nudge", nudge(Some(MealType.Lunch))),
+      CopyEntry("food.nudge.any", nudge(None)),
+      CopyEntry("food.nudge.log", logButton(MealType.Lunch)),
       CopyEntry("food.stats.day", statsDay(Samples.day(MealPlan.Default))),
       CopyEntry("food.stats.period", statsPeriod(Samples.week).getOrElse(""))
     ) ++ MealType.values.toList.map(mealType => CopyEntry(s"food.button.${mealType.dbValue}", label(mealType)))

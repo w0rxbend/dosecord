@@ -60,7 +60,9 @@ object ActionRegistry:
     // the entry for an Undo.
     ActionEntry(170, "food.log", requiresSession = false),
     ActionEntry(171, "food.undo", requiresSession = false),
-    ActionEntry(172, "food.image", requiresSession = false)
+    ActionEntry(172, "food.image", requiresSession = false),
+    // A meal nudge (G8.4): direct mode on the prompt occurrence, the value is the meal type.
+    ActionEntry(173, "prompt.meal", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

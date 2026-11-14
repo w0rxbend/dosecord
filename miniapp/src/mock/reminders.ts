@@ -16,14 +16,14 @@ const KINDS: readonly (readonly [string, string, boolean])[] = [
   ['mood', 'Mood', true],
   ['sleep_bedtime', 'Bedtime', true],
   ['sleep_morning', 'Morning', true],
-  ['meal', 'Meals', false],
+  ['meal', 'Meals', true],
 ];
 
 const PRESETS: readonly PromptPreset[] = [
   { id: 'water.work_hours_30', kind: 'water', name: 'Work hours, every 30 min', available: true, preview: ['2026-11-17T07:30:00Z', '2026-11-17T08:00:00Z'] },
   { id: 'water.hourly', kind: 'water', name: 'Every hour, 08:00 to 21:00', available: true, preview: ['2026-11-17T07:00:00Z'] },
   { id: 'mood.evening', kind: 'mood', name: 'Once in the evening', available: true, preview: ['2026-11-17T18:00:00Z'] },
-  { id: 'meal.anchors', kind: 'meal', name: 'At meal times, if not logged', available: false, preview: [] },
+  { id: 'meal.anchors', kind: 'meal', name: 'At meal times, if not logged', available: true, preview: ['2026-11-17T06:00:00Z', '2026-11-17T11:00:00Z'] },
 ];
 
 export class MockReminders {

@@ -109,8 +109,8 @@ object PromptPresets:
     ownCap = false
   )
 
-  /** A prompt at each meal anchor, sent only when that meal is not logged yet. Defined for the nutrition domain; not
-    * wired while the domain has no entries.
+  /** A prompt at each meal anchor, sent only when that meal is not logged yet that day (ROADMAP G8.4). Inside the
+    * shared budget, silent like every prompt.
     */
   val MealAnchors: PromptPreset = PromptPreset(
     "meal.anchors",
@@ -145,8 +145,9 @@ object PromptPresets:
     MonthlyReport
   )
 
-  /** The kinds whose prompts are sent today. Meals and reports have presets and no sender yet. */
-  val wired: Set[PromptKind] = Set(PromptKind.Water, PromptKind.Mood, PromptKind.SleepBedtime, PromptKind.SleepMorning)
+  /** The kinds whose prompts are sent today. Reports have presets and no sender yet. */
+  val wired: Set[PromptKind] =
+    Set(PromptKind.Water, PromptKind.Mood, PromptKind.SleepBedtime, PromptKind.SleepMorning, PromptKind.Meal)
 
   def byId(id: String): Option[PromptPreset] = all.find(_.id == id)
 

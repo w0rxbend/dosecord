@@ -251,7 +251,8 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         // Meals (BOT_UX section 11.3).
         170 -> "food.log",
         171 -> "food.undo",
-        172 -> "food.image"
+        172 -> "food.image",
+        173 -> "prompt.meal"
       )
     )
 

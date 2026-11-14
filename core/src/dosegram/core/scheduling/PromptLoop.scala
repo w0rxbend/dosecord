@@ -8,6 +8,7 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.hydration.HydrationBounds
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HydrationDay
+import dosegram.core.domain.nutrition.MealNudge
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.DecidedPrompt
 import dosegram.core.domain.reminders.DomainProgress
@@ -117,11 +118,15 @@ final class PromptLoop(
       reachable = channel.isDefined
     )
     val previous = tx.reminders.prompts.lastSent(plan.id)
-    PromptDecision.decide(input) match
+    // A meal nudge is answered by any entry of its meal on its day, however long before the slot it was made (G8.4).
+    val outcome =
+      if input.consented && mealLogged(tx, plan, profile, slot) then PromptOutcome.Suppress(SuppressReason.RecentEntry)
+      else PromptDecision.decide(input)
+    outcome match
       case PromptOutcome.Send(notice) =>
         val target = channel.get // `reachable` held
         previous.foreach(replace(tx, _, target, progress, now))
-        send(tx, plan, slot, notice, target, now)
+        send(tx, plan, SlotOf(slot, profile), notice, target, now)
       case PromptOutcome.Suppress(reason, announce) =>
         record(tx, plan, slot, PromptStatus.Suppressed, Some(reason))
         if announce then
@@ -133,7 +138,7 @@ final class PromptLoop(
   private def send(
       tx: Tx,
       plan: PromptSchedule,
-      slot: NudgeSlot,
+      due: SlotOf,
       notice: Option[PromptNotice],
       target: DeliveryTarget,
       now: Instant
@@ -141,10 +146,10 @@ final class PromptLoop(
     val id = ids.next(now)
     val sendKey = s"prompt:$id"
     val inserted = tx.reminders.prompts.insert(
-      occurrence(plan, slot, id, PromptStatus.Sent, None, now).copy(notice = notice, sendKey = Some(sendKey))
+      occurrence(plan, due.slot, id, PromptStatus.Sent, None, now).copy(notice = notice, sendKey = Some(sendKey))
     )
     if inserted then
-      val message = render(tx, plan, id, notice, sendKey)
+      val message = render(tx, plan, due, id, notice, sendKey)
       tx.outbox.enqueue(
         NewOutboxMessage(
           id = ids.next(now),
@@ -164,6 +169,7 @@ final class PromptLoop(
   private def render(
       tx: Tx,
       plan: PromptSchedule,
+      due: SlotOf,
       id: UUID,
       notice: Option[PromptNotice],
       key: String
@@ -177,7 +183,8 @@ final class PromptLoop(
         messages.water(id, figures, presets, notice, silent, key)
       case PromptKind.Mood                                   => messages.mood(plan.accountId, id, notice, silent, key)
       case PromptKind.SleepBedtime | PromptKind.SleepMorning => messages.sleep(plan.kind, id, notice, silent, key)
-      case PromptKind.Meal | PromptKind.WeeklyReport | PromptKind.MonthlyReport =>
+      case PromptKind.Meal => messages.meal(id, MealNudge.mealOf(due.profile, due.slot), notice, silent, key)
+      case PromptKind.WeeklyReport | PromptKind.MonthlyReport =>
         throw IllegalStateException(s"no sender for prompt kind ${plan.kind.id}")
 
   /** The previous prompt of the plan leaves the chat: an open one is closed (answered when an entry followed it) and
@@ -308,7 +315,19 @@ final class PromptLoop(
           DomainProgress(latestCheckin(tx, plan.accountId, CheckinKind.GoingToSleep), 0, None)
         case PromptKind.SleepMorning =>
           DomainProgress(latestCheckin(tx, plan.accountId, CheckinKind.ImUp), 0, None)
-        case PromptKind.Meal | PromptKind.WeeklyReport | PromptKind.MonthlyReport => DomainProgress.Empty
+        case PromptKind.Meal =>
+          DomainProgress(tx.tracking.meals.listLive(plan.accountId, recent).map(_.occurredAt).maxOption, 0, None)
+        case PromptKind.WeeklyReport | PromptKind.MonthlyReport => DomainProgress.Empty
+
+  /** Whether a meal slot's own meal has an entry on the slot's day. Only a meal plan reads meals, and only with the
+    * consent, which the caller checked.
+    */
+  private def mealLogged(tx: Tx, plan: PromptSchedule, profile: DayProfile, slot: NudgeSlot): Boolean =
+    plan.kind == PromptKind.Meal &&
+      MealNudge.isLogged(
+        MealNudge.mealOf(profile, slot),
+        tx.tracking.meals.listLive(plan.accountId, DateRange.single(slot.planDate))
+      )
 
   private def latestCheckin(tx: Tx, accountId: UUID, kind: CheckinKind): Option[Instant] =
     tx.tracking.sleep.latestLiveCheckin(accountId, kind).map(_.occurredAt)
@@ -328,6 +347,9 @@ final class PromptLoop(
           else slot.planDate.plusDays(1).atTime(closeTime)
         Some(open.atZone(zone).toInstant -> close.atZone(zone).toInstant)
       case _ => None
+
+/** A slot to send and the day profile it was decided with: a meal nudge names its meal by the profile's anchors. */
+private final case class SlotOf(slot: NudgeSlot, profile: DayProfile)
 
 object PromptLoop:
 
