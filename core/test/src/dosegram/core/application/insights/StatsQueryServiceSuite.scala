@@ -18,6 +18,7 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.copy.InsightPhrases
+import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.insights.Comparison
@@ -365,6 +366,19 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     assertEquals(food, Some(expected))
     consent.withdraw(account, ConsentPurpose.Nutrition)
     assertEquals(ReportViews(rig.stats).week(rig.tx, account, window).food, None)
+
+  test("a month has a food block with the nutrition consent and none without it"):
+    val consent = FakeConsent.all(account)
+    consent.withdraw(account, ConsentPurpose.Medication)
+    val rig = Rig(consent)
+    (1 to 14).foreach(daysAgo => rig.on(daysAgo)(rig.eat(MealType.Lunch, s"l$daysAgo")))
+    val june = java.time.YearMonth.of(2026, 6)
+    val view = rig.stats.month(rig.tx, account, june).toOption.get
+    assertEquals(view.figures.food.map(_.recordedDays), Some(14))
+    assert(view.figures.isReportable)
+    assert(MonthCopy.lines(view.figures, kyiv).exists(_.startsWith("Food: 14 meals logged")), MonthCopy.lines(view.figures, kyiv))
+    consent.withdraw(account, ConsentPurpose.Nutrition)
+    assertEquals(rig.stats.month(rig.tx, account, june).toOption.get.figures.food, None)
 
   test("the insights list runs no cross-domain rule without its consent, and the single-domain ones without it"):
     val consent = FakeConsent.all(account)

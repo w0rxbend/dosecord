@@ -38,11 +38,13 @@ final case class MonthFigures(
     hydrationDays: Map[LocalDate, HydrationDay],
     moodDays: Map[LocalDate, MoodDay],
     sleepDays: Map[LocalDate, SleepNight],
-    previousAdherence: Stat[Ratio]
+    previousAdherence: Stat[Ratio],
+    food: Option[MonthDomain[MealPeriod]] = None,
+    mealDays: Map[LocalDate, MealDay] = Map.empty
 ):
   /** PRODUCT_SPEC R-INS-11: a month in which no domain meets the gate produces no report. */
   def isReportable: Boolean =
-    List(medication, hydration, mood, sleep).flatten.exists(_.meetsGate)
+    List(medication, hydration, mood, sleep, food).flatten.exists(_.meetsGate)
 
 /** The month aggregation of VISUALS_AND_ANALYTICS section 6.6 over the same daily figures as every other period: each
   * figure is one of the pure functions of this package over the days of the month, so the month agrees with "the last
@@ -62,7 +64,9 @@ object MonthStats:
       .map(start => DateRange.between(maxDate(start, month.atDay(1)), minDate(start.plusDays(6), month.atEndOfMonth)))
       .toList
 
-  /** Each source is `None` without its consent. `previousMedication` holds the previous month's medication days. */
+  /** Each source is `None` without its consent. `previousMedication` holds the previous month's medication days. A meal
+    * day counts as recorded only with a live meal.
+    */
   def of(
       month: YearMonth,
       weekStart: DayOfWeek,
@@ -70,7 +74,8 @@ object MonthStats:
       hydration: Option[Map[LocalDate, HydrationDay]],
       mood: Option[Map[LocalDate, MoodDay]],
       sleep: Option[Map[LocalDate, SleepNight]],
-      previousMedication: Option[Map[LocalDate, MedicationDay]]
+      previousMedication: Option[Map[LocalDate, MedicationDay]],
+      food: Option[Map[LocalDate, MealDay]] = None
   ): MonthFigures =
     val range = window(month)
     def inMonth[A](days: Map[LocalDate, A]): Map[LocalDate, A] = days.view.filterKeys(range.contains).toMap
@@ -78,8 +83,9 @@ object MonthStats:
     val hydrationDays = hydration.map(inMonth)
     val moodDays = mood.map(inMonth)
     val sleepDays = sleep.map(inMonth)
+    val mealDays = food.map(days => inMonth(days).filter((_, day) => day.meals > 0))
     val recorded =
-      List(medicationDays, hydrationDays, moodDays, sleepDays).flatten.flatMap(_.keySet).toSet
+      List(medicationDays, hydrationDays, moodDays, sleepDays, mealDays).flatten.flatMap(_.keySet).toSet
     val previousWindow = window(month.minusMonths(1))
     MonthFigures(
       month = month,
@@ -100,7 +106,9 @@ object MonthStats:
           days =>
             val inPrevious = days.view.filterKeys(previousWindow.contains).values
             MedicationStats.adherence(MedicationStats.total(inPrevious).resolved, previousWindow)
-        }
+        },
+      food = mealDays.map(days => MonthDomain(days.size, MealStats.period(days, range))),
+      mealDays = mealDays.getOrElse(Map.empty)
     )
 
   private def weekOf(

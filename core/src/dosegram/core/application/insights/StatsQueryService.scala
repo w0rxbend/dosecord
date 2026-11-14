@@ -192,7 +192,8 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
           Option.when(granted(ConsentPurpose.Hydration))(hydrationDays(tx, accountId, range)),
           Option.when(granted(ConsentPurpose.Mood))(moodDays(tx, accountId, range)),
           Option.when(granted(ConsentPurpose.Sleep))(sleepDays(tx, accountId, range)),
-          previous
+          previous,
+          Option.when(granted(ConsentPurpose.Nutrition))(mealDays(tx, accountId, range))
         )
       )
 

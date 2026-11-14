@@ -26,9 +26,22 @@ class MonthStatsSuite extends munit.FunSuite:
       hydration: Option[Map[LocalDate, HydrationDay]] = None,
       mood: Option[Map[LocalDate, MoodDay]] = None,
       sleep: Option[Map[LocalDate, SleepNight]] = None,
-      previous: Option[Map[LocalDate, MedicationDay]] = None
+      previous: Option[Map[LocalDate, MedicationDay]] = None,
+      food: Option[Map[LocalDate, MealDay]] = None
   ): MonthFigures =
-    MonthStats.of(october, DayOfWeek.MONDAY, medicationDays.map(_ -> Nil), hydration, mood, sleep, previous)
+    MonthStats.of(october, DayOfWeek.MONDAY, medicationDays.map(_ -> Nil), hydration, mood, sleep, previous, food)
+
+  test("food is a domain of the month: its meal days count toward the gate and the days with records"):
+    val meals = days(1 to 14)(day => MealDay(1, if day % 2 == 0 then 1 else 0, 1, day % 3))
+    val figures = month(food = Some(meals ++ days(List(20))(_ => MealDay(0, 0, 0, 0))))
+    assertEquals(figures.food.map(_.recordedDays), Some(14), "a day whose meals are all voided is no record")
+    assert(figures.food.get.meetsGate)
+    assert(figures.isReportable)
+    assertEquals(figures.daysWithRecords, 14)
+    assertEquals(figures.food.map(_.figures.meals), Some(meals.values.map(_.meals).sum))
+    assertEquals(figures.mealDays.keySet, meals.keySet)
+    assertEquals(month().food, None)
+    assert(!month(food = Some(days(1 to 13)(_ => MealDay(1, 0, 0, 0)))).isReportable)
 
   test("the week rows start on the week start and are cut at the month's edges"):
     val weeks = MonthStats.weeks(october, DayOfWeek.MONDAY)

@@ -69,6 +69,9 @@ object MonthCopy:
         ) ++
         figures.sleep.toList.flatMap(domain =>
           if domain.meetsGate then StatsCopy.sleep(domain.figures).toList else List(gate("Sleep", domain))
+        ) ++
+        figures.food.toList.flatMap(domain =>
+          if domain.meetsGate then FoodCopy.statsPeriod(domain.figures).toList else List(gate("Food", domain))
         )
     val intro = if figures.isReportable then Nil else List(gateTitle)
     header(figures.month, zone) :: daysWithRecords(figures.daysWithRecords) :: intro ++ blocks
