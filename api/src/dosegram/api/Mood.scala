@@ -5,6 +5,7 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.MoodLabels
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.mood.Energy
@@ -121,7 +122,9 @@ object Mood:
     BlobStates.of(day.level, day.energyMean.map(mean => Math.round(mean).toInt))
 
   private def summaryDay(date: LocalDate, recorded: Option[MoodDay]): MoodSummaryDay =
-    val value = recorded.fold("no check-in")(day => s"${ApiCopy.moodMean(day)}, ${ApiCopy.count(day.n, "check-in")}")
+    val value = recorded.fold(tr("no check-in", "немає позначки"))(day =>
+      s"${ApiCopy.moodMean(day)}, ${ApiCopy.count(day.n, "check-in")}"
+    )
     MoodSummaryDay(
       date = date,
       label = ApiCopy.weekday(date),

@@ -1,7 +1,7 @@
 <script lang="ts" generics="P extends Record<string, unknown>">
   import type { Component } from 'svelte';
   import { ApiError } from '../api/client';
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
   import ErrorState from '../ui/ErrorState.svelte';
   import Skeleton from '../ui/Skeleton.svelte';
 

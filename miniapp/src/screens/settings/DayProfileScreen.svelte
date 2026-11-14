@@ -2,7 +2,7 @@
   import { toApiError } from '../../api/client';
   import type { DayProfile, DayProfileInput } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import Screen from '../../ui/Screen.svelte';

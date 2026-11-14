@@ -35,6 +35,22 @@ class UpdateMapperSuite extends munit.FunSuite:
         assertEquals(draft.body, Inbound.MessageReceived("hello there", None, truncated = false))
       case other => fail(other.toString)
 
+  test("the sender's language tag becomes the locale hint when it names a shipped locale (BUX-LANG-01)"):
+    def hint(languageCode: Option[String]): Option[String] =
+      mapped(
+        "message-text",
+        json =>
+          languageCode.foreach(code => json("message")("from")("language_code") = code)
+          if languageCode.isEmpty then json("message")("from").obj.remove("language_code")
+      ) match
+        case Mapped.Deliver(draft) => draft.localeHint
+        case other                 => fail(other.toString)
+    assertEquals(hint(Some("uk")), Some("uk"))
+    assertEquals(hint(Some("uk-UA")), Some("uk"))
+    assertEquals(hint(Some("en-GB")), Some("en"))
+    assertEquals(hint(Some("pt-BR")), None)
+    assertEquals(hint(None), None)
+
   test("a reply names the answered message as its handle"):
     assertEquals(
       body("message-reply"),

@@ -300,7 +300,7 @@ private object CaptureHandler:
     */
   val DefaultGlass: WaterTextParser = WaterTextParser(HydrationBounds.DefaultPresetsMl.head)
 
-  private val MoodLine = """(?i)mood\s+(\d)""".r
+  private val MoodLine = """(?iu)(?:mood|настрій)\s+(\d)""".r
 
   /** The text after the command name: `/water 300` gives `300`. */
   def argumentOf(raw: String): String = rawArgumentOf(raw).toLowerCase(java.util.Locale.ROOT)

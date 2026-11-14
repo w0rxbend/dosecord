@@ -63,12 +63,12 @@ object Application:
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,
-      inner = depth,
+      inner = LanguageChat(codec, clock, inner = depth),
       uow = uow,
       adapters = adapters
     )
     menu.wireEngine(engine)
-    FirstFlows.identityGate(engine)
+    LocalisedHandler(FirstFlows.identityGate(engine))
 
   /** The export requests, as the chat and the Mini App API share them (ROADMAP G3.10). */
   def exportRequests(clock: Clock, codec: CallbackCodec): ExportRequests =

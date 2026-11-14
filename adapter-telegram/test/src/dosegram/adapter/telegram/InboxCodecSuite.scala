@@ -59,6 +59,25 @@ class InboxCodecSuite extends munit.FunSuite:
     val body = InboxCodec.entry(decoded(raw)).body
     List("CANARY-NAME", "canary_user", "language_code").foreach(secret => assert(!body.contains(secret), body))
 
+  test("the stored body keeps only the shipped locale the client's language names (ROADMAP G2.22)"):
+    val raw = BotApiFixtures.update("message-text")
+    raw("message")("from") = ujson.Obj("id" -> 7001, "is_bot" -> false, "language_code" -> "uk-UA")
+    val update = decoded(raw)
+    val entry = InboxCodec.entry(update)
+    assert(!entry.body.contains("uk-UA"), entry.body)
+    assert(!entry.body.contains("language_code"), entry.body)
+    assertEquals(InboxCodec.update(entry), Some(update))
+    update.body match
+      case UpdateBody.NewMessage(message) => assertEquals(message.from.flatMap(_.locale), Some("uk"))
+      case other                          => fail(other.toString)
+
+  test("a language that is not shipped is not kept at all"):
+    val raw = BotApiFixtures.update("message-text")
+    raw("message")("from") = ujson.Obj("id" -> 7001, "is_bot" -> false, "language_code" -> "de")
+    val entry = InboxCodec.entry(decoded(raw))
+    assert(!entry.body.contains("de"), entry.body)
+    assert(!entry.body.contains("locale"), entry.body)
+
   test("a body that is not an update decodes to nothing"):
     val entry = InboxCodec.entry(decoded(BotApiFixtures.update("message-text")))
     assertEquals(InboxCodec.update(entry.copy(body = "not json")), None)

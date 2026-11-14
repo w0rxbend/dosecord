@@ -3,6 +3,7 @@ package dosegram.api
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.TrendCopy
 import dosegram.core.domain.copy.WaterCopy
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DayPoint
 import dosegram.core.domain.insights.DoseBuckets
@@ -68,11 +69,19 @@ object Charts:
       )
     val recorded = points.flatMap(_.value)
     val reached =
-      goal.map(_ => s" The goal was reached on ${recorded.count(_.isGoalDay)} of ${recorded.size} recorded days.")
+      goal.map(_ =>
+        tr(
+          s" The goal was reached on ${recorded.count(_.isGoalDay)} of ${recorded.size} recorded days.",
+          s" Ціль досягнуто в ${recorded.count(_.isGoalDay)} з ${recorded.size} днів із записами."
+        )
+      )
     Chart(
       id = "water-by-day",
-      title = "Water per day",
-      summary = s"Water per day, ${ApiCopy.rangeLabel(window)}. Entries on ${recorded.size} of ${points.size} days." +
+      title = tr("Water per day", "Вода за день"),
+      summary = tr(
+        s"Water per day, ${ApiCopy.rangeLabel(window)}. Entries on ${recorded.size} of ${points.size} days.",
+        s"Вода за день, ${ApiCopy.rangeLabel(window)}. Записи є за ${recorded.size} з ${points.size} днів."
+      ) +
         reached.getOrElse(""),
       scene = Scene(
         Width,
@@ -80,11 +89,15 @@ object Charts:
         bars ++ goalLine ++ frame(points, AxisWidth) ++ points.indices.map(columns.hit)
       ),
       table = ChartTable(
-        "Water per day",
-        List("Day", "Water"),
-        points.map(point => List(ApiCopy.dayLabel(point.date), point.value.fold("No entry")(waterOf)))
+        tr("Water per day", "Вода за день"),
+        tr(List("Day", "Water"), List("День", "Вода")),
+        points.map(point =>
+          List(ApiCopy.dayLabel(point.date), point.value.fold(tr("No entry", "Немає запису"))(waterOf))
+        )
       ),
-      marks = points.map(point => s"${ApiCopy.dayLabel(point.date)}: ${point.value.fold("no entry")(waterOf)}"),
+      marks = points.map(point =>
+        s"${ApiCopy.dayLabel(point.date)}: ${point.value.fold(tr("no entry", "немає запису"))(waterOf)}"
+      ),
       markDates = datesOf(points)
     )
 
@@ -112,25 +125,35 @@ object Charts:
       List(
         line(Point(AxisWidth, yOf(minutes)), Point(Width, yOf(minutes)), SceneTone.Muted)
           .copy(style = Some(SceneStyle.Dashed)),
-        label(Point(0, yOf(minutes) + 4), f"${minutes / 60} h ${minutes % 60}%02d", SceneAnchor.Start)
+        label(
+          Point(0, yOf(minutes) + 4),
+          tr(f"${minutes / 60} h ${minutes % 60}%02d", f"${minutes / 60} год ${minutes % 60}%02d"),
+          SceneAnchor.Start
+        )
       )
     val recorded = points.flatMap(_.value)
     val goal = goalMinutes.fold("")(minutes => s" Your goal: ${StatsCopy.duration(minutes)}.")
     def nightOf(point: DayPoint[SleepNight]): String =
-      point.value.fold("no night logged")(night => StatsCopy.duration(night.minutes))
+      point.value.fold(tr("no night logged", "ніч не записано"))(night => StatsCopy.duration(night.minutes))
     Chart(
       id = "sleep-by-day",
-      title = "Sleep per night",
-      summary = s"Sleep per night, ${ApiCopy.rangeLabel(window)}, from your check-ins. " +
-        s"Nights logged on ${recorded.size} of ${points.size} days.$goal",
+      title = tr("Sleep per night", "Сон за ніч"),
+      summary = tr(
+        s"Sleep per night, ${ApiCopy.rangeLabel(window)}, from your check-ins. ",
+        s"Сон за ніч, ${ApiCopy.rangeLabel(window)}, з ваших позначок. "
+      ) +
+        tr(
+          s"Nights logged on ${recorded.size} of ${points.size} days.$goal",
+          s"Ночі записано за ${recorded.size} з ${points.size} днів.$goal"
+        ),
       scene = Scene(
         Width,
         PlotHeight + LabelRoom,
         bars ++ goalLine ++ frame(points, AxisWidth) ++ points.indices.map(columns.hit)
       ),
       table = ChartTable(
-        "Sleep per night",
-        List("Day", "Sleep"),
+        tr("Sleep per night", "Сон за ніч"),
+        tr(List("Day", "Sleep"), List("День", "Сон")),
         points.map(point => List(ApiCopy.dayLabel(point.date), nightOf(point).capitalize))
       ),
       marks = points.map(point => s"${ApiCopy.dayLabel(point.date)}: ${nightOf(point)}"),
@@ -152,7 +175,10 @@ object Charts:
       SceneNode(SceneShape.Circle, rounded(columns.centre(index)), rounded(yOf(day.mean)), SceneTone.Mood)
         .copy(radius = Some(3.5), mark = Some(index))
     }
-    val levels = List(5 -> "Very pleasant", 3 -> "Neutral", 1 -> "Very unpleasant").flatMap: (step, name) =>
+    val levels = tr(
+      List(5 -> "Very pleasant", 3 -> "Neutral", 1 -> "Very unpleasant"),
+      List(5 -> "Дуже приємно", 3 -> "Нейтрально", 1 -> "Дуже неприємно")
+    ).flatMap: (step, name) =>
       List(
         line(Point(MoodLabelWidth, yOf(step.toDouble)), Point(Width, yOf(step.toDouble)), SceneTone.Separator),
         label(Point(0, yOf(step.toDouble) + 4), name, SceneAnchor.Start)
@@ -160,27 +186,32 @@ object Charts:
     val recorded = points.flatMap(_.value)
     Chart(
       id = "mood-by-day",
-      title = "Mood per day",
-      summary = s"Daily mood, ${ApiCopy.rangeLabel(window)}. Check-ins on ${recorded.size} of ${points.size} days. " +
-        "A day without a check-in is a gap.",
+      title = tr("Mood per day", "Настрій за день"),
+      summary = tr(
+        s"Daily mood, ${ApiCopy.rangeLabel(window)}. Check-ins on ${recorded.size} of ${points.size} days. ",
+        s"Денний настрій, ${ApiCopy.rangeLabel(window)}. Позначки є за ${recorded.size} з ${points.size} днів. "
+      ) +
+        tr("A day without a check-in is a gap.", "День без позначки показано як пропуск."),
       scene = Scene(
         Width,
         PlotHeight + LabelRoom,
         levels ++ joins ++ dots ++ dateLabels(points, MoodLabelWidth) ++ points.indices.map(columns.hit)
       ),
       table = ChartTable(
-        "Mood per day",
-        List("Day", "Daily mood", "Check-ins"),
+        tr("Mood per day", "Настрій за день"),
+        tr(List("Day", "Daily mood", "Check-ins"), List("День", "Денний настрій", "Позначки")),
         points.map: point =>
           List(
             ApiCopy.dayLabel(point.date),
-            point.value.fold("No check-in")(ApiCopy.moodMean),
+            point.value.fold(tr("No check-in", "Немає позначки"))(ApiCopy.moodMean),
             point.value.fold("0")(_.n.toString)
           )
       ),
       marks = points.map: point =>
         val value =
-          point.value.fold("no check-in")(day => s"${ApiCopy.moodMean(day)}, ${ApiCopy.count(day.n, "check-in")}")
+          point.value.fold(tr("no check-in", "немає позначки"))(day =>
+            s"${ApiCopy.moodMean(day)}, ${ApiCopy.count(day.n, "check-in")}"
+          )
         s"${ApiCopy.dayLabel(point.date)}: $value"
       ,
       markDates = datesOf(points)
@@ -200,12 +231,15 @@ object Charts:
       val counts = shown.map(outcome => s"${outcome.doses} ${outcome.name}")
       Chart(
         id = "dose-outcomes",
-        title = "Dose outcomes",
-        summary = s"Of ${ApiCopy.count(total, "scheduled dose")}: ${counts.mkString(", ")}.",
+        title = tr("Dose outcomes", "Результати доз"),
+        summary = tr(
+          s"Of ${ApiCopy.count(total, "scheduled dose")}: ${counts.mkString(", ")}.",
+          s"Заплановано доз: $total. ${counts.mkString(", ").capitalize}."
+        ),
         scene = Scene(Width, OutcomeBarHeight, segments),
         table = ChartTable(
-          "Dose outcomes in this period",
-          List("Outcome", "Doses"),
+          tr("Dose outcomes in this period", "Результати доз за цей період"),
+          tr(List("Outcome", "Doses"), List("Результат", "Дози")),
           outcomes.map(outcome => List(outcome.name, outcome.doses.toString))
         ),
         marks = counts
@@ -218,17 +252,22 @@ object Charts:
 
   private final case class OutcomeLook(opacity: Option[Double], style: Option[SceneStyle])
 
-  // The status words are those of BOT_UX section 22.4: a missed dose is "not confirmed", an unknown one "no record".
+  // The status words are those of BOT_UX section 22.4: a missed dose is tr("not confirmed", "не підтверджено"), an unknown one tr("no record", "немає запису").
   private def outcomesOf(buckets: DoseBuckets): List[Outcome] =
     val solid = OutcomeLook(None, None)
     val outlined = Some(SceneStyle.Outlined)
     List(
-      Outcome("on time", buckets.takenOnTime, SceneTone.Recorded, solid),
-      Outcome("late", buckets.takenLate, SceneTone.Recorded, OutcomeLook(Some(0.55), None)),
-      Outcome("skipped", buckets.skipped, SceneTone.Muted, solid),
-      Outcome("not confirmed", buckets.missed, SceneTone.Ink, OutcomeLook(Some(0.25), outlined)),
-      Outcome("no record", buckets.unknown, SceneTone.Separator, OutcomeLook(None, outlined)),
-      Outcome("still due", buckets.open, SceneTone.Separator, OutcomeLook(Some(0.4), Some(SceneStyle.Dashed)))
+      Outcome(tr("on time", "вчасно"), buckets.takenOnTime, SceneTone.Recorded, solid),
+      Outcome(tr("late", "із запізненням"), buckets.takenLate, SceneTone.Recorded, OutcomeLook(Some(0.55), None)),
+      Outcome(tr("skipped", "пропущено"), buckets.skipped, SceneTone.Muted, solid),
+      Outcome(tr("not confirmed", "не підтверджено"), buckets.missed, SceneTone.Ink, OutcomeLook(Some(0.25), outlined)),
+      Outcome(tr("no record", "немає запису"), buckets.unknown, SceneTone.Separator, OutcomeLook(None, outlined)),
+      Outcome(
+        tr("still due", "ще очікують"),
+        buckets.open,
+        SceneTone.Separator,
+        OutcomeLook(Some(0.4), Some(SceneStyle.Dashed))
+      )
     )
 
   def dosesByDay(points: List[DayPoint[MedicationDay]], window: DateRange): Chart =
@@ -249,18 +288,24 @@ object Charts:
     val complete = withDoses.count(buckets => buckets.resolved.taken == scheduledIn(buckets))
     Chart(
       id = "doses-by-day",
-      title = "Doses by day",
-      summary = s"Scheduled doses by day, ${ApiCopy.rangeLabel(window)}. Every scheduled dose was recorded as taken " +
-        s"on $complete of ${withDoses.size} days with doses.",
+      title = tr("Doses by day", "Дози за днями"),
+      summary = tr(
+        s"Scheduled doses by day, ${ApiCopy.rangeLabel(window)}. Every scheduled dose was recorded as taken " +
+          s"on $complete of ${withDoses.size} days with doses.",
+        s"Заплановані дози за днями, ${ApiCopy.rangeLabel(window)}. Усі заплановані дози записано як прийняті " +
+          s"за $complete з ${withDoses.size} днів із дозами."
+      ),
       scene = Scene(Width, PlotHeight + LabelRoom, bars ++ frame(days, 0) ++ days.indices.map(columns.hit)),
       table = ChartTable(
-        "Doses recorded as taken, by day",
-        List("Day", "Taken", "Scheduled"),
+        tr("Doses recorded as taken, by day", "Дози, записані як прийняті, за днями"),
+        tr(List("Day", "Taken", "Scheduled"), List("День", "Прийнято", "Заплановано")),
         days.map: point =>
           val taken = point.value.fold("0")(_.resolved.taken.toString)
           List(ApiCopy.dayLabel(point.date), taken, point.value.fold("0")(scheduledIn(_).toString))
       ),
-      marks = days.map(point => s"${ApiCopy.dayLabel(point.date)}: ${point.value.fold("nothing scheduled")(dosesOf)}"),
+      marks = days.map(point =>
+        s"${ApiCopy.dayLabel(point.date)}: ${point.value.fold(tr("nothing scheduled", "нічого не заплановано"))(dosesOf)}"
+      ),
       markDates = datesOf(days)
     )
 
@@ -271,12 +316,15 @@ object Charts:
   def dosesOf(buckets: DoseBuckets): String =
     val resolved = buckets.resolved
     val rest = List(
-      Option.when(resolved.skipped > 0)(s"${resolved.skipped} skipped"),
-      Option.when(resolved.missed > 0)(s"${resolved.missed} not confirmed"),
-      Option.when(buckets.unknown > 0)(s"${buckets.unknown} no record"),
-      Option.when(buckets.open > 0)(s"${buckets.open} still due")
+      Option.when(resolved.skipped > 0)(tr(s"${resolved.skipped} skipped", s"пропущено ${resolved.skipped}")),
+      Option.when(resolved.missed > 0)(tr(s"${resolved.missed} not confirmed", s"не підтверджено ${resolved.missed}")),
+      Option.when(buckets.unknown > 0)(tr(s"${buckets.unknown} no record", s"без запису ${buckets.unknown}")),
+      Option.when(buckets.open > 0)(tr(s"${buckets.open} still due", s"ще очікують ${buckets.open}"))
     ).flatten
-    (s"${resolved.taken} of ${scheduledIn(buckets)} taken" :: rest).mkString(", ")
+    (tr(
+      s"${resolved.taken} of ${scheduledIn(buckets)} taken",
+      s"прийнято ${resolved.taken} з ${scheduledIn(buckets)}"
+    ) :: rest).mkString(", ")
 
   /** The local day of every mark of a chart of days, so that a picked mark opens that day (S-13). */
   private def datesOf[A](points: List[DayPoint[A]]): Option[List[String]] = Some(points.map(_.date.toString))

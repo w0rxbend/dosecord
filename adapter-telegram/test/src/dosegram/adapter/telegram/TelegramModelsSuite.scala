@@ -17,7 +17,7 @@ class TelegramModelsSuite extends ScalaCheckSuite:
       case Update(900000001L, UpdateBody.NewMessage(message)) =>
         assertEquals(message.messageId, 41L)
         assertEquals(message.chat, TgChat(7001L, isPrivate = true))
-        assertEquals(message.from, Some(TgUser(7001L)))
+        assertEquals(message.from, Some(TgUser(7001L, locale = Some("en"))))
         assertEquals(message.sentAt, Some(Instant.ofEpochSecond(1794000000L)))
         assertEquals(message.content, MessageContent.Text("hello there"))
       case other => fail(s"unexpected update: $other")

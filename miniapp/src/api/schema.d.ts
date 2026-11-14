@@ -964,6 +964,7 @@ export interface components {
             timeZone: string;
             limits: components["schemas"]["Limits"];
             consents?: string[];
+            language?: string;
         };
         /**
          * CalendarCellState

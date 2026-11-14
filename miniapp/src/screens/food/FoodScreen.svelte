@@ -2,7 +2,7 @@
   import { ApiError, newIdempotencyKey, toApiError, unlessOff, type FieldError } from '../../api/client';
   import { OFF, type LocalDate, type Meal, type MealKind, type NutritionSummary, type Off } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import OffState from '../../ui/OffState.svelte';

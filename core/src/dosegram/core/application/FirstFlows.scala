@@ -5,6 +5,7 @@ import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.WizardEngine
+import dosegram.core.domain.copy.CommandCopy
 import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.ports.Clock
@@ -33,7 +34,7 @@ object FirstFlows:
       uow = uow,
       adapters = adapters
     )
-    IdentityGate(engine)
+    LocalisedHandler(IdentityGate(engine))
 
   /** Routes `ConversationStarted` and `/start` into the create flow, guarding the already-linked case. */
   private[application] final class IdentityGate(engine: WizardEngine) extends ChatHandler:
@@ -68,7 +69,9 @@ object FirstFlows:
       */
     private def help(event: InboundEvent): Reply =
       val lines =
-        HelpCopy.intro +: commands.map(spec => s"${CommandRegistry.usage(spec)} — ${spec.description}")
+        HelpCopy.intro +: commands.map(spec =>
+          s"${CommandRegistry.usage(spec)} — ${CommandCopy.description(spec.name, spec.description)}"
+        )
       Reply(followUps =
         List(
           OutboundMessage(

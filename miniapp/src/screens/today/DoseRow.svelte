@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Occurrence } from '../../api/types';
-  import { doseStatusText } from '../../i18n/en';
+  import { doseStatusText } from '../../i18n/index.svelte';
   import StatusGlyph from '../../ui/StatusGlyph.svelte';
 
   let { occurrence }: { occurrence: Occurrence } = $props();

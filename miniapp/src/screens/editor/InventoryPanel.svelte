@@ -3,7 +3,7 @@
   import type { InventoryView } from '../../api/types';
   import { useApp } from '../../app/context';
   import { parseDecimal, isPositive } from '../../forms/decimal';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
 
   // The count of one medication (ROADMAP G9.10, PRODUCT_SPEC R-REG-11 to R-REG-16): what the user

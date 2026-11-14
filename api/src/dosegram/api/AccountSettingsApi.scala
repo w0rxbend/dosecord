@@ -2,6 +2,7 @@ package dosegram.api
 
 import dosegram.contracts.HhMm
 import dosegram.core.domain.QuietHours
+import dosegram.core.domain.copy.Formats
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
@@ -124,12 +125,12 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
 
 object AccountSettingsApi:
 
-  /** The locales the product ships (MINI_APP section 5.7): English first; Ukrainian follows with its catalogue. */
-  val Languages: List[LanguageChoice] = List(LanguageChoice("en", "English"))
+  /** The locales the product ships (MINI_APP section 5.7), each named in itself (ROADMAP G2.22). */
+  val Languages: List[LanguageChoice] = List(LanguageChoice("en", "English"), LanguageChoice("uk", "Українська"))
   private val DefaultLanguage = "en"
 
   private val ClockTime = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
-  private val Since = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+  private def Since = Formats.day
 
   /** The zones a person lives in: `Area/City` names, without the `Etc/` and `SystemV/` aliases. */
   val RegionZones: List[String] =

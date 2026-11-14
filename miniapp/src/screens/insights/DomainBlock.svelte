@@ -3,7 +3,7 @@
   import { useApp } from '../../app/context';
   import ChartFigure from '../../charts/ChartFigure.svelte';
   import Vessel from '../../charts/Vessel.svelte';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import DomainGlyph from '../../ui/DomainGlyph.svelte';
   import Illustration from '../../ui/Illustration.svelte';
 

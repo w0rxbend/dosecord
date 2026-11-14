@@ -10,97 +10,117 @@ object ReminderCopy:
   /** Recorded decision: `Time for Vitamin D, 1000 IU.` with the instructions on a second line when present. */
   def reminderBody(name: String, dose: Option[String], instructions: Option[String]): List[String] =
     val line1 = dose match
-      case Some(d) => s"Time for $name, $d."
-      case None    => s"Time for $name."
+      case Some(d) => tr(s"Time for $name, $d.", s"Нагадування: $name, $d.")
+      case None    => tr(s"Time for $name.", s"Нагадування: $name.")
     instructions.toList.foldLeft(List(line1))(_ :+ _)
 
   /** Discreet mode (DESIGN.md section 4.3): no medication name in the body. */
-  def discreetReminderBody(time: String): String = s"Time for your $time dose."
+  def discreetReminderBody(time: String): String = tr(s"Time for your $time dose.", s"Нагадування про дозу на $time.")
 
   /** Taken follow-up (finalize summary): `Recorded at 09:03.` */
-  def takenConfirmation(time: String): String = s"Recorded at $time."
+  def takenConfirmation(time: String): String = tr(s"Recorded at $time.", s"Записано о $time.")
 
   /** A second Taken on a resolved occurrence is a semantic no-op (DESIGN.md section 7.3). */
-  def alreadyRecorded(time: String): String = s"Already recorded at $time."
+  def alreadyRecorded(time: String): String = tr(s"Already recorded at $time.", s"Уже записано о $time.")
 
   /** Skip follow-up (UX safety copy: neutral). */
-  def skippedConfirmation: String = "Marked skipped."
+  def skippedConfirmation: String = tr("Marked skipped.", "Позначено як пропущену.")
 
   /** Snooze follow-up: `Okay, I'll remind you again at 09:10.` */
-  def snoozeConfirmation(time: String): String = s"Okay, I'll remind you again at $time."
+  def snoozeConfirmation(time: String): String =
+    tr(s"Okay, I'll remind you again at $time.", s"Гаразд, нагадаю ще раз о $time.")
 
   /** Missed notice (UX spec): neutral statement of fact, controls are `Labels.missedNotice`. */
   def missedNotice(name: String, time: String): String =
-    s"I did not get a response for $name at $time, so I marked it missed."
+    tr(
+      s"I did not get a response for $name at $time, so I marked it missed.",
+      s"На нагадування про $name о $time відповіді не було, тож дозу позначено як пропущену."
+    )
 
   /** Undo within the 15-minute window returns the occurrence to due (ADR-012). */
-  def undoConfirmation(nextReminderTime: String): String = s"Undone. I'll check again at $nextReminderTime."
+  def undoConfirmation(nextReminderTime: String): String =
+    tr(s"Undone. I'll check again at $nextReminderTime.", s"Скасовано. Нагадаю ще раз о $nextReminderTime.")
 
   /** Past the undo window the two-choice correction is offered instead (M1.10). */
-  def undoWindowPassed: String = "The undo window has passed — correct it instead?"
+  def undoWindowPassed: String =
+    tr("The undo window has passed — correct it instead?", "Час на скасування минув — виправити запис?")
 
   /** Correction prompt (`dose.correct`, M1.10): [Now][At scheduled time][Cancel]. */
-  def correctionPrompt: String = "When did you take it?"
+  def correctionPrompt: String = tr("When did you take it?", "Коли ви її прийняли?")
 
   /** Correction follow-up (M1.10): `Corrected — logged as taken at 09:00.` */
-  def correctedConfirmation(time: String): String = s"Corrected — logged as taken at $time."
+  def correctedConfirmation(time: String): String =
+    tr(s"Corrected — logged as taken at $time.", s"Виправлено — записано як прийняту о $time.")
 
   /** [Keep missed] on the missed notice (M1.10): the row stays missed, the controls die. */
-  val keepMissedConfirmation: String = "Okay — left marked missed."
+  def keepMissedConfirmation: String = tr("Okay — left marked missed.", "Гаразд — лишаємо позначку «пропущено».")
 
   /** [Cancel] on the correction prompt (M1.10). */
-  val correctionCancelled: String = "No change."
+  def correctionCancelled: String = tr("No change.", "Без змін.")
 
   /** The refusal toasts of the one-tap handlers (M1.10); the two correction-prompt refusals open the flow instead. */
   def refusal(reason: Refusal): String =
     reason match
-      case Refusal.NothingToUndo                => "There is nothing to undo."
-      case Refusal.UndoWindowPassed             => "The undo window has passed."
+      case Refusal.NothingToUndo                => tr("There is nothing to undo.", "Немає чого скасовувати.")
+      case Refusal.UndoWindowPassed             => tr("The undo window has passed.", "Час на скасування минув.")
       case Refusal.UndoWindowPassedOfferCorrect => undoWindowPassed
       case Refusal.CorrectionPrompt             => correctionPrompt
-      case Refusal.AlreadyResolved              => "This dose is already recorded."
-      case Refusal.SnoozeLimitReached           => "No snoozes left for this dose."
-      case Refusal.SnoozePastBound              => "That snooze would run past the next dose."
-      case Refusal.SnoozeNotAllowed             => "This dose cannot be snoozed."
-      case Refusal.CorrectOnOpenRow             => "This dose is still open — Taken or Skip applies."
-      case Refusal.InvalidEffectiveAt           => "That time is in the future."
-      case Refusal.RowCancelled                 => "This dose is cancelled."
+      case Refusal.AlreadyResolved              => tr("This dose is already recorded.", "Цю дозу вже записано.")
+      case Refusal.SnoozeLimitReached           =>
+        tr("No snoozes left for this dose.", "Для цієї дози відкладень більше не лишилося.")
+      case Refusal.SnoozePastBound =>
+        tr("That snooze would run past the next dose.", "Таке відкладення заходить на час наступної дози.")
+      case Refusal.SnoozeNotAllowed => tr("This dose cannot be snoozed.", "Цю дозу не можна відкласти.")
+      case Refusal.CorrectOnOpenRow =>
+        tr(
+          "This dose is still open — Taken or Skip applies.",
+          "Ця доза ще відкрита — тут підходить «Прийнято» або «Пропустити»."
+        )
+      case Refusal.InvalidEffectiveAt => tr("That time is in the future.", "Цей час ще не настав.")
+      case Refusal.RowCancelled       => tr("This dose is cancelled.", "Цю дозу скасовано.")
 
   /** The universal commands' resolution failures (M1.10). */
-  val nothingDue: String = "Nothing is due right now."
-  def noOpenDose(name: String): String = s"No open dose for $name."
-  def unknownMedication(name: String): String = s"I could not find $name."
+  def nothingDue: String = tr("Nothing is due right now.", "Зараз нічого не заплановано.")
+  def noOpenDose(name: String): String = tr(s"No open dose for $name.", s"Відкритої дози для $name немає.")
+  def unknownMedication(name: String): String = tr(s"I could not find $name.", s"Не вдалося знайти $name.")
 
   /** Medications -> Log dose / `/log` without a medication (M1.10). */
-  val logPickerPrompt: String = "Log a dose of which medication?"
-  val logEmpty: String = "No medications to log yet."
+  def logPickerPrompt: String = tr("Log a dose of which medication?", "Дозу яких ліків записати?")
+  def logEmpty: String = tr("No medications to log yet.", "Поки немає ліків, які можна записати.")
 
   /** The picker after its one tap (BUX-TAKE-01, BUX-TAKE-02): what was logged and when, with no button left. */
-  def logged(name: String, time: String): String = s"Logged $name at $time."
+  def logged(name: String, time: String): String = tr(s"Logged $name at $time.", s"Записано: $name о $time.")
 
   /** `toast.take.already`: a later tap on a picker that has logged its dose. */
-  def alreadyLogged(time: String): String = s"Already logged at $time."
+  def alreadyLogged(time: String): String = tr(s"Already logged at $time.", s"Уже записано о $time.")
 
   /** The confirmation after Undo of a manual log (BUX-UNDO-03), and the answer to a later tap on its picker. */
-  val logUndone: String = "Undone. Nothing is recorded for this dose."
+  def logUndone: String =
+    tr("Undone. Nothing is recorded for this dose.", "Скасовано. Для цієї дози нічого не записано.")
 
   /** The button that opens a fresh picker (BUX-TAKE-01). */
-  val logAnother: String = "Log another"
+  def logAnother: String = tr("Log another", "Записати ще")
 
   /** The one safety sentence (UX spec): the bot never advises, it defers to the clinician/pharmacist. */
   def unsureAdvice: String =
-    "If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions."
+    tr(
+      "If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions.",
+      "Якщо ви не певні, чи приймати запізнілу або пропущену дозу, дотримуйтеся вказівок свого лікаря чи фармацевта."
+    )
 
   /** The catalogue failure toast when the database is unavailable (R68: visibly fails). */
-  def failureToast: String = "Something went wrong on my side — please try again in a moment."
+  def failureToast: String = tr(
+    "Something went wrong on my side — please try again in a moment.",
+    "Щось пішло не так з мого боку — спробуйте, будь ласка, ще раз за хвилину."
+  )
 
   /** A lost commit acknowledgement cannot establish noncommit. Reconcile before any replay. */
-  val checkingOutcome: String = "Checking whether this was recorded…"
+  def checkingOutcome: String = tr("Checking whether this was recorded…", "Перевіряю, чи це записано…")
 
   /** Toast for a bad MAC or an expired slot (DESIGN.md section 4.4). */
-  def staleControlToast: String = "This button is no longer valid."
+  def staleControlToast: String = tr("This button is no longer valid.", "Ця кнопка вже не діє.")
 
-  val entries: List[CopyEntry] = List(
+  def entries: List[CopyEntry] = List(
     CopyEntry("reminder.body", reminderBody("Vitamin D", Some("1000 IU"), None).mkString("\n")),
     CopyEntry(
       "reminder.body.instructions",

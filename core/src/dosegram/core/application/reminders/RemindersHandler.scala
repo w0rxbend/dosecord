@@ -26,6 +26,7 @@ import dosegram.core.chat.ChatHandler
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.FoodCopy
+import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
@@ -48,7 +49,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.UUID
 
 /** `/reminders` and the buttons of the prompts (ADR-023, BOT_UX section 14): the hub that lists every prompt kind with
@@ -310,7 +310,7 @@ object RemindersHandler:
   val PauseHours: List[Int] = List(1, 3)
   val MaxSnoozeMinutes = 180L
 
-  private val Clock = DateTimeFormatter.ofPattern("EEE HH:mm", Locale.ENGLISH)
+  private def Clock = DateTimeFormatter.ofPattern("EEE HH:mm", Formats.locale)
 
   /** A time the user reads: the weekday and the clock time in the account zone. */
   def when(at: Instant, zone: ZoneId): String = Clock.withZone(zone).format(at)

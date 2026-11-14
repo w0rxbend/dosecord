@@ -12,7 +12,7 @@
     validateMedication,
     type MedicationField,
   } from '../../forms/medication-rules';
-  import { en, fieldErrorText } from '../../i18n/en';
+  import { t as en, fieldErrorText } from '../../i18n/index.svelte';
   import ErrorState from '../../ui/ErrorState.svelte';
   import ErrorSummary from '../../ui/ErrorSummary.svelte';
   import MedFields from './MedFields.svelte';

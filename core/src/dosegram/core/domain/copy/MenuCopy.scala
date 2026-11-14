@@ -3,68 +3,92 @@ package dosegram.core.domain.copy
 /** Menu copy (ROADMAP M1.4a recorded decision; tree per docs/MEDICATION_REMINDER_UX.md and ROADMAP M1.9). */
 object MenuCopy:
 
-  val mainPrompt = "What would you like to do?"
+  def mainPrompt = tr("What would you like to do?", "Що бажаєте зробити?")
 
   /** Recorded decision: the top menu is exactly these six entries, in this order. */
-  val topLevel: List[String] = List("Today", "Medications", "Habits", "Reminders", "Stats", "Account")
+  def topLevel: List[String] = List(
+    tr("Today", "Сьогодні"),
+    tr("Medications", "Ліки"),
+    tr("Habits", "Звички"),
+    tr("Reminders", "Нагадування"),
+    tr("Stats", "Статистика"),
+    tr("Account", "Акаунт")
+  )
 
   /** Medications submenu (M1.9). Unshipped entries are hidden by flag, never shown as "under development". */
-  val medicationsTodaysDoses = "Today's doses"
-  val medicationsAdd = "Add medication"
-  val medicationsLogDose = "Log dose"
-  val medicationsPause = "Pause"
-  val medicationsResume = "Resume"
-  val medicationsSettings = "Settings"
-  val medicationsHistory = "History"
+  def medicationsTodaysDoses = tr("Today's doses", "Дози на сьогодні")
+  def medicationsAdd = tr("Add medication", "Додати ліки")
+  def medicationsLogDose = tr("Log dose", "Записати дозу")
+  def medicationsPause = tr("Pause", "Призупинити")
+  def medicationsResume = tr("Resume", "Відновити")
+  def medicationsSettings = tr("Settings", "Налаштування")
+  def medicationsHistory = tr("History", "Історія")
 
   /** Submenu prompts and empty states. */
-  val medicationsPrompt = "Medications"
-  val accountPrompt = "Account"
-  val menuLabel = "Menu"
-  val medicationsEmpty = "No medications yet."
+  def medicationsPrompt = tr("Medications", "Ліки")
+  def accountPrompt = tr("Account", "Акаунт")
+  def menuLabel = tr("Menu", "Меню")
+  def medicationsEmpty = tr("No medications yet.", "Ліків поки немає.")
 
   /** `/app` (BOT_UX section 6.1): one card whose button opens the Mini App. */
-  val appPrompt = "Your records and settings are in the app."
-  val openApp = "Open app"
-  val todayEmpty = "Nothing scheduled for today."
-  def todayMore(count: Int): String = s"+$count more — see /history."
-  val historyTitle = "Last 7 days"
-  val historyEmpty = "No doses in the last 7 days."
-  val settingsTitle = "Settings"
-  val settingsIntro = "Reminder options for each medication:"
+  def appPrompt = tr("Your records and settings are in the app.", "Ваші записи й налаштування — у застосунку.")
+  def openApp = tr("Open app", "Відкрити застосунок")
+  def todayEmpty = tr("Nothing scheduled for today.", "На сьогодні нічого не заплановано.")
+  def todayMore(count: Int): String = tr(s"+$count more — see /history.", s"І ще $count — дивіться /history.")
+  def historyTitle = tr("Last 7 days", "Останні 7 днів")
+  def historyEmpty = tr("No doses in the last 7 days.", "За останні 7 днів доз немає.")
+  def settingsTitle = tr("Settings", "Налаштування")
+  def settingsIntro = tr("Reminder options for each medication:", "Параметри нагадувань для кожних ліків:")
 
   /** Pause/Resume toggle line (M1.9): `Paused since Tue [Resume]`. */
-  def pausedSince(day: String): String = s"Paused since $day"
+  def pausedSince(day: String): String = tr(s"Paused since $day", s"Призупинено з $day")
 
   /** Per-medication lifecycle outcomes (the toggle re-renders the submenu). */
-  def pausedConfirm(name: String): String = s"Paused $name — no reminders until you resume."
-  def resumedConfirm(name: String, next: String): String = s"Resumed $name — next dose $next."
-  def resumedConfirmNoNext(name: String): String = s"Resumed $name."
-  def archiveConfirmPrompt(name: String): String = s"Archive $name? Its schedule stops; history is kept."
-  def archivedConfirm(name: String): String = s"Archived $name."
+  def pausedConfirm(name: String): String = tr(
+    s"Paused $name — no reminders until you resume.",
+    s"$name призупинено — нагадувань не буде, доки ви не відновите."
+  )
+  def resumedConfirm(name: String, next: String): String =
+    tr(s"Resumed $name — next dose $next.", s"$name відновлено — наступна доза $next.")
+  def resumedConfirmNoNext(name: String): String = tr(s"Resumed $name.", s"$name відновлено.")
+  def archiveConfirmPrompt(name: String): String = tr(
+    s"Archive $name? Its schedule stops; history is kept.",
+    s"Перенести $name в архів? Розклад зупиниться, історія збережеться."
+  )
+  def archivedConfirm(name: String): String = tr(s"Archived $name.", s"$name перенесено в архів.")
 
   /** The reminder-policy line of Medications -> Settings (ADR-012 defaults, read-mostly). */
   def settingsPolicyLine(name: String, offset: String, snoozes: String, missAfterMinutes: Int): String =
-    s"$name — reminders $offset; snooze $snoozes; marked missed after $missAfterMinutes min without a response."
-  val policyOffsetAtDoseTime = "at dose time"
-  def policyOffsetBefore(minutes: Int): String = s"$minutes min before"
-  def policyOffsetAfter(minutes: Int): String = s"$minutes min after if unanswered"
-  def snoozeList(minutes: List[Int]): String = minutes.map(m => s"${m}m").mkString(", ")
+    tr(
+      s"$name — reminders $offset; snooze $snoozes; marked missed after $missAfterMinutes min without a response.",
+      s"$name — нагадування $offset; відкласти на $snoozes; без відповіді позначається як пропущене через $missAfterMinutes хв."
+    )
+  def policyOffsetAtDoseTime = tr("at dose time", "у час прийому")
+  def policyOffsetBefore(minutes: Int): String = tr(s"$minutes min before", s"за $minutes хв до прийому")
+  def policyOffsetAfter(minutes: Int): String =
+    tr(s"$minutes min after if unanswered", s"через $minutes хв, якщо немає відповіді")
+  def snoozeList(minutes: List[Int]): String = minutes.map(m => tr(s"${m}m", s"$m хв")).mkString(", ")
 
   /** `/today` row status phrases. */
-  val statusScheduled = "scheduled"
-  val statusDue = "due now"
-  def statusSnoozedUntil(time: String): String = s"snoozed until $time"
-  def statusTakenAt(time: String): String = s"taken at $time"
-  def statusSkippedAt(time: String): String = s"skipped at $time"
-  val statusMissed = "missed"
-  val statusUnknown = "unknown"
-  val takenLateSuffix = "late"
-  def asNeededRow(name: String): String = s"$name — as needed"
-  def logDoseLabel(name: String): String = s"Log $name"
+  def statusScheduled = tr("scheduled", "заплановано")
+  def statusDue = tr("due now", "час прийому")
+  def statusSnoozedUntil(time: String): String = tr(s"snoozed until $time", s"відкладено до $time")
+  def statusTakenAt(time: String): String = tr(s"taken at $time", s"прийнято о $time")
+  def statusSkippedAt(time: String): String = tr(s"skipped at $time", s"пропущено о $time")
+  def statusMissed = tr("missed", "не підтверджено")
+  def statusUnknown = tr("unknown", "невідомо")
+  def takenLateSuffix = tr("late", "із запізненням")
 
-  val entries: List[CopyEntry] =
-    (CopyEntry("menu.main.prompt", mainPrompt) +: topLevel.map(l => CopyEntry(s"menu.main.${l.toLowerCase}", l))) ++
+  /** A Today row whose dose has no snapshot. */
+  def yourDose: String = tr("Your dose", "Ваша доза")
+  def asNeededRow(name: String): String = tr(s"$name — as needed", s"$name — за потреби")
+  def logDoseLabel(name: String): String = tr(s"Log $name", s"Записати: $name")
+
+  def entries: List[CopyEntry] =
+    (CopyEntry("menu.main.prompt", mainPrompt) +:
+      List("today", "medications", "habits", "reminders", "stats", "account")
+        .zip(topLevel)
+        .map((key, label) => CopyEntry(s"menu.main.$key", label))) ++
       List(
         CopyEntry("menu.medications.todays_doses", medicationsTodaysDoses),
         CopyEntry("menu.medications.add", medicationsAdd),
@@ -102,6 +126,7 @@ object MenuCopy:
         CopyEntry("menu.status.missed", statusMissed),
         CopyEntry("menu.status.unknown", statusUnknown),
         CopyEntry("menu.status.taken_late", takenLateSuffix),
+        CopyEntry("menu.today.your_dose", yourDose),
         CopyEntry("menu.today.as_needed_row", asNeededRow("Vitamin C")),
         CopyEntry("menu.today.log_dose", logDoseLabel("Vitamin C")),
         CopyEntry("menu.medications.paused_confirm", pausedConfirm("Vitamin D")),

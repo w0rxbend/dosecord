@@ -1,0 +1,5 @@
+file: dosegram-mood.png
+spoiler: false
+caption: Настрій: Нейтрально.
+alt: Настрій: Нейтрально.
+full: Настрій: Нейтрально.

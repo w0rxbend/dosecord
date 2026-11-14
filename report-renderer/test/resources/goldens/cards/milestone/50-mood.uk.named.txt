@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 50 позначок настрою.
+alt: 50 позначок настрою.
+full: 50 позначок настрою.

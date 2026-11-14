@@ -87,7 +87,10 @@ object ActionRegistry:
     ActionEntry(252, "refill.stop", requiresSession = false),
     ActionEntry(253, "med.pause_for", requiresSession = false),
     ActionEntry(254, "take.limit_confirm", requiresSession = false),
-    ActionEntry(255, "take.limit_cancel", requiresSession = false)
+    ActionEntry(255, "take.limit_cancel", requiresSession = false),
+    // ROADMAP G2.22, the language choice (ids 270 to 289): open the picker; set the language, value = its index.
+    ActionEntry(270, "language.open", requiresSession = false),
+    ActionEntry(271, "language.set", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

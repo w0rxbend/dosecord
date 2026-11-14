@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { DayProfile, DayProfileInput } from '../../api/types';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
 
   interface Props {

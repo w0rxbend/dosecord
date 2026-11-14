@@ -1,7 +1,7 @@
 // Between the generated OpenAPI types and the types the screens use. The server holds less than
 // the screens can show (no form, strength or look of a medication; one dose per schedule), so
 // the option resources tell the forms which fields exist, and nothing a person typed is dropped.
-import { en } from '../i18n/en';
+import { t as en } from '../i18n/index.svelte';
 import type { FieldError } from './client';
 import type { components } from './schema';
 import type {

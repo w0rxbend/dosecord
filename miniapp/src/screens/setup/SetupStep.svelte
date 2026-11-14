@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
 
   interface Props {
     number: number;

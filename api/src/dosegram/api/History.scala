@@ -2,7 +2,9 @@ package dosegram.api
 
 import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.StatsCopy
+import dosegram.core.domain.copy.UkForms
 import dosegram.core.domain.copy.WaterCopy
+import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseBuckets
 import dosegram.core.domain.insights.HydrationDay
@@ -23,9 +25,9 @@ import java.util.Locale
 import java.util.UUID
 
 /** `GET /insights/calendar` (ARCHITECTURE section 9.5; MINI_APP section 7.12): one month of one domain, one cell per
-  * day, with the accessible name and the printed value of each cell. "Nothing scheduled" and "no entry" are a state of
-  * their own and never the lowest step of a ramp; a day after today is blank (MA-HIST-4). A domain without consent is
-  * refused (API-19).
+  * day, with the accessible name and the printed value of each cell. tr("Nothing scheduled", "Нічого не заплановано")
+  * and tr("no entry", "немає запису") are a state of their own and never the lowest step of a ramp; a day after today
+  * is blank (MA-HIST-4). A domain without consent is refused (API-19).
   */
 final class History(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
   import History.*
@@ -111,18 +113,19 @@ object History:
 
     final def day(date: LocalDate, today: LocalDate): CalendarDay =
       val prefix = ApiCopy.fullDay(date)
-      if date.isAfter(today) then CalendarDay(date, Future, s"$prefix, still ahead")
+      if date.isAfter(today) then CalendarDay(date, Future, tr(s"$prefix, still ahead", s"$prefix, ще попереду"))
       else
         recorded(date) match
           case Some((swatch, words, value)) => CalendarDay(date, swatch, s"$prefix, $words", Some(value))
           case None                         => CalendarDay(date, Empty, s"$prefix, $emptyWords")
 
   private def period(month: YearMonth, isCurrent: Boolean): String =
-    if isCurrent then s"${ApiCopy.monthName(month)} so far" else ApiCopy.monthName(month)
+    if isCurrent then tr(s"${ApiCopy.monthName(month)} so far", s"${ApiCopy.monthName(month)} на цю мить")
+    else ApiCopy.monthName(month)
 
   private final case class MedicationCells(days: Map[LocalDate, MedicationDay]) extends Cells:
     val steps = 3
-    protected val emptyWords = "nothing scheduled"
+    protected val emptyWords = tr("nothing scheduled", "нічого не заплановано")
 
     // Steps: none taken, some taken, all taken. The "no record" marker is a second encoding beside the step.
     protected def recorded(date: LocalDate): Option[(CalendarSwatch, String, String)] =
@@ -141,22 +144,30 @@ object History:
           )
 
     val legend: List[CalendarLegendEntry] = List(
-      CalendarLegendEntry("All taken", CalendarSwatch(CalendarCellState.Value, Some(3))),
-      CalendarLegendEntry("Some taken", CalendarSwatch(CalendarCellState.Value, Some(2))),
-      CalendarLegendEntry("None taken", CalendarSwatch(CalendarCellState.Value, Some(1))),
-      CalendarLegendEntry("Nothing scheduled", Empty),
-      CalendarLegendEntry("No record", CalendarSwatch(CalendarCellState.Value, Some(2), hasNoRecord = true))
+      CalendarLegendEntry(tr("All taken", "Усі прийнято"), CalendarSwatch(CalendarCellState.Value, Some(3))),
+      CalendarLegendEntry(tr("Some taken", "Частину прийнято"), CalendarSwatch(CalendarCellState.Value, Some(2))),
+      CalendarLegendEntry(tr("None taken", "Жодної не прийнято"), CalendarSwatch(CalendarCellState.Value, Some(1))),
+      CalendarLegendEntry(tr("Nothing scheduled", "Нічого не заплановано"), Empty),
+      CalendarLegendEntry(
+        tr("No record", "Немає запису"),
+        CalendarSwatch(CalendarCellState.Value, Some(2), hasNoRecord = true)
+      )
     )
 
     def summary(month: YearMonth, isCurrent: Boolean): String =
       val total = days.values.map(_.total).foldLeft(DoseBuckets.zero)(_.combine(_))
       val scheduled = Charts.scheduledIn(total)
-      if scheduled == 0 then s"${period(month, isCurrent)}: no scheduled dose."
-      else s"${period(month, isCurrent)}: ${total.resolved.taken} of $scheduled doses taken."
+      if scheduled == 0 then
+        tr(s"${period(month, isCurrent)}: no scheduled dose.", s"${period(month, isCurrent)}: запланованих доз немає.")
+      else
+        tr(
+          s"${period(month, isCurrent)}: ${total.resolved.taken} of $scheduled doses taken.",
+          s"${period(month, isCurrent)}: прийнято ${total.resolved.taken} з $scheduled доз."
+        )
 
   private final case class WaterCells(days: Map[LocalDate, HydrationDay]) extends Cells:
     val steps = 4
-    protected val emptyWords = "no entry"
+    protected val emptyWords = tr("no entry", "немає запису")
 
     // Steps: quarters of the user's own goal, capped at the goal. A day without a goal has a value and no step.
     protected def recorded(date: LocalDate): Option[(CalendarSwatch, String, String)] =
@@ -169,24 +180,35 @@ object History:
           (CalendarSwatch(CalendarCellState.Value, step), words, WaterCopy.volume(day.totalMl).stripSuffix(" l"))
 
     val legend: List[CalendarLegendEntry] = List(
-      CalendarLegendEntry("Goal reached", CalendarSwatch(CalendarCellState.Value, Some(4))),
-      CalendarLegendEntry("Up to three quarters", CalendarSwatch(CalendarCellState.Value, Some(3))),
-      CalendarLegendEntry("Up to half", CalendarSwatch(CalendarCellState.Value, Some(2))),
-      CalendarLegendEntry("Up to a quarter", CalendarSwatch(CalendarCellState.Value, Some(1))),
-      CalendarLegendEntry("No entry", Empty)
+      CalendarLegendEntry(tr("Goal reached", "Ціль досягнуто"), CalendarSwatch(CalendarCellState.Value, Some(4))),
+      CalendarLegendEntry(
+        tr("Up to three quarters", "До трьох чвертей"),
+        CalendarSwatch(CalendarCellState.Value, Some(3))
+      ),
+      CalendarLegendEntry(tr("Up to half", "До половини"), CalendarSwatch(CalendarCellState.Value, Some(2))),
+      CalendarLegendEntry(tr("Up to a quarter", "До чверті"), CalendarSwatch(CalendarCellState.Value, Some(1))),
+      CalendarLegendEntry(tr("No entry", "Немає запису"), Empty)
     )
 
     def summary(month: YearMonth, isCurrent: Boolean): String =
       val recorded = days.values.filter(_.entries > 0).toList
       val goal = Option.when(recorded.exists(_.goalMl.isDefined))(
-        s" The goal was reached on ${recorded.count(_.isGoalDay)} of them."
+        tr(
+          s" The goal was reached on ${recorded.count(_.isGoalDay)} of them.",
+          s" Ціль досягнуто в ${recorded.count(_.isGoalDay)} із них."
+        )
       )
-      if recorded.isEmpty then s"${period(month, isCurrent)}: no entry."
-      else s"${period(month, isCurrent)}: water on ${ApiCopy.count(recorded.size, "day")}.${goal.getOrElse("")}"
+      if recorded.isEmpty then
+        tr(s"${period(month, isCurrent)}: no entry.", s"${period(month, isCurrent)}: записів немає.")
+      else
+        tr(
+          s"${period(month, isCurrent)}: water on ${ApiCopy.count(recorded.size, "day")}.${goal.getOrElse("")}",
+          s"${period(month, isCurrent)}: воду записано за ${UkForms("день", "дні", "днів").count(recorded.size)}.${goal.getOrElse("")}"
+        )
 
   private final case class MoodCells(days: Map[LocalDate, MoodDay]) extends Cells:
     val steps = 5
-    protected val emptyWords = "no check-in"
+    protected val emptyWords = tr("no check-in", "немає позначки")
 
     // Steps: the daily mean rounded half up, with the colour of the blob state of that mean.
     protected def recorded(date: LocalDate): Option[(CalendarSwatch, String, String)] =
@@ -204,18 +226,22 @@ object History:
           s"$step ${MoodLabels.level(level).toLowerCase(Locale.ROOT)}",
           CalendarSwatch(CalendarCellState.Value, Some(step), blobState = Some(BlobStates.of(level, None)))
         )
-      :+ CalendarLegendEntry("No check-in", Empty)
+      :+ CalendarLegendEntry(tr("No check-in", "Немає позначки"), Empty)
 
     def summary(month: YearMonth, isCurrent: Boolean): String =
-      if days.isEmpty then s"${period(month, isCurrent)}: no check-in."
+      if days.isEmpty then
+        tr(s"${period(month, isCurrent)}: no check-in.", s"${period(month, isCurrent)}: позначок немає.")
       else
         val checkins = days.values.map(_.n).sum
-        s"${period(month, isCurrent)}: ${ApiCopy.count(checkins, "check-in")} on ${ApiCopy.count(days.size, "day")}."
+        tr(
+          s"${period(month, isCurrent)}: ${ApiCopy.count(checkins, "check-in")} on ${ApiCopy.count(days.size, "day")}.",
+          s"${period(month, isCurrent)}: ${ApiCopy.count(checkins, "check-in")} за ${ApiCopy.count(days.size, "day")}."
+        )
 
   // One step only: a ramp of durations would be a reference value, and none exists for sleep (MINI_APP MA-SLEEP-4).
   private final case class SleepCells(days: Map[LocalDate, SleepNight]) extends Cells:
     val steps = 1
-    protected val emptyWords = "no night logged"
+    protected val emptyWords = tr("no night logged", "ніч не записано")
 
     protected def recorded(date: LocalDate): Option[(CalendarSwatch, String, String)] =
       days
@@ -225,11 +251,16 @@ object History:
           (CalendarSwatch(CalendarCellState.Value, Some(1)), words, f"${night.minutes / 60}:${night.minutes % 60}%02d")
 
     val legend: List[CalendarLegendEntry] = List(
-      CalendarLegendEntry("Night logged", CalendarSwatch(CalendarCellState.Value, Some(1))),
-      CalendarLegendEntry("No night logged", Empty)
+      CalendarLegendEntry(tr("Night logged", "Ніч записано"), CalendarSwatch(CalendarCellState.Value, Some(1))),
+      CalendarLegendEntry(tr("No night logged", "Ніч не записано"), Empty)
     )
 
     def summary(month: YearMonth, isCurrent: Boolean): String =
-      if days.isEmpty then s"${period(month, isCurrent)}: no night logged."
-      else s"${period(month, isCurrent)}: ${ApiCopy.count(days.size, "night")} logged, from your check-ins."
+      if days.isEmpty then
+        tr(s"${period(month, isCurrent)}: no night logged.", s"${period(month, isCurrent)}: ночей не записано.")
+      else
+        tr(
+          s"${period(month, isCurrent)}: ${ApiCopy.count(days.size, "night")} logged, from your check-ins.",
+          s"${period(month, isCurrent)}: записано ${ApiCopy.count(days.size, "night")} з ваших позначок."
+        )
 end History

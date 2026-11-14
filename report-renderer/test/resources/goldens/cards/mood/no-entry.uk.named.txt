@@ -1,0 +1,5 @@
+file: dosegram-mood.png
+spoiler: false
+caption: Сьогодні настрій не записано.
+alt: Сьогодні настрій не записано.
+full: Сьогодні настрій не записано.

@@ -1,0 +1,17 @@
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2–8 листопада. Zyqoxanil-Canary 500 mg: 14 з 21 запланованої дози записано як прийняті (67%), не підтверджено 7. <script>alert("x")</script> & 'Ωmega' evil 🚀 שלום مرحبا — a name that goes on and on and on and on: 21 з 35 запланованих доз записано як прийняті (60%), пропущено 7, не підтверджено 7, без запису 7, не враховано.
+alt: 2–8 листопада. Zyqoxanil-Canary 500 mg: 14 з 21 запланованої дози записано як прийняті (67%), не підтверджено 7. <script>alert("x")</script> & 'Ωmega' evil 🚀 שלום مرحبا — a name that goes on and on and on and on: 21 з 35 запланованих доз записано як прийняті (60%), пропущено 7, не підтверджено 7, без запису 7, не враховано.
+full: 2–8 листопада. Zyqoxanil-Canary 500 mg: 14 з 21 запланованої дози записано як прийняті (67%), не підтверджено 7. <script>alert("x")</script> & 'Ωmega' evil 🚀 שלום مرحبا — a name that goes on and on and on and on: 21 з 35 запланованих доз записано як прийняті (60%), пропущено 7, не підтверджено 7, без запису 7, не враховано.
+
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2–8 листопада. Medication number 3: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 4: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 5: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 6: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 7: 7 з 7 запланованих доз записано як прийняті (100%).
+alt: 2–8 листопада. Medication number 3: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 4: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 5: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 6: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 7: 7 з 7 запланованих доз записано як прийняті (100%).
+full: 2–8 листопада. Medication number 3: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 4: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 5: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 6: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 7: 7 з 7 запланованих доз записано як прийняті (100%).
+
+file: dosegram-medication-days.png
+spoiler: false
+caption: 2–8 листопада. Medication number 8: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 9 (за потреби): 7 записів за 7 днів.
+alt: 2–8 листопада. Medication number 8: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 9 (за потреби): 7 записів за 7 днів.
+full: 2–8 листопада. Medication number 8: 7 з 7 запланованих доз записано як прийняті (100%). Medication number 9 (за потреби): 7 записів за 7 днів.

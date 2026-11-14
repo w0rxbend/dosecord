@@ -17,21 +17,29 @@ object ConsentCopy:
   val NoticeVersion: Int = 1
 
   /** The locale of the statements below; the consent ledger records it with every grant (PRODUCT_SPEC R-LOC-11). */
-  val Locale: String = "en"
+  def Locale: String = Lang.current.code
 
-  private val Day = DateTimeFormatter.ofPattern("d MMM yyyy", JavaLocale.ENGLISH)
+  private val EnglishDay = DateTimeFormatter.ofPattern("d MMM yyyy", JavaLocale.ENGLISH)
+  private val UkrainianDay = DateTimeFormatter.ofPattern("d MMMM yyyy", JavaLocale.forLanguageTag("uk"))
 
-  /** The local date of a tap, as the receipt and the `/privacy` card print it. */
-  def dateOf(at: Instant, zone: ZoneId): String = Day.withZone(zone).format(at)
+  /** The local date of a tap, as the receipt and the `/privacy` card print it: "13 Nov 2026", "13 листопада 2026". */
+  def dateOf(at: Instant, zone: ZoneId): String =
+    val format = Lang.current match
+      case Lang.En => EnglishDay
+      case Lang.Uk => UkrainianDay
+    format.withZone(zone).format(at)
 
-  val Agree = "I agree"
-  val NotNow = "Not now"
-  val Confirm = "Confirm"
-  val GoBack = "Go back"
+  def Agree: String = tr("I agree", "Погоджуюся")
+  def NotNow: String = tr("Not now", "Не зараз")
+  def Confirm: String = tr("Confirm", "Підтвердити")
+  def GoBack: String = tr("Go back", "Назад")
 
   /** `safety.urgent` (BOT_UX BUX-MOOD-07): part of the mood consent text. */
-  val SafetyUrgent =
-    "Dosegram cannot respond to emergencies. If you need urgent help, contact your local emergency number."
+  def SafetyUrgent: String = tr(
+    "Dosegram cannot respond to emergencies. If you need urgent help, contact your local emergency number.",
+    "Dosegram не може реагувати на надзвичайні ситуації. Якщо вам потрібна термінова допомога, зателефонуйте " +
+      "на місцевий номер екстреної служби."
+  )
 
   /** What one purpose covers, in the forms the two stages and the receipt use; `later` is what stays off after "Not
     * now", and `stopped` is what a withdrawal does, sentence by sentence.
@@ -39,9 +47,86 @@ object ConsentCopy:
   private final case class Wording(mine: String, yours: String, short: String, later: String, stopped: String)
 
   /** No deletion of one domain exists yet (ROADMAP G2.17), so a withdrawal says that the stored records stay. */
-  private val RecordsKept = "The records already stored are kept: this version cannot delete them yet."
+  private def RecordsKept: String = tr(
+    "The records already stored are kept: this version cannot delete them yet.",
+    "Уже збережені записи лишаються: ця версія поки не вміє їх видаляти."
+  )
 
   private def wording(purpose: ConsentPurpose): Wording =
+    Lang.current match
+      case Lang.En => english(purpose)
+      case Lang.Uk => ukrainian(purpose)
+
+  private def ukrainian(purpose: ConsentPurpose): Wording =
+    purpose match
+      case ConsentPurpose.Medication =>
+        Wording(
+          "зберігає та обробляє мої записи про ліки: ліки, розклади, нагадування та дози, які я записую",
+          "може зберігати та обробляти ваші записи про ліки: ліки, розклади, нагадування та дози, які ви записуєте",
+          "записи про ліки",
+          "Облік ліків лишається вимкненим: ліки, розклади й дози не записуються, нагадування не надсилаються. " +
+            "Надішліть /meds, щоб увімкнути його пізніше.",
+          "Нагадування зупинено: усі розклади призупинено, усі відкриті дози скасовано. Нічого нового не " +
+            "записується, а записи про ліки не показуються ні в цьому чаті, ні в застосунку. " + RecordsKept +
+            " Якщо пізніше ви знову погодитеся, відновіть кожен розклад у /meds."
+        )
+      case ConsentPurpose.Hydration =>
+        Wording(
+          "зберігає та обробляє мої записи про випиту воду",
+          "може зберігати та обробляти ваші записи про випиту воду",
+          "записи про воду",
+          "Облік води лишається вимкненим. Надішліть /water, щоб увімкнути його пізніше.",
+          "Нічого нового не записується, а записи про воду не показуються ні в цьому чаті, ні в застосунку. " +
+            RecordsKept
+        )
+      case ConsentPurpose.Mood =>
+        Wording(
+          s"зберігає та обробляє мої записи про настрій. $SafetyUrgent",
+          s"може зберігати та обробляти ваші записи про настрій. $SafetyUrgent",
+          "записи про настрій",
+          "Позначки настрою лишаються вимкненими. Надішліть /mood, щоб увімкнути їх пізніше.",
+          "Нічого нового не записується, а записи про настрій не показуються ні в цьому чаті, ні в застосунку. " +
+            RecordsKept
+        )
+      case ConsentPurpose.Sleep =>
+        Wording(
+          "зберігає та обробляє мої записи про сон: час і оцінки, які я вводжу",
+          "може зберігати та обробляти ваші записи про сон: час і оцінки, які ви вводите",
+          "записи про сон",
+          "Облік сну лишається вимкненим. Надішліть /sleep, щоб увімкнути його пізніше.",
+          "Нічого нового не записується, а записи про сон не показуються ні в цьому чаті, ні в застосунку. " +
+            RecordsKept
+        )
+      case ConsentPurpose.Nutrition =>
+        Wording(
+          "зберігає та обробляє мої записи про їжу: тип прийому їжі, час і мої нотатки",
+          "може зберігати та обробляти ваші записи про їжу: тип прийому їжі, час і ваші нотатки",
+          "записи про їжу",
+          "Облік їжі лишається вимкненим. Надішліть /food, щоб увімкнути його пізніше.",
+          "Нічого нового не записується, а записи про їжу не показуються ні в цьому чаті, ні в застосунку. " +
+            RecordsKept
+        )
+      case ConsentPurpose.CrossDomainPatterns =>
+        Wording(
+          "порівнює мої записи з різних розділів, наприклад воду й настрій",
+          "може порівнювати ваші записи з різних розділів, наприклад воду й настрій",
+          "порівняння між розділами",
+          "Порівняння між розділами лишаються вимкненими.",
+          "Відтепер записи з різних розділів не порівнюються. Самі записи лишаються без змін."
+        )
+      case ConsentPurpose.ImagesInChat =>
+        Wording(
+          "надсилає в цей чат зображення, створені з моїх записів. Вони зберігаються в хмарі месенджера й у цьому " +
+            "чаті на всіх пристроях, і Dosegram не може згодом їх відкликати",
+          "може надсилати в цей чат зображення, створені з ваших записів. Вони зберігаються в хмарі месенджера й у " +
+            "цьому чаті на всіх пристроях, і Dosegram не може згодом їх відкликати",
+          "зображення в цьому чаті",
+          "Зображення лишаються вимкненими. Усі цифри й далі надходять текстом.",
+          "Нові зображення не надсилаються: усі цифри надходять текстом. Зображення, що вже є в цьому чаті, " +
+            "лишаються там, доки ви їх не видалите."
+        )
+
+  private def english(purpose: ConsentPurpose): Wording =
     purpose match
       case ConsentPurpose.Medication =>
         Wording(
@@ -107,37 +192,73 @@ object ConsentCopy:
         )
 
   /** Stage 1: the full statement. It is the text whose hash the ledger keeps. */
-  def statement(purpose: ConsentPurpose): String = sentence(s"I agree that Dosegram ${wording(purpose).mine}")
+  def statement(purpose: ConsentPurpose): String =
+    sentence(
+      tr(s"I agree that Dosegram ${wording(purpose).mine}", s"Я погоджуюся, що Dosegram ${wording(purpose).mine}")
+    )
 
   /** Stage 2 repeats the statement before the recording tap (BUX-CONS-02). */
   def confirmation(purpose: ConsentPurpose): String =
-    sentence(s"Please confirm: Dosegram ${wording(purpose).yours}") + " You can withdraw at any time with /privacy."
+    tr(
+      sentence(s"Please confirm: Dosegram ${wording(purpose).yours}") + " You can withdraw at any time with /privacy.",
+      sentence(s"Підтвердьте, будь ласка: Dosegram ${wording(purpose).yours}") +
+        " Відкликати згоду можна будь-коли через /privacy."
+    )
 
   /** The receipt; `date` is the local date of the confirming tap. */
   def receipt(purpose: ConsentPurpose, date: String): String =
-    s"Consent recorded on $date: ${wording(purpose).short}. Privacy notice version $NoticeVersion. " +
-      "Withdraw at any time with /privacy."
+    tr(
+      s"Consent recorded on $date: ${wording(purpose).short}. Privacy notice version $NoticeVersion. " +
+        "Withdraw at any time with /privacy.",
+      s"Згоду записано $date: ${wording(purpose).short}. Версія повідомлення про конфіденційність: $NoticeVersion. " +
+        "Відкликати можна будь-коли через /privacy."
+    )
 
   /** Declining names what stays off and how to turn it on later (BUX-CONS-08). */
-  def declined(purpose: ConsentPurpose): String = s"Okay. ${wording(purpose).later}"
+  def declined(purpose: ConsentPurpose): String =
+    tr(s"Okay. ${wording(purpose).later}", s"Гаразд. ${wording(purpose).later}")
 
-  val privacyTitle = "Your consents:"
-  val privacyNone = "No consent is recorded."
+  def privacyTitle: String = tr("Your consents:", "Ваші згоди:")
+  def privacyNone: String = tr("No consent is recorded.", "Жодної згоди не записано.")
 
   def privacyLine(purpose: ConsentPurpose, date: String): String =
-    s"${wording(purpose).short.capitalize}: since $date"
+    tr(s"${wording(purpose).short.capitalize}: since $date", s"${wording(purpose).short.capitalize}: від $date")
 
-  def withdrawLabel(purpose: ConsentPurpose): String = s"Withdraw: ${wording(purpose).short}"
+  def withdrawLabel(purpose: ConsentPurpose): String =
+    tr(s"Withdraw: ${wording(purpose).short}", s"Відкликати: ${wording(purpose).short}")
 
   /** States exactly what the withdrawal did (PRODUCT_SPEC R-IDC-10, BOT_UX BUX-CONS-06). */
   def withdrawn(purpose: ConsentPurpose): String =
-    s"Consent withdrawn: ${wording(purpose).short}. ${wording(purpose).stopped}"
+    tr(
+      s"Consent withdrawn: ${wording(purpose).short}. ${wording(purpose).stopped}",
+      s"Згоду відкликано: ${wording(purpose).short}. ${wording(purpose).stopped}"
+    )
 
   /** A medication wizard that finishes after the consent was withdrawn saves nothing and says so. */
-  val medicationOff = "Medication tracking is off, so nothing was saved. Send /meds to turn it on."
+  def medicationOff: String = tr(
+    "Medication tracking is off, so nothing was saved. Send /meds to turn it on.",
+    "Облік ліків вимкнено, тож нічого не збережено. Надішліть /meds, щоб його увімкнути."
+  )
 
   /** `onb.notice` (BOT_UX BUX-CONS-01), the first card of onboarding. */
-  val notice: List[String] = List(
+  def notice: List[String] =
+    Lang.current match
+      case Lang.En => EnglishNotice
+      case Lang.Uk => UkrainianNotice
+
+  private val UkrainianNotice: List[String] = List(
+    "Вітаємо в Dosegram. Перш ніж почати, прочитайте, будь ласка, ось що.",
+    "Dosegram зберігає те, що ви тут записуєте: ліки, розклади й дози, воду, настрій, сон. Це дані про здоров’я.",
+    "Цей чат не має наскрізного шифрування: месенджер може читати повідомлення й зображення, які надсилає бот.",
+    "Ваші записи зберігаються на сервері Dosegram. Тут їх бачите лише ви; люди, які обслуговують сервіс, мають " +
+      "доступ до бази даних.",
+    "Ви погоджуєтеся на кожен вид записів окремо й можете відкликати згоду будь-коли через /privacy. Видалення " +
+      "та експорт збережених записів у цій версії поки недоступні.",
+    "Нагадування надсилаються без гарантії: якесь може запізнитися або не прийти. Dosegram не дає медичних порад.",
+    "З чого хочете почати? Решту можна ввімкнути пізніше."
+  )
+
+  private val EnglishNotice: List[String] = List(
     "Welcome to Dosegram. Before you start, please read this.",
     "Dosegram stores what you record here: medications, schedules and doses, water, mood, sleep. This is health " +
       "data.",
@@ -156,20 +277,24 @@ object ConsentCopy:
 
   def onboardingLabel(purpose: ConsentPurpose): String =
     purpose match
-      case ConsentPurpose.Medication => "Medication"
-      case ConsentPurpose.Hydration  => "Water"
-      case ConsentPurpose.Mood       => "Mood"
+      case ConsentPurpose.Medication => tr("Medication", "Ліки")
+      case ConsentPurpose.Hydration  => tr("Water", "Вода")
+      case ConsentPurpose.Mood       => tr("Mood", "Настрій")
       case ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns | ConsentPurpose.ImagesInChat |
           ConsentPurpose.Nutrition =>
         wording(purpose).short.capitalize
 
-  val onboardingChoiceHint = "Choose one of the buttons."
-  val agreeHint = "Tap \"I agree\" to go on, or go back."
-  val confirmHint = "Tap \"Confirm\" to record your consent, or go back."
+  def onboardingChoiceHint: String = tr("Choose one of the buttons.", "Виберіть одну з кнопок.")
+  def agreeHint: String =
+    tr("Tap \"I agree\" to go on, or go back.", "Натисніть «Погоджуюся», щоб продовжити, або поверніться назад.")
+  def confirmHint: String = tr(
+    "Tap \"Confirm\" to record your consent, or go back.",
+    "Натисніть «Підтвердити», щоб записати згоду, або поверніться назад."
+  )
 
   private def sentence(text: String): String = if text.endsWith(".") then text else s"$text."
 
-  val entries: List[CopyEntry] =
+  def entries: List[CopyEntry] =
     List(
       CopyEntry("consent.agree", Agree),
       CopyEntry("consent.not_now", NotNow),

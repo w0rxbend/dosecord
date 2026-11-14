@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { SchedulePreview } from '../../api/types';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
 
   interface Props {
     preview: SchedulePreview | null;

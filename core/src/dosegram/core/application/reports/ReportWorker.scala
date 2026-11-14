@@ -2,6 +2,7 @@ package dosegram.core.application.reports
 
 import dosegram.contracts.OutboundMessage
 import dosegram.core.chat.InteractionReplyPayload
+import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
@@ -38,7 +39,8 @@ final class ReportWorker(
     uow.transaction(_.reports.claim(clock.now(), Lease)) match
       case None          => false
       case Some(request) =>
-        deliver(request)
+        // A page sent as its text gets the words around it in the account's language (ROADMAP G2.22).
+        Lang.within(uow.transaction(_.accounts.languageOf(request.accountId)))(deliver(request))
         true
 
   def purge(): Int = uow.transaction(ReportWorker.purge(_, clock.now()))

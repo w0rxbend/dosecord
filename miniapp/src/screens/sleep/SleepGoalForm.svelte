@@ -2,7 +2,7 @@
   import { toApiError } from '../../api/client';
   import type { SleepSettings } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en, errorText } from '../../i18n/en';
+  import { t as en, errorText } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
 
   let { onSaved }: { onSaved: () => void } = $props();

@@ -10,8 +10,10 @@ import dosegram.core.chat.StepTransition
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.input.ZoneText
+import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
@@ -202,6 +204,10 @@ object AccountCreateFlow:
         val notice = ConsentNotice(ConsentCopy.NoticeVersion, ConsentCopy.statement(purpose), ConsentCopy.Locale)
         // The account dates from the confirming tap: the account and its consent are one record.
         val accountId = ctx.tx.accounts.createAccount(ctx.principal.identityId, data(TimezoneKey), taps.confirmedAt)
+        // BUX-LANG-02: the language onboarding ran in becomes the account's own choice, so that reminders sent without
+        // an inbound event, and later events from a client with another language, keep it.
+        val settings = AccountSettings.Default.copy(locale = Some(Lang.current.code))
+        ctx.tx.accounts.saveSettings(accountId.uuid, settings, taps.confirmedAt)
         ctx.tx.consents.grant(accountId.uuid, purpose, notice, taps)
         val date = ConsentCopy.dateOf(taps.confirmedAt, ZoneId.of(data(TimezoneKey)))
         Reply(

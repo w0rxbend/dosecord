@@ -1,6 +1,6 @@
 <script lang="ts">
   import { rowField, type ScheduleRowForm } from '../../forms/schedule-rules';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
 
   interface Props {

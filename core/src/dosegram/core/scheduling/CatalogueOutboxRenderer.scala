@@ -25,6 +25,7 @@ import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.ReminderPolicy
 import dosegram.core.domain.copy.DigestCopy
 import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.ports.Clock
 import dosegram.core.ports.OutboxMessage
@@ -46,7 +47,12 @@ import java.util.UUID
   */
 final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock: Clock) extends OutboxRenderer:
 
+  /** A row is rendered at send time, in the language of its account (ROADMAP G2.22). */
   override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
+    val lang = row.accountId.fold(Lang.En)(id => uow.transaction(_.accounts.languageOf(id)))
+    Lang.within(lang)(renderIn(row, capabilities))
+
+  private def renderIn(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     row.kind match
       case "reminder"          => renderReminder(row, capabilities)
       case "missed_notice"     => renderMissedNotice(row, capabilities)

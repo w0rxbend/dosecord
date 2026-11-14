@@ -137,6 +137,7 @@ object EnglishImageCopy extends ImageCopy:
 
   def snacksLabel: String = "Snacks"
   def snackCount(count: Int): String = if count == 1 then "1 snack" else s"$count snacks"
+  def snackSlot(count: Int): String = snackCount(count)
 
   /** "2 of 3 meals, 1 snack"; with no planned meal a count: "2 meals logged". No word rates the day (VA-IMG-09a). */
   def foodSummary(food: FoodDayData): String =
@@ -269,6 +270,7 @@ object EnglishImageCopy extends ImageCopy:
 
   def sleepEntriesMark: String = "Your entries"
   def sleepNapMark: String = "Nap (n)"
+  def sleepNapLetter: String = "n"
   def sleepTypicalMark: String = "Typical times"
   def sleepGoal(minutes: Int): String = s"Your goal: ${duration(minutes)}"
   def sleepNoNights: String = "No night logged in these days."

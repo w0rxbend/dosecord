@@ -5,6 +5,7 @@ import dosegram.render.blob.MoodState
 import dosegram.render.card.CardOutput
 import dosegram.render.card.MoodCard
 import dosegram.render.card.Privacy
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.svg.SvgEmitter
 import dosegram.render.tokens.Theme
 import dosegram.render.tokens.TokensCss
@@ -28,7 +29,8 @@ object RenderGoldens:
     Vector(("light", Theme.Light, Privacy.Named), ("dark", Theme.Dark, Privacy.Named), ("discreet", Theme.Dark, Privacy.Discreet))
 
   /** Every golden as its path under the golden directory and its expected content. */
-  def expected: Vector[(String, String)] = cardScenes ++ cardTexts ++ blobScenes :+ ("tokens.css" -> TokensCss.render)
+  def expected: Vector[(String, String)] =
+    cardScenes ++ cardTexts ++ ukrainianTexts ++ blobScenes :+ ("tokens.css" -> TokensCss.render)
 
   def load(path: String): String =
     val stream = Option(getClass.getResourceAsStream(s"/goldens/$path"))
@@ -50,6 +52,15 @@ object RenderGoldens:
     yield
       val pages = fixture.render(Samples.context(Theme.Dark, privacy)).map(textGolden)
       s"cards/${fixture.name}.${privacy.toString.toLowerCase}.txt" -> pages.mkString("\n")
+
+  /** The Ukrainian text equivalents (ROADMAP G2.22): the goldens per locale of the words around every image. */
+  private def ukrainianTexts: Vector[(String, String)] =
+    for
+      fixture <- Samples.all
+      privacy <- Vector(Privacy.Named, Privacy.Discreet)
+    yield
+      val pages = fixture.render(Samples.context(Theme.Dark, privacy, UkrainianImageCopy)).map(textGolden)
+      s"cards/${fixture.name}.uk.${privacy.toString.toLowerCase}.txt" -> pages.mkString("\n")
 
   private def blobScenes: Vector[(String, String)] =
     for

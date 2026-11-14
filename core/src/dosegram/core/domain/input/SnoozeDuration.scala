@@ -18,13 +18,15 @@ object SnoozeDuration:
 
   private val Number = "(\\d+(?:\\.\\d+)?|\\d+/\\d+|\\.\\d+)"
   private val Shape: Regex =
-    s"^(?:$Number ?(?:h|hr|hrs|hour|hours))? ?(?:$Number ?(?:m|min|mins|minute|minutes)?)?$$".r
-  private val Fillers = Set("for", "in", "another", "snooze")
+    s"^(?:$Number ?(?:h|hr|hrs|hour|hours|год|години|годин|годину))? ?(?:$Number ?(?:m|min|mins|minute|minutes|хв|хвилин|хвилини|хвилину)?)?$$".r
+  private val Fillers = Set("for", "in", "another", "snooze", "на", "ще")
 
   def parse(text: String): Either[Rejection, Int] =
     val words = InputText
       .withoutTrailingPunctuation(InputText.normalise(text))
       .replace("half an hour", "30")
+      .replace("пів години", "30")
+      .replace("півгодини", "30")
       .replace("an hour", "1h")
       .replace("one hour", "1h")
       .replace(',', '.')

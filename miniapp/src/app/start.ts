@@ -1,7 +1,7 @@
 import { mount, unmount } from 'svelte';
 import type { ApiClient } from '../api/client';
 import { createHttpApi } from '../api/http';
-import { en } from '../i18n/en';
+import { setLocale, t as en } from '../i18n/index.svelte';
 import { bindAppearance } from '../platform/apply-theme';
 import type { TelegramPort } from '../platform/port';
 import { createRealTelegramPort } from '../platform/real';
@@ -80,7 +80,8 @@ export async function launch(target: HTMLElement, found: Environment): Promise<v
 
   async function open(): Promise<void> {
     try {
-      await backend.open();
+      // The account's language wins over the client's from here on (PRODUCT_SPEC R-LOC-1).
+      setLocale(languageOf(await backend.open()) ?? languageHint(tg.initData));
     } catch (cause) {
       return show(gateFor(cause));
     }
@@ -90,12 +91,31 @@ export async function launch(target: HTMLElement, found: Environment): Promise<v
     shown = mount(App, { target, props: { context: { api: backend.client, tg, router, toasts: new Toasts() } } });
   }
 
+  // Gate screens before the session speak the client's language (MA-SEC-6 allows this use of untrusted data).
+  setLocale(languageHint(tg.initData));
   bindAppearance(tg, document.documentElement);
   tg.expand();
   tg.disableVerticalSwipes();
   // ready() does not wait for the API (MA-LAUNCH-3).
   tg.ready();
   await open();
+}
+
+/** The account's language in the session's bootstrap document, when the server sent one. */
+export function languageOf(bootstrap: unknown): string | undefined {
+  if (typeof bootstrap !== 'object' || bootstrap === null) return undefined;
+  const language = (bootstrap as { language?: unknown }).language;
+  return typeof language === 'string' ? language : undefined;
+}
+
+/** `user.language_code` of the init data: untrusted, used only to choose a language. */
+export function languageHint(initData: string): string | undefined {
+  try {
+    const user = JSON.parse(new URLSearchParams(initData).get('user') ?? '{}') as { language_code?: unknown };
+    return typeof user.language_code === 'string' ? user.language_code : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function start(target: HTMLElement): Promise<void> {

@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 10 записів води.
+alt: 10 записів води.
+full: 10 записів води.

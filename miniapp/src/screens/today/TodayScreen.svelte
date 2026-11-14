@@ -3,7 +3,7 @@
   import { OFF, type Occurrence, type OccurrenceAction, type OccurrenceActionResult, type Off, type TodayView } from '../../api/types';
   import { useApp } from '../../app/context';
   import { dayPath } from '../../app/routes';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import EmptyState from '../../ui/EmptyState.svelte';

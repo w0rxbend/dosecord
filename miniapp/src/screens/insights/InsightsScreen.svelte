@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import type { InsightBlock, InsightRange, InsightsOverview } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import { isReducedMotion } from '../../state/motion';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';

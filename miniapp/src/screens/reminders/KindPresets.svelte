@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PromptPreset, ReminderKind } from '../../api/types';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import { dayAndClockIn } from './time';
 
   interface Props {

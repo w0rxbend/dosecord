@@ -694,6 +694,8 @@ All chat images are PNG with an opaque background and a long side of at most 128
 | VA-L10N-05 | Percentages are written with the locale's percent pattern. Decimal separators follow the locale. Durations are written with localised hour and minute abbreviations, for example "7 h 30 min". |
 | VA-L10N-06 | User-entered text is sanitised before layout: control characters and bidirectional override and isolate controls are removed (research brief 04 section 7.4). |
 
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G2.22): assumption A7 holds for the pinned faces: Geologica, IBM Plex Sans and IBM Plex Sans Condensed draw every letter of the Ukrainian alphabet (the font-pack test), and no Ukrainian card has a replacement character its English card lacks. Where a Ukrainian word did not fit a fixed slot, the catalogue uses the short form ("Тиж. 1" for "Week 1", "Стор. 1 з 3" for "Page 1 of 3", the count alone under "Перекуси") rather than the template changing; the mood timeline widens its level column only when a level name would be cut even condensed, so the English layout is unchanged. The nap mark beside a bar is a catalogue letter ("n", "д"), not a word in the template. A test fails when a Ukrainian card cuts a text its English card shows whole.
+
 ### 5.7 Failure, fallback and load
 
 | ID | Requirement |

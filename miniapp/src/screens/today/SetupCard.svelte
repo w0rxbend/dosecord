@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Reminders } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import Illustration from '../../ui/Illustration.svelte';
   import { daySet } from '../setup/setup';

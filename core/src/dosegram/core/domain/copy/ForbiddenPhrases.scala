@@ -43,7 +43,34 @@ object ForbiddenPhrases:
     "lazy"
   )
 
-  val all: List[String] = clinicalAdvice ++ shaming
+  /** The Ukrainian list (PRODUCT_SPEC R-LOC-8): dosing advice and shaming, in the forms a sentence would use. */
+  val ukrainian: List[String] = List(
+    "вам слід прийняти",
+    "вам слід пропустити",
+    "прийміть зараз",
+    "прийміть її зараз",
+    "прийміть усе одно",
+    "подвійну дозу",
+    "подвійна доза",
+    "подвойте",
+    "додаткову дозу",
+    "додаткова доза",
+    "прийміть дві",
+    "надолужте пропущене",
+    "пропустіть наступну дозу",
+    "ви не впоралися",
+    "провал",
+    "знову забули",
+    "знову пропустили",
+    "ваша провина",
+    "соромно",
+    "ганьба",
+    "лінощі",
+    "лінивий",
+    "лінива"
+  )
+
+  val all: List[String] = clinicalAdvice ++ shaming ++ ukrainian
 
   /** Every forbidden phrase found in `text` (case-insensitive). */
   def violations(text: String): List[String] =

@@ -1,5 +1,6 @@
 package dosegram.core.application.exports
 
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ExportFile
@@ -34,22 +35,25 @@ final class ExportWorker(
   def runOnce(): Boolean =
     uow.transaction: tx =>
       tx.exports.claimQueued() match
-        case None      => false
-        case Some(job) =>
-          val now = clock.now()
-          // A failed build rolls back to here, so the job is failed instead of claimed again.
-          val built =
-            try tx.savepoint(build(tx, job, now))
-            catch case NonFatal(cause) => Left(cause.getClass.getSimpleName)
-          built match
-            case Right(file) =>
-              tx.exports.complete(job.id, file, now, now.plus(ExportRepository.FileLifetime))
-              ExportRequests.enqueue(tx, ids, job.accountId, messages.ready(job), s"export:${job.id}:ready", now)
-            case Left(reason) =>
-              log(s"export ${job.id} (${job.kind.db}) failed: $reason")
-              tx.exports.fail(job.id, now)
-              ExportRequests.enqueue(tx, ids, job.accountId, messages.failed(job), s"export:${job.id}:failed", now)
-          true
+        case None => false
+        // The file and its message are in the account's language (ROADMAP G2.22).
+        case Some(job) => Lang.within(tx.accounts.languageOf(job.accountId))(run(tx, job))
+
+  private def run(tx: Tx, job: ExportJob): Boolean =
+    val now = clock.now()
+    // A failed build rolls back to here, so the job is failed instead of claimed again.
+    val built =
+      try tx.savepoint(build(tx, job, now))
+      catch case NonFatal(cause) => Left(cause.getClass.getSimpleName)
+    built match
+      case Right(file) =>
+        tx.exports.complete(job.id, file, now, now.plus(ExportRepository.FileLifetime))
+        ExportRequests.enqueue(tx, ids, job.accountId, messages.ready(job), s"export:${job.id}:ready", now)
+      case Left(reason) =>
+        log(s"export ${job.id} (${job.kind.db}) failed: $reason")
+        tx.exports.fail(job.id, now)
+        ExportRequests.enqueue(tx, ids, job.accountId, messages.failed(job), s"export:${job.id}:failed", now)
+    true
 
   /** The deleting job of ARCHITECTURE section 15.6: returns how many exports it ended. */
   def sweep(): Int = uow.transaction(_.exports.expire(clock.now(), ExportRepository.ConfirmationWindow))

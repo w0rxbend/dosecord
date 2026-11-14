@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Consents } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
 
   let { consents }: { consents: Consents } = $props();
   const { tg } = useApp();

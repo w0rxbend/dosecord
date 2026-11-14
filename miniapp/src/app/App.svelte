@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
   import TodayScreen from '../screens/today/TodayScreen.svelte';
   import ToastHost from '../ui/ToastHost.svelte';
   import { provideApp, type AppContext } from './context';

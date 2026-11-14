@@ -44,12 +44,12 @@ final class WaterTextParser(glassMl: Int):
       case WaterTextParser.Line(lead, number, unit, trail) =>
         val namesWater = Option(lead).exists(_ != "+") || Option(trail).isDefined
         (Option(number).map(WaterTextParser.decimal), Option(unit)) match
-          case (None, None)                       => WaterText.NotWater
-          case (count, Some("glass" | "glasses")) => glasses(count)
-          case (Some(value), Some("ml"))          => amount(value, HydrationUnit.Millilitre)
-          case (Some(value), Some(_))             => amount(value, HydrationUnit.Litre)
-          case (Some(value), None)                => bareNumber(WaterTextParser.BareNumber(value, namesWater))
-          case (None, Some(_))                    => WaterText.NotWater
+          case (None, None)                                       => WaterText.NotWater
+          case (count, Some(unit)) if WaterTextParser.Glass(unit) => glasses(count)
+          case (Some(value), Some("ml" | "мл"))                   => amount(value, HydrationUnit.Millilitre)
+          case (Some(value), Some(_))                             => amount(value, HydrationUnit.Litre)
+          case (Some(value), None) => bareNumber(WaterTextParser.BareNumber(value, namesWater))
+          case (None, Some(_))     => WaterText.NotWater
       case _ => WaterText.NotWater
 
   private def glasses(count: Option[BigDecimal]): WaterText =
@@ -67,9 +67,15 @@ object WaterTextParser:
 
   private final case class BareNumber(value: BigDecimal, namesWater: Boolean)
 
-  /** Digits are capped so that no input can build an arbitrarily large number. */
+  /** The words of a glass, English and Ukrainian (ROADMAP G2.22). */
+  private val Glass: Set[String] = Set("glass", "glasses", "склянка", "склянки", "склянок")
+
+  /** Digits are capped so that no input can build an arbitrarily large number. The Ukrainian words follow the English
+    * ones of each part (ROADMAP G2.22).
+    */
   private val Line: Regex =
-    """(water|drank|\+)?\s*(\d{1,6}(?:[.,]\d{1,3})?)?\s*(ml|litres?|liters?|l|glass(?:es)?)?\s*(water)?""".r
+    ("""(water|drank|вода|випив|випила|\+)?\s*(\d{1,6}(?:[.,]\d{1,3})?)?\s*""" +
+      """(ml|litres?|liters?|l|glass(?:es)?|мл|літрів|літри|літра|літр|л|склянка|склянки|склянок)?\s*(water|води)?""").r
 
   private def decimal(digits: String): BigDecimal = BigDecimal(digits.replace(',', '.'))
 end WaterTextParser

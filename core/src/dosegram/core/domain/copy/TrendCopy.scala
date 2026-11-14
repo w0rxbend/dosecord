@@ -30,15 +30,22 @@ import java.time.LocalDate
   */
 object TrendCopy:
 
-  private def previous(days: Int, figure: String): String = s"Previous $days days: $figure"
+  private def previous(days: Int, figure: String): String =
+    tr(s"Previous $days days: $figure", s"Попередні ${UkNouns.Days.count(days)}: $figure")
 
   /** The pooled doses of the previous period; the percentage only from five resolved doses (VISUALS section 7.1). */
   def doses(days: Int, figures: MedicationFigures): String =
     val resolved = figures.buckets.resolved
     val figure = figures.adherence match
-      case Stat.Shown(ratio, _, _, _) => s"${ratio.numerator} of ${ratio.denominator} taken (${ratio.percent}%)"
+      case Stat.Shown(ratio, _, _, _) =>
+        tr(
+          s"${ratio.numerator} of ${ratio.denominator} taken (${ratio.percent}%)",
+          s"прийнято ${ratio.numerator} з ${ratio.denominator} (${ratio.percent}%)"
+        )
       case _: Stat.Insufficient[?] | _: Stat.NoVariation[?] =>
-        if resolved.resolved == 0 then StatsCopy.NoData else s"${resolved.taken} of ${resolved.resolved} taken"
+        if resolved.resolved == 0 then StatsCopy.NoData
+        else
+          tr(s"${resolved.taken} of ${resolved.resolved} taken", s"прийнято ${resolved.taken} з ${resolved.resolved}")
     previous(days, figure)
 
   def water(days: Int, period: HydrationPeriod): String =
@@ -50,33 +57,59 @@ object TrendCopy:
             val goal = period.goalDays
               .flatMap(_.shown)
               .map: ratio =>
-                s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days"
-            (s"average ${StatsCopy.litres(millilitres, 1)} l a day" :: goal.toList).mkString(" · ")
-          case None => s"water logged on ${StatsCopy.count(period.recordedDays, "day")}"
+                tr(
+                  s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days",
+                  s"ціль досягнуто в ${ratio.numerator} з ${ratio.denominator} днів із записами"
+                )
+            val average = tr(
+              s"average ${StatsCopy.litres(millilitres, 1)} l a day",
+              s"у середньому ${StatsCopy.litres(millilitres, 1)} л на день"
+            )
+            (average :: goal.toList).mkString(" · ")
+          case None =>
+            tr(
+              s"water logged on ${StatsCopy.count(period.recordedDays, "day")}",
+              s"воду записано за ${UkNouns.Days.count(period.recordedDays)}"
+            )
     previous(days, figure)
 
   def mood(days: Int, period: MoodPeriod): String =
     val figure =
       if period.checkInDays == 0 then StatsCopy.NoData
       else
-        val onDays = s"check-ins on ${StatsCopy.count(period.checkInDays, "day")}"
-        period.average.shown.fold(onDays)(mean => s"average ${StatsCopy.meanWithLevel(mean)} · $onDays")
+        val onDays = tr(
+          s"check-ins on ${StatsCopy.count(period.checkInDays, "day")}",
+          s"позначки за ${UkNouns.Days.count(period.checkInDays)}"
+        )
+        period.average.shown.fold(onDays)(mean =>
+          tr(
+            s"average ${StatsCopy.meanWithLevel(mean)} · $onDays",
+            s"у середньому ${StatsCopy.meanWithLevel(mean)} · $onDays"
+          )
+        )
     previous(days, figure)
 
   def sleep(days: Int, period: SleepPeriod): String =
     val figure =
       if period.nights == 0 then StatsCopy.NoData
       else
-        val logged = s"${StatsCopy.count(period.nights, "night")} logged"
-        period.averageMinutes.shown.fold(logged)(minutes =>
-          s"average ${StatsCopy.duration(Math.round(minutes).toInt)} · $logged"
+        val logged = tr(
+          s"${StatsCopy.count(period.nights, "night")} logged",
+          s"записано ${UkNouns.Nights.count(period.nights)}"
         )
+        period.averageMinutes.shown.fold(logged): minutes =>
+          val average = StatsCopy.duration(Math.round(minutes).toInt)
+          tr(s"average $average · $logged", s"у середньому $average · $logged")
     previous(days, figure)
 
   def food(days: Int, period: MealPeriod): String =
     val figure =
       if period.meals == 0 then StatsCopy.NoData
-      else s"${StatsCopy.count(period.meals, "meal")} logged on ${StatsCopy.count(period.daysWithMeals, "day")}"
+      else
+        tr(
+          s"${StatsCopy.count(period.meals, "meal")} logged on ${StatsCopy.count(period.daysWithMeals, "day")}",
+          s"записано ${UkNouns.Meals.count(period.meals)} за ${UkNouns.Days.count(period.daysWithMeals)}"
+        )
     previous(days, figure)
 
   /** The meals of a period and the days per main meal; empty when the period has no meal. */
@@ -84,7 +117,10 @@ object TrendCopy:
     if period.meals == 0 then Nil
     else
       List(
-        s"${StatsCopy.count(period.meals, "meal")} logged on ${period.daysWithMeals} of ${period.window.days} days",
+        tr(
+          s"${StatsCopy.count(period.meals, "meal")} logged on ${period.daysWithMeals} of ${period.window.days} days",
+          s"записано ${UkNouns.Meals.count(period.meals)} за ${period.daysWithMeals} з ${UkNouns.DaysOf.count(period.window.days)}"
+        ),
         FoodCopy.week(period)
       )
 
@@ -95,15 +131,26 @@ object TrendCopy:
     val spread = for
       bedtime <- figures.bedtimeSpreadMinutes
       wake <- figures.wakeSpreadMinutes
-    yield s"Bedtime varied by about $bedtime min, wake time by about $wake min"
+    yield tr(
+      s"Bedtime varied by about $bedtime min, wake time by about $wake min",
+      s"Час відходу до сну різнився приблизно на $bedtime хв, час підйому — приблизно на $wake хв"
+    )
     val usual = for
       bedtime <- figures.typicalBedtime
       wake <- figures.typicalWake
-    yield s"Usual bedtime ${clock(bedtime)} · usual wake time ${clock(wake)}"
+    yield tr(
+      s"Usual bedtime ${clock(bedtime)} · usual wake time ${clock(wake)}",
+      s"Звичний відхід до сну ${clock(bedtime)} · звичний підйом ${clock(wake)}"
+    )
     if figures.nights == 0 then Nil
     else if spread.isEmpty then
       val missing = SleepRegularity.consistencyGate(figures.window) - figures.nights
-      List(s"${StatsCopy.more(missing, "night")} for bedtime regularity")
+      List(
+        tr(
+          s"${StatsCopy.more(missing, "night")} for bedtime regularity",
+          s"Для регулярності сну потрібно ще ${UkNouns.Nights.count(missing)}"
+        )
+      )
     else spread.toList ++ usual.toList
 
   /** A mood mean with its level word, as every mood figure is printed: "3.4 (slightly pleasant)". */
@@ -111,7 +158,7 @@ object TrendCopy:
 
   private def clock(minute: Int): String = f"${minute / 60}%02d:${minute % 60}%02d"
 
-  val entries: List[CopyEntry] = Samples.entries
+  def entries: List[CopyEntry] = Samples.entries
 
   private object Samples:
     private val end = LocalDate.parse("2026-11-07")
@@ -129,7 +176,7 @@ object TrendCopy:
     private val regular =
       SleepRegularityFigures(month, Nil, 24, Some(415), Some(35), Some(20), Some(23 * 60 + 10), Some(425), None)
 
-    val entries: List[CopyEntry] = List(
+    def entries: List[CopyEntry] = List(
       CopyEntry("trend.previous.doses", doses(30, doseFigures)),
       CopyEntry("trend.previous.water", water(30, waterSample)),
       CopyEntry("trend.previous.mood", mood(30, moodSample)),

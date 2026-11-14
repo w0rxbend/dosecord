@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
   import type { GateKind } from './gate';
 
   interface Props {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ApiError } from '../api/client';
-  import { en, errorText } from '../i18n/en';
+  import { t as en, errorText } from '../i18n/index.svelte';
 
   let { error, onRetry }: { error: ApiError; onRetry: () => void } = $props();
 </script>

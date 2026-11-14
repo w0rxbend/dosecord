@@ -2,109 +2,146 @@ package dosegram.core.domain.copy
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /** The copy of the medication-depth track (ROADMAP G9.8, G9.10, G9.12): the words of the further schedule kinds. Every
   * line states what the user configured; none advises.
   */
 object MedicationDepthCopy:
 
-  private val DayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+  private def DayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Formats.locale)
 
   def date(day: LocalDate): String = day.format(DayFormat)
 
   /** `every other day from Mon 16 Nov`, `every 3 days from Mon 16 Nov`. */
   def everyNDays(everyDays: Int, anchor: LocalDate): String =
     val cadence = everyDays match
-      case 1 => "every day"
-      case 2 => "every other day"
-      case n => s"every $n days"
-    s"$cadence from ${date(anchor)}"
+      case 1 => tr("every day", "щодня")
+      case 2 => tr("every other day", "через день")
+      case n => tr(s"every $n days", s"раз на $n ${UkNouns.DaysOf(n)}")
+    tr(s"$cadence from ${date(anchor)}", s"$cadence, з ${date(anchor)}")
 
   /** `21 days on, 7 days off from Mon 16 Nov`. */
   def cycle(onDays: Int, offDays: Int, anchor: LocalDate): String =
-    s"${days(onDays)} on, ${days(offDays)} off from ${date(anchor)}"
+    tr(
+      s"${days(onDays)} on, ${days(offDays)} off from ${date(anchor)}",
+      s"${days(onDays)} з прийомом, ${days(offDays)} перерви, з ${date(anchor)}"
+    )
 
-  private def days(n: Int): String = if n == 1 then "1 day" else s"$n days"
+  private def days(n: Int): String = counted(n, "day", "days", UkNouns.Days)
 
   // ---------- presets in the add-medication flow (supervisor decision, 2026-11-14) ----------
 
-  val presetsLabel = "Presets"
-  val presetsPrompt = "Pick a preset. Its times come from your day in /reminders; you review them before saving."
+  def presetsLabel: String = tr("Presets", "Готові плани")
+  def presetsPrompt: String = tr(
+    "Pick a preset. Its times come from your day in /reminders; you review them before saving.",
+    "Виберіть готовий план. Його час береться з вашого дня в /reminders; ви переглянете його перед збереженням."
+  )
 
   /** The short button label of a medication preset (`MedicationPresets` ids). */
   def presetButton(id: String): String = id match
-    case "med.morning"          => "Morning"
-    case "med.evening"          => "Evening"
-    case "med.twice_daily"      => "Twice a day"
-    case "med.three_with_meals" => "With meals"
-    case "med.every_8h"         => "Every 8 h"
-    case "med.every_12h"        => "Every 12 h"
-    case "med.weekdays"         => "Weekdays"
-    case "med.weekly"           => "Weekly"
-    case "med.every_other_day"  => "Every other day"
-    case "med.cycle"            => "21 days on, 7 off"
-    case "med.as_needed"        => "As needed"
+    case "med.morning"          => tr("Morning", "Зранку")
+    case "med.evening"          => tr("Evening", "Увечері")
+    case "med.twice_daily"      => tr("Twice a day", "Двічі на день")
+    case "med.three_with_meals" => tr("With meals", "З їжею")
+    case "med.every_8h"         => tr("Every 8 h", "Кожні 8 год")
+    case "med.every_12h"        => tr("Every 12 h", "Кожні 12 год")
+    case "med.weekdays"         => tr("Weekdays", "Будні")
+    case "med.weekly"           => tr("Weekly", "Щотижня")
+    case "med.every_other_day"  => tr("Every other day", "Через день")
+    case "med.cycle"            => tr("21 days on, 7 off", "21 день так, 7 ні")
+    case "med.as_needed"        => tr("As needed", "За потреби")
     case other                  => other
 
-  def presetEcho(button: String): String = s"Preset: $button."
+  def presetEcho(button: String): String = tr(s"Preset: $button.", s"Готовий план: $button.")
 
   /** The confirm card of a preset: `Vitamin D 1000 IU, every other day from Mon 16 Nov 07:00 Europe/Kyiv`. */
   def confirmCard(name: String, dose: Option[String], schedule: String, zone: String): String =
     s"${dose.fold(name)(d => s"$name $d")}, $schedule $zone"
 
   /** The first reminders of the reviewed schedule (PRODUCT_SPEC R-SCH-5). */
-  def nextReminders(times: List[String]): String = s"Next reminders: ${times.mkString(", ")}."
+  def nextReminders(times: List[String]): String =
+    tr(s"Next reminders: ${times.mkString(", ")}.", s"Наступні нагадування: ${times.mkString(", ")}.")
 
   // ---------- as needed: the user's own limits (supervisor decision, 2026-11-14) ----------
 
   /** `You set at most 3 a day; 2 logged today.` Only the values the user entered; nothing is computed or advised. */
   def prnFacts(maxPerDay: Option[Int], minGapMinutes: Option[Int], loggedToday: Int): String =
     val set =
-      List(maxPerDay.map(n => s"at most $n a day"), minGapMinutes.map(m => s"at least ${gap(m)} between")).flatten
-        .mkString(" and ")
-    s"You set $set; $loggedToday logged today."
+      List(
+        maxPerDay.map(n => tr(s"at most $n a day", s"не більше $n на день")),
+        minGapMinutes.map(m => tr(s"at least ${gap(m)} between", s"щонайменше ${gap(m)} між прийомами"))
+      ).flatten
+        .mkString(tr(" and ", " і "))
+    tr(s"You set $set; $loggedToday logged today.", s"Ви задали: $set; сьогодні записано $loggedToday.")
 
   /** The question before a log above the user's own limit. The log is never refused. */
-  def prnConfirm(name: String, facts: String): String = s"$facts Log $name anyway?"
+  def prnConfirm(name: String, facts: String): String =
+    tr(s"$facts Log $name anyway?", s"$facts Усе одно записати $name?")
 
-  val prnLogIt = "Log it"
-  val prnCancel = "Cancel"
-  val prnCancelled = "Nothing was logged."
+  def prnLogIt: String = tr("Log it", "Записати")
+  def prnCancel: String = tr("Cancel", "Скасувати")
+  def prnCancelled: String = tr("Nothing was logged.", "Нічого не записано.")
 
   private def gap(minutes: Int): String =
-    if minutes % 60 == 0 then s"${minutes / 60} h" else s"${minutes / 60} h ${minutes % 60} min"
+    val (hours, rest) = (minutes / 60, minutes % 60)
+    if rest == 0 then tr(s"$hours h", s"$hours год") else tr(s"$hours h $rest min", s"$hours год $rest хв")
 
   // ---------- pause for a number of days (R-REG-5) ----------
 
-  val pauseFor = "Pause for..."
-  def pauseForPrompt(name: String): String =
-    s"For how long should reminders for $name stop? They come back on their own; the history stays."
+  def pauseFor: String = tr("Pause for...", "Пауза на...")
+  def pauseForPrompt(name: String): String = tr(
+    s"For how long should reminders for $name stop? They come back on their own; the history stays.",
+    s"На скільки зупинити нагадування для $name? Вони повернуться самі; історія залишиться."
+  )
   val pauseDays: List[Int] = List(3, 7, 14, 30)
-  def pauseDaysLabel(days: Int): String = s"$days days"
-  def pausedUntil(name: String, date: LocalDate): String =
-    s"Paused $name until ${this.date(date)}. Reminders come back that day."
-  def resumedOn(name: String): String = s"Reminders for $name are back on from today, as you set when pausing."
+  def pauseDaysLabel(days: Int): String = counted(days, "day", "days", UkNouns.Days)
+  def pausedUntil(name: String, date: LocalDate): String = tr(
+    s"Paused $name until ${this.date(date)}. Reminders come back that day.",
+    s"$name призупинено до ${this.date(date)}. Того дня нагадування повернуться."
+  )
+  def resumedOn(name: String): String = tr(
+    s"Reminders for $name are back on from today, as you set when pausing.",
+    s"Нагадування для $name знову ввімкнені з сьогодні, як ви задали під час паузи."
+  )
 
   // ---------- inventory and the refill notice (R-REG-14 to R-REG-16, BOT_UX 10.5, IMG-15) ----------
 
   private def units(n: BigDecimal, unit: Option[String]): String =
-    s"${n.bigDecimal.stripTrailingZeros.toPlainString} ${unit.getOrElse("units")}"
+    s"${decimal(n.bigDecimal.stripTrailingZeros.toPlainString)} ${unit.getOrElse(tr("units", "од."))}"
+
+  private def coversUntil(until: Option[LocalDate]): String =
+    until.fold("")(d =>
+      tr(
+        s" At your current schedule that covers until about ${date(d)}.",
+        s" За поточним розкладом цього вистачить приблизно до ${date(d)}."
+      )
+    )
 
   /** `refill.low`: a count and a date, from the user's own entries; no advice. */
   def refillLow(name: String, onHand: BigDecimal, unit: Option[String], until: Option[LocalDate]): String =
-    val covers = until.fold("")(d => s" At your current schedule that covers until about ${date(d)}.")
-    s"About ${units(onHand, unit)} of $name left by your count.$covers"
+    tr(
+      s"About ${units(onHand, unit)} of $name left by your count.${coversUntil(until)}",
+      s"$name: за вашим підрахунком лишилося близько ${units(onHand, unit)}.${coversUntil(until)}"
+    )
 
-  val refillLowDiscreet = "One of your items is running low by your count."
-  val countOff = "The count may be off. Update it?"
-  def refilledLabel(quantity: BigDecimal): String = s"Refilled +${quantity.bigDecimal.stripTrailingZeros.toPlainString}"
-  val refillShowCard = "Show card"
-  val refillStop = "Stop for this pack"
+  def refillLowDiscreet: String =
+    tr("One of your items is running low by your count.", "За вашим підрахунком одна з ваших позицій закінчується.")
+  def countOff: String = tr("The count may be off. Update it?", "Залишок може бути неточним. Оновити його?")
+  def refilledLabel(quantity: BigDecimal): String =
+    val plain = decimal(quantity.bigDecimal.stripTrailingZeros.toPlainString)
+    tr(s"Refilled +$plain", s"Поповнено +$plain")
+  def refillShowCard: String = tr("Show card", "Показати картку")
+  def refillStop: String = tr("Stop for this pack", "Досить для цієї пачки")
   def refilled(name: String, onHand: BigDecimal, unit: Option[String]): String =
-    s"Added. $name: ${units(onHand, unit)} by your count."
-  val refillStopped = "No more refill notices for this pack. A refill or a new count turns them back on."
-  val refillUnavailable = "That count is no longer there."
+    tr(
+      s"Added. $name: ${units(onHand, unit)} by your count.",
+      s"Додано. $name: ${units(onHand, unit)} за вашим підрахунком."
+    )
+  def refillStopped: String = tr(
+    "No more refill notices for this pack. A refill or a new count turns them back on.",
+    "Для цієї пачки сповіщень про поповнення більше не буде. Поповнення або новий залишок знову їх увімкне."
+  )
+  def refillUnavailable: String = tr("That count is no longer there.", "Цього залишку вже немає.")
 
   /** The text equivalent of IMG-15 (VISUALS section 6.16). */
   def refillCardText(
@@ -114,11 +151,14 @@ object MedicationDepthCopy:
       threshold: String,
       until: Option[LocalDate]
   ): String =
-    val covers = until.fold("")(d => s" At your current schedule that covers until about ${date(d)}.")
-    s"$name: ${units(onHand, unit)} left by your count, at or below your threshold of $threshold.$covers " +
-      "Update the count after a refill."
+    tr(
+      s"$name: ${units(onHand, unit)} left by your count, at or below your threshold of $threshold.${coversUntil(until)} " +
+        "Update the count after a refill.",
+      s"$name: за вашим підрахунком лишилося ${units(onHand, unit)}, на вашому порозі ($threshold) або нижче." +
+        s"${coversUntil(until)} Після поповнення оновіть залишок."
+    )
 
-  def thresholdDays(days: Int): String = if days == 1 then "1 day" else s"$days days"
+  def thresholdDays(days: Int): String = counted(days, "day", "days", UkNouns.Days)
   def thresholdUnits(n: BigDecimal, unit: Option[String]): String = units(n, unit)
 
   private val sample = LocalDate.of(2026, 11, 16)

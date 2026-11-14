@@ -30,20 +30,28 @@ object DoseActionCopy:
 
   def sentence(kind: DoseActionKind): String =
     kind match
-      case DoseActionKind.ReminderSent      => "Reminder sent."
-      case DoseActionKind.ReminderDeferred  => "Reminder deferred until the end of quiet hours."
-      case DoseActionKind.Taken             => "Taken."
-      case DoseActionKind.Skipped           => "Skipped."
-      case DoseActionKind.Snoozed           => "Snoozed."
-      case DoseActionKind.AutoMarkedMissed  => "Marked missed after no response."
-      case DoseActionKind.MarkedUnknown     => "Marked unknown — no reminder delivery was confirmed."
-      case DoseActionKind.ManuallyCorrected => "Corrected manually."
-      case DoseActionKind.Undone            => "Undone."
-      case DoseActionKind.NoteAdded         => "Note added."
-      case DoseActionKind.Cancelled         => "Cancelled."
-      case DoseActionKind.CatchUpCollapsed  => "Collapsed into catch-up after downtime."
-      case DoseActionKind.ChainChildCreated => "Follow-up dose of the chain created."
+      case DoseActionKind.ReminderSent     => tr("Reminder sent.", "Нагадування надіслано.")
+      case DoseActionKind.ReminderDeferred =>
+        tr("Reminder deferred until the end of quiet hours.", "Нагадування відкладено до кінця тихих годин.")
+      case DoseActionKind.Taken            => tr("Taken.", "Прийнято.")
+      case DoseActionKind.Skipped          => tr("Skipped.", "Пропущено.")
+      case DoseActionKind.Snoozed          => tr("Snoozed.", "Відкладено.")
+      case DoseActionKind.AutoMarkedMissed =>
+        tr("Marked missed after no response.", "Позначено як пропущене: відповіді не було.")
+      case DoseActionKind.MarkedUnknown =>
+        tr(
+          "Marked unknown — no reminder delivery was confirmed.",
+          "Позначено як невідоме — доставку нагадування не підтверджено."
+        )
+      case DoseActionKind.ManuallyCorrected => tr("Corrected manually.", "Виправлено вручну.")
+      case DoseActionKind.Undone            => tr("Undone.", "Скасовано.")
+      case DoseActionKind.NoteAdded         => tr("Note added.", "Нотатку додано.")
+      case DoseActionKind.Cancelled         => tr("Cancelled.", "Відмінено.")
+      case DoseActionKind.CatchUpCollapsed  =>
+        tr("Collapsed into catch-up after downtime.", "Об’єднано в підсумок після перерви в роботі.")
+      case DoseActionKind.ChainChildCreated =>
+        tr("Follow-up dose of the chain created.", "Створено наступну дозу ланцюжка.")
 
-  val entries: List[CopyEntry] =
+  def entries: List[CopyEntry] =
     DoseActionKind.values.toList.map(k => CopyEntry(s"dose_action.${k.dbValue}", sentence(k)))
 end DoseActionCopy

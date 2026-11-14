@@ -31,7 +31,9 @@ final case class MoodTimelineData(from: LocalDate, days: Vector[Option[MoodDayPo
   */
 object MoodTimelineCard:
   val TemplateId = "card.mood.timeline.v1"
-  private val LabelColumn = 300.0
+
+  /** The narrowest level column; a language with longer level names widens it (VA-L10N-02). */
+  private val MinLabelColumn = 300.0
   private val PlotTop = 184.0
   private val PlotBottom = 396.0
   private val TicksBaseline = 440.0
@@ -48,7 +50,14 @@ object MoodTimelineCard:
     val frame = CardFrame(context, CardFrame.Wide, context.tokens.surface)
     val copy = context.copy
     val tokens = frame.tokens
-    val plotLeft = frame.left + LabelColumn
+    // A label that would be cut even condensed widens the column to its full width (VA-TY-04 before VA-L10N-02).
+    val labels = Levels.map(copy.valenceName) :+ copy.energyLabel
+    val cut =
+      labels.exists(label => context.fitter.line(label, TextStyle.Label, MinLabelColumn - 16).lines.head != label)
+    val labelColumn =
+      if cut then StrictMath.max(MinLabelColumn, labels.map(context.fitter.width(_, TextStyle.Label)).max + 24)
+      else MinLabelColumn
+    val plotLeft = frame.left + labelColumn
     val slot = (frame.right - plotLeft) / timeline.days.size
     def x(index: Int): Double = plotLeft + (index + 0.5) * slot
     // The stored scale 1 to 5 runs from the bottom to the top of the plot.
@@ -59,7 +68,7 @@ object MoodTimelineCard:
       val value = 1 + (level - 1) * 4.0 / 6
       Vector(
         Node.Line(Point(plotLeft, y(value)), Point(frame.right, y(value)), Stroke.dotted(tokens.grid)),
-        frame.text(copy.valenceName(level), Point(frame.left, y(value) + 14), levelLook, LabelColumn - 16)
+        frame.text(copy.valenceName(level), Point(frame.left, y(value) + 14), levelLook, labelColumn - 16)
       )
     }
     val joins = timeline.days.indices.drop(1).flatMap { index =>
@@ -102,7 +111,7 @@ object MoodTimelineCard:
     val energy =
       if !hasEnergy then Vector.empty
       else
-        frame.text(copy.energyLabel, Point(frame.left, EnergyBottom), levelLook, LabelColumn - 16) +:
+        frame.text(copy.energyLabel, Point(frame.left, EnergyBottom), levelLook, labelColumn - 16) +:
           timeline.days.zipWithIndex.flatMap { (day, index) =>
             day.flatMap(_.energy).map { value =>
               val height = (EnergyBottom - EnergyTop) * StrictMath.max(1.0, StrictMath.min(5.0, value)) / 5

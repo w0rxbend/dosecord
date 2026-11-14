@@ -274,7 +274,10 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         252 -> "refill.stop",
         253 -> "med.pause_for",
         254 -> "take.limit_confirm",
-        255 -> "take.limit_cancel"
+        255 -> "take.limit_cancel",
+        // The language choice (ROADMAP G2.22).
+        270 -> "language.open",
+        271 -> "language.set"
       )
     )
 

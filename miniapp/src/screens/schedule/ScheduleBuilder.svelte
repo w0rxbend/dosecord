@@ -4,7 +4,7 @@
   import { useApp } from '../../app/context';
   import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
   import { toScheduleDraft, validateSchedule, type ScheduleForm } from '../../forms/schedule-rules';
-  import { en, errorText, fieldErrorText } from '../../i18n/en';
+  import { t as en, errorText, fieldErrorText } from '../../i18n/index.svelte';
   import PreviewList from './PreviewList.svelte';
   import ScheduleFields from './ScheduleFields.svelte';
 

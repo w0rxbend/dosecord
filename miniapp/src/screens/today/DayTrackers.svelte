@@ -3,7 +3,7 @@
   import { useApp } from '../../app/context';
   import MoodBlob from '../../charts/MoodBlob.svelte';
   import Vessel from '../../charts/Vessel.svelte';
-  import { en } from '../../i18n/en';
+  import { t as en } from '../../i18n/index.svelte';
   import type { DayTracking } from './tracking';
 
   interface Props {

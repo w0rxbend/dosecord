@@ -492,6 +492,20 @@ class TelegramAdapterSuite extends munit.FunSuite:
     rig.adapter.registerCommands(List(CommandSpec("today", "Show today's doses."), CommandSpec("help", "Show this help.")))
     assertEquals(rig.api.getMyCommands(), Right(List(BotCommand("today", "Show today's doses."), BotCommand("help", "Show this help."))))
 
+  test("registerCommands also registers the Ukrainian descriptions under language_code uk (BUX-LANG-04)"):
+    val rig = TelegramRig().started()
+    rig.adapter.registerCommands(List(CommandSpec("today", "Show today's doses."), CommandSpec("help", "Show this help.")))
+    assertEquals(
+      rig.api.getMyCommands(languageCode = Some("uk")),
+      Right(
+        List(
+          BotCommand("today", "Показати сьогоднішні дози й записати їх."),
+          BotCommand("help", "Показати цю довідку.")
+        )
+      )
+    )
+    assertEquals(rig.api.getMyCommands().map(_.map(_.description)), Right(List("Show today's doses.", "Show this help.")))
+
   test("renderText lowers rich text to Telegram HTML inside the text limit"):
     val rig = TelegramRig()
     val rich: RichText = List(Node.Paragraph(List(Inline.Text("a < b & "), Inline.Bold("c"))))

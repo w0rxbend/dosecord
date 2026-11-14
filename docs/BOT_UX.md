@@ -422,6 +422,8 @@ stateDiagram-v2
 | BUX-LANG-03 | First shipped locales are English and Ukrainian (research 04 open question Q10). Every key of the copy deck exists in every shipped locale; a build check fails on a missing key. |
 | BUX-LANG-04 | Command descriptions, the bot name, description and short description are registered per shipped language (section 6). |
 
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G2.22): (1) The language onboarding runs in is stored as the account's locale when the account is created, so prompts and reminders sent without an inbound event keep it; from then on only `/language` or the settings change it. (2) Of the client's `language_code` only the shipped locale it names is kept in the inbound inbox, never the raw tag. (3) The Ukrainian copy avoids first-person past forms, which are gendered in Ukrainian: the bot speaks impersonally ("дозу позначено як пропущену") or in the present ("Перевіряю"), and buttons are gender-neutral ("Уже прийнято" for "I took it", "Встаю" for "I'm up"). (4) Owner alerts (`ops.*`) stay English: they go to the operator, not to a user. (5) Quick capture accepts the Ukrainian words of the same grammars: "250 мл", "вода 0,5 л", "2 склянки", "настрій 4", "сон 23:30 7:10", "спала 7 год", "дрімав 20 хв", days "пн ср пт", "будні", "щодня", snooze "10 хв", "1 год", "пів години". Examples in the Ukrainian copy use only these forms. (6) A Ukrainian button label stays within 24 characters; a test checks every label of the catalogue.
+
 ### 5.5 Consent
 
 The basis is explicit consent per domain, captured by two taps, with a versioned record (research 06 section 14.3).

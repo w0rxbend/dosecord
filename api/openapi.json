@@ -4412,6 +4412,9 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "language" : {
+            "type" : "string"
           }
         }
       },

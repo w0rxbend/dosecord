@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AccountSettings, AccountSettingsInput, ImageTheme, NotificationSettings } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { en } from '../../i18n/en';
+  import { setLocale, t as en } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
   import Screen from '../../ui/Screen.svelte';
@@ -31,7 +31,10 @@
     const { language, timeZone, imageTheme, version } = before.account;
     const input = { language, timeZone, imageTheme, ...change };
     loaded.set({ ...before, account: { ...before.account, ...input } });
+    // MA-SET-2: the new language shows at once; a failed save brings the previous one back.
+    if (change.language !== undefined) setLocale(change.language);
     await commit(before, async () => ({ ...before, account: await api.saveSettings(input, version) }));
+    setLocale(loaded.data?.account.language);
   }
 
   async function saveDiscreet(discreet: boolean): Promise<void> {

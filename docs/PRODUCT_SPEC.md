@@ -440,6 +440,8 @@ Tier and wave: Must, MVP. Starting assumption: English (`en`) and Ukrainian (`uk
 - R-LOC-11. Legal texts (privacy notice, consent statements) exist in every shipped locale. A consent is recorded with the locale and the hash of the text that was shown (R-IDC-8).
 - R-LOC-12. Time zone names shown to the user are localised; stored values are IANA identifiers.
 
+Supervisor decision, 2026-11-14, owner asleep (ROADMAP G2.22): the locale resolved at onboarding by R-LOC-1 is stored with the account, so it counts as the account's explicit setting from then on; a consent records the locale of the statement shown (R-LOC-11), which is the language onboarding or the consent card ran in. Not built in G2.22: the 12-hour clock and week-start settings of R-LOC-5 (both locales use the 24-hour clock and Monday) and the unit settings of R-LOC-6.
+
 **Data captured**
 
 | Field | Values | Class (R06 section 6) |

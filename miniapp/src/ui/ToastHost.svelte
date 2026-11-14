@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { en } from '../i18n/en';
+  import { t as en } from '../i18n/index.svelte';
   import type { Toasts } from '../state/toasts.svelte';
 
   let { toasts }: { toasts: Toasts } = $props();

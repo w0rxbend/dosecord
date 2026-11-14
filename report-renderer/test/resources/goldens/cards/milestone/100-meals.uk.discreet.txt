@@ -1,0 +1,5 @@
+file: dosegram-milestone.png
+spoiler: false
+caption: 100 прийомів їжі записано.
+alt: 100 прийомів їжі записано.
+full: 100 прийомів їжі записано.
