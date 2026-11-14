@@ -18,8 +18,8 @@
 
   const isoWeekday = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
 
-  // Week start follows the account; full weekday names for assistive technology, two letters on
-  // screen (MA-HIST-6).
+  // Week start follows the account; full weekday names for assistive technology, the two-letter
+  // abbreviation of the language on screen (MA-HIST-6).
   const order = $derived(Array.from({ length: 7 }, (_, index) => ((calendar.weekStart - 1 + index) % 7) + 1));
   const lead = $derived(calendar.days.length === 0 ? 0 : (isoWeekday(calendar.days[0]!.date) - calendar.weekStart + 7) % 7);
   const lastPast = $derived(calendar.days.reduce((last, day, index) => (day.swatch.state === 'future' ? last : index), 0));
@@ -70,7 +70,7 @@
      (MA-HIST-4). -->
 <div class="grid" role="group" aria-label={calendar.monthLabel} bind:this={grid}>
   {#each order as weekday (weekday)}
-    <abbr class="weekday muted" title={en.history.weekdays[weekday - 1]}>{en.history.weekdays[weekday - 1]?.slice(0, 2)}</abbr>
+    <abbr class="weekday muted" title={en.history.weekdays[weekday - 1]}>{en.history.weekdaysShort[weekday - 1]}</abbr>
   {/each}
   {#each Array.from({ length: lead }, (_, index) => index) as blank (blank)}<span></span>{/each}
   {#each calendar.days as day, index (day.date)}

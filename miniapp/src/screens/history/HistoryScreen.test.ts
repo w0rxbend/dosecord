@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setLocale } from '../../i18n/index.svelte';
 import { createHarness, type Harness } from '../../test/harness';
 import HistoryScreen from './HistoryScreen.svelte';
 
@@ -12,6 +13,8 @@ function open(harness: Harness) {
 const grid = () => screen.findByRole('group', { name: 'November 2026' });
 
 describe('History calendar', () => {
+  afterEach(() => setLocale('en'));
+
   it('opens the first turned-on domain with one button per day, each named with the date and the value', async () => {
     open(createHarness());
 
@@ -20,6 +23,18 @@ describe('History calendar', () => {
     expect(within(month).getByRole('button', { name: /^Thursday 12 November, \d of 4 taken$/ })).toBeTruthy();
     expect(within(month).getByRole('button', { name: 'Friday 13 November, still ahead' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByTitle('Monday').textContent).toBe('Mo');
+  });
+
+  it('heads the Ukrainian weeks with the usual two-letter days, not the first letters of the names', async () => {
+    setLocale('uk');
+    open(createHarness());
+    await screen.findByTitle('Понеділок');
+    expect(['Понеділок', 'Четвер', 'Пʼятниця', 'Неділя'].map((day) => screen.getByTitle(day).textContent)).toEqual([
+      'Пн',
+      'Чт',
+      'Пт',
+      'Нд',
+    ]);
   });
 
   it('switches the domain and keeps "no entry" apart from the ramp', async () => {

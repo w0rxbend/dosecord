@@ -464,6 +464,7 @@ export const en = {
     previous: 'Previous month',
     next: 'Next month',
     weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    weekdaysShort: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
     showValues: 'Show values in cells',
     legend: 'Legend',
   },
