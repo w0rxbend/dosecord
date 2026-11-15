@@ -409,7 +409,9 @@ No new environment variable and no Dockerfile change. Every step is the owner's:
    - `sealing: <table>.<column> sealed N value(s), verified N` for `inbound_inbox.body`,
      `callback_slots.payload`, `domain_events.data` and `domain_events.actor` (on 2026-11-15 the
      live database held 2 inbox bodies, 49 slot payloads and 7 events; no session, form run,
-     reminder title or dose unit; no display name or vendor name);
+     reminder title or dose unit; no display name or vendor name). The start prints one such
+     line for every sealed column of every stage, V10 and V13 included; those of the earlier
+     stages say `sealed 0`;
    - `sealing: vacuumed ...` naming the tables it sealed (a plain `VACUUM (ANALYZE)`);
    - no `sequences:` line (section 12);
    - `migrate: 2 migration(s) applied, schema 19, N value(s) sealed, 0 key(s) rewrapped`;
@@ -449,3 +451,15 @@ After the deploy, check once with a real client: a dose answered in the Mini App
 chat's reminder (MA-TODAY-4), a shared card arrives, "Show as image" on `/stats` sends the week.
 
 Rollback: restore the backup of step 1 and start `dba2825`.
+
+Rehearsed on 2026-11-15 against a throwaway database (verification of `main` at `c5c047c`): a
+V17 database made by `dba2825` with a key file, through the chat on the fake wire (onboarding, a
+medication with instructions, a taken reminder, water, mood, sleep, a meal with words, an export,
+an add-medication form left after its first answer). Steps 1, 2, 4, 5 and 6 as written; the
+start logged the lines of step 4 (27 values sealed, among them the open form's answers, its
+session and 15 slot payloads), then the head on the fake wire finished the open form, answered
+four buttons sent before the upgrade, sent a reminder and recorded its Taken. A scan of every
+column of every table and a `pg_dump` held none of the typed words; `dosegram_app` saw no row
+without an account; `/readyz` answered 200 and `scripts/live-smoke.sh` exited 0. The WAL files
+still held the typed words written before the upgrade (ROADMAP G2.4b, the WAL dump test is open).
+Not rehearsed: step 3 (the container image), step 8 (a real client) and the rollback.
