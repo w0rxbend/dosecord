@@ -16,9 +16,10 @@ import scala.language.implicitConversions
 
 /** Account creation (ROADMAP M0.12d, DESIGN.md section 6): the `users` row has handle and display_name NULL (generated
   * handle; neutral display name, never the vendor nickname, K8), the current platform identity is linked, and the
-  * primary delivery channel is registered — all inside the mediator's per-event transaction.
+  * primary delivery channel is registered — all inside the mediator's per-event transaction. The time zone and the
+  * settings are read once per transaction (`reads`); a write of either forgets them.
   */
-final class PgAccountRepository(conn: Connection) extends AccountRepository:
+final class PgAccountRepository(conn: Connection, reads: TransactionReads) extends AccountRepository:
   private given Connection = conn
   import PgAccountRepository.given
 
@@ -35,17 +36,20 @@ final class PgAccountRepository(conn: Connection) extends AccountRepository:
     AccountId(userId)
 
   override def timezoneOf(accountId: UUID): Option[String] =
-    sql"SELECT timezone FROM users WHERE id = $accountId".queryOne[String]()
+    reads.timezone(accountId)(sql"SELECT timezone FROM users WHERE id = $accountId".queryOne[String]())
 
   override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit =
+    reads.forgetAccount(accountId)
     val updated = sql"UPDATE users SET timezone = $timezone, updated_at = $now WHERE id = $accountId".execute()
     require(updated == 1, s"account $accountId vanished before setTimezone")
 
   override def settingsOf(accountId: UUID): Option[AccountSettings] =
-    sql"SELECT locale, quiet_hours, discreet_default, image_theme FROM users WHERE id = $accountId"
-      .queryOne[AccountSettings]()
+    reads.settingsOf(accountId):
+      sql"SELECT locale, quiet_hours, discreet_default, image_theme FROM users WHERE id = $accountId"
+        .queryOne[AccountSettings]()
 
   override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
+    reads.forgetAccount(accountId)
     val quietHours = settings.quietHours.map(hours => Jsonb(write(hours)))
     val updated =
       sql"""UPDATE users SET locale = ${settings.locale}, quiet_hours = $quietHours,
