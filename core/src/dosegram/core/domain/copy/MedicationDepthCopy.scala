@@ -8,7 +8,9 @@ import java.time.format.DateTimeFormatter
   */
 object MedicationDepthCopy:
 
-  private def DayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Formats.locale)
+  // Ukrainian takes the full genitive month ("ср 23 вересня"): the JDK abbreviation ends in a full stop ("вер."),
+  // which doubled the one closing a sentence.
+  private def DayFormat = DateTimeFormatter.ofPattern(tr("EEE d MMM", "EEE d MMMM"), Formats.locale)
 
   def date(day: LocalDate): String = day.format(DayFormat)
 
@@ -24,7 +26,7 @@ object MedicationDepthCopy:
   def cycle(onDays: Int, offDays: Int, anchor: LocalDate): String =
     tr(
       s"${days(onDays)} on, ${days(offDays)} off from ${date(anchor)}",
-      s"${days(onDays)} з прийомом, ${days(offDays)} перерви, з ${date(anchor)}"
+      s"${days(onDays)} прийому, ${days(offDays)} перерви, з ${date(anchor)}"
     )
 
   private def days(n: Int): String = counted(n, "day", "days", UkNouns.Days)
@@ -34,7 +36,7 @@ object MedicationDepthCopy:
   def presetsLabel: String = tr("Presets", "Готові плани")
   def presetsPrompt: String = tr(
     "Pick a preset. Its times come from your day in /reminders; you review them before saving.",
-    "Виберіть готовий план. Його час береться з вашого дня в /reminders; ви переглянете його перед збереженням."
+    "Виберіть готовий план. Його час підлаштовується під ваш день у /reminders, і перед збереженням ви його побачите."
   )
 
   /** The short button label of a medication preset (`MedicationPresets` ids). */
@@ -48,7 +50,7 @@ object MedicationDepthCopy:
     case "med.weekdays"         => tr("Weekdays", "Будні")
     case "med.weekly"           => tr("Weekly", "Щотижня")
     case "med.every_other_day"  => tr("Every other day", "Через день")
-    case "med.cycle"            => tr("21 days on, 7 off", "21 день так, 7 ні")
+    case "med.cycle"            => tr("21 days on, 7 off", "21 день прийому, 7 перерви")
     case "med.as_needed"        => tr("As needed", "За потреби")
     case other                  => other
 
@@ -101,7 +103,7 @@ object MedicationDepthCopy:
   )
   def resumedOn(name: String): String = tr(
     s"Reminders for $name are back on from today, as you set when pausing.",
-    s"Нагадування для $name знову ввімкнені з сьогодні, як ви задали під час паузи."
+    s"Від сьогодні нагадування для $name знову увімкнено, як ви й задали під час паузи."
   )
 
   // ---------- inventory and the refill notice (R-REG-14 to R-REG-16, BOT_UX 10.5, IMG-15) ----------
@@ -124,13 +126,13 @@ object MedicationDepthCopy:
     )
 
   def refillLowDiscreet: String =
-    tr("One of your items is running low by your count.", "За вашим підрахунком одна з ваших позицій закінчується.")
+    tr("One of your items is running low by your count.", "За вашим підрахунком одна з позицій закінчується.")
   def countOff: String = tr("The count may be off. Update it?", "Залишок може бути неточним. Оновити його?")
   def refilledLabel(quantity: BigDecimal): String =
     val plain = decimal(quantity.bigDecimal.stripTrailingZeros.toPlainString)
     tr(s"Refilled +$plain", s"Поповнено +$plain")
   def refillShowCard: String = tr("Show card", "Показати картку")
-  def refillStop: String = tr("Stop for this pack", "Досить для цієї пачки")
+  def refillStop: String = tr("Stop for this pack", "Вимкнути для цієї пачки")
   def refilled(name: String, onHand: BigDecimal, unit: DoseUnit): String =
     tr(
       s"Added. $name: ${unit.count(onHand)} by your count.",
@@ -153,7 +155,7 @@ object MedicationDepthCopy:
     tr(
       s"$name: ${unit.count(onHand)} left by your count, at or below your threshold of $threshold.${coversUntil(until)} " +
         "Update the count after a refill.",
-      s"$name: за вашим підрахунком лишилося ${unit.count(onHand)}, на вашому порозі ($threshold) або нижче." +
+      s"$name: за вашим підрахунком лишилося ${unit.count(onHand)}, це ваш поріг ($threshold) або менше." +
         s"${coversUntil(until)} Після поповнення оновіть залишок."
     )
 

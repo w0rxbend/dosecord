@@ -46,7 +46,7 @@ object InsightCopy:
   def crossDomainOff: String =
     tr(
       "Comparisons between areas are off. One compares your average mood on days you reached your water goal with the other days.",
-      "Порівняння між розділами вимкнено. Одне з них зіставляє ваш середній настрій у дні, коли ви досягли цілі з води, з іншими днями."
+      "Порівняння між розділами вимкнено. Одне з них зіставляє ваш середній настрій у дні, коли ви досягли цілі щодо води, з іншими днями."
     )
   def CompareAcrossAreas: String = tr("Compare areas", "Порівнювати розділи")
   def usage: String = tr(
@@ -55,7 +55,7 @@ object InsightCopy:
   )
   def imageUnavailable: String = tr(
     "No pattern can be drawn right now. The text above is complete.",
-    "Зараз не вдається зобразити закономірність. Текст вище повний."
+    "Зараз не вдається показати закономірність на зображенні. Текст вище — повний."
   )
 
   def header(window: DateRange): String = tr(
@@ -70,7 +70,7 @@ object InsightCopy:
         tr(
           s"On the ${first.days} days you reached your water goal, your average mood was " +
             s"${meanWithLevel(first.mean)}. On the ${second.days} other days it was ${meanWithLevel(second.mean)}.",
-          s"У дні, коли ви досягли цілі з води (${UkNouns.Days.count(first.days)}), ваш середній настрій був " +
+          s"У дні, коли ви досягли цілі щодо води (${UkNouns.Days.count(first.days)}), ваш середній настрій був " +
             s"${meanWithLevel(first.mean)}. В інші дні (${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
         )
       case InsightRule.SleepGoalAndMood =>
@@ -131,7 +131,7 @@ object InsightCopy:
   /** The short name of a rule in the list of rules that are close to their data. */
   def topic(rule: InsightRule): String =
     rule match
-      case InsightRule.WaterGoalAndMood => tr("Water goal and mood", "Ціль з води й настрій")
+      case InsightRule.WaterGoalAndMood => tr("Water goal and mood", "Ціль щодо води й настрій")
       case InsightRule.SleepGoalAndMood => tr("Sleep goal and mood", "Ціль сну й настрій")
       case InsightRule.BedtimeAndMood   => tr("Bedtime and mood", "Час відходу до сну й настрій")
       case InsightRule.WorkDaysAndSleep => tr("Work days and sleep", "Робочі дні й сон")
@@ -217,7 +217,7 @@ object InsightCopy:
             "Only days with both records are compared: at least 14 such days and 5 in each group, and the " +
               "difference holds in both halves of the period and without any single day.",
             "Порівнюються лише дні з обома записами: щонайменше 14 таких днів і по 5 у кожній групі, а різниця " +
-              "зберігається в обох половинах періоду й без будь-якого окремого дня."
+              "зберігається в обох половинах періоду, навіть якщо прибрати будь-який один день."
           )
         )
       case Insight.Timing(TimingStatement.Shown(highest, lowest, window), _) =>

@@ -145,7 +145,7 @@ object UkrainianImageCopy extends ImageCopy:
     }
     (Vector(s"${dayDate(day.date)}.", moodText(day.mood)) ++ medication ++ water ++ food ++ sleep).mkString(" ")
 
-  def dayDiscreet: String = "Ваш день на цю мить."
+  def dayDiscreet: String = "Ваш день, поки що."
 
   def foodTitle: String = "Їжа"
 
@@ -358,7 +358,7 @@ object UkrainianImageCopy extends ImageCopy:
     Vector("запланованих доз", "записано як прийняті", s"(${counts.taken} з ${counts.counted})")
 
   def monthHeroDays(days: Int): Vector[String] = Vector(
-    form(days, "день із записами", "дні з записами", "днів із записами")
+    form(days, "день із записами", "дні із записами", "днів із записами")
   )
 
   def monthPrevious(month: YearMonth, percent: Int): String =
@@ -390,7 +390,7 @@ object UkrainianImageCopy extends ImageCopy:
   def insightGroup(rule: InsightRule, isFirst: Boolean): String =
     rule match
       case InsightRule.WaterGoalMood =>
-        if isFirst then "Ціль з води досягнуто" else "Воду записано, ціль не досягнуто"
+        if isFirst then "Ціль щодо води досягнуто" else "Воду записано, ціль не досягнуто"
       case InsightRule.SleepGoalMood =>
         if isFirst then "Після ночей, коли сон досяг цілі" else "Після коротших ночей"
       case InsightRule.BedtimeMood =>
@@ -410,7 +410,7 @@ object UkrainianImageCopy extends ImageCopy:
     val (first, second) = (insight.first, insight.second)
     val groups = insight.rule match
       case InsightRule.WaterGoalMood =>
-        s"У дні, коли ви досягли цілі з води (${days(first.days)}), ваш середній настрій був " +
+        s"У дні, коли ви досягли цілі щодо води (${days(first.days)}), ваш середній настрій був " +
           s"${insightValue(first.value)}. В інші дні із записаною водою (${days(second.days)}) — " +
           s"${insightValue(second.value)}."
       case InsightRule.SleepGoalMood =>
@@ -445,7 +445,7 @@ object UkrainianImageCopy extends ImageCopy:
 
   def shareDayCount(fact: ShareFact.DayCount): (String, String, String) =
     val headline = fact.domain match
-      case Domain.Water => "Ціль із води досягнуто"
+      case Domain.Water => "Ціль щодо води досягнуто"
       case Domain.Sleep => "Сон записано"
       case _            => "Настрій записано"
     (headline, s"${fact.hits} з 7 днів", "цього тижня")
@@ -566,7 +566,7 @@ object UkrainianImageCopy extends ImageCopy:
     (Vector(s"${monthYear(page.month)}, $intro") ++ sleep ++ water ++ food).mkString(" ")
 
   def refillTitle: String = "Залишок закінчується"
-  def refillDiscreetLabel: String = "Одна з ваших позицій закінчується."
+  def refillDiscreetLabel: String = "Одна з позицій закінчується."
   def refillSource: String = "За залишком, який ви ввели."
   def refillThreshold(threshold: String): String = s"Ваш поріг: $threshold"
   // The unit alone under the count: the title already says it is what is left, and the column is narrow.
@@ -586,7 +586,7 @@ object UkrainianImageCopy extends ImageCopy:
     val recorded = days.flatten
     val period = s"Вода, ${dateRange(from, from.plusDays(days.size - 1L))}."
     val summary =
-      if recorded.isEmpty then "Записів: 0 днів."
+      if recorded.isEmpty then "Днів із записами: 0."
       else
         val average = Option.when(recorded.size >= MinimumDaysForAverage)(
           s"У середньому ${litresAmount(recorded.map(_.volumeMl).sum / recorded.size)} на день."

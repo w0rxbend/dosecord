@@ -128,7 +128,7 @@ object History:
   /** The start of a summary sentence, so the Ukrainian month, lower case on its own, takes a capital. */
   private def period(month: YearMonth, isCurrent: Boolean): String =
     val name = ApiCopy.monthName(month).capitalize
-    if isCurrent then tr(s"$name so far", s"$name на цю мить") else name
+    if isCurrent then tr(s"$name so far", s"$name, поки що") else name
 
   private final case class MedicationCells(days: Map[LocalDate, MedicationDay]) extends Cells:
     val steps = 3

@@ -23,7 +23,7 @@ object WizardCopy:
   def asNeeded = tr("As needed", "За потреби")
   def timesOtherPrompt = tr(
     "Type the time or times, like 7:30, 9pm or 8, 14:30 and 22.",
-    "Введіть час або кілька, як-от 7:30, 21:00 чи 8, 14:30 і 22."
+    "Введіть один час або кілька, як-от 7:30, 21:00 чи 8, 14:30 і 22."
   )
 
   /** The echo of what the times step understood, shown above the instructions question with its Change path. */
@@ -32,7 +32,7 @@ object WizardCopy:
       case Nil =>
         tr(
           "No reminder times: you log it yourself when you take it.",
-          "Без часу нагадувань: ви записуєте прийом самі, коли приймаєте."
+          "Без нагадувань за часом: прийом ви записуєте самі, коли приймете ліки."
         )
       case List(first) => tr(s"Reminder time: $first.", s"Час нагадування: $first.")
       case several     =>

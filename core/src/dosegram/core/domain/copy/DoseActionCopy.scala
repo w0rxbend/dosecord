@@ -46,7 +46,7 @@ object DoseActionCopy:
       case DoseActionKind.ManuallyCorrected => tr("Corrected manually.", "Виправлено вручну.")
       case DoseActionKind.Undone            => tr("Undone.", "Скасовано.")
       case DoseActionKind.NoteAdded         => tr("Note added.", "Нотатку додано.")
-      case DoseActionKind.Cancelled         => tr("Cancelled.", "Відмінено.")
+      case DoseActionKind.Cancelled         => tr("Cancelled.", "Анульовано.")
       case DoseActionKind.CatchUpCollapsed  =>
         tr("Collapsed into catch-up after downtime.", "Об’єднано в підсумок після перерви в роботі.")
       case DoseActionKind.ChainChildCreated =>

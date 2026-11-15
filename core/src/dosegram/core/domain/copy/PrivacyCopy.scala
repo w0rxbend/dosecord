@@ -36,9 +36,9 @@ object PrivacyCopy:
         )
       case DataDomain.Hydration =>
         tr("every water entry, goal and quick amount", "усі записи води, цілі й швидкі об’єми")
-      case DataDomain.Mood      => tr("every mood check-in and mood tag", "усі позначки настрою й теги настрою")
+      case DataDomain.Mood      => tr("every mood check-in and mood tag", "усі позначки й теги настрою")
       case DataDomain.Sleep     => tr("every sleep entry, tap and goal", "усі записи сну, позначки й цілі")
-      case DataDomain.Nutrition => tr("every meal entry, meal plan and meal tag", "усі записи їжі, плани й теги їжі")
+      case DataDomain.Nutrition => tr("every meal entry, meal plan and meal tag", "усі записи, плани й теги їжі")
 
   def domainLabel(domain: DataDomain): String =
     tr(s"Delete ${records(domain)}", s"Видалити ${records(domain)}")
@@ -49,7 +49,7 @@ object PrivacyCopy:
     "Повідомлення й зображення, що вже є в цьому чаті, лишаються там, доки ви не видалите їх у Telegram."
   )
 
-  def cannotUndo: String = tr("This cannot be undone.", "Це не можна скасувати.")
+  def cannotUndo: String = tr("This cannot be undone.", "Цю дію не можна скасувати.")
 
   /** `privacy.delete.menu`. */
   def menu: String = tr(

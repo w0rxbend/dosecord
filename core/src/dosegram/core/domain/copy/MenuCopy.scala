@@ -3,7 +3,7 @@ package dosegram.core.domain.copy
 /** Menu copy (ROADMAP M1.4a recorded decision; tree per docs/MEDICATION_REMINDER_UX.md and ROADMAP M1.9). */
 object MenuCopy:
 
-  def mainPrompt = tr("What would you like to do?", "Що бажаєте зробити?")
+  def mainPrompt = tr("What would you like to do?", "Що хочете зробити?")
 
   /** Recorded decision: the top menu is exactly these six entries, in this order. */
   def topLevel: List[String] = List(
@@ -38,7 +38,7 @@ object MenuCopy:
   def historyTitle = tr("Last 7 days", "Останні 7 днів")
   def historyEmpty = tr("No doses in the last 7 days.", "За останні 7 днів доз немає.")
   def settingsTitle = tr("Settings", "Налаштування")
-  def settingsIntro = tr("Reminder options for each medication:", "Параметри нагадувань для кожних ліків:")
+  def settingsIntro = tr("Reminder options for each medication:", "Як нагадувати про кожні ліки:")
 
   /** Pause/Resume toggle line (M1.9): `Paused since Tue [Resume]`. */
   def pausedSince(day: String): String = tr(s"Paused since $day", s"Призупинено з $day")

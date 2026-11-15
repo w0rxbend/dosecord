@@ -12,11 +12,11 @@ object WaterCopy:
   def goalAsk =
     tr(
       "Set a daily amount to count towards? Pick any amount that suits you. Dosegram does not recommend an amount.",
-      "Задати денну кількість, до якої рахувати? Виберіть будь-яку зручну для вас. Dosegram не рекомендує кількість."
+      "Задати денну кількість, до якої рахувати? Виберіть будь-яку зручну для вас — Dosegram не підказує, скільки пити."
     )
   def NoGoal = tr("No goal", "Без цілі")
   def Goal = tr("Goal", "Ціль")
-  def ShowAsImage = tr("Show as image", "Показати зображенням")
+  def ShowAsImage = tr("Show as image", "Показати як зображення")
   def nothingLogged = tr("Water today: nothing logged yet.", "Вода сьогодні: поки нічого не записано.")
   def usage = tr("Send an amount, for example /water 300.", "Надішліть кількість, наприклад /water 300.")
   def undoWindowPassed = tr("The undo window has passed.", "Час на скасування минув.")
@@ -27,7 +27,7 @@ object WaterCopy:
   )
   def imageNeedsGoal = tr(
     "The image shows progress to your own goal. Set one with Goal first.",
-    "Зображення показує поступ до вашої власної цілі. Спершу задайте її кнопкою «Ціль»."
+    "Зображення показує, наскільки ви наблизилися до власної цілі. Спершу задайте її кнопкою «Ціль»."
   )
 
   /** `water.too_much`: the bound is an input-error guard, not guidance. */

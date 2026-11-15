@@ -151,7 +151,7 @@ class MedicationDepthPgSuite extends PgSuite:
     rig.loop.tick()
     val notice = rig.notices.head
     assert(notice.contains("Iron: за вашим підрахунком лишилося близько 3 таблетки."), notice)
-    assert(notice.contains("Показати картку") && notice.contains("Досить для цієї пачки"), notice)
+    assert(notice.contains("Показати картку") && notice.contains("Вимкнути для цієї пачки"), notice)
     assertEquals(rig.errors.toList, Nil)
 
   test("a Ukrainian account's card and refill name the unit in Ukrainian, in the form of their count"):
@@ -161,7 +161,8 @@ class MedicationDepthPgSuite extends PgSuite:
       tx.accounts.saveSettings(rig.account, settings.copy(locale = Some("uk")), rig.clock.now())
     rig.clock.at = local(21, "07:30")
     val card = rig.text(rig.tap("refill.card", 0))
-    assert(card.contains("Iron: за вашим підрахунком лишилося 3 таблетки, на вашому порозі (7 днів)"), card)
+    assert(card.contains("Iron: за вашим підрахунком лишилося 3 таблетки, це ваш поріг (7 днів) або менше."), card)
+    assert(!card.contains(".."), card)
     val refilled = rig.text(rig.tap("refill.add", 2000))
     assert(refilled.contains("Iron: 5 таблеток за вашим підрахунком."), refilled)
     assert(!refilled.contains("tablet") && !card.contains("tablet"), s"$card / $refilled")
