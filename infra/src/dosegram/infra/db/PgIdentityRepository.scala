@@ -30,8 +30,9 @@ final class PgIdentityRepository(conn: Connection) extends IdentityRepository:
         principal
       case None =>
         val id = UUID.randomUUID()
-        sql"""INSERT INTO platform_identities (id, vendor, vendor_user_id, vendor_username, last_seen_at)
-              VALUES ($id, ${actor.vendor}, ${actor.vendorUserId}, ${actor.displayName}, $now)
+        // The vendor's name of the person is not kept (K8; V21 keeps vendor_username empty).
+        sql"""INSERT INTO platform_identities (id, vendor, vendor_user_id, last_seen_at)
+              VALUES ($id, ${actor.vendor}, ${actor.vendorUserId}, $now)
               ON CONFLICT DO NOTHING""".execute()
         // A concurrent first-contact on another chat may have won the insert; re-read either way.
         find(actor).getOrElse(Principal(IdentityId(id), None, linked = false))

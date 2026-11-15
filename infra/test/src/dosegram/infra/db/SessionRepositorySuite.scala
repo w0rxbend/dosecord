@@ -63,7 +63,7 @@ class SessionRepositorySuite extends PgSuite:
 
     val conn = dataSource.getConnection
     conn.setAutoCommit(false)
-    val lockedRepo = PgSessionRepository(conn, tickingClock)
+    val lockedRepo = PgSessionRepository(conn, tickingClock, DataKeys.development.on(conn))
     assert(lockedRepo.loadForUpdate("principal-2", "console", "chat-1").isDefined)
 
     val acquired = AtomicBoolean(false)

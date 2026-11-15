@@ -35,6 +35,7 @@ import dosegram.infra.Settings
 import dosegram.infra.TelegramSettings
 import dosegram.infra.TelegramUpdates
 import dosegram.infra.crypto.DataKeys
+import dosegram.infra.db.CanaryScan
 import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.PgUnitOfWork
@@ -57,8 +58,10 @@ class ProductionPathSuite extends PgSuite:
   override val munitTimeout = scala.concurrent.duration.Duration(240, "s")
 
   // A Monday, two hours before the first dose of the day.
-  private val start = Instant.parse("2026-09-21T07:00:00Z")
+  protected val start = Instant.parse("2026-09-21T07:00:00Z")
   private val owner = 7001L
+  // Telegram sends the person's first name with every message; nothing may keep it in a readable form.
+  private val OwnerName = "CanaryOwnerName"
 
   private val fast = Workers.Cadence(
     reminderPoll = Duration.ofMillis(100),
@@ -113,7 +116,7 @@ class ProductionPathSuite extends PgSuite:
   private val updateIds = java.util.concurrent.atomic.AtomicLong(500)
 
   /** The owner's chat on the fake wire: what the owner types and taps, and what the bot wrote back. */
-  private final class Chat(val clock: SteppedClock, val wire: FakeTelegramTransport, val healthPort: Int):
+  protected final class Chat(val clock: SteppedClock, val wire: FakeTelegramTransport, val healthPort: Int):
     // A relaunch in the same test keeps counting: the inbox drops an update id it has seen.
     private var updateSeq = updateIds.getAndAdd(1000)
     private val messageMethods = Set("sendMessage", "editMessageText")
@@ -131,13 +134,16 @@ class ProductionPathSuite extends PgSuite:
         .flatMap(button => button.obj.get("callback_data").map(data => (button("text").str, data.str)))
 
     /** Types `text`, then waits until a message from the bot shows `expected`. */
-    def say(text: String, expected: String): Unit = step(expected): () =>
+    def say(text: String, expected: String): Unit = step(expected)(() => send(text))
+
+    /** Types `text` and returns at once. */
+    def send(text: String): Unit =
       wire.enqueueUpdates(
         ujson.Obj(
           "update_id" -> updateSeq.toDouble,
           "message" -> ujson.Obj(
             "message_id" -> (updateSeq + 9000).toDouble,
-            "from" -> ujson.Obj("id" -> owner.toDouble, "is_bot" -> false),
+            "from" -> ujson.Obj("id" -> owner.toDouble, "is_bot" -> false, "first_name" -> OwnerName),
             "chat" -> ujson.Obj("id" -> owner.toDouble, "type" -> "private"),
             "date" -> clock.now().getEpochSecond.toDouble,
             "text" -> text
@@ -208,16 +214,16 @@ class ProductionPathSuite extends PgSuite:
     while !condition && System.nanoTime() < deadline do Thread.sleep(25)
     assert(condition, s"not within 60 s: $clue")
 
-  private def launched[A](clock: SteppedClock)(test: Chat => A): A =
+  protected def launched[A](clock: SteppedClock)(test: Chat => A): A =
     val wire = FakeTelegramTransport(clock)
     supervised:
       val config = settings
       val adapter =
-        TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(PgInboundInbox(dataSource)))
+        TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(PgInboundInbox(dataSource, DataKeys.development)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
       test(Chat(clock, wire, config.healthPort))
 
-  private def strings(query: String): List[String] = withConnection { conn =>
+  protected def strings(query: String): List[String] = withConnection { conn =>
     val st = conn.createStatement()
     try
       val rs = st.executeQuery(query) // a query of this suite, never input
@@ -228,7 +234,7 @@ class ProductionPathSuite extends PgSuite:
   // ---------- The owner's set-up, through the chat only ----------
 
   /** `/start`, the medication consent in two stages, and the timezone: the account exists only after this. */
-  private def onboard(chat: Chat): Unit =
+  protected def onboard(chat: Chat): Unit =
     val medication = ConsentPurpose.Medication
     chat.say("/start", ConsentCopy.notice.head)
     chat.tapLabel(ConsentCopy.onboardingLabel(medication), ConsentCopy.statement(medication))
@@ -239,7 +245,7 @@ class ProductionPathSuite extends PgSuite:
     eventually("the account exists")(strings("SELECT 1 FROM users").size == 1)
 
   /** `/meds`, Add medication, a name, a dose, 09:00 every day. */
-  private def addDailyMedication(chat: Chat): Unit =
+  protected def addDailyMedication(chat: Chat): Unit =
     chat.say("/meds", "Add medication")
     chat.tapLabel("Add medication", WizardCopy.fieldName)
     chat.say("Vitamin D", WizardCopy.fieldDose)
@@ -490,6 +496,40 @@ class ProductionPathSuite extends PgSuite:
         s"SELECT 'platform_identities' FROM platform_identities WHERE vendor_user_id = '$chatId'"
       )
       assertEquals(naming.flatMap(strings), Nil, "rows that name the chat")
+
+  test("after the production paths no column and no pg_dump holds a medication name, words or the person's name"):
+    // ROADMAP G2.4b: the chat drives every store that carries content in transit, then the whole database is read.
+    val medicationName = "CanaryPillName"
+    val instructions = "canary-instructions-words"
+    val draftName = "CanaryDraftName"
+    val mealWords = "canary-meal-words"
+    val clock = SteppedClock(start)
+    launched(clock): chat =>
+      onboard(chat)
+      chat.say("/meds", "Add medication")
+      chat.tapLabel("Add medication", WizardCopy.fieldName)
+      chat.say(medicationName, WizardCopy.fieldDose)
+      chat.say("2 tablets", WizardCopy.timesPrompt)
+      chat.say("09:00", WizardCopy.instructionsPrompt)
+      chat.say(instructions, WizardCopy.daysPrompt)
+      chat.tapLabel(WizardCopy.everyDay, Labels.Create)
+      chat.tapLabel(Labels.Create, "")
+      eventually("the schedule exists")(strings("SELECT status FROM medication_schedules") == List("active"))
+      chat.say(s"lunch: $mealWords", ConsentCopy.statement(ConsentPurpose.Nutrition))
+      chat.tapLabel(ConsentCopy.Agree, ConsentCopy.confirmation(ConsentPurpose.Nutrition))
+      chat.tapLabel(ConsentCopy.Confirm, "")
+      eventually("the meal is recorded")(strings("SELECT id::text FROM meals").size == 1)
+      // A second wizard is left open with a typed name: its draft stays in the session.
+      chat.say("/meds", "Add medication")
+      chat.tapLabel("Add medication", WizardCopy.fieldName)
+      chat.say(draftName, WizardCopy.fieldDose)
+      eventually("every update is settled")(strings("SELECT 1 FROM inbound_inbox WHERE status = 'pending'").isEmpty)
+    assert(strings("SELECT id::text FROM conversation_sessions").nonEmpty, "the abandoned draft is kept")
+    val canaries = List(medicationName, instructions, draftName, mealWords, OwnerName)
+    assertEquals(withConnection(CanaryScan.columns(_, canaries)), Nil, "a column holds a canary")
+    val dump = pg.container.execInContainer("pg_dump", "-U", pg.username, "-d", pg.databaseName, "--no-owner")
+    assertEquals(dump.getExitCode, 0, dump.getStderr)
+    canaries.foreach(canary => assert(!dump.getStdout.contains(canary), s"the dump holds '$canary'"))
 
   // ---------- Operations on the launched process ----------
 

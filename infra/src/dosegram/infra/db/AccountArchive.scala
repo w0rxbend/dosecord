@@ -49,7 +49,7 @@ object AccountArchive:
 
   /** `table` with each sealed value opened into its plaintext column, and without the sealed and lookup columns. */
   private def opened(table: ArchivedTable, keys: KeyService, accountId: UUID): ArchivedTable =
-    val sealedHere = SealedColumns.all.filter(_.table == table.name)
+    val sealedHere = (SealedColumns.all ++ SealedColumns.chatState).filter(_.table == table.name)
     val hidden = sealedHere.flatMap(column => column.encrypted :: column.lookup.map(_.column).toList).toSet
     val names = table.columns.map(_._1)
     val types = table.columns.toMap

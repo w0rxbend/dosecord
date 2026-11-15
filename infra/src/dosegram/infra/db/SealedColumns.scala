@@ -41,6 +41,11 @@ final case class SealedColumn(
     case SealOwner.AccountOr(_, purpose) => field(account.fold(KeyOwner.Service(purpose))(KeyOwner.Account(_)), row)
     case other => throw IllegalArgumentException(s"$table.$encrypted is not sealed by row ($other)")
 
+  /** The field of a row of a [[SealOwner.Service]] column. */
+  def forService(row: Any): SealedField = owner match
+    case SealOwner.Service(purpose) => field(KeyOwner.Service(purpose), row)
+    case other => throw IllegalArgumentException(s"$table.$encrypted is not sealed by a service key ($other)")
+
 object SealedColumns:
 
   /** The service key of the transport rows written before an account existed (the onboarding). */
@@ -105,6 +110,45 @@ object SealedColumns:
     SealOwner.AccountOr("t.account_id", TransportPurpose)
   )
 
+  /** An update as received (V21): the message text. The inbox keys a row by chat before any account exists. */
+  val InboxBody: SealedColumn =
+    SealedColumn("inbound_inbox", "body", "body_enc", "vendor_event_id", SealOwner.Service(TransportPurpose))
+
+  /** An open wizard's draft and its last question (V21): a typed medication name among them. A session is keyed by the
+    * chat's principal, which is an identity before the account exists, so the service key seals it.
+    */
+  val SessionData: SealedColumn =
+    SealedColumn("conversation_sessions", "data", "data_enc", "id", SealOwner.Service(TransportPurpose))
+  val SessionPrompt: SealedColumn =
+    SealedColumn("conversation_sessions", "last_prompt", "last_prompt_enc", "id", SealOwner.Service(TransportPurpose))
+
+  /** An open form's answers (V21), keyed by its session. */
+  val FormAnswers: SealedColumn =
+    SealedColumn("form_runs", "answers", "answers_enc", "session_id", SealOwner.Service(TransportPurpose))
+
+  /** The state behind a button (V21). */
+  val SlotPayload: SealedColumn = SealedColumn(
+    "callback_slots",
+    "payload",
+    "payload_enc",
+    "id",
+    SealOwner.AccountOr("t.account_id", TransportPurpose)
+  )
+
+  /** The event log (V21): the envelope and the actor of each event. */
+  val EventData: SealedColumn =
+    SealedColumn("domain_events", "data", "data_enc", "id", SealOwner.AccountOr("t.account_id", TransportPurpose))
+  val EventActor: SealedColumn =
+    SealedColumn("domain_events", "actor", "actor_enc", "id", SealOwner.AccountOr("t.account_id", TransportPurpose))
+
+  /** A reminder's own words (V21). */
+  val ReminderTitle: SealedColumn =
+    SealedColumn("reminders", "title", "title_enc", "id", SealOwner.AccountOf("t.account_id"))
+
+  /** The unit of a strength (V21): a catalogue code, or the word the user typed. */
+  val MedicationDoseUnit: SealedColumn =
+    SealedColumn("medications", "dose_unit", "dose_unit_enc", "id", SealOwner.AccountOf("t.user_id"))
+
   /** A staged record of an open import (V15): the whole normalised record, sealed. It has no plaintext column, so it is
     * in neither list below: the backfill has nothing to seal and the archive does not export the staging.
     */
@@ -129,6 +173,19 @@ object SealedColumns:
     * value and empties its plaintext column in the same UPDATE, and the release writes the sealed column only.
     */
   val emptiedOnSeal: List[SealedColumn] = List(OutboxPayload, InboundReply)
+
+  /** The sealed columns of V21, which the backfill right after V21 seals and empties like those of V13. */
+  val chatState: List[SealedColumn] = List(
+    InboxBody,
+    SessionData,
+    SessionPrompt,
+    FormAnswers,
+    SlotPayload,
+    EventData,
+    EventActor,
+    ReminderTitle,
+    MedicationDoseUnit
+  )
 
 /** Text over a [[KeyService]]: UTF-8 in, UTF-8 out. */
 extension (keys: KeyService)

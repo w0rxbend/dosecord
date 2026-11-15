@@ -12,19 +12,20 @@ import java.time.Instant
 import java.util.UUID
 import scala.language.implicitConversions
 
-/** Postgres `medications`. The name and the instructions are sealed with the account's data key (ROADMAP G2.4,
-  * ARCHITECTURE SEC-01); `name_hmac`, the keyed hash of the normalised name, replaces `name_norm` for find-or-create
-  * and for the one-live-medication-per-name index. A prefix search opens the account's names and filters them here: a
-  * keyed hash matches whole names only.
+/** Postgres `medications`. The name, the dose unit and the instructions are sealed with the account's data key (ROADMAP
+  * G2.4, ARCHITECTURE SEC-01); `name_hmac`, the keyed hash of the normalised name, replaces `name_norm` for
+  * find-or-create and for the one-live-medication-per-name index. A prefix search opens the account's names and filters
+  * them here: a keyed hash matches whole names only.
   */
 final class PgMedicationRepository(conn: Connection, keys: KeyService) extends MedicationRepository:
+  import SealedColumns.MedicationDoseUnit
   import SealedColumns.MedicationInstructions
   import SealedColumns.MedicationName
 
   private given Connection = conn
 
   private val Columns =
-    "id, user_id, name_enc, dose_amount, dose_unit, instructions_enc, status, created_at, updated_at"
+    "id, user_id, name_enc, dose_amount, dose_unit, dose_unit_enc, instructions_enc, status, created_at, updated_at"
 
   private given RowMapper[StoredMedication] = rs =>
     val id = rs.uuid("id")
@@ -36,7 +37,9 @@ final class PgMedicationRepository(conn: Connection, keys: KeyService) extends M
       name = name,
       nameNorm = SealedColumns.medicationNameNorm(name),
       doseAmount = Option(rs.getBigDecimal("dose_amount")).map(BigDecimal(_)),
-      doseUnit = rs.optString("dose_unit"),
+      doseUnit = Option(rs.getBytes("dose_unit_enc"))
+        .map(keys.openText(MedicationDoseUnit.forAccount(accountId, id), _))
+        .orElse(rs.optString("dose_unit")),
       instructions = Option(rs.getBytes("instructions_enc"))
         .map(keys.openText(MedicationInstructions.forAccount(accountId, id), _)),
       status = MedicationStatus.fromDbValue(rs.getString("status")),
@@ -44,24 +47,33 @@ final class PgMedicationRepository(conn: Connection, keys: KeyService) extends M
       updatedAt = rs.instant("updated_at")
     )
 
-  private final case class Sealed(name: Array[Byte], nameHmac: Array[Byte], instructions: Option[Array[Byte]])
+  private final case class Sealed(
+      name: Array[Byte],
+      nameHmac: Array[Byte],
+      doseUnit: Option[Array[Byte]],
+      instructions: Option[Array[Byte]]
+  )
 
-  private def sealedOf(accountId: UUID, id: UUID, name: String, instructions: Option[String]): Sealed =
+  /** The free-text fields of one medication before they are sealed: what the user typed or picked. */
+  private final case class Typed(name: String, doseUnit: Option[String], instructions: Option[String])
+
+  private def sealedOf(accountId: UUID, id: UUID, typed: Typed): Sealed =
     Sealed(
-      keys.sealText(MedicationName.forAccount(accountId, id), name),
-      keys.lookup(MedicationName, accountId, name),
-      instructions.map(keys.sealText(MedicationInstructions.forAccount(accountId, id), _))
+      keys.sealText(MedicationName.forAccount(accountId, id), typed.name),
+      keys.lookup(MedicationName, accountId, typed.name),
+      typed.doseUnit.map(keys.sealText(MedicationDoseUnit.forAccount(accountId, id), _)),
+      typed.instructions.map(keys.sealText(MedicationInstructions.forAccount(accountId, id), _))
     )
 
   private def select(where: String, binds: SqlBind*): List[StoredMedication] =
     SqlQuery(s"SELECT $Columns FROM medications WHERE $where", binds.toVector).query[StoredMedication]()
 
   override def insert(row: NewMedication, now: Instant): Unit =
-    val sealedRow = sealedOf(row.accountId, row.id, row.name, row.instructions)
-    sql"""INSERT INTO medications (id, user_id, name_enc, name_hmac, dose_amount, dose_unit, instructions_enc, status,
-                                   created_at, updated_at)
-          VALUES (${row.id}, ${row.accountId}, ${sealedRow.name}, ${sealedRow.nameHmac}, ${row.doseAmount}, ${row.doseUnit},
-                  ${sealedRow.instructions}, 'active', $now, $now)""".execute()
+    val sealedRow = sealedOf(row.accountId, row.id, Typed(row.name, row.doseUnit, row.instructions))
+    sql"""INSERT INTO medications (id, user_id, name_enc, name_hmac, dose_amount, dose_unit_enc, instructions_enc,
+                                   status, created_at, updated_at)
+          VALUES (${row.id}, ${row.accountId}, ${sealedRow.name}, ${sealedRow.nameHmac}, ${row.doseAmount},
+                  ${sealedRow.doseUnit}, ${sealedRow.instructions}, 'active', $now, $now)""".execute()
     ()
 
   override def get(id: UUID): Option[StoredMedication] =
@@ -84,10 +96,11 @@ final class PgMedicationRepository(conn: Connection, keys: KeyService) extends M
     select("user_id = ? ORDER BY created_at, id", accountId)
 
   override def replace(edit: MedicationEdit, now: Instant): Option[StoredMedication] =
-    val sealedRow = sealedOf(edit.accountId, edit.id, edit.name, edit.instructions)
+    val sealedRow = sealedOf(edit.accountId, edit.id, Typed(edit.name, edit.doseUnit, edit.instructions))
     SqlQuery(
       s"""UPDATE medications
-          SET name_enc = ?, name_hmac = ?, dose_amount = ?, dose_unit = ?, instructions_enc = ?, status = ?,
+          SET name_enc = ?, name_hmac = ?, dose_amount = ?, dose_unit = NULL, dose_unit_enc = ?, instructions_enc = ?,
+              status = ?,
               updated_at = GREATEST(?, updated_at + interval '1 microsecond')
           WHERE id = ? AND user_id = ? AND updated_at = ?
           RETURNING $Columns""",
@@ -95,7 +108,7 @@ final class PgMedicationRepository(conn: Connection, keys: KeyService) extends M
         sealedRow.name,
         sealedRow.nameHmac,
         edit.doseAmount,
-        edit.doseUnit,
+        sealedRow.doseUnit,
         sealedRow.instructions,
         edit.status.dbValue,
         now,
