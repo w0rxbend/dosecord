@@ -23,7 +23,14 @@ object RenderBenchmark:
     "sleep/typical",
     "month/typical",
     "insight/water-goal-mood",
-    "milestone/50-mood"
+    "milestone/50-mood",
+    "week-glance/dense",
+    "water-week/typical",
+    "sleep-week/typical",
+    "mood-weekday/dense",
+    "month/report",
+    "food/full",
+    "refill/typical"
   )
 
   final case class Timing(name: String, sceneMillis: Vector[Double], rasterMillis: Vector[Double], svgBytes: Int, pngBytes: Int)
@@ -38,7 +45,7 @@ object RenderBenchmark:
     (result, (System.nanoTime() - started) / 1e6)
 
   def measure(name: String, sampleCount: Int, renderer: CardRenderer): Timing =
-    val fixture = Samples.all.find(_.name == name).getOrElse(throw IllegalArgumentException(s"no fixture $name"))
+    val fixture = Samples.review.find(_.name == name).getOrElse(throw IllegalArgumentException(s"no fixture $name"))
     def build(): CardOutput = fixture.render(Samples.context(Theme.Dark, Privacy.Named)).head
     val samples = Vector.fill(sampleCount) {
       val ((card, svg), sceneMillis) = millisOf { val card = build(); (card, SvgEmitter.emit(card.scene)) }

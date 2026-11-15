@@ -8,7 +8,9 @@ import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.Comparison
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
@@ -31,6 +33,7 @@ import dosegram.infra.db.PgRenderAssets
 import dosegram.infra.db.PgTelegramFileCache
 import dosegram.render.CardRenderer
 import dosegram.render.Rasteriser
+import dosegram.render.blob.BlobFigure
 import dosegram.render.blob.MoodReading
 import dosegram.render.blob.MoodState
 import dosegram.render.card.CardContext
@@ -45,6 +48,9 @@ import dosegram.render.card.MealProgress
 import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
 import dosegram.render.card.MoodCard
+import dosegram.render.card.MoodWeekdayCard
+import dosegram.render.card.MoodWeekdayData
+import dosegram.render.card.MoodWeekdayRow
 import dosegram.render.card.Privacy
 import dosegram.render.card.RefillCard
 import dosegram.render.card.RefillData
@@ -53,10 +59,13 @@ import dosegram.render.card.ShareData
 import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityCard
+import dosegram.render.card.SleepWeekCard
 import dosegram.render.card.WaterCard
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
+import dosegram.render.card.WaterWeekCard
 import dosegram.render.card.WeekCard
+import dosegram.render.card.WeekGlanceCard
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
@@ -157,7 +166,8 @@ final class RenderedStatusCards extends StatusCards:
     val state = MoodState.captured(view.valence.step, view.energy.map(_.step))
     val reading = MoodReading(state, isEnergyGiven = view.energy.isDefined)
     val drawing = contextOf(look)
-    val key = s"mood.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.${keyOf(drawing)}"
+    val key =
+      s"mood.${BlobFigure.Revision}.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.${keyOf(drawing)}"
     Some(page(MoodCard.render(Some(reading), drawing), Some(key)))
 
   override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
@@ -223,6 +233,21 @@ final class RenderedStatusCards extends StatusCards:
       view.text
     )
     Some(page(RefillCard.render(data, contextOf(look))))
+
+  override def weekGlance(view: WeekCardView, look: CardLook): Option[CardPage] =
+    Some(page(WeekGlanceCard.render(ReportCards.week(view), contextOf(look))))
+
+  override def waterWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
+    ReportCards.week(view).water.map(days => page(WaterWeekCard.render(view.from, days, contextOf(look))))
+
+  override def sleepWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
+    ReportCards.week(view).sleep.map(nights => page(SleepWeekCard.render(view.from, nights, contextOf(look))))
+
+  override def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] =
+    val rows = weekdays.toVector.map(weekday => MoodWeekdayRow(weekday.day, weekday.mean.shown, weekday.days))
+    Option.when(rows.size == 7 && rows.exists(_.checkInDays > 0))(
+      page(MoodWeekdayCard.render(MoodWeekdayData(window.start, window.end, rows), contextOf(look)))
+    )
 
 /** Stage 5 of the pipeline for the report worker (ROADMAP G4.3): lints and rasterises a page, keeps the PNG in the
   * asset store and returns the reference with the page's text equivalent as its alt text. A shared picture that the

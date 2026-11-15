@@ -15,6 +15,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
@@ -542,6 +543,78 @@ object EnglishImageCopy extends ImageCopy:
   def refillThreshold(threshold: String): String = s"Your threshold: $threshold"
   def refillUnitsLeft(unit: String): String = s"$unit left"
   def refillCovers(date: LocalDate): String = s"Covers your schedule until about ${dayDate(date)}."
+
+  def glanceTitle: String = "Week at a glance"
+  def glanceFillNote: String = "Fill: share of the day's plan or goal"
+  def glanceDiscreet: String = "Your week at a glance."
+  def waterWeekTitle: String = "Water, 7 days"
+  def litresAmount(volumeMl: Int): String = s"${litres(volumeMl)} l"
+  def averageADay(days: Int): String = s"a day on average, ${plural(days, "day")} logged"
+  def daysLogged(days: Int): String = if days == 1 then "day logged" else "days logged"
+
+  def waterWeekText(from: LocalDate, days: Vector[Option[WaterProgress]]): String =
+    val recorded = days.flatten
+    val period = s"Water, ${dateRange(from, from.plusDays(days.size - 1L))}."
+    val summary =
+      if recorded.isEmpty then "0 days logged."
+      else
+        val average = Option.when(recorded.size >= MinimumDaysForAverage)(
+          s"${litresAmount(recorded.map(_.volumeMl).sum / recorded.size)} a day on average."
+        )
+        val goal = s"Goal reached on ${recorded.count(_.isGoalReached)} of ${plural(recorded.size, "recorded day")}."
+        (average.toVector :+ goal).mkString(" ")
+    val perDay = days.zipWithIndex.map { (day, index) =>
+      val name = weekday(from.plusDays(index.toLong).getDayOfWeek)
+      day.fold(s"$name no record")(progress => s"$name ${litresAmount(progress.volumeMl)}")
+    }
+    s"$period $summary ${perDay.mkString(", ")}. The goal is the one you set."
+
+  def waterWeekDiscreet: String = "Water, recent days."
+  def sleepWeekTitle: String = "Sleep, 7 nights"
+  def averageOverNights(nights: Int): String = s"average over ${plural(nights, "night")}"
+  def nightsLogged(nights: Int): String = if nights == 1 then "night logged" else "nights logged"
+
+  def sleepWeekText(from: LocalDate, nights: Vector[SleepEvidence]): String =
+    val period = s"Sleep, ${dateRange(from, from.plusDays(nights.size - 1L))}."
+    val recorded = nights.collect { case SleepEvidence.Recorded(minutes, _) => minutes }
+    val summary =
+      if recorded.isEmpty then "0 nights logged."
+      else if recorded.size >= MinimumDaysForAverage then
+        s"${duration(recorded.sum / recorded.size)} on average over ${plural(recorded.size, "night")} from your check-ins."
+      else s"${plural(recorded.size, "night")} from your check-ins."
+    val perNight = nights.zipWithIndex.map { (night, index) =>
+      val name = weekday(from.plusDays(index.toLong).getDayOfWeek)
+      night match
+        case SleepEvidence.Recorded(minutes, _) => s"$name ${duration(minutes)}"
+        case SleepEvidence.QuietWindowOnly      => s"$name an estimate from bot activity, not counted"
+        case SleepEvidence.NoRecord             => s"$name no record"
+    }
+    val goal = nights
+      .collectFirst { case SleepEvidence.Recorded(_, goal) if goal > 0 => goal }
+      .map(minutes => s" Your goal is ${duration(minutes)}.")
+    s"$period $summary ${perNight.mkString(", ")}.${goal.getOrElse("")}"
+
+  def sleepWeekDiscreet: String = "Sleep, recent nights."
+  def moodWeekdayTitle: String = "Mood by weekday"
+  def weekdayName(day: DayOfWeek): String = weekday(day)
+  def moodWeekdayDays(days: Int): String = plural(days, "day")
+  def moodWeekdayTooFew: String = "Fewer than 3 days"
+
+  def moodWeekdayText(data: MoodWeekdayData): String =
+    val rows = data.rows.map { row =>
+      row.mean match
+        case Some(mean) =>
+          val level = valenceName(dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence)
+            .toLowerCase(java.util.Locale.ROOT)
+          s"${weekday(row.day)}: ${insightValue(mean)} ($level) over ${plural(row.checkInDays, "check-in day")}"
+        case None => s"${weekday(row.day)}: ${plural(row.checkInDays, "check-in day")}, fewer than 3"
+    }
+    s"Mood by weekday, ${dateRange(data.from, data.to)}. ${rows.mkString(". ")}. ${insightScaleNote(Domain.Mood)}"
+
+  def moodWeekdayDiscreet: String = "Mood by weekday."
+
+  // A weekly average is shown from three recorded days (VISUALS section 7.1).
+  private val MinimumDaysForAverage = 3
 
   // The adherence percentage is shown only from five counted doses up (VISUALS section 6.5).
   private val MinimumDosesForPercent = 5

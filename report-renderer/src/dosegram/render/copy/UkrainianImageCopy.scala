@@ -15,6 +15,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
@@ -571,6 +572,79 @@ object UkrainianImageCopy extends ImageCopy:
   // The unit alone under the count: the title already says it is what is left, and the column is narrow.
   def refillUnitsLeft(unit: String): String = unit
   def refillCovers(date: LocalDate): String = s"Вистачить приблизно до ${dayDate(date)}."
+
+  def glanceTitle: String = "Тиждень коротко"
+  def glanceFillNote: String = "Заповнення: частка денного плану чи цілі"
+  def glanceDiscreet: String = "Ваш тиждень коротко."
+  def waterWeekTitle: String = "Вода за 7 днів"
+  def litresAmount(volumeMl: Int): String = s"${litres(volumeMl)} л"
+  def averageADay(days: Int): String = s"на день у середньому, записи за ${this.days(days)}"
+  def daysLogged(days: Int): String = form(days, "день із записом", "дні із записами", "днів із записами")
+
+  def waterWeekText(from: LocalDate, days: Vector[Option[WaterProgress]]): String =
+    val recorded = days.flatten
+    val period = s"Вода, ${dateRange(from, from.plusDays(days.size - 1L))}."
+    val summary =
+      if recorded.isEmpty then "Записів: 0 днів."
+      else
+        val average = Option.when(recorded.size >= MinimumDaysForAverage)(
+          s"У середньому ${litresAmount(recorded.map(_.volumeMl).sum / recorded.size)} на день."
+        )
+        val goal = s"Ціль досягнуто в ${recorded.count(_.isGoalReached)} з ${daysOf(recorded.size)} із записами."
+        (average.toVector :+ goal).mkString(" ")
+    val perDay = days.zipWithIndex.map { (day, index) =>
+      val name = weekday(from.plusDays(index.toLong).getDayOfWeek)
+      day.fold(s"$name без запису")(progress => s"$name ${litresAmount(progress.volumeMl)}")
+    }
+    s"$period $summary ${perDay.mkString(", ")}. Ціль — та, яку задали ви."
+
+  def waterWeekDiscreet: String = "Вода за останні дні."
+  def sleepWeekTitle: String = "Сон за 7 ночей"
+  def averageOverNights(nights: Int): String = s"у середньому за ${counted(nights, "ніч", "ночі", "ночей")}"
+  def nightsLogged(nights: Int): String = form(nights, "ніч записано", "ночі записано", "ночей записано")
+
+  def sleepWeekText(from: LocalDate, nights: Vector[SleepEvidence]): String =
+    val period = s"Сон, ${dateRange(from, from.plusDays(nights.size - 1L))}."
+    val recorded = nights.collect { case SleepEvidence.Recorded(minutes, _) => minutes }
+    val summary =
+      if recorded.isEmpty then "Записано 0 ночей."
+      else if recorded.size >= MinimumDaysForAverage then
+        s"У середньому ${duration(recorded.sum / recorded.size)} за ${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших позначок."
+      else s"${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших позначок."
+    val perNight = nights.zipWithIndex.map { (night, index) =>
+      val name = weekday(from.plusDays(index.toLong).getDayOfWeek)
+      night match
+        case SleepEvidence.Recorded(minutes, _) => s"$name ${duration(minutes)}"
+        case SleepEvidence.QuietWindowOnly      => s"$name оцінка за активністю в боті, не враховано"
+        case SleepEvidence.NoRecord             => s"$name без запису"
+    }
+    val goal = nights
+      .collectFirst { case SleepEvidence.Recorded(_, goal) if goal > 0 => goal }
+      .map(minutes => s" Ваша ціль — ${duration(minutes)}.")
+    s"$period $summary ${perNight.mkString(", ")}.${goal.getOrElse("")}"
+
+  def sleepWeekDiscreet: String = "Сон за останні ночі."
+  def moodWeekdayTitle: String = "Настрій за днями тижня"
+  def weekdayName(day: DayOfWeek): String = weekday(day)
+  def moodWeekdayDays(days: Int): String = this.days(days)
+  def moodWeekdayTooFew: String = "Менше 3 днів"
+
+  def moodWeekdayText(data: MoodWeekdayData): String =
+    val rows = data.rows.map { row =>
+      val checkIns = counted(row.checkInDays, "день із позначкою", "дні з позначками", "днів із позначками")
+      row.mean match
+        case Some(mean) =>
+          val level = valenceName(dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence)
+            .toLowerCase(java.util.Locale.ROOT)
+          s"${weekday(row.day)}: ${insightValue(mean)} ($level), $checkIns"
+        case None => s"${weekday(row.day)}: $checkIns, менше 3"
+    }
+    s"Настрій за днями тижня, ${dateRange(data.from, data.to)}. ${rows.mkString(". ")}. ${insightScaleNote(Domain.Mood)}"
+
+  def moodWeekdayDiscreet: String = "Настрій за днями тижня."
+
+  // A weekly average is shown from three recorded days (VISUALS section 7.1).
+  private val MinimumDaysForAverage = 3
 
   // The adherence percentage is shown only from five counted doses up (VISUALS section 6.5).
   private val MinimumDosesForPercent = 5

@@ -1,0 +1,5 @@
+file: dosegram-water-week.png
+spoiler: false
+caption: Water, 2 to 8 Nov. Goal reached on 0 of 1 recorded day. Mon no record, Tue no record, Wed 0.8 l, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
+alt: Water, 2 to 8 Nov. Goal reached on 0 of 1 recorded day. Mon no record, Tue no record, Wed 0.8 l, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
+full: Water, 2 to 8 Nov. Goal reached on 0 of 1 recorded day. Mon no record, Tue no record, Wed 0.8 l, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.

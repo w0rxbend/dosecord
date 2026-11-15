@@ -3,7 +3,7 @@ package dosegram.render.blob
 import dosegram.render.scene.PathData
 import dosegram.render.scene.Point
 
-/** The energy-dependent shape parameters of VISUALS section 4.4. */
+/** The energy-dependent shape parameters of VISUALS section 4.4, as amended on 2026-11-15. */
 final case class EnergyShape(
     amplitude: Double,
     harmonicWeights: Vector[Double],
@@ -22,11 +22,11 @@ object BlobGeometry:
   private val RoundTension = 1.0
 
   private val Shapes: Vector[EnergyShape] = Vector(
-    EnergyShape(0.030, Vector(0.70, 0.20, 0.10, 0.00), 8, 0.95, 0.06),
-    EnergyShape(0.055, Vector(0.55, 0.25, 0.15, 0.05), 8, 0.975, 0.03),
-    EnergyShape(0.080, Vector(0.40, 0.30, 0.20, 0.10), 10, 1.00, 0.0),
-    EnergyShape(0.110, Vector(0.30, 0.30, 0.25, 0.15), 12, 1.025, 0.0),
-    EnergyShape(0.140, Vector(0.20, 0.25, 0.30, 0.25), 12, 1.05, 0.0)
+    EnergyShape(0.035, Vector(0.70, 0.20, 0.10, 0.00), 8, 0.92, 0.08),
+    EnergyShape(0.060, Vector(0.55, 0.25, 0.15, 0.05), 8, 0.96, 0.04),
+    EnergyShape(0.090, Vector(0.40, 0.30, 0.20, 0.10), 10, 1.00, 0.0),
+    EnergyShape(0.120, Vector(0.30, 0.30, 0.25, 0.15), 12, 1.03, 0.0),
+    EnergyShape(0.150, Vector(0.20, 0.25, 0.30, 0.25), 12, 1.06, 0.0)
   )
 
   private val NoEntryEnergy = 3
@@ -40,8 +40,9 @@ object BlobGeometry:
   /** How far the top is lowered, in units of the radius: low-valence, low-energy states slump ("heavy"). */
   def slump(state: MoodState): Double =
     if state.energy > 3 then 0.0
-    else if state.valence == 1 then 0.08
-    else if state.valence == 2 then 0.04
+    else if state.valence == 1 then 0.10
+    else if state.valence == 2 then 0.06
+    else if state.valence == 3 then 0.03
     else 0.0
 
   /** The outline samples of a mood state, unit radius. */

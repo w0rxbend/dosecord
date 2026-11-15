@@ -495,6 +495,80 @@ object Samples:
     Fixture("share/week-mood", context => Vector(ShareCard.render(ShareData(ShareFact.WeekMood(MoodState(5, 3))), context)))
   )
 
+  // The week cards of the image round of 2026-11-15: sparse, typical and dense data for each.
+  private val sparseWeek = WeekData(
+    typicalWeek.from,
+    Some(Vector.fill(7)(Vector.empty[DoseStatus]).updated(1, Vector(TakenOnTime)).updated(4, Vector(Open, Unknown))),
+    Some(Vector.fill(7)(None).updated(2, Some(WaterProgress(800, 2000)))),
+    Some(Vector.fill(7)(None)),
+    Some(Vector.fill(7)(None).updated(5, Some(MoodState(3, 2)))),
+    Some(Vector.fill(7)(SleepEvidence.NoRecord).updated(0, SleepEvidence.QuietWindowOnly).updated(3, SleepEvidence.Recorded(390, 480)))
+  )
+
+  private val denseWeek = WeekData(
+    typicalWeek.from,
+    Some(everyDay(7, TakenOnTime, TakenOnTime, TakenOnTime, TakenOnTime, TakenOnTime, TakenOnTime).updated(6, Vector(Skipped, Skipped, TakenLate, TakenLate, TakenOnTime, Missed))),
+    Some(Vector(2600, 2000, 3100, 1990, 2400, 4750, 2050).map(volume => Some(WaterProgress(volume, 2000)))),
+    Some(Vector(MealDay(3, 2), MealDay(4, 1), MealDay(3, 3), MealDay(3, 0), MealDay(3, 1), MealDay(3, 2), MealDay(1, 4)).map(Some(_))),
+    Some(Vector(MoodState(7, 5), MoodState(6, 4), MoodState(5, 3), MoodState(4, 2), MoodState(3, 1), MoodState(2, 5), MoodState(1, 4)).map(Some(_))),
+    Some(Vector(480, 515, 600, 405, 495, 720, 470).map(SleepEvidence.Recorded(_, 480)))
+  )
+
+  val glances: Vector[Fixture] = Vector(
+    Fixture("week-glance/sparse", context => Vector(WeekGlanceCard.render(sparseWeek, context))),
+    Fixture("week-glance/typical", context => Vector(WeekGlanceCard.render(typicalWeek, context))),
+    Fixture("week-glance/dense", context => Vector(WeekGlanceCard.render(denseWeek, context))),
+    Fixture("week-glance/two-domains", context => Vector(WeekGlanceCard.render(WeekData(typicalWeek.from, None, typicalWeek.water, None, typicalWeek.mood, None), context)))
+  )
+
+  val waterWeeks: Vector[Fixture] = Vector(
+    Fixture("water-week/sparse", context => Vector(WaterWeekCard.render(sparseWeek.from, sparseWeek.water.get, context))),
+    Fixture("water-week/typical", context => Vector(WaterWeekCard.render(typicalWeek.from, typicalWeek.water.get, context))),
+    Fixture("water-week/dense", context => Vector(WaterWeekCard.render(denseWeek.from, denseWeek.water.get, context))),
+    Fixture("water-week/empty", context => Vector(WaterWeekCard.render(typicalWeek.from, Vector.fill(7)(None), context)))
+  )
+
+  val sleepWeeks: Vector[Fixture] = Vector(
+    Fixture("sleep-week/sparse", context => Vector(SleepWeekCard.render(sparseWeek.from, sparseWeek.sleep.get, context))),
+    Fixture("sleep-week/typical", context => Vector(SleepWeekCard.render(typicalWeek.from, typicalWeek.sleep.get, context))),
+    Fixture("sleep-week/dense", context => Vector(SleepWeekCard.render(denseWeek.from, denseWeek.sleep.get, context)))
+  )
+
+  private def weekdayRows(means: Vector[(Option[Double], Int)]): Vector[MoodWeekdayRow] =
+    DayOfWeek.values.toVector.zip(means).map { case (day, (mean, days)) => MoodWeekdayRow(day, mean, days) }
+
+  val moodWeekdays: Vector[Fixture] = Vector(
+    Fixture(
+      "mood-weekday/sparse",
+      context =>
+        val rows = weekdayRows(Vector((None, 1), (None, 2), (Some(3.0), 3), (None, 0), (None, 2), (Some(4.33), 3), (None, 1)))
+        Vector(MoodWeekdayCard.render(MoodWeekdayData(LocalDate.of(2026, 10, 12), LocalDate.of(2026, 11, 8), rows), context))
+    ),
+    Fixture(
+      "mood-weekday/typical",
+      context =>
+        val rows = weekdayRows(Vector((Some(3.2), 7), (Some(3.0), 8), (Some(3.5), 6), (Some(2.6), 8), (Some(3.9), 7), (Some(4.4), 5), (Some(4.1), 4)))
+        Vector(MoodWeekdayCard.render(MoodWeekdayData(LocalDate.of(2026, 9, 14), LocalDate.of(2026, 11, 8), rows), context))
+    ),
+    Fixture(
+      "mood-weekday/dense",
+      context =>
+        val rows = weekdayRows(Vector((Some(1.0), 12), (Some(1.8), 12), (Some(2.5), 13), (Some(3.0), 12), (Some(3.75), 12), (Some(4.5), 13), (Some(5.0), 12)))
+        Vector(MoodWeekdayCard.render(MoodWeekdayData(LocalDate.of(2026, 8, 10), LocalDate.of(2026, 11, 8), rows), context))
+    )
+  )
+
+  val refills: Vector[Fixture] = Vector(
+    Fixture(
+      "refill/typical",
+      context =>
+        Vector(RefillCard.render(RefillData("Zyqoxanil-Canary 500 mg", 6, "tablets", Some(10), "10 tablets", Some(LocalDate.of(2026, 11, 15)), "Zyqoxanil-Canary 500 mg: 6 tablets left by your count, at or below your threshold of 10 tablets."), context))
+    )
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
-      moreInsights ++ moodCards ++ monthPages ++ foods ++ shares
+      moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays
+
+  /** Every card the contact sheet shows: the golden fixtures and the refill card, whose suite pins it on its own. */
+  val review: Vector[Fixture] = all ++ refills

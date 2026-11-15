@@ -3,8 +3,10 @@ package dosegram.core.ports
 import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
 import dosegram.core.domain.insights.Comparison
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
@@ -156,6 +158,21 @@ trait StatusCards:
 
   /** IMG-15, the refill card of one medication (ROADMAP G9.10). */
   def refill(view: RefillCardView, look: CardLook): Option[CardPage] = None
+
+  // The week cards of the image round of 2026-11-15 (VISUALS IMG-19 to IMG-22). The three week cards draw the same
+  // seven days as IMG-04; a domain the view does not show has no card.
+
+  /** IMG-19, the seven days of every shown domain as one grid of cells. */
+  def weekGlance(view: WeekCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-20, the water of the seven days against the user's own goal. */
+  def waterWeek(view: WeekCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-21, the main sleep of the seven nights against the user's own goal. */
+  def sleepWeek(view: WeekCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-22, mood by weekday over `window`, Monday to Sunday (VISUALS section 7.6). */
+  def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] = None
 
 object StatusCards:
 

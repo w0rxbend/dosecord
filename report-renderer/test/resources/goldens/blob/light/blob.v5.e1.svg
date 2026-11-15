@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#b6c7b2"/><stop offset="1" stop-color="#93a98e"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#bfd0bb"/><stop offset="1" stop-color="#93a98e"/></radialGradient>
 </defs>
 <rect width="1080" height="1080" fill="#eaf3e8"/>
 <g>
   <ellipse cx="540" cy="834" rx="225" ry="9" fill="#cdd6db"/>
-  <path d="M836.26 480 C837.09 546.75 807.05 629.72 757.68 678.5 C708.3 727.27 613.28 772.03 540 772.66 C466.72 773.28 366.92 731.05 318.01 682.28 C269.1 633.5 244.78 547.2 246.53 480 C248.29 412.8 279.61 327.51 328.52 279.1 C377.43 230.68 469.31 189.69 540 189.51 C610.69 189.32 703.29 229.55 752.67 277.97 C802.04 326.38 835.42 413.25 836.26 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="456" cy="444" rx="16.5" ry="5.78" fill="#13242e"/>
-  <ellipse cx="624" cy="444" rx="16.5" ry="5.78" fill="#13242e"/>
-  <path d="M489 546 Q540 558 591 546" fill="none" stroke="#13242e" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M835.63 480 C836.84 544.58 809.27 624.3 760 671.74 C710.72 719.18 614.19 763.94 540 764.65 C465.81 765.36 363.57 723.45 314.84 676.01 C266.11 628.57 245.32 545.08 247.62 480 C249.92 414.92 279.9 332.58 328.63 285.54 C377.36 238.51 469.31 198.01 540 197.79 C610.69 197.58 703.48 237.23 752.75 284.27 C802.03 331.3 834.42 415.42 835.63 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="459" cy="450" rx="22.5" ry="7.2" fill="#13242e"/>
+  <ellipse cx="621" cy="450" rx="22.5" ry="7.2" fill="#13242e"/>
+  <path d="M483.9 552 Q540 567 596.1 552" fill="none" stroke="#13242e" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="540" y="936" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">Slightly pleasant</text>
 <text x="540" y="1000" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="middle">Energy: very low</text>

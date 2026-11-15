@@ -373,7 +373,10 @@ class CaptureLaunchSuite extends PgSuite:
       bot.say("300 ml", expected = 1)
       bot.say("mood 4", expected = 1)
       val List(stats) = bot.say("/stats", expected = 1): @unchecked
-      assertEquals(bot.buttons(stats).map(_._1), List("Today", "7 days", "30 days", "Share a card", "Month", "Patterns"))
+      assertEquals(
+        bot.buttons(stats).map(_._1),
+        List("Today", "7 days", "30 days", "Show as image", "Share a card", "Month", "Patterns")
+      )
       val List(picker) = bot.tap(stats, "Share a card", expected = 1): @unchecked
       assert(bot.body(picker).contains("Anyone you send this to can keep it."), bot.body(picker))
       assertEquals(bot.buttons(picker).map(_._1), List("Mood logged on 1 of 7 days", "This week's mood: pleasant"))

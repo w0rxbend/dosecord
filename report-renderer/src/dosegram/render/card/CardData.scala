@@ -157,3 +157,15 @@ final case class SleepRegularityData(
     typicalWake: Option[Int],
     goalMinutes: Option[Int]
 )
+
+/** One weekday of the mood-by-weekday card (VISUALS section 7.6, supervisor decision of 2026-11-14): the mean of the
+  * daily means on that weekday's check-in days, absent below the gate of three days, and the number of those days.
+  */
+final case class MoodWeekdayRow(day: DayOfWeek, mean: Option[Double], checkInDays: Int):
+  require(mean.forall(value => value >= 1 && value <= 5), s"a mood mean is on the 1 to 5 scale: $mean")
+
+/** IMG-22, `card.mood.weekday.v1`: the seven weekdays of a period in the account's week order. It describes the user's
+  * own days; nothing on it ranks or compares the weekdays.
+  */
+final case class MoodWeekdayData(from: LocalDate, to: LocalDate, rows: Vector[MoodWeekdayRow]):
+  require(rows.size == 7 && rows.map(_.day).distinct.size == 7, "one row per weekday")

@@ -156,14 +156,21 @@ final case class BlobColours(
       Schema
 
 /** The face in units of the blob radius: each eye is `cx, cy, rx, ry`, the mouth is a quadratic curve
-  * `x1, y1, cx, cy, x2, y2`, each brow is a line `x1, y1, x2, y2`.
+  * `x1, y1, cx, cy, x2, y2`, each brow is a line `x1, y1, x2, y2`. Each glint is a circle `cx, cy, r` in the colour
+  * `glint`, drawn over its eye; each cheek is an ellipse `cx, cy, rx, ry` in the colour `cheek`, drawn under the eyes.
+  * Glints and cheeks are details: a blob drawn smaller than 48 px of radius leaves them out (VISUALS section 4.4,
+  * addendum of 2026-11-15).
   */
 final case class BlobFace(
     ink: String,
     eyes: List[List[Double]],
     mouth: List[Double],
     strokeWidth: Double,
-    brows: List[List[Double]]
+    brows: List[List[Double]],
+    glint: Option[String] = None,
+    glints: List[List[Double]] = Nil,
+    cheek: Option[String] = None,
+    cheeks: List[List[Double]] = Nil
 ) derives ReadWriter,
       Schema
 

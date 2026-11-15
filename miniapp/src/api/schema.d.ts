@@ -1064,6 +1064,10 @@ export interface components {
             /** Format: double */
             strokeWidth: number;
             brows?: number[][];
+            glint?: string;
+            glints?: number[][];
+            cheek?: string;
+            cheeks?: number[][];
         };
         /** BlobState */
         BlobState: {

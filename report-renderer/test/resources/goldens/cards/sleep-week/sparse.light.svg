@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Sleep, 7 nights</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">2 to 8 Nov</text>
+<text x="64" y="300" font-family="Geologica" font-weight="600" font-size="160" fill="#13242e">1</text>
+<text x="64" y="364" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">night logged</text>
+<text x="64" y="420" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Your goal: 8 h 00 min</text>
+<g>
+  <rect x="98" y="750" width="68" height="68" rx="16" fill="none" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="102" y1="765.31" x2="113.31" y2="754" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="102" y1="787.94" x2="135.94" y2="754" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="102" y1="810.57" x2="158.57" y2="754" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="121.2" y1="814" x2="162" y2="773.2" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="143.82" y1="814" x2="162" y2="795.82" stroke="#5e6e78" stroke-width="4"/>
+</g>
+<g>
+  <rect x="234" y="750" width="68" height="68" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="370" y="750" width="68" height="68" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M504 820 L504 546 A12 12 0 0 1 516 534 L564 534 A12 12 0 0 1 576 546 L576 820 Z" fill="#8a66d9"/>
+  <line x1="488" y1="468" x2="592" y2="468" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="642" y="750" width="68" height="68" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="778" y="750" width="68" height="68" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="914" y="750" width="68" height="68" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="132" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
+<text x="268" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="404" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
+<text x="540" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="676" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
+<text x="812" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="948" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<g>
+  <line x1="66" y1="910" x2="106" y2="910" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="120" y="924" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Your goal</text>
+<g>
+  <rect x="326.6" y="894" width="32" height="32" rx="16" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="376.6" y="924" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">No record</text>
+<g>
+  <rect x="588.68" y="892" width="36" height="36" rx="10" fill="none" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="592.68" y1="907.31" x2="603.99" y2="896" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="598.62" y1="924" x2="620.68" y2="901.94" stroke="#5e6e78" stroke-width="4"/>
+</g>
+<text x="640.68" y="924" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Estimate</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

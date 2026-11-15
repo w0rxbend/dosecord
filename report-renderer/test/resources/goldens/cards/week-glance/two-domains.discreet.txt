@@ -1,0 +1,5 @@
+file: dosegram-week-glance.png
+spoiler: true
+caption: Your week at a glance.
+alt: Week 2 to 8 Nov. Water: goal reached on 4 of 6 recorded days. Mood: 6 check-in days.
+full: Week 2 to 8 Nov. Water: goal reached on 4 of 6 recorded days. Mood: 6 check-in days.

@@ -1,0 +1,5 @@
+file: dosegram-sleep-week.png
+spoiler: true
+caption: Sleep, recent nights.
+alt: Sleep, 2 to 8 Nov. 8 h 46 min on average over 7 nights from your check-ins. Mon 8 h 00 min, Tue 8 h 35 min, Wed 10 h 00 min, Thu 6 h 45 min, Fri 8 h 15 min, Sat 12 h 00 min, Sun 7 h 50 min. Your goal is 8 h 00 min.
+full: Sleep, 2 to 8 Nov. 8 h 46 min on average over 7 nights from your check-ins. Mon 8 h 00 min, Tue 8 h 35 min, Wed 10 h 00 min, Thu 6 h 45 min, Fri 8 h 15 min, Sat 12 h 00 min, Sun 7 h 50 min. Your goal is 8 h 00 min.

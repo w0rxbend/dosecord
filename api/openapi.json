@@ -4846,6 +4846,32 @@
                 "format" : "double"
               }
             }
+          },
+          "glint" : {
+            "type" : "string"
+          },
+          "glints" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          },
+          "cheek" : {
+            "type" : "string"
+          },
+          "cheeks" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
           }
         }
       },

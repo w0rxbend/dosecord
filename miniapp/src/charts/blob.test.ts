@@ -54,3 +54,21 @@ describe('mood blob drawing', () => {
     expect(findState(states, 'blob.v9.e9')?.id).toBe('blob.none');
   });
 });
+
+describe('mood blob details (VISUALS 4.4, 2026-11-15)', () => {
+  it('carries a glint in each open eye and cheeks on the pleasant states only', () => {
+    expect(state('blob.v7.e5').face?.glints).toHaveLength(2);
+    expect(state('blob.v7.e5').face?.cheeks).toHaveLength(2);
+    expect(state('blob.v7.e5').face?.cheek).toMatch(/^#[0-9a-f]{6}$/);
+    expect(state('blob.v4.e1').face?.glints ?? []).toHaveLength(0);
+    expect(state('blob.v4.e3').face?.cheeks ?? []).toHaveLength(0);
+  });
+
+  it('draws the target details when they appear or go while blending', () => {
+    const from = state('blob.v4.e3');
+    const to = state('blob.v6.e3');
+    const middle = blend(from, to, 0.5);
+    expect(middle.face?.cheeks).toEqual(to.face?.cheeks);
+    expect(middle.face?.glints?.[0]?.[0]).toBeCloseTo((from.face!.glints![0]![0]! + to.face!.glints![0]![0]!) / 2, 6);
+  });
+});

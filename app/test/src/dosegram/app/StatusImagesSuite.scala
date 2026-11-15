@@ -19,6 +19,8 @@ import dosegram.core.ports.Clock
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.SleepBar
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.Stat
+import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.FoodCardView
@@ -27,6 +29,9 @@ import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.WaterCardView
+import dosegram.core.ports.WeekCardView
+import dosegram.core.ports.WeekDayNight
+import dosegram.core.ports.WeekDayWater
 import dosegram.infra.RenderSettings
 import dosegram.render.PngImage
 import dosegram.render.RasterFailure
@@ -209,7 +214,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val first = rig.images.drawn.mood(MoodCardView(pleasant, None), light).get
     val again = rig.images.drawn.mood(MoodCardView(pleasant, None), light).get
     assertEquals(first, again)
-    assertEquals(first.assetKey, "mood.blob.v6.e3.plain.light")
+    assertEquals(first.assetKey, "mood.dg-blob-2.blob.v6.e3.plain.light")
     assertEquals(first.kind, MediaKind.Photo)
     assertEquals(first.mimeType, "image/png")
     assertEquals(first.altText, "Mood: Pleasant.")
@@ -219,7 +224,7 @@ class StatusImagesSuite extends munit.FunSuite:
   test("the energy step is part of the mood state"):
     val rig = Rig(CountingRasteriser())
     val withEnergy = rig.images.drawn.mood(MoodCardView(pleasant, Energy.of(2)), light).get
-    assertEquals(withEnergy.assetKey, "mood.blob.v6.e2.energy.light")
+    assertEquals(withEnergy.assetKey, "mood.dg-blob-2.blob.v6.e2.energy.light")
     assert(withEnergy.altText.contains("Energy"), withEnergy.altText)
 
   test("a water card is keyed by its bytes and carries the day's figures as its text equivalent"):
@@ -276,9 +281,9 @@ class StatusImagesSuite extends munit.FunSuite:
     val rasteriser = CountingRasteriser()
     val rig = Rig(rasteriser)
     val dark = CardLook(ImageTheme.Dark, isDiscreet = false)
-    assertEquals(rig.images.drawn.mood(MoodCardView(pleasant, None), dark).map(_.assetKey), Some("mood.blob.v6.e3.plain.dark"))
+    assertEquals(rig.images.drawn.mood(MoodCardView(pleasant, None), dark).map(_.assetKey), Some("mood.dg-blob-2.blob.v6.e3.plain.dark"))
     val auto = CardLook(ImageTheme.Auto, isDiscreet = false)
-    assertEquals(rig.images.drawn.mood(MoodCardView(pleasant, None), auto).map(_.assetKey), Some("mood.blob.v6.e3.plain.dark"))
+    assertEquals(rig.images.drawn.mood(MoodCardView(pleasant, None), auto).map(_.assetKey), Some("mood.dg-blob-2.blob.v6.e3.plain.dark"))
     assertEquals(rasteriser.documents.size, 1, "auto and dark are the same picture")
     val onLight = rig.images.drawn.water(water, light).get
     val onDark = rig.images.drawn.water(water, dark).get
@@ -289,7 +294,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val discreet = light.copy(isDiscreet = true)
     assertEquals(
       rig.images.drawn.mood(MoodCardView(pleasant, None), discreet).map(_.assetKey),
-      Some("mood.blob.v6.e3.plain.light.discreet")
+      Some("mood.dg-blob-2.blob.v6.e3.plain.light.discreet")
     )
     assertEquals(rig.images.drawn.water(water, light).map(_.hasSpoiler), Some(false))
     assertEquals(rig.images.drawn.water(water, discreet).map(_.hasSpoiler), Some(true))
@@ -316,6 +321,30 @@ class StatusImagesSuite extends munit.FunSuite:
     assert(store.load("a").isDefined, "reading a makes b the eldest")
     store.put("c", Array[Byte](3))
     assertEquals(List("a", "b", "c").filter(store.holds), List("a", "c"))
+
+  test("the week cards of 2026-11-15 are personal, state their figures, and leave out a domain the view does not show"):
+    val rig = Rig(CountingRasteriser())
+    val from = today.minusDays(6)
+    val water = List(Some(WeekDayWater(1500, Some(2000))), Some(WeekDayWater(2400, Some(2000))), None, Some(WeekDayWater(2000, Some(2000)))) ++
+      List.fill(3)(None)
+    val nights = List(Some(WeekDayNight(420, Some(480)))) ++ List.fill(6)(None)
+    val view = WeekCardView(from, None, Some(water), None, Some(nights))
+    def draw(page: Option[CardPage]) = page.flatMap(rig.images.drawing.draw(_, None).toOption)
+    val glance = draw(rig.images.cards.weekGlance(view, light)).get
+    assert(glance.assetKey.matches("card\\.[0-9a-f]{64}"), glance.assetKey)
+    assert(glance.altText.startsWith("Week 7 to 13 Nov."), glance.altText)
+    val waterWeek = draw(rig.images.cards.waterWeek(view, light)).get
+    assert(waterWeek.altText.contains("1.96 l a day on average. Goal reached on 2 of 3 recorded days."), waterWeek.altText)
+    val sleepWeek = draw(rig.images.cards.sleepWeek(view, light)).get
+    assert(sleepWeek.altText.contains("1 night from your check-ins."), sleepWeek.altText)
+    assertEquals(rig.images.cards.sleepWeek(view.copy(sleep = None), light), None)
+    val window = DateRange.endingOn(today, 28)
+    val weekdays = java.time.DayOfWeek.values.toList.map(day => WeekdayMood(day, 0, Stat.Insufficient(0, 3, window)))
+    assertEquals(rig.images.cards.moodWeekday(window, weekdays, light), None, "no check-in, no card")
+    val withDays = weekdays.updated(0, WeekdayMood(java.time.DayOfWeek.MONDAY, 2, Stat.Insufficient(2, 3, window)))
+    val moodWeekday = draw(rig.images.cards.moodWeekday(window, withDays, CardLook(ImageTheme.Dark, isDiscreet = true))).get
+    assertEquals(moodWeekday.hasSpoiler, true)
+    assert(moodWeekday.altText.contains("Mon: 2 check-in days, fewer than 3"), moodWeekday.altText)
 
   test("without renderer settings there is no image, and a binary that does not exist fails the start"):
     assertEquals(StatusImages.from(None, StatusImages.Stores.inMemory, _ => ()).cards.water(water, light), None)

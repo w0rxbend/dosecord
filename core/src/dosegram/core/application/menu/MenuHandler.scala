@@ -24,6 +24,7 @@ import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.ports.CallbackSlot
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ScheduleStatus
@@ -463,7 +464,12 @@ final class MenuHandler(
       Some(
         OutboundMessage(
           body = body,
-          blocks = doseBlocks ++ logBlocks :+ navBlock(event, principal, tx, List(openAppChoice)),
+          blocks = (doseBlocks ++ logBlocks :+ todayImageBlock(account)) :+ navBlock(
+            event,
+            principal,
+            tx,
+            List(openAppChoice)
+          ),
           dedupeKey = s"menu:today:${event.vendor}:${event.vendorEventId}",
           correlationId = s"${event.vendor}:${event.vendorEventId}",
           replaces = source
@@ -611,6 +617,17 @@ final class MenuHandler(
       )
     )
     codec.encode(CallbackMode.Slot, action, slotId, 0)
+
+  /** "Show as image" under `/today`: the daily summary card (VISUALS IMG-03), the same button `/stats today` has. The
+    * capture flow answers it, behind the images consent.
+    */
+  private def todayImageBlock(account: UUID): Block =
+    Block.Choices(
+      ChoiceSet(
+        id = "today.image",
+        choices = List(Choice.callback(StatsCardCopy.ShowAsImage, directToken("stats.image", account)))
+      )
+    )
 
   private def directToken(actionName: String, subject: UUID): String =
     codec

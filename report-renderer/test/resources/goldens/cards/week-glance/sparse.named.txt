@@ -1,0 +1,5 @@
+file: dosegram-week-glance.png
+spoiler: false
+caption: Week 2 to 8 Nov. Medication: 1 of 2 scheduled doses recorded as taken, 1 still open, 1 with no record, not counted. Water: goal reached on 0 of 1 recorded day. Food: no records this week. Mood: 1 check-in day. Sleep: 6 h 30 min on average over 1 night from your check-ins. 1 night is an estimate from bot activity and is not included in the average.
+alt: Week 2 to 8 Nov. Medication: 1 of 2 scheduled doses recorded as taken, 1 still open, 1 with no record, not counted. Water: goal reached on 0 of 1 recorded day. Food: no records this week. Mood: 1 check-in day. Sleep: 6 h 30 min on average over 1 night from your check-ins. 1 night is an estimate from bot activity and is not included in the average.
+full: Week 2 to 8 Nov. Medication: 1 of 2 scheduled doses recorded as taken, 1 still open, 1 with no record, not counted. Water: goal reached on 0 of 1 recorded day. Food: no records this week. Mood: 1 check-in day. Sleep: 6 h 30 min on average over 1 night from your check-ins. 1 night is an estimate from bot activity and is not included in the average.

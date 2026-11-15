@@ -3,7 +3,7 @@
   import type { BlobAsset, BlobState } from '../api/types';
   import { useApp } from '../app/context';
   import { isReducedMotion } from '../state/motion';
-  import { blend, canBlend, findState, mouthPath, NO_ENTRY, outlinePath } from './blob';
+  import { blend, canBlend, DETAIL_FROM_RADIUS_PX, findState, mouthPath, NO_ENTRY, outlinePath } from './blob';
 
   interface Props {
     asset: BlobAsset;
@@ -58,6 +58,8 @@
   const unitPx = $derived(size / 3);
   const strokeWidth = $derived(Math.max(shown?.outlineWidth ?? 0, 1.25 / unitPx));
   const dash = $derived(Math.max(0.0133, 2 / unitPx));
+  // The blob radius is one viewBox unit, so it is `unitPx` pixels wide.
+  const detailed = $derived(unitPx >= DETAIL_FROM_RADIUS_PX);
 </script>
 
 <!-- Inline SVG built by the template from the server's numbers; no markup string (MA-SEC-1). -->
@@ -94,9 +96,19 @@
         stroke-linecap="round"
       />
       {#if shown.face}
+        {#if detailed && shown.face.cheek}
+          {#each shown.face.cheeks ?? [] as cheek, index (index)}
+            <ellipse cx={cheek[0]} cy={cheek[1]} rx={cheek[2]} ry={cheek[3]} fill={shown.face.cheek} />
+          {/each}
+        {/if}
         {#each shown.face.eyes as eye, index (index)}
           <ellipse cx={eye[0]} cy={eye[1]} rx={eye[2]} ry={eye[3]} fill={shown.face.ink} />
         {/each}
+        {#if detailed && shown.face.glint}
+          {#each shown.face.glints ?? [] as glint, index (index)}
+            <circle cx={glint[0]} cy={glint[1]} r={glint[2]} fill={shown.face.glint} />
+          {/each}
+        {/if}
         <path d={mouthPath(shown.face.mouth)} fill="none" stroke={shown.face.ink} stroke-width={shown.face.strokeWidth} stroke-linecap="round" />
         {#each shown.face.brows as brow, index (index)}
           <line x1={brow[0]} y1={brow[1]} x2={brow[2]} y2={brow[3]} stroke={shown.face.ink} stroke-width={shown.face.strokeWidth} stroke-linecap="round" />

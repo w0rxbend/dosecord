@@ -13,7 +13,9 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
+import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.ShareFact
+import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -213,6 +215,29 @@ trait ImageCopy:
   def refillThreshold(threshold: String): String
   def refillUnitsLeft(unit: String): String
   def refillCovers(date: LocalDate): String
+
+  // The week cards of the image round of 2026-11-15 (IMG-19 to IMG-22). A weekly average is drawn from three recorded
+  // days (VISUALS section 7.1); below that the hero is the count of days.
+  def glanceTitle: String
+  def glanceFillNote: String
+  def glanceDiscreet: String
+  def waterWeekTitle: String
+  def litresAmount(volumeMl: Int): String
+  def averageADay(days: Int): String
+  def daysLogged(days: Int): String
+  def waterWeekText(from: LocalDate, days: Vector[Option[WaterProgress]]): String
+  def waterWeekDiscreet: String
+  def sleepWeekTitle: String
+  def averageOverNights(nights: Int): String
+  def nightsLogged(nights: Int): String
+  def sleepWeekText(from: LocalDate, nights: Vector[SleepEvidence]): String
+  def sleepWeekDiscreet: String
+  def moodWeekdayTitle: String
+  def weekdayName(day: DayOfWeek): String
+  def moodWeekdayDays(days: Int): String
+  def moodWeekdayTooFew: String
+  def moodWeekdayText(data: MoodWeekdayData): String
+  def moodWeekdayDiscreet: String
 
 /** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
 final case class MonthSummary(

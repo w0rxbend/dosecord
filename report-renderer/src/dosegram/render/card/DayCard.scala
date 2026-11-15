@@ -26,7 +26,7 @@ object DayCard:
   val TemplateId = "card.day.v1"
   // Up to this many domain lines the card collapses to the square canvas with a smaller picture; more stay portrait.
   private val CompactRowLimit = 2
-  private val LabelBelowPx = 54.0
+  private val LabelBelowPx = 66.0
   private val LabelDescentPx = 12.0
   private val LabelToRowsPx = 28.0
   private val LinePx = 64.0

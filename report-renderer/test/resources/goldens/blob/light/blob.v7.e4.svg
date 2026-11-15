@@ -1,14 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#fff8e9"/><stop offset="1" stop-color="#fdd265"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fdd265"/></radialGradient>
 </defs>
 <rect width="1080" height="1080" fill="#f5f0e3"/>
 <g>
   <ellipse cx="540" cy="834" rx="172.5" ry="9" fill="#cdd6db"/>
-  <path d="M824.76 480 C820.83 531.11 808.46 579.66 787.3 626.35 C766.14 673.04 739.01 734.5 697.79 760.13 C656.57 785.76 591.23 782.55 540 780.12 C488.77 777.69 435.93 768.65 390.41 745.57 C344.9 722.49 292.44 685.88 266.89 641.62 C241.34 597.36 232.54 531.16 237.13 480 C241.72 428.84 267.98 377.34 294.43 334.67 C320.87 292 354.86 252.7 395.79 223.98 C436.72 195.26 490.2 165.41 540 162.33 C589.8 159.26 649.45 179.3 694.6 205.53 C739.75 231.76 789.2 273.94 810.89 319.69 C832.59 365.43 828.69 428.89 824.76 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="456" cy="444" rx="16.5" ry="14.85" fill="#13242e"/>
-  <ellipse cx="624" cy="444" rx="16.5" ry="14.85" fill="#13242e"/>
-  <path d="M475.2 546 Q540 582 604.8 546" fill="none" stroke="#13242e" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M823.38 480 C819.09 531.35 806.98 579.26 786.17 626.39 C765.35 673.51 739.53 737.01 698.5 762.76 C657.47 788.52 591.34 783.57 540 780.91 C488.66 778.25 436.17 769.76 390.45 746.8 C344.73 723.83 291.28 687.6 265.68 643.13 C240.08 598.66 231.86 531.4 236.87 480 C241.87 428.6 269.15 377.46 295.72 334.74 C322.3 292.01 355.61 252.82 396.32 223.67 C437.03 194.52 490.22 163.22 540 159.85 C589.78 156.48 649.7 177.04 695.02 203.45 C740.34 229.85 790.51 272.22 811.9 318.31 C833.29 364.4 827.66 428.65 823.38 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="411" cy="522" rx="25.5" ry="15" fill="#f8a4a1"/>
+  <ellipse cx="669" cy="522" rx="25.5" ry="15" fill="#f8a4a1"/>
+  <ellipse cx="459" cy="450" rx="22.5" ry="20.7" fill="#13242e"/>
+  <circle cx="451.2" cy="441.72" r="7.8" fill="#ffffff"/>
+  <ellipse cx="621" cy="450" rx="22.5" ry="20.7" fill="#13242e"/>
+  <circle cx="613.2" cy="441.72" r="7.8" fill="#ffffff"/>
+  <path d="M468.72 552 Q540 597 611.28 552" fill="none" stroke="#13242e" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="540" y="936" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">Very pleasant</text>
 <text x="540" y="1000" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="middle">Energy: high</text>

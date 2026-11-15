@@ -444,6 +444,12 @@ export interface BlobFace {
   readonly mouth: readonly number[];
   readonly strokeWidth: number;
   readonly brows: readonly (readonly number[])[];
+  /** Details (VISUALS 4.4, 2026-11-15): a circle `cx, cy, r` in each open eye, in `glint`. */
+  readonly glint?: string;
+  readonly glints?: readonly (readonly number[])[];
+  /** Details: an ellipse `cx, cy, rx, ry` under each eye of a pleasant state, in `cheek`. */
+  readonly cheek?: string;
+  readonly cheeks?: readonly (readonly number[])[];
 }
 
 /** One drawn state in units of the blob radius; the geometry is the server's (MINI_APP 7.9). */

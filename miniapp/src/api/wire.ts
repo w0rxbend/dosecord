@@ -408,6 +408,8 @@ export function toBlobAsset(wire: Wire['MoodBlobStates']): BlobAsset {
         eyes: state.face.eyes ?? [],
         mouth: state.face.mouth ?? [],
         brows: state.face.brows ?? [],
+        glints: state.face.glints ?? [],
+        cheeks: state.face.cheeks ?? [],
       },
     })),
   };

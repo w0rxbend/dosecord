@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.api.ApiJson
+import dosegram.render.blob.BlobFigure
 import dosegram.render.blob.BlobGeometry
 import dosegram.render.blob.MoodState
 
@@ -43,6 +44,19 @@ class MoodBlobAssetSuite extends munit.FunSuite:
       assertEquals(face.mouth.size, 6, state.id)
       assert(state.light.fillOuter.matches("#[0-9a-f]{6}"), state.id)
       assertEquals(state.light.fillOuter, state.dark.fillOuter, "the fill follows the state, not the theme")
+
+  test("the details of the face are the renderer's: glints in open eyes, cheeks on the pleasant states, brows at the corners"):
+    MoodState.all.foreach: state =>
+      val face = asset.states.find(_.id == state.id).get.face.get
+      val model = BlobFigure.face(state)
+      assertEquals(face.glints.size, model.eyes.count(_.glint.isDefined), state.id)
+      assertEquals(face.cheeks.size, model.cheeks.size, state.id)
+      assertEquals(face.brows.size, model.brows.size, state.id)
+      assertEquals(face.glint.isDefined, face.glints.nonEmpty, state.id)
+      assertEquals(face.cheek, Option.when(model.cheeks.nonEmpty)(model.cheekColour.hex), state.id)
+      face.glints.zip(face.eyes).foreach: (glint, eye) =>
+        assert(StrictMath.hypot(glint(0) - eye(0), glint(1) - eye(1)) < eye(2), s"${state.id}: the glint sits in its eye")
+    assertEquals(asset.revision, BlobFigure.Revision)
 
   test("the asset fits the budget of 40 kB before compression"):
     val bytes = ApiJson.write(asset).getBytes(UTF_8).length

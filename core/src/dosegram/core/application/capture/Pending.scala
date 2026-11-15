@@ -18,6 +18,9 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   case WaterImage extends Pending(6, 0)
   case DayImage extends Pending(7, 0)
 
+  /** The week at a glance of the seven days (VISUALS IMG-19), after the images consent; it shares kind 7. */
+  case WeekImage extends Pending(7, 7)
+
   case SleepCard extends Pending(9, 0)
 
   /** A typed night or nap; it is typed again after the consent, because the times do not fit in a button. */
@@ -69,7 +72,7 @@ private[capture] object Pending:
       case 4  => Some(MoodCheckIn(argument))
       case 5  => Some(Stats)
       case 6  => Some(WaterImage)
-      case 7  => Some(DayImage)
+      case 7  => Some(if argument == WeekImage.argument then WeekImage else DayImage)
       case 8  => MedicationScreen.values.find(_.code == argument).map(Medication(_))
       case 9  => Some(SleepCard)
       case 10 => Some(SleepTyped)
