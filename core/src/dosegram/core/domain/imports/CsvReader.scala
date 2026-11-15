@@ -23,7 +23,7 @@ object CsvLimits:
   */
 object CsvReader:
 
-  private val ByteOrderMark = "﻿"
+  private val ByteOrderMark = "\uFEFF"
 
   /** The rows of `text`, or `None` when a quoted field is not closed or the text passes `limits`. */
   def rows(text: String, limits: CsvLimits = CsvLimits.Default): Option[List[CsvRow]] =
