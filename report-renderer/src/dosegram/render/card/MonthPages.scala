@@ -75,6 +75,8 @@ object MonthPages:
   private val AxisColumnPx = 96.0
   private val DayMinutes = 1440
   private val AxisStartMinute = 18 * 60
+  private val MaximumStretchPx = 320.0
+  private val FoodStretchPx = 64.0
 
   /** One part of a page: its subtitle, the height of its panel, how to draw the panel's contents in the inner box, and
     * the fact lines under the panel.
@@ -119,11 +121,18 @@ object MonthPages:
     val page = if hasSleep && hasWater then full.copy(food = None) else full
     val copy = context.copy
     val frame = CardFrame(context, CardFrame.Portrait, context.tokens.surface)
-    val sections = Vector(
-      page.sleep.filter(_.bars.nonEmpty).map(sleepSection(_, frame, context)),
-      page.water.filter(_.exists(_.isDefined)).map(waterSection(page.month, _, frame, context)),
-      page.food.filter(_.exists(_.isDefined)).map(foodSection(page.month, _, frame, context))
+    def build(extraPx: Double): Vector[Section] = Vector(
+      page.sleep.filter(_.bars.nonEmpty).map(sleepSection(_, frame, context, extraPx)),
+      page.water.filter(_.exists(_.isDefined)).map(waterSection(page.month, _, frame, context, extraPx)),
+      page.food.filter(_.exists(_.isDefined)).map(foodSection(page.month, _, frame, context, extraPx))
     ).flatten
+    // The plots grow into the room the page has left, so one panel does not leave the page half empty; the pages of
+    // one album keep the portrait size (VISUALS section 5.3).
+    val natural = build(0)
+    val used = natural.map(_.heightPx).sum + (natural.size - 1) * SectionGapPx
+    val spare = frame.bodyBottom - BodyTop - used
+    val extra = StrictMath.min(MaximumStretchPx, StrictMath.floor(spare / natural.size.max(1) / 4) * 4).max(0.0)
+    val sections = build(extra)
     val title =
       if page.food.exists(_.exists(_.isDefined)) then copy.monthNightsFoodTitle(hasSleep, hasWater)
       else copy.monthNightsTitle
@@ -136,9 +145,12 @@ object MonthPages:
       context.privacy == Privacy.Discreet
     )
 
-  // The sections one under the other, each as tall as its content.
+  // The sections one under the other, each as tall as its content; the room a short page leaves is shared above and
+  // below them, as on the other cards.
   private def stack(sections: Vector[Section], frame: CardFrame): Vector[Node] =
-    val tops = sections.scanLeft(BodyTop)((top, section) => top + section.heightPx + SectionGapPx)
+    val used = sections.map(_.heightPx).sum + (sections.size - 1).max(0) * SectionGapPx
+    val shift = frame.balance(BodyTop, BodyTop + used)
+    val tops = sections.scanLeft(BodyTop + shift)((top, section) => top + section.heightPx + SectionGapPx)
     sections.zip(tops).flatMap { (section, top) =>
       val panel = Box(frame.left, top + SubtitleToPanelPx, frame.width, section.panelPx)
       val subtitle = frame.text(
@@ -218,7 +230,13 @@ object MonthPages:
   /** The month's nights as columns: x is the day, y the clock time from the earliest bedtime to the latest wake time of
     * the month, so the plot shows the hours that hold nights.
     */
-  private def sleepSection(sleep: SleepRegularityData, frame: CardFrame, context: CardContext): Section =
+  private def sleepSection(
+      sleep: SleepRegularityData,
+      frame: CardFrame,
+      context: CardContext,
+      extraPx: Double
+  ): Section =
+    val plotPx = SleepPlotPx + extraPx
     val copy = context.copy
     val days = (sleep.to.toEpochDay - sleep.from.toEpochDay).toInt + 1
     val stepMinutes = 180
@@ -230,7 +248,7 @@ object MonthPages:
       val left = box.x + AxisColumnPx
       val slot = (box.right - left) / days
       val plotTop = box.y + 12
-      def y(minute: Int): Double = plotTop + SleepPlotPx * (minute - first) / (last - first).toDouble
+      def y(minute: Int): Double = plotTop + plotPx * (minute - first) / (last - first).toDouble
       // A grid line every three hours, a label on every other one so the labels keep their room.
       val axis = (first to last by stepMinutes).toVector.zipWithIndex.flatMap { (minute, index) =>
         val hour = (AxisStartMinute + minute) / 60 % 24
@@ -264,14 +282,14 @@ object MonthPages:
           Vector(Node.Line(Point(left, at), Point(box.right, at), Stroke.dotted(tokens.ink2)))
         )
       }
-      axis ++ bars ++ typical ++ legend.nodes(Point(box.x, plotTop + SleepPlotPx + LegendGapPx), frame, context.fitter)
+      axis ++ bars ++ typical ++ legend.nodes(Point(box.x, plotTop + plotPx + LegendGapPx), frame, context.fitter)
     val average = sleep.averageMinutes.map(copy.sleepAverageOf(_, sleep.nights))
     val spread = for
       bedtime <- sleep.bedtimeSpreadMinutes
       wake <- sleep.wakeSpreadMinutes
     yield copy.sleepSpread(bedtime, wake)
     val facts = (average.toVector ++ spread).padTo(1, copy.sleepNights(sleep.nights))
-    Section(copy.sleepTitle, 2 * PanelPadPx + 12 + SleepPlotPx + LegendGapPx + legend.height - 12, draw, facts)
+    Section(copy.sleepTitle, 2 * PanelPadPx + 12 + plotPx + LegendGapPx + legend.height - 12, draw, facts)
 
   // One entry per kind of mark the plot draws: a night, a nap, the dotted typical times.
   private def sleepLegend(sleep: SleepRegularityData, tokens: Tokens, context: CardContext): Vector[LegendItem] =
@@ -306,9 +324,11 @@ object MonthPages:
       month: YearMonth,
       water: Vector[Option[MonthWaterDay]],
       frame: CardFrame,
-      context: CardContext
+      context: CardContext,
+      extraPx: Double
   ): Section =
     val copy = context.copy
+    val plotPx = WaterPlotPx + extraPx
     val scaleMl = (water.flatten.flatMap(day => day.volumeMl +: day.goalMl.toVector) :+ 1).max.toDouble
     val hasGoal = water.flatten.exists(_.goalMl.isDefined)
     val legend = Legend.flow(waterLegend(hasGoal, frame.tokens, context), frame.width - 2 * PanelPadPx, context.fitter)
@@ -317,8 +337,8 @@ object MonthPages:
       val slot = box.width / water.size
       val ticksBaseline = box.y + 28
       val plotTop = box.y + WeekdayRowPx
-      val baseline = plotTop + WaterPlotPx
-      def height(ml: Int): Double = WaterPlotPx * ml / scaleMl
+      val baseline = plotTop + plotPx
+      def height(ml: Int): Double = plotPx * ml / scaleMl
       val ticks = (1 to month.lengthOfMonth).filter(day => day % 7 == 1).toVector.map { day =>
         frame.text(
           day.toString,
@@ -357,7 +377,7 @@ object MonthPages:
     val goalDays = Option.when(withGoal.nonEmpty)(
       GoalDays(withGoal.count(day => day.goalMl.exists(day.volumeMl >= _)), withGoal.size)
     )
-    val panelPx = 2 * PanelPadPx + WeekdayRowPx + WaterPlotPx + LegendGapPx + legend.height - 12
+    val panelPx = 2 * PanelPadPx + WeekdayRowPx + plotPx + LegendGapPx + legend.height - 12
     Section(copy.waterTitle, panelPx, draw, Vector(copy.monthWaterFact(goalDays, recorded.size)))
 
   private def waterLegend(hasGoal: Boolean, tokens: Tokens, context: CardContext): Vector[LegendItem] =
@@ -388,18 +408,21 @@ object MonthPages:
       month: YearMonth,
       food: Vector[Option[MonthFoodDay]],
       frame: CardFrame,
-      context: CardContext
+      context: CardContext,
+      extraPx: Double
   ): Section =
     val copy = context.copy
+    // Dots are presence, not an amount: they gain a little room and never spread over a tall plot.
+    val plotPx = FoodPlotPx + StrictMath.min(extraPx, FoodStretchPx)
     val legend = Legend.flow(foodLegend(food, frame.tokens, context), frame.width - 2 * PanelPadPx, context.fitter)
     def draw(box: Box, frame: CardFrame): Vector[Node] =
       val tokens = frame.tokens
       val slot = box.width / food.size
       val ticksBaseline = box.y + 28
       val plotTop = box.y + WeekdayRowPx
-      val baseline = plotTop + FoodPlotPx
+      val baseline = plotTop + plotPx
       val radius = StrictMath.min(MealDotPx, slot * 0.3)
-      val pitch = (FoodPlotPx - SnackRoomPx) / MaxMealDots
+      val pitch = (plotPx - SnackRoomPx) / MaxMealDots
       val ticks = (1 to month.lengthOfMonth).filter(day => day % 7 == 1).toVector.map { day =>
         frame.text(
           day.toString,
@@ -423,7 +446,7 @@ object MonthPages:
       ticks ++ dots ++ legend.nodes(Point(box.x, baseline + LegendGapPx), frame, context.fitter)
     val recorded = food.flatten
     val meals = MonthMeals(recorded.map(_.mainMeals).sum, recorded.map(_.snacks).sum)
-    val panelPx = 2 * PanelPadPx + WeekdayRowPx + FoodPlotPx + LegendGapPx + legend.height - 12
+    val panelPx = 2 * PanelPadPx + WeekdayRowPx + plotPx + LegendGapPx + legend.height - 12
     Section(copy.foodTitle, panelPx, draw, Vector(copy.monthFoodFact(meals, recorded.size)))
 
   private def foodLegend(food: Vector[Option[MonthFoodDay]], tokens: Tokens, context: CardContext): Vector[LegendItem] =

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#0f222b"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Sleep, 7 nights</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">2 to 8 Nov</text>
+<text x="64" y="300" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4">8 h 46 min</text>
+<text x="64" y="364" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8">average over 7 nights</text>
+<text x="64" y="420" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Your goal: 8 h 00 min</text>
+<g>
+  <path d="M96 820 L96 597.33 A12 12 0 0 1 108 585.33 L156 585.33 A12 12 0 0 1 168 597.33 L168 820 Z" fill="#9d7aef"/>
+  <line x1="80" y1="585.33" x2="184" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M232 820 L232 580.22 A12 12 0 0 1 244 568.22 L292 568.22 A12 12 0 0 1 304 580.22 L304 820 Z" fill="#9d7aef"/>
+  <line x1="216" y1="585.33" x2="320" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M368 820 L368 538.67 A12 12 0 0 1 380 526.67 L428 526.67 A12 12 0 0 1 440 538.67 L440 820 Z" fill="#9d7aef"/>
+  <line x1="352" y1="585.33" x2="456" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M504 820 L504 634 A12 12 0 0 1 516 622 L564 622 A12 12 0 0 1 576 634 L576 820 Z" fill="#9d7aef"/>
+  <line x1="488" y1="585.33" x2="592" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M640 820 L640 590 A12 12 0 0 1 652 578 L700 578 A12 12 0 0 1 712 590 L712 820 Z" fill="#9d7aef"/>
+  <line x1="624" y1="585.33" x2="728" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M776 820 L776 480 A12 12 0 0 1 788 468 L836 468 A12 12 0 0 1 848 480 L848 820 Z" fill="#9d7aef"/>
+  <line x1="760" y1="585.33" x2="864" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M912 820 L912 602.22 A12 12 0 0 1 924 590.22 L972 590.22 A12 12 0 0 1 984 602.22 L984 820 Z" fill="#9d7aef"/>
+  <line x1="896" y1="585.33" x2="1000" y2="585.33" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="132" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">M</text>
+<text x="268" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="404" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">W</text>
+<text x="540" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">T</text>
+<text x="676" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">F</text>
+<text x="812" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<text x="948" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">S</text>
+<g>
+  <line x1="66" y1="910" x2="106" y2="910" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="120" y="924" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Your goal</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>

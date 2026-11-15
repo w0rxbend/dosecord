@@ -27,10 +27,9 @@ object MoodBlobAsset:
   /** The renderer's reference radius: strokes reach their specified width there and none is clamped. */
   private val Radius = 300.0
   private val Frame = BlobFrame(Point(0, 0), Radius)
-  private val Revision = "dg-blob-1"
 
   lazy val states: MoodBlobStates =
-    MoodBlobStates(Revision, MoodState.all.toList.map(drawn) :+ noEntry)
+    MoodBlobStates(BlobFigure.Revision, MoodState.all.toList.map(drawn) :+ noEntry)
 
   private def drawn(state: MoodState): BlobState =
     val parts = Parts.of(BlobFigure.of(state, Frame, Tokens.of(Theme.Light)))
@@ -47,7 +46,7 @@ object MoodBlobAsset:
       ground = groundOf(parts.ground),
       light = colours(state, Theme.Light, parts),
       dark = colours(state, Theme.Dark, dark),
-      face = Some(faceOf(parts))
+      face = Some(faceOf(state, parts))
     )
 
   private def noEntry: BlobState =
@@ -100,19 +99,33 @@ object MoodBlobAsset:
   private def groundOf(ground: Node.Ellipse): List[Double] =
     coordinates(ground.center) ++ List(unit(ground.radiusX), unit(ground.radiusY))
 
-  private def faceOf(parts: Parts): BlobFace =
-    val eyes = parts.face.collect { case Node.Ellipse(centre, rx, ry, _, _) =>
+  /** The face as the scene draws it: the eyes, mouth and brows are read off the scene's nodes in paint order (cheeks,
+    * eyes with their glints, mouth, brows), the colours and the details off the renderer's face model, so the two can
+    * be checked against each other in the suite.
+    */
+  private def faceOf(state: MoodState, parts: Parts): BlobFace =
+    val model = BlobFigure.face(state)
+    val ink = model.ink
+    val eyes = parts.face.collect { case Node.Ellipse(centre, rx, ry, Some(Paint.Solid(`ink`)), _) =>
       coordinates(centre) ++ List(unit(rx), unit(ry))
     }
     val mouth = parts.face.collectFirst { case Node.Path(data, None, Some(stroke)) => (data, stroke) }
     val brows = parts.face.collect { case Node.Line(from, to, _) => coordinates(from) ++ coordinates(to) }
-    val ink = parts.face.collectFirst { case Node.Ellipse(_, _, _, Some(Paint.Solid(colour)), _) => colour.hex }
+    val glints = parts.face.collect { case Node.Circle(centre, radius, _, _) => coordinates(centre) :+ unit(radius) }
+    val cheeks = parts.face.collect {
+      case Node.Ellipse(centre, rx, ry, Some(Paint.Solid(colour)), _) if colour == model.cheekColour =>
+        coordinates(centre) ++ List(unit(rx), unit(ry))
+    }
     BlobFace(
-      ink = ink.getOrElse("#000000"),
+      ink = ink.hex,
       eyes = eyes.toList,
       mouth = mouth.toList.flatMap((data, _) => data.points.toList.flatMap(coordinates)),
       strokeWidth = mouth.fold(0.0)((_, stroke) => unit(stroke.width)),
-      brows = brows.toList
+      brows = brows.toList,
+      glint = Option.when(glints.nonEmpty)(model.glintColour.hex),
+      glints = glints.toList,
+      cheek = Option.when(cheeks.nonEmpty)(model.cheekColour.hex),
+      cheeks = cheeks.toList
     )
 
   private def coordinates(point: Point): List[Double] = List(unit(point.x), unit(point.y))

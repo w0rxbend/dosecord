@@ -18,6 +18,7 @@ import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
+import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.WaterCopy
@@ -57,6 +58,7 @@ import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.WaterCardView
+import dosegram.core.ports.WeekCardView
 
 import java.time.Duration
 import java.time.ZoneId
@@ -125,6 +127,13 @@ class CaptureFlowsSuite extends munit.FunSuite:
       foods += view
       looks += look
       image("food")
+
+    val weeks: mutable.ListBuffer[WeekCardView] = mutable.ListBuffer.empty
+
+    override def weekGlance(view: WeekCardView, look: CardLook): Option[CardPage] =
+      weeks += view
+      looks += look
+      image("week-glance")
 
   /** The tables behind the rig's transaction, as the tests inspect them. */
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
@@ -469,7 +478,8 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.tapOn("I agree that", ConsentCopy.Agree)
       val shown = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
       assert(texts(shown).exists(_.startsWith("Last 7 days · Europe/Kyiv")), s"got: ${texts(shown)}")
-      assertEquals(labels(shown), List("Today", "7 days", "30 days", "Month", "Patterns"))
+      // The seven days offer their picture, the week at a glance (VISUALS IMG-19).
+      assertEquals(labels(shown), List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage, "Month", "Patterns"))
 
   test("the daily summary image is drawn from today's doses, water and mood, with today's text as its caption"):
     val cards = RecordingCards()
@@ -848,6 +858,38 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assert(week.contains("Food: 1 meal logged · Breakfast 0, Lunch 1, Dinner 0 of 7 days"), week)
       chat.rig.tapOn("Food: 1 of 3 planned meals logged", StatsCardCopy.ShowAsImage)
       assertEquals(cards.days.toList.last.food, Some(FoodLineView(1, 3)))
+
+  test("Show as image on the seven days sends the week at a glance, captioned with the seven days' text (IMG-19)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Nutrition, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+      chat.rig.line("lunch: soup")
+      chat.rig.line("mood 4")
+      val week = chat.rig.line("/stats").mkString("\n")
+      assert(chat.rig.lastChoiceMap("Food: 1 meal logged").map(_.label).contains(StatsCardCopy.ShowAsImage))
+      val sent = chat.rig.tapOn("Food: 1 meal logged", StatsCardCopy.ShowAsImage)
+      val photo = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photo.map(_.attachment.map(_.assetKey)), List(Some("week-glance")))
+      assert(week.contains("Food: 1 meal logged"), week)
+      val view = cards.weeks.toList.last
+      assertEquals(view.food.map(_.flatten.map(_.mainMeals).sum), Some(1))
+      assertEquals(view.mood.map(_.flatten.size), Some(1))
+      assertEquals(view.water, None, "water is drawn only behind its consent")
+      assert(photo.flatMap(_.chunks).mkString("\n").contains("Food: 1 meal logged"), "the caption is the seven days' text")
+
+  test("/today offers the daily summary card, which the images consent then sends (IMG-03)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication)
+      chat.rig.command("today")
+      assert(chat.rig.lastChoiceMap(MenuCopy.medicationsTodaysDoses).map(_.label).contains(StatsCardCopy.ShowAsImage))
+      val asked = chat.rig.tapOn(MenuCopy.medicationsTodaysDoses, StatsCardCopy.ShowAsImage)
+      assertEquals(texts(asked), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      val photo = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photo.map(_.attachment.map(_.assetKey)), List(Some("day")))
+      assertEquals(cards.days.toList.map(_.doses.isDefined), List(true))
 
   test("a photo is answered with a neutral notice and nothing is fetched or stored (G8.1, BUX-FOOD-05)"):
     withChat(Profile.Telegram): chat =>

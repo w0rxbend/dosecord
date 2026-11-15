@@ -35,10 +35,13 @@ final case class RefillData(
 object RefillCard:
   val TemplateId = "card.refill.v1"
   val Cells = 30
-  private val CellGapPx = 6.0
-  private val CellHeightPx = 56.0
-  private val RowTop = 268.0
+  // Two rows of fifteen, so a cell keeps the minimum side of VISUALS section 3.5 at the wide canvas.
+  private val Columns = 15
+  private val CellGapPx = 10.0
+  private val RowGapPx = 14.0
+  private val RowTop = 248.0
   private val NumberColumnPx = 240.0
+  private val CornerShare = 0.28
 
   // The English words, for callers that name them; the card itself asks the context's catalogue (ROADMAP G2.22).
   val Title: String = EnglishImageCopy.refillTitle
@@ -52,28 +55,33 @@ object RefillCard:
     val discreet = context.privacy == Privacy.Discreet
     val label = if discreet then copy.refillDiscreetLabel else data.label
     val rowWidth = frame.width - NumberColumnPx
-    val cell = (rowWidth - CellGapPx * (Cells - 1)) / Cells
+    val cell = StrictMath.floor((rowWidth - CellGapPx * (Columns - 1)) / Columns)
+    def origin(index: Int): Point =
+      Point(frame.left + (index % Columns) * (cell + CellGapPx), RowTop + (index / Columns) * (cell + RowGapPx))
     val solid = data.onHand.setScale(0, BigDecimal.RoundingMode.FLOOR).toInt.min(Cells).max(0)
     val cells = (0 until Cells).map: index =>
-      val box = Box(frame.left + index * (cell + CellGapPx), RowTop, cell, CellHeightPx)
+      val box = Box(origin(index).x, origin(index).y, cell, cell)
       if index < solid then
         Node.Mark(
           MarkMeta("refill.cell.left", Set(Channel.Fill, Channel.Label)),
-          Vector(Node.Rect(box, 4, Some(Paint.Solid(tokens.ink)), None))
+          Vector(Node.Rect(box, cell * CornerShare, Some(Paint.Solid(tokens.ink)), None))
         )
       else
         Node.Mark(
           MarkMeta("refill.cell.used", Set(Channel.Pattern, Channel.Label)),
-          Vector(Node.Rect(box, 4, None, Some(Stroke.dotted(tokens.ink3))))
+          Vector(Node.Rect(box.inset(2), cell * CornerShare, None, Some(Stroke.dotted(tokens.ink3))))
         )
+    // The marker stands in the gap after the threshold's cell, on that cell's row.
     val marker = data.thresholdUnits
       .filter(n => n > 0 && n <= Cells)
       .map: n =>
-        val x = frame.left + n.toDouble * (cell + CellGapPx) - CellGapPx / 2
+        val last = origin(n.toInt - 1)
+        val x = last.x + cell + CellGapPx / 2
         Node.Mark(
           MarkMeta("refill.threshold", Set(Channel.Colour, Channel.Position, Channel.Label)),
-          Vector(Node.Rect(Box(x - 3, RowTop - 16, 6, CellHeightPx + 32), 3, Some(Paint.Solid(tokens.attention)), None))
+          Vector(Node.Rect(Box(x - 3, last.y - 10, 6, cell + 20), 3, Some(Paint.Solid(tokens.attention)), None))
         )
+    val gridBottom = RowTop + 2 * cell + RowGapPx
     val number = data.onHand.bigDecimal.stripTrailingZeros.toPlainString
     val ink = TextLook(TextStyle.Body, tokens.ink, Align.Start, TextKind.Label)
     val quiet = TextLook(TextStyle.Label, tokens.ink2, Align.Start, TextKind.Label)
@@ -92,12 +100,12 @@ object RefillCard:
       ++ cells
       ++ marker.toVector
       ++ Vector(
-        frame.text(copy.refillThreshold(data.threshold), Point(frame.left, 392), quiet, rowWidth),
-        frame.text(number, Point(frame.right, 360), right, NumberColumnPx),
-        frame.text(copy.refillUnitsLeft(data.unit), Point(frame.right, 420), unitLook, NumberColumnPx)
+        frame.text(copy.refillThreshold(data.threshold), Point(frame.left, gridBottom + 56), quiet, rowWidth),
+        frame.text(number, Point(frame.right, RowTop + 112), right, NumberColumnPx),
+        frame.text(copy.refillUnitsLeft(data.unit), Point(frame.right, RowTop + 172), unitLook, NumberColumnPx)
       )
-      ++ covers.map(line => frame.text(line, Point(frame.left, 480), ink, frame.width)).toVector
-      ++ Vector(frame.text(copy.refillSource, Point(frame.left, 540), quiet, frame.width), frame.footer)
+      ++ covers.map(line => frame.text(line, Point(frame.left, gridBottom + 124), ink, frame.width)).toVector
+      ++ Vector(frame.text(copy.refillSource, Point(frame.left, gridBottom + 180), quiet, frame.width), frame.footer)
     val text = TextEquivalent.of(data.text, copy.refillDiscreetLabel, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-refill.png", discreet)
 end RefillCard

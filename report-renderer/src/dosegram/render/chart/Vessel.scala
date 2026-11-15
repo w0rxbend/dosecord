@@ -26,16 +26,17 @@ object Vessel:
     val glass = Node.filledRect(box.inset(OutlinePx), cornerRadius - OutlinePx, tokens.panel)
     val clamped = StrictMath.max(0.0, StrictMath.min(1.0, share))
     val fill = Option.when(clamped > 0) {
-      Node.filledPath(fillPath(interior(box), cornerRadius - OutlinePx - FillGapPx, clamped), tokens.tide)
+      Node.filledPath(levelPath(interior(box), cornerRadius - OutlinePx - FillGapPx, clamped), tokens.tide)
     }
     Node.Mark(
       MarkMeta("water.level", Set(Channel.Colour, Channel.Position, Channel.Label)),
       (glass +: fill.toVector) :+ outline
     )
 
-  // The part of a rounded rectangle below the level line. Inside a corner zone the level line is shorter and its
-  // ends lie on the corner arcs.
-  private def fillPath(inner: Box, radius: Double, share: Double): PathData =
+  /** The part of a rounded rectangle below the level line, for `share` in (0, 1]. Inside a corner zone the level line
+    * is shorter and its ends lie on the corner arcs. The level cells of the week cards draw with it too.
+    */
+  private[render] def levelPath(inner: Box, radius: Double, share: Double): PathData =
     val level = inner.bottom - inner.height * share
     val bottomInset = arcInset(radius, inner.bottom - level)
     val topInset = arcInset(radius, level - inner.y)

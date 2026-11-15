@@ -221,6 +221,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
       case CaptureActions.SleepNap        => sleep.nap(turn)
       case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
+      case CaptureActions.StatsImage if value == StatsChat.WeekImageValue =>
+        imageOf(turn, Pending.WeekImage)(stats.weekImage(turn))
       case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
       case CaptureActions.StatsMonth      => months.month(turn, value.toInt)
       case CaptureActions.StatsMonthImage =>
@@ -266,6 +268,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
+      case Pending.WeekImage             => stats.weekImage(fresh)
       case Pending.Medication(screen)    => openMedication(fresh, screen)
       case Pending.SleepCard             => sleep.card(fresh)
       case Pending.SleepTyped            => sleep.card(fresh)

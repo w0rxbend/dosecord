@@ -38,8 +38,7 @@ export function mouthPath(mouth: readonly number[]): string {
 }
 
 /**
- * Two outlines blend number by number only when they have the same segments (MA-MOOD-5). Brows
- * that appear or go are not blended: the target's are drawn.
+ * Two outlines blend number by number only when they have the same segments (MA-MOOD-5).
  */
 export function canBlend(from: BlobState, to: BlobState): boolean {
   return from.outline.length === to.outline.length && (from.face === undefined) === (to.face === undefined);
@@ -50,6 +49,21 @@ const lerp = (from: number, to: number, t: number): number => from + (to - from)
 function blendNumbers(from: readonly number[], to: readonly number[], t: number): number[] {
   return to.map((value, index) => lerp(from[index] ?? value, value, t));
 }
+
+/** Shapes that appear or go (brows, glints, cheeks) are not blended: the target's are drawn. */
+function blendList(
+  from: readonly (readonly number[])[],
+  to: readonly (readonly number[])[],
+  t: number,
+): (readonly number[])[] {
+  return from.length === to.length ? to.map((shape, index) => blendNumbers(from[index] ?? shape, shape, t)) : [...to];
+}
+
+/**
+ * Glints and cheeks are details: under this radius in pixels they are left out, as the chat image
+ * leaves them out of its mini blobs (`BlobFigure.DetailFromRadiusPx`).
+ */
+export const DETAIL_FROM_RADIUS_PX = 48;
 
 function channel(hex: string, offset: number): number {
   return Number.parseInt(hex.slice(offset, offset + 2), 16);
@@ -79,10 +93,11 @@ export function blend(from: BlobState, to: BlobState, t: number): BlobState {
           eyes: to.face.eyes.map((eye, index) => blendNumbers(from.face?.eyes[index] ?? eye, eye, t)),
           mouth: blendNumbers(from.face.mouth, to.face.mouth, t),
           strokeWidth: lerp(from.face.strokeWidth, to.face.strokeWidth, t),
-          brows:
-            from.face.brows.length === to.face.brows.length
-              ? to.face.brows.map((brow, index) => blendNumbers(from.face?.brows[index] ?? brow, brow, t))
-              : to.face.brows,
+          brows: blendList(from.face.brows, to.face.brows, t),
+          glints: blendList(from.face.glints ?? [], to.face.glints ?? [], t),
+          cheeks: blendList(from.face.cheeks ?? [], to.face.cheeks ?? [], t),
+          glint: to.face.glint && from.face.glint ? blendColour(from.face.glint, to.face.glint, t) : to.face.glint,
+          cheek: to.face.cheek && from.face.cheek ? blendColour(from.face.cheek, to.face.cheek, t) : to.face.cheek,
         }
       : to.face;
   return {

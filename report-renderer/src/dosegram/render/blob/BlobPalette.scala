@@ -28,14 +28,29 @@ object BlobPalette:
   private val LightFaceInk = Rgb.hex("#e8f0f4")
   private val DarkFaceInk = Rgb.hex("#13242e")
   private val LastLightInkValence = 3
-  private val HighlightLightnessGain = 0.10
+  private val HighlightLightnessGain = 0.13
   private val HighlightChromaScale = 0.75
+  private val CheekLightnessDrop = 0.08
+  private val CheekChroma = 0.10
+  private val CheekHue = 22.0
 
   def fill(state: MoodState): Rgb = Fills(state.valence - 1)(state.energy - 1)
 
   /** The inner stop of the fill gradient: the same hue, lighter and less saturated. */
   def highlight(state: MoodState): Rgb =
     Oklch.from(fill(state)).shifted(HighlightLightnessGain, HighlightChromaScale).toRgb
+
+  /** The flat blush of the pleasant states' cheeks: a warm coral a step darker than the fill, so it reads by hue and by
+    * lightness on the straw and gold fills (supervisor decision of 2026-11-15).
+    */
+  def cheek(state: MoodState): Rgb =
+    Oklch(StrictMath.max(0.0, Oklch.from(fill(state)).lightness - CheekLightnessDrop), CheekChroma, CheekHue).toRgb
+
+  /** The small circle in an open eye: the light highlight in a dark eye, the fill itself in a light eye, so it reads
+    * against the eye on every state.
+    */
+  def glint(state: MoodState): Rgb =
+    if state.valence <= LastLightInkValence then fill(state) else highlight(state)
 
   def faceInk(state: MoodState): Rgb = if state.valence <= LastLightInkValence then LightFaceInk else DarkFaceInk
 
@@ -52,5 +67,5 @@ object BlobPalette:
 
   /** Every colour the blob system may put into a scene, for the palette whitelist lint. */
   val all: Set[Rgb] =
-    (MoodState.all.flatMap(state => Vector(fill(state), highlight(state), faceInk(state)))
+    (MoodState.all.flatMap(state => Vector(fill(state), highlight(state), faceInk(state), cheek(state)))
       ++ LightBackgrounds ++ DarkBackgrounds ++ Theme.values.map(noEntryFill)).toSet

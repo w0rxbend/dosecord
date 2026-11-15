@@ -1,0 +1,5 @@
+file: dosegram-sleep-week.png
+spoiler: false
+caption: Sleep, 2 to 8 Nov. 1 night from your check-ins. Mon an estimate from bot activity, not counted, Tue no record, Wed no record, Thu 6 h 30 min, Fri no record, Sat no record, Sun no record. Your goal is 8 h 00 min.
+alt: Sleep, 2 to 8 Nov. 1 night from your check-ins. Mon an estimate from bot activity, not counted, Tue no record, Wed no record, Thu 6 h 30 min, Fri no record, Sat no record, Sun no record. Your goal is 8 h 00 min.
+full: Sleep, 2 to 8 Nov. 1 night from your check-ins. Mon an estimate from bot activity, not counted, Tue no record, Wed no record, Thu 6 h 30 min, Fri no record, Sat no record, Sun no record. Your goal is 8 h 00 min.

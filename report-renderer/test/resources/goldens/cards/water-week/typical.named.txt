@@ -1,0 +1,5 @@
+file: dosegram-water-week.png
+spoiler: false
+caption: Water, 2 to 8 Nov. 1.94 l a day on average. Goal reached on 4 of 6 recorded days. Mon 2.1 l, Tue 1.9 l, Wed 2.4 l, Thu no record, Fri 2.0 l, Sat 1.2 l, Sun 2.05 l. The goal is the one you set.
+alt: Water, 2 to 8 Nov. 1.94 l a day on average. Goal reached on 4 of 6 recorded days. Mon 2.1 l, Tue 1.9 l, Wed 2.4 l, Thu no record, Fri 2.0 l, Sat 1.2 l, Sun 2.05 l. The goal is the one you set.
+full: Water, 2 to 8 Nov. 1.94 l a day on average. Goal reached on 4 of 6 recorded days. Mon 2.1 l, Tue 1.9 l, Wed 2.4 l, Thu no record, Fri 2.0 l, Sat 1.2 l, Sun 2.05 l. The goal is the one you set.

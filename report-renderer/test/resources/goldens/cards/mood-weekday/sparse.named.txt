@@ -1,0 +1,5 @@
+file: dosegram-mood-weekday.png
+spoiler: false
+caption: Mood by weekday, 12 Oct to 8 Nov. Mon: 1 check-in day, fewer than 3. Tue: 2 check-in days, fewer than 3. Wed: 3.0 (neutral) over 3 check-in days. Thu: 0 check-in days, fewer than 3. Fri: 2 check-in days, fewer than 3. Sat: 4.3 (pleasant) over 3 check-in days. Sun: 1 check-in day, fewer than 3. Mood is the daily average on the 1 to 5 scale.
+alt: Mood by weekday, 12 Oct to 8 Nov. Mon: 1 check-in day, fewer than 3. Tue: 2 check-in days, fewer than 3. Wed: 3.0 (neutral) over 3 check-in days. Thu: 0 check-in days, fewer than 3. Fri: 2 check-in days, fewer than 3. Sat: 4.3 (pleasant) over 3 check-in days. Sun: 1 check-in day, fewer than 3. Mood is the daily average on the 1 to 5 scale.
+full: Mood by weekday, 12 Oct to 8 Nov. Mon: 1 check-in day, fewer than 3. Tue: 2 check-in days, fewer than 3. Wed: 3.0 (neutral) over 3 check-in days. Thu: 0 check-in days, fewer than 3. Fri: 2 check-in days, fewer than 3. Sat: 4.3 (pleasant) over 3 check-in days. Sun: 1 check-in day, fewer than 3. Mood is the daily average on the 1 to 5 scale.

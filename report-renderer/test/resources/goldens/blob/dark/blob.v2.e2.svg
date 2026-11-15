@@ -1,14 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#62749c"/><stop offset="1" stop-color="#415689"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#6b7da5"/><stop offset="1" stop-color="#415689"/></radialGradient>
 </defs>
 <rect width="1080" height="1080" fill="#1c2435"/>
 <g>
   <ellipse cx="540" cy="834" rx="210" ry="9" fill="#2f434d"/>
-  <path d="M845.71 480 C848.9 547.49 814.78 646.24 763.83 693.56 C712.88 740.88 612.69 765.71 540 763.91 C467.31 762.12 378.92 730.13 327.66 682.81 C276.4 635.49 232.7 547.13 232.45 480 C232.19 412.87 274.87 326.73 326.13 280.03 C377.39 233.33 470.24 198.37 540 199.8 C609.76 201.24 693.74 241.91 744.69 288.61 C795.64 335.31 842.52 412.51 845.71 480 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="456" cy="444" rx="16.5" ry="9.08" fill="#e8f0f4"/>
-  <ellipse cx="624" cy="444" rx="16.5" ry="9.08" fill="#e8f0f4"/>
-  <path d="M484.8 546 Q540 525 595.2 546" fill="none" stroke="#e8f0f4" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M846.23 480 C849.91 545.75 817.13 644.41 766.09 690.87 C715.05 737.34 613.25 760.7 540 758.78 C466.75 756.85 377.99 725.79 326.62 679.33 C275.24 632.87 231.87 545.33 231.76 480 C231.65 414.67 274.6 332.32 325.97 287.37 C377.34 242.43 470.33 208.82 540 210.32 C609.67 211.82 692.98 251.44 744.02 296.39 C795.05 341.33 842.55 414.25 846.23 480 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="459" cy="450" rx="22.5" ry="12.38" fill="#e8f0f4"/>
+  <circle cx="451.2" cy="445.05" r="7.8" fill="#415689"/>
+  <ellipse cx="621" cy="450" rx="22.5" ry="12.38" fill="#e8f0f4"/>
+  <circle cx="613.2" cy="445.05" r="7.8" fill="#415689"/>
+  <path d="M479.28 552 Q540 525 600.72 552" fill="none" stroke="#e8f0f4" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="435.71" y1="407.81" x2="482.29" y2="396.19" stroke="#e8f0f4" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="644.29" y1="407.81" x2="597.71" y2="396.19" stroke="#e8f0f4" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="540" y="936" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4" text-anchor="middle">Unpleasant</text>
 <text x="540" y="1000" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8" text-anchor="middle">Energy: low</text>

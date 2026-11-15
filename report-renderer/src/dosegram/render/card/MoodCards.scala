@@ -240,15 +240,26 @@ object MoodCalendarCard:
     val firstBaseline = origin.y + LegendRowPx + 28
     val lastBaseline = if sideBySide then firstBaseline else firstBaseline + LegendRowPx
     val nameLook = frame.look(TextStyle.Label, tokens.ink2)
-    val ends = Vector(
-      frame.text(copy.valenceName(1), Point(origin.x, firstBaseline), nameLook, right - origin.x),
-      frame.text(
-        copy.valenceName(MoodState.ValenceLevels),
-        Point(endRight, lastBaseline),
-        TextLook(TextStyle.Label, tokens.ink2, Align.End, TextKind.Label),
-        right - origin.x
+    // On rows of their own each end name follows its own blob, so it never floats under the middle of the scale.
+    def namedEnd(valence: Int, baseline: Double): Vector[Node] =
+      val centre = Point(origin.x + scale.radius, baseline - 14)
+      val nameLeft = origin.x + 2 * scale.radius + 12
+      Vector(
+        BlobFigure.of(MoodState(valence, 3), BlobFrame(centre, scale.radius), tokens),
+        frame.text(copy.valenceName(valence), Point(nameLeft, baseline), nameLook, right - nameLeft)
       )
-    )
+    val ends =
+      if sideBySide then
+        Vector(
+          frame.text(copy.valenceName(1), Point(origin.x, firstBaseline), nameLook, right - origin.x),
+          frame.text(
+            copy.valenceName(MoodState.ValenceLevels),
+            Point(endRight, lastBaseline),
+            TextLook(TextStyle.Label, tokens.ink2, Align.End, TextKind.Label),
+            right - origin.x
+          )
+        )
+      else namedEnd(1, firstBaseline) ++ namedEnd(MoodState.ValenceLevels, lastBaseline)
     val gap = Option.when(calendar.days.contains(None)) {
       val rowTop = lastBaseline + LegendRowPx - 28
       Vector(

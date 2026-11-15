@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="256" cy="818" r="44"><stop offset="0" stop-color="#6f90ad"/><stop offset="1" stop-color="#477398"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="256" cy="818" r="44"><stop offset="0" stop-color="#7899b6"/><stop offset="1" stop-color="#477398"/></radialGradient>
 </defs>
 <rect width="1080" height="1350" fill="#eef5f8"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Your week</text>
@@ -73,10 +73,12 @@
 </g>
 <g>
   <ellipse cx="268" cy="881.2" rx="26" ry="2" fill="#cdd6db"/>
-  <path d="M306.37 834 C306.46 841.74 304.44 850.72 300.22 857.41 C296 864.1 288.42 871.81 281.03 874.11 C273.65 876.41 263.55 873.92 255.91 871.22 C248.26 868.51 239.67 864.06 235.16 857.86 C230.65 851.65 228.6 841.77 228.85 834 C229.1 826.23 232.26 817.76 236.66 811.23 C241.06 804.69 247.89 797.59 255.26 794.79 C262.63 791.98 273.46 791.7 280.87 794.4 C288.27 797.1 295.42 804.39 299.67 810.99 C303.92 817.59 306.28 826.26 306.37 834 Z" fill="url(#g1)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="256.8" cy="829.2" rx="3" ry="1.65" fill="#e8f0f4"/>
-  <ellipse cx="279.2" cy="829.2" rx="3" ry="1.65" fill="#e8f0f4"/>
-  <path d="M260 842.8 Q268 841.4 276 842.8" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M306.16 834 C306.27 841.61 304.38 850.67 300.2 857.4 C296.03 864.13 288.49 872.09 281.12 874.37 C273.74 876.66 263.61 873.86 255.94 871.11 C248.27 868.37 239.6 864.09 235.1 857.9 C230.61 851.72 228.68 841.65 228.96 834 C229.24 826.35 232.41 818.36 236.78 812 C241.16 805.64 247.85 798.59 255.21 795.82 C262.57 793.06 273.53 792.75 280.93 795.4 C288.33 798.05 295.38 805.31 299.59 811.74 C303.79 818.17 306.06 826.39 306.16 834 Z" fill="url(#g1)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="257.2" cy="830" rx="3" ry="2.34" fill="#e8f0f4"/>
+  <ellipse cx="278.8" cy="830" rx="3" ry="2.34" fill="#e8f0f4"/>
+  <path d="M259.2 843.6 Q268 841.8 276.8 843.6" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="254.1" y1="824.37" x2="260.3" y2="822.83" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="281.9" y1="824.37" x2="275.7" y2="822.83" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
   <circle cx="404" cy="834" r="36" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>

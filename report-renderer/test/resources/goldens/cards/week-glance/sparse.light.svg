@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="868.91" cy="609.6" r="39.6"><stop offset="0" stop-color="#7e99b1"/><stop offset="1" stop-color="#4f7391"/></radialGradient>
+</defs>
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Week at a glance</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end">2 to 8 Nov</text>
+<text x="425.43" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
+<text x="516.29" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="607.14" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
+<text x="698" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="788.86" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
+<text x="879.71" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="970.57" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<g>
+  <rect x="73.33" y="273.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="292" x2="101.33" y2="292" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="306" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Medication</text>
+<g>
+  <rect x="476.29" y="252" width="80" height="80" rx="22.4" fill="#cdd6db"/>
+  <path d="M498.69 252 L533.89 252 A22.4 22.4 0 0 1 556.29 274.4 L556.29 309.6 A22.4 22.4 0 0 1 533.89 332 L498.69 332 A22.4 22.4 0 0 1 476.29 309.6 L476.29 274.4 A22.4 22.4 0 0 1 498.69 252 Z" fill="#0d9675"/>
+</g>
+<g>
+  <rect x="750.86" y="254" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M92 383 C85.93 391.4 76.83 401.67 76.83 409.83 A15.17 15.17 0 0 0 107.17 409.83 C107.17 401.67 98.07 391.4 92 383 Z" fill="none" stroke="#02558f" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="418" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Water</text>
+<g>
+  <rect x="387.43" y="366" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="478.29" y="366" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="567.14" y="364" width="80" height="80" rx="22.4" fill="#cdd6db"/>
+  <path d="M567.14 412 L647.14 412 L647.14 421.6 A22.4 22.4 0 0 1 624.74 444 L589.54 444 A22.4 22.4 0 0 1 567.14 421.6 Z" fill="#02558f"/>
+</g>
+<g>
+  <rect x="660" y="366" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="750.86" y="366" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="841.71" y="366" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="932.57" y="366" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="92" cy="516" r="21" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 505.5 A10.5 10.5 0 0 1 102.5 516" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="530" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Food</text>
+<g>
+  <rect x="387.43" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="478.29" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="569.14" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="660" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="750.86" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="841.71" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="932.57" y="478" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M92 607.93 C96.45 607.93 102.24 616.33 105.34 621.7 C108.44 627.07 112.81 636.28 110.59 640.13 C108.37 643.98 98.2 644.8 92 644.8 C85.8 644.8 75.63 643.98 73.41 640.13 C71.19 636.28 75.56 627.07 78.66 621.7 C81.76 616.33 87.55 607.93 92 607.93 Z" fill="none" stroke="#940f52" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="642" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Mood</text>
+<g>
+  <circle cx="425.43" cy="628" r="34" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="516.29" cy="628" r="34" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="607.14" cy="628" r="34" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="698" cy="628" r="34" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="788.86" cy="628" r="34" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <ellipse cx="879.71" cy="666.48" rx="25.2" ry="2" fill="#cdd6db"/>
+  <path d="M914.99 624 C914.86 632.06 911.15 642.05 905.27 647.87 C899.39 653.7 888.43 658.76 879.71 658.94 C871 659.11 859.04 654.75 853 648.93 C846.95 643.11 843.04 631.91 843.46 624 C843.87 616.09 849.42 607.13 855.47 601.45 C861.51 595.77 871.28 590.22 879.71 589.9 C888.14 589.58 900.17 593.83 906.05 599.51 C911.93 605.19 915.12 615.94 914.99 624 Z" fill="url(#g1)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="869.99" cy="620.4" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <ellipse cx="889.43" cy="620.4" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <path d="M872.43 632.64 Q879.71 631.02 887 632.64" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="867.2" y1="615.34" x2="872.79" y2="613.94" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="892.23" y1="615.34" x2="886.64" y2="613.94" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="970.57" cy="628" r="34" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <path d="M109.5 745.13 A19.13 19.13 0 1 1 86.87 722.5 A15.4 15.4 0 0 0 109.5 745.13 Z" fill="none" stroke="#8a66d9" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="136" y="754" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Sleep</text>
+<g>
+  <rect x="387.43" y="702" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="391.43" y1="717.31" x2="402.74" y2="706" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="391.43" y1="739.94" x2="425.37" y2="706" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="391.43" y1="762.57" x2="448" y2="706" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="402.62" y1="774" x2="459.43" y2="717.2" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="425.25" y1="774" x2="459.43" y2="739.82" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="447.88" y1="774" x2="459.43" y2="762.45" stroke="#5e6e78" stroke-width="4"/>
+</g>
+<g>
+  <rect x="478.29" y="702" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="569.14" y="702" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="658" y="700" width="80" height="80" rx="22.4" fill="#cdd6db"/>
+  <path d="M659.26 715 L736.74 715 A22.4 22.4 0 0 1 738 722.4 L738 757.6 A22.4 22.4 0 0 1 715.6 780 L680.4 780 A22.4 22.4 0 0 1 658 757.6 L658 722.4 A22.4 22.4 0 0 1 659.26 715 Z" fill="#8a66d9"/>
+</g>
+<g>
+  <rect x="750.86" y="702" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="841.71" y="702" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="932.57" y="702" width="76" height="76" rx="22.4" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <rect x="68" y="824" width="36" height="36" rx="10.08" fill="#cdd6db"/>
+  <path d="M68 842 L104 842 L104 849.92 A10.08 10.08 0 0 1 93.92 860 L78.08 860 A10.08 10.08 0 0 1 68 849.92 Z" fill="#435561"/>
+</g>
+<text x="120" y="856" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Fill: share of the day&apos;s plan or goal</text>
+<g>
+  <rect x="774.96" y="822" width="40" height="40" rx="12.32" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="828.96" y="856" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">No record</text>
+<g>
+  <rect x="66" y="878" width="40" height="40" rx="12.32" fill="none" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="70" y1="893.31" x2="81.31" y2="882" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="71.94" y1="914" x2="102" y2="883.94" stroke="#5e6e78" stroke-width="4"/>
+  <line x1="94.57" y1="914" x2="102" y2="906.57" stroke="#5e6e78" stroke-width="4"/>
+</g>
+<text x="120" y="912" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Estimate</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

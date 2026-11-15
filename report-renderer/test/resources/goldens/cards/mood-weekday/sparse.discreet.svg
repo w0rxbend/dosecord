@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="595" cy="472" r="33"><stop offset="0" stop-color="#a2b6b8"/><stop offset="1" stop-color="#758f92"/></radialGradient>
+  <radialGradient id="g2" gradientUnits="userSpaceOnUse" cx="762.58" cy="736" r="33"><stop offset="0" stop-color="#e7eaae"/><stop offset="1" stop-color="#bec171"/></radialGradient>
+</defs>
+<rect width="1080" height="1080" fill="#0f222b"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Mood by weekday</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end"></text>
+<text x="64" y="180" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8">12 Oct to 8 Nov</text>
+<text x="352" y="248" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">1</text>
+<text x="478" y="248" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">2</text>
+<text x="604" y="248" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">3</text>
+<text x="730" y="248" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">4</text>
+<text x="856" y="248" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3" text-anchor="middle">5</text>
+<text x="64" y="326" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Mon</text>
+<text x="160" y="326" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">1 day</text>
+<text x="352" y="326" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>
+<text x="64" y="414" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Tue</text>
+<text x="160" y="414" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">2 days</text>
+<text x="352" y="414" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>
+<text x="64" y="502" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="44" fill="#e8f0f4">Wed</text>
+<text x="160" y="502" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">3 days</text>
+<g>
+  <line x1="352" y1="488" x2="856" y2="488" stroke="#2f434d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g>
+    <ellipse cx="604" cy="519.4" rx="19.5" ry="2" fill="#2f434d"/>
+    <path d="M635.1 484 C635.05 489.85 631.72 496.9 628.02 501.45 C624.32 506 618.4 509.53 612.87 511.31 C607.35 513.1 600.57 513.62 594.85 512.15 C589.13 510.68 582.23 507.17 578.56 502.48 C574.89 497.79 572.36 489.82 572.82 484 C573.29 478.18 577.69 472.29 581.35 467.54 C585 462.8 589.41 457.59 594.75 455.53 C600.08 453.47 607.76 453.4 613.36 455.2 C618.95 457 624.69 461.53 628.32 466.33 C631.94 471.13 635.15 478.15 635.1 484 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="595.9" cy="481" rx="3" ry="1.76" fill="#13242e"/>
+    <ellipse cx="612.1" cy="481" rx="3" ry="1.76" fill="#13242e"/>
+    <path d="M597.4 491.2 Q604 491.2 610.6 491.2" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<text x="1016" y="502" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">3.0</text>
+<text x="64" y="590" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Thu</text>
+<text x="160" y="590" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">0 days</text>
+<text x="352" y="590" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>
+<text x="64" y="678" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Fri</text>
+<text x="160" y="678" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">2 days</text>
+<text x="352" y="678" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>
+<text x="64" y="766" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Sat</text>
+<text x="160" y="766" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">3 days</text>
+<g>
+  <line x1="352" y1="752" x2="856" y2="752" stroke="#2f434d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g>
+    <ellipse cx="771.58" cy="783.4" rx="19.5" ry="2" fill="#2f434d"/>
+    <path d="M801.55 748 C801.56 753.92 799.4 760.75 796.04 765.77 C792.67 770.78 786.9 776.54 781.35 778.08 C775.81 779.63 768.31 777.24 762.79 775.06 C757.27 772.87 751.88 769.48 748.23 764.97 C744.57 760.46 741.19 753.9 740.86 748 C740.52 742.1 742.61 734.29 746.19 729.55 C749.77 724.82 756.64 721.05 762.35 719.58 C768.05 718.11 774.83 718.96 780.44 720.74 C786.05 722.52 792.49 725.71 796.01 730.25 C799.53 734.79 801.55 742.08 801.55 748 Z" fill="url(#g2)" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="763.48" cy="745" rx="3" ry="1.76" fill="#13242e"/>
+    <ellipse cx="779.68" cy="745" rx="3" ry="1.76" fill="#13242e"/>
+    <path d="M764.98 755.2 Q771.58 758.2 778.18 755.2" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<text x="1016" y="766" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">4.3</text>
+<text x="64" y="854" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Sun</text>
+<text x="160" y="854" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">1 day</text>
+<text x="352" y="854" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>
+<text x="64" y="932" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Mood is the daily average on the 1 to 5 scale.</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>

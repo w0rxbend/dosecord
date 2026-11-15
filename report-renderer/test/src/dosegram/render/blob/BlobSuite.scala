@@ -124,10 +124,53 @@ class BlobSuite extends munit.ScalaCheckSuite:
       assert(opening.sliding(2).forall(pair => pair(0) <= pair(1)))
       assert(chroma.sliding(2).forall(pair => pair(0) <= pair(1) + 0.004), s"chroma at V$valence: $chroma")
 
-  test("only the tense corner has brows, and only heavy states slump"):
-    assertEquals(MoodState.all.filter(BlobFigure.hasBrows).map(_.id), Vector("blob.v1.e4", "blob.v1.e5", "blob.v2.e4", "blob.v2.e5"))
-    assertEquals(MoodState.all.filter(BlobGeometry.slump(_) > 0).map(_.valence).distinct, Vector(1, 2))
+  test("tense brows only at the tense corner, tired brows only at the heavy corner, and only heavy states slump"):
+    def withBrows(kind: BrowKind): Vector[String] = MoodState.all.filter(BlobFigure.browKind(_).contains(kind)).map(_.id)
+    assertEquals(withBrows(BrowKind.Tense), Vector("blob.v1.e4", "blob.v1.e5", "blob.v2.e4", "blob.v2.e5"))
+    assertEquals(withBrows(BrowKind.Tired).toSet, (for v <- 1 to 3; e <- 1 to 3 yield s"blob.v$v.e$e").toSet)
+    assert(MoodState.all.filter(_.valence >= 4).forall(!BlobFigure.hasBrows(_)), "no brows from neutral up")
+    assertEquals(MoodState.all.filter(BlobGeometry.slump(_) > 0).map(_.valence).distinct, Vector(1, 2, 3))
     assert(MoodState.all.filter(BlobGeometry.slump(_) > 0).forall(_.energy <= 3))
+    for energy <- 1 to 3 do
+      val slumps = (1 to 3).map(valence => BlobGeometry.slump(MoodState(valence, energy)))
+      assert(slumps.sliding(2).forall(pair => pair(0) > pair(1)), s"the lower the valence the heavier: $slumps")
+
+  test("a tense brow lowers its inner end and a tired brow raises it, never both on one face"):
+    MoodState.all.foreach { state =>
+      BlobFigure.face(state).brows.foreach { (outer, inner) =>
+        BlobFigure.browKind(state) match
+          case Some(BrowKind.Tense) => assert(inner.y > outer.y, state.id)
+          case Some(BrowKind.Tired) => assert(inner.y < outer.y, state.id)
+          case None                 => fail(s"${state.id} has a brow without a kind")
+      }
+    }
+
+  test("cheeks belong to the pleasant states, glints to open eyes, and both stay off the mini blobs"):
+    MoodState.all.foreach { state =>
+      val face = BlobFigure.face(state)
+      assertEquals(face.cheeks.nonEmpty, state.valence >= 6, state.id)
+      assertEquals(face.eyes.forall(_.glint.isDefined), state.energy >= 2, state.id)
+      face.eyes.foreach(eye => eye.glint.foreach(glint => assert(glint.radius < eye.radiusX, state.id)))
+    }
+    val tokens = dosegram.render.tokens.Tokens.Dark
+    def leaves(radius: Double): Int =
+      dosegram.render.scene.Node.flatten(Vector(BlobFigure.of(MoodState(7, 5), BlobFrame(Point(0, 0), radius), tokens))).size
+    assert(leaves(BlobFigure.DetailFromRadiusPx) > leaves(BlobFigure.DetailFromRadiusPx - 1), "details only on large blobs")
+
+  test("the face is expressive: at least eight distinct expressions over the 35 states"):
+    // An expression is what the face shows besides colour: eye opening, mouth bend, brows, cheeks.
+    val expressions = MoodState.all.map { state =>
+      val face = BlobFigure.face(state)
+      (face.eyes.head.radiusY, face.mouth(1).y, face.browKind, face.cheeks.nonEmpty)
+    }
+    assert(expressions.distinct.size >= 8, s"${expressions.distinct.size} expressions")
+
+  test("the cheek blush differs from its fill in lightness, so it reads in greyscale too"):
+    MoodState.all.filter(BlobFigure.hasCheeks).foreach { state =>
+      val fill = Oklch.from(BlobPalette.fill(state)).lightness
+      val cheek = Oklch.from(BlobPalette.cheek(state)).lightness
+      assert(fill - cheek >= 0.05, s"${state.id}: fill $fill, cheek $cheek")
+    }
 
   test("the face ink keeps at least 4.3:1 contrast against the fill"):
     MoodState.all.foreach { state =>

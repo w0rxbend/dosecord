@@ -91,7 +91,7 @@ object ContactSheet:
   val directory = Files.createDirectories(Path.of(outputDir))
   val renderer = CardRenderer(ResvgRasteriser(ResvgBinary.config(binary)))
   val copy = if language == "uk" then UkrainianImageCopy else EnglishImageCopy
-  val entries = ContactSheet.entries(Samples.all.filter(_.name.startsWith(prefix)), copy)
+  val entries = ContactSheet.entries(Samples.review.filter(_.name.startsWith(prefix)), copy)
   entries.foreach { entry =>
     renderer.render(entry.card) match
       case Right(image)  => Files.write(directory.resolve(s"${entry.name}.png"), image.png.toArray)

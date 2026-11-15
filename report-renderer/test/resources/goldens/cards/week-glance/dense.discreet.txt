@@ -1,0 +1,5 @@
+file: dosegram-week-glance.png
+spoiler: true
+caption: Your week at a glance.
+alt: Week 2 to 8 Nov. Medication: 39 of 42 scheduled doses recorded as taken (93%), 2 skipped, 1 not confirmed. Water: goal reached on 6 of 7 recorded days. Food: 20 meals logged. Mood: 7 check-in days. Sleep: 8 h 46 min on average over 7 nights from your check-ins.
+full: Week 2 to 8 Nov. Medication: 39 of 42 scheduled doses recorded as taken (93%), 2 skipped, 1 not confirmed. Water: goal reached on 6 of 7 recorded days. Food: 20 meals logged. Mood: 7 check-in days. Sleep: 8 h 46 min on average over 7 nights from your check-ins.

@@ -2,6 +2,7 @@ package dosegram.core.application.capture
 
 import dosegram.contracts.Choice
 import dosegram.contracts.Reply
+import dosegram.core.application.insights.ReportViews
 import dosegram.core.application.nutrition.FoodViews
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.ReminderCopy
@@ -57,6 +58,20 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
             Reply(followUps = turn.images(parts.delivery, List(card -> caption)))
           case None => turn.toast(StatsCardCopy.imageUnavailable)
 
+  /** "Show as image" on the seven days (VISUALS IMG-19): the week at a glance with the seven days' text as its caption,
+    * as a new message. Each domain is drawn behind its consent, as the weekly card draws it.
+    */
+  def weekImage(turn: Turn): Reply =
+    parts.stats.summary(turn.tx, turn.accountId, StatsPeriod.Last7Days) match
+      case Left(_)        => turn.toast(ReminderCopy.staleControlToast)
+      case Right(summary) =>
+        val view = ReportViews(parts.stats).week(turn.tx, turn.accountId, summary.window)
+        parts.cards.weekGlance(view, turn.look) match
+          case Some(card) =>
+            val caption = turn.message("stats.week_image", summary.lines, Nil)
+            Reply(followUps = turn.images(parts.delivery, List(card -> caption)))
+          case None => turn.toast(StatsCardCopy.imageUnavailable)
+
   // A domain without consent answers with a refusal and is left out of the picture, as it is left out of the text.
   private def latestMood(turn: Turn): Option[MoodCardView] =
     parts.mood
@@ -97,8 +112,10 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
         StatsCardCopy.period(value),
         tokens.direct(CaptureActions.StatsShow, turn.accountId, value.days.toLong)
       )
-    val image = Option.when(period == StatsPeriod.Today):
-      Choice.callback(StatsCardCopy.ShowAsImage, tokens.direct(CaptureActions.StatsImage, turn.accountId, 0))
+    // Today draws the daily summary, the seven days the week at a glance; the value names the period's days.
+    val image = Option.when(period == StatsPeriod.Today || period == StatsPeriod.Last7Days):
+      val days = if period == StatsPeriod.Today then 0L else StatsChat.WeekImageValue
+      Choice.callback(StatsCardCopy.ShowAsImage, tokens.direct(CaptureActions.StatsImage, turn.accountId, days))
     // The shareable card (VISUALS IMG-17) is a fact of the last seven days, so it is offered beside them.
     val shareable = if period == StatsPeriod.Last7Days then share.button(turn) else None
     List(periods, image.toList ++ shareable.toList)
@@ -112,6 +129,9 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
     )
 
 private[capture] object StatsChat:
+
+  /** The value of the "Show as image" button of the seven days; 0 is the daily summary of today. */
+  val WeekImageValue: Long = 7
 
   def periodOf(days: Long): Option[StatsPeriod] = StatsPeriod.values.find(_.days.toLong == days)
 

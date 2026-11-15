@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="488.4" cy="377.2" r="189.2"><stop offset="0" stop-color="#fff8e6"/><stop offset="1" stop-color="#f7d37b"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="488.4" cy="377.2" r="189.2"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f7d37b"/></radialGradient>
 </defs>
 <rect width="1080" height="1350" fill="#eef5f8"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Today</text>
@@ -37,46 +37,50 @@
 </g>
 <g>
   <ellipse cx="540" cy="648.96" rx="111.8" ry="5.16" fill="#cdd6db"/>
-  <path d="M711.29 446 C709.75 479.15 691.97 514.88 672.27 542.1 C652.56 569.32 624.62 596.07 593.06 609.32 C561.51 622.56 514.41 632.35 482.96 621.56 C451.51 610.76 422.99 573.81 404.36 544.55 C385.73 515.29 371.42 479.01 371.2 446 C370.98 412.99 383.84 374 403.03 346.49 C422.23 318.98 454.54 292.04 486.37 280.93 C518.19 269.83 561.47 269.47 593.99 279.85 C626.5 290.23 661.93 315.52 681.48 343.21 C701.03 370.9 712.82 412.85 711.29 446 Z" fill="url(#g1)" stroke="#435561" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="491.84" cy="425.36" rx="9.46" ry="7.1" fill="#13242e"/>
-  <ellipse cx="588.16" cy="425.36" rx="9.46" ry="7.1" fill="#13242e"/>
-  <path d="M505.6 483.84 Q540 504.48 574.4 483.84" fill="none" stroke="#13242e" stroke-width="6.02" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M711.2 446 C709.47 479.08 691.1 514.26 671.41 541.47 C651.72 568.69 624.54 595.69 593.05 609.28 C561.56 622.88 513.85 633.9 482.47 623.06 C451.1 612.21 423.28 573.74 404.8 544.23 C386.32 514.72 371.84 478.92 371.6 446 C371.35 413.08 384.19 374.23 403.31 346.69 C422.43 319.14 454.51 291.94 486.31 280.75 C518.1 269.55 561.51 269.15 594.09 279.52 C626.67 289.9 662.25 315.25 681.77 343 C701.29 370.75 712.93 412.92 711.2 446 Z" fill="url(#g1)" stroke="#435561" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="466.04" cy="470.08" rx="14.62" ry="8.6" fill="#f7a4a0"/>
+  <ellipse cx="613.96" cy="470.08" rx="14.62" ry="8.6" fill="#f7a4a0"/>
+  <ellipse cx="493.56" cy="428.8" rx="12.9" ry="10.06" fill="#13242e"/>
+  <circle cx="489.09" cy="424.78" r="4.47" fill="#ffffff"/>
+  <ellipse cx="586.44" cy="428.8" rx="12.9" ry="10.06" fill="#13242e"/>
+  <circle cx="581.97" cy="424.78" r="4.47" fill="#ffffff"/>
+  <path d="M502.16 487.28 Q540 513.08 577.84 487.28" fill="none" stroke="#13242e" stroke-width="7.74" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="540" y="786" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e" text-anchor="middle">Very pleasant. Energy: medium.</text>
+<text x="540" y="798" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e" text-anchor="middle">Very pleasant. Energy: medium.</text>
 <g>
-  <rect x="73.33" y="827.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <line x1="82.67" y1="846" x2="101.33" y2="846" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="73.33" y="839.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="858" x2="101.33" y2="858" stroke="#0d9675" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="144" y="862" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Medication</text>
-<text x="1016" y="864" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">4 of 4 taken</text>
+<text x="144" y="874" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Medication</text>
+<text x="1016" y="876" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">4 of 4 taken</text>
 <g>
-  <rect x="144" y="878" width="44" height="44" rx="12.32" fill="#0d9675"/>
-</g>
-<g>
-  <rect x="200" y="878" width="44" height="44" rx="12.32" fill="#0d9675"/>
-</g>
-<g>
-  <rect x="256" y="878" width="44" height="44" rx="12.32" fill="#0d9675"/>
+  <rect x="144" y="890" width="44" height="44" rx="12.32" fill="#0d9675"/>
 </g>
 <g>
-  <rect x="312" y="878" width="44" height="44" rx="12.32" fill="#0d9675"/>
+  <rect x="200" y="890" width="44" height="44" rx="12.32" fill="#0d9675"/>
 </g>
 <g>
-  <path d="M92 957 C85.93 965.4 76.83 975.67 76.83 983.83 A15.17 15.17 0 0 0 107.17 983.83 C107.17 975.67 98.07 965.4 92 957 Z" fill="none" stroke="#02558f" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="256" y="890" width="44" height="44" rx="12.32" fill="#0d9675"/>
 </g>
-<text x="144" y="994" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Water</text>
-<text x="1016" y="996" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">2.6 of 2.0 l</text>
 <g>
-  <circle cx="92" cy="1054" r="21" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M92 1043.5 A10.5 10.5 0 0 1 102.5 1054" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="312" y="890" width="44" height="44" rx="12.32" fill="#0d9675"/>
 </g>
-<text x="144" y="1070" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Food</text>
-<text x="1016" y="1072" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">4 of 3 meals</text>
 <g>
-  <path d="M109.5 1135.13 A19.13 19.13 0 1 1 86.87 1112.5 A15.4 15.4 0 0 0 109.5 1135.13 Z" fill="none" stroke="#8a66d9" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 969 C85.93 977.4 76.83 987.67 76.83 995.83 A15.17 15.17 0 0 0 107.17 995.83 C107.17 987.67 98.07 977.4 92 969 Z" fill="none" stroke="#02558f" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
-<text x="144" y="1146" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Sleep</text>
-<text x="1016" y="1148" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">8 h 25 min</text>
-<text x="1016" y="1192" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="end">from your check-ins</text>
+<text x="144" y="1006" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Water</text>
+<text x="1016" y="1008" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">2.6 of 2.0 l</text>
+<g>
+  <circle cx="92" cy="1066" r="21" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 1055.5 A10.5 10.5 0 0 1 102.5 1066" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="144" y="1082" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Food</text>
+<text x="1016" y="1084" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">4 of 3 meals</text>
+<g>
+  <path d="M109.5 1147.13 A19.13 19.13 0 1 1 86.87 1124.5 A15.4 15.4 0 0 0 109.5 1147.13 Z" fill="none" stroke="#8a66d9" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="144" y="1158" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">Sleep</text>
+<text x="1016" y="1160" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#13242e" text-anchor="end">8 h 25 min</text>
+<text x="1016" y="1204" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="end">from your check-ins</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
 </svg>

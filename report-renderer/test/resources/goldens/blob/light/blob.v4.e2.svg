@@ -1,14 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
 <defs>
-  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#9bacad"/><stop offset="1" stop-color="#798e90"/></radialGradient>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="450" cy="360" r="330"><stop offset="0" stop-color="#a5b5b6"/><stop offset="1" stop-color="#798e90"/></radialGradient>
 </defs>
 <rect width="1080" height="1080" fill="#e3f4f6"/>
 <g>
   <ellipse cx="540" cy="834" rx="210" ry="9" fill="#cdd6db"/>
-  <path d="M843.95 480 C847.36 548.82 815.06 646.54 764.4 694.09 C713.74 741.63 613.15 766.82 540 765.28 C466.85 763.74 375.22 732.39 325.49 684.84 C275.77 637.29 242.42 549.74 241.66 480 C240.91 410.26 271.22 315.05 320.94 266.42 C370.67 217.79 469.5 185.78 540 188.23 C610.5 190.69 693.3 232.51 743.96 281.14 C794.62 329.77 840.54 411.18 843.95 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="456" cy="444" rx="16.5" ry="9.08" fill="#13242e"/>
-  <ellipse cx="624" cy="444" rx="16.5" ry="9.08" fill="#13242e"/>
-  <path d="M484.8 546 Q540 546 595.2 546" fill="none" stroke="#13242e" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M844.31 480 C848.23 547.75 817.44 644.74 766.72 691.44 C716 738.15 613.75 761.9 540 760.24 C466.25 758.59 373.92 728.22 324.22 681.51 C274.52 634.8 242.47 548.73 241.81 480 C241.16 411.27 270.62 316.97 320.32 269.1 C370.01 221.23 469.52 190.15 540 192.79 C610.48 195.42 692.5 237.05 743.21 284.91 C793.93 332.78 840.39 412.25 844.31 480 Z" fill="url(#g1)" stroke="#435561" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="459" cy="450" rx="22.5" ry="12.38" fill="#13242e"/>
+  <circle cx="451.2" cy="445.05" r="7.8" fill="#a5b5b6"/>
+  <ellipse cx="621" cy="450" rx="22.5" ry="12.38" fill="#13242e"/>
+  <circle cx="613.2" cy="445.05" r="7.8" fill="#a5b5b6"/>
+  <path d="M479.28 552 Q540 552 600.72 552" fill="none" stroke="#13242e" stroke-width="13.5" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="540" y="936" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e" text-anchor="middle">Neutral</text>
 <text x="540" y="1000" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561" text-anchor="middle">Energy: low</text>
