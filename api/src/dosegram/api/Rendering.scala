@@ -1,6 +1,5 @@
 package dosegram.api
 
-import dosegram.contracts.Weekday
 import dosegram.core.domain.Decide
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.EntrySource
@@ -10,10 +9,9 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.Lang
-import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MoodLabels
+import dosegram.core.domain.copy.ScheduleWords
 import dosegram.core.domain.copy.UkForms
-import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.copy.decimal
 import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
@@ -47,7 +45,6 @@ object ApiCopy:
   private def Weekday3 = DateTimeFormatter.ofPattern("EEE", Formats.locale)
   private def MonthYear = DateTimeFormatter.ofPattern("LLLL yyyy", Formats.locale)
   private def MonthOnly = DateTimeFormatter.ofPattern("LLLL", Formats.locale)
-  private val Workdays = List(Weekday.Mon, Weekday.Tue, Weekday.Wed, Weekday.Thu, Weekday.Fri)
 
   def noSchedule: String = tr("No schedule", "Без розкладу")
 
@@ -198,22 +195,7 @@ object ApiCopy:
     tr(s"$medicationName stays on ${zone.getId} time.", s"$medicationName лишається за часом ${zone.getId}.")
 
   /** `every day 09:00, 21:00`, in the words of the chat wizard. */
-  def ruleSummary(rule: Rule): String = rule match
-    case Rule.FixedTimes(groups) =>
-      val days = groups.flatMap(_.days).distinct
-      val times = groups.flatMap(_.times).map(_.value).distinct.sorted
-      val cadence =
-        if days.size == Weekday.values.length then WizardCopy.cadenceEveryDay
-        else if days.sortBy(_.ordinal) == Workdays then WizardCopy.cadenceWeekdays
-        else WizardCopy.cadenceDays(days.sortBy(_.ordinal).map(day => WizardCopy.weekdayLabels(day.ordinal)))
-      s"$cadence ${times.mkString(", ")}"
-    case _: Rule.AsNeeded                          => asNeeded
-    case Rule.EveryNDays(everyDays, times, anchor) =>
-      s"${MedicationDepthCopy.everyNDays(everyDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
-    case Rule.Cycle(onDays, offDays, times, anchor) =>
-      s"${MedicationDepthCopy.cycle(onDays, offDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
-    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
-      Rule.kindTag(rule)
+  def ruleSummary(rule: Rule): String = ScheduleWords.inWords(rule, asNeeded)
 
   /** The dose in the account's language, its unit from the catalogue (`DoseUnits`). */
   def doseText(amount: Option[BigDecimal], unit: Option[String]): Option[String] = DoseUnits.doseText(amount, unit)
@@ -277,7 +259,7 @@ object Rendering:
 
   def schedule(tx: Tx, stored: StoredSchedule): Schedule =
     val rule = describingRevision(tx, stored).rule
-    val view = ScheduleRules.view(rule)
+    val view = ScheduleRules.draftOf(rule)
     Schedule(
       id = stored.id,
       medicationId = stored.medicationId,
@@ -296,7 +278,11 @@ object Rendering:
       onDays = view.onDays,
       offDays = view.offDays,
       anchorDate = view.anchorDate,
-      resumeOn = tx.medicationDepth.pauses.resumeOn(stored.id)
+      resumeOn = tx.medicationDepth.pauses.resumeOn(stored.id),
+      everyWeeks = view.everyWeeks,
+      intervalMinutes = view.intervalMinutes,
+      startTime = view.startTime,
+      slotGroups = view.slotGroups
     )
 
   private def scheduleSummary(status: ScheduleStatus, rule: Rule): String =

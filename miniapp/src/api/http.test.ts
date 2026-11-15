@@ -223,7 +223,7 @@ describe('HTTP API client', () => {
     expect(medications).toMatchObject({ forms: [], strengthUnits: [], colourTags: [], shapeTags: [], reminderNameToggle: false });
     expect(medications.doseUnits).toEqual([{ value: 'mg', label: 'mg' }, { value: 'tablet', label: 'tablet' }]);
     expect(medications.limits).toEqual({ nameMax: 80, notesMax: 500 });
-    expect(schedules.patterns.map((pattern) => pattern.value)).toEqual(['fixed_times', 'weekly', 'as_needed']);
+    expect(schedules.patterns.map((pattern) => pattern.value)).toEqual(['fixed_times', 'weekly', 'day_groups', 'as_needed']);
     expect(schedules).toMatchObject({ maxRows: 12, today: '2026-11-13', perTimeDose: false });
     expect(schedules.weekdays).toHaveLength(7);
   });

@@ -7,7 +7,6 @@ import dosegram.core.application.reminders.ReminderRefusal
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.TimelineItem
 import dosegram.core.domain.QuietHours
-import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.tr
 import dosegram.core.domain.reminders.DayProfile
@@ -149,7 +148,7 @@ final class Reminders(uow: UnitOfWork, clock: Clock, settings: ReminderSettings)
           PromptCopy.presetName(preset.id),
           preset.materialised,
           MedicationPresets.preview(rule, zone, now, PreviewCount),
-          Option.when(preset.materialised)(draftOf(rule))
+          Option.when(preset.materialised)(ScheduleRules.draftOf(rule))
         )
       ReminderPresets(prompts, medication)
 
@@ -316,30 +315,3 @@ object Reminders:
       case Some(kind) =>
         ReminderTimelineEntry(item.at, kind.id, item.presetId.fold(PromptCopy.kindName(kind))(PromptCopy.presetName))
       case None => ReminderTimelineEntry(item.at, "medication", tr("Medication", "Ліки"))
-
-  /** The schedule editor's draft of a rule the engine reminds: fixed times on days, or as needed. */
-  private def draftOf(rule: Rule): ScheduleDraft = rule match
-    case Rule.FixedTimes(groups) =>
-      ScheduleDraft(
-        SchedulePattern.FixedTimes,
-        times = groups.flatMap(_.times.map(_.value)).distinct.sorted,
-        weekdays = groups.flatMap(_.days.map(_.ordinal + 1)).distinct.sorted
-      )
-    case Rule.AsNeeded(maxPerDay, minGap) =>
-      ScheduleDraft(SchedulePattern.AsNeeded, maxPerDay = Some(maxPerDay), minGapMinutes = Some(minGap))
-    case Rule.EveryNDays(everyDays, times, anchor) =>
-      ScheduleDraft(
-        SchedulePattern.EveryNDays,
-        times = times.map(_.value).sorted,
-        everyDays = Some(everyDays),
-        anchorDate = Some(anchor)
-      )
-    case Rule.Cycle(onDays, offDays, times, anchor) =>
-      ScheduleDraft(
-        SchedulePattern.Cycle,
-        times = times.map(_.value).sorted,
-        onDays = Some(onDays),
-        offDays = Some(offDays),
-        anchorDate = Some(anchor)
-      )
-    case other => throw IllegalArgumentException(s"no draft for ${Rule.kindTag(other)}")

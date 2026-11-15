@@ -4,7 +4,6 @@ import dosegram.contracts.Weekday
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.PromptCopy
 
-import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -54,7 +53,8 @@ class MedicationPresetsSuite extends munit.FunSuite:
     assert(weekdays.forall(_.atZone(zone).getDayOfWeek.getValue <= 5))
     val thursday = MedicationPresetParams(weekday = Weekday.Thu, time = Some(LocalTime.of(10, 0)))
     val weekly = MedicationPresets.preview(MedicationPresets.rule(MedicationPresets.Weekly, profile, thursday, today), zone, now, 3)
-    assertEquals(weekly.map(_.atZone(zone).getDayOfWeek), List(DayOfWeek.THURSDAY), "one Thursday in the eight days")
+    // The review shows the first three reminders (PRODUCT_SPEC R-SCH-5), however far apart they are.
+    assertEquals(weekly.map(_.atZone(zone).toLocalDate), List(19, 26).map(LocalDate.of(2026, 11, _)) :+ LocalDate.of(2026, 12, 3))
     assertEquals(weekly.head.atZone(zone).toLocalTime, LocalTime.of(10, 0))
 
   test("as needed has no reminder; every other day and cycles are anchored on today"):
@@ -67,3 +67,25 @@ class MedicationPresetsSuite extends munit.FunSuite:
       MedicationPresets.preview(MedicationPresets.rule(MedicationPresets.EveryOtherDay, profile, params, today), zone, now, 3)
     assertEquals(everyOther.map(_.atZone(zone).toLocalDate), List(16, 18, 20).map(LocalDate.of(2026, 11, _)))
     MedicationPresets.all.foreach(preset => assert(PromptCopy.presetName(preset.id) != preset.id, preset.id))
+
+  test("G9.8: every 2 weeks falls on the chosen weekday of this week and of every second week after it"):
+    val thursday = MedicationPresetParams(weekday = Weekday.Thu)
+    val rule = MedicationPresets.rule(MedicationPresets.EveryTwoWeeks, profile, thursday, today)
+    assertEquals(rule, Rule.EveryNWeeks(2, List(Weekday.Thu), List(dosegram.contracts.HhMm.unsafe("07:00")), today))
+    val next = MedicationPresets.preview(rule, zone, now, 3).map(_.atZone(zone).toLocalDate)
+    assertEquals(next, List(LocalDate.of(2026, 11, 19), LocalDate.of(2026, 12, 3), LocalDate.of(2026, 12, 17)))
+
+  test("G9.8: every 6 hours from waking re-anchors on the wake time, three a day"):
+    assertEquals(
+      times(MedicationPresets.Every6HoursFromWaking),
+      List(LocalTime.of(7, 0), LocalTime.of(13, 0), LocalTime.of(19, 0))
+    )
+    val rule = MedicationPresets.rule(MedicationPresets.Every6HoursFromWaking, profile, params, today)
+    assertEquals(rule, Rule.IntervalFixedStart(dosegram.contracts.HhMm.unsafe("07:00"), 360, 3, Weekday.values.toList))
+
+  test("G9.8: weekdays and weekend are one schedule of two day groups, the weekend an hour after waking"):
+    val rule = MedicationPresets.rule(MedicationPresets.WeekdayWeekend, profile, params, today)
+    val next = MedicationPresets.preview(rule, zone, now, 7).map(_.atZone(zone))
+    assertEquals(next.map(_.getDayOfWeek.getValue), List(1, 2, 3, 4, 5, 6, 7))
+    assertEquals(next.map(_.toLocalTime).distinct, List(LocalTime.of(7, 0), LocalTime.of(8, 0)))
+    assert(next.filter(_.getDayOfWeek.getValue >= 6).forall(_.toLocalTime == LocalTime.of(8, 0)))

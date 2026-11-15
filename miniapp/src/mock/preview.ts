@@ -18,13 +18,20 @@ function joinWords(words: readonly string[]): string {
   return `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
 }
 
-function isScheduledOn(draft: ScheduleDraft, date: LocalDate): boolean {
-  if (date < draft.startDate || (draft.endDate !== null && date > draft.endDate)) return false;
-  return draft.pattern === 'fixed_times' || draft.weekdays.includes(isoWeekday(date));
+/** The times of a date: a day group's own times, else the draft's rows on its days. */
+function rowsOn(draft: ScheduleDraft, date: LocalDate): readonly ScheduleDraft['rows'][number][] {
+  if (date < draft.startDate || (draft.endDate !== null && date > draft.endDate)) return [];
+  if (draft.pattern === 'day_groups')
+    return (draft.groups ?? []).find((group) => group.weekdays.includes(isoWeekday(date)))?.rows ?? [];
+  return draft.pattern === 'fixed_times' || draft.weekdays.includes(isoWeekday(date)) ? draft.rows : [];
 }
 
 function summarise(draft: ScheduleDraft): string {
   if (draft.pattern === 'as_needed') return 'Only when needed. No reminders.';
+  if (draft.pattern === 'day_groups')
+    return (draft.groups ?? [])
+      .map((group) => `${joinWords(group.weekdays.map((day) => WEEKDAY_NAMES[day - 1]!))} at ${joinWords(group.rows.map((row) => row.time))}`)
+      .join('; ');
   const days =
     draft.pattern === 'fixed_times'
       ? 'Every day'
@@ -39,7 +46,7 @@ function summarise(draft: ScheduleDraft): string {
 }
 
 function previewDay(draft: ScheduleDraft, date: LocalDate, doseUnit: string): PreviewDay {
-  const rows = [...draft.rows].sort((a, b) => a.time.localeCompare(b.time));
+  const rows = [...rowsOn(draft, date)].sort((a, b) => a.time.localeCompare(b.time));
   return {
     date,
     label: formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }),
@@ -69,7 +76,7 @@ export function buildPreview(draft: ScheduleDraft, context: PreviewContext): Sch
   }
   const first = draft.startDate > context.today ? draft.startDate : context.today;
   const scheduled = Array.from({ length: WINDOW_DAYS }, (_, offset) => addDays(first, offset))
-    .filter((date) => isScheduledOn(draft, date))
+    .filter((date) => rowsOn(draft, date).length > 0)
     .map((date) => previewDay(draft, date, context.doseUnit));
   return { summary, zoneLabel: context.zoneLabel, ...truncate(scheduled) };
 }

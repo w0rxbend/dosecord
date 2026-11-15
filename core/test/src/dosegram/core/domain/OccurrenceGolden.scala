@@ -95,14 +95,19 @@ object OccurrenceGolden:
       transition.getInstant.plus(TransitionMargin)
     )
 
-  /** ROADMAP G9.8: every other day and a 3-on/2-off cycle across each recorded transition of the zone, anchored two
-    * local days before it so the transition day is a reminded day of both rules.
+  /** ROADMAP G9.8: every other day, a 3-on/2-off cycle and every two weeks on every weekday across each recorded
+    * transition of the zone, anchored two local days before it so the transition day is a reminded day of each; and
+    * two interval rules, one anchored before the transition clock and one the evening before, whose last gap of the
+    * transition day is shortened or lengthened.
     */
   private def periodicFixtures(zone: ZoneId, transition: ZoneOffsetTransition): List[Fixture] =
     val anchor = transition.getInstant.atZone(zone).toLocalDate.minusDays(2)
     List(
       "every-2-days" -> Rule.EveryNDays(2, TransitionTimes, anchor),
-      "cycle-3-2" -> Rule.Cycle(3, 2, TransitionTimes, anchor)
+      "cycle-3-2" -> Rule.Cycle(3, 2, TransitionTimes, anchor),
+      "every-2-weeks" -> Rule.EveryNWeeks(2, Weekday.values.toList, TransitionTimes, anchor),
+      "interval-8h-from-0215" -> Rule.IntervalFixedStart(HhMm.unsafe("02:15"), 480, 4, Weekday.values.toList),
+      "interval-6h-from-2130" -> Rule.IntervalFixedStart(HhMm.unsafe("21:30"), 360, 4, Weekday.values.toList)
     ).map: (name, rule) =>
       Fixture(
         s"$name:${transition.getInstant}",

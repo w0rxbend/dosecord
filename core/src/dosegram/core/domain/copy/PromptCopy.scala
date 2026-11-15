@@ -169,7 +169,11 @@ object PromptCopy:
     case "med.every_other_day"  => tr("Every other day", "Через день")
     case "med.cycle"            => tr("Days on, days off", "Дні прийому й перерви")
     case "med.as_needed"        => tr("As needed, no reminder", "За потреби, без нагадування")
-    case other                  => other
+    case "med.every_2_weeks"    => tr("Every 2 weeks", "Раз на 2 тижні")
+    case "med.every_6h_from" => tr("Every 6 hours from wake, 3 a day", "Кожні 6 годин від пробудження, 3 рази на день")
+    case "med.weekday_weekend" =>
+      tr("Weekdays at wake, weekend an hour later", "Будні після пробудження, вихідні на годину пізніше")
+    case other => other
 
   def clock(at: LocalTime): String = f"${at.getHour}%02d:${at.getMinute}%02d"
 

@@ -29,6 +29,27 @@ object MedicationDepthCopy:
 
   private def days(n: Int): String = counted(n, "day", "days", UkNouns.Days)
 
+  /** `every 2 weeks on Mon, Thu from Mon 16 Nov` (ROADMAP G9.8). */
+  def everyNWeeks(everyWeeks: Int, weekdays: List[String], anchor: LocalDate): String =
+    val cadence = everyWeeks match
+      case 1 => tr("every week", "щотижня")
+      case n => tr(s"every $n weeks", s"раз на ${UkNouns.Weeks.count(n.toLong)}")
+    val on = weekdays.mkString(", ")
+    tr(s"$cadence on $on from ${date(anchor)}", s"$cadence, у дні: $on, з ${date(anchor)}")
+
+  /** `every 6 h from 06:00, at most 4 a day` (ROADMAP G9.8): the user's own interval and cap, nothing computed. */
+  def interval(intervalMinutes: Int, anchor: String, maxPerDay: Int): String =
+    tr(
+      s"every ${gap(intervalMinutes)} from $anchor, at most $maxPerDay a day",
+      s"кожні ${gap(intervalMinutes)} з $anchor, не більше $maxPerDay на день"
+    )
+
+  /** The line a review card adds when an interval day crosses a clock change (DESIGN 7.2, PRODUCT_SPEC R-SCH-13). */
+  def intervalClockNote: String = tr(
+    "On a clock-change day the last gap before the next day's first dose is an hour shorter or longer.",
+    "У день переходу на інший час останній проміжок до першої дози наступного дня на годину коротший або довший."
+  )
+
   // ---------- presets in the add-medication flow (supervisor decision, 2026-11-14) ----------
 
   def presetsLabel: String = tr("Presets", "Готові плани")
@@ -50,6 +71,9 @@ object MedicationDepthCopy:
     case "med.every_other_day"  => tr("Every other day", "Через день")
     case "med.cycle"            => tr("21 days on, 7 off", "21 день так, 7 ні")
     case "med.as_needed"        => tr("As needed", "За потреби")
+    case "med.every_2_weeks"    => tr("Every 2 weeks", "Раз на 2 тижні")
+    case "med.every_6h_from"    => tr("Every 6 h from waking", "Кожні 6 год від підйому")
+    case "med.weekday_weekend"  => tr("Weekdays + weekend", "Будні й вихідні")
     case other                  => other
 
   def presetEcho(button: String): String = tr(s"Preset: $button.", s"Готовий план: $button.")
@@ -166,6 +190,9 @@ object MedicationDepthCopy:
   def entries: List[CopyEntry] = List(
     CopyEntry("schedule.every_n_days", everyNDays(2, sample)),
     CopyEntry("schedule.cycle", cycle(21, 7, sample)),
+    CopyEntry("schedule.every_n_weeks", everyNWeeks(2, List("Mon", "Thu"), sample)),
+    CopyEntry("schedule.interval", interval(360, "06:00", 4)),
+    CopyEntry("schedule.interval.clock_note", intervalClockNote),
     CopyEntry("med.add.presets", presetsLabel),
     CopyEntry("med.add.presets.prompt", presetsPrompt),
     CopyEntry("med.add.preset.echo", presetEcho("Every other day")),
@@ -208,6 +235,9 @@ object MedicationDepthCopy:
     "med.weekly",
     "med.every_other_day",
     "med.cycle",
-    "med.as_needed"
+    "med.as_needed",
+    "med.every_2_weeks",
+    "med.every_6h_from",
+    "med.weekday_weekend"
   ).map(id => CopyEntry(s"med.add.preset.$id", presetButton(id)))
 end MedicationDepthCopy

@@ -2154,6 +2154,12 @@ export interface components {
             anchorDate?: string;
             /** Format: date */
             resumeOn?: string;
+            /** Format: int32 */
+            everyWeeks?: number;
+            /** Format: int32 */
+            intervalMinutes?: number;
+            startTime?: string;
+            slotGroups?: components["schemas"]["SlotGroupDraft"][];
         };
         /**
          * ScheduleChange
@@ -2181,6 +2187,12 @@ export interface components {
             offDays?: number;
             /** Format: date */
             anchorDate?: string;
+            /** Format: int32 */
+            everyWeeks?: number;
+            /** Format: int32 */
+            intervalMinutes?: number;
+            startTime?: string;
+            slotGroups?: components["schemas"]["SlotGroupDraft"][];
         };
         /** ScheduleList */
         ScheduleList: {
@@ -2201,7 +2213,7 @@ export interface components {
          * SchedulePattern
          * @enum {string}
          */
-        SchedulePattern: "as_needed" | "cycle" | "every_n_days" | "fixed_times";
+        SchedulePattern: "as_needed" | "cycle" | "every_n_days" | "every_n_weeks" | "fixed_times" | "interval_fixed_start";
         /** SchedulePreview */
         SchedulePreview: {
             summary: string;
@@ -2358,6 +2370,11 @@ export interface components {
             name: string;
             /** Format: int32 */
             minutes?: number;
+        };
+        /** SlotGroupDraft */
+        SlotGroupDraft: {
+            weekdays?: number[];
+            times?: string[];
         };
         /** TimeZoneChoice */
         TimeZoneChoice: {

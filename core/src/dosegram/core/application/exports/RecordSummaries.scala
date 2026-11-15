@@ -1,14 +1,12 @@
 package dosegram.core.application.exports
 
-import dosegram.contracts.Weekday
 import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.Rule
 import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.ExportCopy
 import dosegram.core.domain.copy.Formats
-import dosegram.core.domain.copy.MedicationDepthCopy
 import dosegram.core.domain.copy.MoodLabels
-import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.copy.ScheduleWords
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseBuckets
 import dosegram.core.domain.insights.HydrationDay
@@ -249,20 +247,5 @@ object RecordSummaries:
       case MedicationStatus.Archived => ExportCopy.statusArchived
 
   /** A schedule in the words of the chat wizard: `every day 09:00, 21:00`. */
-  def ruleInWords(rule: Rule): String = rule match
-    case Rule.FixedTimes(groups) =>
-      val days = groups.flatMap(_.days).distinct.sortBy(_.ordinal)
-      val times = groups.flatMap(_.times).map(_.value).distinct.sorted
-      val cadence =
-        if days.size == Weekday.values.length then WizardCopy.cadenceEveryDay
-        else if days == Weekday.values.toList.take(5) then WizardCopy.cadenceWeekdays
-        else WizardCopy.cadenceDays(days.map(day => WizardCopy.weekdayLabels(day.ordinal)))
-      s"$cadence ${times.mkString(", ")}"
-    case _: Rule.AsNeeded                          => ExportCopy.asNeededSchedule
-    case Rule.EveryNDays(everyDays, times, anchor) =>
-      s"${MedicationDepthCopy.everyNDays(everyDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
-    case Rule.Cycle(onDays, offDays, times, anchor) =>
-      s"${MedicationDepthCopy.cycle(onDays, offDays, anchor)} ${times.map(_.value).sorted.mkString(", ")}"
-    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
-      Rule.kindTag(rule)
+  def ruleInWords(rule: Rule): String = ScheduleWords.inWords(rule, ExportCopy.asNeededSchedule)
 end RecordSummaries

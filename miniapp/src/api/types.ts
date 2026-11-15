@@ -116,7 +116,22 @@ export interface MedicationOptions {
   readonly reminderNameToggle: boolean;
 }
 
-export type SchedulePattern = 'fixed_times' | 'weekly' | 'every_n_days' | 'cycle' | 'as_needed';
+export type SchedulePattern =
+  | 'fixed_times'
+  | 'weekly'
+  | 'day_groups'
+  | 'every_n_days'
+  | 'every_n_weeks'
+  | 'cycle'
+  | 'interval_fixed_start'
+  | 'as_needed';
+
+/** One group of days with its own times: weekdays at 08:00, the weekend at 10:00 (ROADMAP G9.8). */
+export interface DayGroup {
+  /** ISO weekdays, 1 is Monday. */
+  readonly weekdays: readonly number[];
+  readonly rows: readonly TimeRow[];
+}
 
 export interface TimeRow {
   readonly time: LocalTime;
@@ -135,7 +150,17 @@ export interface ScheduleDraft {
   /** cycle: the days with reminders, then the days without. */
   readonly onDays?: number;
   readonly offDays?: number;
-  /** as_needed: the limits the user entered, stated back as facts in the chat; absent means none. */
+  /** every_n_weeks: the period in weeks; `weekdays` are its days. */
+  readonly everyWeeks?: number;
+  /** every_n_days, every_n_weeks and cycle count from this date; absent means the start date. */
+  readonly anchorDate?: LocalDate;
+  /** interval_fixed_start: the first dose of each day, the interval and `maxPerDay`; `weekdays` empty is every day. */
+  readonly startTime?: LocalTime;
+  readonly intervalMinutes?: number;
+  /** day_groups: the groups, each a weekday in one group at most. */
+  readonly groups?: readonly DayGroup[];
+  /** as_needed: the limits the user entered, stated back as facts in the chat; absent means none.
+   * interval_fixed_start: the most doses of a day. */
   readonly maxPerDay?: number;
   readonly minGapMinutes?: number;
 }

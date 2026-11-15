@@ -8172,6 +8172,23 @@
           "resumeOn" : {
             "type" : "string",
             "format" : "date"
+          },
+          "everyWeeks" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "intervalMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "startTime" : {
+            "type" : "string"
+          },
+          "slotGroups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SlotGroupDraft"
+            }
           }
         }
       },
@@ -8238,6 +8255,23 @@
           "anchorDate" : {
             "type" : "string",
             "format" : "date"
+          },
+          "everyWeeks" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "intervalMinutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "startTime" : {
+            "type" : "string"
+          },
+          "slotGroups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SlotGroupDraft"
+            }
           }
         }
       },
@@ -8293,7 +8327,9 @@
           "as_needed",
           "cycle",
           "every_n_days",
-          "fixed_times"
+          "every_n_weeks",
+          "fixed_times",
+          "interval_fixed_start"
         ]
       },
       "SchedulePreview" : {
@@ -8738,6 +8774,25 @@
           "minutes" : {
             "type" : "integer",
             "format" : "int32"
+          }
+        }
+      },
+      "SlotGroupDraft" : {
+        "title" : "SlotGroupDraft",
+        "type" : "object",
+        "properties" : {
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "times" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         }
       },

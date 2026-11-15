@@ -3,7 +3,7 @@
   import type { Medication, Schedule, ScheduleOptions, SchedulePreview } from '../../api/types';
   import { useApp } from '../../app/context';
   import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
-  import { toScheduleDraft, validateSchedule, type ScheduleForm } from '../../forms/schedule-rules';
+  import { builderCanExpress, toScheduleDraft, validateSchedule, type ScheduleForm } from '../../forms/schedule-rules';
   import { t as en, errorText, fieldErrorText } from '../../i18n/index.svelte';
   import PreviewList from './PreviewList.svelte';
   import ScheduleFields from './ScheduleFields.svelte';
@@ -20,6 +20,12 @@
   const PREVIEW_DELAY_MS = 400;
   const { api, tg, router, toasts } = useApp();
 
+  // Two empty day groups to start from, weekdays and the weekend, with no time proposed (MA-SCHED-10).
+  const startingGroups = () => [
+    { key: 100, weekdays: [1, 2, 3, 4, 5], rows: [{ key: 101, time: '', dose: medication.doseAmount }] },
+    { key: 102, weekdays: [6, 7], rows: [{ key: 103, time: '', dose: medication.doseAmount }] },
+  ];
+
   // The dose is carried over from the medication; the time is the person's to enter (MA-A11Y-16).
   // An edit starts from the schedule as it is.
   const startingForm = (): ScheduleForm =>
@@ -35,6 +41,18 @@
           offDays: schedule.offDays?.toString() ?? '7',
           maxPerDay: schedule.maxPerDay?.toString() ?? '',
           minGapMinutes: schedule.minGapMinutes?.toString() ?? '',
+          everyWeeks: schedule.everyWeeks?.toString() ?? '2',
+          anchorDate: schedule.anchorDate,
+          startTime: schedule.startTime ?? '',
+          intervalHours: schedule.intervalMinutes ? String(schedule.intervalMinutes / 60) : '',
+          groups:
+            schedule.groups && schedule.groups.length > 0
+              ? schedule.groups.map((group, index) => ({
+                  key: 100 + index * 20,
+                  weekdays: [...group.weekdays],
+                  rows: group.rows.map((row, key) => ({ key: 101 + index * 20 + key, time: row.time, dose: row.dose || medication.doseAmount })),
+                }))
+              : startingGroups(),
         }
       : {
           pattern: options.patterns[0]?.value ?? 'fixed_times',
@@ -47,7 +65,14 @@
           offDays: '7',
           maxPerDay: '',
           minGapMinutes: '',
+          everyWeeks: '2',
+          startTime: '',
+          intervalHours: '',
+          groups: startingGroups(),
         };
+
+  // A stored rule the form cannot show is shown read-only, never silently simplified (ROADMAP G9.9).
+  const expressible = $derived(schedule === undefined || builderCanExpress(schedule));
 
   let form = $state(startingForm());
   const initial = JSON.stringify(startingForm());
@@ -90,7 +115,7 @@
   // An unchanged schedule has nothing to save.
   const savable = $derived(current && (schedule === undefined || dirty));
 
-  useMainButton(tg, { text: en.schedule.save, enabled: () => savable, busy: () => saving, onPress: () => void save() });
+  useMainButton(tg, { text: en.schedule.save, enabled: () => expressible && savable, busy: () => saving, onPress: () => void save() });
   useLeaveGuard(tg, (guard) => router.setGuard(guard), () => !saving && dirty, en.common.leave);
 
   // A field shows its errors once it was left or its value was committed; a checkbox commits
@@ -122,15 +147,20 @@
   }
 </script>
 
-<form novalidate onsubmit={(event) => event.preventDefault()} onfocusout={onFieldLeft} onchange={onFieldLeft}>
-  <fieldset disabled={saving}>
-    <ScheduleFields bind:form {options} doseUnit={medication.doseUnitLabel} errors={messages} />
-  </fieldset>
-</form>
+{#if expressible}
+  <form novalidate onsubmit={(event) => event.preventDefault()} onfocusout={onFieldLeft} onchange={onFieldLeft}>
+    <fieldset disabled={saving}>
+      <ScheduleFields bind:form {options} doseUnit={medication.doseUnitLabel} errors={messages} />
+    </fieldset>
+  </form>
 
-<PreviewList preview={draftKey === null ? null : (previewed?.preview ?? null)} stale={draftKey !== null && !current && problem === null} {problem} />
+  <PreviewList preview={draftKey === null ? null : (previewed?.preview ?? null)} stale={draftKey !== null && !current && problem === null} {problem} />
 
-{#if previewed && current}<p class="note">{previewed.preview.summary}</p>{/if}
+  {#if previewed && current}<p class="note">{previewed.preview.summary}</p>{/if}
+{:else if schedule}
+  <p class="note">{schedule.summary}</p>
+  <p class="note">{en.schedule.readOnly}</p>
+{/if}
 <p class="note">{en.schedule.disclaimer}</p>
 
 <style>

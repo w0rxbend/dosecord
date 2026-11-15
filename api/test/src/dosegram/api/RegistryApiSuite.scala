@@ -371,6 +371,94 @@ final class RegistryApiSuite extends ApiSuite:
       List("everyDays" -> "not_allowed")
     )
 
+  test("G9.8: every 2 weeks previews its next three reminders past the week and is stored as it was drafted"):
+    clock.at = Instant.parse("2027-02-02T12:00:00Z") // a Tuesday; the 48-hour horizon reaches Wednesday 10:00
+    val token = login(telegramAccount("UTC"))
+    val draft = ujson.Obj("pattern" -> "every_n_weeks", "times" -> ujson.Arr("10:00"), "weekdays" -> ujson.Arr(3), "everyWeeks" -> 2)
+    val preview = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token)
+    assertEquals(preview.status, 200, preview.body)
+    assertEquals(preview.json("summary").str, "every 2 weeks on Wed from Tue 2 Feb 10:00")
+    assertEquals(preview.json("days").arr.map(_("date").str).toList, List("2027-02-03", "2027-02-17", "2027-03-03"))
+    val id = createMedication(token, "Fortnightly").json("id").str
+    val created = createSchedule(token, id, draft)
+    assertEquals(created.json("pattern").str, "every_n_weeks")
+    assertEquals(created.json("everyWeeks").num.toInt, 2)
+    assertEquals(created.json("weekdays").arr.map(_.num.toInt).toList, List(3))
+    assertEquals(created.json("anchorDate").str, "2027-02-02")
+    assertEquals(pendingRows(created.json("id").str).map(_.scheduledFor.toString), List("2027-02-03T10:00:00Z"))
+
+  test("G9.8: every 6 hours from 06:00 previews each day's doses and the engine materialises the same instants"):
+    clock.at = Instant.parse("2027-02-01T05:00:00Z")
+    val token = login(telegramAccount("UTC"))
+    val draft = ujson.Obj("pattern" -> "interval_fixed_start", "startTime" -> "06:00", "intervalMinutes" -> 360, "maxPerDay" -> 4)
+    val preview = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token)
+    assertEquals(preview.status, 200, preview.body)
+    assertEquals(preview.json("summary").str, "every 6 h from 06:00, at most 4 a day")
+    val first = preview.json("days").arr.head
+    assertEquals(first("date").str, "2027-02-01")
+    assertEquals(first("occurrences").arr.map(_("time").str).toList, List("06:00", "12:00", "18:00", "00:00"))
+    val id = createMedication(token, "Interval").json("id").str
+    val created = createSchedule(token, id, draft)
+    assertEquals(created.json("pattern").str, "interval_fixed_start")
+    assertEquals(created.json("startTime").str, "06:00")
+    assertEquals(created.json("intervalMinutes").num.toInt, 360)
+    assertEquals(created.json("maxPerDay").num.toInt, 4)
+    val previewed = preview.json("days").arr.flatMap(_("occurrences").arr.map(_("at").str)).toSet
+    val materialised = pendingRows(created.json("id").str).map(_.scheduledFor.toString)
+    assert(materialised.nonEmpty)
+    assert(materialised.forall(previewed.contains), clue(materialised))
+
+  test("G9.8: weekdays at 08:00 and the weekend at 10:00 are one schedule of two day groups, kept as two groups"):
+    clock.at = Instant.parse("2027-02-05T07:00:00Z") // a Friday
+    val token = login(telegramAccount("UTC"))
+    val draft = ujson.Obj(
+      "pattern" -> "fixed_times",
+      "slotGroups" -> ujson.Arr(
+        ujson.Obj("weekdays" -> ujson.Arr(1, 2, 3, 4, 5), "times" -> ujson.Arr("08:00")),
+        ujson.Obj("weekdays" -> ujson.Arr(6, 7), "times" -> ujson.Arr("10:00"))
+      )
+    )
+    val preview = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token)
+    assertEquals(preview.status, 200, preview.body)
+    assertEquals(preview.json("summary").str, "on weekdays 08:00; on Sat, Sun 10:00")
+    val days = preview.json("days").arr.toList
+    assertEquals(days.take(3).map(d => d("date").str -> d("occurrences")(0)("time").str), List(
+      "2027-02-05" -> "08:00", "2027-02-06" -> "10:00", "2027-02-07" -> "10:00"
+    ))
+    val id = createMedication(token, "Grouped").json("id").str
+    val created = createSchedule(token, id, draft)
+    assertEquals(created.json("times").arr.toList, Nil)
+    assertEquals(
+      created.json("slotGroups").arr.map(g => (g("weekdays").arr.map(_.num.toInt).toList, g("times").arr.map(_.str).toList)).toList,
+      List(List(1, 2, 3, 4, 5) -> List("08:00"), List(6, 7) -> List("10:00"))
+    )
+    assertEquals(created.json("summary").str, "on weekdays 08:00; on Sat, Sun 10:00")
+
+  test("G9.8: an invalid every-N-weeks, interval or grouped draft answers 422 per member"):
+    val token = login(telegramAccount())
+    def errors(draft: ujson.Obj) = post("/api/v1/schedule-previews", ujson.Obj("draft" -> draft), token).fieldErrors
+    assertEquals(
+      errors(ujson.Obj("pattern" -> "every_n_weeks", "times" -> ujson.Arr("09:00"), "everyWeeks" -> 53)),
+      List("weekdays" -> "required", "everyWeeks" -> "out_of_range")
+    )
+    assertEquals(
+      errors(ujson.Obj("pattern" -> "interval_fixed_start", "times" -> ujson.Arr("09:00"), "intervalMinutes" -> 10)),
+      List("times" -> "not_allowed", "startTime" -> "required", "intervalMinutes" -> "out_of_range", "maxPerDay" -> "required")
+    )
+    assertEquals(
+      errors(
+        ujson.Obj(
+          "pattern" -> "fixed_times",
+          "times" -> ujson.Arr("09:00"),
+          "slotGroups" -> ujson.Arr(
+            ujson.Obj("weekdays" -> ujson.Arr(1, 2), "times" -> ujson.Arr("08:00")),
+            ujson.Obj("weekdays" -> ujson.Arr(2), "times" -> ujson.Arr())
+          )
+        )
+      ),
+      List("times" -> "not_allowed", "slotGroups" -> "overlap", "slotGroups[1].times" -> "required")
+    )
+
   test("POST /medications/{id}/schedules starts the schedule; the engine materialises what the preview listed"):
     clock.at = Instant.parse("2027-02-01T08:00:00Z")
     val token = login(telegramAccount("UTC"))
@@ -471,7 +559,10 @@ final class RegistryApiSuite extends ApiSuite:
   test("GET /schedule-options publishes the patterns, the limits and the account's day"):
     clock.at = Instant.parse("2027-05-01T22:30:00Z")
     val reply = get("/api/v1/schedule-options", login(telegramAccount("Europe/Kyiv")))
-    assertEquals(reply.json("patterns").arr.map(_.str).toList, List("fixed_times", "as_needed", "every_n_days", "cycle"))
+    assertEquals(
+      reply.json("patterns").arr.map(_.str).toList,
+      List("fixed_times", "as_needed", "every_n_days", "cycle", "every_n_weeks", "interval_fixed_start")
+    )
     assertEquals(reply.json("previewDays").num.toInt, 7)
     assertEquals(reply.json("timeZone").str, "Europe/Kyiv")
     assertEquals(reply.json("today").str, "2027-05-02")

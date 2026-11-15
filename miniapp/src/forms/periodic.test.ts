@@ -68,7 +68,8 @@ describe('periodic patterns', () => {
       timeZone: 'UTC',
       today: '2026-11-16',
     });
-    expect(offered.patterns.map((pattern) => pattern.value)).toEqual(['fixed_times', 'weekly', 'every_n_days', 'cycle', 'as_needed']);
+    // The server's fixed_times takes slot groups too, so groups of days come with it (ROADMAP G9.8).
+    expect(offered.patterns.map((pattern) => pattern.value)).toEqual(['fixed_times', 'weekly', 'day_groups', 'every_n_days', 'cycle', 'as_needed']);
   });
 });
 

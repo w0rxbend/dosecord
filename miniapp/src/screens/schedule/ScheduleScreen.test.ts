@@ -175,4 +175,29 @@ describe('Schedule builder', () => {
 
     expect(screen.getByText('Enter the plan you were given. Dosegram does not suggest doses or times.')).toBeTruthy();
   });
+
+  it('G9.9: groups of days start as weekdays and the weekend, each with its own times, in one schedule', async () => {
+    const harness = createHarness();
+    const listed = await harness.api.scheduleOptions();
+    harness.api.scheduleOptions = async () => ({
+      ...listed,
+      patterns: [...listed.patterns, { value: 'day_groups', label: 'Different times on different days' }],
+    });
+    const user = await open(harness);
+
+    await user.click(screen.getByLabelText('Different times on different days'));
+    const groups = screen.getAllByRole('group', { name: /^Group / });
+    expect(groups).toHaveLength(2);
+    await fireEvent.input(within(groups[0]!).getByLabelText(/^Time 1/), { target: { value: '08:00' } });
+    await fireEvent.input(within(groups[1]!).getByLabelText(/^Time 1/), { target: { value: '10:00' } });
+
+    // Thu 12 Nov to Wed 18 Nov: five weekdays at 08:00 and the weekend at 10:00.
+    await waitFor(() => expect(previewRows()).toHaveLength(7));
+    expect(within(preview()).getAllByText(/^10:00/)).toHaveLength(2);
+    await waitFor(() => expect(harness.tg.mainButton.state.enabled).toBe(true));
+
+    // A day in both groups is refused, and nothing is previewed for it.
+    await user.click(within(groups[1]!).getByLabelText('Fri'));
+    expect(harness.tg.mainButton.state.enabled).toBe(false);
+  });
 });
