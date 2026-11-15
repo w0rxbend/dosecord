@@ -39,15 +39,14 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-14 (`3d84fd6` and the docs after it), after
-seven rounds of parallel tracks were merged and wired together (the sixth:
-operations, audit and deletion, encryption at rest, V9 to V12; the seventh:
-sleep, food and report depth, imports, row-level security, V14 to V17),
-plus the fixes of that day's verification (V13). The migrations are V1 to
-V17. The live database is at V12: `docs/OPERATIONS.md` section 11 is the
-owner's deploy of V13 to V17 in one start (sections 8 to 10 explain each
-part). Deploy `3d84fd6` or later, never `6ca39ec` or `5e74c20`: they lack
-V14, which could not be applied afterwards.
+State of `main` on 2026-11-15 (`794dad1` and the docs after it), after
+eight rounds of parallel tracks were merged and wired together (the
+seventh: sleep, food and report depth, imports, row-level security, V14 to
+V17; the eighth: performance and privacy, image round 3, Mini App round,
+V19), plus the fixes of the verifications of 2026-11-14 (V13) and
+2026-11-15 (V18). The migrations are V1 to V19. The live database is at
+V17 (`dba2825`): `docs/OPERATIONS.md` section 13 is the owner's deploy of
+V18 and V19 in one start (sections 8 to 12 explain each part).
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -68,7 +67,10 @@ Appendix B and its status notes are the record; this is the short form.
   resvg 0.49.0 (built from its pinned source) and the font pack, checked by
   `scripts/image-render-check.sh`. Chat images follow the image theme and discreet
   mode set in the Mini App; a discreet personal card goes behind a spoiler.
-  The sleep regularity card (IMG-12) is sent from `/sleep`.
+  The sleep regularity card (IMG-12) is sent from `/sleep`. The blob is
+  revision `dg-blob-2`. "Show as image" on the seven-day `/stats` sends the
+  week at a glance (IMG-19), on `/today` the daily summary; the week cards
+  IMG-20 to IMG-22 are drawn but no chat button sends them yet.
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep
   (episodes, check-ins, goals; no rollup, read from the episodes), daily
   rollups with a worker that drains their queue, the `Stat` type, text
@@ -109,7 +111,8 @@ Appendix B and its status notes are the record; this is the short form.
   the `transport` service key before the account exists) and the start seals
   and empties the old ones, then vacuums. V19 does the same for the inbox,
   sessions, form runs, callback slots, domain events, reminder titles and
-  dose units, and keeps display names empty. Still plaintext: file ids.
+  dose units, and keeps display names empty. Still plaintext: file ids
+  and step-up parameters.
 - Audit and deletion (G2.16, G2.17, G5.7, V12): `audit_log` is append-only,
   codes only, written on the transaction of each consent, export, step-up,
   session, settings, deletion and key event. `/privacy` deletes one domain
@@ -140,7 +143,9 @@ Appendix B and its status notes are the record; this is the short form.
   health listener, one owner alert per hour for dead outbox rows and
   quarantined updates, `scripts/backup.sh`, `restore-drill.sh`,
   `live-smoke.sh`, gitleaks secret scanning and actions pinned by commit.
-  `ProductionPathSuite` starts from `/start` on the fake wire.
+  `ProductionPathSuite` starts from `/start` on the fake wire and scans
+  every column and a `pg_dump` for the canaries it typed.
+  `docs/PERFORMANCE.md` has the probes and the measured hot paths.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -164,14 +169,18 @@ Appendix B and its status notes are the record; this is the short form.
   food, Insights (a 7, 30 and 90-day dashboard with the previous period in
   words, month and patterns), reports and export, history and day detail,
   settings with the day profile page, and set-up (S-19). The app records and withdraws
-  no consent; dose actions over HTTP do not exist. The container image
+  no consent. Today answers a dose (`POST /occurrences/{id}/actions`, the
+  chat's `DoseCommands`, vendor `miniapp`) and Insights shares a card
+  through the report queue (`/report-cards`). The container image
   serves the built Mini App, `docs/DEPLOY_MINIAPP.md` is the deploy guide,
-  and `pnpm --dir miniapp run e2e` is the browser suite (G3.12).
+  and `pnpm --dir miniapp run e2e` is the browser suite with an axe scan of
+  every screen (G3.12).
 
-Every slice these touch is `building`, none is `green`. No Telegram bot token
-exists: everything is built and tested against the fake wire and hand-written
-fixtures, and there are no live sends. The spikes G1.1 to G1.3, every live
-smoke and every owner action from OA-2 on are open.
+Every slice these touch is `building`, none is `green`. The owner runs the
+bot on real data since 2026-11-15 (`dba2825`, V17). Agents build and test
+against the fake wire and hand-written fixtures and make no live sends. The
+spikes G1.1 to G1.3, every live smoke and every owner action from OA-2 on
+are open.
 
 Useful next, in this order:
 
@@ -198,9 +207,9 @@ Useful next, in this order:
    G9.12); MA-INS-8 and the cross-representation test of G9.5.
 7. What the consent and store work of 2026-11-13 left open: the rest of
    onboarding (adult attestation, region, discreet choice, G2.8), the
-   `StorageError` port of G2.1, and of G2.4b the stores still in plaintext
-   (listed above) with the whole-database and WAL dump test, each schema
-   change as a new versioned migration. ARCHITECTURE section 10.17 lists the
+   `StorageError` port of G2.1, and of G2.4b the file ids, step-up
+   parameters, the WAL half of the dump test and the scheduled rotation of
+   the inbox key, each schema change as a new versioned migration. ARCHITECTURE section 10.17 lists the
    schema areas and the rules for adding a table; a new table also needs an
    `ErasureCoverage` and an `ExportCoverage` entry.
 8. What the sixth round left open: the CI run of G0.8 on a pushed branch;
@@ -210,6 +219,13 @@ Useful next, in this order:
    (G11.6b); the rest of G2.18; dropping the emptied plaintext columns; the
    image gate after the compose change. G2.6 (English catalogue) is eligible
    by dependency and untouched.
+9. What the eighth round left open: chat buttons for IMG-20 to IMG-22, the
+   gap of a medication-only IMG-04, the refill card in the goldens, the
+   contact-sheet review by another reviewer and the greyscale check; on
+   Today the occurrence sheet corrections, the as-needed sheet and an
+   inline mood check-in, tap-through from week charts, the mood chart's
+   axis label at 360 px; the unfixed hot spots of PERFORMANCE.md; live
+   checks of the dose answer (MA-TODAY-4), the share card and the images.
 
 ## Agent workflow
 

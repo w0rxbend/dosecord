@@ -386,3 +386,66 @@ Steps, all the owner's:
    in the reminder loop" clears 24 hours after the last failure.
 
 Rollback: restore the backup of step 1 and start the previous release.
+
+## 13. Deploying `main` after the integration of 2026-11-15 (V18 and V19 in one start)
+
+The live database is at V17 and the live bot runs `dba2825`. The head of `main` carries V18
+(section 12) and V19 (`V19__sealed_chat_state.sql`, merge `2526cbe` and `be54ef6`), plus the image
+round 3 (merge `a8dc02e`) and the Mini App round (merge `794dad1`). The start applies V18 and
+V19 in order. V19 was written as V21 on its branch and merged as V19 before any database applied
+it; no file named V21 exists (supervisor decision, 2026-11-15, ARCHITECTURE section 10.17).
+No new environment variable and no Dockerfile change. Every step is the owner's:
+
+1. Back up the database as in step 4 of section 8 (`umask 077`, off shared storage), and keep the
+   file until step 5 below has passed. There is no downgrade past V19 without this backup: the
+   previous release cannot read a sealed session, slot or inbox body, and the new CHECKs on
+   `users.display_name` and `platform_identities.vendor_username` refuse the vendor name an older
+   release writes.
+2. Step 2 of section 12: `stat -c %a <PURGE_LIST_PATH>` prints `600`, or the file does not exist.
+3. Rebuild the container image (or the assembly) from the new commit: it carries the Mini App
+   bundle, which now draws the blob's glints and cheeks, answers doses and shares a card.
+4. Stop the running bot, then start the new release from a fresh worktree of that commit. The
+   start needs the existing `KEK` (or `KEK_FILE`). Its log shows, in this order:
+   - `sealing: <table>.<column> sealed N value(s), verified N` for `inbound_inbox.body`,
+     `callback_slots.payload`, `domain_events.data` and `domain_events.actor` (on 2026-11-15 the
+     live database held 2 inbox bodies, 49 slot payloads and 7 events; no session, form run,
+     reminder title or dose unit; no display name or vendor name);
+   - `sealing: vacuumed ...` naming the tables it sealed (a plain `VACUUM (ANALYZE)`);
+   - no `sequences:` line (section 12);
+   - `migrate: 2 migration(s) applied, schema 19, N value(s) sealed, 0 key(s) rewrapped`;
+   - `purge: replayed N deletion(s) of the purge list`.
+   V19 also creates `ix_delivery_channels_account` and `ix_occ_schedule_open` without
+   `CONCURRENTLY`; the tables are small.
+5. Check, read-only:
+   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 19.
+   - `SELECT count(*) FROM inbound_inbox WHERE body IS NOT NULL;`,
+     `SELECT count(*) FROM callback_slots WHERE payload IS NOT NULL;` and
+     `SELECT count(*) FROM domain_events WHERE data IS NOT NULL OR actor IS NOT NULL;` return 0.
+   - `SELECT has_table_privilege('dosegram_app', 'audit_log', 'SELECT');` returns `f` (V18).
+   - `curl -fsS http://127.0.0.1:<HEALTH_PORT>/readyz` answers 200; `scripts/live-smoke.sh`
+     exits 0.
+   - A button tapped before the deploy still answers (its slot was sealed in place), `/today`,
+     `/stats` and the Mini App Today show the real values.
+6. Optional, with the bot stopped: the `VACUUM (FULL, ANALYZE)` of section 9 on
+   `inbound_inbox`, `callback_slots` and `domain_events`, which rewrites the pages that still hold
+   the old plaintext.
+
+What changes for the user after this deploy, none of it checked on a live client yet:
+
+- Every mood image and every card with a blob looks different (blob revision `dg-blob-2`). Shared
+  mood images use new cache keys (`mood.dg-blob-2.<state>…`), so each state, theme and language
+  is uploaded once more on first use; the old `telegram_file_cache` rows are no longer read and
+  need no cleaning. The Mini App fetches the new blob asset once.
+- The seven-day `/stats` card and `/today` carry "Show as image": the seven days send the week at
+  a glance (IMG-19), today the daily summary.
+- With `MINIAPP_ENABLED`: Today answers a dose (Taken, Skip, Snooze, Undo) through
+  `POST /api/v1/occurrences/{id}/actions`, stored in `dose_actions` with the vendor `miniapp`;
+  the chat's reminder is closed through the outbox. Insights has "Share a card"
+  (`GET /api/v1/report-cards`, `POST /api/v1/report-cards/{kind}/deliveries`), which needs the
+  images consent and answers 422 `image_unavailable` without `RESVG_PATH` and
+  `RENDER_FONTS_DIR`.
+
+After the deploy, check once with a real client: a dose answered in the Mini App closes the
+chat's reminder (MA-TODAY-4), a shared card arrives, "Show as image" on `/stats` sends the week.
+
+Rollback: restore the backup of step 1 and start `dba2825`.
