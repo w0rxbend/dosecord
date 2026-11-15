@@ -395,6 +395,30 @@ export class MockBackend implements ApiClient {
     return found;
   }
 
+  /** The cards the person has shared, by kind; tests read it. */
+  readonly sharedCards: string[] = [];
+  /** Discreet mode as the settings would have it; tests turn it on. */
+  discreet = false;
+
+  reportCards: ApiClient['reportCards'] = () =>
+    this.respond('report-cards', () => ({
+      available: true,
+      discreet: this.discreet,
+      warning:
+        'Pick one fact for a card you can forward. The card shows no name, date, time or medication. Anyone you send this to can keep it.',
+      cards: this.tracking.isOn('mood') ? [{ kind: 'share-week-mood', sentence: 'Mood logged on 4 of 7 days' }] : [],
+    }));
+
+  deliverReportCard: ApiClient['deliverReportCard'] = async (kind, confirmed, key) => {
+    await this.respond('report-cards/deliveries', () =>
+      this.once(key, () => {
+        if (this.discreet && !confirmed) throw new ApiError('validation', 'MOCK-0422', [{ field: 'confirmed', code: 'required' }]);
+        this.sharedCards.push(kind);
+        return kind;
+      }),
+    );
+  };
+
   insightsOverview: ApiClient['insightsOverview'] = (rangeDays) =>
     this.respond('insights/overview', () =>
       buildOverview(rangeDays, this.localToday(), this.tracking, this.scenario !== 'empty'),

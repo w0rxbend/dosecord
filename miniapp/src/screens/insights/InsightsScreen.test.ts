@@ -12,6 +12,34 @@ function open(harness: Harness) {
 const block = (name: string) => screen.findByRole('region', { name });
 
 describe('Insights', () => {
+  it('sends a card to the chat with one tap on the sentence it states', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+
+    const share = await block('Share a card');
+    expect(within(share).getByText(/Anyone you send this to can keep it/)).toBeTruthy();
+    await user.click(await within(share).findByRole('button', { name: 'Mood logged on 4 of 7 days' }));
+
+    expect(harness.api.sharedCards).toEqual(['share-week-mood']);
+    expect(harness.toasts.current?.message).toBe('The card is on its way to your chat.');
+    expect(harness.tg.haptics).toContain('success');
+  });
+
+  it('asks first in discreet mode, and sends nothing when the person declines', async () => {
+    const harness = createHarness();
+    harness.api.discreet = true;
+    const user = open(harness);
+    const button = await within(await block('Share a card')).findByRole('button', { name: 'Mood logged on 4 of 7 days' });
+
+    await user.click(button);
+    expect(harness.tg.popups).toHaveLength(1);
+    expect(harness.api.sharedCards).toEqual([]);
+
+    harness.tg.popupAnswer = 'send';
+    await user.click(button);
+    expect(harness.api.sharedCards).toEqual(['share-week-mood']);
+  });
+
   it('shows a labelled skeleton, then one block per domain for the last 30 days', async () => {
     open(createHarness());
 

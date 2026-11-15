@@ -3,16 +3,19 @@
   import { useApp } from '../../app/context';
   import MoodBlob from '../../charts/MoodBlob.svelte';
   import Vessel from '../../charts/Vessel.svelte';
+  import type { MealKind } from '../../api/types';
   import { t as en } from '../../i18n/index.svelte';
+  import DayFood from './DayFood.svelte';
   import type { DayTracking } from './tracking';
 
   interface Props {
     tracking: DayTracking;
     isToday: boolean;
     onAddWater: (amountMl: number) => void;
+    onLogMeal: (mealType: MealKind) => void;
   }
 
-  let { tracking, isToday, onAddWater }: Props = $props();
+  let { tracking, isToday, onAddWater, onLogMeal }: Props = $props();
   const { router } = useApp();
   const go = (event: MouseEvent, path: string) => {
     event.preventDefault();
@@ -33,13 +36,12 @@
             <Vessel valueMl={water.day.totalMl} goalMl={water.day.goalMl} label={water.day.vesselLabel} size={40} />
           {/if}
           <p class="numeric figure">{water.day.text}</p>
-          <a class="btn" href={router.hrefFor('/log/water')} onclick={(event) => go(event, '/log/water')}>{en.insights.more} ›</a>
         </div>
       {:else if water.entries.length === 0}
         <p class="muted">{isToday ? en.water.nothing : en.day.noWater}</p>
       {/if}
       {#if isToday && water.presetsMl.length > 0}
-        <div class="btn-row">
+        <div class="presets">
           {#each water.presetsMl as amount (amount)}
             <button type="button" class="btn btn-tinted numeric" aria-label={en.water.addLabel(amount)} onclick={() => onAddWater(amount)}>
               {en.water.add(amount)}
@@ -55,6 +57,7 @@
           {/each}
         </ul>
       {/if}
+      <a class="link" href={router.hrefFor('/log/water')} onclick={(event) => go(event, '/log/water')}>{en.today.openWater}</a>
     </div>
   </section>
 {/if}
@@ -102,17 +105,31 @@
           {/each}
         </ul>
       {/if}
-      <div class="btn-row">
-        <a class="btn btn-tinted" href={router.hrefFor('/log/sleep')} onclick={(event) => go(event, '/log/sleep')}>{en.insights.more} ›</a>
-      </div>
+      <a class="link" href={router.hrefFor('/log/sleep')} onclick={(event) => go(event, '/log/sleep')}>{en.today.openSleep}</a>
     </div>
   </section>
+{/if}
+
+{#if tracking.food !== OFF}
+  <DayFood food={tracking.food} {isToday} {onLogMeal} />
 {/if}
 
 <style>
   .card {
     display: grid;
     gap: var(--dg-space-3);
+  }
+
+  /* The amounts share one row at 320 px instead of wrapping one onto a line of its own. */
+  .presets {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: var(--dg-space-2);
+  }
+
+  .presets .btn {
+    padding-inline: var(--dg-space-2);
   }
 
   .lead {

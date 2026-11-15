@@ -2,6 +2,8 @@ import { unlessOff, type ApiClient } from '../../api/client';
 import {
   OFF,
   type DayLineMark,
+  type Meal,
+  type NutritionDay,
   type MoodCheckin,
   type MoodDay,
   type Off,
@@ -18,6 +20,8 @@ export interface DayTracking {
   readonly mood: { readonly day?: MoodDay; readonly checkins: readonly MoodCheckin[] } | Off;
   /** The nights and naps whose sleep day this is; on Today, also where sleep stands now. */
   readonly sleep: { readonly status?: SleepStatus; readonly episodes: readonly SleepEpisode[] } | Off;
+  /** The meals of the day; on Today, also which main meals are not logged yet. */
+  readonly food: { readonly day?: NutritionDay; readonly meals: readonly Meal[] } | Off;
   readonly assets?: MoodAssets;
 }
 
@@ -26,8 +30,23 @@ export interface DayTracking {
  * day reads its entries. A domain whose consent is missing reads as off.
  */
 export async function readTracking(api: ApiClient, date: string | undefined): Promise<DayTracking> {
-  const [water, mood, sleep] = await Promise.all([readWater(api, date), readMood(api, date), readSleep(api, date)]);
-  return { water, mood, sleep, assets: mood === OFF ? undefined : await moodAssets(api) };
+  const [water, mood, sleep, food] = await Promise.all([
+    readWater(api, date),
+    readMood(api, date),
+    readSleep(api, date),
+    readFood(api, date),
+  ]);
+  return { water, mood, sleep, food, assets: mood === OFF ? undefined : await moodAssets(api) };
+}
+
+async function readFood(api: ApiClient, date: string | undefined): Promise<DayTracking['food']> {
+  if (date !== undefined) {
+    const meals = await unlessOff(api.meals(date, date));
+    return meals === OFF ? OFF : { meals };
+  }
+  const summary = await unlessOff(api.nutritionSummary());
+  if (summary === OFF) return OFF;
+  return { day: summary.today, meals: await api.meals(summary.today.date, summary.today.date) };
 }
 
 async function readSleep(api: ApiClient, date: string | undefined): Promise<DayTracking['sleep']> {

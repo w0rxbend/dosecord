@@ -38,6 +38,7 @@ import type {
   ReminderTimeline,
   WaterSettings,
   WaterSummary,
+  OccurrenceActionResult,
   Medication,
   MedicationDraft,
   MedicationOptions,
@@ -70,19 +71,28 @@ function toOccurrence(wire: Wire['DoseOccurrence'], nowMinute: number | undefine
     resolvedTime: wire.resolvedTime,
     snoozedUntil: wire.snoozedUntil,
     dueForMinutes: due ? Math.max(0, nowMinute - minuteOf(wire.scheduledTime)) : undefined,
-    snoozeChoicesMinutes: [],
+    snoozeChoicesMinutes: wire.snoozeChoicesMinutes ?? [],
   };
 }
 
-/** The server has no action route yet, so a day is shown and doses are answered in the chat. */
+/** The occurrence after an answer, and where it was answered first when that was elsewhere (MA-TODAY-3). */
+export function toOccurrenceActionResult(wire: Wire['OccurrenceActionResult'], nowMinute: number | undefined): OccurrenceActionResult {
+  const resolvedIn = wire.outcome === 'already_resolved' && (wire.resolvedIn === 'chat' || wire.resolvedIn === 'app') ? wire.resolvedIn : undefined;
+  return {
+    occurrence: toOccurrence(wire.occurrence, nowMinute),
+    alreadyResolvedIn: resolvedIn,
+    refusal: wire.outcome === 'refused' ? (wire.refusal ?? 'refused') : undefined,
+  };
+}
+
+/** Today is answered here (ROADMAP G3.7); another day is shown, and a future one lists its planned doses. */
 export function toTodayView(wire: Wire['DayView']): TodayView {
   const occurrences = (wire.occurrences ?? []).map((occurrence) => toOccurrence(occurrence, wire.nowMinute));
   return {
     date: wire.date,
     dateLabel: wire.dateLabel,
     isToday: wire.isToday,
-    readOnly: true,
-    answerInChat: true,
+    readOnly: !wire.isToday,
     previousDate: wire.previousDate,
     nextDate: wire.nextDate,
     nowMinute: wire.nowMinute,

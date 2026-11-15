@@ -187,7 +187,8 @@ export function deriveTokens(params: ThemeParams, scheme: ColorScheme): TokenSet
   const accentText = readable(
     pick(params, ['accent_text_color', 'link_color'], fallback['accent-text']),
     fallback['accent-text'],
-    [surface],
+    // Chips, segments and text buttons also sit on the page background (MA-A11Y-1).
+    [surface, bg],
   );
   const { accent, onAccent } = accentPair(params, fallback);
   const data = Object.fromEntries(

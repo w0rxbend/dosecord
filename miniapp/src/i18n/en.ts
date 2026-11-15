@@ -102,12 +102,20 @@ export const en = {
     alreadyTaken: (time: string, where: 'chat' | 'app') =>
       `Already marked taken at ${time} in ${where === 'chat' ? 'chat' : 'the app'}`,
     alreadyResolved: (where: 'chat' | 'app') => `Already answered in ${where === 'chat' ? 'chat' : 'the app'}`,
+    undone: 'Answer taken back',
+    refused: 'This dose cannot be changed here now. The chat has the other choices.',
     water: 'Water',
     waterTotal: (totalMl: number, goalMl: number) =>
       `${litres(totalMl)} of ${litres(goalMl)} (${Math.round((totalMl / goalMl) * 100)}%)`,
     addWater: (ml: number) => `Add ${ml} ml`,
     waterAdded: (ml: number) => `Added ${ml} ml`,
     dayLine: 'Day line',
+    openWater: 'Open water',
+    openSleep: 'Open sleep',
+    openFood: 'Open the food diary',
+    logMealGroup: 'Log a meal now',
+    logMeal: (meal: string) => `Log ${meal.toLowerCase()} now`,
+    mealLogged: (meal: string) => `${meal} logged`,
   },
 
   dose: {
@@ -258,6 +266,14 @@ export const en = {
   insights: {
     title: 'Insights',
     loading: 'Loading insights',
+    share: 'Share a card',
+    shareLoading: 'Loading the cards to share',
+    shareOff: 'Cards are sent as images in the chat. Turn images on with /privacy in the chat to share one.',
+    shareNothing: 'Nothing to share from the last 7 days yet.',
+    shareDiscreet: 'Discreet mode is on. This card can be forwarded, and anyone you send it to can keep it. Send it anyway?',
+    shareSend: 'Send the card',
+    shareSent: 'The card is on its way to your chat.',
+    shareCancel: 'Cancel',
     range: 'Period',
     days: (count: number) => `${count} days`,
     vessel: 'Water today',
@@ -477,6 +493,7 @@ export const en = {
     noWater: 'No water logged on this day.',
     noMood: 'No check-in on this day.',
     noSleep: 'No night logged for this day.',
+    noFood: 'No meal logged on this day.',
     water: (text: string) => `Water, ${text}`,
     mood: (label: string) => `Mood, ${label}`,
   },

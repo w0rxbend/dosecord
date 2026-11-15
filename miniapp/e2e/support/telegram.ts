@@ -114,6 +114,11 @@ function stubSource(config: object): string {
     pressMain: () => { if (state.main.visible && state.main.enabled && !state.main.progress) listeners.main.forEach((f) => f()); },
     pressBack: () => listeners.back.forEach((f) => f()),
     answerPopup: (id) => { const callback = state.pending.shift(); if (callback) callback(id); },
+    setScheme: (scheme) => {
+      window.Telegram.WebApp.colorScheme = scheme;
+      window.Telegram.WebApp.themeParams = config.themes[scheme];
+      (events.get('themeChanged') ?? new Set()).forEach((f) => f());
+    },
   };
 })();`;
 }
@@ -126,13 +131,20 @@ export async function installTelegram(page: Page, options: LaunchOptions = {}): 
     startParam: options.startParam,
     scheme,
     theme: THEMES[scheme],
+    themes: THEMES,
     platform: options.platform ?? 'android',
   });
   await page.route(TELEGRAM_SCRIPT, (route) => route.fulfill({ contentType: 'text/javascript', body }));
 }
 
 type StubWindow = Window & {
-  __telegramStub: { chrome(): Chrome; pressMain(): void; pressBack(): void; answerPopup(id: string): void };
+  __telegramStub: {
+    chrome(): Chrome;
+    pressMain(): void;
+    pressBack(): void;
+    answerPopup(id: string): void;
+    setScheme(scheme: Scheme): void;
+  };
 };
 
 export function chrome(page: Page): Promise<Chrome> {
@@ -146,6 +158,11 @@ export function pressMainButton(page: Page): Promise<void> {
 
 export function pressBackButton(page: Page): Promise<void> {
   return page.evaluate(() => (window as unknown as StubWindow).__telegramStub.pressBack());
+}
+
+/** Switches the client's theme, as the user does in Telegram's settings; the app hears `themeChanged`. */
+export function setScheme(page: Page, scheme: Scheme): Promise<void> {
+  return page.evaluate((next) => (window as unknown as StubWindow).__telegramStub.setScheme(next), scheme);
 }
 
 /** Answers the open native popup with the button `id`, as the user would. */

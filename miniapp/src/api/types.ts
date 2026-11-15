@@ -59,6 +59,8 @@ export interface OccurrenceActionResult {
   readonly occurrence: Occurrence;
   /** Set when the occurrence was resolved elsewhere first (MA-TODAY-3); not an error. */
   readonly alreadyResolvedIn?: 'chat' | 'app';
+  /** Set when the server's rules refused the answer (an undo past its window); nothing was recorded. */
+  readonly refusal?: string;
 }
 
 export type MedicationStatus = 'active' | 'paused' | 'archived';
@@ -902,4 +904,20 @@ export interface ImportBatch {
   readonly records?: readonly ImportDeviceRecord[];
   readonly ignored?: number;
   readonly firstIndex?: number;
+}
+
+/** A card the app may send to the chat, by its kind and the sentence the card states (VISUALS IMG-17). */
+export interface ReportCardOffer {
+  readonly kind: string;
+  readonly sentence: string;
+}
+
+/** The shareable cards on offer now; `available` is false without the images-in-chat consent. */
+export interface ReportCards {
+  readonly available: boolean;
+  /** Discreet mode is on: the person confirms before a card is sent. */
+  readonly discreet: boolean;
+  /** The sentence shown before any card is sent, in the server's words. */
+  readonly warning: string;
+  readonly cards: readonly ReportCardOffer[];
 }
