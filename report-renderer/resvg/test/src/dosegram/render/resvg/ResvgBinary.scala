@@ -15,11 +15,18 @@ object ResvgBinary:
   /** Whether this run must draw: a skipped pixel test would otherwise pass unseen. */
   def isRequired: Boolean = sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true")
 
-  def locate: Option[Path] =
+  def locate: Option[Path] = find("DOSEGRAM_RESVG", "resvg")
+
+  /** The long-lived worker (report-renderer/worker, built by `scripts/build-raster-worker.sh`): `DOSEGRAM_RASTER_WORKER`
+    * when set, else the first `dosegram-raster` on the PATH. Required where resvg is.
+    */
+  def locateWorker: Option[Path] = find("DOSEGRAM_RASTER_WORKER", "dosegram-raster")
+
+  private def find(variable: String, name: String): Option[Path] =
     sys.env
-      .get("DOSEGRAM_RESVG")
+      .get(variable)
       .map(Path.of(_))
-      .orElse(sys.env.getOrElse("PATH", "").split(':').iterator.filter(_.nonEmpty).map(Path.of(_, "resvg")).find(Files.isExecutable))
+      .orElse(sys.env.getOrElse("PATH", "").split(':').iterator.filter(_.nonEmpty).map(Path.of(_, name)).find(Files.isExecutable))
 
   /** The standard configuration against the pinned font pack, with an empty resources directory. The per-render
     * deadline is a minute, not the production five seconds: a loaded build host must not fail a pixel test. The

@@ -26,3 +26,19 @@ class RenderSettingsSuite extends munit.FunSuite:
     val message = "RESVG_PATH and RENDER_FONTS_DIR must be set together"
     assertEquals(parse(base + ("RESVG_PATH" -> "/usr/local/bin/resvg")).left.toOption, Some(List(message)))
     assertEquals(parse(base + ("RENDER_FONTS_DIR" -> "/opt/dosegram/fonts")).left.toOption, Some(List(message)))
+
+  test("the long-lived worker is an optional third setting of the renderer (ADR-022 addendum of 2026-11-15)"):
+    val env = base ++ Map(
+      "RESVG_PATH" -> "/usr/local/bin/resvg",
+      "RENDER_FONTS_DIR" -> "/opt/dosegram/fonts",
+      "RENDER_WORKER_PATH" -> "/opt/dosegram/bin/dosegram-raster"
+    )
+    val Right(settings) = parse(env): @unchecked
+    assertEquals(
+      settings.render,
+      Some(RenderSettings("/usr/local/bin/resvg", "/opt/dosegram/fonts", Some("/opt/dosegram/bin/dosegram-raster")))
+    )
+
+  test("the worker without the renderer is refused"):
+    val message = "RENDER_WORKER_PATH needs RESVG_PATH and RENDER_FONTS_DIR"
+    assertEquals(parse(base + ("RENDER_WORKER_PATH" -> "/opt/dosegram/bin/dosegram-raster")).left.toOption, Some(List(message)))

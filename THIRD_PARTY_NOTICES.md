@@ -25,3 +25,4 @@ Geologisk Project Authors.
 | Tool | Version | Licence | Use |
 |---|---|---|---|
 | resvg (https://github.com/linebender/resvg) | 0.49.0 | Apache-2.0 OR MIT | Rasterises the SVG of a card to PNG (`report-renderer.resvg`). The binary is not stored in the repository. |
+| resvg library crates, as vendored in the resvg 0.49.0 release tarball | 0.49.0 | Apache-2.0 OR MIT; the vendored crates are under MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, Zlib, 0BSD, Unlicense or Unicode-3.0 terms, each with a permissive option | Linked into the worker `dosegram-raster` (`report-renderer/worker`, ADR-022 addendum of 2026-11-15); the crate set is a subset of the resvg binary's, pinned by `report-renderer/worker/Cargo.lock`. The binary is not stored in the repository. |

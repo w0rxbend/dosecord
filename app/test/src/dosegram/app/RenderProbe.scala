@@ -24,9 +24,10 @@ import java.time.LocalTime
 
 /** docs/PERFORMANCE.md, image render time per card: each status card laid out and drawn by the resvg binary of this
   * machine through the production drawing (`StatusImages.from`), with a fresh store per draw so no shared card is
-  * served from the store. Run: `./mill app.test.runMain dosegram.app.renderProbe <resvg> <fonts dir> [samples]`.
+  * served from the store. Run: `./mill app.test.runMain dosegram.app.renderProbe <resvg> <fonts dir> <samples>
+  * [worker]`; with the path of `dosegram-raster` as the fourth argument the long-lived worker draws.
   */
-@main def renderProbe(resvg: String, fonts: String, samples: Int): Unit =
+@main def renderProbe(resvg: String, fonts: String, samples: Int, worker: String*): Unit =
   val today = LocalDate.parse("2026-11-13")
   val look = CardLook(ImageTheme.Light, isDiscreet = false)
   val water = WaterCardView(today, totalMl = 1250, goalMl = 2000, entries = 4)
@@ -39,7 +40,7 @@ import java.time.LocalTime
   val sleep = SleepRegularityFigures(window, bars, 14, None, None, None, None, None, Some(450))
   val food = FoodCardView(today, Map(MealType.Breakfast -> LocalTime.of(8, 10), MealType.Dinner -> LocalTime.of(19, 40)),
     1, FoodLineView(2, 3))
-  val settings = Some(RenderSettings(resvg, fonts))
+  val settings = Some(RenderSettings(resvg, fonts, worker.headOption))
   def fresh: StatusImages = StatusImages.from(settings, StatusImages.Stores.inMemory, line => println(line))
   // A personal card is keyed by its bytes, so it is drawn every time; the mood card is shared by its state and needs
   // a fresh store per draw to be drawn at all.

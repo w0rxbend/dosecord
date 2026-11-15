@@ -22,4 +22,21 @@ if [ "$signature" != "89504e470d0a1a0a" ]; then
   echo "image-render-check: FAIL — no PNG from resvg in $image" >&2
   exit 1
 fi
-echo "image-render-check: PASS — resvg 0.49.0 and the font pack draw in $image"
+# The long-lived worker (ADR-022 addendum of 2026-11-15) draws the same SVG from
+# one framed request: zoom and length as big-endian 32-bit integers, then the
+# SVG. Its answer is a status byte, a length, then the PNG.
+length=${#svg}
+byte() { printf "\\$(printf '%03o' "$1")"; }
+answer="$({ printf '\000\000\000\001'
+  byte $(( (length >> 24) & 255 )); byte $(( (length >> 16) & 255 ))
+  byte $(( (length >> 8) & 255 )); byte $(( length & 255 ))
+  printf '%s' "$svg"; } | docker run --rm -i --entrypoint sh "$image" -c \
+  'test "$("$RENDER_WORKER_PATH" --version)" = 0.49.0 &&
+   "$RENDER_WORKER_PATH" --fonts-dir "$RENDER_FONTS_DIR" --resources-dir "$(mktemp -d)" | head -c 13 | od -An -tx1' \
+  | tr -d ' \n')"
+
+if [ "${answer:0:2}" != "00" ] || [ "${answer:10:16}" != "89504e470d0a1a0a" ]; then
+  echo "image-render-check: FAIL — no PNG from dosegram-raster in $image" >&2
+  exit 1
+fi
+echo "image-render-check: PASS — resvg 0.49.0, dosegram-raster and the font pack draw in $image"
