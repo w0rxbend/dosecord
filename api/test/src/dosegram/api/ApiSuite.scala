@@ -9,7 +9,17 @@ import dosegram.core.application.Application
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackKey
 import dosegram.core.chat.CallbackKeys
+import dosegram.core.application.reports.ShareFacts
+import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.DayCardView
+import dosegram.core.ports.FoodCardView
+import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.ShareCardView
+import dosegram.core.ports.StatusCards
+import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
@@ -100,7 +110,8 @@ trait ApiSuite extends PgSuite:
     ApiSuite.BlobStates,
     line => logged.synchronized { logged += line; () },
     Application.exportRequests(clock, ApiSuite.Codec),
-    Application.deletionRequests(clock, ApiSuite.Codec)
+    Application.deletionRequests(clock, ApiSuite.Codec),
+    ApiSuite.ShareCards
   )
 
   override def beforeAll(): Unit =
@@ -244,5 +255,15 @@ object ApiSuite:
       )
     )
   )
+
+  /** Lays out the shareable card only (VISUALS IMG-17), as the renderer would, with the card's sentence as its text. */
+  val ShareCards: StatusCards = new StatusCards:
+    override def mood(view: MoodCardView, look: CardLook): Option[CardPage] = None
+    override def water(view: WaterCardView, look: CardLook): Option[CardPage] = None
+    override def day(view: DayCardView, look: CardLook): Option[CardPage] = None
+    override def sleep(view: SleepRegularityFigures, look: CardLook): Option[CardPage] = None
+    override def food(view: FoodCardView, look: CardLook): Option[CardPage] = None
+    override def share(view: ShareCardView, look: CardLook): Option[CardPage] =
+      Some(CardPage("share", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>", ShareFacts.label(view), "card.png", hasSpoiler = false))
 
   final case class TelegramAccount(accountId: UUID, telegramUserId: Long)

@@ -127,6 +127,44 @@ describe('Today screen', () => {
     expect(harness.api.calls.filter((call) => call === 'hydration/entries:create')).toHaveLength(1);
   });
 
+  it('takes a water entry back with the toast\'s Undo', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await screen.findByText('1.2 of 2.0 l (60%)');
+
+    await user.click(screen.getByRole('button', { name: 'Add 500 ml' }));
+    await screen.findByText('1.7 of 2.0 l (85%)');
+    expect(harness.toasts.current?.action?.label).toBe('Undo');
+    harness.toasts.current?.action?.run();
+
+    expect(await screen.findByText('1.2 of 2.0 l (60%)')).toBeTruthy();
+    expect(harness.api.calls.filter((call) => call === 'hydration/entries/{id}:delete')).toHaveLength(1);
+  });
+
+  it('logs a meal with one tap from Today, and Undo removes it', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    const food = await section('Food');
+
+    await user.click(within(food).getByRole('button', { name: 'Log lunch now' }));
+
+    expect(harness.api.calls.filter((call) => call === 'meals:create')).toHaveLength(1);
+    expect(harness.toasts.current?.message).toBe('Lunch logged');
+    expect(harness.tg.haptics).toEqual(['impact-light']);
+    harness.toasts.current?.action?.run();
+    await screen.findByRole('button', { name: 'Log lunch now' });
+    expect(harness.api.calls.filter((call) => call === 'meals/{id}:delete')).toHaveLength(1);
+  });
+
+  it('leaves food out when its consent is missing', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('nutrition');
+    open(harness);
+
+    await screen.findByText('1.2 of 2.0 l (60%)');
+    expect(screen.queryByRole('region', { name: 'Food' })).toBeNull();
+  });
+
   it('offers to add a medication when nothing is scheduled', async () => {
     const harness = createHarness('empty');
     const user = open(harness);

@@ -97,7 +97,8 @@ object MiniAppEdge:
       MoodBlobAsset.states,
       log,
       Application.exportRequests(parts.clock, CallbackCodec(settings.callbackKeys)),
-      Application.deletionRequests(parts.clock, CallbackCodec(settings.callbackKeys))
+      Application.deletionRequests(parts.clock, CallbackCodec(settings.callbackKeys)),
+      parts.images.cards
     )
     fork:
       WorkerLoop

@@ -9,14 +9,10 @@ import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
 import dosegram.core.chat.ChatHandler
-import dosegram.core.domain.Decide
-import dosegram.core.domain.DecideContext
-import dosegram.core.domain.DispatchIntent
 import dosegram.core.domain.DoseSnapshot
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.Feedback
 import dosegram.core.domain.FinalizeReason
-import dosegram.core.domain.LastUserAction
 import dosegram.core.domain.Occurrence
 import dosegram.core.domain.OccurrenceEvent
 import dosegram.core.domain.OccurrenceStatus
@@ -67,6 +63,7 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
   import DoseIntakeHandler.*
 
   private val gate = MedicationConsentGate(codec, clock)
+  private val commands = DoseCommands(clock)
 
   /** Every dose button and dose command is behind the `medication` consent (PRODUCT_SPEC R-IDC-9): without it nothing
     * is recorded, and the answer is the consent prompt, which leads to Today.
@@ -161,9 +158,9 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
 
   // ---------- The decide pipeline ----------
 
-  /** One user event against a locked occurrence: decide, the fenced write, the action row(s) with the inbound event's
-    * idempotency key and vendor attribution, the finalize ops for every recorded handle, and the intake event on a
-    * transition to Taken.
+  /** One user event against a locked occurrence, through the use case the Mini App shares ([[DoseCommands]]): the
+    * action row(s) carry the inbound event's idempotency key and vendor attribution, and the intake event goes out
+    * through the reply.
     */
   private def applyUserEvent(
       event: InboundEvent,
@@ -173,71 +170,19 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       source: Option[MessageHandle],
       tx: Tx
   ): Reply =
-    val now = clock.now()
-    val (policy, quiet) = tx.policies.forOccurrence(occ)
-    val ctx = DecideContext(
-      event = userEvent,
-      delivered = tx.outbox.deliveredFor(occ.id),
-      nextOccurrenceScheduledFor = occ.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, occ.state.scheduledFor)),
-      lastUndoableAction = lastUndoableAction(tx, occ.id),
-      manualLog = occ.origin == OccurrenceOrigin.Manual
+    val by = DoseAttribution(
+      correlationId = s"${event.vendor}:${event.vendorEventId}",
+      vendor = event.vendor,
+      platformIdentityId = Some(principal.identityId.uuid),
+      platformMessageId = source.map(_.messageId)
     )
-    val transition = Decide.decide(occ.state, policy, quiet, now, ctx)
-    if transition.row == occ.state then noTransitionReply(event, occ, transition.feedback)
-    else
-      val applied =
-        tx.occurrences.applyTransition(occ.id, occ.version, occ.state.epoch, transition.row, now)
-      if !applied then
-        // The row was locked FOR UPDATE above, so the guarded write cannot lose a race; failing the transaction is the
-        // honest failure and the mediator's failure toast answers (R68).
-        throw new IllegalStateException(s"occurrence ${occ.id} changed while locked for a user action")
-      val correlationId = s"${event.vendor}:${event.vendorEventId}"
-      (transition.action.toList ++ transition.additionalActions).foreach: intent =>
-        tx.doseActions.append(
-          NewDoseAction
-            .from(intent, occ.id, occ.accountId, correlationId)
-            .copy(
-              idempotencyKey = Some(correlationId),
-              vendor = Some(event.vendor),
-              platformIdentityId = Some(principal.identityId.uuid),
-              platformMessageId = source.map(_.messageId)
-            )
-        )
-      transition.dispatches.foreach:
-        case DispatchIntent.FinalizeControls(reason) =>
-          FinalizeDispatch.enqueue(tx, occ.id, occ.accountId, transition.row.epoch, reason, now)
-        case _ => () // a user event never sends a reminder of its own
-      val reply = feedbackReply(occ, transition, takenEvent(occ, userEvent, transition, now))
-      if transition.feedback == Feedback.LogUndone then
-        reply.copy(replace = source.map(logUndoneCard(event, principal, occ, _, tx)))
-      else reply
-    end if
-  end applyUserEvent
-
-  /** Exactly one `intake_taken.v1` per transition to Taken recorded by a user event (R30); corrections carry the
-    * explicit `effective_at` they recorded.
-    */
-  private def takenEvent(
-      occ: StoredOccurrence,
-      userEvent: OccurrenceEvent,
-      transition: dosegram.core.domain.Transition,
-      now: Instant
-  ): List[Event] =
-    val recordsTaken = userEvent match
-      case OccurrenceEvent.Taken        => true
-      case OccurrenceEvent.Corrected(_) => true
-      case _                            => false
-    if recordsTaken && transition.row.status == OccurrenceStatus.Taken then
-      val effectiveAt = transition.row.effectiveAt.getOrElse(now)
-      List(
-        Event.IntakeTaken(
-          AccountId(occ.accountId),
-          occ.id,
-          effectiveAt,
-          takenLate = effectiveAt.isAfter(occ.state.dueWindowEnd)
-        )
-      )
-    else Nil
+    commands.answer(tx, occ, userEvent, by) match
+      case DoseOutcome.Unchanged(feedback)         => noTransitionReply(event, occ, feedback)
+      case DoseOutcome.Applied(transition, events) =>
+        val reply = feedbackReply(occ, transition, events)
+        if transition.feedback == Feedback.LogUndone then
+          reply.copy(replace = source.map(logUndoneCard(event, principal, occ, _, tx)))
+        else reply
 
   /** The reply of a transition: the catalogue confirmation as the toast; the finalize ops carry the recorded handles.
     */
@@ -598,20 +543,6 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
 
   // ---------- Helpers ----------
 
-  /** The latest user action row still eligible for undo (taken/skipped/snoozed, not already undone), read from
-    * `dose_actions` for the FSM's undo arm (ADR-012).
-    */
-  private def lastUndoableAction(tx: Tx, occurrenceId: UUID): Option[LastUserAction] =
-    val actions = tx.doseActions.listForOccurrence(occurrenceId)
-    val undoneSeqs =
-      actions.flatMap(action => if action.action == DoseActionKind.Undone then action.undoesSeq.toList else Nil).toSet
-    actions.reverse
-      .find(action =>
-        action.actor == dosegram.core.domain.Actor.User &&
-          undoableKinds.contains(action.action) && !undoneSeqs.contains(action.seq)
-      )
-      .map(action => LastUserAction(action.action, action.seq, action.occurredAt))
-
   private def directToken(actionName: String, subject: UUID, value: Long): String =
     codec.encode(CallbackMode.Direct, ActionRegistry.byName(actionName).get, subject, value).wire
 
@@ -623,7 +554,4 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
 private object DoseIntakeHandler:
   val commandNames: Set[String] =
     Set(CommandRegistry.Taken.name, CommandRegistry.Snooze.name, CommandRegistry.Skip.name, CommandRegistry.Log.name)
-
-  val undoableKinds: Set[DoseActionKind] =
-    Set(DoseActionKind.Taken, DoseActionKind.Skipped, DoseActionKind.Snoozed)
 end DoseIntakeHandler

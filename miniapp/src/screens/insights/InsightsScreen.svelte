@@ -12,6 +12,7 @@
   import DomainBlock from './DomainBlock.svelte';
   import GlanceTile from './GlanceTile.svelte';
   import MonthAndPatterns from './MonthAndPatterns.svelte';
+  import ShareCards from './ShareCards.svelte';
 
   /** Offered until the first answer names the periods the backend computes. */
   const FIRST_RANGES: readonly InsightRange[] = [7, 30];
@@ -73,6 +74,7 @@
         {/each}
       </div>
       {#if data.blocks.length > 0}<MonthAndPatterns />{/if}
+      {#if withData(data)}<ShareCards />{/if}
       <div class="section section-body">
         <LinkRow path="/insights/history" label={en.insights.history} hint={en.insights.historyHint} />
         <LinkRow path="/insights/reports" label={en.reports.title} hint={en.reports.hint} />

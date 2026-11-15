@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Occurrence, OccurrenceAction } from '../../api/types';
   import { doseStatusText, t as en } from '../../i18n/index.svelte';
+  import { useApp } from '../../app/context';
   import StatusGlyph from '../../ui/StatusGlyph.svelte';
 
   interface Props {
@@ -9,7 +10,15 @@
   }
 
   let { occurrence, onAction }: Props = $props();
+  const { tg } = useApp();
   let choosingSnooze = $state(false);
+  /** The server lists the lengths the reminder policy still allows; none, and Snooze is not offered (ADR-012). */
+  const canSnooze = $derived(occurrence.snoozeChoicesMinutes.length > 0);
+
+  function toggleSnooze(): void {
+    tg.haptic('selection');
+    choosingSnooze = !choosingSnooze;
+  }
 </script>
 
 <!-- A due dose: each answer is one tap and one request (MA-TODAY-2). -->
@@ -30,16 +39,13 @@
     <button type="button" class="btn btn-tinted" onclick={() => onAction(occurrence, { kind: 'skipped' })}>
       {en.today.skip}
     </button>
-    <button
-      type="button"
-      class="btn btn-tinted"
-      aria-expanded={choosingSnooze}
-      onclick={() => (choosingSnooze = !choosingSnooze)}
-    >
-      {en.today.snooze}
-    </button>
+    {#if canSnooze}
+      <button type="button" class="btn btn-tinted" aria-expanded={choosingSnooze} onclick={toggleSnooze}>
+        {en.today.snooze}
+      </button>
+    {/if}
   </div>
-  {#if choosingSnooze}
+  {#if choosingSnooze && canSnooze}
     <div class="btn-row" role="group" aria-label={en.today.snoozeGroup}>
       {#each occurrence.snoozeChoicesMinutes as minutes (minutes)}
         <button

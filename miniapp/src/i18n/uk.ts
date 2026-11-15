@@ -113,12 +113,20 @@ export const uk: Catalogue = {
     alreadyTaken: (time: string, where: 'chat' | 'app') =>
       `Уже позначено як прийняту о ${time} ${where === 'chat' ? 'в чаті' : 'в застосунку'}`,
     alreadyResolved: (where: 'chat' | 'app') => `Уже відповіли ${where === 'chat' ? 'в чаті' : 'в застосунку'}`,
+    undone: 'Відповідь скасовано',
+    refused: 'Цю дозу зараз не можна змінити тут. Інші варіанти є в чаті.',
     water: 'Вода',
     waterTotal: (totalMl: number, goalMl: number) =>
       `${litres(totalMl)} з ${litres(goalMl)} (${Math.round((totalMl / goalMl) * 100)}%)`,
     addWater: (ml: number) => `Додати ${ml} мл`,
     waterAdded: (ml: number) => `Додано ${ml} мл`,
     dayLine: 'Лінія дня',
+    openWater: 'Відкрити воду',
+    openSleep: 'Відкрити сон',
+    openFood: 'Відкрити щоденник харчування',
+    logMealGroup: 'Записати прийом їжі зараз',
+    logMeal: (meal: string) => `Записати: ${meal.toLowerCase()}, зараз`,
+    mealLogged: (meal: string) => `${meal}: записано`,
   },
 
   dose: {
@@ -273,6 +281,14 @@ export const uk: Catalogue = {
   insights: {
     title: 'Огляд',
     loading: 'Завантаження огляду',
+    share: 'Поділитися карткою',
+    shareLoading: 'Завантаження карток',
+    shareOff: 'Картки надходять у чат як зображення. Щоб поділитися, увімкніть зображення командою /privacy у чаті.',
+    shareNothing: 'За останні 7 днів поки немає чим поділитися.',
+    shareDiscreet: 'Увімкнено стриманий режим. Цю картку можна переслати, і кожен, кому ви її надішлете, зможе її зберегти. Усе одно надіслати?',
+    shareSend: 'Надіслати картку',
+    shareSent: 'Картка вже прямує у ваш чат.',
+    shareCancel: 'Скасувати',
     range: 'Період',
     days: (count: number) => days(count),
     vessel: 'Вода сьогодні',
@@ -490,6 +506,7 @@ export const uk: Catalogue = {
     noWater: 'Цього дня воду не записано.',
     noMood: 'Цього дня позначок настрою немає.',
     noSleep: 'Для цього дня ніч не записано.',
+    noFood: 'Цього дня прийомів їжі не записано.',
     water: (text: string) => `Вода, ${text}`,
     mood: (label: string) => `Настрій, ${label}`,
   },

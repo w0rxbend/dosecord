@@ -39,6 +39,7 @@ import {
   toScheduleOptions,
   toSchedulePreview,
   toTodayView,
+  toOccurrenceActionResult,
   type Wire,
 } from './wire';
 
@@ -173,12 +174,14 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
   const range = (from: string, to: string) => `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
   const versionTag = (version: number) => ({ 'If-Match': `"v${version}"` });
   const id = encodeURIComponent;
-  /** A resource of MINI_APP 15.2 that the server does not have yet. */
-  const unavailable = () => Promise.reject(new ApiError('unavailable'));
 
   const client: ApiClient = {
     today: async (date) => toTodayView(await request<Wire['DayView']>(date ? `days/${id(date)}` : 'today')),
-    actOnOccurrence: unavailable,
+    actOnOccurrence: async (occurrenceId, action, key) => {
+      const body: Wire['OccurrenceActionInput'] = action.kind === 'snoozed' ? { kind: action.kind, minutes: action.minutes } : { kind: action.kind };
+      const path = `occurrences/${id(occurrenceId)}/actions`;
+      return toOccurrenceActionResult(await request<Wire['OccurrenceActionResult']>(path, { method: 'POST', body, headers: command(key) }), undefined);
+    },
 
     waterSummary: async () => toWaterSummary(await request<Wire['HydrationSummary']>('hydration/summary')),
     waterEntries: async (from, to) =>
@@ -399,6 +402,14 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       return toInsightMonth(await request<Wire['InsightMonth']>(`insights/month${query}`));
     },
     insightList: async () => toInsightList(await request<Wire['InsightList']>('insights/correlations')),
+    reportCards: async () => {
+      const read = await request<Wire['ReportCards']>('report-cards');
+      return { available: read.available, discreet: read.discreet, warning: read.warning, cards: read.cards ?? [] };
+    },
+    deliverReportCard: async (kind, confirmed, key) => {
+      const body: Wire['ReportCardDeliveryInput'] = { confirmed };
+      await request<Wire['ReportCardDelivery']>(`report-cards/${id(kind)}/deliveries`, { method: 'POST', body, headers: command(key) });
+    },
 
     exports: async () => ((await request<Wire['ExportList']>('exports')).items ?? []).map(toExportItem),
     exportItem: async (exportId) => toExportItem(await request<Wire['ExportView']>(`exports/${id(exportId)}`)),

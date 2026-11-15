@@ -34,6 +34,6 @@ final class DayViews(uow: UnitOfWork, clock: Clock):
         isToday = date == today,
         previousDate = date.minusDays(1),
         nextDate = date.plusDays(1),
-        occurrences = rows.map(Rendering.occurrence(tx, _)),
+        occurrences = rows.map(Rendering.answerable(tx, _, clock.now())),
         nowMinute = Option.when(date == today)(now.getHour * 60 + now.getMinute)
       )

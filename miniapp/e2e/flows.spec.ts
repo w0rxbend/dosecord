@@ -27,6 +27,32 @@ test('launch: the session exchange answers 201, Today shows the medication, the 
   expect(shell.headers()['content-security-policy']).toContain("frame-ancestors https://web.telegram.org");
   expect(shell.headers()['cache-control']).toBe('no-store');
   expect(shell.headers()['access-control-allow-origin']).toBeUndefined();
+
+  // ROADMAP G3.7: a due dose is answered with one tap through the chat's use case, and Undo takes it back. In this
+  // test, not its own: the session exchange allows six launches a minute (ARCHITECTURE API-18).
+  const due = page.getByRole('region', { name: 'Due now' });
+  await expect(due.getByText('Iron')).toBeVisible();
+  const answered = page.waitForResponse((r) => /\/api\/v1\/occurrences\/[^/]+\/actions$/.test(r.url()));
+  await due.getByRole('button', { name: 'Taken' }).click();
+  const answer = await answered;
+  expect(answer.status()).toBe(200);
+  expect(answer.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
+  await expect(page.getByText(/^Marked taken at \d\d:\d\d$/)).toBeVisible();
+  await expect(due).toHaveCount(0);
+  const undone = page.waitForResponse((r) => /\/api\/v1\/occurrences\/[^/]+\/actions$/.test(r.url()));
+  await page.getByRole('button', { name: 'Undo' }).click();
+  expect((await undone).status()).toBe(200);
+  await expect(page.getByRole('region', { name: 'Due now' }).getByRole('button', { name: 'Taken' })).toBeVisible();
+
+  // A meal in one tap from Today (MINI_APP S-08 behaviour 1), and Undo voids it.
+  const food = page.getByRole('region', { name: 'Food' });
+  const logged = page.waitForResponse((r) => r.url().endsWith('/api/v1/meals') && r.request().method() === 'POST');
+  await food.getByRole('button', { name: 'Log snack now' }).click();
+  expect((await logged).status()).toBe(201);
+  await expect(page.getByText('Snack logged')).toBeVisible();
+  const voided = page.waitForResponse((r) => /\/api\/v1\/meals\/[^/]+$/.test(r.url()) && r.request().method() === 'DELETE');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  expect((await voided).ok()).toBe(true);
 });
 
 test('launch keeps no token and no launch data in any browser store (MA-LAUNCH-5)', async ({ app }) => {

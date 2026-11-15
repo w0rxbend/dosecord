@@ -134,7 +134,9 @@ object Charts:
         )
       )
     val recorded = points.flatMap(_.value)
-    val goal = goalMinutes.fold("")(minutes => s" Your goal: ${StatsCopy.duration(minutes)}.")
+    val goal = goalMinutes.fold("")(minutes =>
+      tr(s" Your goal: ${StatsCopy.duration(minutes)}.", s" Ваша ціль: ${StatsCopy.duration(minutes)}.")
+    )
     def nightOf(point: DayPoint[SleepNight]): String =
       point.value.fold(tr("no night logged", "ніч не записано"))(night => StatsCopy.duration(night.minutes))
     Chart(

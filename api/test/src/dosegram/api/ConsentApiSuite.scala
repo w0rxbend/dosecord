@@ -52,7 +52,9 @@ final class ConsentApiSuite extends ApiSuite:
       Some(ujson.write(ujson.Obj("onHand" -> "5", "perIntake" -> "1"))),
       newKey()
     ),
-    "createRefill" -> post(s"/api/v1/medications/$medicationId/refills", ujson.Obj("quantity" -> "30"), token, newKey())
+    "createRefill" -> post(s"/api/v1/medications/$medicationId/refills", ujson.Obj("quantity" -> "30"), token, newKey()),
+    // The dose answers of ROADMAP G3.7: refused before the dose is looked up.
+    "actOnOccurrence" -> post(s"/api/v1/occurrences/${UUID.randomUUID()}/actions", ujson.Obj("kind" -> "taken"), token, newKey())
   )
 
   private def rowsOf(accountId: UUID): (Int, Int, List[String]) =
@@ -153,4 +155,6 @@ object ConsentApiSuite:
       // Deleting is the right of every account, whatever is turned on (PRODUCT_SPEC R-IDC-19, R-IDC-20).
       DeletionEndpoints.documented.flatMap(_.info.name).toSet ++
       // The import routes check the import consent and each record's own domain (ImportApiSuite, ImportPgSuite).
-      ImportEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))
+      ImportEndpoints.documented.flatMap(_.info.name).toSet ++
+      // The shareable cards check the images consent, and their facts leave medication out (ReportCardApiSuite).
+      ReportCardEndpoints.documented.flatMap(_.info.name).toSet ++ Endpoints.documented.flatMap(_.info.name).filter(name => name.contains("Hydration") || name.contains("Mood") || name.contains("Sleep"))

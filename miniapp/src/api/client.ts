@@ -55,6 +55,7 @@ import type {
   MealInput,
   MealKind,
   MealRecorded,
+  ReportCards,
   Medication,
   MedicationDraft,
   MedicationOptions,
@@ -197,6 +198,9 @@ export interface ApiClient {
   refill(medicationId: string, quantity: string): Promise<InventoryView>;
 
   insightsOverview(rangeDays: InsightRange): Promise<InsightsOverview>;
+  /** The shareable cards (report-cards) and a send to the chat through the report queue (report-cards/{kind}/deliveries). */
+  reportCards(): Promise<ReportCards>;
+  deliverReportCard(kind: string, confirmed: boolean, idempotencyKey: string): Promise<void>;
   /** One calendar month; absent is the current month. */
   insightMonth(month?: string): Promise<InsightMonth>;
   /** The patterns of the last 28 days. */

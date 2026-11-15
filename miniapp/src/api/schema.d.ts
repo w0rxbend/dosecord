@@ -1044,6 +1044,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/occurrences/{id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Taken, skipped, snoozed or undo, through the use case the chat's buttons use; the reminder in the chat is closed through the outbox. A dose answered elsewhere first answers `already_resolved` with its state. */
+        post: operations["actOnOccurrence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The shareable cards of the last seven days, each by its sentence. */
+        get: operations["listReportCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-cards/{kind}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Queues the card for the account's chat, where the report worker sends it. */
+        post: operations["deliverReportCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1226,6 +1277,7 @@ export interface components {
             doseText?: string;
             resolvedTime?: string;
             snoozedUntil?: string;
+            snoozeChoicesMinutes?: number[];
         };
         /**
          * DoseState
@@ -1881,6 +1933,19 @@ export interface components {
             perMeal?: components["schemas"]["NutritionMealDays"][];
             text: string;
         };
+        /** OccurrenceActionInput */
+        OccurrenceActionInput: {
+            kind: string;
+            /** Format: int32 */
+            minutes?: number;
+        };
+        /** OccurrenceActionResult */
+        OccurrenceActionResult: {
+            occurrence: components["schemas"]["DoseOccurrence"];
+            outcome: string;
+            resolvedIn?: string;
+            refusal?: string;
+        };
         /**
          * OverviewDomain
          * @enum {string}
@@ -1981,6 +2046,27 @@ export interface components {
             day: components["schemas"]["DayProfileView"];
             /** Format: date-time */
             pausedUntil?: string;
+        };
+        /** ReportCardDelivery */
+        ReportCardDelivery: {
+            kind: string;
+            status: string;
+        };
+        /** ReportCardDeliveryInput */
+        ReportCardDeliveryInput: {
+            confirmed: boolean;
+        };
+        /** ReportCardOffer */
+        ReportCardOffer: {
+            kind: string;
+            sentence: string;
+        };
+        /** ReportCards */
+        ReportCards: {
+            available: boolean;
+            discreet: boolean;
+            warning: string;
+            cards?: components["schemas"]["ReportCardOffer"][];
         };
         /** Scene */
         Scene: {
@@ -4934,6 +5020,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportView"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    actOnOccurrence: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID made when the user taps; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OccurrenceActionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OccurrenceActionResult"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listReportCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCards"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deliverReportCard: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A UUID made when the user taps; required (API-16) */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportCardDeliveryInput"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCardDelivery"];
                 };
             };
             default: {

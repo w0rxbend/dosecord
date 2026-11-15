@@ -62,7 +62,7 @@ const day = {
   nextDate: '2026-11-14',
   nowMinute: 492,
   occurrences: [
-    { id: 'o1', medicationId: 'm1', medicationName: 'Medication A', scheduledTime: '08:00', scheduledAt: '2026-11-13T08:00:00Z', state: 'due', doseText: '1 tablet' },
+    { id: 'o1', medicationId: 'm1', medicationName: 'Medication A', scheduledTime: '08:00', scheduledAt: '2026-11-13T08:00:00Z', state: 'due', doseText: '1 tablet', snoozeChoicesMinutes: [10, 30] },
     { id: 'o2', medicationId: 'm1', medicationName: 'Medication A', scheduledTime: '21:30', scheduledAt: '2026-11-13T21:30:00Z', state: 'pending' },
   ],
 };
@@ -144,15 +144,16 @@ describe('HTTP API client', () => {
     expect((failure as ApiError).code).toBe(code);
   });
 
-  it('maps a day to the Today view: read-only, answered in the chat, with the day line', async () => {
+  it('maps today to the Today view: answerable, with the snooze lengths and the day line', async () => {
     serve({ 'POST /api/v1/session': [session('t')], 'GET /api/v1/today': [{ status: 200, body: day }] });
     const api = createHttpApi(config());
     await api.open();
 
     const view = await api.client.today();
 
-    expect(view).toMatchObject({ date: '2026-11-13', dateLabel: 'Fri 13 Nov', isToday: true, readOnly: true, answerInChat: true, nowMinute: 492 });
-    expect(view.occurrences[0]).toMatchObject({ id: 'o1', doseText: '1 tablet', state: 'due', dueForMinutes: 12, snoozeChoicesMinutes: [] });
+    expect(view).toMatchObject({ date: '2026-11-13', dateLabel: 'Fri 13 Nov', isToday: true, readOnly: false, nowMinute: 492 });
+    expect(view.answerInChat).toBeUndefined();
+    expect(view.occurrences[0]).toMatchObject({ id: 'o1', doseText: '1 tablet', state: 'due', dueForMinutes: 12, snoozeChoicesMinutes: [10, 30] });
     expect(view.occurrences[1]).toMatchObject({ doseText: '', dueForMinutes: undefined });
     expect(view.dayLine).toEqual([
       { minute: 480, kind: 'dose', state: 'due' },
@@ -347,15 +348,26 @@ describe('HTTP API client', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('refuses the resources the server does not have yet without a request', async () => {
-    const calls = serve({ 'POST /api/v1/session': [session('t')] });
+  it('answers a dose through occurrences/{id}/actions with the key made at the tap, and maps the outcome', async () => {
+    const occurrence = { ...day.occurrences[0], state: 'taken', resolvedTime: '08:04', snoozeChoicesMinutes: [] };
+    const calls = serve({
+      'POST /api/v1/session': [session('t')],
+      'POST /api/v1/occurrences/o1/actions': [
+        { status: 200, body: { occurrence, outcome: 'recorded' } },
+        { status: 200, body: { occurrence, outcome: 'already_resolved', resolvedIn: 'chat' } },
+      ],
+    });
     const api = createHttpApi(config());
     await api.open();
 
-    const failure = await api.client.actOnOccurrence('o1', { kind: 'taken' }, 'key').catch((cause: unknown) => cause);
+    const first = await api.client.actOnOccurrence('o1', { kind: 'snoozed', minutes: 10 }, 'key-1');
+    const second = await api.client.actOnOccurrence('o1', { kind: 'skipped' }, 'key-2');
 
-    expect((failure as ApiError).code).toBe('unavailable');
-    expect(calls).toHaveLength(1);
+    expect(first).toMatchObject({ occurrence: { id: 'o1', state: 'taken', resolvedTime: '08:04' } });
+    expect(first.alreadyResolvedIn).toBeUndefined();
+    expect(second.alreadyResolvedIn).toBe('chat');
+    expect(calls[1]).toMatchObject({ body: { kind: 'snoozed', minutes: 10 }, headers: { 'Idempotency-Key': 'key-1' } });
+    expect(calls[2]).toMatchObject({ body: { kind: 'skipped' } });
   });
 
   it('reads the insights of a period: the blocks as the server worded them, the vessel and the periods on offer', async () => {

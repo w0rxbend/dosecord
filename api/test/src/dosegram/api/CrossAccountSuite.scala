@@ -90,6 +90,9 @@ final class CrossAccountSuite extends ApiSuite:
     )
     account
 
+  /** The dose of today of account A's schedule. */
+  private lazy val ownerDoseId: String = get("/api/v1/today", world.ownerToken).json("occurrences")(0)("id").str
+
   /** A meal of account A, with words that must not reach account B. */
   private lazy val mealId: String =
     val meal = post("/api/v1/meals", ujson.Obj("mealType" -> "lunch", "description" -> "Private"), world.ownerToken, newKey())
@@ -151,7 +154,11 @@ final class CrossAccountSuite extends ApiSuite:
       post(s"/api/v1/imports/${w.importId}/batches", ujson.Obj("csv" -> "occurred_at,amount_ml\n"), w.strangerToken, newKey())
     ),
     "commitImport" -> (w => post(s"/api/v1/imports/${w.importId}/commit", ujson.Obj(), w.strangerToken, newKey())),
-    "deleteImport" -> (w => delete(s"/api/v1/imports/${w.importId}", w.strangerToken))
+    "deleteImport" -> (w => delete(s"/api/v1/imports/${w.importId}", w.strangerToken)),
+    // Dose answers (ROADMAP G3.7).
+    "actOnOccurrence" -> (w =>
+      post(s"/api/v1/occurrences/${ownerDoseId}/actions", ujson.Obj("kind" -> "taken"), w.strangerToken, newKey())
+    )
   )
 
   cases.foreach: (route, request) =>

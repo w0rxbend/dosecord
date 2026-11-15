@@ -1,7 +1,8 @@
 // Browser end-to-end suite (ROADMAP G3.12): the production build of the Mini App against the real application on a
 // throwaway PostgreSQL, under the application's own security headers, with a stand-in for Telegram's script whose
-// launch data is signed by the suite's key. `pnpm run e2e` runs the flows; `pnpm run e2e:screens` takes the
-// screenshots of every screen at 390 px in both schemes. Needs Docker and a JDK.
+// launch data is signed by the suite's key. `pnpm run e2e` runs the flows, then the accessibility scan on a fresh
+// backend; `pnpm run e2e:screens` takes the screenshots of every screen at 360 and 390 px in both schemes. Needs Docker
+// and a JDK.
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { BOT_ID, PUBLIC_KEY_HEX, TELEGRAM_USER_ID } from './e2e/support/launch-data';
@@ -35,6 +36,8 @@ export default defineConfig({
   },
   projects: [
     { name: 'flows', testMatch: ['navigation.spec.ts', 'flows.spec.ts'] },
+    // Its own run and backend: the flows use the six session exchanges a minute that one user is allowed (API-18).
+    { name: 'a11y', testMatch: 'a11y.spec.ts' },
     { name: 'screens', testMatch: 'screens.spec.ts' },
   ],
   webServer: {

@@ -35,6 +35,17 @@ describe('deriveTokens', () => {
     expect(tokens.text).toBe('#fafafa');
   });
 
+  it('keeps link-coloured text readable on the page background too, where chips and text buttons sit', () => {
+    // Telegram's own light theme: #2481cc links on a #f0f0f0 page are 3.9:1.
+    const tokens = deriveTokens(
+      { secondary_bg_color: '#f0f0f0', section_bg_color: '#ffffff', accent_text_color: '#2481cc' },
+      'light',
+    );
+
+    expect(contrast(tokens['accent-text'], tokens.bg)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(tokens['accent-text'], tokens.surface)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('ignores values that are not #rrggbb', () => {
     const tokens = deriveTokens({ text_color: 'red', bg_color: 'url(javascript:1)' }, 'light');
 

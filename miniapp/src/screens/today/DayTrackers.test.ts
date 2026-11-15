@@ -10,7 +10,7 @@ describe('Day trackers', () => {
   // The day detail of the current date reads entries, not the summary: its water card must not be empty.
   it('lists the entries of today when the day is opened from the calendar', () => {
     render(DayTrackers, {
-      props: { tracking: { water: { entries: [entry], presetsMl: [] }, mood: OFF, sleep: OFF }, isToday: true, onAddWater: () => {} },
+      props: { tracking: { water: { entries: [entry], presetsMl: [] }, mood: OFF, sleep: OFF, food: OFF }, isToday: true, onAddWater: () => {}, onLogMeal: () => {} },
       context: createHarness().context,
     });
 

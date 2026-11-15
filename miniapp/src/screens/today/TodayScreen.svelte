@@ -1,6 +1,6 @@
 <script lang="ts">
   import { newIdempotencyKey, unlessOff } from '../../api/client';
-  import { OFF, type Occurrence, type OccurrenceAction, type OccurrenceActionResult, type Off, type TodayView } from '../../api/types';
+  import { OFF, type MealKind, type Occurrence, type OccurrenceAction, type OccurrenceActionResult, type Off, type TodayView } from '../../api/types';
   import { useApp } from '../../app/context';
   import { dayPath } from '../../app/routes';
   import { t as en } from '../../i18n/index.svelte';
@@ -37,9 +37,12 @@
   }
 
   function announce(result: OccurrenceActionResult, action: OccurrenceAction): void {
-    const { occurrence, alreadyResolvedIn } = result;
+    const { occurrence, alreadyResolvedIn, refusal } = result;
     const undo = { label: en.common.undo, run: () => void act(occurrence, { kind: 'undo' }) };
-    if (alreadyResolvedIn) {
+    if (refusal) {
+      tg.haptic('error');
+      toasts.show(en.today.refused);
+    } else if (alreadyResolvedIn) {
       const time = occurrence.resolvedTime;
       toasts.show(time ? en.today.alreadyTaken(time, alreadyResolvedIn) : en.today.alreadyResolved(alreadyResolvedIn));
     } else if (action.kind === 'taken') {
@@ -50,6 +53,8 @@
     } else if (action.kind === 'snoozed') {
       tg.haptic('impact-light');
       toasts.show(en.today.snoozedUntil(occurrence.snoozedUntil ?? ''), undo);
+    } else if (action.kind === 'undo') {
+      toasts.show(en.today.undone);
     }
   }
 
@@ -80,13 +85,40 @@
     try {
       const logged = await api.addWater(amountMl, newIdempotencyKey());
       tg.haptic(logged.goalReachedNow ? 'success' : 'impact-light');
-      toasts.show(en.today.waterAdded(amountMl));
+      toasts.show(en.today.waterAdded(amountMl), { label: en.common.undo, run: () => void takeBack(() => api.removeWater(logged.entry.id)) });
       void tracking.load();
     } catch {
       tracking.set(before);
       tg.haptic('error');
       toasts.show(en.errors.notSaved);
     }
+  }
+
+  // A meal needs only its type and time, so one tap records it now (MINI_APP S-08 behaviour 1).
+  async function logMeal(mealType: MealKind): Promise<void> {
+    try {
+      const recorded = await api.addMeal({ mealType }, newIdempotencyKey());
+      tg.haptic('impact-light');
+      toasts.show(en.today.mealLogged(en.food.kinds[mealType]), {
+        label: en.common.undo,
+        run: () => void takeBack(() => api.removeMeal(recorded.meal.id)),
+      });
+      void tracking.load();
+    } catch {
+      tg.haptic('error');
+      toasts.show(en.errors.notSaved);
+    }
+  }
+
+  /** The Undo of a quick entry: the entry is voided and the day read again. */
+  async function takeBack(remove: () => Promise<unknown>): Promise<void> {
+    try {
+      await remove();
+      toasts.show(en.food.removed);
+    } catch {
+      toasts.show(en.errors.notSaved);
+    }
+    void tracking.load();
   }
 
   const everythingOff = (view: TodayView | Off) =>
@@ -136,7 +168,7 @@
         </div>
       {/if}
       {#if tracking.data}
-        <DayTrackers tracking={tracking.data} {isToday} onAddWater={addWater} />
+        <DayTrackers tracking={tracking.data} {isToday} onAddWater={addWater} onLogMeal={logMeal} />
       {/if}
     {/snippet}
   </AsyncView>
