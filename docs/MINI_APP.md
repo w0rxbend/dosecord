@@ -815,6 +815,8 @@ MA-TODAY-9. Viewing another date uses the same screen with `today?date=`. Future
 
 States: skeleton with three card placeholders and the water row; empty state "Nothing scheduled today" with the actions "Add a medication" and "Log an as-needed dose"; a day with only trackers shows the trackers without the medication groups.
 
+Today's daily actions (supervisor decision, 2026-11-15; ROADMAP G3.7). The doses of today are answered here: `POST /occurrences/{id}/actions` (I) takes `taken`, `skipped`, `snoozed` with one of the occurrence's `snoozeChoicesMinutes`, or `undo`, and runs the chat's own use case (`DoseCommands`, shared with `DoseIntakeHandler`): the same decide table, the same `dose_actions` row with the request's key as its correlation id and `miniapp` as its surface, the same finalize of the reminder message in the chat through the outbox and the same `intake_taken` event. The route is behind the medication consent, bound to the session's account (another account's dose is not found) and answers with the state the server holds: `recorded`, `already_resolved` with `resolvedIn` `chat` or `app` (MA-TODAY-3), or `refused` with the rule's name (an undo past its window); only `recorded` changes anything. Snooze is offered only while the policy allows one. Another day is read-only. The water presets carry Undo, which voids the entry. A Food section offers one chip per main meal not yet logged and one for a snack: one tap records the meal at the current time with no words (S-08 behaviour 1), with Undo; "Open the food diary" leads to S-08. Each tracker section ends with one plain link to its screen ("Open water", "Open sleep"). The corrections of the occurrence sheet (behaviour 3) and the as-needed sheet are not built.
+
 ### 7.2 S-02 Medication list
 
 Purpose: the registry. Find a medication, see its schedule in one line, add a new one.
@@ -1543,6 +1545,8 @@ Dashboard as built (supervisor decision, 2026-11-14, owner asleep). Decisions th
 
 States: skeleton block per enabled domain; empty state for a new account "Insights appear after a few days of entries. Nothing is missing; there is just not enough yet."
 
+Share a card (supervisor decision, 2026-11-15). Below the month and the patterns, once a block has data, "Share a card" lists the facts of the last seven days that the chat's "Share a card" offers (VISUALS IMG-17), each as a button whose label is the sentence the card states, under the server's warning that anyone the card is sent to can keep it (VA-IMG-17b). A tap sends that card to the person's own chat through the report queue (`GET /report-cards`, `POST /report-cards/{kind}/deliveries` (I), kinds `share-water-goal`, `share-sleep-logged`, `share-mood-logged`, `share-week-mood`), with the queue's limits of one image underway and 20 a day (a refusal answers 429). In discreet mode a native confirmation comes first and the request carries `confirmed`. Without the `images_in_chat` consent the section says where it is turned on and offers nothing. Charts of weeks and of outcomes still open nothing (decision 5 above).
+
 ### 7.12 S-12 History calendar
 
 Purpose: see months of one domain at a glance and open any day.
@@ -1978,6 +1982,8 @@ Target: WCAG 2.2 level AA for every screen, on Telegram for Android with TalkBac
 | MA-A11Y-18 | Native controls keep their own accessibility: the application sets `MainButton` text that names the action and its object and does not replace native popups with drawn ones. | 4.1.2 | [L] |
 
 Manual verification per release candidate: one pass with TalkBack, one with VoiceOver, one with keyboard only on Telegram Desktop, each over the flows "answer a dose", "add a medication and a schedule", "check in mood", "export". The automated scan is expected to find only a part of the defects, so these passes are a release gate, not an option.
+
+Automated scan as built (supervisor decision, 2026-11-15): `e2e/a11y.spec.ts` runs axe-core over every routed screen of `e2e/support/screens.ts` against the real backend, in the light scheme and then the dark one (the stub switches the theme as Telegram does), with the WCAG 2.0, 2.1 and 2.2 A and AA rules; a serious or critical finding fails `pnpm run e2e`, which runs the scan after the flows on a fresh backend because the flows use the six session exchanges a minute that one user has (ARCHITECTURE API-18). The first scan found link-coloured text below 4.5:1 on the page background (chips, segments and text buttons sit there, not on a section), so the contrast guard also corrects `--dg-accent-text` against `--dg-bg` (an added pair of MA-THEME-5). `pnpm run e2e:screens` takes every screen at 360 and 390 px in both schemes.
 
 ## 10. Performance budget
 
