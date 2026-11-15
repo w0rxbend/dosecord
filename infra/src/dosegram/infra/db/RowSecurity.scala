@@ -3,6 +3,7 @@ package dosegram.infra.db
 import ox.discard
 
 import java.sql.Connection
+import java.sql.SQLException
 import java.util.UUID
 import javax.sql.DataSource
 import scala.language.implicitConversions
@@ -35,7 +36,10 @@ object RowSecurity:
       result
     catch
       case e: Throwable =>
-        conn.rollback()
+        // A connection broken under the query (a cancelled request closes its socket) cannot roll back; the pool
+        // evicts it, and the failure that broke it is the one the caller sees.
+        try conn.rollback()
+        catch case rollbackFailure: SQLException => e.addSuppressed(rollbackFailure)
         throw e
     finally conn.close()
 

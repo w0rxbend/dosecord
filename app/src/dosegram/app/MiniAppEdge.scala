@@ -112,6 +112,7 @@ object MiniAppEdge:
     val options = NettySyncServerOptions.customiseInterceptors
       .prependInterceptor(headers)
       .decodeFailureHandler(ApiModule.decodeFailureHandler)
+      .exceptionHandler(api.exceptionHandler)
       .serverLog(None)
       .options
     NettySyncServer(options, NettyConfig.default.copy(serverHeader = None))

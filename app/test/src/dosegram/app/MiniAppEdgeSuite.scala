@@ -81,12 +81,12 @@ final class MiniAppEdgeSuite extends PgSuite:
     settings(Some(MiniAppSettings(staticDir.map(_.toString), botId = None, initDataPublicKey = None, hmacFallback = true)))
 
   /** Starts the application of [[Launch.start]] with these settings and runs `test` against it. */
-  private def launched[A](settings: Settings)(test: => A): A =
+  private def launched[A](settings: Settings, log: String => Unit = _ => ())(test: => A): A =
     val rig = LaunchRig(Clock.system)
     try
       supervised:
         val parts = Launch.Parts(Clock.system, Map("console" -> rig.console), Workers.Cadence.Production)
-        val drain = Launch.start(settings, dataSource, parts, log = _ => ())
+        val drain = Launch.start(settings, dataSource, parts, log)
         try test
         finally
           drain.execute()
@@ -272,6 +272,56 @@ final class MiniAppEdgeSuite extends PgSuite:
       val forged = signedInitData(telegramUserId, Instant.now(), token = "7000000002:AAAnotherFakeTokenForTests")
       val answer = call(on.httpPort, "/api/v1/session", "POST", Some(ujson.write(ujson.Obj("initData" -> forged))))
       assertEquals(answer.statusCode(), 401, answer.body())
+
+  // ---------- a request the client abandons (cycle 10 verification) ----------
+
+  /** The session token of a new account, opened through the application's own session exchange. */
+  private def sessionToken(port: Int): String =
+    val initData = signedInitData(telegramAccount(), Instant.now())
+    val session = call(port, "/api/v1/session", "POST", Some(ujson.write(ujson.Obj("initData" -> initData))))
+    assertEquals(session.statusCode(), 201, session.body())
+    ujson.read(session.body())("token").str
+
+  /** Polls `condition` every 20 ms for up to ten seconds. */
+  private def eventually(what: String)(condition: => Boolean): Unit =
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+    while !condition do
+      assert(System.nanoTime() < deadline, s"timed out waiting until $what")
+      Thread.sleep(20)
+
+  private def waitingOnLock(observer: Connection): Boolean =
+    given Connection = observer
+    sql"SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock'".queryOne[Long]().exists(_ > 0)
+
+  // The consent read runs inside a route's body; the language read runs before it, around every route of a session.
+  List("consent_state" -> "the route's own body", "users" -> "the language lookup before the route").foreach {
+    (table, where) =>
+      test(s"a request abandoned while it waits in $where frees its connection, logs no failure, and the pool serves on"):
+        val lines = java.util.concurrent.ConcurrentLinkedQueue[String]()
+        val on = enabled(staticDir = None)
+        launched(on, line => { lines.add(line); () }):
+          val token = sessionToken(on.httpPort)
+          val pool = dataSource.getHikariPoolMXBean
+          withFreshConnection { holder =>
+            holder.setAutoCommit(false)
+            holder.createStatement().execute(s"LOCK TABLE $table IN ACCESS EXCLUSIVE MODE")
+            val socket = java.net.Socket("127.0.0.1", on.httpPort)
+            try
+              val request = s"GET /api/v1/today HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer $token\r\n\r\n"
+              socket.getOutputStream.write(request.getBytes(UTF_8))
+              socket.getOutputStream.flush()
+              withFreshConnection(observer => eventually("the request waits on the lock")(waitingOnLock(observer)))
+            finally socket.close()
+            // The lock is still held: only a cancelled request gives its connection back now.
+            eventually("the abandoned request returns its connection")(pool.getActiveConnections == 0)
+            holder.rollback()
+          }
+          val answers = (1 to 12).map(_ => call(on.httpPort, "/api/v1/today", token = token).statusCode())
+          assertEquals(answers.distinct, Vector(200), "the pool of ten serves twelve requests after the cancellation")
+          eventually("every connection is back in the pool")(pool.getActiveConnections == 0)
+          val failures = lines.toArray.toList.map(_.toString).filter(_.contains("failed"))
+          assertEquals(failures, Nil, "a cancelled request is not an internal error")
+  }
 
 object MiniAppEdgeSuite:
   private val BotToken = "7000000001:AAFakeTokenForTestsOnly_0123456789abcde"

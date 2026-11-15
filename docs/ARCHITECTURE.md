@@ -683,7 +683,7 @@ One policy function in `core.application`, `authorise(principal, operation, reso
 | Consent | API-19. A write or read in a domain without an active consent returns 403 `consent_required` with the domain. Consent is granted only in chat, by the two-step tap of PRODUCT_SPEC R-IDC-7; the app never records a consent (MINI_APP MA-ROLE-2). The app starts the flow with `POST /consents/{purpose}/requests`, which sends the consent message to the chat, and withdraws through a step-up. Purposes are those of PRODUCT_SPEC R-IDC-6. |
 | Body limits | 64 kB for JSON; photo upload 5 MB; normalised import batches 2 MB each. |
 
-Error codes (closed list, extended only additively): `validation_failed`, `unauthenticated`, `session_expired`, `client_too_old`, `client_outdated`, `account_required`, `consent_required`, `not_found`, `precondition_required`, `version_conflict`, `idempotency_key_reuse`, `rate_limited`, `quota_exceeded`, `stepup_required`, `stepup_pending`, `feature_disabled`, `payload_too_large`, `upstream_unavailable`, `internal`.
+Error codes (closed list, extended only additively): `validation_failed`, `unauthenticated`, `session_expired`, `client_too_old`, `client_outdated`, `account_required`, `consent_required`, `not_found`, `precondition_required`, `version_conflict`, `idempotency_key_reuse`, `rate_limited`, `quota_exceeded`, `stepup_required`, `stepup_pending`, `feature_disabled`, `payload_too_large`, `upstream_unavailable`, `internal`, `client_closed` (499: the client abandoned the request; nobody reads it, and it is not logged as a failure; supervisor decision, 2026-11-15).
 
 ### 9.5 Resource list
 

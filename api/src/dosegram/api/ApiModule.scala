@@ -22,6 +22,7 @@ import sttp.shared.Identity
 import sttp.tapir.server.ServerEndpoint
 import sttp.tapir.server.interceptor.decodefailure.DecodeFailureHandler
 import sttp.tapir.server.interceptor.decodefailure.DefaultDecodeFailureHandler
+import sttp.tapir.server.interceptor.exception.ExceptionHandler
 import sttp.tapir.server.model.ValuedEndpointOutput
 
 import java.nio.charset.StandardCharsets.UTF_8
@@ -103,15 +104,30 @@ final class ApiModule(
         run
       else Left(ApiFailure.consentRequired(ConsentPurpose.Medication))
 
-  /** An unexpected exception becomes the `internal` problem; its class and the request id are the only things logged.
+  /** An unexpected exception becomes the `internal` problem; its class and the request id are the only things logged. A
+    * request its client abandoned is `client_closed` and is not logged.
     */
   private def guarded[A](run: => Either[ApiFailure, A]): Either[ApiFailure, A] =
     try run
     catch
-      case NonFatal(cause) =>
-        val failure = ApiFailure.internal()
-        log(s"api: request ${failure.problem.requestId} failed with ${cause.getClass.getName}")
-        Left(failure)
+      case _: InterruptedException =>
+        // Thrown, the interrupt is cleared; the server's cancellation of the request still needs it.
+        Thread.currentThread().interrupt()
+        Left(ApiFailure.clientClosed())
+      case NonFatal(cause) => Left(failureOf(cause))
+
+  private def failureOf(cause: Throwable): ApiFailure =
+    if Cancellation.isCancellation(cause) then ApiFailure.clientClosed()
+    else
+      val failure = ApiFailure.internal()
+      log(s"api: request ${failure.problem.requestId} failed with ${cause.getClass.getName}")
+      failure
+
+  /** The same answer for an exception outside a route's body, such as the language lookup around every route; the
+    * composition root installs it next to [[ApiModule.decodeFailureHandler]].
+    */
+  val exceptionHandler: ExceptionHandler[Identity] = ExceptionHandler.pure: context =>
+    Some(ValuedEndpointOutput(Endpoints.failure, failureOf(context.e)))
 
   private val sessionEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     Endpoints.createSession.handle: request =>

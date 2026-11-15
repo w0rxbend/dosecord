@@ -5643,6 +5643,7 @@
         "type" : "string",
         "enum" : [
           "account_required",
+          "client_closed",
           "client_outdated",
           "client_too_old",
           "consent_required",

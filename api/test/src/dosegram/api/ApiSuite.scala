@@ -119,6 +119,7 @@ trait ApiSuite extends PgSuite:
     val endpoints = module.endpoints
     val options = NettySyncServerOptions.customiseInterceptors
       .decodeFailureHandler(ApiModule.decodeFailureHandler)
+      .exceptionHandler(module.exceptionHandler)
       .serverLog(None)
       .options
     val server = Thread: () =>

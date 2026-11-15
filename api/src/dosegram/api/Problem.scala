@@ -28,6 +28,7 @@ enum ErrorCode(val wire: String):
   case PayloadTooLarge extends ErrorCode("payload_too_large")
   case UpstreamUnavailable extends ErrorCode("upstream_unavailable")
   case Internal extends ErrorCode("internal")
+  case ClientClosed extends ErrorCode("client_closed")
 
 object ErrorCode:
   given ReadWriter[ErrorCode] = ApiJson.wireEnum(values, _.wire)
@@ -133,3 +134,9 @@ object ApiFailure:
       .copy(retryAfterSeconds = Some(retryAfterSeconds))
 
   def internal(): ApiFailure = of(StatusCode.InternalServerError, ErrorCode.Internal, "Internal error.")
+
+  /** The client went away before the answer: nobody reads it, and it is no failure of the server. */
+  def clientClosed(): ApiFailure = of(ClientClosedRequest, ErrorCode.ClientClosed, "The client closed the request.")
+
+  /** The non-standard status for a request its client abandoned, as proxies log it. */
+  val ClientClosedRequest: StatusCode = StatusCode(499)

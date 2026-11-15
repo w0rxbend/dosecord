@@ -124,6 +124,22 @@ class RlsSuite extends PgSuite:
     finally outsider.close()
     assertEquals(withConnection(RowSecurity.missingGrant), None, "a superuser may take every role")
 
+  test("a connection broken under a transaction surfaces the failure that broke it, and the pool serves on"):
+    val failure = intercept[java.sql.SQLException]:
+      RowSecurity.transaction(dataSource, None): conn =>
+        given Connection = conn
+        val pid = sql"SELECT pg_backend_pid()".queryOne[Int]().get
+        withFreshConnection(_.createStatement().execute(s"SELECT pg_terminate_backend($pid)"))
+        sql"SELECT 1".queryOne[Int]()
+    assertEquals(failure.getSQLState, "57P01", "the terminated connection's own failure, not the rollback's")
+    assertEquals(failure.getSuppressed.map(_.getClass.getName).toList, List("java.sql.SQLException"), "the rollback")
+    assertEquals(dataSource.getHikariPoolMXBean.getActiveConnections, 0)
+    assertEquals(RowSecurity.transaction(dataSource, None)(conn => withSql(conn)), Some(1))
+
+  private def withSql(conn: Connection): Option[Int] =
+    given Connection = conn
+    sql"SELECT 1".queryOne[Int]()
+
   private val at = java.time.Instant.parse("2026-11-14T08:00:00Z")
   private val day = java.time.LocalDate.parse("2026-11-14")
 

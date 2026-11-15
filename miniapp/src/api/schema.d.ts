@@ -1300,7 +1300,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "account_required" | "client_outdated" | "client_too_old" | "consent_required" | "feature_disabled" | "idempotency_key_reuse" | "internal" | "not_found" | "payload_too_large" | "precondition_required" | "quota_exceeded" | "rate_limited" | "session_expired" | "stepup_pending" | "stepup_required" | "unauthenticated" | "upstream_unavailable" | "validation_failed" | "version_conflict";
+        ErrorCode: "account_required" | "client_closed" | "client_outdated" | "client_too_old" | "consent_required" | "feature_disabled" | "idempotency_key_reuse" | "internal" | "not_found" | "payload_too_large" | "precondition_required" | "quota_exceeded" | "rate_limited" | "session_expired" | "stepup_pending" | "stepup_required" | "unauthenticated" | "upstream_unavailable" | "validation_failed" | "version_conflict";
         /** ExportInput */
         ExportInput: {
             kind: components["schemas"]["ExportKindWire"];
