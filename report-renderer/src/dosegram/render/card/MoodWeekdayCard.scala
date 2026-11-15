@@ -28,7 +28,7 @@ object MoodWeekdayCard:
   private val RowsTop = 268.0
   private val RowPitchPx = 88.0
   private val LabelBaselinePx = 58.0
-  private val DaysLeftPx = 160.0
+  private val DaysLeftPx = 176.0
   private val TrackYPx = 44.0
   private val BlobRadiusPx = 30.0
   private val TrackStrokePx = 6.0
@@ -57,8 +57,12 @@ object MoodWeekdayCard:
     val text = TextEquivalent.of(copy.moodWeekdayText(data), copy.moodWeekdayDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-mood-weekday.png", context.privacy == Privacy.Discreet)
 
-  /** Where a mean on the 1 to 5 scale sits on the track. */
-  def trackX(mean: Double): Double = TrackLeft + (mean - 1) / (ScaleSteps - 1) * (TrackRight - TrackLeft)
+  /** Where a mean on the 1 to 5 scale sits on the track: the scale ends one blob inside the track's ends, so a blob at
+    * 1 or 5 stays on its track and clear of the words beside it.
+    */
+  def trackX(mean: Double): Double =
+    val (first, last) = (TrackLeft + BlobRadiusPx, TrackRight - BlobRadiusPx)
+    first + (mean - 1) / (ScaleSteps - 1) * (last - first)
 
   private def axis(frame: CardFrame): Vector[Node] =
     val look = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)

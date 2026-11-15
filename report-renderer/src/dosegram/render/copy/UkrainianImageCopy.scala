@@ -575,6 +575,7 @@ object UkrainianImageCopy extends ImageCopy:
 
   def glanceTitle: String = "Тиждень коротко"
   def glanceFillNote: String = "Заповнення: частка денного плану чи цілі"
+  def glanceBlankNote: String = "Порожнє місце: доз не заплановано"
   def glanceDiscreet: String = "Ваш тиждень коротко."
   def waterWeekTitle: String = "Вода за 7 днів"
   def litresAmount(volumeMl: Int): String = s"${litres(volumeMl)} л"

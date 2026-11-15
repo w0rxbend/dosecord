@@ -220,6 +220,9 @@ trait ImageCopy:
   // days (VISUALS section 7.1); below that the hero is the count of days.
   def glanceTitle: String
   def glanceFillNote: String
+
+  /** The legend's note for a medication day with nothing scheduled, which the glance leaves without a cell. */
+  def glanceBlankNote: String
   def glanceDiscreet: String
   def waterWeekTitle: String
   def litresAmount(volumeMl: Int): String

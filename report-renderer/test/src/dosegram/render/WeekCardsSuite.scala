@@ -53,6 +53,42 @@ class WeekCardsSuite extends munit.FunSuite:
     assertEquals(roles(card).count(_ == "glance.medication.none"), 1)
     assertEquals(card.text.full, context.copy.weekText(WeekCard.summarise(week)))
 
+  test("a glance of two rows starts under its title like one of four, and leaves the rest of the card below"):
+    val two = WeekGlanceCard.render(week.copy(medication = None, sleep = None), context)
+    val four = WeekGlanceCard.render(week, context)
+    val weekdayRow = (card: CardOutput) => Node.flatten(card.scene.nodes).collect { case t: Node.Text if t.kind == TextKind.Axis => t.anchor.y }.distinct
+    assertEquals(weekdayRow(two), weekdayRow(four))
+
+  test("a medication day with nothing scheduled has no cell, and the legend says what the empty place means"):
+    val withBlankDays = WeekGlanceCard.render(week, context)
+    assert(texts(withBlankDays, TextKind.Label).contains(context.copy.glanceBlankNote), texts(withBlankDays, TextKind.Label))
+    val everyDayScheduled = week.copy(medication = Some(Vector.fill(7)(Vector(TakenOnTime))))
+    val full = WeekGlanceCard.render(everyDayScheduled, context)
+    assert(!texts(full, TextKind.Label).contains(context.copy.glanceBlankNote), "no empty place, no note")
+    val uk = Samples.context(Theme.Dark, Privacy.Aggregate, UkrainianImageCopy)
+    assert(texts(WeekGlanceCard.render(week, uk), TextKind.Label).contains(UkrainianImageCopy.glanceBlankNote))
+
+  // The cycle 10 verification: at a mean of 1.0 the blob touched the count of days beside it.
+  for (copyName, copyContext) <- Vector("English" -> context, "Ukrainian" -> Samples.context(Theme.Light, Privacy.Aggregate, UkrainianImageCopy)) do
+    test(s"mood by weekday keeps every blob clear of the words of its row, at both ends of the scale ($copyName)"):
+      val rows = DayOfWeek.values.toVector.zip(Vector(1.0, 1.0, 5.0, 5.0, 3.0, 1.0, 5.0)).zipWithIndex.map {
+        case ((day, mean), index) => MoodWeekdayRow(day, Some(mean), 12 + index % 2)
+      }
+      val card = MoodWeekdayCard.render(MoodWeekdayData(Monday, Monday.plusDays(90), rows), copyContext)
+      val lines = Node.flatten(card.scene.nodes).collect { case text: Node.Text => text }
+      val blobs = SceneGeometry.blobs(card.scene.nodes)
+      assertEquals(blobs.size, 7)
+      val extent = (line: Node.Text) => SceneGeometry.text(line, copyContext.fitter)
+      rows.zip(blobs).foreach { (row, blob) =>
+        val name = lines.find(_.content == copyContext.copy.weekdayName(row.day)).get
+        val onRow = (content: String) => lines.find(line => line.content == content && StrictMath.abs(line.anchor.y - name.anchor.y) < 1).get
+        val count = extent(onRow(copyContext.copy.moodWeekdayDays(row.checkInDays)))
+        val value = extent(onRow(copyContext.copy.insightValue(row.mean.get)))
+        assert(count.left - extent(name).right >= 16, s"${row.day}: ${count.left - extent(name).right} px from the name")
+        assert(blob.left - count.right >= 24, s"${row.day}: ${blob.left - count.right} px from the count of days")
+        assert(value.left - blob.right >= 24, s"${row.day}: ${value.left - blob.right} px from the value")
+      }
+
   test("the water week averages from three logged days and counts the days below that"):
     val few = WaterWeekCard.render(Monday, week.water.get, context)
     assertEquals(figures(few).head, "1")

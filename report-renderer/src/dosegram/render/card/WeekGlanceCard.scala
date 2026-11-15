@@ -23,7 +23,8 @@ import dosegram.render.tokens.Tokens
   * cell fills toward that day's own plan or goal (doses taken of the resolved ones, water and sleep against the user's
   * goal, main meals of three), mood is the day's blob. No number, score or count is drawn: the figures are in the text
   * equivalent, which is the weekly report's (VA-PR-01, VA-PR-05). A day without a record is a dotted cell, never an
-  * empty fill (VA-PR-03).
+  * empty fill (VA-PR-03). A day with no dose scheduled has no cell, and the legend's note says so (supervisor decision
+  * of 2026-11-15, cycle 10 verification).
   */
 object WeekGlanceCard:
   val TemplateId = "card.week.glance.v1"
@@ -64,14 +65,14 @@ object WeekGlanceCard:
     ).flatten
     val cells = rows.flatMap(_._2)
     val legend = Legend.flow(legendItems(cells, context), frame.width, context.fitter)
+    // The grid starts under the title whatever its row count: a week of two domains leaves its room below, not above.
     val legendTop = RowsTop + rows.size * RowPitchPx + RowsToLegendPx
-    val shift = frame.balance(WeekdayBaseline - 40, legendTop + legend.height)
     val nodes = frame.header(copy.glanceTitle, copy.dateRange(week.from, week.from.plusDays(DayCount - 1L)))
-      ++ weekdays(week, WeekdayBaseline + shift, frame, context)
+      ++ weekdays(week, WeekdayBaseline, frame, context)
       ++ rows.zipWithIndex.flatMap { case ((domain, days), index) =>
-        row(domain, days, RowsTop + shift + index * RowPitchPx, frame, context)
+        row(domain, days, RowsTop + index * RowPitchPx, frame, context)
       }
-      ++ legend.nodes(Point(frame.left, legendTop + shift), frame, context.fitter)
+      ++ legend.nodes(Point(frame.left, legendTop), frame, context.fitter)
       :+ frame.footer
     val text = TextEquivalent.of(copy.weekText(WeekCard.summarise(week)), copy.glanceDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-week-glance.png", context.privacy == Privacy.Discreet)
@@ -134,7 +135,8 @@ object WeekGlanceCard:
       frame.text(initial, Point(CellsLeftPx + (day + 0.5) * slotWidth, baseline), look, slotWidth)
     }
 
-  // The fill is explained in words once; the dotted and hatched cells are named by glyph when the grid draws them.
+  // The fill is explained in words once; the dotted and hatched cells are named by glyph when the grid draws them, and
+  // the empty place of a day with no dose scheduled by a note, since no glyph can show an absence.
   private def legendItems(cells: Vector[Option[Cell]], context: CardContext): Vector[LegendItem] =
     val tokens = context.tokens
     val shown = cells.map(_.getOrElse(NoRecord))
@@ -150,5 +152,6 @@ object WeekGlanceCard:
       ),
       Option.when(shown.contains(Estimate))(
         LegendItem.of(box => LevelCell.estimate("legend.estimate", box, tokens), context.copy.estimateMark)
-      )
+      ),
+      Option.when(shown.contains(Nothing))(LegendItem.note(context.copy.glanceBlankNote))
     ).flatten

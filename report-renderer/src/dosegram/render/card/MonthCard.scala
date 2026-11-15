@@ -63,28 +63,31 @@ object MonthCard:
   private val HeroBaseline = 316.0
   private val HeroToNotesPx = 36.0
   private val NoteLinePx = 52.0
-  private val WeekHeaderBaseline = 452.0
-  private val RowsTop = 484.0
-  private val HeadlinePx = 64.0
-  private val StripPx = 80.0
-  private val RowGapPx = 24.0
   private val TextLeft = 136.0
   private val BarWidthPx = 64.0
-  private val MiniBlobPx = 38.0
+  private val ComparisonPx = 40.0
   private val MinimumDosesForPercent = 5
 
-  final private case class Row(domain: Domain, headline: String, draw: (MonthWeek, Box) => Vector[Node])
+  final private case class Row(domain: Domain, headline: String, draw: (MonthWeek, Box, RowLayout) => Vector[Node])
 
-  /** The height of a row's headline and strip and the gap under it. Five rows, food included, take the tighter rows so
-    * they and the comparison line end above the portrait's footer.
+  /** Where the week header and the rows start, the height of a row's headline and strip, and the gap under it. Five
+    * rows, food included, start higher and take tighter strips so they and the comparison line end above the portrait's
+    * footer; a mood blob is as tall as its strip, so it never reaches the row's name (cycle 10 verification).
     */
-  final private case class RowLayout(headlinePx: Double, stripPx: Double, gapPx: Double):
+  final private case class RowLayout(
+      weekHeaderBaseline: Double,
+      headlinePx: Double,
+      stripPx: Double,
+      gapPx: Double
+  ):
+    def rowsTop: Double = weekHeaderBaseline + 32
     def pitch: Double = headlinePx + stripPx + gapPx
+    def blobPx: Double = StrictMath.min(38.0, stripPx / 2 - 2)
 
   private object RowLayout:
     private val MaxRegularRows = 4
     def of(rows: Int): RowLayout =
-      if rows <= MaxRegularRows then RowLayout(HeadlinePx, StripPx, RowGapPx) else RowLayout(56, 64, 20)
+      if rows <= MaxRegularRows then RowLayout(452, 64, 80, 24) else RowLayout(412, 60, 64, 22)
 
   def render(month: MonthData, context: CardContext): CardOutput =
     val copy = context.copy
@@ -108,13 +111,13 @@ object MonthCard:
     val layout = RowLayout.of(rows.size)
     // A month with few rows collapses to the square; the comparison line, when there is one, ends the body.
     val hasComparison = month.previousAdherence.isDefined && adherence(month).isDefined
-    val bodyEnd = RowsTop + rows.size * layout.pitch + (if hasComparison then 32.0 else 0.0)
+    val bodyEnd = layout.rowsTop + rows.size * layout.pitch + (if hasComparison then ComparisonPx else 0.0)
     val frame = CardFrame(context, CardFrame.collapsing(bodyEnd), context.tokens.surface)
     val nodes = frame.header(copy.monthTitle, copy.monthYear(month.month))
       ++ hero(month, frame, context)
-      ++ weekHeader(month, frame, context)
+      ++ weekHeader(month, layout, frame, context)
       ++ rows.zipWithIndex.flatMap((row, index) =>
-        drawRow(row, month, RowsTop + index * layout.pitch, layout, frame, context)
+        drawRow(row, month, layout.rowsTop + index * layout.pitch, layout, frame, context)
       )
       ++ comparison(month, rows.size, layout, frame, context)
       :+ frame.footer
@@ -145,13 +148,13 @@ object MonthCard:
 
   private def slotWidth(month: MonthData, frame: CardFrame): Double = (frame.right - TextLeft) / month.weeks.size
 
-  private def weekHeader(month: MonthData, frame: CardFrame, context: CardContext): Vector[Node] =
+  private def weekHeader(month: MonthData, layout: RowLayout, frame: CardFrame, context: CardContext): Vector[Node] =
     val look = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
     val slot = slotWidth(month, frame)
     month.weeks.indices.toVector.map { index =>
       frame.text(
         context.copy.weekNumber(index + 1),
-        Point(TextLeft + (index + 0.5) * slot, WeekHeaderBaseline),
+        Point(TextLeft + (index + 0.5) * slot, layout.weekHeaderBaseline),
         look,
         slot
       )
@@ -169,7 +172,7 @@ object MonthCard:
     val headlineLook = TextLook(TextStyle.BodyStrong, frame.tokens.ink, Align.End, TextKind.Value)
     val slot = slotWidth(month, frame)
     val marks = month.weeks.zipWithIndex.flatMap { (week, index) =>
-      row.draw(week, Box(TextLeft + index * slot, top + layout.headlinePx, slot, layout.stripPx))
+      row.draw(week, Box(TextLeft + index * slot, top + layout.headlinePx, slot, layout.stripPx), layout)
     }
     Vector(
       Icons.of(row.domain, Point(frame.left, top), frame.tokens.hue(row.domain)),
@@ -183,7 +186,7 @@ object MonthCard:
       Row(
         Domain.Medication,
         context.copy.takenOf(counts.taken, counts.counted),
-        (week, slot) =>
+        (week, slot, _) =>
           week.doses.filter(_.counted > 0) match
             case None        => Vector(emptySlot(slot, tokens))
             case Some(doses) =>
@@ -198,7 +201,7 @@ object MonthCard:
       Row(
         Domain.Water,
         context.copy.goalReachedDays(goalDays),
-        (week, slot) =>
+        (week, slot, _) =>
           week.waterMeanMl match
             case None       => Vector(emptySlot(slot, tokens))
             case Some(mean) => Vector(bar(slot, mean / scale, tokens.tide, "month.water"))
@@ -211,10 +214,10 @@ object MonthCard:
       Row(
         Domain.Mood,
         context.copy.checkInDays(days),
-        (week, slot) =>
+        (week, slot, layout) =>
           week.mood match
-            case None        => Vector(emptyCircle(slot, tokens))
-            case Some(state) => Vector(BlobFigure.of(state, BlobFrame(slot.center.moved(0, -4), MiniBlobPx), tokens))
+            case None        => Vector(emptyCircle(slot, layout.blobPx, tokens))
+            case Some(state) => Vector(BlobFigure.of(state, BlobFrame(slot.center.moved(0, -4), layout.blobPx), tokens))
       )
     }
 
@@ -225,7 +228,7 @@ object MonthCard:
       Row(
         Domain.Sleep,
         context.copy.sleepAverage(averageMinutes),
-        (week, slot) =>
+        (week, slot, _) =>
           week.sleepMeanMinutes match
             case None       => Vector(emptySlot(slot, tokens))
             case Some(mean) => Vector(bar(slot, mean / scale, tokens.dusk, "month.sleep"))
@@ -239,7 +242,7 @@ object MonthCard:
       Row(
         Domain.Food,
         if meals.logged > 0 then context.copy.mealsLogged(meals.logged) else context.copy.monthFood(meals),
-        (week, slot) =>
+        (week, slot, _) =>
           week.mealsLogged match
             case None        => Vector(emptySlot(slot, tokens))
             case Some(count) => Vector(bar(slot, count / scale, tokens.rye, "month.food"))
@@ -259,10 +262,10 @@ object MonthCard:
       Vector(Node.outlinedRect(box.inset(2), 12, Stroke.dotted(tokens.ink3)))
     )
 
-  private def emptyCircle(slot: Box, tokens: Tokens): Node =
+  private def emptyCircle(slot: Box, blobPx: Double, tokens: Tokens): Node =
     Node.Mark(
       MarkMeta("month.none", Set(Channel.Pattern)),
-      Vector(Node.Circle(slot.center.moved(0, -4), MiniBlobPx - 4, None, Some(Stroke.dotted(tokens.ink3))))
+      Vector(Node.Circle(slot.center.moved(0, -4), blobPx - 4, None, Some(Stroke.dotted(tokens.ink3))))
     )
 
   // The user's own previous month, stated, never judged (VA-PR-07).
@@ -273,7 +276,7 @@ object MonthCard:
       frame: CardFrame,
       context: CardContext
   ): Vector[Node] =
-    val baseline = RowsTop + rowCount * layout.pitch + 32
+    val baseline = layout.rowsTop + rowCount * layout.pitch + ComparisonPx
     month.previousAdherence
       .filter(_ => adherence(month).isDefined)
       .map { percent =>

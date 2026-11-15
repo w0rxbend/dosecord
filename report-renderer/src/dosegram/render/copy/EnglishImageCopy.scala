@@ -546,6 +546,7 @@ object EnglishImageCopy extends ImageCopy:
 
   def glanceTitle: String = "Week at a glance"
   def glanceFillNote: String = "Fill: share of the day's plan or goal"
+  def glanceBlankNote: String = "Empty place: no dose scheduled"
   def glanceDiscreet: String = "Your week at a glance."
   def waterWeekTitle: String = "Water, 7 days"
   def litresAmount(volumeMl: Int): String = s"${litres(volumeMl)} l"

@@ -46,6 +46,27 @@ class MonthCardsSuite extends munit.FunSuite:
     Vector.tabulate(31)(index => Option.when(index % 3 == 0)(MoodState(2 + index % 5, 3)))
   )
 
+  // The cycle 10 verification: with food the five rows were cramped, the mood blobs touching the row's name.
+  for (name, fixture) <- Vector("five rows" -> "month/with-food", "four rows" -> "month/typical") do
+    test(s"each row of the month ($name) keeps its marks clear of its words and of the next row, the last of the comparison"):
+      val card = page(fixture)
+      val geometry = (text: Node.Text) => SceneGeometry.text(text, context.fitter)
+      val rowNames = texts(card).filter(text => Vector("Medication", "Water", "Mood", "Sleep", "Food").contains(text.content))
+      val rowMarks = Vector("month.medication", "month.water", "month.sleep", "month.food", "month.none")
+        .flatMap(role => SceneGeometry.marks(card.scene.nodes, role)) ++ SceneGeometry.blobs(card.scene.nodes)
+      rowNames.foreach { rowName =>
+        val own = rowMarks.filter(mark => mark.top > rowName.anchor.y - 1)
+        val below = rowNames.filter(_.anchor.y > rowName.anchor.y).map(geometry).map(_.top).minOption
+        val mine = own.filter(mark => below.forall(mark.top < _))
+        assert(mine.nonEmpty, s"${rowName.content} has marks")
+        val gapAbove = mine.map(_.top).min - rowName.anchor.y
+        assert(gapAbove >= 12, s"${rowName.content}: marks $gapAbove px under the name")
+        below.foreach(next => assert(next - mine.map(_.bottom).max >= 24, s"${rowName.content}: ${next - mine.map(_.bottom).max} px above the next row"))
+      }
+      val comparison = texts(card).find(_.content.startsWith("September")).map(geometry).get
+      val lowest = rowMarks.map(_.bottom).max
+      assert(comparison.top - lowest >= 28, s"the comparison line ${comparison.top - lowest} px under the last row")
+
   test("food on the month (VISUALS 6.6): a row on page 1 and dots by day on page 3, which keeps at most two panels"):
     val withFood = page("month/with-food")
     assertEquals(marks(withFood, "month.food").size, 4, "a bar per week with meals, a dotted slot for the other")

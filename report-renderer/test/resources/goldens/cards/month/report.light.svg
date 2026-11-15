@@ -114,6 +114,6 @@
 <g>
   <rect x="898" y="1054" width="60" height="76" rx="12" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
-<text x="64" y="1188" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">September: 91% of scheduled doses taken.</text>
+<text x="64" y="1196" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">September: 91% of scheduled doses taken.</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
 </svg>
