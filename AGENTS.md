@@ -107,7 +107,7 @@ Appendix B and its status notes are the record; this is the short form.
   (`infra/crypto`, `core/ports/KeyService`); `SchemaUpgrade` seals old values
   at start. V13 seals outbox payloads and stored replies too (account key, or
   the `transport` service key before the account exists) and the start seals
-  and empties the old ones, then vacuums. V21 does the same for the inbox,
+  and empties the old ones, then vacuums. V19 does the same for the inbox,
   sessions, form runs, callback slots, domain events, reminder titles and
   dose units, and keeps display names empty. Still plaintext: file ids.
 - Audit and deletion (G2.16, G2.17, G5.7, V12): `audit_log` is append-only,

@@ -107,7 +107,7 @@ object SealedStoresPgSuite:
     "outbox_messages" -> Set("send_key", "op", "kind", "vendor", "items", "target", "importance", "status",
       "platform_message_id", "last_error", "traceparent", "chat_key"),
     "inbound_events" -> Set("vendor", "vendor_event_id", "chat_key"),
-    // V21: keys, chats, codes and the names of flows, forms and steps.
+    // V19: keys, chats, codes and the names of flows, forms and steps.
     "inbound_inbox" -> Set("vendor", "vendor_event_id", "chat_key", "status", "failure_reason"),
     "conversation_sessions" -> Set("principal_key", "vendor", "chat_id", "flow", "step"),
     "form_runs" -> Set("form_id"),

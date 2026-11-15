@@ -7,7 +7,7 @@ import dosegram.core.ports.NewDomainEvent
 import java.sql.Connection
 import scala.language.implicitConversions
 
-/** `domain_events`. The envelope and the actor are sealed (V21, ROADMAP G2.4b) with the event's account key, or the
+/** `domain_events`. The envelope and the actor are sealed (V19, ROADMAP G2.4b) with the event's account key, or the
   * transport service key for an event without an account: an event carries the names and words of the change.
   */
 final class PgDomainEventRepository(conn: Connection, keys: KeyService) extends DomainEventRepository:

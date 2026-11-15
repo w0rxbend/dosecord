@@ -1,6 +1,6 @@
 # Performance
 
-Status: measured on 2026-11-15 on the `feat/perf-privacy` branch (migration V21). Each number comes from a probe in
+Status: measured on 2026-11-15 on the `feat/perf-privacy` branch (the migration that merged as V19). Each number comes from a probe in
 the repository, run by hand. Section 2 says how to run them. Nothing in the test suites asserts on a time, because
 the numbers depend on the host. The query counts of section 3 do have a test.
 
@@ -9,7 +9,7 @@ the numbers depend on the host. The query counts of section 3 do have a test.
 - Host: a 16-thread Linux workstation with 64 GB of memory, shared with other build agents. The load average was 9 to
   17 during the runs. Absolute numbers are therefore pessimistic and noisy. Each before and after pair was run back to
   back, on the same host and the same data.
-- Database: Testcontainers `postgres:18-alpine`, migrated through V21, reached over the Docker bridge. A round trip
+- Database: Testcontainers `postgres:18-alpine`, migrated through V19, reached over the Docker bridge. A round trip
   costs about 0.1 to 0.2 ms, so a request's time follows how many statements it runs more than the server time of
   those statements.
 - The JVM runs as the tests run it, through `./mill <module>.test.runMain`, without the container's heap limit.
@@ -34,9 +34,9 @@ All three changes leave behaviour as it was. The suites of the standard gate pas
 
 | # | Hot spot | Found by | Fix | Before | After |
 |---|---|---|---|---|---|
-| 1 | The account's primary delivery channels (`SELECT dc.id, pi.vendor, pi.dm_channel_id`) are read once for every reminder, prompt and digest. `delivery_channels` had no index on `account_id`, so each lookup read the whole table under its row-level security policy | Reminder loop, statement times | `ix_delivery_channels_account (account_id, priority)` in V21 | 57.5 ms of 92.1 ms of server time for one batch of 50 doses, 1.15 ms per lookup | 1.4 ms of 31.2 ms, 0.03 ms per lookup |
+| 1 | The account's primary delivery channels (`SELECT dc.id, pi.vendor, pi.dm_channel_id`) are read once for every reminder, prompt and digest. `delivery_channels` had no index on `account_id`, so each lookup read the whole table under its row-level security policy | Reminder loop, statement times | `ix_delivery_channels_account (account_id, priority)` in V19 | 57.5 ms of 92.1 ms of server time for one batch of 50 doses, 1.15 ms per lookup | 1.4 ms of 31.2 ms, 0.03 ms per lookup |
 | 2 | One transaction read the account's time zone, settings and consents again for every domain it touched: 14 time-zone and 12 consent reads for one Insights overview, and 9 time-zone and 13 settings reads around one chat update | API latency, statement counts | `TransactionReads`: `PgAccountRepository` and `PgConsentLedger` read each value once per transaction. A write through the owning repository forgets it, and so does an erasure or a rolled-back savepoint (`TransactionReadsPgSuite`) | Insights overview: 59 statements, p50 12.0 to 13.0 ms | 39 statements, p50 10.2 to 11.0 ms |
-| 3 | For each due dose the loop asks for the schedule's next open dose (`SELECT MIN(scheduled_for) ... WHERE schedule_id = ? AND status IN (open)`). The only index on the schedule also covered its whole history, so the lookup grew with the schedule's age | Reminder loop, statement times | `ix_occ_schedule_open (schedule_id, scheduled_for) WHERE status IN ('pending', 'due', 'snoozed')` in V21 | 5.3 ms of server time per 50 doses with 90 days of history | 0.9 ms |
+| 3 | For each due dose the loop asks for the schedule's next open dose (`SELECT MIN(scheduled_for) ... WHERE schedule_id = ? AND status IN (open)`). The only index on the schedule also covered its whole history, so the lookup grew with the schedule's age | Reminder loop, statement times | `ix_occ_schedule_open (schedule_id, scheduled_for) WHERE status IN ('pending', 'due', 'snoozed')` in V19 | 5.3 ms of server time per 50 doses with 90 days of history | 0.9 ms |
 
 Together, hot spots 1 and 3 halve the busy reminder loop: 2.98 to 3.44 ms per due dose before (1000 doses in 2.98 to
 3.44 s) and 1.57 to 1.63 ms after (the 950 doses after the batch whose statements are counted, in 1.49 to 1.55 s).

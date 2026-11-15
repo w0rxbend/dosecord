@@ -30,7 +30,7 @@ final class PgIdentityRepository(conn: Connection) extends IdentityRepository:
         principal
       case None =>
         val id = UUID.randomUUID()
-        // The vendor's name of the person is not kept (K8; V21 keeps vendor_username empty).
+        // The vendor's name of the person is not kept (K8; V19 keeps vendor_username empty).
         sql"""INSERT INTO platform_identities (id, vendor, vendor_user_id, last_seen_at)
               VALUES ($id, ${actor.vendor}, ${actor.vendorUserId}, $now)
               ON CONFLICT DO NOTHING""".execute()

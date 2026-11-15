@@ -23,7 +23,7 @@ final case class SealingCount(column: SealedColumn, sealedNow: Int, verified: In
   * before it writes it. A run that stops part-way leaves whole batches behind; the next run takes up the rows still
   * without a sealed value, so it is idempotent and resumable. The V10 stage then opens every sealed copy that still has
   * a plaintext next to it and compares the two, sealing again a copy that differs, so V11 empties only values whose
-  * sealed copy is proven. The V13 and V21 stages empty the plaintext in the UPDATE that writes the sealed value. Logs
+  * sealed copy is proven. The V13 and V19 stages empty the plaintext in the UPDATE that writes the sealed value. Logs
   * carry table, column and counts, never a value.
   */
 final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
@@ -160,8 +160,8 @@ enum SealingStage(val expand: String, val columns: List[SealedColumn]):
   /** V13, after `audit_log` exists; each UPDATE empties the plaintext it sealed. */
   case Transport extends SealingStage("13", SealedColumns.emptiedOnSeal)
 
-  /** V21, the chat state and the event log; each UPDATE empties the plaintext it sealed, as in V13. */
-  case ChatState extends SealingStage("21", SealedColumns.chatState)
+  /** V19, the chat state and the event log; each UPDATE empties the plaintext it sealed, as in V13. */
+  case ChatState extends SealingStage("19", SealedColumns.chatState)
 
 object SealingBackfill:
 

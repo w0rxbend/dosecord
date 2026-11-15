@@ -157,7 +157,7 @@ class RlsSuite extends PgSuite:
       Flyway.configure().dataSource(ds).target("13").load().migrate()
       val (a, b) = withConnectionOf(ds)(seedAtV13)
       val result = SchemaUpgrade.run(ds, DataKeys.development, _ => ())
-      assertEquals((result.migrationsExecuted, result.schemaVersion), (6, "21"))
+      assertEquals((result.migrationsExecuted, result.schemaVersion), (6, "19"))
       assertEquals(withConnectionOf(ds)(c => countOf(c, "SELECT count(*) FROM hydration_entries")), 2L, "the owner sees all")
       assertServing(PgUnitOfWork(ds, MutableClock(at), DataKeys.development), a, b)
     finally ds.close()

@@ -13,7 +13,7 @@ import scala.language.implicitConversions
 
 /** `inbound_inbox` (ROADMAP G1.7, ARCHITECTURE section 7.2): one auto-committed statement per call, so a call that
   * returns has made its change durable. The body is the message as received, so it is sealed with the transport service
-  * key (V21, ROADMAP G2.4b): a row is keyed by chat before any account exists.
+  * key (V19, ROADMAP G2.4b): a row is keyed by chat before any account exists.
   */
 final class PgInboundInbox(dataSource: DataSource, keys: DataKeys) extends InboundInbox:
   import SealedColumns.InboxBody

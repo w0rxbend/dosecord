@@ -110,11 +110,11 @@ object SealedColumns:
     SealOwner.AccountOr("t.account_id", TransportPurpose)
   )
 
-  /** An update as received (V21): the message text. The inbox keys a row by chat before any account exists. */
+  /** An update as received (V19): the message text. The inbox keys a row by chat before any account exists. */
   val InboxBody: SealedColumn =
     SealedColumn("inbound_inbox", "body", "body_enc", "vendor_event_id", SealOwner.Service(TransportPurpose))
 
-  /** An open wizard's draft and its last question (V21): a typed medication name among them. A session is keyed by the
+  /** An open wizard's draft and its last question (V19): a typed medication name among them. A session is keyed by the
     * chat's principal, which is an identity before the account exists, so the service key seals it.
     */
   val SessionData: SealedColumn =
@@ -122,11 +122,11 @@ object SealedColumns:
   val SessionPrompt: SealedColumn =
     SealedColumn("conversation_sessions", "last_prompt", "last_prompt_enc", "id", SealOwner.Service(TransportPurpose))
 
-  /** An open form's answers (V21), keyed by its session. */
+  /** An open form's answers (V19), keyed by its session. */
   val FormAnswers: SealedColumn =
     SealedColumn("form_runs", "answers", "answers_enc", "session_id", SealOwner.Service(TransportPurpose))
 
-  /** The state behind a button (V21). */
+  /** The state behind a button (V19). */
   val SlotPayload: SealedColumn = SealedColumn(
     "callback_slots",
     "payload",
@@ -135,17 +135,17 @@ object SealedColumns:
     SealOwner.AccountOr("t.account_id", TransportPurpose)
   )
 
-  /** The event log (V21): the envelope and the actor of each event. */
+  /** The event log (V19): the envelope and the actor of each event. */
   val EventData: SealedColumn =
     SealedColumn("domain_events", "data", "data_enc", "id", SealOwner.AccountOr("t.account_id", TransportPurpose))
   val EventActor: SealedColumn =
     SealedColumn("domain_events", "actor", "actor_enc", "id", SealOwner.AccountOr("t.account_id", TransportPurpose))
 
-  /** A reminder's own words (V21). */
+  /** A reminder's own words (V19). */
   val ReminderTitle: SealedColumn =
     SealedColumn("reminders", "title", "title_enc", "id", SealOwner.AccountOf("t.account_id"))
 
-  /** The unit of a strength (V21): a catalogue code, or the word the user typed. */
+  /** The unit of a strength (V19): a catalogue code, or the word the user typed. */
   val MedicationDoseUnit: SealedColumn =
     SealedColumn("medications", "dose_unit", "dose_unit_enc", "id", SealOwner.AccountOf("t.user_id"))
 
@@ -174,7 +174,7 @@ object SealedColumns:
     */
   val emptiedOnSeal: List[SealedColumn] = List(OutboxPayload, InboundReply)
 
-  /** The sealed columns of V21, which the backfill right after V21 seals and empties like those of V13. */
+  /** The sealed columns of V19, which the backfill right after V19 seals and empties like those of V13. */
   val chatState: List[SealedColumn] = List(
     InboxBody,
     SessionData,

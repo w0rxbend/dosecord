@@ -7,7 +7,7 @@ import dosegram.core.ports.KeyService
 import java.sql.Connection
 import scala.language.implicitConversions
 
-/** `callback_slots`. The state behind a button is sealed (V21, ROADMAP G2.4b) with the slot's account key, or the
+/** `callback_slots`. The state behind a button is sealed (V19, ROADMAP G2.4b) with the slot's account key, or the
   * transport service key for a button of the onboarding.
   */
 final class PgCallbackSlotRepository(conn: Connection, keys: KeyService) extends CallbackSlotRepository:

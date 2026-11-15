@@ -19,7 +19,7 @@ final case class UpgradeResult(migrationsExecuted: Int, schemaVersion: String, v
 /** `dosegram migrate`, and the same step at every start (ROADMAP G2.4, G2.4b; supervisor decisions, 2026-11-14): under
   * the migration lock, Flyway up to V10 (the sealed columns), then the [[SealingBackfill]] of every value still in a
   * plaintext column, then V11 (emptying the plaintext columns) and V12 (`audit_log`) in one transaction, then V13 (the
-  * sealed transport columns) and its backfill, which empties each plaintext value it seals, then V21 (the sealed chat
+  * sealed transport columns) and its backfill, which empties each plaintext value it seals, then V19 (the sealed chat
   * state and event log) and its backfill, which does the same, then the rest of the migrations, and last the rewrap of
   * every data key a retired key-encryption key still wraps (SEC-07). V11 refuses to run while a value is left unsealed,
   * so a backfill that stops part-way leaves the schema at V10 and the next start resumes it. The V10 backfill writes

@@ -8,7 +8,7 @@ import java.sql.Connection
 import java.util.UUID
 import scala.language.implicitConversions
 
-/** `form_runs`. The answers of an open form are sealed with the transport service key (V21, ROADMAP G2.4b): a form runs
+/** `form_runs`. The answers of an open form are sealed with the transport service key (V19, ROADMAP G2.4b): a form runs
   * inside a session, which exists before the account does.
   */
 final class PgFormRunRepository(conn: Connection, keys: KeyService) extends FormRunRepository:

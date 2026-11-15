@@ -64,7 +64,7 @@ class MediatorRepositorySuite extends PgSuite:
 
   test("domain_events: append carries type, source and account id"):
     val uow = newUow
-    // The event is sealed with its account's key (V21), so the account exists, as it does for every producer.
+    // The event is sealed with its account's key (V19), so the account exists, as it does for every producer.
     val accountId = Fixtures(dataSource).account()
     uow.transaction(
       _.domainEvents.append(

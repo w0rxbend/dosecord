@@ -10,7 +10,7 @@ import java.sql.Connection
 import scala.language.implicitConversions
 
 /** `conversation_sessions`. The draft and the last question of an open wizard are sealed with the transport service key
-  * (V21, ROADMAP G2.4b): a draft holds what the user typed, a medication name among it, and a session is keyed by the
+  * (V19, ROADMAP G2.4b): a draft holds what the user typed, a medication name among it, and a session is keyed by the
   * chat's principal, which exists before the account does.
   */
 final class PgSessionRepository(conn: Connection, clock: Clock, keys: KeyService) extends SessionRepository:

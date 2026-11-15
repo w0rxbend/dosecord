@@ -1,4 +1,4 @@
--- V21: the chat state, the event log and the last plaintext Class A columns
+-- V19: the chat state, the event log and the last plaintext Class A columns
 -- sealed (ROADMAP G2.4b, ARCHITECTURE section 15.2 and SEC-04; supervisor
 -- decisions, 2026-11-15).
 --

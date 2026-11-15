@@ -209,7 +209,7 @@ class WizardEnginePgSuite extends PgSuite:
   private final case class SessionRow(step: String, stepSeq: Int, version: Int, updatedAt: Instant, data: String):
     def answers: Map[String, String] = WizardDocument.dataFromJson(data).filterNot(_._1.startsWith("_"))
 
-  // The draft is sealed with the transport service key (V21): the row is read the way the session store reads it.
+  // The draft is sealed with the transport service key (V19): the row is read the way the session store reads it.
   private def sessionRow(): Option[SessionRow] = withConnection { conn =>
     given Connection = conn
     val keys = DataKeys.development.on(conn)
