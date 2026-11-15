@@ -45,7 +45,7 @@ object Launch:
       val exportFiles = ExportAssetStore(PgUnitOfWork(dataSource, Clock.system, keys), Clock.system, durable.assets)
       val stores = durable.copy(assets = exportFiles)
       val images = StatusImages.from(settings.render, stores, line => scribe.info(line))
-      val adapters = Adapters.build(settings, Clock.system, images, PgInboundInbox(dataSource))
+      val adapters = Adapters.build(settings, Clock.system, images, PgInboundInbox(dataSource, keys))
       Parts(Clock.system, adapters, Workers.Cadence.Production, images)
 
   /** Starts, in the order of DESIGN.md section 12, the workers, then the adapters, then the HTTP edge, each only when

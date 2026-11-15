@@ -1,8 +1,10 @@
 package dosegram.infra.db
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.core.ports.InboxEntry
 import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.PendingInboxEntry
+import dosegram.core.ports.SealBroken
 
 import java.sql.Connection
 import java.time.Duration
@@ -30,7 +32,8 @@ class InboundInboxPgSuite extends PgSuite:
       rows.next()
       rows.getInt(1)
 
-  private def bodies: Int = count("SELECT count(*) FROM inbound_inbox WHERE body IS NOT NULL")
+  private def bodies: Int =
+    count("SELECT count(*) FROM inbound_inbox WHERE body IS NOT NULL OR body_enc IS NOT NULL")
   private def rows: Int = count("SELECT count(*) FROM inbound_inbox")
 
   private def inboundEvent(id: String, receivedAt: Instant): Unit =
@@ -41,11 +44,30 @@ class InboundInboxPgSuite extends PgSuite:
       ()
 
   test("a stored entry is pending for another store object, with its body and its receipt time"):
-    PgInboundInbox(dataSource).store(entry(1), t0)
-    assertEquals(PgInboundInbox(dataSource).pending(perChat = 10, limit = 10), List(PendingInboxEntry(entry(1), t0)))
+    PgInboundInbox(dataSource, DataKeys.development).store(entry(1), t0)
+    assertEquals(PgInboundInbox(dataSource, DataKeys.development).pending(perChat = 10, limit = 10), List(PendingInboxEntry(entry(1), t0)))
+
+  test("a stored body is sealed: no plaintext in the row, and moved to another row it does not open"):
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
+    val canary = """{"message":{"text":"canary-inbox-body"}}"""
+    inbox.store(entry(1).copy(body = canary), t0)
+    inbox.store(entry(2), t0)
+    assertEquals(count("SELECT count(*) FROM inbound_inbox WHERE body IS NOT NULL"), 0, "no plaintext body")
+    assertEquals(
+      count("SELECT count(*) FROM inbound_inbox WHERE position(convert_to('canary-inbox-body', 'UTF8') IN body_enc) > 0"),
+      0
+    )
+    assertEquals(inbox.pending(perChat = 1, limit = 10).map(_.entry.body), List(canary))
+    withConnection(
+      _.createStatement().execute(
+        "UPDATE inbound_inbox SET body_enc = (SELECT body_enc FROM inbound_inbox WHERE sequence = 1) WHERE sequence = 2"
+      )
+    )
+    inbox.markProcessed(entry(1), t0)
+    intercept[SealBroken](inbox.pending(perChat = 1, limit = 10))
 
   test("TG-04: the same update stored twice is one row, and a processed one is not offered again"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     inbox.store(entry(1), t0.plusSeconds(5))
     assertEquals(rows, 1)
@@ -55,7 +77,7 @@ class InboundInboxPgSuite extends PgSuite:
     assertEquals(inbox.pending(10, 10), Nil)
 
   test("per chat the pending entries come in sequence order, at most perChat of each chat"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     List(entry(5), entry(3, "8002"), entry(2), entry(4), entry(1, "8002")).foreach(inbox.store(_, t0))
     val pending = inbox.pending(perChat = 2, limit = 10).map(_.entry)
     assertEquals(pending.filter(_.chatKey == "7001").map(_.sequence), List(2L, 4L))
@@ -63,7 +85,7 @@ class InboundInboxPgSuite extends PgSuite:
     assertEquals(inbox.pending(perChat = 10, limit = 1).size, 1)
 
   test("a processed entry loses its body at once and the next one of its chat comes up"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     inbox.store(entry(2), t0)
     inbox.markProcessed(entry(1), t0.plusSeconds(1))
@@ -71,7 +93,7 @@ class InboundInboxPgSuite extends PgSuite:
     assertEquals(inbox.pending(perChat = 1, limit = 10).map(_.entry.sequence), List(2L))
 
   test("TG-09: the third failure quarantines an entry and its chat moves on"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     inbox.store(entry(2), t0)
     assert(!inbox.recordFailure(entry(1), maxAttempts = 3, t0, "sql_08006"))
@@ -79,7 +101,7 @@ class InboundInboxPgSuite extends PgSuite:
     assertEquals(inbox.pending(perChat = 1, limit = 10).map(_.entry.sequence), List(1L), "still pending")
     assert(inbox.recordFailure(entry(1), maxAttempts = 3, t0, "sql_23505"))
     assertEquals(inbox.pending(perChat = 1, limit = 10).map(_.entry.sequence), List(2L))
-    assertEquals(count("SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined' AND body IS NOT NULL"), 1)
+    assertEquals(count("SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined' AND body_enc IS NOT NULL"), 1)
     assertEquals(
       count("SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined' AND failure_reason = 'sql_23505'"),
       1,
@@ -87,12 +109,12 @@ class InboundInboxPgSuite extends PgSuite:
     )
 
   test("a failure reason that is not a code is refused by the table"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     intercept[java.sql.SQLException](inbox.recordFailure(entry(1), maxAttempts = 3, t0, "duplicate key (seq)=(2)"))
 
   test("a forgotten entry leaves no row that names its chat"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     inbox.store(entry(2), t0)
     inbox.forget(entry(1))
@@ -100,7 +122,7 @@ class InboundInboxPgSuite extends PgSuite:
     assertEquals(rows, 1)
 
   test("under a fake clock a quarantined body is gone after 24 hours and not before"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     (1 to 3).foreach(_ => inbox.recordFailure(entry(1), maxAttempts = 3, t0, "error_IllegalStateException"))
     assertEquals(inbox.purge(t0.plus(InboundInbox.BodyLifetime).minusSeconds(1)).bodies, 0)
@@ -110,14 +132,14 @@ class InboundInboxPgSuite extends PgSuite:
     assertEquals(rows, 1, "the row without its body stays")
 
   test("a pending body older than 24 hours is deleted too, and the entry is no longer offered"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     inbox.purge(t0.plus(InboundInbox.BodyLifetime))
     assertEquals(bodies, 0)
     assertEquals(inbox.pending(10, 10), Nil)
 
   test("under a fake clock an inbox row and an inbound_events row are gone after 7 days and not before"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(entry(1), t0)
     inbox.markProcessed(entry(1), t0)
     inboundEvent("telegram:update:1", t0)

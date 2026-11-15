@@ -1,5 +1,6 @@
 package dosegram.app
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.adapter.telegram.FakeTelegramTransport
 import dosegram.adapter.telegram.WireReply
 import dosegram.contracts.HhMm
@@ -160,7 +161,7 @@ class TelegramLaunchSuite extends PgSuite:
     prepare(wire)
     supervised:
       val config = settings
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(PgInboundInbox(dataSource)))
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(StatusImages.textOnly, Some(PgInboundInbox(dataSource, DataKeys.development)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast), log = _ => ())
       test(Bot(clock, wire))
 

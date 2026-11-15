@@ -6,10 +6,12 @@ import dosegram.core.ports.AuditRepository
 import dosegram.core.ports.CallbackSlotRepository
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentLedger
+import dosegram.core.ports.DataDomain
 import dosegram.core.ports.DeliveryChannelRepository
 import dosegram.core.ports.DomainEventRepository
 import dosegram.core.ports.DoseActionRepository
 import dosegram.core.ports.DoseHistoryRepository
+import dosegram.core.ports.ErasureReceipt
 import dosegram.core.ports.ErasureRepository
 import dosegram.core.ports.ExportRepository
 import dosegram.core.ports.FormRunRepository
@@ -42,6 +44,7 @@ import dosegram.infra.crypto.DataKeys
 
 import java.security.SecureRandom
 import java.sql.Connection
+import java.time.Instant
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -81,16 +84,17 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
           boundAccount = Some(account)
 
     private lazy val keyService = keys.on(conn)
-    override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock)
+    private val reads = TransactionReads()
+    override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock, keyService)
     override lazy val outbox: OutboxRepository = PgOutboxRepository(conn, keyService)
     override lazy val renderedMessages: RenderedMessageRepository = PgRenderedMessageRepository(conn)
     override lazy val inboundEvents: InboundEventRepository = PgInboundEventRepository(conn, keyService)
-    override lazy val domainEvents: DomainEventRepository = PgDomainEventRepository(conn)
+    override lazy val domainEvents: DomainEventRepository = PgDomainEventRepository(conn, keyService)
     override lazy val identities: IdentityRepository = PgIdentityRepository(conn)
-    override lazy val accounts: AccountRepository = PgAccountRepository(conn)
+    override lazy val accounts: AccountRepository = PgAccountRepository(conn, reads)
     override lazy val audit: AuditRepository = PgAuditRepository(conn, clock)
-    override lazy val slots: CallbackSlotRepository = PgCallbackSlotRepository(conn)
-    override lazy val formRuns: FormRunRepository = PgFormRunRepository(conn)
+    override lazy val slots: CallbackSlotRepository = PgCallbackSlotRepository(conn, keyService)
+    override lazy val formRuns: FormRunRepository = PgFormRunRepository(conn, keyService)
     override lazy val medications: MedicationRepository = PgMedicationRepository(conn, keyService)
     override lazy val schedules: ScheduleRepository = PgScheduleRepository(conn)
     override lazy val revisions: ScheduleRevisionRepository = PgScheduleRevisionRepository(conn, keyService)
@@ -100,8 +104,16 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
     override lazy val channels: DeliveryChannelRepository = PgDeliveryChannelRepository(conn)
     override lazy val heartbeat: WorkerHeartbeatRepository = PgWorkerHeartbeatRepository(conn)
     override lazy val auditLog: AuditLog = PgAuditLog(conn, clock, consentEventIds)
-    override lazy val erasure: ErasureRepository = PgErasure(conn, account => keys.forget(KeyOwner.Account(account)))
-    override lazy val consents: ConsentLedger = PgConsentLedger(conn, consentEventIds, auditLog)
+    // An erasure deletes account rows behind the repositories' backs: what this transaction read of them is forgotten.
+    override lazy val erasure: ErasureRepository = new ErasureRepository:
+      private val erasing = PgErasure(conn, account => keys.forget(KeyOwner.Account(account)))
+      override def eraseAccount(accountId: UUID, tombstoneId: UUID, now: Instant): ErasureReceipt =
+        try erasing.eraseAccount(accountId, tombstoneId, now)
+        finally reads.forgetAll()
+      override def eraseDomain(accountId: UUID, domain: DataDomain, tombstoneId: UUID, now: Instant): ErasureReceipt =
+        try erasing.eraseDomain(accountId, domain, tombstoneId, now)
+        finally reads.forgetAll()
+    override lazy val consents: ConsentLedger = PgConsentLedger(conn, consentEventIds, auditLog, reads)
     override lazy val tracking: TrackingRepositories = new TrackingRepositories:
       override lazy val hydration: HydrationRepository = PgHydrationRepository(conn)
       override lazy val mood: MoodRepository = PgMoodRepository(conn)
@@ -125,4 +137,6 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
         case e: Throwable =>
           conn.rollback(sp)
           conn.releaseSavepoint(sp)
+          // A read inside the savepoint may have seen its own writes, which are gone now.
+          reads.forgetAll()
           throw e

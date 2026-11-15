@@ -23,8 +23,8 @@ final case class SealingCount(column: SealedColumn, sealedNow: Int, verified: In
   * before it writes it. A run that stops part-way leaves whole batches behind; the next run takes up the rows still
   * without a sealed value, so it is idempotent and resumable. The V10 stage then opens every sealed copy that still has
   * a plaintext next to it and compares the two, sealing again a copy that differs, so V11 empties only values whose
-  * sealed copy is proven. The V13 stage empties the plaintext in the UPDATE that writes the sealed value. Logs carry
-  * table, column and counts, never a value.
+  * sealed copy is proven. The V13 and V21 stages empty the plaintext in the UPDATE that writes the sealed value. Logs
+  * carry table, column and counts, never a value.
   */
 final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
   import SealingBackfill.*
@@ -53,8 +53,8 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
   /** The V10 stage runs before `audit_log` exists, so the keys it creates write no audit row; the V13 stage runs after.
     */
   private def keyServiceOf(stage: SealingStage, conn: Connection): KeyService = stage match
-    case SealingStage.Expand    => keys.beforeAuditLog(conn)
-    case SealingStage.Transport => keys.on(conn)
+    case SealingStage.Expand                             => keys.beforeAuditLog(conn)
+    case SealingStage.Transport | SealingStage.ChatState => keys.on(conn)
 
   private def write(
       conn: Connection,
@@ -71,8 +71,8 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
     val lookup = column.lookup.map(_ => keyService.lookup(column, accountOf(plain.owner), String(plain.bytes, UTF_8)))
     val setLookup = column.lookup.fold("")(spec => s", ${spec.column} = ?")
     val emptyPlain = stage match
-      case SealingStage.Expand    => ""
-      case SealingStage.Transport => s", ${column.plain} = NULL"
+      case SealingStage.Expand                             => ""
+      case SealingStage.Transport | SealingStage.ChatState => s", ${column.plain} = NULL"
     val binds = Vector[SqlBind](sealedValue) ++ lookup.map(hash => hash: SqlBind) :+ (ctid: SqlBind)
     given Connection = conn
     val updated = SqlQuery(
@@ -159,6 +159,9 @@ enum SealingStage(val expand: String, val columns: List[SealedColumn]):
 
   /** V13, after `audit_log` exists; each UPDATE empties the plaintext it sealed. */
   case Transport extends SealingStage("13", SealedColumns.emptiedOnSeal)
+
+  /** V21, the chat state and the event log; each UPDATE empties the plaintext it sealed, as in V13. */
+  case ChatState extends SealingStage("21", SealedColumns.chatState)
 
 object SealingBackfill:
 

@@ -219,12 +219,13 @@ class MedicationWizardPgSuite extends PgSuite:
       MedicationRow(
         keys.openText(SealedColumns.MedicationName.forAccount(account, id), rs.getBytes("name_enc")),
         Option(rs.getBigDecimal("dose_amount")).map(BigDecimal(_)),
-        rs.optString("dose_unit"),
+        Option(rs.getBytes("dose_unit_enc"))
+          .map(keys.openText(SealedColumns.MedicationDoseUnit.forAccount(account, id), _)),
         Option(rs.getBytes("instructions_enc"))
           .map(keys.openText(SealedColumns.MedicationInstructions.forAccount(account, id), _)),
         rs.getString("status")
       )
-    sql"SELECT id, user_id, name_enc, dose_amount, dose_unit, instructions_enc, status FROM medications"
+    sql"SELECT id, user_id, name_enc, dose_amount, dose_unit_enc, instructions_enc, status FROM medications"
       .query[MedicationRow]()
   }
 

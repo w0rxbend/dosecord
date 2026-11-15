@@ -209,18 +209,19 @@ class WizardEnginePgSuite extends PgSuite:
   private final case class SessionRow(step: String, stepSeq: Int, version: Int, updatedAt: Instant, data: String):
     def answers: Map[String, String] = WizardDocument.dataFromJson(data).filterNot(_._1.startsWith("_"))
 
-  private given RowMapper[SessionRow] = rs =>
-    SessionRow(
-      rs.getString("step"),
-      rs.getInt("step_seq"),
-      rs.getInt("version"),
-      rs.instant("updated_at"),
-      rs.getString("data")
-    )
-
+  // The draft is sealed with the transport service key (V21): the row is read the way the session store reads it.
   private def sessionRow(): Option[SessionRow] = withConnection { conn =>
     given Connection = conn
-    sql"SELECT step, step_seq, version, updated_at, data FROM conversation_sessions".queryOne[SessionRow]()
+    val keys = DataKeys.development.on(conn)
+    given RowMapper[SessionRow] = rs =>
+      SessionRow(
+        rs.getString("step"),
+        rs.getInt("step_seq"),
+        rs.getInt("version"),
+        rs.instant("updated_at"),
+        keys.openText(SealedColumns.SessionData.forService(rs.uuid("id")), rs.getBytes("data_enc"))
+      )
+    sql"SELECT id, step, step_seq, version, updated_at, data_enc FROM conversation_sessions".queryOne[SessionRow]()
   }
 
   // Acceptance 1: kill mid-flow and restart resumes the same step (persist-then-send + last_prompt re-send).

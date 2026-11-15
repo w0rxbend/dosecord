@@ -21,9 +21,11 @@ import scala.language.implicitConversions
 /** Postgres consent ledger: `consent_events` (append-only) and its projection `consent_state`, both written on the
   * connection of the surrounding transaction. Every query names the account, so one account never reads the consent of
   * another. Every grant and withdrawal writes its audit row on the same connection (ROADMAP G2.16): a consent is only
-  * ever recorded in the chat, so the channel is the bot.
+  * ever recorded in the chat, so the channel is the bot. A consent is read once per transaction (`reads`), and a grant
+  * or a withdrawal forgets the account's consents read so far.
   */
-final class PgConsentLedger(conn: Connection, ids: IdSource, audit: AuditLog) extends ConsentLedger:
+final class PgConsentLedger(conn: Connection, ids: IdSource, audit: AuditLog, reads: TransactionReads)
+    extends ConsentLedger:
   private given Connection = conn
 
   private given RowMapper[GrantedConsent] = rs =>
@@ -36,11 +38,13 @@ final class PgConsentLedger(conn: Connection, ids: IdSource, audit: AuditLog) ex
     GrantedConsent(purpose, rs.instant("updated_at"), rs.getInt("policy_version"))
 
   override def isGranted(accountId: UUID, purpose: ConsentPurpose): Boolean =
-    sql"""SELECT granted FROM consent_state WHERE account_id = $accountId AND purpose = ${purpose.id}"""
-      .queryOne[Boolean]()
-      .contains(true)
+    reads.consent(accountId, purpose):
+      sql"""SELECT granted FROM consent_state WHERE account_id = $accountId AND purpose = ${purpose.id}"""
+        .queryOne[Boolean]()
+        .contains(true)
 
   override def grant(accountId: UUID, purpose: ConsentPurpose, notice: ConsentNotice, taps: ConsentTaps): Boolean =
+    reads.forgetConsents(accountId)
     val at = taps.confirmedAt
     val changed =
       sql"""INSERT INTO consent_state (account_id, purpose, granted, policy_version, updated_at)
@@ -56,6 +60,7 @@ final class PgConsentLedger(conn: Connection, ids: IdSource, audit: AuditLog) ex
     changed
 
   override def withdraw(accountId: UUID, purpose: ConsentPurpose, at: Instant): Boolean =
+    reads.forgetConsents(accountId)
     val version =
       sql"""UPDATE consent_state SET granted = false, updated_at = $at
             WHERE account_id = $accountId AND purpose = ${purpose.id} AND granted

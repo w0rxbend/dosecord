@@ -177,6 +177,11 @@ class SealingBackfillPgSuite extends PgSuite:
             WHERE event_type LIKE 'key.%' ORDER BY occurred_at, id""".query[String]()
     finally conn.close()
 
+  private def withConnectionOf[A](ds: HikariDataSource)(f: Connection => A): A =
+    val conn = ds.getConnection
+    try f(conn)
+    finally conn.close()
+
   private def hex(bytes: Array[Byte]): String = HexFormat.of().formatHex(bytes)
 
   /** Every log line written at any level while `f` runs, library lines included. */
@@ -196,9 +201,9 @@ class SealingBackfillPgSuite extends PgSuite:
     try
       val seed = seedAtV9(ds)
       val (result, lines) = logged(SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
-      assertEquals(result.schemaVersion, "18")
-      assertEquals(result.migrationsExecuted, 9)
-      assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer")
+      assertEquals(result.schemaVersion, "21")
+      assertEquals(result.migrationsExecuted, 10)
+      assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer, the dose unit")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
       val uow = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
@@ -206,6 +211,7 @@ class SealingBackfillPgSuite extends PgSuite:
         val medication = tx.medications.get(seed.medication).getOrElse(fail("medication"))
         assertEquals(medication.name, medicationName)
         assertEquals(medication.instructions, Some(instructions))
+        assertEquals(medication.doseUnit, Some("mg"))
         assertEquals(medication.nameNorm, "canarymedicationname forte")
         // Find-or-create still offers the update path (G2.4), and the picker still finds by prefix.
         assertEquals(tx.medications.findByNameNorm(seed.account, "canarymedicationname forte").map(_.id),
@@ -248,7 +254,8 @@ class SealingBackfillPgSuite extends PgSuite:
       try again.createStatement().execute("DROP TABLE audit_log")
       finally again.close()
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals((result.schemaVersion, result.valuesSealed), ("18", 0), "everything was sealed by the first start")
+      assertEquals((result.schemaVersion, result.valuesSealed), ("21", 1),
+        "the first start sealed every V10 value; the dose unit waits for V21, which only this start reaches")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"))
     finally ds.close()
 
@@ -286,7 +293,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("18", 6, 4))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("21", 7, 4))
       assert(lines.result().contains("sealing: vacuumed outbox_messages, inbound_events"), lines.result().toString)
 
       val check = ds.getConnection
@@ -327,13 +334,108 @@ class SealingBackfillPgSuite extends PgSuite:
         .foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
     finally ds.close()
 
+  test("the upgrade from V18 seals the chat state, the event log, the inbox, a reminder and a dose unit"):
+    val (database, ds) = databaseAt("18")
+    try
+      val keys = DataKeys(kek, MutableClock(t0))
+      val uow = PgUnitOfWork(ds, MutableClock(t0), keys)
+      val account = uow.transaction: tx =>
+        val principal = tx.identities.resolve(PlatformIdentity("telegram", "7003", None), t0)
+        tx.accounts.createAccount(principal.identityId, zone.getId, t0).uuid
+      val (session, medication, reminder) = (UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())
+      val (slot, onboardingSlot, event, onboardingEvent) =
+        (UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())
+      val displayName = "CanaryDisplayName"
+      val draft = s"""{"name":"$medicationName"}"""
+      val conn = ds.getConnection
+      try
+        given Connection = conn
+        // The statements of the V18 release: every one of these columns took its value as plain text or JSON.
+        sql"""INSERT INTO inbound_inbox (vendor, vendor_event_id, chat_key, sequence, body, received_at)
+              VALUES ('telegram', 'telegram:update:3', '7003', 3,
+                      ${s"""{"message":{"text":"$medicationName","from":{"first_name":"$displayName"}}}"""},
+                      $t0)""".execute()
+        sql"""INSERT INTO conversation_sessions (id, principal_key, vendor, chat_id, flow, step, data, last_prompt,
+                                                 expires_at)
+              VALUES ($session, ${account.toString}, 'telegram', '7003', 'medication.add', 'dose', ${Jsonb(draft)},
+                      ${Jsonb(s"""{"text":"$instructions"}""")}, ${t0.plusSeconds(3600)})""".execute()
+        sql"""INSERT INTO form_runs (session_id, form_id, answers)
+              VALUES ($session, 'medication.add', ${Jsonb(draft)})""".execute()
+        List((slot, Some(account)), (onboardingSlot, None)).foreach: (id, owner) =>
+          sql"""INSERT INTO callback_slots (id, account_id, chat, payload)
+                VALUES ($id, $owner, ${Jsonb("""{"chatId":"7003"}""")}, ${Jsonb(s"""{"words":"$doseNote"}""")})"""
+            .execute()
+        List((event, Some(account)), (onboardingEvent, None)).foreach: (id, owner) =>
+          sql"""INSERT INTO domain_events (id, type, source, account_id, actor, occurred_at, data)
+                VALUES ($id, 'dosegram.test.v1', 'test', $owner,
+                        ${Jsonb(s"""{"vendorUsername":"$displayName"}""")}, $t0,
+                        ${Jsonb(s"""{"data":{"name":"$medicationName"}}""")})""".execute()
+        sql"""INSERT INTO reminders (id, account_id, title, next_due_at)
+              VALUES ($reminder, $account, $mealWords, $t0)""".execute()
+        val sealer = keys.on(conn)
+        sql"""INSERT INTO medications (id, user_id, name_enc, name_hmac, dose_unit, status)
+              VALUES ($medication, $account,
+                      ${sealer.sealText(SealedColumns.MedicationName.forAccount(account, medication), "Plain")},
+                      ${sealer.lookup(SealedColumns.MedicationName, account, "plain")}, $otherWords, 'active')"""
+          .execute()
+        sql"UPDATE users SET display_name = $displayName WHERE id = $account".execute()
+        sql"UPDATE platform_identities SET vendor_username = $displayName WHERE user_id = $account".execute()
+      finally conn.close()
+
+      val scanned = List(medicationName, instructions, doseNote, mealWords, otherWords, displayName)
+      val before = withConnectionOf(ds)(CanaryScan.columns(_, scanned)).map(hit => s"${hit.table}.${hit.column}").toSet
+      assertEquals(
+        before,
+        Set("inbound_inbox.body", "conversation_sessions.data", "conversation_sessions.last_prompt", "form_runs.answers",
+          "callback_slots.payload", "domain_events.data", "domain_events.actor", "reminders.title",
+          "medications.dose_unit", "users.display_name", "platform_identities.vendor_username"),
+        "the scan finds every plaintext the V18 release kept"
+      )
+
+      val lines = List.newBuilder[String]
+      val result = SchemaUpgrade.run(ds, keys, line => lines += line)
+      assertEquals((result.schemaVersion, result.migrationsExecuted), ("21", 1))
+      assertEquals(result.valuesSealed, 1 + 2 + 1 + 2 + 4 + 1 + 1, "inbox, session, form, slots, events, reminder, unit")
+      assert(lines.result().exists(_.startsWith("sealing: vacuumed ")), lines.result().toString)
+
+      uow.transaction: tx =>
+        assertEquals(tx.sessions.loadForUpdate(account.toString, "telegram", "7003").map(s => ujson.read(s.data)),
+          Some(ujson.read(draft)))
+        assertEquals(tx.formRuns.loadForUpdate(session).map(r => ujson.read(r.answers)), Some(ujson.read(draft)))
+        assertEquals(List(slot, onboardingSlot).flatMap(tx.slots.loadForUpdate).map(s => ujson.read(s.payload)("words").str),
+          List(doseNote, doseNote))
+        assertEquals(tx.medications.get(medication).flatMap(_.doseUnit), Some(otherWords))
+      assertEquals(PgInboundInbox(ds, keys).pending(10, 10).map(_.entry.body.contains(displayName)), List(true))
+      val check = ds.getConnection
+      try
+        given Connection = check
+        val opener = keys.on(check)
+        given RowMapper[String] = rs => opener.openText(SealedColumns.ReminderTitle.forAccount(account, reminder),
+          rs.getBytes(1))
+        assertEquals(sql"SELECT title_enc FROM reminders".query[String](), List(mealWords))
+        given RowMapper[(Option[UUID], UUID, Array[Byte])] = rs =>
+          (Option(rs.getObject(1, classOf[UUID])), rs.uuid("id"), rs.getBytes(3))
+        val events = sql"SELECT account_id, id, data_enc FROM domain_events ORDER BY account_id NULLS LAST"
+          .query[(Option[UUID], UUID, Array[Byte])]()
+        assertEquals(
+          events.map((owner, id, bytes) => ujson.read(opener.openText(SealedColumns.EventData.forRow(owner, id), bytes))),
+          List.fill(2)(ujson.read(s"""{"data":{"name":"$medicationName"}}"""))
+        )
+        assertEquals(CanaryScan.columns(check, scanned), Nil, "a column holds a canary")
+      finally check.close()
+      val dumped = dump(database)
+      scanned.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
+      val again = SchemaUpgrade.run(ds, keys, _ => ())
+      assertEquals(again, UpgradeResult(0, "21", 0, 0), "a second start finds nothing to seal")
+    finally ds.close()
+
   test("a second start finds nothing to seal and applies nothing"):
     val (_, ds) = databaseAt("9")
     try
       seedAtV9(ds)
       SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
       val again = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(again, UpgradeResult(0, "18", 0, 0))
+      assertEquals(again, UpgradeResult(0, "21", 0, 0))
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "a run that seals nothing is not audited")
     finally ds.close()
 
@@ -351,8 +453,8 @@ class SealingBackfillPgSuite extends PgSuite:
       val version = Flyway.configure().dataSource(ds).load().info().current().getVersion.getVersion
       assertEquals(version, "10")
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(result.schemaVersion, "18")
-      assertEquals(result.valuesSealed, 1 + 1 + 1, "only the export, the image and the stored answer were left")
+      assertEquals(result.schemaVersion, "21")
+      assertEquals(result.valuesSealed, 1 + 1 + 1 + 1, "only the export, the image, the stored answer and the dose unit (V21) were left")
       val meals = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
         .transaction(_.tracking.meals.listLive(seed.account, DateRange.single(day)))
       assertEquals(meals.size, 3 + 2 * SealingBackfill.BatchRows)
@@ -371,7 +473,7 @@ class SealingBackfillPgSuite extends PgSuite:
         sql"UPDATE medications SET name = 'Renamed Canary', updated_at = $t0 WHERE id = ${seed.medication}".execute()
       finally conn.close()
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(result.valuesSealed, 1, "the renamed medication only")
+      assertEquals(result.valuesSealed, 1 + 1, "the renamed medication, and its dose unit at V21")
       PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0))).transaction: tx =>
         assertEquals(tx.medications.get(seed.medication).map(_.name), Some("Renamed Canary"))
         assertEquals(tx.medications.findByNameNorm(seed.account, "renamed canary").map(_.id), Some(seed.medication))

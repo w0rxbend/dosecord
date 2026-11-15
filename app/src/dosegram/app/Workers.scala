@@ -183,7 +183,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     * inbox and `inbound_events` rows after 7 days. A processed body is deleted when it is processed.
     */
   private def startInboxPurge(passes: WorkerLoop)(using Ox): Unit =
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, keys)
     fork:
       passes.repeat("inbox purge"): () =>
         inbox.purge(clock.now())

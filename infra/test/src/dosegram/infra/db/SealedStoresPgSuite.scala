@@ -66,11 +66,13 @@ class SealedStoresPgSuite extends PgSuite:
     val result = pg.container.execInContainer("pg_dump", "-U", pg.username, "-d", pg.databaseName, "--no-owner")
     assertEquals(result.getExitCode, 0, result.getStderr)
     val dumped = result.getStdout.toLowerCase
-    List("canarypill", "canary-with-water", "canary-soup-words", "canary-zip", "canary-png", "canary-answer")
-      .foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
+    val canaries =
+      List("canarypill", "canary-with-water", "canary-soup-words", "canary-zip", "canary-png", "canary-answer")
+    canaries.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
+    assertEquals(withConnection(CanaryScan.columns(_, canaries)), Nil, "a column holds a canary")
 
   test("every text, JSON or byte column of a sealed table is sealed, a lookup hash, or named as not Class A"):
-    val sealedColumns = SealedColumns.all ++ SealedColumns.emptiedOnSeal
+    val sealedColumns = SealedColumns.all ++ SealedColumns.emptiedOnSeal ++ SealedColumns.chatState
     val sealedTables = sealedColumns.map(_.table).toSet
     val columns = withConnection: conn =>
       given Connection = conn
@@ -90,9 +92,8 @@ object SealedStoresPgSuite:
 
   /** The text, JSON and byte columns of the sealed tables that hold no Class A content: codes, zones, keys, hashes. */
   val NotClassA: Map[String, Set[String]] = Map(
-    // name_norm is generated from name and empty since V11. dose_unit is the unit of the strength: sealing it is a
-    // step of G2.4b that is not done (ARCHITECTURE section 15.2, "As built").
-    "medications" -> Set("name_norm", "dose_unit", "status"),
+    // name_norm is generated from name and empty since V11.
+    "medications" -> Set("name_norm", "status"),
     "schedule_revisions" -> Set("tz", "rule", "reminder_policy", "created_by", "reason"),
     "dose_occurrences" -> Set("origin", "slot_key", "tz", "dst_kind", "cancel_reason", "unknown_reason", "missed_reason"),
     "dose_actions" -> Set("actor_type", "vendor", "platform_message_id", "interaction_id", "idempotency_key",
@@ -105,5 +106,12 @@ object SealedStoresPgSuite:
     // traceparent a trace id, items unused; chat_key is the chat, kept for the erasure job (V13).
     "outbox_messages" -> Set("send_key", "op", "kind", "vendor", "items", "target", "importance", "status",
       "platform_message_id", "last_error", "traceparent", "chat_key"),
-    "inbound_events" -> Set("vendor", "vendor_event_id", "chat_key")
+    "inbound_events" -> Set("vendor", "vendor_event_id", "chat_key"),
+    // V21: keys, chats, codes and the names of flows, forms and steps.
+    "inbound_inbox" -> Set("vendor", "vendor_event_id", "chat_key", "status", "failure_reason"),
+    "conversation_sessions" -> Set("principal_key", "vendor", "chat_id", "flow", "step"),
+    "form_runs" -> Set("form_id"),
+    "callback_slots" -> Set("chat"),
+    "domain_events" -> Set("type", "source", "subject", "correlation_id", "causation_id", "traceparent"),
+    "reminders" -> Set("repeat", "status")
   )

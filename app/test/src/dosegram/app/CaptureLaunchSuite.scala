@@ -222,7 +222,7 @@ class CaptureLaunchSuite extends PgSuite:
       val config = settings
       val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock, DataKeys.development)
       val images = StatusImages.over(drawingWith.getOrElse(rasteriser), stores, _ => ())
-      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource)))
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource, DataKeys.development)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), idle, images), log = _ => ())
       test(Bot(clock, wire, rasteriser, firstUpdate))
 

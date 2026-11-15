@@ -3,41 +3,52 @@ package dosegram.infra.db
 import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.InboxEntry
 import dosegram.core.ports.InboxPurge
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.PendingInboxEntry
+import dosegram.infra.crypto.DataKeys
 
 import java.time.Instant
 import javax.sql.DataSource
 import scala.language.implicitConversions
 
 /** `inbound_inbox` (ROADMAP G1.7, ARCHITECTURE section 7.2): one auto-committed statement per call, so a call that
-  * returns has made its change durable.
+  * returns has made its change durable. The body is the message as received, so it is sealed with the transport service
+  * key (V21, ROADMAP G2.4b): a row is keyed by chat before any account exists.
   */
-final class PgInboundInbox(dataSource: DataSource) extends InboundInbox:
+final class PgInboundInbox(dataSource: DataSource, keys: DataKeys) extends InboundInbox:
+  import SealedColumns.InboxBody
+
   private val pooled = Pooled(dataSource)
 
-  private given RowMapper[PendingInboxEntry] = rs =>
+  private def pendingEntry(keyService: KeyService): RowMapper[PendingInboxEntry] = rs =>
+    val vendorEventId = rs.getString("vendor_event_id")
+    val body = Option(rs.getBytes("body_enc"))
+      .map(keyService.openText(InboxBody.forService(vendorEventId), _))
+      .getOrElse(rs.getString("body"))
     PendingInboxEntry(
       InboxEntry(
         vendor = rs.getString("vendor"),
-        vendorEventId = rs.getString("vendor_event_id"),
+        vendorEventId = vendorEventId,
         chatKey = rs.getString("chat_key"),
         sequence = rs.getLong("sequence"),
-        body = rs.getString("body")
+        body = body
       ),
       rs.instant("received_at")
     )
 
   override def store(entry: InboxEntry, receivedAt: Instant): Unit =
-    pooled:
-      sql"""INSERT INTO inbound_inbox (vendor, vendor_event_id, chat_key, sequence, body, received_at)
-            VALUES (${entry.vendor}, ${entry.vendorEventId}, ${entry.chatKey}, ${entry.sequence}, ${entry.body},
+    pooled: conn ?=>
+      val sealedBody = keys.on(conn).sealText(InboxBody.forService(entry.vendorEventId), entry.body)
+      sql"""INSERT INTO inbound_inbox (vendor, vendor_event_id, chat_key, sequence, body_enc, received_at)
+            VALUES (${entry.vendor}, ${entry.vendorEventId}, ${entry.chatKey}, ${entry.sequence}, $sealedBody,
                     $receivedAt)
             ON CONFLICT (vendor, vendor_event_id) DO NOTHING""".execute()
     ()
 
   override def pending(perChat: Int, limit: Int): List[PendingInboxEntry] =
-    pooled:
-      sql"""SELECT vendor, vendor_event_id, chat_key, sequence, body, received_at
+    pooled: conn ?=>
+      given RowMapper[PendingInboxEntry] = pendingEntry(keys.on(conn))
+      sql"""SELECT vendor, vendor_event_id, chat_key, sequence, body, body_enc, received_at
             FROM (SELECT *, row_number() OVER (PARTITION BY vendor, chat_key ORDER BY sequence) AS place
                   FROM inbound_inbox WHERE status = 'pending') AS heads
             WHERE place <= $perChat
@@ -46,7 +57,7 @@ final class PgInboundInbox(dataSource: DataSource) extends InboundInbox:
 
   override def markProcessed(entry: InboxEntry, at: Instant): Unit =
     pooled:
-      sql"""UPDATE inbound_inbox SET status = 'processed', body = NULL, finished_at = $at
+      sql"""UPDATE inbound_inbox SET status = 'processed', body = NULL, body_enc = NULL, finished_at = $at
             WHERE vendor = ${entry.vendor} AND vendor_event_id = ${entry.vendorEventId} AND status = 'pending'"""
         .execute()
     ()
@@ -73,10 +84,10 @@ final class PgInboundInbox(dataSource: DataSource) extends InboundInbox:
     pooled:
       val bodies =
         sql"""UPDATE inbound_inbox
-              SET body = NULL,
+              SET body = NULL, body_enc = NULL,
                   status = CASE WHEN status = 'pending' THEN 'expired' ELSE status END,
                   finished_at = coalesce(finished_at, $now)
-              WHERE body IS NOT NULL AND received_at <= $bodiesBefore""".execute()
+              WHERE (body IS NOT NULL OR body_enc IS NOT NULL) AND received_at <= $bodiesBefore""".execute()
       val inboxRows = sql"DELETE FROM inbound_inbox WHERE received_at <= $rowsBefore".execute()
       val events = sql"DELETE FROM inbound_events WHERE received_at <= $rowsBefore".execute()
       InboxPurge(bodies, inboxRows, events)

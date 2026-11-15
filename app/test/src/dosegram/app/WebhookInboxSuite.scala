@@ -1,5 +1,6 @@
 package dosegram.app
 
+import dosegram.infra.crypto.DataKeys
 import dosegram.adapter.telegram.FakeTelegramTransport
 import dosegram.adapter.telegram.TelegramAdapter
 import dosegram.core.domain.copy.AdapterCopy
@@ -121,7 +122,7 @@ class WebhookInboxSuite extends PgSuite:
 
   /** Runs `test` against a launched application whose inbox is `inbox` over this suite's database. */
   private def launched[A](
-      inbox: DataSource => InboundInbox = PgInboundInbox(_),
+      inbox: DataSource => InboundInbox = PgInboundInbox(_, DataKeys.development),
       lastMessageId: Long = 0L,
       miniApp: Option[MiniAppSettings] = None
   )(
@@ -204,7 +205,7 @@ class WebhookInboxSuite extends PgSuite:
       eventually("the update is processed")(inboxStatus(updateId) == List("processed"))
       eventually("the reply is sent")(bot.sends.nonEmpty)
       assertEquals(inboundEvents, 1)
-      assertEquals(strings("SELECT 1 FROM inbound_inbox WHERE body IS NOT NULL").size, 0, "the body is gone")
+      assertEquals(strings("SELECT 1 FROM inbound_inbox WHERE body IS NOT NULL OR body_enc IS NOT NULL").size, 0, "the body is gone")
 
   test("a wrong or missing secret is 404 and stores nothing, even with a body over the limit"):
     launched(): bot =>
@@ -258,7 +259,12 @@ class WebhookInboxSuite extends PgSuite:
     launched(inbox = HeldInbox(_)): bot =>
       val (updateId, body) = text(owner, "/help")
       assertEquals(bot.post(body), 200)
-      val stored = strings(s"SELECT body FROM inbound_inbox WHERE vendor_event_id = 'telegram:update:$updateId'")
+      // The body as the processor would read it, opened from its sealed column.
+      val stored = PgInboundInbox(dataSource, DataKeys.development)
+        .pending(perChat = 10, limit = 10)
+        .map(_.entry)
+        .filter(_.vendorEventId == s"telegram:update:$updateId")
+        .map(_.body)
       assertEquals(stored.size, 1)
       assert(!stored.head.contains("CANARY-NAME"), stored.head)
 
@@ -266,7 +272,7 @@ class WebhookInboxSuite extends PgSuite:
 
   test("TG-03: with a crash between receipt and commit the endpoint answers 503, never 200, and nothing is stored"):
     val crash = AtomicBoolean(true)
-    launched(inbox = dataSource => PgInboundInbox(CrashBeforeCommit(dataSource, crash))): bot =>
+    launched(inbox = dataSource => PgInboundInbox(CrashBeforeCommit(dataSource, crash), DataKeys.development)): bot =>
       val (updateId, body) = text(owner, "/help")
       assertEquals(bot.post(body), 503)
       assertEquals(inboxStatus(updateId), Nil, "the insert was rolled back")
@@ -296,7 +302,7 @@ class WebhookInboxSuite extends PgSuite:
   test("TG-08: killed between the mediator's commit and the inbox mark, the restart changes nothing a second time"):
     val (updateId, body) = text(owner, "/help")
     val adapterOf = AtomicReference(Option.empty[TelegramAdapter])
-    val repliedBefore = launched(inbox = dataSource => KilledAtMark(PgInboundInbox(dataSource), adapterOf)): bot =>
+    val repliedBefore = launched(inbox = dataSource => KilledAtMark(PgInboundInbox(dataSource, DataKeys.development), adapterOf)): bot =>
       adapterOf.set(Some(bot.adapter))
       assertEquals(bot.post(body), 200)
       eventually("the mediator committed")(inboundEvents == 1)
@@ -310,14 +316,14 @@ class WebhookInboxSuite extends PgSuite:
       assertEquals(replies, repliedBefore, "the handler did not run again: no new reply row")
 
   test("ARCHITECTURE section 15.6: the worker half runs the deleting job of the inbound stores"):
-    val inbox = PgInboundInbox(dataSource)
+    val inbox = PgInboundInbox(dataSource, DataKeys.development)
     inbox.store(InboxEntry("telegram", "telegram:update:1", "7001", 1L, "{}"), t0.minus(Duration.ofDays(8)))
     launched(): _ =>
       eventually("the 7-day-old row is deleted")(strings("SELECT 1 FROM inbound_inbox").isEmpty)
 
 /** Stores like the real inbox and offers nothing: the process dies before its processor takes a stored update. */
 private final class HeldInbox(dataSource: DataSource) extends InboundInbox:
-  private val store = PgInboundInbox(dataSource)
+  private val store = PgInboundInbox(dataSource, DataKeys.development)
   export store.{pending as _, *}
   override def pending(perChat: Int, limit: Int): List[PendingInboxEntry] = Nil
 
