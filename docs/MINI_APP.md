@@ -1332,6 +1332,8 @@ The blob. `mood/blob-states` is a global, versioned asset: for each state it giv
 
 Rejected alternative: porting the blob algorithm to TypeScript. Two implementations of one shape would drift, and the image in chat and the blob in the app would stop matching.
 
+Supervisor decision, 2026-11-15 (VISUALS section 4.4, addendum of the same date): the asset is revision `dg-blob-2`. Its face also carries the details of the more expressive blob: `glints` (a circle `cx, cy, r` in each open eye, colour `glint`) and `cheeks` (an ellipse under each eye of a pleasant state, colour `cheek`). Both are optional on the wire and absent when a state has none. The client draws cheeks under the eyes and glints over them, and leaves both out under a blob radius of 48 px (a `MoodBlob` smaller than 144 px), as the chat image leaves them out of its mini blobs. The revision changes the asset's cache key, so a client never mixes the two drawings.
+
 Requirements:
 
 MA-MOOD-1. The check-in needs one input. The slider starts in the middle with the blob in a neutral outline state and the label "Move the slider". `MainButton` becomes enabled only after the user has set the valence by the slider, the stepper buttons or the keyboard. An untouched default is never saved. [M]

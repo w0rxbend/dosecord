@@ -440,6 +440,22 @@ Positions are relative to the blob centre, x toward the end edge and y downward,
 | Ground mark | A flat ellipse under the blob in `grid` colour, centred at y = 1.18 `R`, height 0.06 `R`. Width is 1.5, 1.4, 1.3, 1.15, 1.0 times `R` for E1 to E5. A lower-energy blob sits heavier on the ground; a higher-energy blob appears lifted. |
 | Tags | Up to three tag words in `body` size under the label, on the personal card only. |
 
+Supervisor decision, 2026-11-15 (image round 3): the blob is made more expressive inside the rules above; the tables of this section are amended as follows and the geometry revision is `dg-blob-2`. The contact sheet of 2026-11-15 showed a face too small to read at Telegram's preview width (about 360 px for a 1080 px card) and a shape that changed little between energy levels.
+
+| Part | Amended rule |
+|---|---|
+| Shape | Total amplitude `A` is 0.035, 0.060, 0.090, 0.120, 0.150 for E1 to E5; vertical scale 0.92, 0.96, 1.00, 1.03, 1.06; base widening 8, 4, 0, 0, 0 percent. Harmonic weights, sample counts and the phase seed (`dg-blob-1:<state id>`) are unchanged, so each state keeps its own outline family. |
+| Slump | V1 10 percent, V2 6 percent and V3 3 percent of `R` at E1 to E3; none from E4 and none from V4. |
+| Eyes | At (-0.27, -0.10) and (0.27, -0.10), horizontal radius 0.075, opening 0.32, 0.55, 0.78, 0.92, 1.00 for E1 to E5. |
+| Glints | From opening 0.5 (E2 up) a circle of radius 0.026 in each eye, offset up and toward the start edge, in the fill's highlight on the dark-eyed states (V4 to V7) and in the fill itself on the light-eyed ones (V1 to V3), so it reads against the eye on every state. |
+| Mouth | Half width 0.22 times the width factor, at y = 0.24, stroke 0.045; control offset `c` = -0.13, -0.09, -0.045, 0, 0.05, 0.10, 0.15 for V1 to V7. |
+| Brows | Stroke 0.045, length 0.16, at y = -0.26, tilted 14 degrees. Tense brows (inner ends lowered) on V1 and V2 at E4 and E5, as before; tired brows (inner ends raised) on V1 to V3 at E1 to E3. No brows from V4 up. |
+| Cheeks | V6 and V7 only: a flat ellipse of 0.085 by 0.05 at (-0.43, 0.14) and (0.43, 0.14), in a warm coral (OKLCH hue 22, chroma 0.10) 0.08 darker than the fill, so it reads by hue and by lightness. |
+| Fill | The gradient's inner stop is 0.13 lighter than the state colour (was 0.10). The state colours are unchanged. |
+| Details | Glints and cheeks are left out under a radius of 48 px (the mini blobs of strips and calendars), where they would be under two pixels. The Mini App applies the same radius. |
+
+The restraint rule holds: the lowest states look tired or tense, never broken; nothing is drawn for a mood the user did not give. Every one of the 35 states now has an expression of its own (eye opening, mouth bend, brow kind, cheeks), a test keeps at least eight distinct ones, and VA-BL-09 and VA-BL-10 hold for every state (BlobSuite). The revision is part of the Mini App asset (`GET /mood/blob-states`) and of the cache key of every shared mood image (`mood.dg-blob-2.<state>…`), so no old picture is reused after the change (VA-BL-11).
+
 ### 4.5 State sketches
 
 The sketches are schematic and are not the normative geometry; the tables above are. They show how the two axes read.
@@ -739,6 +755,10 @@ Conventions for every entry:
 | IMG-16 | Measurement trend | `card.body.trend.v1` | wide | personal | L1 | on demand |
 | IMG-17 | Shareable card | `card.share.v1` | square | personal | L1 with a whitelist | on demand only |
 | IMG-18 | Gate and empty-state art | `card.gate.v1` | square | global | L0 | on demand |
+| IMG-19 | Week at a glance (section 6.21) | `card.week.glance.v1` | square | personal | L1 | on demand (`/stats` seven days) |
+| IMG-20 | Water, 7 days (section 6.21) | `card.water.week.v1` | square | personal | L1 | on demand |
+| IMG-21 | Sleep, 7 nights (section 6.21) | `card.sleep.week.v1` | square | personal | L1 | on demand |
+| IMG-22 | Mood by weekday (section 6.21) | `card.mood.weekday.v1` | square | personal | L1 | on demand |
 | DOC-01 | Record summary (PDF) | `doc.summary.v1` | a4 | personal | L3 | on demand only |
 
 ### 6.2 IMG-01 Reminder card (withdrawn)
@@ -1408,6 +1428,21 @@ Sections. Sections 1 to 3 are the core of PRODUCT_SPEC R-IMX-6; sections 4 to 7 
 | VA-DOC-01c | The PDF contains no account identifier, Telegram identifier or username, and its metadata fields (title, author, producer) carry fixed neutral strings. |
 | VA-DOC-01d | The service never sends the PDF to anyone other than the requesting user and offers no "send to my doctor" function. |
 | VA-DOC-01e | The data file given to Typst lives on a memory-backed mount and is removed when the job ends; the stored PDF is deleted 15 minutes after it is ready. |
+
+### 6.21 The week cards of 2026-11-15 (IMG-19 to IMG-22)
+
+Supervisor decision, 2026-11-15 (image round 3). Four square cards that the catalogue lacked and the specification supports: each draws only metrics of section 7, has a text equivalent from the same view model, golden files for sparse, typical and dense data in both themes, discreet mode and both languages, and passes the scene lints. None draws a score, a run or a ranking; none is sent proactively.
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-19 | The seven days of every shown domain as one grid of cells (D1): a row per domain with its icon and name, a cell per day that fills from the bottom to the day's share of its own plan or goal (doses taken of the resolved ones, the day fraction of section 7.2; water and sleep against the user's goal; main meals of three), the day's mood as its blob. A day without a record is a dotted cell, an estimate a hatched one, a day with no dose scheduled has no cell. It draws no number: the hero is the grid. | The weekly report's text (section 6.5) | "Show as image" on the seven-day `/stats` (BOT_UX section 12.5) |
+| IMG-20 | The water of the last seven days as upright bars on their own scale, the user's goal of each day as a dotted tick across its slot, a dotted slot for a day without water. The hero is the average a day from three logged days (section 7.1), the count of days logged below that; the goal days are the fact line. Nothing suggests an amount to drink (VA-IMG-08a). | Period, average, goal days, each day's litres, "The goal is the one you set." | Through `StatusCards.waterWeek`; no chat button yet |
+| IMG-21 | The main sleep of the last seven nights the same way; a quiet window is a hatched slot the size of a day without a record, never a bar, because any height would read as a duration (VA-IMG-12a). The hero averages recorded nights only, from three. | Period, average, each night, the goal | Through `StatusCards.sleepWeek`; no chat button yet |
+| IMG-22 | Mood by weekday (section 7.6, supervisor decision of 2026-11-14): one 1-to-5 track per weekday in the week's order with the mean's blob on it, the mean and the number of check-in days beside it; a weekday under three days says so and has no blob. The scale note of IMG-13 is under the rows; the period stands under the title. | Each weekday's mean and its level name with the days, or the count under the gate | Through `StatusCards.moodWeekday`; no chat button yet |
+
+Render times on the development host, 2026-11-15, 30 warm samples each with resvg 0.49.0 (scene and SVG / rasterisation at the 95th percentile): IMG-19 1.6 ms / 49 ms, IMG-20 0.5 ms / 42 ms, IMG-21 0.7 ms / 42 ms, IMG-22 1.6 ms / 63 ms; all 18 measured templates rasterise in under 90 ms at their slowest sample, far inside the 5 second limit of VA-FB-01, and the largest PNG of the contact sheet (the mood calendar of a month with a check-in every day) is 229 KB, inside the expected 50 to 300 KB of section 5.3.
+
+The same round amended three existing layouts after the contact-sheet review. Page 3 of the monthly report lets its sleep and water plots grow into the room the page has left (at most 320 px; food dots at most 64 px, since dots are presence and do not spread), and a short page 2 or 3 shares its spare room above and below its panels, so a single panel no longer leaves half the page empty while the album keeps one size (section 5.3). The mood calendar's panel legend puts each end name beside its own blob. The refill card (IMG-15) draws its thirty cells in two rows of fifteen with the cell radius of section 3.2, so a cell keeps the 44 px minimum on the wide canvas.
 
 ## 7. Metric definitions
 
