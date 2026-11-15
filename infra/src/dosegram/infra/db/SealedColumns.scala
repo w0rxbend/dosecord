@@ -149,6 +149,16 @@ object SealedColumns:
   val MedicationDoseUnit: SealedColumn =
     SealedColumn("medications", "dose_unit", "dose_unit_enc", "id", SealOwner.AccountOf("t.user_id"))
 
+  /** The Bot API's handle of an uploaded image or export file (V22): with the bot token it fetches the user's card or
+    * archive. The table has no account column, so the render service key seals it, bound to the asset key.
+    */
+  val FileId: SealedColumn =
+    SealedColumn("telegram_file_cache", "file_id", "file_id_enc", "asset_key", SealOwner.Service("render"))
+
+  /** The parameters of an export (V22), which the step-up of a Mini App request confirms: a record summary's period. */
+  val ExportParams: SealedColumn =
+    SealedColumn("export_jobs", "params", "params_enc", "id", SealOwner.AccountOf("t.account_id"))
+
   /** A staged record of an open import (V15): the whole normalised record, sealed. It has no plaintext column, so it is
     * in neither list below: the backfill has nothing to seal and the archive does not export the staging.
     */
@@ -186,6 +196,9 @@ object SealedColumns:
     ReminderTitle,
     MedicationDoseUnit
   )
+
+  /** The sealed columns of V22, which the backfill right after V22 seals and empties like those of V13. */
+  val handles: List[SealedColumn] = List(FileId, ExportParams)
 
 /** Text over a [[KeyService]]: UTF-8 in, UTF-8 out. */
 extension (keys: KeyService)

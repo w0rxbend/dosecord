@@ -74,8 +74,8 @@ object ExportCoverage:
     "inventory_events" -> Coverage.Owned(OwnerColumn),
     // The history of the account's exports, part of the access history (R-IMX-1); never the bytes.
     "export_jobs" -> Coverage.Selected(
-      """SELECT id, kind, params, status, file_name, byte_size, created_at, confirmed_at, ready_at, expires_at,
-                downloaded_at
+      """SELECT id, kind, params, params_enc, status, file_name, byte_size, created_at, confirmed_at, ready_at,
+                expires_at, downloaded_at
          FROM export_jobs WHERE account_id = ? ORDER BY created_at, id"""
     ),
     "export_download_tickets" -> Coverage.Excluded("hashes of download tickets"),

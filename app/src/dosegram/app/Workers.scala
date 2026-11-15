@@ -168,7 +168,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
   private def startImagePurge(passes: WorkerLoop)(using Ox): Unit =
     val assets = PgRenderAssets(dataSource, keys)
     // Pruning is by last use, whichever bot the file id belongs to.
-    val fileIds = PgTelegramFileCache(dataSource, botId = 0L)
+    val fileIds = PgTelegramFileCache(dataSource, botId = 0L, keys)
     fork:
       passes.repeat("image purge"): () =>
         val now = clock.now()

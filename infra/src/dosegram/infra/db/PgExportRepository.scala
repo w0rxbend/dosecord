@@ -29,23 +29,29 @@ import scala.language.implicitConversions
 
 /** `export_jobs` and `export_download_tickets` (ARCHITECTURE section 10.13) on the connection of the surrounding
   * transaction. Every statement on a job of an account names the account. The file is sealed with the account's data
-  * key while it waits for its download (V10, ARCHITECTURE SEC-04).
+  * key while it waits for its download (V10, ARCHITECTURE SEC-04), and so are the job's parameters, which a step-up
+  * confirms (V22); a plaintext value the previous release left is read until the start-up step seals it.
   */
 final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog, keys: KeyService)
     extends ExportRepository:
   import SealedColumns.ExportContent
+  import SealedColumns.ExportParams
 
   private given Connection = conn
 
   private val Columns =
-    "id, account_id, kind, params, status, file_name, byte_size, created_at, ready_at, expires_at"
+    "id, account_id, kind, params, params_enc, status, file_name, byte_size, created_at, ready_at, expires_at"
 
   private given RowMapper[ExportJob] = rs =>
+    val (id, accountId) = (rs.uuid("id"), rs.uuid("account_id"))
+    val params = Option(rs.getBytes("params_enc"))
+      .map(keys.openText(ExportParams.forAccount(accountId, id), _))
+      .getOrElse(rs.getString("params"))
     ExportJob(
-      id = rs.uuid("id"),
-      accountId = rs.uuid("account_id"),
+      id = id,
+      accountId = accountId,
       kind = ExportKind.fromDb(rs.getString("kind")),
-      period = periodOf(rs.getString("params")),
+      period = periodOf(params),
       status = ExportStatus.fromDb(rs.getString("status")),
       fileName = rs.optString("file_name"),
       byteSize = rs.optInt("byte_size"),
@@ -60,9 +66,10 @@ final class PgExportRepository(conn: Connection, ids: IdSource, audit: AuditLog,
 
   override def create(job: NewExportJob): ExportJob =
     val confirmedAt = Option.when(job.status == ExportStatus.Queued)(job.at)
-    sql"""INSERT INTO export_jobs (id, account_id, kind, params, status, created_at, confirmed_at)
-          VALUES (${job.id}, ${job.accountId}, ${job.kind.db}, ${Jsonb(paramsOf(job.period))}, ${job.status.db},
-                  ${job.at}, $confirmedAt)""".execute()
+    val params = keys.sealText(ExportParams.forAccount(job.accountId, job.id), paramsOf(job.period))
+    sql"""INSERT INTO export_jobs (id, account_id, kind, params_enc, status, created_at, confirmed_at)
+          VALUES (${job.id}, ${job.accountId}, ${job.kind.db}, $params, ${job.status.db}, ${job.at},
+                  $confirmedAt)""".execute()
     ExportJob(job.id, job.accountId, job.kind, job.period, job.status, None, None, job.at, None, None)
 
   override def requestedSince(accountId: UUID, since: Instant): List[Instant] =
