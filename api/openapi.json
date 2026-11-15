@@ -4773,6 +4773,194 @@
           }
         ]
       }
+    },
+    "/api/v1/occurrences/{id}/actions" : {
+      "post" : {
+        "description" : "Taken, skipped, snoozed or undo, through the use case the chat's buttons use; the reminder in the chat is closed through the outbox. A dose answered elsewhere first answers `already_resolved` with its state.",
+        "operationId" : "actOnOccurrence",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID made when the user taps; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OccurrenceActionInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OccurrenceActionResult"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/report-cards" : {
+      "get" : {
+        "description" : "The shareable cards of the last seven days, each by its sentence.",
+        "operationId" : "listReportCards",
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportCards"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/report-cards/{kind}/deliveries" : {
+      "post" : {
+        "description" : "Queues the card for the account's chat, where the report worker sends it.",
+        "operationId" : "deliverReportCard",
+        "parameters" : [
+          {
+            "name" : "kind",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          },
+          {
+            "name" : "Idempotency-Key",
+            "in" : "header",
+            "description" : "A UUID made when the user taps; required (API-16)",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportCardDeliveryInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportCardDelivery"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
     }
   },
   "components" : {
@@ -5363,6 +5551,13 @@
           },
           "snoozedUntil" : {
             "type" : "string"
+          },
+          "snoozeChoicesMinutes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
           }
         }
       },
@@ -7308,6 +7503,44 @@
           }
         }
       },
+      "OccurrenceActionInput" : {
+        "title" : "OccurrenceActionInput",
+        "type" : "object",
+        "required" : [
+          "kind"
+        ],
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "minutes" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "OccurrenceActionResult" : {
+        "title" : "OccurrenceActionResult",
+        "type" : "object",
+        "required" : [
+          "occurrence",
+          "outcome"
+        ],
+        "properties" : {
+          "occurrence" : {
+            "$ref" : "#/components/schemas/DoseOccurrence"
+          },
+          "outcome" : {
+            "type" : "string"
+          },
+          "resolvedIn" : {
+            "type" : "string"
+          },
+          "refusal" : {
+            "type" : "string"
+          }
+        }
+      },
       "OverviewDomain" : {
         "title" : "OverviewDomain",
         "type" : "string",
@@ -7623,6 +7856,76 @@
           "pausedUntil" : {
             "type" : "string",
             "format" : "date-time"
+          }
+        }
+      },
+      "ReportCardDelivery" : {
+        "title" : "ReportCardDelivery",
+        "type" : "object",
+        "required" : [
+          "kind",
+          "status"
+        ],
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ReportCardDeliveryInput" : {
+        "title" : "ReportCardDeliveryInput",
+        "type" : "object",
+        "required" : [
+          "confirmed"
+        ],
+        "properties" : {
+          "confirmed" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "ReportCardOffer" : {
+        "title" : "ReportCardOffer",
+        "type" : "object",
+        "required" : [
+          "kind",
+          "sentence"
+        ],
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "sentence" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ReportCards" : {
+        "title" : "ReportCards",
+        "type" : "object",
+        "required" : [
+          "available",
+          "discreet",
+          "warning"
+        ],
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "discreet" : {
+            "type" : "boolean"
+          },
+          "warning" : {
+            "type" : "string"
+          },
+          "cards" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReportCardOffer"
+            }
           }
         }
       },

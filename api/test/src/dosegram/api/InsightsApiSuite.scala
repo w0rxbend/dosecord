@@ -259,6 +259,32 @@ final class InsightsApiSuite extends ApiSuite:
       English.foreach(word => assert(!words.contains(word), s"range $range: '$word' in $words"))
       assert(words.contains("Попередні"), words)
 
+  test("the medication and sleep blocks answer in Ukrainian too, with the sleep goal and every chart (G2.22)"):
+    startNewDay()
+    val account = telegramAccount("Europe/Kyiv")
+    grant(account, ConsentPurpose.Sleep)
+    val token = login(account)
+    val medication = post("/api/v1/medications", ujson.Obj("name" -> "Iron", "doseAmount" -> "1", "doseUnit" -> "tablet"), token, newKey())
+    val schedule = ujson.Obj("pattern" -> "fixed_times", "times" -> ujson.Arr("09:00"))
+    assertEquals(post(s"/api/v1/medications/${medication.json("id").str}/schedules", schedule, token, newKey()).status, 201)
+    val onset = clock.now().minus(java.time.Duration.ofHours(9))
+    val night = ujson.Obj("kind" -> "night", "onsetAt" -> onset.toString, "wakeAt" -> clock.now().minusSeconds(3600).toString)
+    assertEquals(post("/api/v1/sleep/episodes", night, token, newKey()).status, 201)
+    val sleepSettings = get("/api/v1/sleep/settings", token)
+    assertEquals(patch("/api/v1/sleep/settings", ujson.Obj("goalMinutes" -> 450), token, ifMatch(sleepSettings)).status, 200)
+    val read = get("/api/v1/settings", token)
+    val body = ujson.Obj("language" -> "uk", "timeZone" -> "Europe/Kyiv", "imageTheme" -> "auto")
+    assertEquals(patch("/api/v1/settings", body, token, ifMatch(read)).status, 200)
+    val English = List(
+      "Your goal", "Previous", "night", "Night", "dose", "Dose", "scheduled", "from your", "Sleep", "Medication",
+      "per week", "per day", "average", "logged", "taken", "No data", "record", " of ", "days"
+    )
+    List(7, 30, 90).foreach: range =>
+      val overview = get(s"/api/v1/insights/overview?range=$range", token)
+      assertEquals(overview.status, 200, overview.body)
+      val words = blocks(overview).flatMap(wordsOf).mkString("\n")
+      English.foreach(word => assert(!words.contains(word), s"range $range: '$word' in $words"))
+
   test("the Ukrainian dashboard and month name their counts in the case of the number, with one full stop (G2.22)"):
     val account = accountWithoutConsent("Europe/Kyiv")
     grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood)

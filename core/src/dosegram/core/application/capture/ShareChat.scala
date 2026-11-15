@@ -2,12 +2,10 @@ package dosegram.core.application.capture
 
 import dosegram.contracts.Choice
 import dosegram.contracts.Reply
+import dosegram.core.application.reports.ShareFacts
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.ShareCopy
 import dosegram.core.domain.copy.StatsCardCopy
-import dosegram.core.domain.insights.DateRange
-import dosegram.core.domain.insights.StatsPeriod
-import dosegram.core.domain.mood.MoodLevel
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ShareCardView
 
@@ -19,6 +17,8 @@ import dosegram.core.ports.ShareCardView
   */
 private[capture] final class ShareChat(parts: CaptureParts, tokens: Tokens):
   import ShareChat.*
+
+  private val shareFacts = ShareFacts(parts.stats)
 
   /** The button on the seven-day `/stats`, only where the card could be sent as an image. */
   def button(turn: Turn): Option[Choice] =
@@ -55,71 +55,11 @@ private[capture] final class ShareChat(parts: CaptureParts, tokens: Tokens):
           case None => turn.toast(StatsCardCopy.imageUnavailable)
 
   /** The facts of the last seven days, in a fixed order, each under the code its button carries. */
-  private def facts(turn: Turn): List[(Int, ShareCardView)] =
-    parts.stats
-      .summary(turn.tx, turn.accountId, StatsPeriod.Last7Days)
-      .toOption
-      .toList
-      .flatMap: summary =>
-        val window = summary.window
-        val counts =
-          if turn.tx.accounts.gamificationOf(turn.accountId) then dayCounts(turn, window)
-          else Nil
-        (counts ++ weekMood(turn, window).toList).map(fact => codeOf(fact) -> fact)
-
-  private def dayCounts(turn: Turn, window: DateRange): List[ShareCardView] =
-    def marks(days: Set[java.time.LocalDate]): List[Boolean] = window.dates.map(days.contains)
-    val stats = parts.stats
-    List(
-      stats
-        .hydrationCalendar(turn.tx, turn.accountId, window)
-        .toOption
-        .map: days =>
-          ShareCardView.WaterGoal(marks(days.filter((_, day) => day.isGoalDay).keySet)),
-      stats
-        .sleepCalendar(turn.tx, turn.accountId, window)
-        .toOption
-        .map(days => ShareCardView.SleepLogged(marks(days.keySet))),
-      stats
-        .moodCalendar(turn.tx, turn.accountId, window)
-        .toOption
-        .map(days => ShareCardView.MoodLogged(marks(days.keySet)))
-    ).flatten.filter(hits(_) > 0)
-
-  private def weekMood(turn: Turn, window: DateRange): Option[ShareCardView] =
-    parts.stats
-      .moodCalendar(turn.tx, turn.accountId, window)
-      .toOption
-      .filter(_.nonEmpty)
-      .map: days =>
-        val checkins = days.values.map(_.n).sum
-        val energies = days.values.map(_.energyN).sum
-        ShareCardView.WeekMood(
-          days.values.map(_.valenceSum).sum.toDouble / checkins,
-          Option.when(energies > 0)(days.values.map(_.energySum).sum.toDouble / energies)
-        )
+  private def facts(turn: Turn): List[(Int, ShareCardView)] = shareFacts.of(turn.tx, turn.accountId)
 
 private[capture] object ShareChat:
   private val CodeMask = 0xfL
   private val Confirmed = 0x10L
 
-  private def hits(fact: ShareCardView): Int = fact match
-    case ShareCardView.WaterGoal(days)   => days.count(identity)
-    case ShareCardView.SleepLogged(days) => days.count(identity)
-    case ShareCardView.MoodLogged(days)  => days.count(identity)
-    case ShareCardView.WeekMood(_, _)    => 1
-
-  private def codeOf(fact: ShareCardView): Int = fact match
-    case ShareCardView.WaterGoal(_)   => 1
-    case ShareCardView.SleepLogged(_) => 2
-    case ShareCardView.MoodLogged(_)  => 3
-    case ShareCardView.WeekMood(_, _) => 4
-
-  /** The button's words are the card's own sentence (VA-IMG-17b: the user sees what the card says before it is sent).
-    */
-  private def label(fact: ShareCardView): String = fact match
-    case ShareCardView.WaterGoal(days)      => ShareCopy.waterGoal(days.count(identity))
-    case ShareCardView.SleepLogged(days)    => ShareCopy.sleepLogged(days.count(identity))
-    case ShareCardView.MoodLogged(days)     => ShareCopy.moodLogged(days.count(identity))
-    case ShareCardView.WeekMood(valence, _) => ShareCopy.weekMood(MoodLevel.ofMean(valence))
+  private def label(fact: ShareCardView): String = ShareFacts.label(fact)
 end ShareChat

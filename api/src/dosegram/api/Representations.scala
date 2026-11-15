@@ -244,7 +244,26 @@ final case class DoseOccurrence(
     state: DoseState,
     doseText: Option[String] = None,
     resolvedTime: Option[String] = None,
-    snoozedUntil: Option[String] = None
+    snoozedUntil: Option[String] = None,
+    snoozeChoicesMinutes: List[Int] = Nil
+) derives ReadWriter,
+      Schema
+
+/** An answer to a dose from the Mini App (`POST /occurrences/{id}/actions`, ROADMAP G3.7): `taken`, `skipped`,
+  * `snoozed` with one of the occurrence's `snoozeChoicesMinutes`, or `undo` of the last answer within its window.
+  */
+final case class OccurrenceActionInput(kind: String, minutes: Option[Int] = None) derives ReadWriter, Schema
+
+/** The occurrence after an answer, in the state the server holds. `outcome` is `recorded`, `already_resolved` (the dose
+  * was answered first elsewhere, MINI_APP MA-TODAY-3; `resolvedIn` names where: `chat` or `app`) or `refused`
+  * (`refusal` names the rule: `nothing_to_undo`, `undo_window_passed`, `snooze_not_allowed`, `snooze_limit_reached`,
+  * `snooze_past_bound`). Neither of the last two is an error, and neither records anything.
+  */
+final case class OccurrenceActionResult(
+    occurrence: DoseOccurrence,
+    outcome: String,
+    resolvedIn: Option[String] = None,
+    refusal: Option[String] = None
 ) derives ReadWriter,
       Schema
 

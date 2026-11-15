@@ -78,6 +78,9 @@ object E2eSeed:
   /** The name the suite looks for on Today and in the registry. */
   val MedicationName = "Vitamin D"
 
+  /** The medication whose dose is due when the suite starts. */
+  val DueMedicationName = "Iron"
+
   def seed(dataSource: DataSource, telegramUserId: Long): Unit =
     val fixtures = Fixtures(dataSource)
     val accountId = fixtures.account("UTC")
@@ -123,3 +126,18 @@ object E2eSeed:
         val status = if index == 0 then OccurrenceStatus.Taken else OccurrenceStatus.Pending
         fixtures.occurrenceAt(created.scheduleId, at, Evaluator.fixedSlotKey(time), status)
         ()
+    // A second medication with one dose due a few minutes ago, so Today offers its answers (ROADMAP G3.7).
+    val dueAt = now.minus(java.time.Duration.ofMinutes(3)).truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
+    val dueTime = HhMm.unsafe(f"${dueAt.atZone(ZoneOffset.UTC).getHour}%02d:${dueAt.atZone(ZoneOffset.UTC).getMinute}%02d")
+    val due = fixtures.schedule(
+      Clock.system,
+      accountId,
+      DueMedicationName,
+      Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(dueTime)))),
+      ZoneOffset.UTC,
+      doseAmount = Some(BigDecimal(1)),
+      doseUnit = Some("tablet")
+    )
+    if dueAt.atZone(ZoneOffset.UTC).toLocalDate == today then
+      fixtures.occurrenceAt(due.scheduleId, dueAt, Evaluator.fixedSlotKey(dueTime), OccurrenceStatus.Due)
+      ()

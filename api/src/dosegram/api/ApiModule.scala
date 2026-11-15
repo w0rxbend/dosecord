@@ -9,10 +9,12 @@ import dosegram.core.application.Application
 import dosegram.core.application.exports.ExportRequests
 import dosegram.core.application.imports.ImportService
 import dosegram.core.application.privacy.DeletionRequests
+import dosegram.core.application.reports.CardDelivery
 import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
+import dosegram.core.ports.StatusCards
 import dosegram.core.ports.UnitOfWork
 import sttp.model.Method
 import sttp.model.StatusCode
@@ -35,6 +37,8 @@ import scala.util.control.NonFatal
   *
   * @param blobStates
   *   the drawn mood states: the renderer's geometry, which the composition root converts (MINI_APP section 7.9).
+  * @param cards
+  *   the card layouts the chat uses, for the cards the app sends to the chat (VISUALS IMG-17); text only by default.
   * @param log
   *   receives one line per unexpected failure: the request id and the exception class, never a message, a body or a
   *   path.
@@ -49,7 +53,8 @@ final class ApiModule(
     blobStates: MoodBlobStates,
     log: String => Unit,
     exportRequests: ExportRequests,
-    deletionRequests: DeletionRequests
+    deletionRequests: DeletionRequests,
+    cards: StatusCards = StatusCards.textOnly
 ):
   import ApiModule.*
 
@@ -58,6 +63,9 @@ final class ApiModule(
   private val idempotency = Idempotency(idempotencyStore, clock)
   private val registry = Registry(uow, clock)
   private val days = DayViews(uow, clock)
+  private val doseActions = DoseActions(uow, clock)
+  private val reportCards =
+    ReportCardsApi(uow, tracking.stats, cards, CardDelivery(clock, IdSource.uuidV7(SecureRandom())))
   private val insights = Insights(uow, tracking)
   private val insightReports = InsightReports(uow, tracking, clock)
   private val history = History(uow, tracking, clock)
@@ -134,7 +142,18 @@ final class ApiModule(
       .handle(session => _ => medication(session)(Right(days.today(session.accountId)))),
     Endpoints.day
       .handleSecurity(authenticate)
-      .handle(session => date => medication(session)(Right(days.on(session.accountId, date))))
+      .handle(session => date => medication(session)(Right(days.on(session.accountId, date)))),
+    // A repeat with the same key answers with the stored outcome and records nothing (API-16, G3.7).
+    DoseActionEndpoints.actOnOccurrence
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (id, key, input) =>
+          medication(session):
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              result <- idempotency.once(session.accountId, parsedKey, hashOf(s"occurrences/$id/actions", input)):
+                doseActions.act(session.accountId, id, parsedKey, input)
+            yield result
   )
 
   private val medicationEndpoints: List[ServerEndpoint[Any, Identity]] = List(
@@ -633,11 +652,29 @@ final class ApiModule(
             yield (Rendering.etag(doc.version), doc)
   )
 
+  /** The shareable card of the Insights screen (VISUALS IMG-17), through the report queue (ROADMAP G4.3). */
+  private val reportCardEndpoints: List[ServerEndpoint[Any, Identity]] = List(
+    ReportCardEndpoints.listReportCards
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(Right(reportCards.list(session.accountId)))),
+    ReportCardEndpoints.deliverReportCard
+      .handleSecurity(authenticate)
+      .handle: session =>
+        (kind, key, input) =>
+          guarded:
+            for
+              parsedKey <- idempotencyKeyOf(key)
+              sent <- idempotency.once(session.accountId, parsedKey, hashOf(s"report-cards/$kind/deliveries", input)):
+                reportCards.deliver(session.accountId, kind, parsedKey, input)
+            yield sent
+  )
+
   /** In mount order: the catch-all for unknown `/api` paths is last. */
   val endpoints: List[ServerEndpoint[Any, Identity]] =
     (sessionEndpoints ++ settingsEndpoints ++ dayEndpoints ++ medicationEndpoints ++ scheduleEndpoints ++
       hydrationEndpoints ++ moodEndpoints ++ sleepEndpoints ++ reminderEndpoints ++ calendarEndpoints ++ insightEndpoints ++
-      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints ++ deletionEndpoints ++ importEndpoints)
+      nutritionEndpoints ++ exportEndpoints ++ medicationDepthEndpoints ++ deletionEndpoints ++ importEndpoints ++
+      reportCardEndpoints)
       .map(localised) :+
       Endpoints.unknown.handleError(_ => ApiFailure.notFound())
 

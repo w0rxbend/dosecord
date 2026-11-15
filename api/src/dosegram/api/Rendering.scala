@@ -1,6 +1,7 @@
 package dosegram.api
 
 import dosegram.contracts.Weekday
+import dosegram.core.domain.Decide
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.OccurrenceCandidate
@@ -343,6 +344,15 @@ object Rendering:
     case OccurrenceStatus.Unknown   => DoseState.Unknown
     case OccurrenceStatus.Cancelled =>
       throw IllegalStateException(s"cancelled occurrence ${row.id} has no place in a day view")
+
+  /** The occurrence with the snooze lengths an answer may choose now, for a row that is still open (ADR-012). */
+  def answerable(tx: Tx, row: StoredOccurrence, now: Instant): DoseOccurrence =
+    val shown = occurrence(tx, row)
+    if !row.status.isOpen then shown
+    else
+      val (policy, _) = tx.policies.forOccurrence(row)
+      val next = row.scheduleId.flatMap(tx.occurrences.nextScheduledAfter(_, row.state.scheduledFor))
+      shown.copy(snoozeChoicesMinutes = Decide.availableSnoozeOptions(row.state, policy, now, next))
 
   def occurrence(tx: Tx, row: StoredOccurrence): DoseOccurrence =
     val snapshot = row.doseSnapshot
