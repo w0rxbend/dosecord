@@ -100,6 +100,18 @@ final class InsightsApiSuite extends ApiSuite:
     val everyLine = blocks(overview).flatMap(_("lines").arr.toList.map(_.str))
     assertEquals(everyLine.flatMap(InsightPhrases.violations), Nil, "no line states a cause or judges a value")
 
+  test("with counts off the overview keeps coverage and drops the minimum-data gates"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+    assert(tracking.water.setGoal(account.accountId, Some(2000)).isRight)
+    drink(account, 500)
+    checkIn(account, 4)
+    uow.transactionAs(account.accountId)(_.accounts.setGamification(account.accountId, false, clock.now()))
+    val overview = get("/api/v1/insights/overview?range=7", login(account))
+    val lines = blocks(overview).flatMap(_("lines").arr.toList.map(_.str))
+    assertEquals(lines, List("1 of 7 days have data", "1 check-in", "1 of 7 days have data"))
+    assert(!lines.exists(_.contains("more")), lines)
+
   test("the range is 7, 30 or 90 days (MA-INS-1); anything else is a validation error that names the member"):
     val account = accountWithoutConsent()
     grant(account, ConsentPurpose.Hydration)
@@ -161,6 +173,22 @@ final class InsightsApiSuite extends ApiSuite:
     assertEquals(domains.head("lines").arr.toList, Nil)
     assertEquals(month.json("summary").str, "1 day with records")
     assertEquals(InsightPhrases.violations(month.body), Nil)
+
+  test("with counts off the month keeps the day count and drops the minimum-data gates"):
+    val account = accountWithoutConsent()
+    grant(account, ConsentPurpose.Hydration, ConsentPurpose.Nutrition)
+    drink(account, 900)
+    assertEquals(post("/api/v1/meals", ujson.Obj("mealType" -> "lunch"), login(account), newKey()).status, 201)
+    uow.transactionAs(account.accountId)(_.accounts.setGamification(account.accountId, false, clock.now()))
+    val month = get("/api/v1/insights/month?month=2026-11", login(account))
+    assertEquals(month.status, 200, month.body)
+    assertEquals(month.json("summary").str, "1 day with records")
+    assertEquals(month.json("reportable").bool, false)
+    val domains = month.json("domains").arr.toList
+    assertEquals(domains.map(_("id").str), List("hydration", "nutrition"))
+    assert(domains.forall(domain => !domain.obj.contains("gateText")), month.body)
+    assert(!month.json.obj.contains("notice"), month.body)
+    assert(!month.body.contains("more"), month.body)
 
   test("food is a block of the month behind its consent, with the gate until 14 days have a meal"):
     val account = accountWithoutConsent()

@@ -42,11 +42,12 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
 
   private def overviewOf(tx: Tx, accountId: UUID, period: TrendPeriod, today: LocalDate): InsightsOverview =
     val frame = Frame(period, period.current(today), period.previous(today))
+    val countsOn = tx.accounts.gamificationOf(accountId)
     val blocks = List(
       medication(tx, accountId, frame),
-      hydration(tx, accountId, frame),
-      mood(tx, accountId, frame),
-      sleep(tx, accountId, frame),
+      hydration(tx, accountId, frame, countsOn),
+      mood(tx, accountId, frame, countsOn),
+      sleep(tx, accountId, frame, countsOn),
       food(tx, accountId, frame)
     ).flatten
     InsightsOverview(
@@ -80,7 +81,7 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
         Charts.spark(shares, SceneTone.Recorded)
       ).copy(medications = medicationRows(tx, accountId, view.period.perMedication))
 
-  private def hydration(tx: Tx, accountId: UUID, frame: Frame): Option[InsightBlock] =
+  private def hydration(tx: Tx, accountId: UUID, frame: Frame, countsOn: Boolean): Option[InsightBlock] =
     for
       view <- tracking.stats.hydrationOver(tx, accountId, frame.current).toOption
       previous <- tracking.stats.hydrationOver(tx, accountId, frame.previous).toOption
@@ -90,13 +91,13 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
         else DaySeries.of(view.days, frame.current).shown.map(Charts.waterByDay(_, frame.current))
       block(
         OverviewDomain.Hydration,
-        StatsCopy.waterFigures(view.period),
+        if countsOn then StatsCopy.waterFigures(view.period) else StatsCopy.waterFiguresOmittingGates(view.period),
         chart.toList,
         TrendCopy.water(frame.period.days, previous.period),
         Charts.spark(frame.means(view.days)(_.totalMl.toDouble), SceneTone.Hydration)
       ).copy(vessel = vesselOf(tx, accountId))
 
-  private def mood(tx: Tx, accountId: UUID, frame: Frame): Option[InsightBlock] =
+  private def mood(tx: Tx, accountId: UUID, frame: Frame, countsOn: Boolean): Option[InsightBlock] =
     for
       view <- tracking.stats.moodOver(tx, accountId, frame.current).toOption
       previous <- tracking.stats.moodOver(tx, accountId, frame.previous).toOption
@@ -109,13 +110,13 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
         Option.when(weekdays.exists(_.mean.shown.isDefined))(Charts.moodByWeekday(weekdays, frame.current))
       block(
         OverviewDomain.Mood,
-        StatsCopy.moodFigures(view.period),
+        if countsOn then StatsCopy.moodFigures(view.period) else StatsCopy.moodFiguresOmittingGates(view.period),
         trend.toList ++ byWeekday.toList,
         TrendCopy.mood(frame.period.days, previous.period),
         Charts.spark(frame.means(view.days)(_.mean), SceneTone.Mood)
       )
 
-  private def sleep(tx: Tx, accountId: UUID, frame: Frame): Option[InsightBlock] =
+  private def sleep(tx: Tx, accountId: UUID, frame: Frame, countsOn: Boolean): Option[InsightBlock] =
     for
       view <- tracking.stats.sleepOver(tx, accountId, frame.current).toOption
       previous <- tracking.stats.sleepOver(tx, accountId, frame.previous).toOption
@@ -127,7 +128,7 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
         else DaySeries.of(view.days, frame.current).shown.map(Charts.sleepByDay(_, frame.current, goal))
       block(
         OverviewDomain.Sleep,
-        StatsCopy.sleepFigures(view.period),
+        if countsOn then StatsCopy.sleepFigures(view.period) else StatsCopy.sleepFiguresOmittingGates(view.period),
         chart.toList ++ Charts.sleepTimes(regularity.bars, frame.current).toList,
         TrendCopy.sleep(frame.period.days, previous.period),
         Charts.spark(frame.means(view.days)(_.minutes.toDouble), SceneTone.Sleep)

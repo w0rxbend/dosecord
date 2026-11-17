@@ -130,6 +130,9 @@ object StatsCopy:
   /** The figures of the water line one by one; empty when the period has no entry. */
   def waterFigures(period: HydrationPeriod): List[String] = waterDetail(period, Some(_))
 
+  /** The water figures with the minimum-data gates left out (R-GAM-5). */
+  def waterFiguresOmittingGates(period: HydrationPeriod): List[String] = waterDetail(period, _ => None)
+
   private def waterDetail(period: HydrationPeriod, gate: String => Option[String]): List[String] =
     if period.recordedDays == 0 then Nil
     else
@@ -191,6 +194,9 @@ object StatsCopy:
   /** The figures of the mood line one by one; empty when the period has no check-in. */
   def moodFigures(period: MoodPeriod): List[String] = moodDetail(period, Some(_))
 
+  /** The mood figures with the minimum-data gates left out (R-GAM-5). */
+  def moodFiguresOmittingGates(period: MoodPeriod): List[String] = moodDetail(period, _ => None)
+
   private def moodDetail(period: MoodPeriod, gate: String => Option[String]): List[String] =
     if period.checkInDays == 0 then Nil
     else
@@ -239,6 +245,9 @@ object StatsCopy:
     * (MINI_APP MA-SLEEP-1), and no reference duration is ever given (MA-SLEEP-4).
     */
   def sleepFigures(period: SleepPeriod): List[String] = sleepDetail(period, Some(_))
+
+  /** The sleep figures with the minimum-data gates left out (R-GAM-5). */
+  def sleepFiguresOmittingGates(period: SleepPeriod): List[String] = sleepDetail(period, _ => None)
 
   private def sleepDetail(period: SleepPeriod, gate: String => Option[String]): List[String] =
     if period.nights == 0 then Nil

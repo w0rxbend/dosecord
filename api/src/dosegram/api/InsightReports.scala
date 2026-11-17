@@ -24,7 +24,7 @@ import java.time.ZoneId
 import java.util.UUID
 
 /** One domain of a month in the server's words: its figures when it met the section gate of PRODUCT_SPEC R-INS-11, else
-  * the gate with its progress in `gateText`.
+  * the gate with its progress in `gateText`. With the counts switch off, `gateText` is absent (R-GAM-5).
   */
 final case class InsightMonthDomain(
     id: InsightDomain,
@@ -99,7 +99,8 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
         view <- tracking.stats.month(tx, accountId, shown).left.map(_ => ApiFailure.notFound())
       yield
         val figures = view.figures
-        val domains = domainsOf(figures)
+        val countsOn = tx.accounts.gamificationOf(accountId)
+        val domains = domainsOf(figures, countsOn)
         InsightMonth(
           month = shown.toString,
           monthLabel = ApiCopy.monthLabel(shown),
@@ -113,7 +114,7 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
           medications = figures.medication.toList.flatMap(domain => medicationRows(tx, accountId, domain)),
           notice = Option
             .when(domains.isEmpty)(ApiCopy.noConsentedDomain)
-            .orElse(Option.when(!figures.isReportable)(MonthCopy.gateTitle))
+            .orElse(Option.when(countsOn && !figures.isReportable)(MonthCopy.gateTitle))
         )
 
   def correlations(accountId: UUID): Either[ApiFailure, InsightList] =
@@ -139,7 +140,7 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
       case Insight.Baseline(statement, _) => s"IR-11.${statement.metric.toString}"
     InsightItem(id, InsightCopy.text(insight), InsightCopy.howWorkedOut(insight))
 
-  private def domainsOf(figures: MonthFigures): List[InsightMonthDomain] =
+  private def domainsOf(figures: MonthFigures, countsOn: Boolean): List[InsightMonthDomain] =
     def block[P](domain: InsightDomain, name: String, source: Option[MonthDomain[P]])(lines: P => List[String]) =
       source.map: month =>
         if month.meetsGate then
@@ -151,8 +152,10 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
             month.recordedDays,
             meetsGate = false,
             lines = Nil,
-            gateText = Some(MonthCopy.gate(name, month))
+            gateText = Option.when(countsOn)(MonthCopy.gate(name, month))
           )
+    def shown[P](gated: P => List[String], open: P => List[String]): P => List[String] =
+      if countsOn then gated else open
     List(
       block(InsightDomain.Medication, tr("Doses", "Дози"), figures.medication)(period =>
         StatsCopy.doseFigures(period.total) ++
@@ -160,9 +163,15 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
             .previous(figures.month, figures.previousAdherence)
             .filter(_ => period.total.adherence.shown.isDefined)
       ),
-      block(InsightDomain.Hydration, tr("Water", "Вода"), figures.hydration)(StatsCopy.waterFigures),
-      block(InsightDomain.Mood, tr("Mood", "Настрій"), figures.mood)(StatsCopy.moodFigures),
-      block(InsightDomain.Sleep, tr("Sleep", "Сон"), figures.sleep)(StatsCopy.sleepFigures),
+      block(InsightDomain.Hydration, tr("Water", "Вода"), figures.hydration)(
+        shown(StatsCopy.waterFigures, StatsCopy.waterFiguresOmittingGates)
+      ),
+      block(InsightDomain.Mood, tr("Mood", "Настрій"), figures.mood)(
+        shown(StatsCopy.moodFigures, StatsCopy.moodFiguresOmittingGates)
+      ),
+      block(InsightDomain.Sleep, tr("Sleep", "Сон"), figures.sleep)(
+        shown(StatsCopy.sleepFigures, StatsCopy.sleepFiguresOmittingGates)
+      ),
       block(InsightDomain.Nutrition, tr("Food", "Їжа"), figures.food)(TrendCopy.foodFigures)
     ).flatten
 

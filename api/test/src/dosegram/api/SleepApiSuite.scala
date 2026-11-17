@@ -90,6 +90,15 @@ final class SleepApiSuite extends ApiSuite:
     assertEquals(summary("chart")("marks").arr.count(_.str.endsWith("no night logged")), 6)
     assertEquals(summary("status")("text").str, "Last: 23:30 to 07:00, 7 h 30 min.")
 
+  test("with counts off the sleep summary keeps the night and drops the average gate"):
+    val (account, token) = sleeper()
+    night(token, hoursAgo(10.5), hoursAgo(3))
+    uow.transactionAs(account.accountId)(_.accounts.setGamification(account.accountId, false, clock.now()))
+    val lines = get("/api/v1/sleep/summary", token).json("lines").arr.map(_.str).toList
+    assert(lines.contains("1 night logged"), lines)
+    assert(lines.contains("your check-ins"), lines)
+    assert(!lines.exists(_.contains("more")), lines)
+
   test("a delete voids a night of any age; a second delete answers the same"):
     val (account, first) = sleeper()
     val id = night(first, hoursAgo(10.5), hoursAgo(3)).json("id").str

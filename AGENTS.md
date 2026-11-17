@@ -194,8 +194,7 @@ Useful next, in this order:
 4. What the seventh round left open: of G2.3 the `SECURITY DEFINER` claim
    functions for the loops, a fail-closed `transaction`, the chat-keyed
    tables and the unbound idempotency and session stores; of G9.2 the 60-day
-   simulation and pre-rendering; of G9.4 the Trends line, and the
-   minimum-data gates on the Mini App and the API when the switch is off;
+   simulation and pre-rendering; of G9.4 the Trends line;
    of G10.7 keeping a device night next to a
    self-reported one, the device name and G10.6 (OA-12); the Mini App share
    builder; checkpoints CP2-a, CP10-a, CP10-b; live sends of the album, the

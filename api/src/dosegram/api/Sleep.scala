@@ -101,11 +101,15 @@ final class Sleep(uow: UnitOfWork, tracking: TrackingUseCases, clock: Clock):
         days <- tracking.stats.sleepCalendar(tx, accountId, range).left.map(Refusals.of)
       yield
         val chart = DaySeries.of(days, range).shown.map(Charts.sleepByDay(_, range, status.goalMinutes))
+        val period = SleepStats.period(days, range)
+        val lines =
+          if tx.accounts.gamificationOf(accountId) then StatsCopy.sleepFigures(period)
+          else StatsCopy.sleepFiguresOmittingGates(period)
         SleepSummary(
           range.start,
           range.end,
           statusView(status),
-          StatsCopy.sleepFigures(SleepStats.period(days, range)),
+          lines,
           range.dates.map(date => summaryDay(date, days.get(date))),
           chart,
           Option.when(chart.isEmpty)(ApiCopy.noDataInPeriod)
