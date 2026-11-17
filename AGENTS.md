@@ -220,13 +220,14 @@ Useful next, in this order:
    (G11.6b); the rest of G2.18; dropping the emptied plaintext columns; the
    image gate after the compose change. G2.6 (English catalogue) is eligible
    by dependency and untouched.
-9. What the eighth round left open: the gap of a medication-only IMG-04, the
-   refill card in the goldens, the contact-sheet review by another reviewer
-   and the greyscale check; on Today the occurrence sheet corrections, the
-   as-needed sheet and an inline mood check-in, tap-through from week charts,
-   the mood chart's axis label at 360 px; the unfixed hot spots of
+9. What the eighth round left open: the contact-sheet review by another
+   reviewer and the greyscale check; the unfixed hot spots of
    PERFORMANCE.md; live checks of the dose answer (MA-TODAY-4), the share
-   card and the images.
+   card and the images. On main since the ultracode merge: IMG-20 to IMG-22
+   buttons, the refill golden, a medication-only weekly report, the Today
+   occurrence sheet for the actions the API already accepts (no Taken-at
+   field), the as-needed sheet, one inline mood check-in, insight blocks
+   that load near the viewport, and a week-chart tap that opens the day.
 
 ## Agent workflow
 
