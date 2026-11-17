@@ -195,9 +195,13 @@ export function toScheduleOptions(wire: Wire['ScheduleOptions']): ScheduleOption
   if (offered.includes('fixed_times')) {
     patterns.push({ value: 'fixed_times', label: en.schedule.patterns.fixed_times });
     patterns.push({ value: 'weekly', label: en.schedule.patterns.weekly });
+    patterns.push({ value: 'day_groups', label: en.schedule.patterns.day_groups });
   }
   if (offered.includes('every_n_days')) patterns.push({ value: 'every_n_days', label: en.schedule.patterns.every_n_days });
+  if (offered.includes('every_n_weeks')) patterns.push({ value: 'every_n_weeks', label: en.schedule.patterns.every_n_weeks });
   if (offered.includes('cycle')) patterns.push({ value: 'cycle', label: en.schedule.patterns.cycle });
+  if (offered.includes('interval_fixed_start'))
+    patterns.push({ value: 'interval_fixed_start', label: en.schedule.patterns.interval_fixed_start });
   if (offered.includes('as_needed')) patterns.push({ value: 'as_needed', label: en.schedule.patterns.as_needed });
   return {
     patterns,
@@ -211,6 +215,7 @@ export function toScheduleOptions(wire: Wire['ScheduleOptions']): ScheduleOption
 export function toScheduleDraft(draft: ScheduleDraft): Wire['ScheduleDraft'] {
   if (draft.pattern === 'as_needed')
     return { pattern: 'as_needed', maxPerDay: draft.maxPerDay, minGapMinutes: draft.minGapMinutes };
+  const dates = { startDate: draft.startDate, endDate: draft.endDate ?? undefined };
   if (draft.pattern === 'every_n_days' || draft.pattern === 'cycle')
     return {
       pattern: draft.pattern,
@@ -218,8 +223,35 @@ export function toScheduleDraft(draft: ScheduleDraft): Wire['ScheduleDraft'] {
       everyDays: draft.everyDays,
       onDays: draft.onDays,
       offDays: draft.offDays,
-      startDate: draft.startDate,
-      endDate: draft.endDate ?? undefined,
+      anchorDate: draft.anchorDate,
+      ...dates,
+    };
+  if (draft.pattern === 'every_n_weeks')
+    return {
+      pattern: 'every_n_weeks',
+      times: draft.rows.map((row) => row.time),
+      weekdays: [...draft.weekdays],
+      everyWeeks: draft.everyWeeks,
+      anchorDate: draft.anchorDate,
+      ...dates,
+    };
+  if (draft.pattern === 'interval_fixed_start')
+    return {
+      pattern: 'interval_fixed_start',
+      startTime: draft.startTime,
+      intervalMinutes: draft.intervalMinutes,
+      maxPerDay: draft.maxPerDay,
+      weekdays: [...draft.weekdays],
+      ...dates,
+    };
+  if (draft.pattern === 'day_groups')
+    return {
+      pattern: 'fixed_times',
+      slotGroups: (draft.groups ?? []).map((group) => ({
+        weekdays: [...group.weekdays],
+        times: group.rows.map((row) => row.time),
+      })),
+      ...dates,
     };
   return {
     pattern: 'fixed_times',
@@ -247,27 +279,43 @@ export function toSchedulePreview(wire: Wire['SchedulePreview']): SchedulePrevie
   };
 }
 
+/** The builder's pattern of a stored schedule: the server's `fixed_times` is every day, certain days or day groups. */
+function patternOf(wire: Wire['Schedule'], everyDay: boolean): Schedule['pattern'] {
+  if (wire.pattern !== 'fixed_times') return wire.pattern;
+  if ((wire.slotGroups ?? []).length > 0) return 'day_groups';
+  return everyDay ? 'fixed_times' : 'weekly';
+}
+
 export function toSchedule(wire: Wire['Schedule']): Schedule {
   const weekdays = wire.weekdays ?? [];
   const everyDay = weekdays.length === ISO_WEEK.length;
-  const timed = everyDay ? 'fixed_times' : 'weekly';
-  const periodic = wire.pattern === 'every_n_days' || wire.pattern === 'cycle';
+  const pattern = patternOf(wire, everyDay);
+  const keepsDays = pattern === 'weekly' || pattern === 'every_n_weeks' || (pattern === 'interval_fixed_start' && !everyDay);
   return {
     id: wire.id,
     medicationId: wire.medicationId,
     status: wire.status,
     revision: wire.revision,
     summary: wire.summary,
-    pattern: wire.pattern === 'as_needed' || periodic ? wire.pattern : timed,
+    pattern,
     rows: (wire.times ?? []).map((time) => ({ time, dose: '' })),
-    weekdays: everyDay || periodic ? [] : weekdays,
+    weekdays: keepsDays ? weekdays : [],
     startDate: wire.startDate,
     endDate: wire.endDate ?? null,
     everyDays: wire.everyDays,
     onDays: wire.onDays,
     offDays: wire.offDays,
+    everyWeeks: wire.everyWeeks,
+    anchorDate: wire.anchorDate,
+    startTime: wire.startTime,
+    intervalMinutes: wire.intervalMinutes,
+    groups: (wire.slotGroups ?? []).map((group) => ({
+      weekdays: group.weekdays ?? [],
+      rows: (group.times ?? []).map((time) => ({ time, dose: '' })),
+    })),
     // The chat wizard's defaults (10 a day, no gap) are not limits the user set.
-    maxPerDay: wire.maxPerDay === 10 && !wire.minGapMinutes ? undefined : wire.maxPerDay,
+    maxPerDay:
+      pattern === 'as_needed' && wire.maxPerDay === 10 && !wire.minGapMinutes ? undefined : wire.maxPerDay,
     minGapMinutes: wire.minGapMinutes || undefined,
   };
 }

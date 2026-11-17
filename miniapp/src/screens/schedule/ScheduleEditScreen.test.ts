@@ -59,4 +59,24 @@ describe('Schedule edit', () => {
     expect(await screen.findByText('This item was changed elsewhere. Reload it, then make your change again.')).toBeTruthy();
     expect(harness.router.route).not.toEqual({ screen: 'meds' });
   });
+
+  it('G9.9: shows a stored rule the form cannot express read-only, with no form and no Save', async () => {
+    const harness = createHarness();
+    const stored = await harness.api.schedule('sch-a');
+    harness.api.schedule = async () => ({
+      ...stored,
+      pattern: 'interval_fixed_start',
+      rows: [],
+      startTime: '06:00',
+      intervalMinutes: 90,
+      maxPerDay: 6,
+      summary: 'every 1 h 30 min from 06:00, at most 6 a day',
+    });
+    render(ScheduleEditScreen, { props: { id: 'sch-a' }, context: harness.context });
+
+    expect(await screen.findByText('every 1 h 30 min from 06:00, at most 6 a day')).toBeTruthy();
+    expect(screen.getByText(/this form cannot show/)).toBeTruthy();
+    expect(screen.queryByLabelText(/^Every how many hours/)).toBeNull();
+    expect(harness.tg.mainButton.state.enabled).toBe(false);
+  });
 });

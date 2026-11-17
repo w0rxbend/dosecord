@@ -21,7 +21,7 @@ class RuleSuite extends munit.FunSuite:
     val kinds: List[Rule] = List(
       validFixed,
       Rule.EveryNDays(2, List(nine), LocalDate.of(2026, 9, 1)),
-      Rule.EveryNWeeks(2, weekdays, List(nine)),
+      Rule.EveryNWeeks(2, weekdays, List(nine), LocalDate.of(2026, 9, 1)),
       Rule.Cycle(21, 7, List(nine), LocalDate.of(2026, 9, 1)),
       Rule.IntervalFixedStart(nine, 240, 4, weekdays),
       Rule.Chain(ChainAnchor.EachTaken, 360, 4, nine, HhMm.unsafe("23:00"), HhMm.unsafe("08:00")),
@@ -68,10 +68,35 @@ class RuleSuite extends munit.FunSuite:
     assert(Rule.validate(Rule.Cycle(21, 0, List(nine), start)).nonEmpty)
     assert(Rule.validate(Rule.Cycle(21, 7, Nil, start)).nonEmpty)
 
-  test("the remaining M7 kinds are declared, inert (validate to Nil) and not accepted by validation"):
+  test("G9.8: valid every-N-weeks and interval rules pass validation and are accepted on writes"):
+    val fortnightly = Rule.EveryNWeeks(2, List(Weekday.Mon), List(nine), LocalDate.of(2026, 9, 1))
+    val interval = Rule.IntervalFixedStart(HhMm.unsafe("06:00"), 360, 4, Weekday.values.toList)
+    assertEquals(Rule.validate(fortnightly), Nil)
+    assertEquals(Rule.validate(interval), Nil)
+    assert(Rule.isSupportedInMvp(fortnightly))
+    assert(Rule.isSupportedInMvp(interval))
+    assertEquals(Rule.kindTag(fortnightly), "every_n_weeks")
+    assertEquals(Rule.kindTag(interval), "interval_fixed_start")
+
+  test("G9.8: every-N-weeks validation rejects a bad period, missing or repeated days and bad times"):
+    val start = LocalDate.of(2026, 9, 1)
+    assert(Rule.validate(Rule.EveryNWeeks(0, weekdays, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNWeeks(53, weekdays, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNWeeks(2, Nil, List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNWeeks(2, List(Weekday.Mon, Weekday.Mon), List(nine), start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNWeeks(2, weekdays, Nil, start)).nonEmpty)
+    assert(Rule.validate(Rule.EveryNWeeks(2, weekdays, List(nine, nine), start)).nonEmpty)
+
+  test("G9.8: interval validation rejects an interval out of bounds, a bad daily cap and missing days"):
+    assert(Rule.validate(Rule.IntervalFixedStart(nine, 14, 4, weekdays)).nonEmpty)
+    assert(Rule.validate(Rule.IntervalFixedStart(nine, 721, 4, weekdays)).nonEmpty)
+    assert(Rule.validate(Rule.IntervalFixedStart(nine, 240, 0, weekdays)).nonEmpty)
+    assert(Rule.validate(Rule.IntervalFixedStart(nine, 240, 13, weekdays)).nonEmpty)
+    assert(Rule.validate(Rule.IntervalFixedStart(nine, 240, 4, Nil)).nonEmpty)
+    assert(Rule.validate(Rule.IntervalFixedStart(nine, 240, 4, List(Weekday.Fri, Weekday.Fri))).nonEmpty)
+
+  test("chain, taper and paused are declared, inert (validate to Nil) and not accepted by validation"):
     val inert: List[Rule] = List(
-      Rule.EveryNWeeks(2, weekdays, List(nine)),
-      Rule.IntervalFixedStart(nine, 240, 4, weekdays),
       Rule.Chain(ChainAnchor.FirstTaken, 360, 4, nine, HhMm.unsafe("23:00"), HhMm.unsafe("08:00")),
       Rule.taper(List(TaperPhase(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 15), validFixed))),
       Rule.Paused

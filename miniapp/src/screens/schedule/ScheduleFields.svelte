@@ -3,6 +3,7 @@
   import type { ScheduleForm } from '../../forms/schedule-rules';
   import { t as en } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
+  import DayGroups from './DayGroups.svelte';
   import TimeRows from './TimeRows.svelte';
 
   interface Props {
@@ -15,6 +16,8 @@
   let { form = $bindable(), options, doseUnit, errors }: Props = $props();
 
   const timed = $derived(form.pattern !== 'as_needed');
+  const rowsShown = $derived(timed && form.pattern !== 'interval_fixed_start' && form.pattern !== 'day_groups');
+  const daysShown = $derived(form.pattern === 'weekly' || form.pattern === 'every_n_weeks' || form.pattern === 'interval_fixed_start');
   let nextKey = 1;
 
   function addRow(): void {
@@ -24,6 +27,7 @@
   function removeRow(key: number): void {
     form.rows = form.rows.filter((row) => row.key !== key);
   }
+
 </script>
 
 <!-- One scrolling form, not a wizard: the preview stays one scroll away from any field. The
@@ -40,9 +44,9 @@
   </div>
 </fieldset>
 
-{#if form.pattern === 'weekly'}
+{#if daysShown}
   <fieldset class="section" aria-describedby={errors.weekdays ? 'sch-weekdays-error' : undefined}>
-    <legend class="section-title">{en.schedule.weekdays}</legend>
+    <legend class="section-title">{form.pattern === 'interval_fixed_start' ? en.schedule.intervalDays : en.schedule.weekdays}</legend>
     <div class="section-body pad">
       <div class="chips">
         {#each options.weekdays as day (day.value)}
@@ -57,11 +61,44 @@
   </fieldset>
 {/if}
 
-{#if form.pattern === 'every_n_days' || form.pattern === 'cycle'}
+{#if form.pattern === 'interval_fixed_start'}
+  <section class="section" aria-labelledby="interval-title">
+    <h2 class="section-title" id="interval-title">{en.schedule.interval}</h2>
+    <div class="section-body pad stack">
+      <Field id="sch-startTime" label={en.schedule.startTime} required error={errors.startTime}>
+        {#snippet children(attributes)}
+          <input {...attributes} class="input numeric" type="time" bind:value={form.startTime} />
+        {/snippet}
+      </Field>
+      <Field id="sch-intervalHours" label={en.schedule.intervalHours} required help={en.schedule.intervalHelp} error={errors.intervalHours}>
+        {#snippet children(attributes)}
+          <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.intervalHours} />
+        {/snippet}
+      </Field>
+      <Field id="sch-maxPerDay" label={en.schedule.intervalMax} required error={errors.maxPerDay}>
+        {#snippet children(attributes)}
+          <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.maxPerDay} />
+        {/snippet}
+      </Field>
+    </div>
+  </section>
+{/if}
+
+{#if form.pattern === 'day_groups' && form.groups}
+  <DayGroups bind:groups={form.groups} {options} {doseUnit} {errors} firstDose={form.rows.at(0)?.dose ?? ''} />
+{/if}
+
+{#if form.pattern === 'every_n_days' || form.pattern === 'cycle' || form.pattern === 'every_n_weeks'}
   <section class="section" aria-labelledby="period-title">
     <h2 class="section-title" id="period-title">{en.schedule.period}</h2>
     <div class="section-body pad stack">
-      {#if form.pattern === 'every_n_days'}
+      {#if form.pattern === 'every_n_weeks'}
+        <Field id="sch-everyWeeks" label={en.schedule.everyWeeks} required help={en.schedule.everyWeeksHelp} error={errors.everyWeeks}>
+          {#snippet children(attributes)}
+            <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.everyWeeks} />
+          {/snippet}
+        </Field>
+      {:else if form.pattern === 'every_n_days'}
         <Field id="sch-everyDays" label={en.schedule.everyDays} required help={en.schedule.everyDaysHelp} error={errors.everyDays}>
           {#snippet children(attributes)}
             <input {...attributes} class="input numeric" inputmode="numeric" bind:value={form.everyDays} />
@@ -102,13 +139,16 @@
   </section>
 {/if}
 
-{#if timed}
+{#if rowsShown}
   <section class="section" aria-labelledby="times-title">
     <h2 class="section-title" id="times-title">{en.schedule.times}</h2>
     <div class="section-body pad stack">
       <TimeRows bind:rows={form.rows} {doseUnit} perTimeDose={options.perTimeDose} maxRows={options.maxRows} {errors} onAdd={addRow} onRemove={removeRow} />
     </div>
   </section>
+{/if}
+
+{#if timed}
 
   <section class="section" aria-labelledby="dates-title">
     <h2 class="section-title" id="dates-title">{en.schedule.dates}</h2>

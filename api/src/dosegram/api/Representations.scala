@@ -35,6 +35,8 @@ enum SchedulePattern(val wire: String):
   case AsNeeded extends SchedulePattern("as_needed")
   case EveryNDays extends SchedulePattern("every_n_days")
   case Cycle extends SchedulePattern("cycle")
+  case EveryNWeeks extends SchedulePattern("every_n_weeks")
+  case IntervalFixedStart extends SchedulePattern("interval_fixed_start")
 
 object SchedulePattern:
   given ReadWriter[SchedulePattern] = ApiJson.wireEnum(values, _.wire)
@@ -161,10 +163,16 @@ final case class MedicationOptions(
 
 // ---------- schedule-and-reminders ----------
 
+/** One day group of a fixed-times schedule: its ISO weekdays and its times (ROADMAP G9.8). */
+final case class SlotGroupDraft(weekdays: List[Int], times: List[String]) derives ReadWriter, Schema
+
 /** A schedule as the builder edits it. `weekdays` are ISO numbers, 1 is Monday; an empty list means every day.
-  * `fixed_times` needs `times`; `as_needed` takes `maxPerDay` and `minGapMinutes`. The dates are set when a schedule is
-  * created and cannot be changed by a revision. `every_n_days` needs `times` and `everyDays`; `cycle` needs `times`,
-  * `onDays` and `offDays`; both count from `anchorDate`, which defaults to the start date, else today (ROADMAP G9.8).
+  * `fixed_times` needs `times`, or `slotGroups` for different times on different days (weekdays at 08:00, the weekend
+  * at 10:00), a weekday in one group at most; `as_needed` takes `maxPerDay` and `minGapMinutes`. The dates are set when
+  * a schedule is created and cannot be changed by a revision. `every_n_days` needs `times` and `everyDays`; `cycle`
+  * needs `times`, `onDays` and `offDays`; `every_n_weeks` needs `times`, `weekdays` and `everyWeeks`; the three count
+  * from `anchorDate`, which defaults to the start date, else today. `interval_fixed_start` needs `startTime`,
+  * `intervalMinutes` and `maxPerDay`, and re-anchors on `startTime` on each of its `weekdays` (ROADMAP G9.8).
   */
 final case class ScheduleDraft(
     pattern: SchedulePattern,
@@ -177,7 +185,11 @@ final case class ScheduleDraft(
     everyDays: Option[Int] = None,
     onDays: Option[Int] = None,
     offDays: Option[Int] = None,
-    anchorDate: Option[LocalDate] = None
+    anchorDate: Option[LocalDate] = None,
+    everyWeeks: Option[Int] = None,
+    intervalMinutes: Option[Int] = None,
+    startTime: Option[String] = None,
+    slotGroups: List[SlotGroupDraft] = Nil
 ) derives ReadWriter,
       Schema
 
@@ -199,7 +211,11 @@ final case class Schedule(
     onDays: Option[Int] = None,
     offDays: Option[Int] = None,
     anchorDate: Option[LocalDate] = None,
-    resumeOn: Option[LocalDate] = None
+    resumeOn: Option[LocalDate] = None,
+    everyWeeks: Option[Int] = None,
+    intervalMinutes: Option[Int] = None,
+    startTime: Option[String] = None,
+    slotGroups: List[SlotGroupDraft] = Nil
 ) derives ReadWriter,
       Schema
 

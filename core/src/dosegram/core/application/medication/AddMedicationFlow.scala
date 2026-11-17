@@ -395,8 +395,12 @@ object AddMedicationFlow:
     val presetRule = presetOf(data).flatMap(_ => data.get(RuleKey).filter(_.nonEmpty)).map(read[Rule](_))
     presetRule match
       case Some(rule) =>
+        // An interval day's last gap changes on a clock-change day; the review says so (PRODUCT_SPEC R-SCH-13).
+        val clockNote = rule match
+          case _: Rule.IntervalFixedStart => List(MedicationDepthCopy.intervalClockNote)
+          case _                          => Nil
         (offer ++ List(MedicationDepthCopy.confirmCard(name, dose, RecordSummaries.ruleInWords(rule), zone)) ++
-          preview.toList).map(paragraph)
+          preview.toList ++ clockNote).map(paragraph)
       case None => timesCard(data, offer, preview)
 
   private def timesCard(data: Map[String, String], offer: List[String], preview: Option[String]): RichText =
@@ -468,11 +472,14 @@ object AddMedicationFlow:
             lifecycle.editInTx(ctx.tx, schedule.id, rule, None, None, now)
             Reply(followUps = List(createdMessage(name, times, ctx)))
 
+  /** The wall times a rule reminds at; empty only for a rule without reminders (as needed). */
   private def ruleTimes(rule: Rule): List[HhMm] = rule match
-    case Rule.FixedTimes(groups)      => groups.flatMap(_.times).distinct
-    case Rule.EveryNDays(_, times, _) => times
-    case Rule.Cycle(_, _, times, _)   => times
-    case _                            => Nil
+    case Rule.FixedTimes(groups)                  => groups.flatMap(_.times).distinct
+    case Rule.EveryNDays(_, times, _)             => times
+    case Rule.Cycle(_, _, times, _)               => times
+    case Rule.EveryNWeeks(_, _, times, _)         => times
+    case Rule.IntervalFixedStart(anchor, _, _, _) => List(anchor)
+    case _                                        => Nil
 
   private def createdMessage(name: String, times: List[HhMm], ctx: FlowContext): OutboundMessage =
     val lines =

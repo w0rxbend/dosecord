@@ -41,7 +41,7 @@ final case class TaperPhase(from: LocalDate, until: LocalDate, rule: Rule) deriv
 enum Rule derives ReadWriter:
   case FixedTimes(slotGroups: List[SlotGroup])
   case EveryNDays(everyDays: Int, times: List[HhMm], anchorDate: LocalDate)
-  case EveryNWeeks(everyWeeks: Int, days: List[Weekday], times: List[HhMm])
+  case EveryNWeeks(everyWeeks: Int, days: List[Weekday], times: List[HhMm], anchorDate: LocalDate)
   case Cycle(onDays: Int, offDays: Int, times: List[HhMm], anchorDate: LocalDate)
   case IntervalFixedStart(anchorTime: HhMm, intervalMinutes: Int, maxPerDay: Int, activeDays: List[Weekday])
   case Chain(
@@ -64,17 +64,25 @@ object Rule:
   /** The most reminder times of one day (PRODUCT_SPEC R-SCH-2). */
   val MaxTimesPerDay = 12
 
-  /** Whether schedule writes accept the kind: `FixedTimes` and `AsNeeded` since M1.1, `EveryNDays` and `Cycle` since
-    * ROADMAP G9.8. Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
+  /** The longest period of an every-N-weeks rule (supervisor decision, 2026-11-15). */
+  val MaxPeriodWeeks = 52
+
+  /** The bounds of the interval of an interval rule, in minutes (supervisor decision, 2026-11-15). */
+  val MinIntervalMinutes = 15
+  val MaxIntervalMinutes = 720
+
+  /** Whether schedule writes accept the kind: `FixedTimes` and `AsNeeded` since M1.1, the periodic and interval kinds
+    * since ROADMAP G9.8. Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
     */
   def isSupportedInMvp(rule: Rule): Boolean = rule match
-    case _: Rule.FixedTimes | _: Rule.AsNeeded | _: Rule.EveryNDays | _: Rule.Cycle                     => true
-    case _: Rule.EveryNWeeks | _: Rule.IntervalFixedStart | _: Rule.Chain | _: Rule.Taper | Rule.Paused =>
-      false
+    case _: Rule.FixedTimes | _: Rule.AsNeeded | _: Rule.EveryNDays | _: Rule.Cycle | _: Rule.EveryNWeeks |
+        _: Rule.IntervalFixedStart =>
+      true
+    case _: Rule.Chain | _: Rule.Taper | Rule.Paused => false
 
-  /** Field-level validation errors for the kinds the MVP accepts. The M7 kinds below are declared for exhaustivity but
-    * inert: they validate to `Nil` here and are rejected by [[isSupportedInMvp]] instead of being silently dropped.
-    * Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
+  /** Field-level validation errors for the kinds the engine accepts. `Chain`, `Taper` and `Paused` are declared for
+    * exhaustivity but inert: they validate to `Nil` here and are rejected by [[isSupportedInMvp]] instead of being
+    * silently dropped. Exhaustive on purpose: a new [[Rule]] case without an arm here fails compilation.
     */
   def validate(rule: Rule): List[String] = rule match
     case Rule.FixedTimes(slotGroups)             => validateFixedTimes(slotGroups)
@@ -87,12 +95,25 @@ object Rule:
       periodErrors("everyDays", everyDays) ++ timesErrors(times)
     case Rule.Cycle(onDays, offDays, times, _) =>
       periodErrors("onDays", onDays) ++ periodErrors("offDays", offDays) ++ timesErrors(times)
-    // M7 gate: declared, inert until their slice (ROADMAP M1.1, G9.8).
-    case _: Rule.EveryNWeeks        => Nil
-    case _: Rule.IntervalFixedStart => Nil
-    case _: Rule.Chain              => Nil
-    case _: Rule.Taper              => Nil
-    case Rule.Paused                => Nil
+    case Rule.EveryNWeeks(everyWeeks, days, times, _) =>
+      Option
+        .when(everyWeeks < 1 || everyWeeks > MaxPeriodWeeks)(
+          s"everyWeeks must be in 1..$MaxPeriodWeeks, got $everyWeeks"
+        )
+        .toList ++ daysErrors(days) ++ timesErrors(times)
+    case Rule.IntervalFixedStart(_, intervalMinutes, maxPerDay, activeDays) =>
+      List(
+        Option.when(intervalMinutes < MinIntervalMinutes || intervalMinutes > MaxIntervalMinutes)(
+          s"intervalMinutes must be in $MinIntervalMinutes..$MaxIntervalMinutes, got $intervalMinutes"
+        ),
+        Option.when(maxPerDay < 1 || maxPerDay > MaxTimesPerDay)(
+          s"maxPerDay must be in 1..$MaxTimesPerDay, got $maxPerDay"
+        )
+      ).flatten ++ daysErrors(activeDays)
+    // Declared, inert until their slice (ROADMAP G12.8).
+    case _: Rule.Chain => Nil
+    case _: Rule.Taper => Nil
+    case Rule.Paused   => Nil
 
   /** Validating constructor for [[Rule.Taper]]: phases must be non-empty, sorted by `from`, contiguous and
     * non-overlapping (`phase(i+1).from == phase(i).until`; DESIGN.md section 7.1). The raw case remains constructible
@@ -128,6 +149,12 @@ object Rule:
 
   private def periodErrors(field: String, days: Int): List[String] =
     Option.when(days < 1 || days > MaxPeriodDays)(s"$field must be in 1..$MaxPeriodDays, got $days").toList
+
+  private def daysErrors(days: List[Weekday]): List[String] =
+    List(
+      Option.when(days.isEmpty)("at least one weekday is needed"),
+      Option.when(days.distinct.size != days.size)("duplicate weekdays")
+    ).flatten
 
   private def timesErrors(times: List[HhMm]): List[String] =
     List(

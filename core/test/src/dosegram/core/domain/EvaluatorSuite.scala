@@ -105,11 +105,53 @@ class EvaluatorSuite extends munit.FunSuite:
     assertEquals(day.head.dstKind, DstKind.Gap)
     assertEquals(day.head.scheduledFor.atZone(kyiv).toLocalTime, java.time.LocalTime.of(4, 30))
 
-  test("Paused and the inert M7 kinds produce no occurrences"):
+  test("G9.8: every 2 weeks on Monday and Thursday reminds in the anchor's week and every second week after it"):
+    // Anchored on Wed 3 Jun 2026: the week of 1 Jun is week 0, so 1 and 4 Jun, 15 and 18 Jun, 29 Jun remind.
+    val revision = ScheduleRevision(
+      Rule.EveryNWeeks(2, List(Weekday.Mon, Weekday.Thu), List(hm("09:00")), LocalDate.of(2026, 6, 3)),
+      kyiv
+    )
+    val candidates =
+      Evaluator.occurrences(revision, Instant.parse("2026-05-31T21:00:00Z"), Instant.parse("2026-06-30T21:00:00Z"))
+    assertEquals(candidates.map(_.localDate.getDayOfMonth), List(1, 4, 15, 18, 29))
+    assert(candidates.forall(_.slotKey == "t0900"))
+
+  test("G9.8: every 6 hours from 06:00, at most 4 a day, gives 06:00, 12:00, 18:00 and 00:00 keyed int:0..int:3"):
+    val revision = ScheduleRevision(Rule.IntervalFixedStart(hm("06:00"), 360, 4, everyDay), kyiv)
+    val day = Evaluator.occurrences(revision, Instant.parse("2026-06-15T03:00:00Z"), Instant.parse("2026-06-16T03:00:00Z"))
+    assertEquals(day.map(_.localTime.value), List("06:00", "12:00", "18:00", "00:00"))
+    assertEquals(day.map(_.slotKey), List("int:0", "int:1", "int:2", "int:3"))
+    assert(day.forall(_.localDate == LocalDate.of(2026, 6, 15)))
+
+  test("G9.8: every 8 hours re-anchors each day: 3 doses on the spring date, 4 on the autumn date, the last gap 23 or 25 h"):
+    val revision = ScheduleRevision(Rule.IntervalFixedStart(hm("00:00"), 480, 4, everyDay), kyiv)
+    def dosesOn(date: LocalDate) =
+      Evaluator
+        .occurrences(revision, Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"))
+        .filter(_.localDate == date)
+    val spring = dosesOn(LocalDate.of(2026, 3, 29))
+    val autumn = dosesOn(LocalDate.of(2026, 10, 25))
+    assertEquals(spring.map(_.localTime.value), List("00:00", "09:00", "17:00"))
+    assertEquals(autumn.map(_.localTime.value), List("00:00", "07:00", "15:00", "23:00"))
+    assertEquals(Duration.between(autumn.last.scheduledFor, autumn.head.scheduledFor.plus(Duration.ofHours(25))), Duration.ofHours(1))
+
+  test("G9.8: an interval anchor in the Kyiv spring gap is moved forward like a fixed time and keeps its wall time"):
+    val revision = ScheduleRevision(Rule.IntervalFixedStart(hm("03:30"), 720, 2, everyDay), kyiv)
+    val day = Evaluator.occurrences(revision, Instant.parse("2026-03-28T22:00:00Z"), Instant.parse("2026-03-29T21:00:00Z"))
+    assertEquals(day.head.dstKind, DstKind.Gap)
+    assertEquals(day.head.localTime.value, "03:30")
+    assertEquals(day.head.scheduledFor.atZone(kyiv).toLocalTime, LocalTime.of(4, 30))
+    assertEquals(day.map(_.slotKey), List("int:0", "int:1"))
+
+  test("G9.8: an interval rule reminds only on its active days"):
+    val revision = ScheduleRevision(Rule.IntervalFixedStart(hm("08:00"), 240, 3, List(Weekday.Sat)), kyiv)
+    val week = Evaluator.occurrences(revision, Instant.parse("2026-06-15T00:00:00Z"), Instant.parse("2026-06-22T00:00:00Z"))
+    assertEquals(week.map(_.localDate).distinct, List(LocalDate.of(2026, 6, 20)))
+    assertEquals(week.size, 3)
+
+  test("Paused and the inert kinds produce no occurrences"):
     val rules = List(
       Rule.Paused,
-      Rule.EveryNWeeks(2, everyDay, List(hm("09:00"))),
-      Rule.IntervalFixedStart(hm("08:00"), 240, 4, everyDay),
       Rule.Chain(ChainAnchor.EachTaken, 360, 3, hm("07:00"), hm("23:00"), hm("08:00")),
       Rule.taper(List(TaperPhase(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 7, 1), Rule.AsNeeded(1, 0))))
     )

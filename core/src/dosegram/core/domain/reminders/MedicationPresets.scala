@@ -41,6 +41,9 @@ object MedicationPresets:
   val EveryOtherDay: MedicationPreset = MedicationPreset("med.every_other_day", materialised = true)
   val CycleOnOff: MedicationPreset = MedicationPreset("med.cycle", materialised = true)
   val AsNeeded: MedicationPreset = MedicationPreset("med.as_needed", materialised = true)
+  val EveryTwoWeeks: MedicationPreset = MedicationPreset("med.every_2_weeks", materialised = true)
+  val Every6HoursFromWaking: MedicationPreset = MedicationPreset("med.every_6h_from", materialised = true)
+  val WeekdayWeekend: MedicationPreset = MedicationPreset("med.weekday_weekend", materialised = true)
 
   val all: List[MedicationPreset] = List(
     Morning,
@@ -53,6 +56,9 @@ object MedicationPresets:
     Weekly,
     EveryOtherDay,
     CycleOnOff,
+    EveryTwoWeeks,
+    Every6HoursFromWaking,
+    WeekdayWeekend,
     AsNeeded
   )
 
@@ -78,15 +84,34 @@ object MedicationPresets:
       case EveryOtherDay => Rule.EveryNDays(2, clockTimes(List(params.time.getOrElse(profile.wake))), today)
       case CycleOnOff    =>
         Rule.Cycle(params.onDays, params.offDays, clockTimes(List(params.time.getOrElse(profile.wake))), today)
+      case EveryTwoWeeks =>
+        Rule.EveryNWeeks(2, List(params.weekday), clockTimes(List(params.time.getOrElse(profile.wake))), today)
+      // Every 6 hours from waking, three a day, so none falls in the night: the interval re-anchors on the wake time
+      // each day (G9.8).
+      case Every6HoursFromWaking =>
+        Rule.IntervalFixedStart(clockTimes(List(profile.wake)).head, 360, 3, everyDay)
+      // Weekdays at the wake time and the weekend an hour later, as two day groups of one schedule (G9.8).
+      case WeekdayWeekend =>
+        Rule.FixedTimes(
+          List(
+            SlotGroup(everyDay.take(5), clockTimes(List(profile.wake))),
+            SlotGroup(everyDay.drop(5), clockTimes(List(profile.wake.plusHours(1))))
+          )
+        )
       case AsNeeded => Rule.AsNeeded(maxPerDay = 10, minGapMinutes = 0)
       case other    => throw IllegalArgumentException(s"unknown medication preset ${other.id}")
 
-  /** The next `limit` reminder instants of a rule, within eight days: the preview before the schedule is saved. */
+  /** How far the preview looks: a whole period of the longest every-N-weeks rule and two more of its doses. */
+  val PreviewHorizon: Duration = Duration.ofDays(7L * Rule.MaxPeriodWeeks * 3)
+
+  /** The next `limit` reminder instants of a rule: the preview before the schedule is saved. It looks eight days ahead
+    * first and further, up to [[PreviewHorizon]], only for a rule that reminds less often (every N weeks).
+    */
   def preview(rule: Rule, zone: ZoneId, now: Instant, limit: Int): List[Instant] =
-    Evaluator
-      .occurrences(ScheduleRevision(rule, zone), now, now.plus(Duration.ofDays(8)))
-      .map(_.scheduledFor)
-      .take(limit)
+    val revision = ScheduleRevision(rule, zone)
+    def within(span: Duration) = Evaluator.occurrences(revision, now, now.plus(span)).map(_.scheduledFor).take(limit)
+    val near = within(Duration.ofDays(8))
+    if near.size >= limit then near else within(PreviewHorizon)
 
   /** Wall times as the schedule stores them, sorted and without repeats (three anchors may coincide). */
   private def clockTimes(times: Seq[LocalTime]): List[HhMm] =

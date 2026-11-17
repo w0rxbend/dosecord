@@ -446,6 +446,42 @@ class MedicationWizardSuite extends munit.FunSuite:
       asNeeded.tapLabel("as needed", Labels.Create)
       assertEquals(asNeeded.uow.schedules.all.head.kind, "as_needed")
 
+  test("G9.8 presets: every 2 weeks, every 6 h from waking and weekdays + weekend are reviewed in words and saved as built"):
+    ox.supervised:
+      val fortnight = MedicationWizardRig(Profile.Telegram)
+      startPresets(fortnight)
+      fortnight.tapLabel("Pick a preset", "Every 2 weeks")
+      fortnight.tapLabel("Preset: Every 2 weeks.", WizardCopy.noInstructions)
+      val card = fortnight.lastChunks.mkString("\n")
+      assert(card.contains("Vitamin D 1000 IU, every 2 weeks on Mon from Mon 21 Sep 07:00 Europe/Kyiv"), card)
+      assert(card.contains("Next reminders: Mon 21 Sep 07:00, Mon 5 Oct 07:00, Mon 19 Oct 07:00."), card)
+      fortnight.tapLabel("every 2 weeks", Labels.Create)
+      assertEquals(fortnight.uow.schedules.all.head.kind, "every_n_weeks")
+
+      val interval = MedicationWizardRig(Profile.Telegram)
+      startPresets(interval)
+      interval.tapLabel("Pick a preset", "Every 6 h from waking")
+      interval.tapLabel("Preset: Every 6 h from waking.", WizardCopy.noInstructions)
+      assert(interval.lastChunks.exists(_.contains("every 6 h from 07:00, at most 3 a day Europe/Kyiv")), interval.lastChunks)
+      assert(interval.lastChunks.exists(_.contains(MedicationDepthCopy.intervalClockNote)), interval.lastChunks)
+      interval.tapLabel("every 6 h", Labels.Create)
+      assertEquals(interval.uow.schedules.all.head.kind, "interval_fixed_start")
+      assertEquals(
+        interval.uow.occurrences.listBySchedule(interval.uow.schedules.all.head.id).map(_.slotKey).take(3),
+        List("int:0", "int:1", "int:2")
+      )
+      assert(!interval.lastChunks.exists(_.contains(WizardCopy.asNeededNote)), "an interval schedule reminds")
+
+      val grouped = MedicationWizardRig(Profile.Telegram)
+      startPresets(grouped)
+      grouped.tapLabel("Pick a preset", "Weekdays + weekend")
+      grouped.tapLabel("Preset: Weekdays + weekend.", WizardCopy.noInstructions)
+      assert(grouped.lastChunks.exists(_.contains("on weekdays 07:00; on Sat, Sun 08:00 Europe/Kyiv")), grouped.lastChunks)
+      grouped.tapLabel("on weekdays", Labels.Create)
+      grouped.uow.revisions.all.head.rule match
+        case Rule.FixedTimes(groups) => assertEquals(groups.map(_.days.size), List(5, 2))
+        case other                   => fail(s"not two day groups: $other")
+
 /** Regenerates both transcript goldens:
   * `./mill core.test.runMain dosegram.core.application.medicationWizardGoldenGenerate`.
   */

@@ -3,6 +3,7 @@ package dosegram.api
 import dosegram.core.domain.Evaluator
 import dosegram.core.domain.ScheduleRevision
 import dosegram.core.domain.copy.DoseUnits
+import dosegram.core.domain.reminders.MedicationPresets
 import dosegram.core.ports.Clock
 import dosegram.core.ports.MedicationEdit
 import dosegram.core.ports.MedicationStatus
@@ -136,8 +137,8 @@ final class Registry(uow: UnitOfWork, clock: Clock):
       clock.now().atZone(zone).toLocalDate
     )
 
-  /** The occurrences the engine would produce for the draft over the next seven days, from the same evaluator the
-    * materialiser uses. Nothing is written.
+  /** The occurrences the engine would produce for the draft over the next seven days, or its next three when the week
+    * holds fewer, from the same evaluator the materialiser uses. Nothing is written.
     */
   def preview(accountId: UUID, draft: ScheduleDraft): Either[ApiFailure, SchedulePreview] =
     val zone = uow.transactionAs(accountId)(zoneOf(_, accountId))
@@ -152,7 +153,11 @@ final class Registry(uow: UnitOfWork, clock: Clock):
           effectiveFrom = draft.startDate.filter(_.isAfter(today)).getOrElse(today),
           effectiveUntil = draft.endDate.map(_.plusDays(1))
         )
-        val candidates = Evaluator.occurrences(revision, now, now.plus(Duration.ofDays(PreviewDays.toLong)))
+        val week = Evaluator.occurrences(revision, now, now.plus(Duration.ofDays(PreviewDays.toLong)))
+        // A rule that reminds less often than the week holds (every N weeks) previews its next reminders instead.
+        val candidates =
+          if week.size >= PreviewMinimum then week
+          else Evaluator.occurrences(revision, now, now.plus(MedicationPresets.PreviewHorizon)).take(PreviewMinimum)
         val days = candidates
           .groupBy(_.localDate)
           .toList
@@ -343,6 +348,9 @@ final class Registry(uow: UnitOfWork, clock: Clock):
 
 object Registry:
   val PreviewDays = 7
+
+  /** The fewest reminders a preview shows when the rule has them (PRODUCT_SPEC R-SCH-5: the first three). */
+  val PreviewMinimum = 3
 
   /** The longest pause with a resume date (supervisor decision, 2026-11-14). */
   val MaxPauseDays = 365L

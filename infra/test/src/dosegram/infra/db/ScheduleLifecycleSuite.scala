@@ -4,6 +4,7 @@ import dosegram.infra.crypto.DataKeys
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.CancelReason
+import dosegram.core.domain.ChainAnchor
 import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
@@ -201,7 +202,14 @@ class ScheduleLifecycleSuite extends PgSuite:
     val accountId = fixtures.account()
     val result = fixtures
       .lifecycle(clock)
-      .create(CreateSchedule(accountId, "Med", Rule.EveryNWeeks(2, List(Weekday.Mon), List(HhMm.unsafe("09:00"))), utc))
+      .create(
+        CreateSchedule(
+          accountId,
+          "Med",
+          Rule.Chain(ChainAnchor.EachTaken, 360, 3, HhMm.unsafe("07:00"), HhMm.unsafe("23:00"), HhMm.unsafe("08:00")),
+          utc
+        )
+      )
     assert(result.isLeft)
     withConnection { conn =>
       given Connection = conn

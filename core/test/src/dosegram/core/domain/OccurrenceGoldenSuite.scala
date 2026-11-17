@@ -43,9 +43,19 @@ class OccurrenceGoldenSuite extends munit.FunSuite:
       // Re-verify every candidate against the M0.7 primitive directly, so the golden cannot drift
       // together with a resolveLocal regression.
       actual.foreach { c =>
-        val (instant, kind) =
-          Dst.resolveLocal(c.localDate, LocalTime.of(c.localTime.hour, c.localTime.minute), fixture.revision.zone)
-        assertEquals((c.scheduledFor, c.dstKind), (instant, kind))
+        fixture.revision.rule match
+          // G9.8: a later dose of an interval day is the resolved anchor plus k intervals of elapsed time.
+          case Rule.IntervalFixedStart(anchor, interval, _, _) if c.slotKey != "int:0" =>
+            val k = c.slotKey.stripPrefix("int:").toInt
+            val (first, _) =
+              Dst.resolveLocal(c.localDate, LocalTime.of(anchor.hour, anchor.minute), fixture.revision.zone)
+            assertEquals((c.scheduledFor, c.dstKind), (first.plusSeconds(k.toLong * interval * 60), DstKind.None))
+            val wall = c.scheduledFor.atZone(fixture.revision.zone).toLocalTime
+            assertEquals(LocalTime.of(c.localTime.hour, c.localTime.minute), wall.withSecond(0).withNano(0))
+          case _ =>
+            val (instant, kind) =
+              Dst.resolveLocal(c.localDate, LocalTime.of(c.localTime.hour, c.localTime.minute), fixture.revision.zone)
+            assertEquals((c.scheduledFor, c.dstKind), (instant, kind))
       }
   }
 

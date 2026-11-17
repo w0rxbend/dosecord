@@ -11,22 +11,24 @@
     errors: Readonly<Record<string, string>>;
     onAdd: () => void;
     onRemove: (key: number) => void;
+    /** The field prefix of these rows: `rows`, or the rows of one day group. */
+    prefix?: string;
   }
 
-  let { rows = $bindable(), doseUnit, perTimeDose, maxRows, errors, onAdd, onRemove }: Props = $props();
+  let { rows = $bindable(), doseUnit, perTimeDose, maxRows, errors, onAdd, onRemove, prefix = 'rows' }: Props = $props();
 </script>
 
 <!-- Every time and dose is typed by the person; nothing is proposed (MA-SCHED-10). -->
 <ul class="rows">
   {#each rows as row, index (row.key)}
     <li class="time-row">
-      <Field id="sch-{rowField(index, 'time')}" label={en.schedule.time(index + 1)} required error={errors[rowField(index, 'time')]}>
+      <Field id="sch-{rowField(index, 'time', prefix)}" label={en.schedule.time(index + 1)} required error={errors[rowField(index, 'time', prefix)]}>
         {#snippet children(attributes)}
           <input {...attributes} class="input numeric" type="time" bind:value={row.time} />
         {/snippet}
       </Field>
       {#if perTimeDose}
-        <Field id="sch-{rowField(index, 'dose')}" label={en.schedule.dose(index + 1)} help={doseUnit} required error={errors[rowField(index, 'dose')]}>
+        <Field id="sch-{rowField(index, 'dose', prefix)}" label={en.schedule.dose(index + 1)} help={doseUnit} required error={errors[rowField(index, 'dose', prefix)]}>
           {#snippet children(attributes)}
             <input {...attributes} class="input numeric" type="text" inputmode="decimal" autocomplete="off" bind:value={row.dose} />
           {/snippet}
@@ -38,7 +40,7 @@
     </li>
   {/each}
 </ul>
-{#if errors.rows}<p class="error" role="alert">{errors.rows}</p>{/if}
+{#if errors[prefix]}<p class="error" role="alert">{errors[prefix]}</p>{/if}
 <button type="button" class="btn btn-tinted" disabled={rows.length >= maxRows} onclick={onAdd}>
   {en.schedule.addTime}
 </button>

@@ -59,9 +59,10 @@ object Evaluator:
     * (idempotent re-materialisation).
     *
     * `AsNeeded` produces nothing: as-needed doses are manual-log driven (`manual:{uuid}` keys are created at log time,
-    * DESIGN.md section 7.1/7.2). `EveryNDays` and `Cycle` expand on their dates like fixed times (ROADMAP G9.8). The
-    * remaining kinds and `Paused` are declared, inert and materialise nothing (ROADMAP M1.1, ADR-004). Exhaustive on
-    * purpose: a new [[Rule]] case without an arm here fails compilation.
+    * DESIGN.md section 7.1/7.2). `EveryNDays`, `EveryNWeeks` and `Cycle` expand on their dates like fixed times;
+    * `IntervalFixedStart` re-anchors on each active date and keys its doses `int:{k}` (ROADMAP G9.8). `Chain`, `Taper`
+    * and `Paused` are declared, inert and materialise nothing (ROADMAP M1.1, ADR-004). Exhaustive on purpose: a new
+    * [[Rule]] case without an arm here fails compilation.
     */
   def occurrences(revision: ScheduleRevision, from: Instant, to: Instant): List[OccurrenceCandidate] =
     require(from.isBefore(to), s"window start $from must be before its end $to")
@@ -99,12 +100,45 @@ object Evaluator:
       case Rule.Cycle(onDays, offDays, times, anchor) =>
         val dayOfCycle = Math.floorMod(ChronoUnit.DAYS.between(anchor, date), (onDays + offDays).toLong)
         if dayOfCycle < onDays then wallTimes(revision, date, times) else Nil
-      // Declared, inert until their slice (ROADMAP M1.1, G9.8); a Paused revision materialises nothing (ADR-004).
-      case _: Rule.EveryNWeeks        => Nil
-      case _: Rule.IntervalFixedStart => Nil
-      case _: Rule.Chain              => Nil
-      case _: Rule.Taper              => Nil
-      case Rule.Paused                => Nil
+      case Rule.EveryNWeeks(everyWeeks, days, times, anchor) =>
+        val weeks = ChronoUnit.WEEKS.between(mondayOf(anchor), mondayOf(date))
+        if days.contains(weekdayOf(date)) && Math.floorMod(weeks, everyWeeks.toLong) == 0 then
+          wallTimes(revision, date, times)
+        else Nil
+      case rule: Rule.IntervalFixedStart =>
+        if rule.activeDays.contains(weekdayOf(date)) then intervalDoses(revision.zone, date, rule) else Nil
+      // Declared, inert until their slice (ROADMAP G12.8); a Paused revision materialises nothing (ADR-004).
+      case _: Rule.Chain => Nil
+      case _: Rule.Taper => Nil
+      case Rule.Paused   => Nil
+
+  /** The `slot_key` of the k-th dose of a day of an interval rule (DESIGN.md section 7.1). */
+  def intervalSlotKey(k: Int): String = s"int:$k"
+
+  /** The doses of one active date of an interval rule: the anchor resolved like a fixed time (gap moved forward, fold
+    * the first instant), then every `intervalMinutes` of elapsed time, at most `maxPerDay`, and strictly before the
+    * next date's anchor, so the last gap of a day is shorter or longer on a clock change (PRODUCT_SPEC R-SCH-13).
+    */
+  private def intervalDoses(zone: ZoneId, date: LocalDate, rule: Rule.IntervalFixedStart): List[OccurrenceCandidate] =
+    val anchorTime = LocalTime.of(rule.anchorTime.hour, rule.anchorTime.minute)
+    val (anchor, anchorKind) = Dst.resolveLocal(date, anchorTime, zone)
+    val nextAnchor = Dst.resolveLocal(date.plusDays(1), anchorTime, zone)._1
+    (0 until rule.maxPerDay).toList
+      .map(k => k -> anchor.plus(Duration.ofMinutes(k.toLong * rule.intervalMinutes)))
+      .takeWhile((_, at) => at.isBefore(nextAnchor))
+      .map: (k, at) =>
+        if k == 0 then OccurrenceCandidate(date, rule.anchorTime, intervalSlotKey(0), at, anchorKind)
+        else
+          val wall = at.atZone(zone).toLocalTime
+          OccurrenceCandidate(
+            date,
+            HhMm.unsafe(f"${wall.getHour}%02d:${wall.getMinute}%02d"),
+            intervalSlotKey(k),
+            at,
+            DstKind.None
+          )
+
+  private def mondayOf(date: LocalDate): LocalDate = date.minusDays(date.getDayOfWeek.getValue.toLong - 1)
 
   /** One candidate per wall time on `date`, keyed like a fixed time so the slot key survives a revision. */
   private def wallTimes(revision: ScheduleRevision, date: LocalDate, times: List[HhMm]): List[OccurrenceCandidate] =

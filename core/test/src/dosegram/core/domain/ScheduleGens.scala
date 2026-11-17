@@ -40,11 +40,11 @@ object ScheduleGens:
   val genEveryNDays: Gen[Rule.EveryNDays] =
     Gen.zip(Gen.choose(1, 90), genTimes, genLocalDate).map(Rule.EveryNDays.apply)
   val genEveryNWeeks: Gen[Rule.EveryNWeeks] =
-    Gen.zip(Gen.choose(1, 12), genDays, genTimes).map(Rule.EveryNWeeks.apply)
+    Gen.zip(Gen.choose(1, 12), genDays, genTimes, genLocalDate).map(Rule.EveryNWeeks.apply)
   val genCycle: Gen[Rule.Cycle] =
     Gen.zip(Gen.choose(1, 30), Gen.choose(1, 30), genTimes, genLocalDate).map(Rule.Cycle.apply)
   val genIntervalFixedStart: Gen[Rule.IntervalFixedStart] =
-    Gen.zip(genHhMm, Gen.choose(15, 720), Gen.choose(1, 12), genDays).map(Rule.IntervalFixedStart.apply)
+    Gen.zip(genHhMm, Gen.choose(Rule.MinIntervalMinutes, Rule.MaxIntervalMinutes), Gen.choose(1, 12), genDays).map(Rule.IntervalFixedStart.apply)
   val genChainAnchor: Gen[ChainAnchor] = Gen.oneOf(ChainAnchor.values.toList)
   given Arbitrary[ChainAnchor] = Arbitrary(genChainAnchor)
   val genChain: Gen[Rule.Chain] =
