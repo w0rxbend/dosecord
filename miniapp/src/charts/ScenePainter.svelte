@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Scene } from '../api/types';
+  import { leftAxis } from './left-axis';
 
   interface Props {
     scene: Scene;
@@ -11,11 +12,14 @@
   }
 
   let { scene, label, selected, decorative = false }: Props = $props();
+  const placed = $derived(leftAxis(scene));
 </script>
 
-<!-- The one scene painter (MINI_APP 5.6): it draws the primitives the server positioned and has
-     no axis, scale or layout code of its own. Colours are token names resolved in CSS; nodes are
-     created as DOM elements, never from markup strings (MA-SEC-1). -->
+<!-- The one scene painter (MINI_APP 5.6): it draws the primitives the server positioned.
+     Gutter text is HTML at the caption size so a long level name can wrap on a 360 px phone.
+     Colours are token names resolved in CSS; nodes are created as DOM elements, never from
+     markup strings (MA-SEC-1). -->
+<div class="frame">
 <svg
   viewBox="0 0 {scene.width} {scene.height}"
   role={decorative ? undefined : 'img'}
@@ -23,7 +27,7 @@
   aria-hidden={decorative ? 'true' : undefined}
   class:decorative
 >
-  {#each scene.nodes as node, index (index)}
+  {#each placed.nodes as node, index (index)}
     {#if node.kind === 'rect'}
       <rect
         x={node.x}
@@ -71,8 +75,32 @@
     {/if}
   {/each}
 </svg>
+{#each placed.labels as axis, index (index)}
+  <p
+    class="axis"
+    style:inline-size={placed.share}
+    style:inset-block-start={axis.top}
+    style:font-size="var(--dg-text-caption)"
+    style:overflow-wrap="break-word"
+  >{axis.text}</p>
+{/each}
+</div>
 
 <style>
+  .frame {
+    position: relative;
+  }
+
+  .axis {
+    position: absolute;
+    inset-inline-start: 0;
+    margin: 0;
+    color: var(--dg-text-muted);
+    line-height: 1.2;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
   svg {
     display: block;
     inline-size: 100%;

@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { Chart, InsightsOverview } from '../../api/types';
 import { createHarness, type Harness } from '../../test/harness';
 import InsightsScreen from './InsightsScreen.svelte';
 
@@ -317,5 +318,197 @@ describe('Insights', () => {
     expect(within(medication).queryByRole('img')).toBeNull();
     await user.click(within(medication).getByRole('link', { name: 'Open medications' }));
     expect(harness.router.route).toEqual({ screen: 'meds' });
+  });
+});
+
+/** Screen, section and panel padding around a chart on a 360 px phone. */
+const CHART_WIDTH_AT_360 = 360 - 16 * 2 - 16 * 2 - 12 * 2;
+/** "неприємно" at the 13 px caption minimum (Noto Sans). The gutter has to hold that word. */
+const LONGEST_LEVEL_WORD_PX = 71;
+
+const overviewCalls = (harness: Harness): number => harness.api.calls.filter((call) => call === 'insights/overview').length;
+
+class NearViewport {
+  static latest: NearViewport | undefined;
+  readonly nodes: Element[] = [];
+
+  constructor(
+    readonly callback: IntersectionObserverCallback,
+    readonly options?: IntersectionObserverInit,
+  ) {
+    NearViewport.latest = this;
+  }
+
+  observe(node: Element): void {
+    this.nodes.push(node);
+  }
+
+  unobserve(node: Element): void {
+    const index = this.nodes.indexOf(node);
+    if (index >= 0) this.nodes.splice(index, 1);
+  }
+
+  disconnect(): void {
+    this.nodes.splice(0);
+  }
+
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+
+  enter(): void {
+    this.callback(
+      this.nodes.map((target) => ({ isIntersecting: true, target }) as IntersectionObserverEntry),
+      this as unknown as IntersectionObserver,
+    );
+  }
+}
+
+const originalObserver = globalThis.IntersectionObserver;
+
+function installNearViewport(): void {
+  NearViewport.latest = undefined;
+  globalThis.IntersectionObserver = NearViewport as unknown as typeof IntersectionObserver;
+}
+
+function restoreNearViewport(): void {
+  globalThis.IntersectionObserver = originalObserver;
+}
+
+function chartOverview(blockId: 'mood' | 'hydration', title: string, chart: Chart): InsightsOverview {
+  return {
+    rangeDays: 90,
+    rangeLabel: '15 Aug to 12 Nov',
+    ranges: [7, 30, 90],
+    blocks: [{ id: blockId, title, lines: ['3 check-ins'], charts: [chart] }],
+  };
+}
+
+describe('insight blocks below the first two (MA-INS-8)', () => {
+  afterEach(() => restoreNearViewport());
+
+  it('loads them within 200 px of the viewport and does not ask the overview again', async () => {
+    installNearViewport();
+    const harness = createHarness();
+    open(harness);
+
+    expect(await block('Medication')).toBeTruthy();
+    expect(await block('Water')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Mood' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Sleep' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Food' })).toBeNull();
+    expect(document.querySelectorAll('[data-insight-lazy]')).toHaveLength(3);
+    expect(NearViewport.latest?.options?.rootMargin).toBe('200px 0px');
+    const reads = overviewCalls(harness);
+
+    NearViewport.latest?.enter();
+
+    expect(await block('Mood')).toBeTruthy();
+    expect(await block('Sleep')).toBeTruthy();
+    expect(await block('Food')).toBeTruthy();
+    expect(document.querySelectorAll('[data-insight-lazy]')).toHaveLength(0);
+    expect(overviewCalls(harness)).toBe(reads);
+    expect(reads).toBe(1);
+  });
+
+  it('opens a lower block from its tile without another overview read', async () => {
+    installNearViewport();
+    const harness = createHarness();
+    const user = open(harness);
+    const glance = await screen.findByRole('navigation', { name: 'At a glance' });
+    expect(screen.queryByRole('region', { name: 'Mood' })).toBeNull();
+    const reads = overviewCalls(harness);
+
+    await user.click(within(glance).getAllByRole('button')[2]!);
+
+    expect(document.activeElement?.id).toBe('insight-mood');
+    expect(overviewCalls(harness)).toBe(reads);
+  });
+});
+
+describe('week chart points and the mood axis', () => {
+  it('opens the day a week chart point names, on the tap', async () => {
+    const harness = createHarness();
+    harness.api.insightsOverview = async () =>
+      chartOverview('hydration', 'Water', {
+        id: 'water-by-week',
+        title: 'Water per week',
+        summary: 'Water per week, 15 Aug to 12 Nov. A week without an entry is a gap.',
+        scene: {
+          width: 320,
+          height: 116,
+          nodes: [
+            { kind: 'hit', x: 44, y: 0, width: 138, height: 96, mark: 0 },
+            { kind: 'hit', x: 182, y: 0, width: 138, height: 96, mark: 1 },
+          ],
+        },
+        table: { caption: 'Water per week', columns: ['Week', 'Water'], rows: [] },
+        marks: ['10 Aug to 16 Aug: 1.0 l', '17 Aug to 23 Aug: 1.4 l'],
+        markDates: ['2026-08-16', '2026-08-23'],
+      });
+    const user = open(harness);
+
+    const water = await block('Water');
+    await user.click(within(water).getByRole('slider').querySelector('.hit[data-mark="0"]')!);
+
+    expect(harness.router.route).toEqual({ screen: 'day', date: '2026-08-16' });
+  });
+
+  it('does not invent a day for a week chart point without one', async () => {
+    const harness = createHarness();
+    harness.api.insightsOverview = async () =>
+      chartOverview('hydration', 'Water', {
+        id: 'water-by-week',
+        title: 'Water per week',
+        summary: 'Water per week, 15 Aug to 12 Nov. A week without an entry is a gap.',
+        scene: {
+          width: 320,
+          height: 116,
+          nodes: [{ kind: 'hit', x: 44, y: 0, width: 276, height: 96, mark: 0 }],
+        },
+        table: { caption: 'Water per week', columns: ['Week', 'Water'], rows: [] },
+        marks: ['10 Aug to 16 Aug: 1.0 l'],
+      });
+    const user = open(harness);
+
+    await user.click((await block('Water')).querySelector('.hit[data-mark="0"]')!);
+
+    expect(harness.router.route).toEqual({ screen: 'today' });
+  });
+
+  it('keeps the mood chart axis label readable at a 360 px viewport', async () => {
+    document.documentElement.style.setProperty('--dg-text-caption', '13px');
+    const harness = createHarness();
+    harness.api.insightsOverview = async () =>
+      chartOverview('mood', 'Mood', {
+        id: 'mood-by-day',
+        title: 'Mood per day',
+        summary: 'Daily mood, 11 Nov to 12 Nov. Check-ins on 1 of 2 days. A day without a check-in is a gap.',
+        scene: {
+          width: 320,
+          height: 116,
+          nodes: [
+            { kind: 'line', x1: 96, y1: 96, x2: 320, y2: 96, stroke: 'separator' },
+            { kind: 'text', x: 0, y: 100, text: 'Дуже неприємно', fill: 'text-muted' },
+            { kind: 'text', x: 96, y: 112, text: '11 Nov', fill: 'text-muted' },
+            { kind: 'hit', x: 96, y: 0, width: 224, height: 96, mark: 0 },
+          ],
+        },
+        table: { caption: 'Mood per day', columns: ['Day', 'Mood'], rows: [] },
+        marks: ['12 Nov: 4.0'],
+        markDates: ['2026-11-12'],
+      });
+    open(harness);
+
+    const mood = await block('Mood');
+    const label = within(mood).getByText('Дуже неприємно');
+    expect(label.closest('svg')).toBeNull();
+    expect(label.style.inlineSize).toBe('30%');
+    expect(getComputedStyle(label).fontSize).toBe('13px');
+    expect(getComputedStyle(label).overflowWrap).toBe('break-word');
+    expect(getComputedStyle(label).whiteSpace).not.toBe('nowrap');
+    expect((30 / 100) * CHART_WIDTH_AT_360).toBeGreaterThanOrEqual(LONGEST_LEVEL_WORD_PX);
+    expect(within(mood).getByRole('img').textContent).toContain('11 Nov');
+    expect(within(mood).getByRole('img').textContent).not.toContain('Дуже неприємно');
   });
 });

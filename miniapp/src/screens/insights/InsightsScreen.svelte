@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import type { InsightBlock, InsightRange, InsightsOverview } from '../../api/types';
   import { useApp } from '../../app/context';
   import { t as en } from '../../i18n/index.svelte';
@@ -16,11 +16,46 @@
 
   /** Offered until the first answer names the periods the backend computes. */
   const FIRST_RANGES: readonly InsightRange[] = [7, 30];
+  /** The first overview answer paints these. Later blocks wait until they are near (MA-INS-8). */
+  const EAGER_BLOCKS = 2;
+  const NEAR_VIEWPORT_PX = 200;
 
   const { api, tg } = useApp();
   let range = $state<InsightRange>(30);
+  let revealed = $state<string[]>([]);
   const overview = new Resource<InsightsOverview>(() => api.insightsOverview(30));
   const ranges = $derived(overview.data?.ranges ?? FIRST_RANGES);
+  const deferLowerBlocks = typeof IntersectionObserver !== 'undefined';
+  const pendingIds = new Map<Element, string>();
+  let nearViewport: IntersectionObserver | undefined;
+
+  function reveal(id: string): void {
+    if (revealed.includes(id)) return;
+    revealed = [...revealed, id];
+  }
+
+  function watch(node: HTMLElement, id: string): { destroy(): void } {
+    pendingIds.set(node, id);
+    nearViewport ??= new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const blockId = pendingIds.get(entry.target);
+          if (blockId) reveal(blockId);
+        }
+      },
+      { rootMargin: `${NEAR_VIEWPORT_PX}px 0px` },
+    );
+    nearViewport.observe(node);
+    return {
+      destroy() {
+        nearViewport?.unobserve(node);
+        pendingIds.delete(node);
+      },
+    };
+  }
+
+  onDestroy(() => nearViewport?.disconnect());
 
   $effect(() => tg.onActivated(() => void overview.load()));
 
@@ -33,6 +68,7 @@
 
   /** A tile leads to its block: the block's heading takes the focus and comes into view. */
   async function open(block: InsightBlock): Promise<void> {
+    reveal(block.id);
     await tick();
     const heading = document.getElementById(`insight-${block.id}`);
     heading?.focus({ preventScroll: true });
@@ -69,8 +105,12 @@
         </nav>
       {/if}
       <div class="blocks" aria-busy={overview.loading}>
-        {#each data.blocks as block (block.id)}
-          <DomainBlock {block} />
+        {#each data.blocks as block, index (block.id)}
+          {#if index < EAGER_BLOCKS || revealed.includes(block.id) || !deferLowerBlocks}
+            <DomainBlock {block} />
+          {:else}
+            <div class="later" data-insight-lazy={block.id} use:watch={block.id}></div>
+          {/if}
         {/each}
       </div>
       {#if data.blocks.length > 0}<MonthAndPatterns />{/if}
@@ -104,6 +144,10 @@
     .glance {
       grid-template-columns: 1fr;
     }
+  }
+
+  .later {
+    min-block-size: 1px;
   }
 
   /* From 720 px the blocks sit in two columns in reading order (MA-INS-9). */
