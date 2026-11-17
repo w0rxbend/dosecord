@@ -21,6 +21,15 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   /** The week at a glance of the seven days (VISUALS IMG-19), after the images consent; it shares kind 7. */
   case WeekImage extends Pending(7, 7)
 
+  /** Water of the seven days (VISUALS IMG-20). Kind 7 is shared; the argument tells the stats images apart. */
+  case WaterWeekImage extends Pending(7, 20)
+
+  /** Main sleep of the seven nights (VISUALS IMG-21). */
+  case SleepWeekImage extends Pending(7, 21)
+
+  /** Mood by weekday over the seven days (VISUALS IMG-22). */
+  case MoodWeekdayImage extends Pending(7, 22)
+
   case SleepCard extends Pending(9, 0)
 
   /** A typed night or nap; it is typed again after the consent, because the times do not fit in a button. */
@@ -72,7 +81,7 @@ private[capture] object Pending:
       case 4  => Some(MoodCheckIn(argument))
       case 5  => Some(Stats)
       case 6  => Some(WaterImage)
-      case 7  => Some(if argument == WeekImage.argument then WeekImage else DayImage)
+      case 7  => Some(statsImageOf(argument))
       case 8  => MedicationScreen.values.find(_.code == argument).map(Medication(_))
       case 9  => Some(SleepCard)
       case 10 => Some(SleepTyped)
@@ -82,6 +91,16 @@ private[capture] object Pending:
       case 14 => foodOf(argument)
       case 15 => Some(ImportCard)
       case _  => None
+
+  /** Kind 7 is every stats image. An argument from a card sent before the week cards existed stays the daily summary.
+    */
+  private def statsImageOf(argument: Int): Pending =
+    argument match
+      case WeekImage.argument        => WeekImage
+      case WaterWeekImage.argument   => WaterWeekImage
+      case SleepWeekImage.argument   => SleepWeekImage
+      case MoodWeekdayImage.argument => MoodWeekdayImage
+      case _                         => DayImage
 
   /** The argument of [[FoodLog]] starts here; below it are [[FoodCard]] (0) and [[FoodImage]] (1). */
   val FoodLogBase = 2

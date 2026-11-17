@@ -27,8 +27,10 @@ import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.domain.insights.Comparison
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.InsightRule
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.mood.CheckIn
@@ -91,7 +93,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
     override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
       chats += chat
-      Right(AttachmentRef(MediaKind.Photo, page.templateId, "image/png", page.altText))
+      Right(AttachmentRef(MediaKind.Photo, page.templateId, "image/png", page.altText, hasSpoiler = page.hasSpoiler))
 
     override def mood(view: MoodCardView, look: CardLook): Option[CardPage] =
       moods += view
@@ -135,6 +137,28 @@ class CaptureFlowsSuite extends munit.FunSuite:
       looks += look
       image("week-glance")
 
+    val waterWeeks: mutable.ListBuffer[WeekCardView] = mutable.ListBuffer.empty
+    val sleepWeeks: mutable.ListBuffer[WeekCardView] = mutable.ListBuffer.empty
+    val moodWeekdays: mutable.ListBuffer[List[WeekdayMood]] = mutable.ListBuffer.empty
+
+    override def waterWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
+      waterWeeks += view
+      view.water.map(_ => personal("water-week", look))
+
+    override def sleepWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
+      sleepWeeks += view
+      view.sleep.map(_ => personal("sleep-week", look))
+
+    override def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] =
+      moodWeekdays += weekdays
+      Option.when(window.days == 7 && weekdays.size == 7 && weekdays.exists(_.days > 0))(
+        personal("mood-weekday", look)
+      )
+
+    /** A personal week card. The spoiler follows discreet mode. The look list stays the one the theme test counts. */
+    private def personal(key: String, look: CardLook): CardPage =
+      CardPage(key, s"<svg id='$key'/>", s"alt of $key", s"$key.png", hasSpoiler = look.isDiscreet)
+
   /** The tables behind the rig's transaction, as the tests inspect them. */
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
 
@@ -167,6 +191,9 @@ class CaptureFlowsSuite extends munit.FunSuite:
       case VendorOp.Send(_, message, _, _) => message.choiceMap.map(_.label)
       case VendorOp.Edit(_, message)       => message.choiceMap.map(_.label)
       case _                               => Nil
+
+  private def photos(ops: List[VendorOp]): List[RenderedMessage] =
+    ops.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
 
   // ---------- Consent ----------
 
@@ -478,8 +505,21 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.tapOn("I agree that", ConsentCopy.Agree)
       val shown = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
       assert(texts(shown).exists(_.startsWith("Last 7 days · Europe/Kyiv")), s"got: ${texts(shown)}")
-      // The seven days offer their picture, the week at a glance (VISUALS IMG-19).
-      assertEquals(labels(shown), List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage, "Month", "Patterns"))
+      // The seven days offer their picture (IMG-19) and the three week cards (IMG-20 to IMG-22).
+      assertEquals(
+        labels(shown),
+        List(
+          "Today",
+          "7 days",
+          "30 days",
+          StatsCardCopy.ShowAsImage,
+          StatsCardCopy.WaterWeek,
+          StatsCardCopy.SleepWeek,
+          StatsCardCopy.MoodWeekday,
+          "Month",
+          "Patterns"
+        )
+      )
 
   test("the daily summary image is drawn from today's doses, water and mood, with today's text as its caption"):
     val cards = RecordingCards()
@@ -876,6 +916,88 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(view.mood.map(_.flatten.size), Some(1))
       assertEquals(view.water, None, "water is drawn only behind its consent")
       assert(photo.flatMap(_.chunks).mkString("\n").contains("Food: 1 meal logged"), "the caption is the seven days' text")
+
+  test(
+    "the seven-day /stats offers water, sleep and mood cards and sends each with its text equivalent (IMG-20 to IMG-22)"
+  ):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.Sleep, ConsentPurpose.Mood)
+      chat.rig.command("water")
+      chat.rig.tapOn("Water today", "Goal")
+      chat.rig.tapOn(WaterCopy.goalAsk, "2.0 l")
+      chat.rig.line("500 ml")
+      chat.rig.line("mood 4")
+
+      chat.rig.line("/stats")
+      val weekCards = List(StatsCardCopy.WaterWeek, StatsCardCopy.SleepWeek, StatsCardCopy.MoodWeekday)
+      assertEquals(
+        chat.rig.lastChoiceMap("Last 7 days").map(_.label),
+        List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage) ++ weekCards ++ List("Month", "Patterns")
+      )
+      chat.rig.line("/stats today")
+      assertEquals(
+        chat.rig.lastChoiceMap("Today · Europe/Kyiv").map(_.label),
+        List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage, "Month", "Patterns")
+      )
+      chat.rig.line("/stats 30")
+      assertEquals(
+        chat.rig.lastChoiceMap("Last 30 days").map(_.label),
+        List("Today", "7 days", "30 days", "Month", "Patterns")
+      )
+
+      val asked = chat.rig.tapOn("Last 7 days", StatsCardCopy.WaterWeek)
+      assertEquals(texts(asked), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      assertEquals(cards.waterWeeks.toList, Nil, "the card is not drawn before the images consent")
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val water = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      val waterPhoto = photos(water)
+      assertEquals(waterPhoto.map(_.attachment.map(_.assetKey)), List(Some("water-week")))
+      assertEquals(waterPhoto.flatMap(_.chunks), List("alt of water-week"))
+      assertEquals(waterPhoto.flatMap(_.attachment.toList).map(_.altText), List("alt of water-week"))
+      assertEquals(waterPhoto.flatMap(_.attachment.toList).map(_.hasSpoiler), List(false))
+      assert(cards.waterWeeks.toList.last.water.exists(_.flatten.exists(_.totalMl == 500)))
+
+      val sleep = chat.rig.tapOn("Last 7 days", StatsCardCopy.SleepWeek)
+      assertEquals(photos(sleep).map(_.attachment.map(_.assetKey)), List(Some("sleep-week")))
+      assertEquals(photos(sleep).flatMap(_.chunks), List("alt of sleep-week"))
+      assert(cards.sleepWeeks.toList.last.sleep.isDefined)
+
+      val mood = chat.rig.tapOn("Last 7 days", StatsCardCopy.MoodWeekday)
+      assertEquals(photos(mood).map(_.attachment.map(_.assetKey)), List(Some("mood-weekday")))
+      assertEquals(photos(mood).flatMap(_.chunks), List("alt of mood-weekday"))
+      assert(cards.moodWeekdays.toList.last.exists(_.days > 0))
+
+  test("a discreet Ukrainian account gets the week cards in Ukrainian behind a spoiler (IMG-20)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+      val chosen = AccountSettings.Default.copy(isDiscreet = true, locale = Some("uk"))
+      chat.rig.uow.accounts.saveSettings(chat.account, chosen, chat.rig.clock.now())
+      chat.rig.command("stats")
+      assertEquals(
+        chat.rig.lastChoiceMap("Останні 7 днів").map(_.label),
+        List(
+          "Сьогодні",
+          "7 днів",
+          "30 днів",
+          "Показати як зображення",
+          "Поділитися карткою",
+          "Вода за 7 днів",
+          "Сон за 7 ночей",
+          "Настрій за днями тижня",
+          "Місяць",
+          "Закономірності"
+        )
+      )
+      val sent = chat.rig.tapOn("Останні 7 днів", "Вода за 7 днів")
+      val photo = photos(sent)
+      assertEquals(photo.map(_.attachment.map(_.assetKey)), List(Some("water-week")))
+      assertEquals(photo.flatMap(_.chunks), List("alt of water-week"))
+      assertEquals(
+        photo.flatMap(_.attachment.toList).map(image => (image.altText, image.hasSpoiler)),
+        List(("alt of water-week", true))
+      )
 
   test("/today offers the daily summary card, which the images consent then sends (IMG-03)"):
     val cards = RecordingCards()
