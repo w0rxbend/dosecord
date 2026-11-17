@@ -7,6 +7,7 @@ import dosegram.render.chart.DoseStatus
 import dosegram.render.chart.DoseStatus.*
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.ImageCopy
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.copy.GoalDays as GoalDaysOf
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
@@ -220,7 +221,20 @@ object Samples:
         )
         Vector(WeekCard.render(sparse, context))
     ),
-    Fixture("week/medication-only", context => Vector(WeekCard.render(WeekData(typicalWeek.from, typicalWeek.medication, None, None, None, None), context)))
+    Fixture("week/medication-only", context => Vector(WeekCard.render(WeekData(typicalWeek.from, typicalWeek.medication, None, None, None, None), context))),
+    Fixture(
+      "week/medication-records",
+      context =>
+        val recordsOnly = WeekData(
+          typicalWeek.from,
+          typicalWeek.medication,
+          Some(Vector.fill(7)(None)),
+          None,
+          Some(Vector.fill(7)(None)),
+          Some(Vector.fill(7)(SleepEvidence.NoRecord))
+        )
+        Vector(WeekCard.render(recordsOnly, context))
+    )
   )
 
   val milestones: Vector[Fixture] = Vector(
@@ -562,13 +576,25 @@ object Samples:
     Fixture(
       "refill/typical",
       context =>
-        Vector(RefillCard.render(RefillData("Zyqoxanil-Canary 500 mg", 6, "tablets", Some(10), "10 tablets", Some(LocalDate.of(2026, 11, 15)), "Zyqoxanil-Canary 500 mg: 6 tablets left by your count, at or below your threshold of 10 tablets."), context))
+        val label = CanaryName
+        val (unit, threshold, text) = context.copy match
+          case UkrainianImageCopy =>
+            ("таблеток", "10 таблеток", s"$label: за вашим підрахунком лишилося 6 таблеток, це ваш поріг (10 таблеток) або менше.")
+          case _ =>
+            ("tablets", "10 tablets", s"$label: 6 tablets left by your count, at or below your threshold of 10 tablets.")
+        Vector(
+          RefillCard.render(
+            RefillData(label, 6, unit, Some(10), threshold, Some(LocalDate.of(2026, 11, 15)), text),
+            context
+          )
+        )
     )
   )
 
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
-      moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays
+      moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
+      refills
 
-  /** Every card the contact sheet shows: the golden fixtures and the refill card, whose suite pins it on its own. */
-  val review: Vector[Fixture] = all ++ refills
+  /** Every card the contact sheet and the golden suite show. */
+  val review: Vector[Fixture] = all

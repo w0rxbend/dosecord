@@ -30,7 +30,8 @@ final case class RefillData(
 /** IMG-15, `card.refill.v1` (VISUALS section 6.16): a row of cells, one solid `ink` cell per unit left up to the width
   * of the row, the rest dotted; the user's units threshold as a marker in `attention`, the only template that uses it;
   * the count in large type; the date the count covers until; the source of the count. It never tells the user to
-  * obtain, buy or take anything (VA-IMG-15a). In discreet mode the label is replaced by the generic line.
+  * obtain, buy or take anything (VA-IMG-15a). The name is drawn only at the named level; L1 and discreet mode use the
+  * neutral label and caption (VISUALS section 6.16).
   */
 object RefillCard:
   val TemplateId = "card.refill.v1"
@@ -52,8 +53,7 @@ object RefillCard:
     val frame = CardFrame(context, CardFrame.Wide, context.tokens.surface)
     val tokens = frame.tokens
     val copy = context.copy
-    val discreet = context.privacy == Privacy.Discreet
-    val label = if discreet then copy.refillDiscreetLabel else data.label
+    val label = if context.privacy.showsNames then data.label else copy.refillDiscreetLabel
     val rowWidth = frame.width - NumberColumnPx
     val cell = StrictMath.floor((rowWidth - CellGapPx * (Columns - 1)) / Columns)
     def origin(index: Int): Point =
@@ -106,6 +106,17 @@ object RefillCard:
       )
       ++ covers.map(line => frame.text(line, Point(frame.left, gridBottom + 124), ink, frame.width)).toVector
       ++ Vector(frame.text(copy.refillSource, Point(frame.left, gridBottom + 180), quiet, frame.width), frame.footer)
-    val text = TextEquivalent.of(data.text, copy.refillDiscreetLabel, context)
-    CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-refill.png", discreet)
+    val text = equivalent(data, context)
+    CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-refill.png", context.privacy == Privacy.Discreet)
+
+  /** L1 and discreet mode keep the caller's sentence after the name, so the count stays in the text equivalent. */
+  private def equivalent(data: RefillData, context: CardContext): TextEquivalent =
+    val neutral = context.copy.refillDiscreetLabel
+    if context.privacy.showsNames then TextEquivalent.of(data.text, neutral, context)
+    else TextEquivalent(neutral, redactedBody(data.text, data.label, neutral))
+
+  private def redactedBody(text: String, label: String, neutral: String): String =
+    val removed = if label.nonEmpty && text.startsWith(label) then text.drop(label.length) else text
+    val body = removed.dropWhile(char => char == ':' || char.isWhitespace)
+    if body.isEmpty then neutral else body
 end RefillCard

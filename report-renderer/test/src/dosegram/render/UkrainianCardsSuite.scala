@@ -1,6 +1,5 @@
 package dosegram.render
 
-import dosegram.render.blob.BlobPalette
 import dosegram.render.card.CardOutput
 import dosegram.render.card.MilestoneCard
 import dosegram.render.card.MoodCard
@@ -8,15 +7,12 @@ import dosegram.render.card.Privacy
 import dosegram.render.card.TextEquivalent
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
-import dosegram.render.lint.LintRules
 import dosegram.render.lint.SceneLint
 import dosegram.render.scene.Node
 import dosegram.render.scene.TextKind
 import dosegram.render.svg.SvgEmitter
 import dosegram.render.svg.SvgProfile
-import dosegram.render.text.TableTextMeasurer
 import dosegram.render.tokens.Theme
-import dosegram.render.tokens.Tokens
 
 /** ROADMAP G2.22, VISUALS VA-L10N-02: every card drawn with the Ukrainian catalogue passes the checks the English cards
   * pass: the scene lints (which include text fitting its slot), the SVG profile, the numbers of the image in the text
@@ -41,8 +37,7 @@ class UkrainianCardsSuite extends munit.FunSuite:
 
   test("every Ukrainian scene passes the scene lints in both themes"):
     everyVariant.foreach { (name, card, theme) =>
-      val rules = LintRules(Tokens.of(theme).palette ++ BlobPalette.all, Set(card.scene.background), TableTextMeasurer)
-      assertEquals(SceneLint.violations(card.scene, rules), Vector.empty, name)
+      assertEquals(SceneLint.violations(card.scene, CardSuite.lintRules(card, theme)), Vector.empty, name)
     }
 
   test("every Ukrainian document stays inside SVG profile 1"):

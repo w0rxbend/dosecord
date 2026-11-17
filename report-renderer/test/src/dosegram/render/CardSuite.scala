@@ -50,8 +50,7 @@ class CardSuite extends munit.FunSuite:
 
   test("every scene passes the scene lints in both themes"):
     everyVariant.foreach { (name, card, theme) =>
-      val rules = LintRules(Tokens.of(theme).palette ++ BlobPalette.all, Set(card.scene.background), TableTextMeasurer)
-      assertEquals(SceneLint.violations(card.scene, rules), Vector.empty, name)
+      assertEquals(SceneLint.violations(card.scene, CardSuite.lintRules(card, theme)), Vector.empty, name)
     }
 
   test("every emitted document stays inside SVG profile 1"):
@@ -104,7 +103,8 @@ class CardSuite extends munit.FunSuite:
       assert(Set(CardFrame.Square, CardFrame.Portrait, CardFrame.Wide)(card.scene.size), s"$name: ${card.scene.size}")
     }
     everyVariant.filter((_, card, _) => card.scene.size == CardFrame.Wide).foreach { (name, card, _) =>
-      assert(card.scene.templateId == dosegram.render.card.MoodTimelineCard.TemplateId, s"$name is wide")
+      val wide = Set(dosegram.render.card.MoodTimelineCard.TemplateId, dosegram.render.card.RefillCard.TemplateId)
+      assert(wide(card.scene.templateId), s"$name is wide")
     }
 
   test("a strip paginates beyond its row limit and drops no medication (VA-LA-03)"):
@@ -129,3 +129,12 @@ class CardSuite extends munit.FunSuite:
     val card = DayCard.render(Samples.partialDay.copy(mood = None), Samples.context(Theme.Light, Privacy.Named))
     assert(SvgEmitter.emit(card.scene).contains(EnglishImageCopy.noMoodEntry))
     assert(!SvgEmitter.emit(card.scene).contains("radialGradient"))
+
+object CardSuite:
+  /** IMG-15 is the only template allowed to use the attention token (VISUALS section 6.16). */
+  def lintRules(card: CardOutput, theme: Theme): LintRules =
+    val tokens = Tokens.of(theme)
+    val palette =
+      if card.scene.templateId == dosegram.render.card.RefillCard.TemplateId then tokens.palette + tokens.attention
+      else tokens.palette
+    LintRules(palette ++ BlobPalette.all, Set(card.scene.background), TableTextMeasurer)

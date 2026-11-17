@@ -3,6 +3,7 @@ package dosegram.render
 import dosegram.render.card.Privacy
 import dosegram.render.card.RefillCard
 import dosegram.render.card.RefillData
+import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.lint.LintRules
 import dosegram.render.lint.SceneLint
@@ -41,10 +42,34 @@ class RefillCardSuite extends munit.FunSuite:
     assertEquals(marks.count(_ == "refill.cell.used"), RefillCard.Cells - 6)
     assertEquals(marks.count(_ == "refill.threshold"), 1)
     val words = texts(card.scene.nodes)
-    assert(words.contains("Metformin 500 mg"), words.toString)
+    assert(!words.contains("Metformin 500 mg"), words.toString)
+    assert(words.contains(EnglishImageCopy.refillDiscreetLabel), words.toString)
     assert(words.contains("Covers your schedule until about Sun 15 Nov."), words.toString)
     assert(words.contains(RefillCard.Source))
+    assertEquals(card.text.caption, EnglishImageCopy.refillDiscreetLabel)
+    assert(card.text.full.contains("6"), card.text.full)
+    assert(!card.text.full.contains("Metformin"), card.text.full)
+    assert(!card.text.altText.contains("Metformin"))
+
+  test("the named refill card keeps the label and the caller's text equivalent"):
+    val card = RefillCard.render(data, Samples.context(Theme.Light, Privacy.Named))
+    assert(texts(card.scene.nodes).contains("Metformin 500 mg"))
     assertEquals(card.text.full, data.text)
+    assertEquals(card.text.caption, data.text)
+
+  test("L1 and discreet mode keep the count, drop the name, and caption the neutral line"):
+    List(Privacy.Aggregate, Privacy.Discreet).foreach { privacy =>
+      val card = RefillCard.render(data, Samples.context(Theme.Dark, privacy))
+      assert(!texts(card.scene.nodes).exists(_.contains("Metformin")))
+      assertEquals(card.text.caption, EnglishImageCopy.refillDiscreetLabel)
+      assert(card.text.full.contains("6"), card.text.full)
+      assert(!card.text.full.contains("Metformin"))
+      assert(!card.text.altText.contains("Metformin"))
+      assertEquals(card.hasSpoiler, privacy == Privacy.Discreet)
+    }
+
+  test("the refill fixture is checked with the other card goldens"):
+    assert(Samples.all.exists(_.name == "refill/typical"))
 
   test("VA-IMG-15a: no word on the card tells the user to obtain, buy or take anything"):
     val words = texts(RefillCard.render(data, Samples.context(Theme.Dark, Privacy.Aggregate)).scene.nodes).mkString(" ")

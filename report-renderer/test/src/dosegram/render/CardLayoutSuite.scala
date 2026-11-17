@@ -19,6 +19,7 @@ import dosegram.render.chart.HaloFrame
 import dosegram.render.chart.HaloSegment
 import dosegram.render.chart.HaloState
 import dosegram.render.copy.EnglishImageCopy
+import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.scene.Node
 import dosegram.render.scene.PathCommand
 import dosegram.render.scene.Point
@@ -130,7 +131,9 @@ class CardLayoutSuite extends munit.FunSuite:
     val typical = texts(Samples.weeks.head.render(context).head).map(_.content)
     Vector(EnglishImageCopy.yourGoal, EnglishImageCopy.noRecordMark, EnglishImageCopy.estimateMark, EnglishImageCopy.snackMark)
       .foreach(name => assert(typical.contains(name), s"'$name' is missing from $typical"))
-    val medicationOnly = texts(Samples.weeks.last.render(context).head).map(_.content)
+    val medicationOnly = Samples.weeks
+      .collectFirst { case fixture if fixture.name == "week/medication-only" => texts(fixture.render(context).head).map(_.content) }
+      .getOrElse(fail("missing week/medication-only"))
     Vector(EnglishImageCopy.yourGoal, EnglishImageCopy.noRecordMark, EnglishImageCopy.estimateMark, EnglishImageCopy.snackMark)
       .foreach(name => assert(!medicationOnly.contains(name), s"'$name' is named without its mark"))
 
@@ -222,3 +225,45 @@ class CardLayoutSuite extends munit.FunSuite:
     val centres = StrictMath.hypot(start(line).x - end(filled).x, start(line).y - end(filled).y)
     val air = centres - Halo.StrokePx / 2 - line.stroke.get.width / 2
     assert(air >= 8, s"only $air px of air between the fill and the skipped line")
+
+  test("VA-IMG-04a: medication records still draw the week, empty tracked domains say so, and an untracked domain is absent"):
+    val from = LocalDate.of(2026, 11, 2)
+    val week = WeekData(
+      from,
+      Some(Vector.fill(7)(Vector(DoseStatus.TakenOnTime, DoseStatus.Skipped))),
+      Some(Vector.fill(7)(None)),
+      None,
+      Some(Vector.fill(7)(None)),
+      Some(Vector.fill(7)(dosegram.render.card.SleepEvidence.NoRecord))
+    )
+    val card = WeekCard.render(week, context)
+    val drawn = texts(card).map(_.content)
+    val roles = Node.flatten(card.scene.nodes).collect { case mark: Node.Mark => mark.meta.role }
+    assertEquals(card.scene.templateId, WeekCard.TemplateId)
+    assert(card.scene.nodes.nonEmpty)
+    Vector(Domain.Medication, Domain.Water, Domain.Mood, Domain.Sleep).foreach { domain =>
+      assert(drawn.contains(EnglishImageCopy.domainName(domain)), domain.toString)
+    }
+    assert(!drawn.contains(EnglishImageCopy.domainName(Domain.Food)))
+    assertEquals(drawn.count(_ == EnglishImageCopy.noRecordsThisWeek), 3)
+    assert(roles.exists(_.startsWith("dose.")))
+    assert(!roles.exists(role => Set("water.", "food.", "mood.", "sleep.").exists(role.startsWith)))
+    assert(!roles.contains("icon.Food"))
+    val full = card.text.full
+    assert(full.startsWith("Week "))
+    assert(full.contains("Medication:"))
+    assert(full.contains("Water: no records this week."))
+    assert(full.contains("Mood: no records this week."))
+    assert(full.contains("Sleep: no records this week."))
+    assert(!full.contains("Food"))
+    assert(!full.toLowerCase(java.util.Locale.ROOT).contains("score"))
+    assert(!drawn.exists(_.toLowerCase(java.util.Locale.ROOT).contains("score")))
+    val ukrainian = WeekCard.render(week, Samples.context(Theme.Light, Privacy.Named, UkrainianImageCopy)).text.full
+    assert(ukrainian.contains("Вода: цього тижня записів немає."))
+    assert(ukrainian.contains("Настрій: цього тижня записів немає."))
+    assert(ukrainian.contains("Сон: цього тижня записів немає."))
+    assert(!ukrainian.contains("Їжа"))
+    assert(!ukrainian.toLowerCase(java.util.Locale.ROOT).contains("score"))
+
+  test("the medication-records week is a golden fixture, checked with the other cards"):
+    assert(Samples.all.exists(_.name == "week/medication-records"))
