@@ -375,7 +375,18 @@ class CaptureLaunchSuite extends PgSuite:
       val List(stats) = bot.say("/stats", expected = 1): @unchecked
       assertEquals(
         bot.buttons(stats).map(_._1),
-        List("Today", "7 days", "30 days", "Show as image", "Share a card", "Month", "Patterns")
+        List(
+          "Today",
+          "7 days",
+          "30 days",
+          "Show as image",
+          "Share a card",
+          "Water, 7 days",
+          "Sleep, 7 nights",
+          "Mood by weekday",
+          "Month",
+          "Patterns"
+        )
       )
       val List(picker) = bot.tap(stats, "Share a card", expected = 1): @unchecked
       assert(bot.body(picker).contains("Anyone you send this to can keep it."), bot.body(picker))
@@ -386,6 +397,69 @@ class CaptureLaunchSuite extends PgSuite:
       assert(bot.rasteriser.shows(bot.rasteriser.count, "1 of 7 days"), "it is the share card")
       assert(!bot.rasteriser.shows(bot.rasteriser.count, "Vitamin"), "no medication reaches the card")
       eventually("the request is finished")(strings("SELECT card_kind FROM report_requests WHERE status = 'sent'").contains("card.share.v1"))
+
+  test("the seven-day /stats sends the water, sleep and mood week cards (IMG-20 to IMG-22)"):
+    val accountId = seedOwner()
+    grant(
+      accountId,
+      ConsentPurpose.Medication,
+      ConsentPurpose.Hydration,
+      ConsentPurpose.Sleep,
+      ConsentPurpose.Mood,
+      ConsentPurpose.ImagesInChat
+    )
+    launched: bot =>
+      bot.say("mood 4", expected = 1)
+      val List(stats) = bot.say("/stats", expected = 1): @unchecked
+      assertEquals(
+        bot.buttons(stats).map(_._1),
+        List(
+          "Today",
+          "7 days",
+          "30 days",
+          "Show as image",
+          "Share a card",
+          "Water, 7 days",
+          "Sleep, 7 nights",
+          "Mood by weekday",
+          "Month",
+          "Patterns"
+        )
+      )
+      val List(water) = bot.tap(stats, "Water, 7 days", expected = 1): @unchecked
+      assertEquals(water.method, "sendPhoto")
+      assert(bot.body(water).contains("The goal is the one you set."), bot.body(water))
+      assert(bot.rasteriser.shows(bot.rasteriser.count, "Water, 7 days"))
+      assert(water.request.params.obj.get("has_spoiler") != Some(ujson.True))
+
+      val List(sleep) = bot.tap(stats, "Sleep, 7 nights", expected = 1): @unchecked
+      assertEquals(sleep.method, "sendPhoto")
+      assert(bot.body(sleep).contains("0 nights logged."), bot.body(sleep))
+      assert(bot.rasteriser.shows(bot.rasteriser.count, "Sleep, 7 nights"))
+
+      val List(mood) = bot.tap(stats, "Mood by weekday", expected = 1): @unchecked
+      assertEquals(mood.method, "sendPhoto")
+      assert(bot.body(mood).contains("fewer than 3"), bot.body(mood))
+      assert(bot.rasteriser.shows(bot.rasteriser.count, "Mood by weekday"))
+      eventually("the week cards are sent"):
+        val kinds = strings("SELECT card_kind FROM report_requests WHERE status = 'sent'").toSet
+        kinds.contains("card.water.week.v1") && kinds.contains("card.sleep.week.v1") &&
+        kinds.contains("card.mood.weekday.v1")
+
+  test("a discreet Ukrainian seven-day water card is spoiled and in Ukrainian (IMG-20)"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+    PgUnitOfWork(dataSource, () => monday, DataKeys.development).transaction: tx =>
+      val settings = tx.accounts.settingsOf(accountId).get
+      tx.accounts.saveSettings(accountId, settings.copy(isDiscreet = true, locale = Some("uk")), monday)
+    launched: bot =>
+      val List(stats) = bot.say("/stats", expected = 1): @unchecked
+      assert(bot.buttons(stats).map(_._1).contains("Вода за 7 днів"))
+      val List(photo) = bot.tap(stats, "Вода за 7 днів", expected = 1): @unchecked
+      assertEquals(photo.method, "sendPhoto")
+      assert(bot.body(photo).contains("Ціль — та, яку задали ви."), bot.body(photo))
+      assertEquals(photo.request.params.obj.get("has_spoiler"), Some(ujson.True))
+      assert(bot.rasteriser.shows(bot.rasteriser.count, "Вода за 7 днів"))
 
   test("in discreet mode a share asks once more; with the counts switched off only the week's mood is offered"):
     val accountId = seedOwner()

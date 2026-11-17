@@ -221,9 +221,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
       case CaptureActions.SleepNap        => sleep.nap(turn)
       case CaptureActions.SleepImage      => imageOf(turn, Pending.SleepImage)(sleep.image(turn))
-      case CaptureActions.StatsImage if value == StatsChat.WeekImageValue =>
-        imageOf(turn, Pending.WeekImage)(stats.weekImage(turn))
-      case CaptureActions.StatsImage      => imageOf(turn, Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
+      case CaptureActions.StatsImage      => statsImage(turn, value)
       case CaptureActions.StatsMonth      => months.month(turn, value.toInt)
       case CaptureActions.StatsMonthImage =>
         imageOf(turn, Pending.MonthImage(value.toInt))(months.monthImage(turn, value.toInt))
@@ -269,6 +267,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
       case Pending.WeekImage             => stats.weekImage(fresh)
+      case Pending.WaterWeekImage        => stats.waterWeekImage(fresh)
+      case Pending.SleepWeekImage        => stats.sleepWeekImage(fresh)
+      case Pending.MoodWeekdayImage      => stats.moodWeekdayImage(fresh)
       case Pending.Medication(screen)    => openMedication(fresh, screen)
       case Pending.SleepCard             => sleep.card(fresh)
       case Pending.SleepTyped            => sleep.card(fresh)
@@ -299,6 +300,20 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case ConsentPurpose.Hydration | ConsentPurpose.Mood | ConsentPurpose.Sleep | ConsentPurpose.CrossDomainPatterns |
           ConsentPurpose.ImagesInChat | ConsentPurpose.Nutrition | ConsentPurpose.Import =>
         ()
+
+  /** `stats.image`: 7 is the week at a glance, 20 to 22 the week cards, and every other value the daily summary. The
+    * card is drawn only after the images consent, because `image` is by-name.
+    */
+  private def statsImage(turn: Turn, value: Long): Reply =
+    def send(pending: Pending)(image: => Reply): Reply = imageOf(turn, pending)(image)
+    if value == StatsChat.WeekImageValue then send(Pending.WeekImage)(stats.weekImage(turn))
+    else if value == Pending.WaterWeekImage.argument.toLong then
+      send(Pending.WaterWeekImage)(stats.waterWeekImage(turn))
+    else if value == Pending.SleepWeekImage.argument.toLong then
+      send(Pending.SleepWeekImage)(stats.sleepWeekImage(turn))
+    else if value == Pending.MoodWeekdayImage.argument.toLong then
+      send(Pending.MoodWeekdayImage)(stats.moodWeekdayImage(turn))
+    else send(Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
     * of its own, so the card the request came from stays as it is.

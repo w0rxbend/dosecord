@@ -69,8 +69,9 @@ Appendix B and its status notes are the record; this is the short form.
   mode set in the Mini App; a discreet personal card goes behind a spoiler.
   The sleep regularity card (IMG-12) is sent from `/sleep`. The blob is
   revision `dg-blob-2`. "Show as image" on the seven-day `/stats` sends the
-  week at a glance (IMG-19), on `/today` the daily summary; the week cards
-  IMG-20 to IMG-22 are drawn but no chat button sends them yet.
+  week at a glance (IMG-19), on `/today` the daily summary. The seven-day
+  `/stats` also sends IMG-20 to IMG-22 (Water, 7 days; Sleep, 7 nights; Mood
+  by weekday).
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep
   (episodes, check-ins, goals; no rollup, read from the episodes), daily
   rollups with a worker that drains their queue, the `Stat` type, text
@@ -219,13 +220,13 @@ Useful next, in this order:
    (G11.6b); the rest of G2.18; dropping the emptied plaintext columns; the
    image gate after the compose change. G2.6 (English catalogue) is eligible
    by dependency and untouched.
-9. What the eighth round left open: chat buttons for IMG-20 to IMG-22, the
-   gap of a medication-only IMG-04, the refill card in the goldens, the
-   contact-sheet review by another reviewer and the greyscale check; on
-   Today the occurrence sheet corrections, the as-needed sheet and an
-   inline mood check-in, tap-through from week charts, the mood chart's
-   axis label at 360 px; the unfixed hot spots of PERFORMANCE.md; live
-   checks of the dose answer (MA-TODAY-4), the share card and the images.
+9. What the eighth round left open: the gap of a medication-only IMG-04, the
+   refill card in the goldens, the contact-sheet review by another reviewer
+   and the greyscale check; on Today the occurrence sheet corrections, the
+   as-needed sheet and an inline mood check-in, tap-through from week charts,
+   the mood chart's axis label at 360 px; the unfixed hot spots of
+   PERFORMANCE.md; live checks of the dose answer (MA-TODAY-4), the share
+   card and the images.
 
 ## Agent workflow
 

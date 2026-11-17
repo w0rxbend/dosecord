@@ -6,6 +6,16 @@ import dosegram.core.domain.insights.StatsPeriod
 object StatsCardCopy:
 
   def ShowAsImage = tr("Show as image", "Показати як зображення")
+
+  /** IMG-20 on the seven-day card. The words are the card's title. */
+  def WaterWeek = tr("Water, 7 days", "Вода за 7 днів")
+
+  /** IMG-21 on the seven-day card. The words are the card's title. */
+  def SleepWeek = tr("Sleep, 7 nights", "Сон за 7 ночей")
+
+  /** IMG-22 on the seven-day card. The words are the card's title. */
+  def MoodWeekday = tr("Mood by weekday", "Настрій за днями тижня")
+
   def usage = tr(
     "Send /stats, /stats today, /stats 7, /stats 30 or /stats month.",
     "Надішліть /stats, /stats today, /stats 7, /stats 30 або /stats month."
@@ -24,6 +34,9 @@ object StatsCardCopy:
   def entries: List[CopyEntry] =
     List(
       CopyEntry("statscard.show_as_image", ShowAsImage),
+      CopyEntry("statscard.water_week", WaterWeek),
+      CopyEntry("statscard.sleep_week", SleepWeek),
+      CopyEntry("statscard.mood_weekday", MoodWeekday),
       CopyEntry("statscard.usage", usage),
       CopyEntry("statscard.image_unavailable", imageUnavailable)
     ) ++ StatsPeriod.values.toList.map(value => CopyEntry(s"statscard.period.${value.days}", period(value)))
