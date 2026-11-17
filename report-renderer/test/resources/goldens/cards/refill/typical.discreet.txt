@@ -1,0 +1,5 @@
+file: dosegram-refill.png
+spoiler: true
+caption: One of your items is running low.
+alt: 6 tablets left by your count, at or below your threshold of 10 tablets.
+full: 6 tablets left by your count, at or below your threshold of 10 tablets.
