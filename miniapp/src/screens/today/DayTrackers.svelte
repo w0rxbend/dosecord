@@ -6,6 +6,7 @@
   import type { MealKind } from '../../api/types';
   import { t as en } from '../../i18n/index.svelte';
   import DayFood from './DayFood.svelte';
+  import MoodInline from './MoodInline.svelte';
   import type { DayTracking } from './tracking';
 
   interface Props {
@@ -13,9 +14,10 @@
     isToday: boolean;
     onAddWater: (amountMl: number) => void;
     onLogMeal: (mealType: MealKind) => void;
+    onMoodRecorded?: () => void;
   }
 
-  let { tracking, isToday, onAddWater, onLogMeal }: Props = $props();
+  let { tracking, isToday, onAddWater, onLogMeal, onMoodRecorded = () => {} }: Props = $props();
   const { router } = useApp();
   const go = (event: MouseEvent, path: string) => {
     event.preventDefault();
@@ -79,9 +81,7 @@
         {/each}
       </ul>
       {#if isToday}
-        <div class="btn-row">
-          <a class="btn btn-tinted" href={router.hrefFor('/log/mood/new')} onclick={(event) => go(event, '/log/mood/new')}>{en.mood.checkIn}</a>
-        </div>
+        <MoodInline checkedIn={mood.checkins.length > 0} onRecorded={onMoodRecorded} />
       {/if}
     </div>
   </section>

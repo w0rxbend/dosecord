@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import type { ScheduleDraft } from '../../api/types';
 import { createHarness, type Harness } from '../../test/harness';
 import TodayScreen from './TodayScreen.svelte';
 
@@ -244,4 +245,148 @@ describe('Today screen', () => {
 
     expect(harness.router.route).toEqual({ screen: 'settings' });
   });
+
+  it('opens a dose row into a sheet of the scheduled time, state and recorded action', async () => {
+    const user = open(createHarness());
+    const earlier = await section('Earlier (2)');
+
+    await user.click(within(earlier).getByRole('button', { name: /Medication C/ }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Medication C' });
+    expect(within(sheet).getByText('07:30')).toBeTruthy();
+    expect(within(sheet).getByText('Taken 07:58')).toBeTruthy();
+    const record = within(sheet).getByRole('list', { name: 'Record' });
+    expect(within(record).getByText('07:58')).toBeTruthy();
+    expect(within(record).getByText('Taken')).toBeTruthy();
+    expect(within(sheet).queryByRole('textbox')).toBeNull();
+    expect(within(sheet).queryByRole('spinbutton')).toBeNull();
+  });
+
+  it('changes a dose to skipped from the sheet with one request', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await user.click(within(await section('Due now')).getByRole('button', { name: /Medication A/ }));
+
+    await user.click(within(await screen.findByRole('dialog', { name: 'Medication A' })).getByRole('button', { name: 'Change to skipped' }));
+
+    expect(actionCalls(harness)).toHaveLength(1);
+    expect(harness.toasts.current?.message).toBe('Marked skipped');
+    const earlier = await section('Earlier (3)');
+    expect(within(earlier).getByText('Medication A')).toBeTruthy();
+    expect(within(earlier).getAllByText('Skipped')).toHaveLength(2);
+  });
+
+  it('takes the sheet answer back with undo', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await user.click(within(await section('Earlier (2)')).getByRole('button', { name: /Medication C/ }));
+
+    await user.click(within(screen.getByRole('dialog', { name: 'Medication C' })).getByRole('button', { name: 'Undo' }));
+
+    expect(actionCalls(harness)).toHaveLength(1);
+    expect(within(await section('Due now')).getByText('Medication C')).toBeTruthy();
+  });
+
+  it('snoozes from the sheet for one offered length', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await user.click(within(await section('Due now')).getByRole('button', { name: /Medication A/ }));
+
+    await user.click(within(screen.getByRole('dialog', { name: 'Medication A' })).getByRole('button', { name: '30 min' }));
+
+    expect(actionCalls(harness)).toHaveLength(1);
+    expect(within(await section('Later')).getByText('Snoozed until 08:42')).toBeTruthy();
+  });
+
+  it('shows a future dose sheet without corrections or a time field', async () => {
+    const user = open(createHarness(), '2026-11-13');
+    const later = await section('Later');
+    const rows = within(later).getAllByRole('button', { name: /Medication A/ });
+
+    await user.click(rows[0]!);
+
+    const sheet = await screen.findByRole('dialog', { name: 'Medication A' });
+    expect(within(sheet).getByText('08:00')).toBeTruthy();
+    expect(within(sheet).queryByRole('button', { name: 'Change to taken' })).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: 'Undo' })).toBeNull();
+    expect(within(sheet).queryByRole('textbox')).toBeNull();
+  });
+
+  it('lists an as-needed medication with no dose today and the limits the user set, and no reminder time', async () => {
+    const harness = createHarness();
+    await saveAsNeeded(harness, 'Medication F', { maxPerDay: 3, minGapMinutes: 240 }, '09:15');
+    const user = open(harness);
+
+    await user.click(await screen.findByRole('button', { name: 'As needed' }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'As needed' });
+    const row = await within(sheet).findByRole('listitem', { name: /Medication F/ });
+    expect(row.textContent).toContain('You set at most 3 a day.');
+    expect(row.textContent).toContain('You set at least 240 min between logs.');
+    expect(row.textContent).toContain('No reminders.');
+    expect(row.textContent).not.toMatch(/\d{2}:\d{2}/);
+    expect(within(sheet).queryByText('Medication C')).toBeNull();
+    expect(within(sheet).queryByText('Medication A')).toBeNull();
+  });
+
+  it('does not state a limit an as-needed medication does not have', async () => {
+    const harness = createHarness();
+    await saveAsNeeded(harness, 'Medication G', {});
+    const user = open(harness);
+
+    await user.click(await screen.findByRole('button', { name: 'As needed' }));
+
+    const row = await within(await screen.findByRole('dialog', { name: 'As needed' })).findByRole('listitem', { name: /Medication G/ });
+    expect(row.textContent).toContain('No reminders.');
+    expect(row.textContent).not.toMatch(/at most|between logs/);
+  });
+
+  it('records one mood number from Today and does not name what the number means', async () => {
+    const harness = createHarness();
+    const today = '2026-11-12';
+    for (const checkin of await harness.api.moodCheckins(today, today)) await harness.api.removeCheckin(checkin.id);
+    const user = open(harness);
+
+    expect(await screen.findByRole('button', { name: 'Record 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Record 5' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /pleasant|unpleasant|neutral/i })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Record 4' }));
+
+    expect(await screen.findByText('Recorded 4')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Record 4' })).toBeNull();
+    expect(harness.api.calls.filter((call) => call === 'mood/checkins:create')).toHaveLength(1);
+    expect(harness.router.route).toEqual({ screen: 'today' });
+    const saved = await harness.api.moodCheckins(today, today);
+    expect(saved.map((checkin) => checkin.valence)).toEqual([4]);
+    expect(saved[0]?.energy).toBeUndefined();
+  });
 });
+
+async function saveAsNeeded(
+  harness: Harness,
+  name: string,
+  limits: Pick<ScheduleDraft, 'maxPerDay' | 'minGapMinutes'>,
+  reminderTime?: string,
+): Promise<void> {
+  const medication = await harness.api.createMedication({
+    name,
+    form: 'tablet',
+    strengthValue: null,
+    strengthUnit: null,
+    doseAmount: '1',
+    doseUnit: 'tablet',
+    colourTag: 'none',
+    shapeTag: 'none',
+    notes: '',
+    showNameInReminders: true,
+  });
+  await harness.api.createSchedule(medication.id, {
+    pattern: 'as_needed',
+    rows: reminderTime === undefined ? [] : [{ time: reminderTime, dose: '1' }],
+    weekdays: [],
+    startDate: '2026-11-12',
+    endDate: null,
+    ...limits,
+  });
+}
