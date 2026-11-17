@@ -1168,6 +1168,7 @@ Report queue as built in G4.3 (V7 `report_requests`; supervisor decision, 2026-1
 | Binding | Description | Use |
 |---|---|---|
 | `ChildProcessRasteriser` | `resvg --skip-system-fonts --use-fonts-dir /opt/dosegram/fonts --resources-dir /var/empty - -c`; SVG on standard input, PNG on standard output; empty environment; dedicated pool of two platform threads; `destroyForcibly` at the timeout | Single-host default |
+| `ResvgWorkerPool` (ADR-022 addendum of 2026-11-15) | At most two long-lived `dosegram-raster` processes over the resvg library, started on first use with the fonts loaded once and fed framed requests on standard input; the same pixels, a faster PNG setting, the same deadline and output cap, plus caps on request size, zoom and canvas pixels; a failed worker is killed and replaced. Selected by `RENDER_WORKER_PATH` | Single-host default of the container image |
 | `SocketRasteriser` | The same binaries in a sidecar container with `network_mode: none`, reached over a Unix domain socket on a shared directory | Hardening before public beta, and the scale-out form |
 
 Stated limit. Brief 06 asks for a renderer with no network egress and no database credentials. The child process holds no credentials and profile 1 forbids every external reference, but it shares the network namespace of the application. Only the sidecar binding removes egress. That resvg fetches nothing by itself is `A`.

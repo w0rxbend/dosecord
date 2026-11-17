@@ -154,6 +154,15 @@ draw inside the image. CI installs the same resvg release and sets
 skipping. `./mill report-renderer.resvg.test.contactSheet` writes every card as
 a PNG to `out/report-renderer/preview`.
 
+The long-lived worker `dosegram-raster` (ADR-022 addendum of 2026-11-15) draws
+the same pixels about four times faster. `scripts/build-raster-worker.sh` builds
+it into `out/raster-worker` from the same resvg release tarball (cargo, Rust
+1.85 or later; the network once, for the tarball). `RENDER_WORKER_PATH` makes
+the application use it, next to `RESVG_PATH` and `RENDER_FONTS_DIR`; the tests
+find it through `DOSEGRAM_RASTER_WORKER` or as `dosegram-raster` on the `PATH`,
+and with `DOSEGRAM_REQUIRE_RESVG=true` they fail without it. The container image
+builds it and sets `RENDER_WORKER_PATH`.
+
 ## Rules that hold everywhere
 
 - `core` and `contracts` stay vendor-neutral (`scripts/check-vendor-symbols.sh`).

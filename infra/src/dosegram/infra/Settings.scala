@@ -57,9 +57,11 @@ final case class MiniAppSettings(
 )
 
 /** The image renderer, present when `RESVG_PATH` and `RENDER_FONTS_DIR` are both set (ADR-022): the resvg binary and
-  * the directory of the pinned font pack. Without it every image is sent as its text equivalent.
+  * the directory of the pinned font pack. Without it every image is sent as its text equivalent. `workerPath`
+  * (`RENDER_WORKER_PATH`, ADR-022 addendum of 2026-11-15) names the long-lived worker `dosegram-raster`, which then
+  * draws instead of one resvg process per image.
   */
-final case class RenderSettings(resvgPath: String, fontsDir: String)
+final case class RenderSettings(resvgPath: String, fontsDir: String, workerPath: Option[String] = None)
 
 enum LogLevel(val envName: String):
   case Debug extends LogLevel("DEBUG")
@@ -334,6 +336,13 @@ object Settings:
       "report-renderer/fonts"
     ),
     EnvSpec(
+      "RENDER_WORKER_PATH",
+      required = false,
+      secret = false,
+      "The long-lived rasteriser worker (scripts/build-raster-worker.sh); with RESVG_PATH, it draws instead of resvg.",
+      ""
+    ),
+    EnvSpec(
       "TELEGRAM_WEBHOOK_PATH_SECRET",
       required = false,
       secret = true,
@@ -479,9 +488,12 @@ object Settings:
       ).getOrElse(DefaultBindAddress)
     val healthAddress = address("HEALTH_ADDRESS")
     val httpAddress = address("HTTP_ADDRESS")
+    val worker = lookup("RENDER_WORKER_PATH")
     val render = (lookup("RESVG_PATH"), lookup("RENDER_FONTS_DIR")) match
-      case (Some(binary), Some(fonts)) => Some(RenderSettings(binary, fonts))
-      case (None, None)                => None
+      case (Some(binary), Some(fonts)) => Some(RenderSettings(binary, fonts, worker))
+      case (None, None)                =>
+        if worker.isDefined then errors = errors :+ "RENDER_WORKER_PATH needs RESVG_PATH and RENDER_FONTS_DIR"
+        None
       case _ => { errors = errors :+ "RESVG_PATH and RENDER_FONTS_DIR must be set together"; None }
 
     val databaseUrl = required("DATABASE_URL")

@@ -35,6 +35,14 @@ RUN tar xJf resvg-0.49.0.tar.xz \
  && cargo build --profile production --locked --offline -p resvg \
  && install -m 0755 target/production/resvg /usr/local/bin/resvg \
  && resvg --version | grep -qx '0.49.0'
+# The long-lived worker (ADR-022 addendum of 2026-11-15): the same resvg
+# library fed over standard input, built from the same tarball's vendored
+# crates and the committed Cargo.lock, so this build is offline too.
+COPY report-renderer/worker/ /src/resvg-0.49.0/dosegram-raster/
+RUN cd resvg-0.49.0/dosegram-raster \
+ && cargo build --profile production --locked --offline \
+ && install -m 0755 target/production/dosegram-raster /usr/local/bin/dosegram-raster \
+ && dosegram-raster --version | grep -qx '0.49.0'
 
 FROM eclipse-temurin:25-jre-alpine
 
@@ -54,10 +62,13 @@ RUN addgroup -S dosegram && adduser -S -u 10001 -G dosegram dosegram
 COPY --from=build /build/out/app/assembly.dest/out.jar /opt/dosegram/dosegram.jar
 # The rasteriser and the pinned font pack (VISUALS section 3.4) with its OFL
 # licences. With both set the status images are drawn; without them every
-# image is sent as its text equivalent.
+# image is sent as its text equivalent. With RENDER_WORKER_PATH the long-lived
+# worker draws instead of one resvg process per image.
 COPY --from=resvg /usr/local/bin/resvg /opt/dosegram/bin/resvg
+COPY --from=resvg /usr/local/bin/dosegram-raster /opt/dosegram/bin/dosegram-raster
 COPY report-renderer/fonts/ /opt/dosegram/fonts/
 ENV RESVG_PATH=/opt/dosegram/bin/resvg \
+    RENDER_WORKER_PATH=/opt/dosegram/bin/dosegram-raster \
     RENDER_FONTS_DIR=/opt/dosegram/fonts
 COPY --from=miniapp /build/miniapp/dist /opt/dosegram/miniapp
 ENV MINIAPP_STATIC_DIR=/opt/dosegram/miniapp

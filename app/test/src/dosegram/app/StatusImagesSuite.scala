@@ -374,4 +374,31 @@ class StatusImagesSuite extends munit.FunSuite:
       val png = images.store.load(card.get.assetKey).get
       assertEquals(png.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))
       assert(png.length > 5000, s"${card.get.assetKey}: ${png.length} bytes")
+
+  test("a worker path that does not name an executable fails the start"):
+    val missing = RenderSettings("/bin/sh", sys.env("DOSEGRAM_FONTS_DIR"), Some("/nonexistent/dosegram-raster"))
+    val error = intercept[IllegalArgumentException](StatusImages.from(Some(missing), StatusImages.Stores.inMemory, _ => ()))
+    assertEquals(error.getMessage, "RENDER_WORKER_PATH does not name an executable")
+
+  test("with the long-lived worker of this machine every card is a PNG (ADR-022 addendum of 2026-11-15)"):
+    val worker = sys.env
+      .get("DOSEGRAM_RASTER_WORKER")
+      .map(Path.of(_))
+      .orElse(sys.env.getOrElse("PATH", "").split(':').iterator.filter(_.nonEmpty).map(Path.of(_, "dosegram-raster")).find(Files.isExecutable(_)))
+    if sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true") then assert(worker.isDefined, "no dosegram-raster")
+    else assume(worker.isDefined, "no dosegram-raster")
+    val log = mutable.ListBuffer.empty[String]
+    // The resvg path must name an executable, but with a worker it is never run.
+    val settings = RenderSettings("/bin/sh", sys.env("DOSEGRAM_FONTS_DIR"), Some(worker.get.toString))
+    val images = StatusImages.from(Some(settings), StatusImages.Stores.inMemory, log += _)
+    val drawn = List(
+      images.drawn.mood(MoodCardView(pleasant, Energy.of(2)), light),
+      images.drawn.water(water, light),
+      images.drawn.day(DayCardView(today, Some(MoodCardView(pleasant, None)), Some(List(DoseMark.Open)), Some(water), None), light)
+    )
+    assertEquals(log.toList, Nil)
+    drawn.foreach: card =>
+      val png = images.store.load(card.get.assetKey).get
+      assertEquals(png.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))
+      assert(png.length > 5000, s"${card.get.assetKey}: ${png.length} bytes")
 end StatusImagesSuite

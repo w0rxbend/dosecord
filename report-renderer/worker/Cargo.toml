@@ -1,0 +1,33 @@
+# The long-lived rasteriser worker (ADR-022 addendum of 2026-11-15). It is
+# built inside the extracted resvg 0.49.0 release tarball, as the directory
+# `dosegram-raster` next to its `crates` and `vendor` directories, so every
+# dependency is the tarball's vendored, checksummed source and the build is
+# offline: scripts/build-raster-worker.sh and docker/Dockerfile do this.
+[package]
+name = "dosegram-raster"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.85.0"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+# Its own workspace, not a member of the tarball's.
+[workspace]
+
+[dependencies]
+# The resvg command line has the same library under it; `text` draws the
+# pinned fonts, `memmap-fonts` loads them as the command line does.
+resvg = { path = "../crates/resvg", default-features = false, features = ["text", "memmap-fonts"] }
+# Loading a font directory needs the `fs` feature of the font database.
+fontdb = { version = "0.24", default-features = false, features = ["std", "fs", "memmap"] }
+png = "0.18"
+
+[profile.production]
+inherits = "release"
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1
+strip = true
+incremental = false
+panic = "abort"

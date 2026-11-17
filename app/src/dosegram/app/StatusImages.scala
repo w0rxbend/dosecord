@@ -71,6 +71,7 @@ import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.resvg.ResvgConfig
 import dosegram.render.resvg.ResvgRasteriser
+import dosegram.render.resvg.ResvgWorkerPool
 import dosegram.render.svg.SvgEmitter
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
@@ -414,4 +415,9 @@ object StatusImages:
         if !Files.isExecutable(binary) then throw IllegalArgumentException("RESVG_PATH does not name an executable")
         if !Files.isDirectory(fonts) then throw IllegalArgumentException("RENDER_FONTS_DIR does not name a directory")
         val emptyResources = Files.createTempDirectory("dosegram-resvg-empty")
-        over(ResvgRasteriser(ResvgConfig.standard(binary, fonts, emptyResources)), stores, log)
+        settings.workerPath.map(Path.of(_)) match
+          case None         => over(ResvgRasteriser(ResvgConfig.standard(binary, fonts, emptyResources)), stores, log)
+          case Some(worker) =>
+            if !Files.isExecutable(worker) then
+              throw IllegalArgumentException("RENDER_WORKER_PATH does not name an executable")
+            over(ResvgWorkerPool(ResvgConfig.standard(worker, fonts, emptyResources)), stores, log)
