@@ -12,28 +12,41 @@
   let selected = $state<number | undefined>(undefined);
   const current = $derived(selected ?? chart.marks.length - 1);
   const caption = $derived(chart.marks[current]);
-  // A chart of days names the day of each mark: the picked day opens in Day detail (S-13).
+  // When the current mark names a day, that day opens in Day detail (S-13).
   const day = $derived(chart.markDates?.[current]);
 
-  function openDay(): void {
-    if (day) void router.navigate(historyDayPath(day));
+  function openDate(date: string | undefined): void {
+    if (date) void router.navigate(historyDayPath(date));
   }
 
-  // The first tap on a mark shows its value; a second tap on the same mark opens its day.
-  function pick(event: MouseEvent): void {
+  function markIndex(event: MouseEvent): number | undefined {
     const mark = (event.target as Element | null)?.getAttribute('data-mark');
-    if (mark === null || mark === undefined || mark === '') return;
+    if (!mark) return undefined;
     const index = Number(mark);
-    if (selected === index && day) openDay();
+    return Number.isInteger(index) ? index : undefined;
+  }
+
+  // A week point that names a day opens it. A day chart shows the value, then opens on the next tap.
+  function pick(event: MouseEvent): void {
+    const index = markIndex(event);
+    if (index === undefined) return;
+    const date = chart.markDates?.[index];
+    if (chart.id.endsWith('-by-week') && date) {
+      selected = index;
+      openDate(date);
+      return;
+    }
+    if (selected === index) openDate(date);
     else selected = index;
   }
 
   // The values are reachable by keyboard: the arrow keys move between marks (MA-INS-6).
   function step(event: KeyboardEvent): void {
     const last = chart.marks.length - 1;
-    if (event.key === 'Enter' && day) {
+    const named = chart.markDates?.[current];
+    if (event.key === 'Enter' && named) {
       event.preventDefault();
-      openDay();
+      openDate(named);
       return;
     }
     const moves: Record<string, number> = { ArrowLeft: current - 1, ArrowRight: current + 1, Home: 0, End: last };
@@ -67,7 +80,7 @@
     <div class="picked">
       <p class="caption numeric" aria-live="polite">{caption}</p>
       {#if day}
-        <a class="open" href={router.hrefFor(historyDayPath(day))} onclick={(event) => { event.preventDefault(); openDay(); }}>
+        <a class="open" href={router.hrefFor(historyDayPath(day))} onclick={(event) => { event.preventDefault(); openDate(day); }}>
           {en.insights.openDay}
         </a>
       {/if}
