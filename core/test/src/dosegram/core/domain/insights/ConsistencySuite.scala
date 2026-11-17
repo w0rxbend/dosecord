@@ -4,9 +4,13 @@ import dosegram.core.application.insights.ReportComposer
 import dosegram.core.domain.copy.ForbiddenPhrases
 import dosegram.core.domain.copy.GamificationCopy
 import dosegram.core.domain.copy.Lang
+import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.ports.ConsentPurpose
 
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 
 /** PRODUCT_SPEC section 8.14 and ROADMAP G9.4: counts of logging in a window, nothing that resets, nothing on medication.
   */
@@ -52,6 +56,64 @@ class ConsistencySuite extends munit.FunSuite:
       )
     )
     assertEquals(Consistency.milestones(after, after), Nil)
+
+  test("one year since the first record is a milestone only when that day falls in the reported week"):
+    val first = LocalDate.of(2025, 11, 16)
+    val inside = DateRange.endingOn(LocalDate.of(2026, 11, 22), 7)
+    assertEquals(inside.contains(first.plusYears(1)), true)
+    assertEquals(
+      Consistency.anniversaries(Map(LoggingDomain.Water -> first, LoggingDomain.Mood -> first.minusDays(1)), inside),
+      List(LoggingAnniversary(LoggingDomain.Water, first))
+    )
+    val outside = DateRange.endingOn(first.plusYears(1).minusDays(1), 7)
+    assertEquals(Consistency.anniversaries(Map(LoggingDomain.Water -> first), outside), Nil)
+
+  test("a 29 February record is one year old on 28 February of the next year"):
+    val first = LocalDate.of(2024, 2, 29)
+    val week = DateRange.endingOn(LocalDate.of(2025, 3, 2), 7)
+    assertEquals(
+      Consistency.anniversaries(Map(LoggingDomain.Sleep -> first), week),
+      List(LoggingAnniversary(LoggingDomain.Sleep, first))
+    )
+    assertEquals(
+      Consistency.anniversaries(Map(LoggingDomain.Sleep -> first), DateRange.endingOn(LocalDate.of(2025, 2, 27), 7)),
+      Nil
+    )
+
+  test("the one-year line states the fact, in both languages, with none of the words of R-GAM-6"):
+    Lang.within(Lang.En):
+      assertEquals(
+        GamificationCopy.anniversary(LoggingAnniversary(LoggingDomain.Water, LocalDate.of(2025, 11, 16))),
+        "One year since the first water entry."
+      )
+    Lang.within(Lang.Uk):
+      assertEquals(
+        GamificationCopy.anniversary(LoggingAnniversary(LoggingDomain.Mood, LocalDate.of(2025, 11, 16))),
+        "Рік від першої позначки настрою."
+      )
+    val lines = for
+      lang <- List(Lang.En, Lang.Uk)
+      domain <- LoggingDomain.values.toList
+    yield Lang.within(lang)(GamificationCopy.anniversary(LoggingAnniversary(domain, LocalDate.of(2025, 1, 1))))
+    lines.foreach(line => assertEquals(ForbiddenPhrases.violations(line), Nil, line))
+
+  test("a month below its gate keeps the header and drops the progress line when counts are off"):
+    val month = YearMonth.of(2026, 10)
+    val figures = MonthStats.of(
+      month,
+      DayOfWeek.MONDAY,
+      medication = None,
+      hydration = Some(Map(month.atDay(3) -> HydrationDay(500, 1, None))),
+      mood = None,
+      sleep = None,
+      previousMedication = None
+    )
+    val kyiv = ZoneId.of("Europe/Kyiv")
+    assert(MonthCopy.lines(figures, kyiv).exists(_.contains("more")))
+    assertEquals(
+      MonthCopy.linesOmittingGates(figures, kyiv),
+      List("October 2026 · Europe/Kyiv", "1 day with records")
+    )
 
   test("every count and milestone line is free of the words of loss and runs, in both languages (R-GAM-6)"):
     val lines = for

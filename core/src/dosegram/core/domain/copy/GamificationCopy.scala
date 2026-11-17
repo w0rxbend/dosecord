@@ -1,8 +1,11 @@
 package dosegram.core.domain.copy
 
+import dosegram.core.domain.insights.LoggingAnniversary
 import dosegram.core.domain.insights.LoggingDomain
 import dosegram.core.domain.insights.LoggingMilestone
 import dosegram.core.domain.insights.WeeklyConsistency
+
+import java.time.LocalDate
 
 /** The lines of PRODUCT_SPEC section 8.14 in the weekly report: on how many days each domain has a record, and the
   * logging milestones the week passed. They count what was logged, never what was not, and use none of the words of
@@ -45,6 +48,17 @@ object GamificationCopy:
       case LoggingDomain.Food =>
         tr(s"$n food entries recorded so far.", s"Уже ${FoodEntries.count(n)}.")
 
+  /** "One year since the first water entry." The fact of the date, with no measured value and no celebration. */
+  def anniversary(anniversary: LoggingAnniversary): String = anniversary.domain match
+    case LoggingDomain.Water =>
+      tr("One year since the first water entry.", "Рік від першого запису води.")
+    case LoggingDomain.Mood =>
+      tr("One year since the first mood check-in.", "Рік від першої позначки настрою.")
+    case LoggingDomain.Sleep =>
+      tr("One year since the first sleep entry.", "Рік від першого запису сну.")
+    case LoggingDomain.Food =>
+      tr("One year since the first food entry.", "Рік від першого запису їжі.")
+
   private def name(domain: LoggingDomain): String = domain match
     case LoggingDomain.Water => tr("water", "вода")
     case LoggingDomain.Mood  => tr("mood", "настрій")
@@ -52,6 +66,7 @@ object GamificationCopy:
     case LoggingDomain.Food  => tr("food", "їжа")
 
   def entries: List[CopyEntry] =
+    val sampleDay = LocalDate.of(2025, 6, 1)
     List(
       CopyEntry(
         "report.counts",
@@ -61,6 +76,10 @@ object GamificationCopy:
       CopyEntry("report.milestone.mood", milestone(LoggingMilestone(LoggingDomain.Mood, 50))),
       CopyEntry("report.milestone.sleep", milestone(LoggingMilestone(LoggingDomain.Sleep, 10))),
       CopyEntry("report.milestone.food", milestone(LoggingMilestone(LoggingDomain.Food, 100))),
+      CopyEntry("report.anniversary.water", anniversary(LoggingAnniversary(LoggingDomain.Water, sampleDay))),
+      CopyEntry("report.anniversary.mood", anniversary(LoggingAnniversary(LoggingDomain.Mood, sampleDay))),
+      CopyEntry("report.anniversary.sleep", anniversary(LoggingAnniversary(LoggingDomain.Sleep, sampleDay))),
+      CopyEntry("report.anniversary.food", anniversary(LoggingAnniversary(LoggingDomain.Food, sampleDay))),
       CopyEntry("reminders.counts.on", CountsOn),
       CopyEntry("reminders.counts.off", CountsOff),
       CopyEntry("reminders.counts.turned_on", countsTurnedOn),

@@ -226,14 +226,19 @@ final class TrackingTxDouble(
   override def reminders: ReminderRepositories = reminderGroup.getOrElse(super.reminders)
   override def consents: ConsentLedger = ledger
   override def tracking: TrackingRepositories = tables
+  private val gamificationOff = mutable.Set.empty[UUID]
   override val accounts: AccountRepository = new AccountRepository:
     override def createAccount(identityId: IdentityId, timezone: String, now: Instant): AccountId = absent("accounts")
     override def timezoneOf(accountId: UUID): Option[String] = tables.zoneIdOf(accountId)
     override def setTimezone(accountId: UUID, timezone: String, now: Instant): Unit = absent("accounts")
     override def settingsOf(accountId: UUID): Option[AccountSettings] = absent("accounts")
     override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit = absent("accounts")
-    override def gamificationOf(accountId: UUID): Boolean = absent("accounts")
-    override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit = absent("accounts")
+    override def gamificationOf(accountId: UUID): Boolean =
+      TrackingTxDouble.this.synchronized(!gamificationOff(accountId))
+    override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit =
+      TrackingTxDouble.this.synchronized {
+        if enabled then gamificationOff -= accountId else gamificationOff += accountId
+      }
   override def sessions: SessionRepository = absent("sessions")
   override def outbox: OutboxRepository = absent("outbox")
   override def renderedMessages: RenderedMessageRepository = absent("renderedMessages")

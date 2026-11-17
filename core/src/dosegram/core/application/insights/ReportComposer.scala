@@ -139,14 +139,17 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       case Left(_)                                   => ReportOutcome.NoRecords
       case Right(view) if !view.figures.isReportable => ReportOutcome.NoRecords
       case Right(view)                               =>
-        val lines = ReportCopy.monthlyTitle :: MonthCopy.lines(view.figures, view.zone)
+        val monthText =
+          if tx.accounts.gamificationOf(accountId) then MonthCopy.lines(view.figures, view.zone)
+          else MonthCopy.linesOmittingGates(view.figures, view.zone)
+        val lines = ReportCopy.monthlyTitle :: monthText
         val images =
           if !imagesAllowed(tx, accountId) then Nil
           else drawn(cards.month(views.month(tx, accountId, view.figures, planDate), views.look(tx, accountId)))
         ReportOutcome.Send(compose(PromptKind.MonthlyReport, accountId, lines, images, key, silent))
 
-  /** The day counts of the week and the milestones it passed, in the non-medication domains only (PRODUCT_SPEC section
-    * 8.14); nothing with the switch off.
+  /** The day counts of the week, the round counts it passed, and a one-year line when that day falls in the week
+    * (PRODUCT_SPEC section 8.14). Nothing with the switch off.
     */
   private def counts(tx: Tx, accountId: UUID, week: DateRange): List[String] =
     if !tx.accounts.gamificationOf(accountId) then Nil
@@ -154,8 +157,10 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       val recorded = ReportComposer.logging(stats.recordedDays(tx, accountId, week))
       val before = ReportComposer.logging(stats.loggingCounts(tx, accountId, week.start.minusDays(1)))
       val after = ReportComposer.logging(stats.loggingCounts(tx, accountId, week.end))
+      val firsts = ReportComposer.logging(stats.firstLogged(tx, accountId, week.end))
       GamificationCopy.consistency(Consistency.weekly(recorded, week)).toList ++
-        Consistency.milestones(before, after).map(GamificationCopy.milestone)
+        Consistency.milestones(before, after).map(GamificationCopy.milestone) ++
+        Consistency.anniversaries(firsts, week).map(GamificationCopy.anniversary)
 
   /** The question of ROADMAP conflict X-19, when the week or month before `today` is the first one eligible (VISUALS
     * section 10.1): a weekly report after a week with records on 3 or more days, a monthly one after a month that meets

@@ -2,10 +2,12 @@ package dosegram.core.application.insights
 
 import dosegram.core.domain.AdherenceInput
 import dosegram.core.domain.copy.FoodCopy
+import dosegram.core.domain.copy.GamificationCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.BaselineStatements
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.Comparisons
+import dosegram.core.domain.insights.Consistency
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.HydrationPeriod
@@ -44,6 +46,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 import java.util.UUID
 
 /** Why a statistics request was not answered. */
@@ -192,16 +195,19 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
   ): Either[StatsRefusal, PeriodSummary] =
     zoneOf(tx, accountId).map: zone =>
       val range = endingOn.fold(window(period, zone))(period.window)
+      val countsOn = tx.accounts.gamificationOf(accountId)
       def block(purpose: ConsentPurpose)(lines: => List[String]): List[String] =
         if tx.consents.isGranted(accountId, purpose) then lines else Nil
       val blocks =
         block(ConsentPurpose.Medication)(doseLines(tx, accountId, range)) ++
-          block(ConsentPurpose.Hydration)(waterLines(tx, accountId, period, range)) ++
-          block(ConsentPurpose.Mood)(moodLines(tx, accountId, period, range)) ++
-          block(ConsentPurpose.Sleep)(sleepLines(tx, accountId, period, range)) ++
+          block(ConsentPurpose.Hydration)(waterLines(tx, accountId, period, range, countsOn)) ++
+          block(ConsentPurpose.Mood)(moodLines(tx, accountId, period, range, countsOn)) ++
+          block(ConsentPurpose.Sleep)(sleepLines(tx, accountId, period, range, countsOn)) ++
           block(ConsentPurpose.Nutrition)(foodLines(tx, accountId, period, range))
+      val weekLine =
+        if period == StatsPeriod.Today && countsOn then weekSoFar(tx, accountId, range.end) else Nil
       val body = if blocks.isEmpty then List(StatsCopy.Empty) else blocks
-      PeriodSummary(zone, range, StatsCopy.header(period, zone) :: body)
+      PeriodSummary(zone, range, StatsCopy.header(period, zone) :: body ++ weekLine)
 
   /** IR-04: mood on the days the user's own water goal was reached against the other recorded days. It runs only with
     * the `cross_domain_patterns` consent on top of both domain consents (VISUALS VA-IN-01).
@@ -291,26 +297,59 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
     val days = medicationDays(tx, accountId, range)
     StatsCopy.doses(MedicationStats.figures(MedicationStats.total(days.values), range))
 
-  private def waterLines(tx: Tx, accountId: UUID, period: StatsPeriod, range: DateRange): List[String] =
+  private def waterLines(
+      tx: Tx,
+      accountId: UUID,
+      period: StatsPeriod,
+      range: DateRange,
+      countsOn: Boolean
+  ): List[String] =
     val days = hydrationDays(tx, accountId, range)
     val line = period match
       case StatsPeriod.Today                              => StatsCopy.waterDay(days.get(range.end))
-      case StatsPeriod.Last7Days | StatsPeriod.Last30Days => StatsCopy.water(HydrationStats.period(days, range))
+      case StatsPeriod.Last7Days | StatsPeriod.Last30Days =>
+        val figures = HydrationStats.period(days, range)
+        if countsOn then StatsCopy.water(figures) else StatsCopy.waterOmittingGates(figures)
     line.toList
 
-  private def moodLines(tx: Tx, accountId: UUID, period: StatsPeriod, range: DateRange): List[String] =
+  private def moodLines(
+      tx: Tx,
+      accountId: UUID,
+      period: StatsPeriod,
+      range: DateRange,
+      countsOn: Boolean
+  ): List[String] =
     val days = moodDays(tx, accountId, range)
     val line = period match
       case StatsPeriod.Today                              => StatsCopy.moodDay(days.get(range.end))
-      case StatsPeriod.Last7Days | StatsPeriod.Last30Days => StatsCopy.mood(MoodStats.period(days, range))
+      case StatsPeriod.Last7Days | StatsPeriod.Last30Days =>
+        val figures = MoodStats.period(days, range)
+        if countsOn then StatsCopy.mood(figures) else StatsCopy.moodOmittingGates(figures)
     line.toList
 
-  private def sleepLines(tx: Tx, accountId: UUID, period: StatsPeriod, range: DateRange): List[String] =
+  private def sleepLines(
+      tx: Tx,
+      accountId: UUID,
+      period: StatsPeriod,
+      range: DateRange,
+      countsOn: Boolean
+  ): List[String] =
     val days = sleepDays(tx, accountId, range)
     val line = period match
       case StatsPeriod.Today                              => StatsCopy.sleepDay(days.get(range.end))
-      case StatsPeriod.Last7Days | StatsPeriod.Last30Days => StatsCopy.sleep(SleepStats.period(days, range))
+      case StatsPeriod.Last7Days | StatsPeriod.Last30Days =>
+        val figures = SleepStats.period(days, range)
+        if countsOn then StatsCopy.sleep(figures) else StatsCopy.sleepOmittingGates(figures)
     line.toList
+
+  /** Hit days of the Monday week that contains `today`, out of all 7 days (R-GAM-1). Nothing when no counted domain has
+    * a record in that week.
+    */
+  private def weekSoFar(tx: Tx, accountId: UUID, today: LocalDate): List[String] =
+    val start = today.`with`(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val week = DateRange.between(start, start.plusDays(6))
+    val recorded = ReportComposer.logging(recordedDays(tx, accountId, week))
+    GamificationCopy.consistency(Consistency.weekly(recorded, week)).toList
 
   /** Today: the regular-meal view by the user's own plan; a period: the meals and the days per main meal. A period
     * without a meal has no line.
@@ -353,6 +392,24 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
       when(ConsentPurpose.Mood)(moodDays(tx, accountId, ever).values.map(_.n).sum),
       when(ConsentPurpose.Sleep)(tx.tracking.sleep.liveEpisodes(accountId, ever).size),
       when(ConsentPurpose.Nutrition)(mealDays(tx, accountId, ever).values.map(_.meals).sum)
+    ).flatten.toMap
+
+  /** The earliest logged local day up to `upTo` in each non-medication domain with consent. The one-year milestone
+    * reads it; nothing is stored. Medication has none (R-GAM-2).
+    */
+  def firstLogged(tx: Tx, accountId: UUID, upTo: LocalDate): Map[ConsentPurpose, LocalDate] =
+    val ever = DateRange.between(StatsQueryService.FirstDay, upTo)
+    def earliest(purpose: ConsentPurpose)(date: => Option[LocalDate]): Option[(ConsentPurpose, LocalDate)] =
+      Option.when(tx.consents.isGranted(accountId, purpose))(date).flatten.map(purpose -> _)
+    List(
+      earliest(ConsentPurpose.Hydration)(
+        hydrationDays(tx, accountId, ever).filter((_, day) => day.entries > 0).keys.minOption
+      ),
+      earliest(ConsentPurpose.Mood)(moodDays(tx, accountId, ever).filter((_, day) => day.n > 0).keys.minOption),
+      earliest(ConsentPurpose.Sleep)(tx.tracking.sleep.liveEpisodes(accountId, ever).map(_.sleepDay).minOption),
+      earliest(ConsentPurpose.Nutrition)(
+        mealDays(tx, accountId, ever).filter((_, day) => day.meals > 0).keys.minOption
+      )
     ).flatten.toMap
 
   private def mealDays(tx: Tx, accountId: UUID, range: DateRange): Map[LocalDate, MealDay] =

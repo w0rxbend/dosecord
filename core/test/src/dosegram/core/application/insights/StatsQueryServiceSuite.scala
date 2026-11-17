@@ -177,9 +177,39 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
       List(
         "Today · Europe/Kyiv",
         "Water today: 1.25 of 2.0 l (62%)",
-        "Mood today: 3.5 (slightly pleasant) · 2 check-ins"
+        "Mood today: 3.5 (slightly pleasant) · 2 check-ins",
+        "Days with records: water 1 of 7, mood 1 of 7."
       )
     )
+
+  test("today names hit days of the Monday week so far, and a record on the Sunday before it does not count"):
+    val rig = Rig()
+    rig.on(2)(rig.drink(400, "sunday"))
+    rig.on(1)(rig.drink(500, "monday"))
+    val lines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
+    assertEquals(lines, List("Today · Europe/Kyiv", StatsCopy.Empty, "Days with records: water 1 of 7."))
+
+  test("with counts off, today has no week line and a short period omits the data gate without an invented average"):
+    val rig = Rig()
+    rig.tx.accounts.setGamification(account, false, now)
+    rig.on(20)(rig.water.setGoal(rig.tx, account, Some(2000)))
+    rig.on(1) { rig.drink(2100, "w1"); rig.feel(4, "m1") }
+    rig.on(2) { rig.drink(900, "w2"); rig.feel(3, "m2") }
+    val todayLines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
+    assert(!todayLines.exists(_.startsWith("Days with records")), todayLines)
+    val gated = rig.stats.summary(rig.tx, account, StatsPeriod.Last7Days).toOption.get.lines.tail
+    assertEquals(gated, List("Water: 2 of 7 days have data", "Mood: 2 check-ins · 2 of 7 days have data"))
+
+  test("the first logged day is the earliest record in the domain, and medication has none"):
+    val rig = Rig()
+    rig.on(400)(rig.drink(300, "old-water"))
+    rig.drink(500, "new-water")
+    rig.feel(3, "mood-today")
+    rig.dose(1, OccurrenceStatus.Taken)
+    val first = rig.stats.firstLogged(rig.tx, account, today)
+    assertEquals(first.get(ConsentPurpose.Hydration), Some(today.minusDays(400)))
+    assertEquals(first.get(ConsentPurpose.Mood), Some(today))
+    assertEquals(first.get(ConsentPurpose.Medication), None)
 
   test("a domain without consent is refused on its own and left out of the summary"):
     val consent = FakeConsent.all(account)
@@ -190,7 +220,7 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     assertEquals(rig.stats.mood(rig.tx, account, StatsPeriod.Last7Days), Left(StatsRefusal.ConsentMissing(ConsentPurpose.Mood)))
     assert(rig.stats.hydration(rig.tx, account, StatsPeriod.Last7Days).isRight)
     val lines = rig.stats.summary(rig.tx, account, StatsPeriod.Today).toOption.get.lines
-    assertEquals(lines, List("Today · Europe/Kyiv", "Water today: 0.5 l"))
+    assertEquals(lines, List("Today · Europe/Kyiv", "Water today: 0.5 l", "Days with records: water 1 of 7."))
 
   test("a dashboard period and the one before it are read over their own windows, each behind its consent"):
     val consent = FakeConsent.all(account)

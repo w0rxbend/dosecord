@@ -16,6 +16,9 @@ final case class WeeklyConsistency(domain: LoggingDomain, hitDays: Int, days: In
 /** An act of logging reaching a round count in one domain (R-GAM-4): one line of the weekly report, never a message. */
 final case class LoggingMilestone(domain: LoggingDomain, count: Int)
 
+/** One year since the first record in one domain (VISUALS section 7.3). The date is that first record. */
+final case class LoggingAnniversary(domain: LoggingDomain, first: LocalDate)
+
 /** The counts of section 8.14, derived at read time from the records (VISUALS section 7.3). */
 object Consistency:
 
@@ -38,4 +41,11 @@ object Consistency:
       val from = before.getOrElse(domain, 0)
       val to = after.getOrElse(domain, 0)
       MilestoneCounts.filter(count => from < count && count <= to).map(LoggingMilestone(domain, _))
+
+  /** The domains whose first record is one year old on a day of `week`. A 29 February record is one year old on 28
+    * February of the next year, which is where `LocalDate.plusYears` lands.
+    */
+  def anniversaries(firsts: Map[LoggingDomain, LocalDate], week: DateRange): List[LoggingAnniversary] =
+    LoggingDomain.values.toList.flatMap: domain =>
+      firsts.get(domain).filter(first => week.contains(first.plusYears(1))).map(LoggingAnniversary(domain, _))
 end Consistency

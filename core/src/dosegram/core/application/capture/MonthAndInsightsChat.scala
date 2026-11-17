@@ -41,7 +41,10 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
           Choice.callback(StatsCardCopy.ShowAsImage, monthToken(turn, CaptureActions.StatsMonthImage, index))
         )
         val rows = List(previous :: next.toList, image.toList)
-        turn.show(turn.message("stats.month", MonthCopy.lines(view.figures, view.zone), rows))
+        val text =
+          if turn.tx.accounts.gamificationOf(turn.accountId) then MonthCopy.lines(view.figures, view.zone)
+          else MonthCopy.linesOmittingGates(view.figures, view.zone)
+        turn.show(turn.message("stats.month", text, rows))
 
   /** The pages of a month as new messages, each with its own caption. */
   def monthImage(turn: Turn, index: Int): Reply =

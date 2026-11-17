@@ -114,37 +114,53 @@ object StatsCopy:
     ).flatten.mkString(" · ")
 
   /** The water line of a 7-day or 30-day period; `None` when the period has no entry. */
-  def water(period: HydrationPeriod): Option[String] =
+  def water(period: HydrationPeriod): Option[String] = waterLine(period, Some(_))
+
+  /** The water line with the minimum-data gates left out (R-GAM-5). A shown average stays. A sample below its threshold
+    * is omitted, not replaced with a number.
+    */
+  def waterOmittingGates(period: HydrationPeriod): Option[String] = waterLine(period, _ => None)
+
+  private def waterLine(period: HydrationPeriod, gate: String => Option[String]): Option[String] =
+    val figures = waterDetail(period, gate)
     Option.when(period.recordedDays > 0)(
-      tr(waterFigures(period).mkString("Water: ", " · ", ""), waterFigures(period).mkString("Вода: ", " · ", ""))
+      tr(figures.mkString("Water: ", " · ", ""), figures.mkString("Вода: ", " · ", ""))
     )
 
   /** The figures of the water line one by one; empty when the period has no entry. */
-  def waterFigures(period: HydrationPeriod): List[String] =
+  def waterFigures(period: HydrationPeriod): List[String] = waterDetail(period, Some(_))
+
+  private def waterDetail(period: HydrationPeriod, gate: String => Option[String]): List[String] =
     if period.recordedDays == 0 then Nil
     else
-      val goal = period.goalDays.map:
+      val goal = period.goalDays.flatMap:
         case Stat.Shown(ratio, _, _, _) =>
-          tr(
-            s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days",
-            s"ціль досягнуто в ${ratio.numerator} з ${UkNouns.DaysOf.count(ratio.denominator)} із записами"
+          Some(
+            tr(
+              s"goal reached on ${ratio.numerator} of ${ratio.denominator} recorded days",
+              s"ціль досягнуто в ${ratio.numerator} з ${UkNouns.DaysOf.count(ratio.denominator)} із записами"
+            )
           )
         case Stat.Insufficient(n, required, _) =>
-          tr(
-            s"${more(required - n, "recorded day")} with a goal for the goal count",
-            s"для підрахунку цілі потрібно ще ${UkNouns.Days.count(required - n)} із записами та ціллю"
+          gate(
+            tr(
+              s"${more(required - n, "recorded day")} with a goal for the goal count",
+              s"для підрахунку цілі потрібно ще ${UkNouns.Days.count(required - n)} із записами та ціллю"
+            )
           )
-        case Stat.NoVariation(_, _) => NoData
+        case Stat.NoVariation(_, _) => Some(NoData)
       val average = period.meanMl match
         case Stat.Shown(millilitres, _, _, _) =>
-          tr(s"average ${litres(millilitres, 1)} l a day", s"у середньому ${litres(millilitres, 1)} л на день")
+          Some(tr(s"average ${litres(millilitres, 1)} l a day", s"у середньому ${litres(millilitres, 1)} л на день"))
         case Stat.Insufficient(n, required, _) =>
-          tr(
-            s"${more(required - n, "recorded day")} for an average",
-            s"для середнього потрібно ще ${UkNouns.Days.count(required - n)} із записами"
+          gate(
+            tr(
+              s"${more(required - n, "recorded day")} for an average",
+              s"для середнього потрібно ще ${UkNouns.Days.count(required - n)} із записами"
+            )
           )
-        case Stat.NoVariation(_, _) => NoData
-      goal.toList ++ List(average, coverage(period.recordedDays, period.window))
+        case Stat.NoVariation(_, _) => Some(NoData)
+      goal.toList ++ average.toList :+ coverage(period.recordedDays, period.window)
 
   /** The water line of one day: the total, and the progress toward the user's own goal when there is one. */
   def waterDay(day: Option[HydrationDay]): Option[String] =
@@ -161,31 +177,42 @@ object StatsCopy:
   /** The mood line of a 7-day or 30-day period; `None` when the period has no check-in. Variability is a number with no
     * label (VISUALS section 7.6).
     */
-  def mood(period: MoodPeriod): Option[String] =
+  def mood(period: MoodPeriod): Option[String] = moodLine(period, Some(_))
+
+  /** The mood line with the minimum-data gates left out (R-GAM-5). */
+  def moodOmittingGates(period: MoodPeriod): Option[String] = moodLine(period, _ => None)
+
+  private def moodLine(period: MoodPeriod, gate: String => Option[String]): Option[String] =
+    val figures = moodDetail(period, gate)
     Option.when(period.checkInDays > 0)(
-      tr(moodFigures(period).mkString("Mood: ", " · ", ""), moodFigures(period).mkString("Настрій: ", " · ", ""))
+      tr(figures.mkString("Mood: ", " · ", ""), figures.mkString("Настрій: ", " · ", ""))
     )
 
   /** The figures of the mood line one by one; empty when the period has no check-in. */
-  def moodFigures(period: MoodPeriod): List[String] =
+  def moodFigures(period: MoodPeriod): List[String] = moodDetail(period, Some(_))
+
+  private def moodDetail(period: MoodPeriod, gate: String => Option[String]): List[String] =
     if period.checkInDays == 0 then Nil
     else
       val average = period.average match
-        case Stat.Shown(mean, _, _, _) => tr(s"average ${meanWithLevel(mean)}", s"у середньому ${meanWithLevel(mean)}")
+        case Stat.Shown(mean, _, _, _) =>
+          Some(tr(s"average ${meanWithLevel(mean)}", s"у середньому ${meanWithLevel(mean)}"))
         case Stat.Insufficient(n, required, _) =>
-          tr(
-            s"${more(required - n, "day")} with a check-in for an average",
-            s"для середнього потрібно ще ${UkNouns.Days.count(required - n)} з позначкою"
+          gate(
+            tr(
+              s"${more(required - n, "day")} with a check-in for an average",
+              s"для середнього потрібно ще ${UkNouns.Days.count(required - n)} з позначкою"
+            )
           )
-        case Stat.NoVariation(_, _) => NoData
+        case Stat.NoVariation(_, _) => Some(NoData)
       val change = period.dayToDayChange.shown.map(value =>
         tr(
           s"day-to-day change averaged ${oneDecimal(value)} levels",
           s"зміна від дня до дня в середньому ${oneDecimal(value)} рівня"
         )
       )
-      List(tr(count(period.checkIns, "check-in"), UkNouns.CheckIns.count(period.checkIns)), average) ++ change.toList :+
-        coverage(period.checkInDays, period.window)
+      List(tr(count(period.checkIns, "check-in"), UkNouns.CheckIns.count(period.checkIns))) ++ average.toList ++
+        change.toList :+ coverage(period.checkInDays, period.window)
 
   /** The mood line of one day: the day value, which is the mean of the day's check-ins. */
   def moodDay(day: Option[MoodDay]): Option[String] =
@@ -197,32 +224,47 @@ object StatsCopy:
     )
 
   /** The sleep line of a 7-day or 30-day period; `None` when the period has no night (BOT_UX section 12.5). */
-  def sleep(period: SleepPeriod): Option[String] =
+  def sleep(period: SleepPeriod): Option[String] = sleepLine(period, Some(_))
+
+  /** The sleep line with the minimum-data gates left out (R-GAM-5). */
+  def sleepOmittingGates(period: SleepPeriod): Option[String] = sleepLine(period, _ => None)
+
+  private def sleepLine(period: SleepPeriod, gate: String => Option[String]): Option[String] =
+    val figures = sleepDetail(period, gate)
     Option.when(period.nights > 0)(
-      tr(sleepFigures(period).mkString("Sleep: ", " · ", ""), sleepFigures(period).mkString("Сон: ", " · ", ""))
+      tr(figures.mkString("Sleep: ", " · ", ""), figures.mkString("Сон: ", " · ", ""))
     )
 
   /** The figures of the sleep line one by one; empty when the period has no night. Every figure names its source
     * (MINI_APP MA-SLEEP-1), and no reference duration is ever given (MA-SLEEP-4).
     */
-  def sleepFigures(period: SleepPeriod): List[String] =
+  def sleepFigures(period: SleepPeriod): List[String] = sleepDetail(period, Some(_))
+
+  private def sleepDetail(period: SleepPeriod, gate: String => Option[String]): List[String] =
     if period.nights == 0 then Nil
     else
       val average = period.averageMinutes match
         case Stat.Shown(minutes, _, _, _) =>
-          tr(s"average ${duration(Math.round(minutes).toInt)}", s"у середньому ${duration(Math.round(minutes).toInt)}")
-        case Stat.Insufficient(n, required, _) =>
-          tr(
-            s"${more(required - n, "night")} for an average",
-            s"для середнього потрібно ще ${UkNouns.Nights.count(required - n)}"
+          Some(
+            tr(
+              s"average ${duration(Math.round(minutes).toInt)}",
+              s"у середньому ${duration(Math.round(minutes).toInt)}"
+            )
           )
-        case Stat.NoVariation(_, _) => NoData
+        case Stat.Insufficient(n, required, _) =>
+          gate(
+            tr(
+              s"${more(required - n, "night")} for an average",
+              s"для середнього потрібно ще ${UkNouns.Nights.count(required - n)}"
+            )
+          )
+        case Stat.NoVariation(_, _) => Some(NoData)
       List(
-        tr(s"${count(period.nights, "night")} logged", s"записано ${UkNouns.Nights.count(period.nights)}"),
+        Some(tr(s"${count(period.nights, "night")} logged", s"записано ${UkNouns.Nights.count(period.nights)}")),
         average,
-        SleepSource,
-        coverage(period.nights, period.window)
-      )
+        Some(SleepSource),
+        Some(coverage(period.nights, period.window))
+      ).flatten
 
   /** The sleep line of one day: the night that ended on it. */
   def sleepDay(night: Option[SleepNight]): Option[String] =

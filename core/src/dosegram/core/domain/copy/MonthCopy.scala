@@ -66,30 +66,42 @@ object MonthCopy:
     )
 
   /** Every line of the month's text: the header, the days with records, then one block per domain. */
-  def lines(figures: MonthFigures, zone: ZoneId): List[String] =
+  def lines(figures: MonthFigures, zone: ZoneId): List[String] = render(figures, zone, keepGates = true)
+
+  /** The month text with every minimum-data gate left out (R-GAM-5). A domain below its gate is absent. */
+  def linesOmittingGates(figures: MonthFigures, zone: ZoneId): List[String] = render(figures, zone, keepGates = false)
+
+  private def render(figures: MonthFigures, zone: ZoneId, keepGates: Boolean): List[String] =
+    def closed[A](domain: MonthDomain[A], name: String)(shown: A => List[String]): List[String] =
+      if domain.meetsGate then shown(domain.figures)
+      else if keepGates then List(gate(name, domain))
+      else Nil
     val blocks =
       figures.medication.toList.flatMap(domain =>
-        if domain.meetsGate then
-          StatsCopy.doses(domain.figures.total) ++
-            previous(figures.month, figures.previousAdherence).filter(_ =>
-              domain.figures.total.adherence.shown.isDefined
-            )
-        else List(gate(tr("Doses", "Дози"), domain))
+        closed(domain, tr("Doses", "Дози"))(period =>
+          StatsCopy.doses(period.total) ++
+            previous(figures.month, figures.previousAdherence).filter(_ => period.total.adherence.shown.isDefined)
+        )
       ) ++
         figures.hydration.toList.flatMap(domain =>
-          if domain.meetsGate then StatsCopy.water(domain.figures).toList else List(gate(tr("Water", "Вода"), domain))
+          closed(domain, tr("Water", "Вода"))(period =>
+            (if keepGates then StatsCopy.water(period) else StatsCopy.waterOmittingGates(period)).toList
+          )
         ) ++
         figures.mood.toList.flatMap(domain =>
-          if domain.meetsGate then StatsCopy.mood(domain.figures).toList else List(gate(tr("Mood", "Настрій"), domain))
+          closed(domain, tr("Mood", "Настрій"))(period =>
+            (if keepGates then StatsCopy.mood(period) else StatsCopy.moodOmittingGates(period)).toList
+          )
         ) ++
         figures.sleep.toList.flatMap(domain =>
-          if domain.meetsGate then StatsCopy.sleep(domain.figures).toList else List(gate(tr("Sleep", "Сон"), domain))
+          closed(domain, tr("Sleep", "Сон"))(period =>
+            (if keepGates then StatsCopy.sleep(period) else StatsCopy.sleepOmittingGates(period)).toList
+          )
         ) ++
         figures.food.toList.flatMap(domain =>
-          if domain.meetsGate then FoodCopy.statsPeriod(domain.figures).toList
-          else List(gate(tr("Food", "Їжа"), domain))
+          closed(domain, tr("Food", "Їжа"))(period => FoodCopy.statsPeriod(period).toList)
         )
-    val intro = if figures.isReportable then Nil else List(gateTitle)
+    val intro = if figures.isReportable || !keepGates then Nil else List(gateTitle)
     header(figures.month, zone) :: daysWithRecords(figures.daysWithRecords) :: intro ++ blocks
 
   def entries: List[CopyEntry] = Samples.entries
