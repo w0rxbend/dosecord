@@ -118,6 +118,43 @@ export const en = {
     mealLogged: (meal: string) => `${meal} logged`,
   },
 
+  todaySheet: {
+    scheduled: 'Scheduled',
+    state: 'State',
+    history: 'Record',
+    taken: 'Taken',
+    takenLate: 'Taken, late',
+    skipped: 'Skipped',
+    snoozed: 'Snoozed',
+    missed: 'Not confirmed',
+    unknown: 'No record',
+    changeTaken: 'Change to taken',
+    changeSkipped: 'Change to skipped',
+    undo: 'Undo',
+    snooze: 'Snooze',
+    snoozeFor: (minutes: number) => `${minutes} min`,
+    close: 'Close',
+    safety: 'If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions.',
+  },
+
+  asNeeded: {
+    open: 'As needed',
+    title: 'As needed',
+    loading: 'Loading as-needed medications',
+    empty: 'No as-needed medication without a dose today.',
+    noReminders: 'No reminders.',
+    maxPerDay: (count: number) => `You set at most ${count} a day.`,
+    minGap: (minutes: number) => `You set at least ${minutes} min between logs.`,
+    close: 'Close',
+    notLoaded: 'Not loaded. Try again.',
+  },
+
+  moodInline: {
+    label: 'Mood check-in',
+    record: (step: number) => `Record ${step}`,
+    recorded: (step: number) => `Recorded ${step}`,
+  },
+
   dose: {
     pending: (time: string) => `Later, ${time}`,
     due: (minutes: number) => `Due for ${minutes} min`,

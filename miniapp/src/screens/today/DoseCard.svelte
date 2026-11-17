@@ -7,9 +7,10 @@
   interface Props {
     occurrence: Occurrence;
     onAction: (occurrence: Occurrence, action: OccurrenceAction) => void;
+    onOpen: () => void;
   }
 
-  let { occurrence, onAction }: Props = $props();
+  let { occurrence, onAction, onOpen }: Props = $props();
   const { tg } = useApp();
   let choosingSnooze = $state(false);
   /** The server lists the lengths the reminder policy still allows; none, and Snooze is not offered (ADR-012). */
@@ -23,15 +24,15 @@
 
 <!-- A due dose: each answer is one tap and one request (MA-TODAY-2). -->
 <li class="pad card">
-  <div class="head">
+  <button type="button" class="head" onclick={onOpen}>
     <StatusGlyph state={occurrence.state} />
-    <div>
-      <p class="name">{occurrence.medicationName}</p>
-      <p class="muted numeric">
+    <span>
+      <span class="name">{occurrence.medicationName}</span>
+      <span class="muted numeric detail">
         {occurrence.doseText}, {occurrence.scheduledTime}, {doseStatusText(occurrence)}
-      </p>
-    </div>
-  </div>
+      </span>
+    </span>
+  </button>
   <div class="btn-row" role="group" aria-label={en.today.actionsFor(occurrence.medicationName)}>
     <button type="button" class="btn btn-filled" onclick={() => onAction(occurrence, { kind: 'taken' })}>
       {en.today.taken}
@@ -70,6 +71,19 @@
     display: flex;
     gap: var(--dg-space-3);
     align-items: flex-start;
+    inline-size: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .name,
+  .detail {
+    display: block;
   }
 
   .name {

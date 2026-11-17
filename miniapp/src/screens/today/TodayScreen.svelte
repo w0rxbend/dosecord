@@ -12,7 +12,7 @@
   import DayTrackers from './DayTrackers.svelte';
   import { optimistic, replaceOccurrence } from './group';
   import SetupCard from './SetupCard.svelte';
-  import TodayDoses from './TodayDoses.svelte';
+  import TodayBody from './TodayBody.svelte';
   import { readTracking, trackingMarks, type DayTracking } from './tracking';
 
   /** `title` is set when the day is opened from the history calendar (S-13). */
@@ -154,32 +154,20 @@
         {/if}
         {#if date === undefined}<SetupCard />{/if}
         <div class="section section-body pad"><DayLine marks={[...view.dayLine, ...trackingMarks(tracking.data)]} nowMinute={view.nowMinute} /></div>
-        {#if view.occurrences.length === 0}
-          <div class="section">
-            <EmptyState message={en.today.empty} actionLabel={en.today.emptyAction} onAction={() => router.navigate('/meds/new')} art="medication" />
-          </div>
-        {:else}
-          {#if view.answerInChat}<p class="note answer">{en.today.answerInChat}</p>{/if}
-          <TodayDoses occurrences={view.occurrences} readOnly={view.readOnly} planned={!view.answerInChat} onAction={act} />
-        {/if}
+        <TodayBody {view} onAction={act} />
       {:else if everythingOff(view)}
         <div class="section">
           <EmptyState message={en.log.empty} actionLabel={en.log.choose} onAction={() => router.navigate('/settings/privacy')} art="all" />
         </div>
       {/if}
       {#if tracking.data}
-        <DayTrackers tracking={tracking.data} {isToday} onAddWater={addWater} onLogMeal={logMeal} />
+        <DayTrackers tracking={tracking.data} {isToday} onAddWater={addWater} onLogMeal={logMeal} onMoodRecorded={() => void tracking.load()} />
       {/if}
     {/snippet}
   </AsyncView>
 </Screen>
 
 <style>
-  /* Apart from the first group title below it, which has the same colour. */
-  .answer {
-    margin-block-end: var(--dg-space-4);
-  }
-
   svg {
     fill: none;
     stroke: currentColor;

@@ -129,6 +129,43 @@ export const uk: Catalogue = {
     mealLogged: (meal: string) => `${meal}: записано`,
   },
 
+  todaySheet: {
+    scheduled: 'Заплановано',
+    state: 'Стан',
+    history: 'Запис',
+    taken: 'Прийнято',
+    takenLate: 'Прийнято, із запізненням',
+    skipped: 'Пропущено',
+    snoozed: 'Відкладено',
+    missed: 'Не підтверджено',
+    unknown: 'Немає запису',
+    changeTaken: 'Змінити на прийнято',
+    changeSkipped: 'Змінити на пропущено',
+    undo: 'Скасувати',
+    snooze: 'Відкласти',
+    snoozeFor: (minutes: number) => `${minutes} хв`,
+    close: 'Закрити',
+    safety: 'Якщо ви не певні, чи приймати запізнілу або пропущену дозу, дотримуйтеся вказівок свого лікаря чи фармацевта.',
+  },
+
+  asNeeded: {
+    open: 'За потреби',
+    title: 'За потреби',
+    loading: 'Завантаження ліків за потреби',
+    empty: 'Немає ліків за потреби без дози на сьогодні.',
+    noReminders: 'Без нагадувань.',
+    maxPerDay: (count: number) => `Ви задали не більше ${count} на день.`,
+    minGap: (minutes: number) => `Ви задали щонайменше ${minutes} хв між прийомами.`,
+    close: 'Закрити',
+    notLoaded: 'Не завантажено. Спробуйте ще раз.',
+  },
+
+  moodInline: {
+    label: 'Позначка настрою',
+    record: (step: number) => `Записати ${step}`,
+    recorded: (step: number) => `Записано ${step}`,
+  },
+
   dose: {
     pending: (time: string) => `Пізніше, ${time}`,
     due: (minutes: number) => `Час прийому настав ${minutes} хв тому`,

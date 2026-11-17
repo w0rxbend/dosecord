@@ -11,9 +11,10 @@
     /** Read-only because the day has not come; false when doses are answered elsewhere. */
     planned: boolean;
     onAction: (occurrence: Occurrence, action: OccurrenceAction) => void;
+    onOpen: (occurrence: Occurrence) => void;
   }
 
-  let { occurrences, readOnly, planned, onAction }: Props = $props();
+  let { occurrences, readOnly, planned, onAction, onOpen }: Props = $props();
   let earlierOpen = $state(false);
 
   const groups = $derived(groupOccurrences(occurrences));
@@ -26,9 +27,9 @@
     <ul class="section-body">
       {#each groups.dueNow as occurrence (occurrence.id)}
         {#if readOnly}
-          <DoseRow {occurrence} />
+          <DoseRow {occurrence} onOpen={() => onOpen(occurrence)} />
         {:else}
-          <DoseCard {occurrence} {onAction} />
+          <DoseCard {occurrence} {onAction} onOpen={() => onOpen(occurrence)} />
         {/if}
       {/each}
     </ul>
@@ -40,7 +41,7 @@
     <h2 class="section-title" id="later-title">{en.today.later}</h2>
     <ul class="section-body">
       {#each groups.later as occurrence (occurrence.id)}
-        <DoseRow {occurrence} />
+        <DoseRow {occurrence} onOpen={() => onOpen(occurrence)} />
       {/each}
     </ul>
     {#if readOnly && planned}<p class="note">{en.today.planned}</p>{/if}
@@ -64,7 +65,7 @@
     {#if !collapsible || earlierOpen}
       <ul class="section-body" id="earlier-list">
         {#each groups.earlier as occurrence (occurrence.id)}
-          <DoseRow {occurrence} />
+          <DoseRow {occurrence} onOpen={() => onOpen(occurrence)} />
         {/each}
       </ul>
     {/if}
