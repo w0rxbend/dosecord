@@ -73,18 +73,18 @@ class EdgeStoresPgSuite extends PgSuite:
   // ---------- telegram_file_cache ----------
 
   test("a file id survives a restart, belongs to one bot and one media kind, and can be forgotten"):
-    PgTelegramFileCache(dataSource, botId = 7000000001L).put("mood.4", "photo", "file-1", t0)
-    val afterRestart = PgTelegramFileCache(dataSource, botId = 7000000001L)
+    PgTelegramFileCache(dataSource, botId = 7000000001L, DataKeys.development).put("mood.4", "photo", "file-1", t0)
+    val afterRestart = PgTelegramFileCache(dataSource, botId = 7000000001L, DataKeys.development)
     assertEquals(afterRestart.get("mood.4", "photo", t0.plusSeconds(60)), Some("file-1"))
     assertEquals(afterRestart.get("mood.4", "document", t0), None, "another media kind")
-    assertEquals(PgTelegramFileCache(dataSource, botId = 7000000002L).get("mood.4", "photo", t0), None, "another bot")
+    assertEquals(PgTelegramFileCache(dataSource, botId = 7000000002L, DataKeys.development).get("mood.4", "photo", t0), None, "another bot")
     afterRestart.put("mood.4", "photo", "file-2", t0.plusSeconds(120))
     assertEquals(afterRestart.get("mood.4", "photo", t0.plusSeconds(180)), Some("file-2"), "a new upload replaces it")
     afterRestart.remove("mood.4", "photo")
     assertEquals(afterRestart.get("mood.4", "photo", t0.plusSeconds(240)), None, "TG-36: a rejected file id is deleted")
 
   test("the pruning job forgets the file ids that were not used since the cutoff; a hit keeps one alive"):
-    val cache = PgTelegramFileCache(dataSource, botId = 7000000003L)
+    val cache = PgTelegramFileCache(dataSource, botId = 7000000003L, DataKeys.development)
     cache.put("card.used", "photo", "file-used", t0)
     cache.put("card.idle", "photo", "file-idle", t0)
     val month = Duration.ofDays(30)

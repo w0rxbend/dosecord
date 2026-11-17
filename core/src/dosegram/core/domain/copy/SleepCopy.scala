@@ -9,14 +9,14 @@ import dosegram.core.domain.sleep.SleepKind
   */
 object SleepCopy:
   def GoingToSleep = tr("Going to sleep", "Лягаю спати")
-  def ShowAsImage = tr("Show as image", "Показати зображенням")
+  def ShowAsImage = tr("Show as image", "Показати як зображення")
   def imageUnavailable = tr(
     "The image is not available right now. The figures above are complete.",
     "Зображення зараз недоступне. Цифри вище повні."
   )
   def imageEmpty = tr(
     "No night logged in the last 14 days, so there is nothing to draw yet.",
-    "За останні 14 днів не записано жодної ночі, тож зображувати поки нічого."
+    "За останні 14 днів не записано жодної ночі, тож на зображенні поки нічого показати."
   )
   def ImUp = tr("I'm up", "Встаю")
   def Nap = tr("Nap", "Денний сон")
@@ -61,7 +61,7 @@ object SleepCopy:
   )
   def tooShort = tr(
     "That is shorter than an hour, so it is not saved as a night. The check-in stays open.",
-    "Це менше години, тож як ніч не збережено. Позначка лишається відкритою."
+    "Це менше години, тому ніч не збережено. Позначка лишається відкритою."
   )
 
   def started(time: String): String = tr(s"Sleep check-in started at $time.", s"Позначку сну почато о $time.")

@@ -33,14 +33,14 @@ object FoodCopy:
   )
   def noneToday = tr("No meal logged today.", "Сьогодні прийомів їжі не записано.")
   def EditInApp = tr("Edit in app", "Змінити в застосунку")
-  def ShowAsImage = tr("Show as image", "Показати зображенням")
+  def ShowAsImage = tr("Show as image", "Показати як зображення")
   def imageUnavailable = tr(
     "The image is not available right now. The meals above are complete.",
     "Зображення зараз недоступне. Перелік прийомів їжі вище повний."
   )
   def imageEmpty = tr(
     "No meal logged today, so there is nothing to draw yet.",
-    "Сьогодні прийомів їжі не записано, тож зображувати поки нічого."
+    "Сьогодні прийомів їжі не записано, тож на зображенні поки нічого показати."
   )
 
   def label(mealType: MealType): String =

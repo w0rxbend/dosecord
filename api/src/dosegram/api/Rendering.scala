@@ -156,7 +156,7 @@ object ApiCopy:
     case ConsentPurpose.Mood =>
       tr("Off. Send /mood in the chat to turn it on.", "Вимкнено. Надішліть /mood у чаті, щоб увімкнути.")
     case ConsentPurpose.Sleep =>
-      tr("Off. The chat cannot turn sleep records on yet.", "Вимкнено. Чат поки не вміє вмикати записи сну.")
+      tr("Off. Send /sleep in the chat to turn it on.", "Вимкнено. Надішліть /sleep у чаті, щоб увімкнути.")
     case ConsentPurpose.CrossDomainPatterns =>
       tr(
         "Off. The chat asks for it when a comparison is first requested.",

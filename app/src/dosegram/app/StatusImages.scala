@@ -390,7 +390,7 @@ object StatusImages:
     def durable(dataSource: DataSource, botId: Long, clock: Clock, keys: DataKeys): Stores =
       Stores(
         PgAssetStore(PgRenderAssets(dataSource, keys), clock),
-        PgFileIdCache(PgTelegramFileCache(dataSource, botId), clock)
+        PgFileIdCache(PgTelegramFileCache(dataSource, botId, keys), clock)
       )
 
   /** No renderer: every image is its text equivalent. */

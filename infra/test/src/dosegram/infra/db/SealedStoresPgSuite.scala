@@ -8,6 +8,7 @@ import dosegram.core.application.nutrition.NutritionService
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.nutrition.MealText
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.ExportFile
@@ -20,6 +21,7 @@ import dosegram.infra.crypto.DataKeys
 import java.nio.charset.StandardCharsets.UTF_8
 import java.sql.Connection
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import java.util.random.RandomGenerator
@@ -55,6 +57,12 @@ class SealedStoresPgSuite extends PgSuite:
       tx.exports.complete(exportId, ExportFile("e.zip", "application/zip", "canary-zip".getBytes(UTF_8)), t0,
         t0.plusSeconds(600))
     PgRenderAssets(dataSource, DataKeys.development).put("card.dump", "canary-png".getBytes(UTF_8), t0)
+    val fileIds = PgTelegramFileCache(dataSource, 7000000009L, DataKeys.development)
+    fileIds.put("card.dump", "photo", "canary-file-id", t0)
+    val summaryId = UUID.randomUUID()
+    val period = DateRange.between(LocalDate.parse("1987-03-14"), LocalDate.parse("1987-04-12"))
+    plain.transaction(_.exports.create(NewExportJob(summaryId, account, ExportKind.RecordSummary, Some(period),
+      ExportStatus.AwaitingConfirmation, t0)))
     val answers = PgIdempotencyKeys(dataSource, DataKeys.development)
     val key = UUID.randomUUID()
     assert(answers.reserve(account, key, t0))
@@ -63,16 +71,20 @@ class SealedStoresPgSuite extends PgSuite:
     plain.transaction: tx =>
       assertEquals(tx.medications.listForAccount(account).map(_.name), List("CanaryPill Retard"))
       assertEquals(tx.exports.file(account, exportId, t0).map(b => String(b.bytes, UTF_8)), Some("canary-zip"))
+      assertEquals(tx.exports.find(account, summaryId).flatMap(_.period), Some(period))
+    assertEquals(fileIds.get("card.dump", "photo", t0), Some("canary-file-id"))
     val result = pg.container.execInContainer("pg_dump", "-U", pg.username, "-d", pg.databaseName, "--no-owner")
     assertEquals(result.getExitCode, 0, result.getStderr)
     val dumped = result.getStdout.toLowerCase
     val canaries =
-      List("canarypill", "canary-with-water", "canary-soup-words", "canary-zip", "canary-png", "canary-answer")
+      List("canarypill", "canary-with-water", "canary-soup-words", "canary-zip", "canary-png", "canary-answer",
+        "canary-file-id", "1987-03-14", "1987-04-12")
     canaries.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
     assertEquals(withConnection(CanaryScan.columns(_, canaries)), Nil, "a column holds a canary")
 
   test("every text, JSON or byte column of a sealed table is sealed, a lookup hash, or named as not Class A"):
-    val sealedColumns = SealedColumns.all ++ SealedColumns.emptiedOnSeal ++ SealedColumns.chatState
+    val sealedColumns = SealedColumns.all ++ SealedColumns.emptiedOnSeal ++ SealedColumns.chatState ++
+      SealedColumns.handles
     val sealedTables = sealedColumns.map(_.table).toSet
     val columns = withConnection: conn =>
       given Connection = conn
@@ -99,8 +111,10 @@ object SealedStoresPgSuite:
     "dose_actions" -> Set("actor_type", "vendor", "platform_message_id", "interaction_id", "idempotency_key",
       "reason_code", "correlation_id", "metadata"),
     "meals" -> Set("tz", "source", "client_key", "external_ref_hmac", "meal_type", "void_reason"),
-    "export_jobs" -> Set("kind", "params", "status", "file_name", "mime"),
+    "export_jobs" -> Set("kind", "status", "file_name", "mime"),
     "render_assets" -> Set("asset_key", "mime"),
+    // V22: the key of the drawn image or export file, and the kind of upload.
+    "telegram_file_cache" -> Set("asset_key", "media_kind"),
     "idempotency_keys" -> Set("request_hash"),
     // target and platform_message_id are message handles, last_error a delivery error code and text from the vendor,
     // traceparent a trace id, items unused; chat_key is the chat, kept for the erasure job (V13).

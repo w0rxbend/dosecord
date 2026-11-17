@@ -24,7 +24,7 @@ object PromptCopy:
 
   def widened = tr(
     "The last few reminders went unanswered, so they come less often for the rest of today.",
-    "Кілька останніх нагадувань лишилися без відповіді, тому до кінця дня вони надходитимуть рідше."
+    "Кілька останніх нагадувань лишилося без відповіді, тому до кінця дня вони надходитимуть рідше."
   )
   def pausedToday = tr(
     "Water reminders are paused for the rest of today. They start again tomorrow.",
@@ -85,7 +85,7 @@ object PromptCopy:
   def choosePreset(kind: PromptKind): String =
     tr(
       s"${kindName(kind)} reminders. Pick one; you see the times before it starts.",
-      s"Нагадування «${kindName(kind)}». Виберіть варіант — час буде видно ще до початку."
+      s"Нагадування «${kindName(kind)}». Виберіть варіант — час ви побачите, перш ніж він запрацює."
     )
   def preview(name: String, times: List[String]): String =
     if times.isEmpty then
@@ -123,12 +123,12 @@ object PromptCopy:
   )
   def workOrder = tr(
     "Work hours must start before they end, on at least one day.",
-    "Робочі години мають починатися раніше, ніж закінчуються, хоча б в один день."
+    "Принаймні в один день робочі години мають починатися раніше, ніж закінчуватися."
   )
 
   def offerWater = tr(
     "Would you like water reminders? Pick a plan, or none. You can change it any time in /reminders.",
-    "Бажаєте отримувати нагадування про воду? Виберіть план або відмовтеся. Змінити це можна будь-коли в /reminders."
+    "Хочете отримувати нагадування про воду? Виберіть план або відмовтеся. Змінити це можна будь-коли в /reminders."
   )
   def NotNow = tr("Not now", "Не зараз")
 

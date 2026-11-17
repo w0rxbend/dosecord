@@ -43,7 +43,7 @@ object ImportCopy:
       case CsvTemplate.Mood =>
         tr(
           "Mood: one row per check-in. valence is a step from 1 to 5; energy, from 1 to 5, may stay empty.",
-          "Настрій: один рядок на кожну позначку. valence — крок від 1 до 5; energy, від 1 до 5, можна лишити " +
+          "Настрій: один рядок на кожну позначку. valence — рівень від 1 до 5; energy, від 1 до 5, можна лишити " +
             "порожнім."
         )
       case CsvTemplate.Sleep =>
@@ -63,14 +63,14 @@ object ImportCopy:
   /** `in.file.import` (BOT_UX section 22): a document sent to the chat is not opened. */
   def fileNotOpened: String = tr(
     "Files are imported in the app. This file was not opened.",
-    "Файли імпортуються в застосунку. Цей файл не відкривався."
+    "Файли імпортуються в застосунку. Цей файл бот не відкривав."
   )
 
   /** The size limit, said plainly with the refusal: a bot cannot fetch a file over 20 MB (PRODUCT_SPEC PC-06). */
   def sizeLimit: String = tr(
     "A chat bot cannot read a file larger than 20 MB, and health exports are often larger. The app reads the file " +
       "on your device, up to 4 GB, and sends only the records you confirm.",
-    "Чат-бот не може прочитати файл, більший за 20 МБ, а експорти здоров'я часто більші. Застосунок читає файл " +
+    "Чат-бот не може прочитати файл, більший за 20 МБ, а експорти здоров’я часто більші. Застосунок читає файл " +
       "на вашому пристрої, до 4 ГБ, і надсилає лише записи, які ви підтвердите."
   )
 

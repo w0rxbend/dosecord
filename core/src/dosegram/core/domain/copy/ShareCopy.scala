@@ -26,7 +26,7 @@ object ShareCopy:
 
   def SendAnyway: String = tr("Send the card", "Надіслати картку")
 
-  def waterGoal(hits: Int): String = tr(s"Water goal reached on $hits of 7 days", s"Ціль із води: $hits з 7 днів")
+  def waterGoal(hits: Int): String = tr(s"Water goal reached on $hits of 7 days", s"Ціль щодо води: $hits з 7 днів")
   def sleepLogged(hits: Int): String = tr(s"Sleep logged on $hits of 7 days", s"Сон записано: $hits з 7 днів")
   def moodLogged(hits: Int): String = tr(s"Mood logged on $hits of 7 days", s"Настрій записано: $hits з 7 днів")
   def weekMood(level: MoodLevel): String =

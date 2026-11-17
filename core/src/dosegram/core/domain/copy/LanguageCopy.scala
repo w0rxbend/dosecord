@@ -21,7 +21,7 @@ object LanguageCopy:
     Lang.within(lang):
       tr(
         "Language: English. The app follows this choice too.",
-        "Мову змінено на українську. Застосунок теж нею говоритиме."
+        "Мову змінено на українську. Застосунок теж перейде на неї."
       )
 
   def entries: List[CopyEntry] =

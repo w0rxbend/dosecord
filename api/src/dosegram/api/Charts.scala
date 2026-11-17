@@ -545,7 +545,7 @@ object Charts:
       tr("Meals per week", "Прийоми їжі за тиждень"),
       tr(
         s"Meals logged per week, ${rangeSentence(window)} A count of entries, with no amount.",
-        s"Записані прийоми їжі за тиждень, ${rangeSentence(window)} Кількість записів, без обсягу."
+        s"Записані прийоми їжі за тиждень, ${rangeSentence(window)} Лише кількість записів, без обсягу їжі."
       ),
       SceneTone.Nutrition,
       columns,
@@ -686,7 +686,7 @@ object Charts:
         s"Average mood by day of the week, ${ApiCopy.rangeLabel(window)}, from the days with a check-in. " +
           "A day of the week needs 3 such days for an average.",
         s"Середній настрій за днями тижня, ${ApiCopy.rangeLabel(window)}, з днів із позначкою. " +
-          "Для середнього дню тижня потрібно 3 такі дні."
+          "Середнє для дня тижня показано, коли таких днів щонайменше 3."
       ),
       scene = Scene(Width, PlotHeight + LabelRoom, moodLevels ++ dots ++ names ++ weekdays.indices.map(columns.hit)),
       table = ChartTable(

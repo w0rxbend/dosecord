@@ -53,8 +53,8 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
   /** The V10 stage runs before `audit_log` exists, so the keys it creates write no audit row; the V13 stage runs after.
     */
   private def keyServiceOf(stage: SealingStage, conn: Connection): KeyService = stage match
-    case SealingStage.Expand                             => keys.beforeAuditLog(conn)
-    case SealingStage.Transport | SealingStage.ChatState => keys.on(conn)
+    case SealingStage.Expand                                                    => keys.beforeAuditLog(conn)
+    case SealingStage.Transport | SealingStage.ChatState | SealingStage.Handles => keys.on(conn)
 
   private def write(
       conn: Connection,
@@ -71,8 +71,8 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
     val lookup = column.lookup.map(_ => keyService.lookup(column, accountOf(plain.owner), String(plain.bytes, UTF_8)))
     val setLookup = column.lookup.fold("")(spec => s", ${spec.column} = ?")
     val emptyPlain = stage match
-      case SealingStage.Expand                             => ""
-      case SealingStage.Transport | SealingStage.ChatState => s", ${column.plain} = NULL"
+      case SealingStage.Expand                                                    => ""
+      case SealingStage.Transport | SealingStage.ChatState | SealingStage.Handles => s", ${column.plain} = NULL"
     val binds = Vector[SqlBind](sealedValue) ++ lookup.map(hash => hash: SqlBind) :+ (ctid: SqlBind)
     given Connection = conn
     val updated = SqlQuery(
@@ -162,6 +162,9 @@ enum SealingStage(val expand: String, val columns: List[SealedColumn]):
 
   /** V19, the chat state and the event log; each UPDATE empties the plaintext it sealed, as in V13. */
   case ChatState extends SealingStage("19", SealedColumns.chatState)
+
+  /** V22, the file ids and the export parameters; each UPDATE empties the plaintext it sealed, as in V13. */
+  case Handles extends SealingStage("22", SealedColumns.handles)
 
 object SealingBackfill:
 

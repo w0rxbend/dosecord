@@ -463,3 +463,46 @@ column of every table and a `pg_dump` held none of the typed words; `dosegram_ap
 without an account; `/readyz` answered 200 and `scripts/live-smoke.sh` exited 0. The WAL files
 still held the typed words written before the upgrade (ROADMAP G2.4b, the WAL dump test is open).
 Not rehearsed: step 3 (the container image), step 8 (a real client) and the rollback.
+
+## 14. Deploying V22 (sealed file ids and export parameters), and the WAL after sealing
+
+V22 (`V22__sealed_file_ids_and_export_parameters.sql`) seals the last plaintext Class A columns of
+ROADMAP G2.4b: `telegram_file_cache.file_id` (the Bot API's handle of an uploaded card or export
+file) and `export_jobs.params` (the period of a record summary, which the step-up of a Mini App
+request confirms). The start applies V22 after V20 and V21 and seals each value the previous
+release left, emptying its plaintext in the same statement. Flyway refuses to apply a migration
+numbered below the head of the database, so V20 and V21 are deployed with V22 or before it,
+never after. No new environment variable. Every step is the owner's:
+
+1. Back up the database as in step 4 of section 8 (`umask 077`, off shared storage). There is
+   no downgrade past V22 without it: the previous release cannot read a sealed file id or
+   export's parameters.
+2. Stop the running bot, then start the new release. Its log shows
+   `sealing: telegram_file_cache.file_id sealed N value(s), verified 0`, the same for
+   `export_jobs.params`, and `sealing: vacuumed telegram_file_cache, export_jobs` (or the one of
+   the two that held a value).
+3. Check, read-only: `SELECT max(version::int) FROM flyway_schema_history WHERE success;`
+   returns at least 22; `SELECT count(*) FROM telegram_file_cache WHERE file_id IS NOT NULL;` and
+   `SELECT count(*) FROM export_jobs WHERE params IS NOT NULL;` return 0. A mood image sent
+   before the deploy is sent again by its file id, without a new upload.
+
+Rollback: restore the backup of step 1.
+
+**The WAL after sealing (supervisor decision, 2026-11-15; ARCHITECTURE section 15.2).** The WAL
+this release writes holds no Class A value in plaintext. The WAL written before a sealing start,
+and the sealing itself (its full-page images keep the old row versions), does: in `pg_wal`
+until its segments are removed, and in a recycled segment until it is written over. To clear
+`pg_wal` after a sealing start, with the bot running or not:
+
+```sh
+docker exec <postgres container> psql -U <superuser> -d <database> \
+  -c 'ALTER SYSTEM SET wal_recycle = off' -c 'SELECT pg_reload_conf()' \
+  -c 'SELECT pg_switch_wal()' -c 'CHECKPOINT'
+```
+
+The switch closes the segment that holds the older records, and the checkpoint deletes every
+segment before the new one instead of renaming it for reuse. Later full-page images of the
+sealed pages hold no plaintext, because the start's VACUUM pruned the old row versions. `wal_recycle` may stay off (each new segment is then created rather than reused, a small
+cost at this write rate) or be set back with `ALTER SYSTEM RESET wal_recycle`. It does not
+reach the disk's free blocks, archived WAL or the base backups, which keep what they hold for
+the 35 days of backup retention (SEC-06). `WalSealingPgSuite` rehearses these steps.

@@ -5,7 +5,7 @@ import dosegram.core.domain.insights.StatsPeriod
 /** The controls of the `/stats` card (BOT_UX section 12.5). The figures themselves are [[StatsCopy]]. */
 object StatsCardCopy:
 
-  def ShowAsImage = tr("Show as image", "Показати зображенням")
+  def ShowAsImage = tr("Show as image", "Показати як зображення")
   def usage = tr(
     "Send /stats, /stats today, /stats 7, /stats 30 or /stats month.",
     "Надішліть /stats, /stats today, /stats 7, /stats 30 або /stats month."

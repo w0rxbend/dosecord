@@ -40,6 +40,7 @@ import dosegram.infra.db.PgInboundInbox
 import dosegram.infra.db.PgSuite
 import dosegram.infra.db.PgUnitOfWork
 import dosegram.infra.db.SchemaUpgrade
+import dosegram.infra.db.WalScan
 import ox.supervised
 
 import java.time.Duration
@@ -497,8 +498,10 @@ class ProductionPathSuite extends PgSuite:
       )
       assertEquals(naming.flatMap(strings), Nil, "rows that name the chat")
 
-  test("after the production paths no column and no pg_dump holds a medication name, words or the person's name"):
-    // ROADMAP G2.4b: the chat drives every store that carries content in transit, then the whole database is read.
+  test("after the production paths no column, no pg_dump and no WAL holds a medication name, words or the person's name"):
+    // ROADMAP G2.4b: the chat drives every store that carries content in transit, then the whole database is read, and
+    // so is every WAL record the paths wrote.
+    val walStart = withConnection(WalScan.flushed)
     val medicationName = "CanaryPillName"
     val instructions = "canary-instructions-words"
     val draftName = "CanaryDraftName"
@@ -530,6 +533,8 @@ class ProductionPathSuite extends PgSuite:
     val dump = pg.container.execInContainer("pg_dump", "-U", pg.username, "-d", pg.databaseName, "--no-owner")
     assertEquals(dump.getExitCode, 0, dump.getStderr)
     canaries.foreach(canary => assert(!dump.getStdout.contains(canary), s"the dump holds '$canary'"))
+    assertEquals(withConnection(conn => WalScan.between(conn, walStart, WalScan.flushed(conn), canaries)), Nil,
+      "the WAL holds a canary")
 
   // ---------- Operations on the launched process ----------
 

@@ -230,7 +230,7 @@ final class TrackingApiSuite extends ApiSuite:
     val calendar = get("/api/v1/insights/calendar?domain=hydration", token)
     assertEquals(calendar.status, 200, calendar.body)
     assertEquals(calendar.json("monthLabel").str, "Листопад 2026")
-    assert(calendar.json("summary").str.startsWith("Листопад на цю мить: "), calendar.json("summary").str)
+    assert(calendar.json("summary").str.startsWith("Листопад, поки що: "), calendar.json("summary").str)
 
   test("the mood calendar steps by the rounded daily mean with the colour of its drawn state"):
     val (_, token) = tracker(ConsentPurpose.Mood)
