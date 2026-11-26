@@ -30,19 +30,21 @@ test('launch: the session exchange answers 201, Today shows the medication, the 
 
   // ROADMAP G3.7: a due dose is answered with one tap through the chat's use case, and Undo takes it back. In this
   // test, not its own: the session exchange allows six launches a minute (ARCHITECTURE API-18).
+  // Only Iron's controls: between 21:00 and its miss deadline (UTC) Vitamin D's evening dose is due too.
   const due = page.getByRole('region', { name: 'Due now' });
+  const iron = () => page.getByRole('region', { name: 'Due now' }).getByRole('group', { name: 'Actions for Iron' });
   await expect(due.getByText('Iron')).toBeVisible();
   const answered = page.waitForResponse((r) => /\/api\/v1\/occurrences\/[^/]+\/actions$/.test(r.url()));
-  await due.getByRole('button', { name: 'Taken' }).click();
+  await iron().getByRole('button', { name: 'Taken' }).click();
   const answer = await answered;
   expect(answer.status()).toBe(200);
   expect(answer.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
   await expect(page.getByText(/^Marked taken at \d\d:\d\d$/)).toBeVisible();
-  await expect(due).toHaveCount(0);
+  await expect(iron()).toHaveCount(0);
   const undone = page.waitForResponse((r) => /\/api\/v1\/occurrences\/[^/]+\/actions$/.test(r.url()));
   await page.getByRole('button', { name: 'Undo' }).click();
   expect((await undone).status()).toBe(200);
-  await expect(page.getByRole('region', { name: 'Due now' }).getByRole('button', { name: 'Taken' })).toBeVisible();
+  await expect(iron().getByRole('button', { name: 'Taken' })).toBeVisible();
 
   // A meal in one tap from Today (MINI_APP S-08 behaviour 1), and Undo voids it.
   const food = page.getByRole('region', { name: 'Food' });

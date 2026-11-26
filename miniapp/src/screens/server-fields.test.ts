@@ -90,7 +90,16 @@ describe('Forms on a server that keeps fewer fields', () => {
 
     expect(screen.getByText('Answer reminders in the chat. This screen shows what is recorded.')).toBeTruthy();
     expect(within(due).getByText('Medication A')).toBeTruthy();
-    expect(within(due).queryByRole('button')).toBeNull();
+    // The row opens the dose's details (e951973); no control answers or corrects the dose here.
+    expect(within(due).queryByRole('group')).toBeNull();
+    expect(within(due).queryByRole('button', { name: 'Taken' })).toBeNull();
+    expect(within(due).queryByRole('button', { name: 'Skip' })).toBeNull();
     expect(screen.queryByText('Planned doses. You can answer them on the day.')).toBeNull();
+
+    await fireEvent.click(within(due).getByRole('button', { name: /Medication A/ }));
+    const sheet = await screen.findByRole('dialog', { name: 'Medication A' });
+    expect(within(sheet).queryByRole('button', { name: 'Change to taken' })).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: 'Change to skipped' })).toBeNull();
+    expect(within(sheet).getByRole('button', { name: 'Close' })).toBeTruthy();
   });
 });
