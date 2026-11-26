@@ -469,10 +469,10 @@ Not rehearsed: step 3 (the container image), step 8 (a real client) and the roll
 V22 (`V22__sealed_file_ids_and_export_parameters.sql`) seals the last plaintext Class A columns of
 ROADMAP G2.4b: `telegram_file_cache.file_id` (the Bot API's handle of an uploaded card or export
 file) and `export_jobs.params` (the period of a record summary, which the step-up of a Mini App
-request confirms). The start applies V22 after V20 and V21 and seals each value the previous
-release left, emptying its plaintext in the same statement. Flyway refuses to apply a migration
-numbered below the head of the database, so V20 and V21 are deployed with V22 or before it,
-never after. No new environment variable. Every step is the owner's:
+request confirms). The start applies V22 right after V19 and seals each value the previous
+release left, emptying its plaintext in the same statement. No V20 or V21 exists on any branch:
+they were never used, and Flyway (no `outOfOrder`) would refuse them on a database at V22, so the
+next migration is V23 (ARCHITECTURE section 10.17, rule 1). No new environment variable. Every step is the owner's:
 
 1. Back up the database as in step 4 of section 8 (`umask 077`, off shared storage). There is
    no downgrade past V22 without it: the previous release cannot read a sealed file id or
