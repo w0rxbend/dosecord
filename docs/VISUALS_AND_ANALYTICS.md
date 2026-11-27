@@ -767,6 +767,8 @@ Conventions for every entry:
 | IMG-22 | Mood by weekday (section 6.21) | `card.mood.weekday.v1` | square | personal | L1 | on demand |
 | IMG-23 | Trends, 30 or 90 days (section 6.22) | `card.trends.v1` | square up to three rows, portrait above | personal | L1 | on demand (`/stats trends`, the Mini App share builder) |
 | IMG-24 | The month in one image (section 6.23) | `card.month.poster.v1` | portrait | personal | L1 | scheduled (last photo of IMG-05), on demand (`/stats month`) |
+| IMG-25 | Week highlights (section 6.24) | `card.week.highlights.v1` | square, portrait with an observation | personal | L1 | scheduled (second photo of IMG-04) |
+| IMG-26 | Mood gallery (section 6.25) | `card.mood.gallery.v1` | square | personal | L1 | on demand (`/mood history`) |
 | DOC-01 | Record summary (PDF) | `doc.summary.v1` | a4 | personal | L3 | on demand only |
 
 ### 6.2 IMG-01 Reminder card (withdrawn)
@@ -1495,6 +1497,30 @@ It is the last photo of the monthly report's album (section 6.6; the album holds
 |---|---|---|---|
 | IMG-24 | A month calendar: per day its number, the mood blob, one dot per shown area among water, food and sleep, a ring for a day without a record; the days with records | The month, the days with records of the month's days, then per shown area its recorded days | The last photo of the monthly report album; the last page of "Show as image" on `/stats month` |
 
+### 6.24 Week highlights (IMG-25)
+
+Supervisor decision, 2026-11-28 (image round 5). IMG-25, `card.week.highlights.v1`, is the second photo of the weekly report (section 6.5): the weekly card and the highlights go as one album, each captioned with its own text equivalent, so the report is still one unprompted image message (VA-PS-02). It is drawn only when the images consent is given and the week has a record in water, food, mood or sleep; otherwise the report is the weekly card alone, as before.
+
+"The best day of the week" per domain is defined as the day with the domain's highest figure of the user's own week, stated as a fact with a comparative word, never as "best": the most water (section 7.4), the most main meals (section 7.5), the highest daily mood mean on the 1 to 5 scale taken to one decimal (section 7.6), the longest main night, by the day it ended (section 7.7). Every day that shares the highest figure is named. A domain with fewer than three recorded days in the week states its recorded days only ("Records on 2 days"), because a maximum of one or two days says nothing about a week; this is the threshold of a weekly figure (section 7.1, R-GAM-3), not a goal, and the card says nothing of what is missing. A week of snacks only has no food highlight. Medication has no row: a best day of dose answers would be the counter of intake that R-GAM-2 forbids and a medication measure on a comparison that section 8.3 forbids. The one computation is `WeekHighlights.of` in `core`.
+
+The card: the title and the week under it; one row per domain with a record in the order water, food, mood, sleep, each with its icon, its name, the line "Most: Wed · 2.15 l" (or "Most main meals", "Highest daily mood", "Longest night"), and a seven-day strip in which the named day is a large dot in the domain's hue, another recorded day a small dot and a day without a record a dotted ring (VA-PR-03), so the named day differs by size, not by colour alone (VA-PR-06). The legend names the three marks and, with a mood row, that mood is the daily average on the 1 to 5 scale. Under the legend, the one observation of the weekly report (section 8.5, "Selection for the weekly report"), under the title "One observation, last 28 days", is the same catalogue sentence the report's text carries, its fixed non-causal sentence included (VA-IN-11). When no rule passed, there is no observation block and no filler (section 8.5). The rows close up (to 104 px a row) so that the whole sentence fits the portrait; only a sentence that still does not fit ends in an ellipsis, and the caption always holds it whole. Nothing ranks the domains, praises a day, colours a figure or compares the user with anyone.
+
+Text equivalent: "Week highlights, 16 to 22 Nov. Water: the most on Wed, 2.15 l. Food: the most main meals on Tue and Fri, 3. Mood: the highest daily average on Sat, 4.5 on the 1 to 5 scale (very pleasant). Sleep: records on 2 nights. One observation, last 28 days: ..." Discreet mode keeps the rows (L1 facts), captions "Highlights of a week." and sends it behind the spoiler. Goldens: `highlights/typical` (four rows, ties, an observation, portrait) and `highlights/sparse` (two rows, one below three days, square), light, dark and discreet, English and Ukrainian text equivalents, pixel hashes.
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-25 | Per shown domain except medication: the day or days with the highest figure of the week and that figure, the week as large, small and dotted marks; the weekly report's one observation with its non-causal sentence | The week, each row's highest days and figure or its recorded days, then the observation | The second photo of the weekly report's album |
+
+### 6.25 Mood gallery (IMG-26)
+
+Supervisor decision, 2026-11-28 (image round 5). IMG-26, `card.mood.gallery.v1`, is the blob gallery of `/mood history` (BOT_UX section 11.4): the latest check-ins, at most 14, oldest first, each as the blob of its captured state (section 4.4; the five chat steps on the blob's scale as the mood card draws them, energy at the middle level when it was not given), seven to a row on a neutral `grid` track, with its day ("Mo 9") and time under it. Every blob of a row stands on the same line: the place is the order of recording, never the level, so no blob is higher or lower than another and no line joins them, and nothing reads as a trend, a high, a low or a score. The face is the second encoding of the colour (VA-BL-04). Under the rows: the count ("14 check-ins") and the note "Oldest first, one per check-in". A day of one check-in names that day, not a range. The check-ins are the live ones of the last 366 days; a quieter year shows fewer.
+
+Text equivalent: "Your latest 14 mood check-ins, 9 to 14 Nov, oldest first. Mon 9 Nov 08:10: Unpleasant. Energy: very low. ..." Discreet mode keeps the blobs (L1), captions "Recent mood check-ins." and sends it behind the spoiler. Goldens: `mood-gallery/fortnight` (14, two rows) and `mood-gallery/few` (3), light, dark and discreet, English and Ukrainian text equivalents, pixel hashes.
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-26 | The latest check-ins as blobs in recording order on a track, seven a row, each with its day and time | The count and period, then every check-in's day, time and words | "Show as image" on `/mood history` |
+
 ### 7.1 Common definitions
 
 | Term | Definition |
@@ -1974,7 +2000,7 @@ BOT_UX.md owns reminders, prompts and touchpoints. This section governs the repo
 | Item | Default | Offered when | Send time (account zone) | Sent only if | Cap |
 |---|---|---|---|---|---|
 | Daily summary image with the evening wrap-up (IMG-03) | Off | After 3 days with records | The evening wrap-up time (PRODUCT_SPEC R-DAY-7, default 21:00). When enabled, the wrap-up is sent as this image with the wrap-up text as its caption and the wrap-up keyboard: one message, one budget unit, never a second message | At least one record that local day, or something is open for the wrap-up | 1 per day |
-| Weekly report (IMG-04, with at most one pattern sentence) | Off | At the end of the first week with 3 or more recorded days | The default of PRODUCT_SPEC R-INS-4: the first day of the locale's week, 09:00 | At least one record in the reported week | 1 per week |
+| Weekly report (IMG-04, with at most one pattern sentence; with the images consent IMG-25 follows it in one album, section 6.24) | Off | At the end of the first week with 3 or more recorded days | The default of PRODUCT_SPEC R-INS-4: the first day of the locale's week, 09:00 | At least one record in the reported week | 1 per week |
 | Monthly report (IMG-05) | Off | When a month first meets the gate | First day of the month, 10:00 | The gate of PRODUCT_SPEC R-INS-11: at least one enabled domain with a record on at least 14 days of the month | 1 per month |
 | Milestone card (IMG-14) | Never sent proactively (section 6.15). A milestone is one line inside the weekly report | n/a | n/a | n/a | n/a |
 | Refill notice (text; the IMG-15 card only on request from the notice) | On for each medication with a threshold | When the user sets a threshold | When the count reaches the threshold; outside quiet hours. The proactive notice is a text message (BOT_UX section 10.5); its "Show card" button sends IMG-15 as an Outcome | The count is at or below the threshold and the user has not acknowledged | Repeats every 72 hours, at most 3 times; stops on "Got it" or a count update |

@@ -127,6 +127,7 @@ private[capture] object CaptureActions:
   val ImportTemplate: ActionEntry = named("import.template")
   val StatsMeds: ActionEntry = named("stats.meds")
   val StatsMedsImage: ActionEntry = named("stats.meds_image")
+  val MoodHistoryImage: ActionEntry = named("mood.history_image")
 
   val all: Set[ActionEntry] = Set(
     ConsentStep,
@@ -170,7 +171,8 @@ private[capture] object CaptureActions:
     StatsShareSend,
     ImportTemplate,
     StatsMeds,
-    StatsMedsImage
+    StatsMedsImage,
+    MoodHistoryImage
   )
 
   private def named(name: String): ActionEntry =

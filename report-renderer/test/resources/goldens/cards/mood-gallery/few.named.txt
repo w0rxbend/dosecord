@@ -1,0 +1,5 @@
+file: dosegram-mood-gallery.png
+spoiler: false
+caption: Your latest 3 mood check-ins, 9 to 10 Nov, oldest first. Mon 9 Nov 08:10: Unpleasant. Energy: very low. Mon 9 Nov 19:27: Very pleasant. Energy: medium. Tue 10 Nov 06:44: Neutral. Energy: very high.
+alt: Your latest 3 mood check-ins, 9 to 10 Nov, oldest first. Mon 9 Nov 08:10: Unpleasant. Energy: very low. Mon 9 Nov 19:27: Very pleasant. Energy: medium. Tue 10 Nov 06:44: Neutral. Energy: very high.
+full: Your latest 3 mood check-ins, 9 to 10 Nov, oldest first. Mon 9 Nov 08:10: Unpleasant. Energy: very low. Mon 9 Nov 19:27: Very pleasant. Energy: medium. Tue 10 Nov 06:44: Neutral. Energy: very high.

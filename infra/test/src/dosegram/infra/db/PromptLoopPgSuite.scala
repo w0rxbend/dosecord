@@ -21,6 +21,8 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.DayHighlight
+import dosegram.core.domain.insights.HighlightDomain
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.QuietHours
 import dosegram.core.domain.reminders.Anchor
@@ -43,6 +45,7 @@ import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.PromptOccurrence
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.WeekCardView
+import dosegram.core.ports.WeekHighlightsView
 import dosegram.core.scheduling.CatalogueOutboxRenderer
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.core.scheduling.PromptLoop
@@ -618,6 +621,35 @@ class PromptLoopPgSuite extends PgSuite:
     rig.clock.at = mondayAt("09:00").plusSeconds(5)
     rig.tickAndSend()
     assertEquals(chatOf(rig).flatMap(_._2.attachment).map(_.altText), List("Week card."))
+
+  // Image round 5 (supervisor decision, 2026-11-28): the week highlights (VISUALS IMG-25) after the weekly card.
+  test("the weekly report sends its card and the week highlights as one album, the highest day of each domain"):
+    val pages = StatusCards.textOnly
+    val views = scala.collection.mutable.ListBuffer.empty[WeekHighlightsView]
+    val cards = new StatusCards:
+      export pages.{mood, water, day, sleep, food}
+      override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.week.v1", "<svg/>", "Week card.", "week.png", false))
+      override def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] =
+        views += view
+        Some(CardPage("card.week.highlights.v1", "<svg/>", "Highlights card.", "highlights.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val rig = Rig(start = Instant.parse("2026-11-16T08:00:00+02:00"), preset = PromptPresets.WeeklyReport, cards = cards, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    List("2026-11-16" -> 500, "2026-11-18" -> 900, "2026-11-18" -> 800, "2026-11-20" -> 1200).zipWithIndex.foreach:
+      case ((date, ml), index) =>
+        rig.clock.at = Instant.parse(s"${date}T12:0${index}:00+02:00")
+        rig.drink(ml, s"highlight-$index")
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    val List((_, album), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(album.album.map(_.altText), List("Week card.", "Highlights card."))
+    assert(text.toString.contains("Your week: the last 7 days"), text)
+    val List(view) = views.toList: @unchecked
+    assertEquals(view.from, LocalDate.parse("2026-11-16"))
+    // Wednesday's two glasses make the highest day; medication is never a row.
+    assertEquals(view.rows, List(DayHighlight(HighlightDomain.Water, List(0, 2, 4), Some(List(2) -> 1700.0))))
 
   test("the morning summary of a day without records sends nothing (VA-PS-05)"):
     val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8))

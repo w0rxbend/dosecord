@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.adapter.telegram.FakeTelegramTransport
+import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ExportCopy
 import dosegram.core.domain.copy.IdentityCopy
@@ -282,6 +283,24 @@ class NewUserWalkSuite extends PgSuite:
     val open = Lang.within(lang)(StatsCardCopy.medsRow(2, "Magnesium", StatsCardCopy.MedsTally(0, 1, 0, 1, 0)))
     assert(lines.exists(_.endsWith(open)), s"'$open' in $lines")
 
+  /** Image round 5 (supervisor decision, 2026-11-28): `/mood history` lists the day's one check-in, and its gallery
+    * (VISUALS IMG-26) comes as a photo captioned with its text equivalent, or as that text on a machine too loaded to
+    * draw it in time (VA-FB-01).
+    */
+  private def assertMoodHistory(lang: Lang, lines: List[String], drawn: List[String]): Unit =
+    val copy = if lang == Lang.Uk then UkrainianImageCopy else EnglishImageCopy
+    val title = Lang.within(lang)(CheckInCopy.historyTitle(1))
+    val at = lines.indexWhere(_.contains(title))
+    assert(at > 0, s"/mood history: '$title'")
+    // The walk's one check-in is a 4: "Pleasant" in the chat, the same words in the gallery's text equivalent.
+    val level = Lang.within(lang)(CheckInCopy.label(dosegram.core.domain.mood.Valence.steps(3), None))
+    assert(lines(at + 2).endsWith(s"· $level"), s"the check-in of the day: ${lines.slice(at, at + 3)}")
+    val reading = dosegram.render.blob.MoodReading(dosegram.render.blob.MoodState.captured(4, None), isEnergyGiven = false)
+    val after = lines.drop(at)
+    assert(after.exists(_.endsWith(s": ${copy.moodLabel(reading)}")), s"the gallery's text equivalent: ${after.take(12)}")
+    val sentAsPhoto = after.exists(_.contains("[image], caption:"))
+    assert(!sentAsPhoto || drawn.exists(_.contains(s">${SvgEmitter.escape(copy.galleryTitle)}<")), "the gallery was drawn")
+
   /** The numbers of the messages that `marker` introduces (" bot #" for a send, " bot edits #" for an edit) and whose
     * text contains `text`.
     */
@@ -392,6 +411,9 @@ class NewUserWalkSuite extends PgSuite:
     tap(ConsentCopy.Agree)
     tap(ConsentCopy.Confirm)
     tap(StatsCardCopy.WaterWeek)
+    chat.note("/mood history: the day's check-in and its blob gallery (image round 5)")
+    chat.say("/mood history")
+    tap(StatsCardCopy.ShowAsImage)
     chat.note("/reminders")
     chat.say("/reminders")
     chat.note("The morning summary: on from /reminders, every day at 08:00")
@@ -416,6 +438,7 @@ class NewUserWalkSuite extends PgSuite:
     assertClean(lines)
     assertReviewed(Lang.Uk, lines, shown)
     assertAnalytics(Lang.Uk, lines, drawn)
+    assertMoodHistory(Lang.Uk, lines, drawn)
     assert(lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezoneSuggested))), "Kyiv suggested by the language")
     assert(!lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezonePrompt))), "no picker before the suggestion")
     // Walk-through of 2026-11-27: the onboarding and wizard buttons were English for a Ukrainian reader.
@@ -429,4 +452,5 @@ class NewUserWalkSuite extends PgSuite:
     assertClean(lines)
     assertReviewed(Lang.En, lines, shown)
     assertAnalytics(Lang.En, lines, drawn)
+    assertMoodHistory(Lang.En, lines, drawn)
 end NewUserWalkSuite

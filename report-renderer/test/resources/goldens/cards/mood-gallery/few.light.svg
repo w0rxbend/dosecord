@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="118.8" cy="298.4" r="48.4"><stop offset="0" stop-color="#707d9a"/><stop offset="1" stop-color="#48577b"/></radialGradient>
+  <radialGradient id="g2" gradientUnits="userSpaceOnUse" cx="254.8" cy="298.4" r="48.4"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f7d37b"/></radialGradient>
+  <radialGradient id="g3" gradientUnits="userSpaceOnUse" cx="390.8" cy="298.4" r="48.4"><stop offset="0" stop-color="#9cb7ba"/><stop offset="1" stop-color="#6d9195"/></radialGradient>
+</defs>
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Recent check-ins</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end"></text>
+<text x="64" y="180" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561">9 to 10 Nov</text>
+<line x1="132" y1="320" x2="404" y2="320" stroke="#cdd6db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<g>
+  <g>
+    <ellipse cx="132" cy="367.92" rx="33" ry="2" fill="#cdd6db"/>
+    <path d="M176.85 316 C177.32 325.2 172.8 338.32 165.33 345 C157.86 351.69 142.92 356.26 132 356.11 C121.08 355.95 107.2 350.74 99.81 344.06 C92.41 337.38 87.59 325.26 87.63 316 C87.66 306.74 92.65 294.71 100.04 288.52 C107.44 282.33 121.6 278.64 132 278.85 C142.4 279.06 154.99 283.61 162.46 289.8 C169.94 295.99 176.37 306.8 176.85 316 Z" fill="url(#g1)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="120.12" cy="311.6" rx="3.3" ry="1.5" fill="#e8f0f4"/>
+    <ellipse cx="143.88" cy="311.6" rx="3.3" ry="1.5" fill="#e8f0f4"/>
+    <path d="M123.77 326.56 Q132 322.6 140.23 326.56" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="116.7" y1="305.41" x2="123.54" y2="303.71" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="147.3" y1="305.41" x2="140.46" y2="303.71" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<text x="132" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="middle">Mo 9</text>
+<text x="132" y="464" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">08:10</text>
+<g>
+  <g>
+    <ellipse cx="268" cy="367.92" rx="28.6" ry="2" fill="#cdd6db"/>
+    <path d="M311.8 316 C311.35 324.46 306.65 333.46 301.62 340.42 C296.58 347.39 289.63 354.29 281.57 357.77 C273.52 361.25 261.31 364.07 253.28 361.29 C245.26 358.52 238.14 348.68 233.41 341.13 C228.69 333.58 224.98 324.42 224.92 316 C224.86 307.58 228.14 297.64 233.03 290.59 C237.92 283.55 246.13 276.59 254.26 273.73 C262.4 270.86 273.5 270.76 281.84 273.41 C290.17 276.07 299.27 282.55 304.27 289.65 C309.26 296.75 312.24 307.54 311.8 316 Z" fill="url(#g2)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="256.12" cy="311.6" rx="3.3" ry="2.57" fill="#13242e"/>
+    <ellipse cx="279.88" cy="311.6" rx="3.3" ry="2.57" fill="#13242e"/>
+    <path d="M258.32 326.56 Q268 333.16 277.68 326.56" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<text x="268" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="middle">Mo 9</text>
+<text x="268" y="464" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">19:27</text>
+<g>
+  <g>
+    <ellipse cx="404" cy="367.92" rx="22" ry="2" fill="#cdd6db"/>
+    <path d="M450.31 316 C449.77 323.85 444.9 331.77 440.88 338.57 C436.87 345.37 432.36 353.38 426.22 356.79 C420.07 360.19 411.44 358.96 404 359.02 C396.56 359.08 388.36 360.17 381.59 357.14 C374.83 354.11 367.13 347.71 363.39 340.85 C359.65 333.99 358.32 323.78 359.15 316 C359.98 308.22 364.56 300.91 368.38 294.2 C372.2 287.49 376.15 280.35 382.09 275.77 C388.02 271.18 397.03 266.1 404 266.72 C410.97 267.34 417.2 275.37 423.88 279.49 C430.57 283.62 439.7 285.37 444.11 291.46 C448.51 297.54 450.85 308.15 450.31 316 Z" fill="url(#g3)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="392.12" cy="311.6" rx="3.3" ry="3.3" fill="#13242e"/>
+    <ellipse cx="415.88" cy="311.6" rx="3.3" ry="3.3" fill="#13242e"/>
+    <path d="M392.87 326.56 Q404 326.56 415.13 326.56" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<text x="404" y="416" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561" text-anchor="middle">Tu 10</text>
+<text x="404" y="464" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">06:44</text>
+<text x="64" y="528" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#13242e">3 check-ins</text>
+<text x="64" y="584" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Oldest first, one per check-in</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

@@ -18,6 +18,7 @@ import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.Consistency
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.HighlightDomain
 import dosegram.core.domain.insights.InsightEngine
 import dosegram.core.domain.insights.LoggingDomain
 import dosegram.core.domain.insights.MealStats
@@ -25,6 +26,7 @@ import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.NightFacts
 import dosegram.core.domain.insights.SleepRegularity
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.WeekHighlights
 import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.ports.AccountSettings
@@ -45,6 +47,8 @@ import dosegram.core.ports.WeekDayFood
 import dosegram.core.ports.WeekDayMood
 import dosegram.core.ports.WeekDayNight
 import dosegram.core.ports.WeekDayWater
+import dosegram.core.ports.WeekHighlightsView
+import dosegram.core.ports.WeekObservation
 
 import java.time.LocalDate
 import java.time.YearMonth
@@ -83,6 +87,23 @@ final class ReportViews(stats: StatsQueryService):
       window.dates.map(date => days.get(date).map(day => WeekDayFood(day.logged.size, day.snacks)))
     }
     WeekCardView(window.start, doses, water, mood, sleep, food)
+
+  /** IMG-25 (image round 5, supervisor decision of 2026-11-28): the highest day of each shown domain of `week` with a
+    * record (never medication), and the weekly report's observation; `None` when no such domain has a record. The daily
+    * mood mean is taken to one decimal, as the card states it, so days that read alike tie.
+    */
+  def highlights(week: WeekCardView, observation: Option[WeekObservation]): Option[WeekHighlightsView] =
+    def of[A](domain: HighlightDomain, days: Option[List[Option[A]]])(value: A => Double) =
+      days.flatMap(recorded => WeekHighlights.of(domain, recorded.map(_.map(value))))
+    val rows = List(
+      of(HighlightDomain.Water, week.water)(_.totalMl.toDouble),
+      of(HighlightDomain.Food, week.food)(_.mainMeals.toDouble),
+      of(HighlightDomain.Mood, week.mood)(day =>
+        BigDecimal(day.mean).setScale(1, BigDecimal.RoundingMode.HALF_UP).toDouble
+      ),
+      of(HighlightDomain.Sleep, week.sleep)(_.minutes.toDouble)
+    ).flatten
+    Option.when(rows.nonEmpty)(WeekHighlightsView(week.from, rows, observation))
 
   /** IMG-03 for a finished day, as the morning summary draws it: the last check-in of the day, the doses in schedule
     * order, water and the night against the user's own goals, the meals against the plan. Each domain behind its
@@ -163,9 +184,15 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
           .flatMap(view => InsightEngine.forReport(view.list))
           .map(InsightCopy.text)
         val lines = ReportCopy.weeklyTitle :: summary.lines.tail ++ pattern.toList ++ counts(tx, accountId, week)
+        // The week card, then its highlights with the same pattern sentence (VISUALS IMG-25), as one album.
         val images =
           if !withImages || !imagesAllowed(tx, accountId) then Nil
-          else drawn(cards.week(views.week(tx, accountId, week), views.look(tx, accountId)).toList)
+          else
+            val view = views.week(tx, accountId, week)
+            val look = views.look(tx, accountId)
+            val observation = pattern.map(WeekObservation(ComparisonWindow.Days28.days, _))
+            val highlights = views.highlights(view, observation).flatMap(cards.weekHighlights(_, look))
+            drawn(cards.week(view, look).toList ++ highlights.toList)
         ReportOutcome.Send(compose(PromptKind.WeeklyReport, accountId, lines, images, key, silent))
 
   /** The morning summary (supervisor decision, 2026-11-27): the day before `planDate` in one message, one line per

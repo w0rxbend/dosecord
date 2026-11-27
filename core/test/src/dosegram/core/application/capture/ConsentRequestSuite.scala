@@ -15,6 +15,8 @@ class ConsentRequestSuite extends munit.ScalaCheckSuite:
     Gen.const(Pending.WaterCard),
     Gen.choose(HydrationBounds.MinEntryMl, HydrationBounds.MaxEntryMl).map(Pending.WaterAdd(_)),
     Gen.const(Pending.MoodPrompt),
+    Gen.const(Pending.MoodHistory),
+    Gen.const(Pending.MoodHistoryImage),
     Gen.choose(1, 5).map(Pending.MoodCheckIn(_)),
     Gen.const(Pending.Stats),
     Gen.const(Pending.WaterImage),

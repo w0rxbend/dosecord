@@ -9,6 +9,7 @@ import dosegram.contracts.MediaKind
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.HighlightDomain
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
@@ -24,12 +25,14 @@ import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MedicationStripView
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.MoodGalleryView
 import dosegram.core.ports.RefillCardView
 import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.TrendsCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
+import dosegram.core.ports.WeekHighlightsView
 import dosegram.infra.RenderSettings
 import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.PgRenderAssets
@@ -45,6 +48,10 @@ import dosegram.render.card.DayCard
 import dosegram.render.card.DayData
 import dosegram.render.card.FoodDayCard
 import dosegram.render.card.FoodDayData
+import dosegram.render.card.GalleryCheckIn
+import dosegram.render.card.HighlightFigure
+import dosegram.render.card.HighlightObservation
+import dosegram.render.card.HighlightRow
 import dosegram.render.card.InsightCard
 import dosegram.render.card.MainMeal
 import dosegram.render.card.MealProgress
@@ -54,6 +61,8 @@ import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
 import dosegram.render.card.MonthPosterCard
 import dosegram.render.card.MoodCard
+import dosegram.render.card.MoodGalleryCard
+import dosegram.render.card.MoodGalleryData
 import dosegram.render.card.MoodWeekdayCard
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.MoodWeekdayRow
@@ -77,6 +86,8 @@ import dosegram.render.card.WaterProgress
 import dosegram.render.card.WaterWeekCard
 import dosegram.render.card.WeekCard
 import dosegram.render.card.WeekGlanceCard
+import dosegram.render.card.WeekHighlightsCard
+import dosegram.render.card.WeekHighlightsData
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
@@ -286,6 +297,30 @@ final class RenderedStatusCards extends StatusCards:
         .map((marks, logs) => marks.toVector.map(statusOf) ++ Vector.fill(logs)(DoseStatus.AsNeeded))
       MedicationRow(row.name, row.asNeeded, days)
     MedicationStripCard.render(StripData(view.from, view.dayCount, rows), contextOf(look)).toList.map(page(look)(_))
+
+  /** IMG-26 (image round 5): each check-in as its captured state, the chat's five steps on the blob's scale. */
+  override def moodGallery(view: MoodGalleryView, look: CardLook): Option[CardPage] =
+    Option.when(view.entries.nonEmpty):
+      val checkIns = view.entries
+        .takeRight(MoodGalleryCard.MaxCheckIns)
+        .toVector
+        .map: entry =>
+          val state = MoodState.captured(entry.valence.step, entry.energy.map(_.step))
+          GalleryCheckIn(entry.at, MoodReading(state, entry.energy.isDefined))
+      page(look)(MoodGalleryCard.render(MoodGalleryData(checkIns), contextOf(look)))
+
+  /** IMG-25 (image round 5): the highest days of each shown domain and the weekly report's observation. */
+  override def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] =
+    Option.when(view.rows.nonEmpty):
+      val rows = view.rows.toVector.map: row =>
+        val (domain, figure) = row.domain match
+          case HighlightDomain.Water => Domain.Water -> ((value: Double) => HighlightFigure.Water(value.toInt))
+          case HighlightDomain.Food  => Domain.Food -> ((value: Double) => HighlightFigure.MainMeals(value.toInt))
+          case HighlightDomain.Mood  => Domain.Mood -> ((value: Double) => HighlightFigure.Mood(value))
+          case HighlightDomain.Sleep => Domain.Sleep -> ((value: Double) => HighlightFigure.Night(value.toInt))
+        HighlightRow(domain, row.recorded.toVector, row.top.map((days, value) => days.toVector -> figure(value)))
+      val observation = view.observation.map(seen => HighlightObservation(seen.windowDays, seen.sentence))
+      page(look)(WeekHighlightsCard.render(WeekHighlightsData(view.from, rows, observation), contextOf(look)))
 
   override def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] =
     val rows = weekdays.toVector.map(weekday => MoodWeekdayRow(weekday.day, weekday.mean.shown, weekday.days))

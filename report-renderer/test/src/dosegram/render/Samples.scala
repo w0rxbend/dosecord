@@ -702,10 +702,62 @@ object Samples:
     )
   )
 
+  // Image round 5 (2026-11-28): the blob gallery of /mood history (IMG-26) and the week highlights (IMG-25).
+  private def galleryOf(count: Int): MoodGalleryData =
+    val first = java.time.LocalDateTime.of(2026, 11, 9, 8, 10)
+    MoodGalleryData(Vector.tabulate(count) { index =>
+      val at = first.plusHours(9L * index + (index % 3) * 2L).plusMinutes((index * 17L) % 60)
+      val valenceStep = 1 + (index * 3 + 1) % 5
+      val energy = Option.when(index % 4 != 3)(1 + (index * 2) % 5)
+      GalleryCheckIn(at, MoodReading(MoodState.captured(valenceStep, energy), energy.isDefined))
+    })
+
+  val galleries: Vector[Fixture] = Vector(
+    Fixture("mood-gallery/fortnight", context => Vector(MoodGalleryCard.render(galleryOf(14), context))),
+    Fixture("mood-gallery/few", context => Vector(MoodGalleryCard.render(galleryOf(3), context)))
+  )
+
+  private val HighlightsFrom = LocalDate.of(2026, 11, 16)
+
+  // The observation as the core catalogue words it in the card's language: the weekly report's own sentence.
+  private def observation(copy: ImageCopy): HighlightObservation =
+    val sentence =
+      if copy == UkrainianImageCopy then
+        "У 18 днів після ночі, не коротшої за вашу ціль 7 год 30 хв, ваш середній настрій був 3,7 (приємно). " +
+          "У 9 інших днів — 3,0 (нейтрально). Це порівняння ваших власних днів. Воно не показує причини."
+      else
+        "On the 18 days after a night at or above your 7 h 30 min goal, your average mood was 3.7 (pleasant). " +
+          "On the 9 other days it was 3.0 (neutral). This compares your own days. It does not show a cause."
+    HighlightObservation(28, sentence)
+
+  private val typicalHighlights: Vector[HighlightRow] = Vector(
+    HighlightRow(Domain.Water, Vector(0, 1, 2, 4, 5, 6), Some(Vector(2) -> HighlightFigure.Water(2150))),
+    HighlightRow(Domain.Food, Vector(0, 1, 2, 3, 4, 5, 6), Some(Vector(1, 4) -> HighlightFigure.MainMeals(3))),
+    HighlightRow(Domain.Mood, Vector(0, 2, 3, 5, 6), Some(Vector(5) -> HighlightFigure.Mood(4.5))),
+    HighlightRow(Domain.Sleep, Vector(0, 1, 3, 4, 5), Some(Vector(4) -> HighlightFigure.Night(485)))
+  )
+
+  val highlights: Vector[Fixture] = Vector(
+    Fixture(
+      "highlights/typical",
+      context =>
+        Vector(WeekHighlightsCard.render(WeekHighlightsData(HighlightsFrom, typicalHighlights, Some(observation(context.copy))), context))
+    ),
+    Fixture(
+      "highlights/sparse",
+      context =>
+        val rows = Vector(
+          HighlightRow(Domain.Water, Vector(1, 3, 6), Some(Vector(1, 3, 6) -> HighlightFigure.Water(1500))),
+          HighlightRow(Domain.Sleep, Vector(2, 5), None)
+        )
+        Vector(WeekHighlightsCard.render(WeekHighlightsData(HighlightsFrom, rows, None), context))
+    )
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
       moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
-      refills ++ trends ++ posters
+      refills ++ trends ++ posters ++ galleries ++ highlights
 
   /** Every card the contact sheet and the golden suite show. */
   val review: Vector[Fixture] = all

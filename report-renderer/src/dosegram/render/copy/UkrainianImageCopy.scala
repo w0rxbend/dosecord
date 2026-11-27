@@ -5,6 +5,8 @@ import dosegram.render.card.DayAdherence
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
 import dosegram.render.card.FoodDayData
+import dosegram.render.card.HighlightFigure
+import dosegram.render.card.HighlightRow
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
 import dosegram.render.card.MainMeal
@@ -15,6 +17,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MonthPosterData
 import dosegram.render.card.MoodCalendarData
+import dosegram.render.card.MoodGalleryData
 import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.ShareFact
@@ -22,6 +25,7 @@ import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
+import dosegram.render.card.WeekHighlightsData
 import dosegram.render.chart.DoseStatus
 import dosegram.render.tokens.Domain
 
@@ -684,6 +688,73 @@ object UkrainianImageCopy extends ImageCopy:
     (s"${monthYear(data.month)}, ваш місяць на одному зображенні. $summary" +: areas).mkString(" ")
 
   def posterDiscreet: String = "Ваш місяць на одному зображенні."
+
+  // Image round 5 (2026-11-28): the mood gallery (IMG-26) and the week highlights (IMG-25).
+  def galleryTitle: String = "Останні позначки настрою"
+  def galleryFact(count: Int): String = counted(count, "позначка", "позначки", "позначок")
+  def galleryOrderNote: String = "Спочатку найдавніші, по одній на позначку"
+
+  def galleryText(data: MoodGalleryData): String =
+    val (first, last) = (data.checkIns.head.at.toLocalDate, data.checkIns.last.at.toLocalDate)
+    val entries = data.checkIns.map: checkIn =>
+      s"${dayDate(checkIn.at.toLocalDate)} ${time(checkIn.at.toLocalTime)}: ${moodLabel(checkIn.reading)}"
+    (s"Позначки настрою: ${galleryFact(data.checkIns.size)}, ${
+        if first == last then dayDate(first) else dateRange(first, last)
+      }, спочатку найдавніші." +: entries)
+      .mkString(" ")
+
+  def galleryDiscreet: String = "Останні позначки настрою."
+  def highlightTitle: String = "Головне за тиждень"
+  def highlightDayMark: String = "День, названий у рядку"
+  def highlightOtherMark: String = "Інший день із записом"
+  def highlightObservationTitle(days: Int): String = s"Одне спостереження, останні ${this.days(days)}"
+
+  def highlightLine(from: LocalDate, row: HighlightRow): String =
+    row.highlight match
+      case Some((days, figure)) =>
+        val lead = figure match
+          case HighlightFigure.Water(_)     => "Найбільше"
+          case HighlightFigure.MainMeals(_) => "Найбільше основних прийомів їжі"
+          case HighlightFigure.Mood(_)      => "Найвищий середній настрій"
+          case HighlightFigure.Night(_)     => "Найдовша ніч"
+        s"$lead: ${days.map(day => weekday(from.plusDays(day.toLong).getDayOfWeek)).mkString(", ")} · ${highlightValue(figure)}"
+      case None => highlightRecords(row)
+
+  def highlightText(data: WeekHighlightsData): String =
+    val rows = data.rows.map { row =>
+      val said = row.highlight match
+        case Some((days, figure)) =>
+          val on = joined(days.map(day => weekday(data.from.plusDays(day.toLong).getDayOfWeek)))
+          figure match
+            case HighlightFigure.Water(_)     => s"найбільше — $on, ${highlightValue(figure)}"
+            case HighlightFigure.MainMeals(_) => s"найбільше основних прийомів їжі — $on, ${highlightValue(figure)}"
+            case HighlightFigure.Mood(mean)   =>
+              val level = valenceName(dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence)
+                .toLowerCase(java.util.Locale.ROOT)
+              s"найвищий середній за день — $on, ${highlightValue(figure)} за шкалою від 1 до 5 ($level)"
+            case HighlightFigure.Night(_) => s"найдовша ніч — $on, ${highlightValue(figure)}"
+        case None => highlightRecords(row).toLowerCase(java.util.Locale.ROOT)
+      s"${domainName(row.domain)}: $said."
+    }
+    val observation =
+      data.observation.map(seen => s"Одне спостереження за останні ${days(seen.days)}: ${seen.sentence}")
+    ((s"Головне за тиждень, ${dateRange(data.from, data.to)}." +: rows) ++ observation).mkString(" ")
+
+  def highlightDiscreet: String = "Головне за тиждень."
+
+  private def highlightValue(figure: HighlightFigure): String =
+    figure match
+      case HighlightFigure.Water(millilitres) => litresAmount(millilitres)
+      case HighlightFigure.MainMeals(count)   => count.toString
+      case HighlightFigure.Mood(mean)         => insightValue(mean)
+      case HighlightFigure.Night(minutes)     => duration(minutes)
+
+  private def highlightRecords(row: HighlightRow): String =
+    if row.domain == Domain.Sleep then s"Записи за ${counted(row.recorded.size, "ніч", "ночі", "ночей")}"
+    else s"Записи за ${days(row.recorded.size)}"
+
+  private def joined(words: Vector[String]): String =
+    if words.size <= 1 then words.mkString else s"${words.init.mkString(", ")} і ${words.last}"
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3

@@ -4,6 +4,7 @@ import dosegram.render.blob.MoodReading
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
 import dosegram.render.card.FoodDayData
+import dosegram.render.card.HighlightRow
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
 import dosegram.render.card.MainMeal
@@ -13,6 +14,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MonthPosterData
 import dosegram.render.card.MoodCalendarData
+import dosegram.render.card.MoodGalleryData
 import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.ShareFact
@@ -20,6 +22,7 @@ import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
+import dosegram.render.card.WeekHighlightsData
 import dosegram.render.chart.DoseStatus
 import dosegram.render.tokens.Domain
 
@@ -270,6 +273,22 @@ trait ImageCopy:
   def posterFact(days: Int, total: Int): String
   def posterText(data: MonthPosterData): String
   def posterDiscreet: String
+
+  // Image round 5 (2026-11-28): the mood gallery of `/mood history` (IMG-26) and the week highlights (IMG-25).
+  def galleryTitle: String
+  def galleryFact(count: Int): String
+  def galleryOrderNote: String
+  def galleryText(data: MoodGalleryData): String
+  def galleryDiscreet: String
+  def highlightTitle: String
+  def highlightDayMark: String
+  def highlightOtherMark: String
+  def highlightObservationTitle(days: Int): String
+
+  /** A row's figure line: the highest days and the figure, or the recorded days when a highlight needs more. */
+  def highlightLine(from: LocalDate, row: HighlightRow): String
+  def highlightText(data: WeekHighlightsData): String
+  def highlightDiscreet: String
 
 /** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
 final case class MonthSummary(
