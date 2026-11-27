@@ -39,6 +39,13 @@ object WaterCopy:
   def preset(millilitres: Int): String = tr(s"+ $millilitres ml", s"+ $millilitres мл")
   def goalChoice(millilitres: Int): String = volume(millilitres)
 
+  /** Under the goal question when an amount was typed before the consent: it waits for the choice, so say so. */
+  def goalPending(millilitres: Int): String =
+    tr(
+      s"Your $millilitres ml is saved as soon as you pick one.",
+      s"$millilitres мл буде записано, щойно ви виберете."
+    )
+
   /** A volume in litres with its unit: "1.25 l", "2.0 l". */
   def volume(millilitres: Int): String =
     tr(s"${StatsCopy.dayLitres(millilitres)} l", s"${StatsCopy.dayLitres(millilitres)} л")
@@ -88,6 +95,7 @@ object WaterCopy:
 
   def entries: List[CopyEntry] = List(
     CopyEntry("water.goal.ask", goalAsk),
+    CopyEntry("water.goal.pending", goalPending(250)),
     CopyEntry("water.goal.none", NoGoal),
     CopyEntry("water.goal.button", Goal),
     CopyEntry("water.goal.choice", goalChoice(2000)),

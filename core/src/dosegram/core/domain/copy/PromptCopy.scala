@@ -145,17 +145,17 @@ object PromptCopy:
 
   /** The name of each preset of the catalogue, by id. */
   def presetName(id: String): String = id match
-    case "water.work_hours_30" => tr("Work hours, every 30 min", "Робочі години, кожні 30 хв")
-    case "water.hourly"        => tr("Every hour, 08:00 to 21:00", "Щогодини, з 08:00 до 21:00")
-    case "water.gentle"        => tr("Gentle: 4 a day at meal times", "М’яко: 4 рази на день під час їжі")
-    case "water.behind_goal"   => tr("Only when behind my goal", "Лише коли я відстаю від цілі")
+    case "water.work_hours_30" => tr("Work hours, every 30 min", "Робочий час, кожні 30 хв")
+    case "water.hourly"        => tr("Every hour, 08:00–21:00", "Щогодини, 08:00–21:00")
+    case "water.gentle"        => tr("Gentle: 4 at meal times", "М’яко: 4 рази з їжею")
+    case "water.behind_goal"   => tr("Only when behind my goal", "Коли відстаю від цілі")
     case "water.custom"        => tr("Custom interval", "Свій інтервал")
     case "mood.evening"        => tr("Once in the evening", "Раз увечері")
     case "mood.midday_evening" => tr("Midday and evening", "Удень і ввечері")
-    case "mood.random3"        => tr("Three moments, 10:00 to 20:00", "Тричі, з 10:00 до 20:00")
+    case "mood.random3"        => tr("3 times, 10:00–20:00", "Тричі, з 10:00 до 20:00")
     case "sleep.bedtime"       => tr("30 min before bedtime", "За 30 хв до сну")
     case "sleep.morning"       => tr("At wake time", "У час пробудження")
-    case "meal.anchors"        => tr("At meal times, if not logged", "Під час їжі, якщо не записано")
+    case "meal.anchors"        => tr("If a meal is not logged", "Якщо їжу не записано")
     case "report.weekly"       => tr("Sunday evening", "Неділя ввечері")
     case "report.monthly"      => tr("On the 1st", "Першого числа")
     case "med.morning"         => tr("Once in the morning", "Раз уранці")
@@ -213,10 +213,10 @@ object PromptCopy:
     CopyEntry("reminders.choose", choosePreset(PromptKind.Water)),
     CopyEntry(
       "reminders.preview",
-      preview(tr("Work hours, every 30 min", "Робочі години, кожні 30 хв"), List("09:30", "10:00"))
+      preview(tr("Work hours, every 30 min", "Робочий час, кожні 30 хв"), List("09:30", "10:00"))
     ),
-    CopyEntry("reminders.preview.empty", preview(tr("Work hours, every 30 min", "Робочі години, кожні 30 хв"), Nil)),
-    CopyEntry("reminders.applied", applied(tr("Work hours, every 30 min", "Робочі години, кожні 30 хв"))),
+    CopyEntry("reminders.preview.empty", preview(tr("Work hours, every 30 min", "Робочий час, кожні 30 хв"), Nil)),
+    CopyEntry("reminders.applied", applied(tr("Work hours, every 30 min", "Робочий час, кожні 30 хв"))),
     CopyEntry("reminders.turned_off", turnedOff(PromptKind.Water)),
     CopyEntry("reminders.needs_consent", needsConsent),
     CopyEntry("reminders.not_wired", notWired),

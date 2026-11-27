@@ -15,6 +15,7 @@ import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.HelpCopy
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
@@ -219,7 +220,12 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(chat.world.consents.events.toList, List("hydration:granted"))
       assertEquals(
         texts(confirmed),
-        List(ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"), WaterCopy.goalAsk, PromptCopy.offerWater)
+        List(
+          ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"),
+          // The typed amount waits for the goal choice, and the card says so (walk-through of 2026-11-27).
+          s"${WaterCopy.goalAsk}\n\n${WaterCopy.goalPending(250)}",
+          PromptCopy.offerWater
+        )
       )
       // The goal card, then the offer of water prompts (ADR-023): a forced choice with nothing preselected.
       assertEquals(
@@ -413,6 +419,20 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList, List(4))
       chat.rig.line("250 мл")
       assertEquals(chat.liveWater, List(250))
+
+  test("a Ukrainian account confirms the water consent after a typed amount and gets the goal card and the offer"):
+    // Walk-through of 2026-11-27: the confirming tap failed and the update was quarantined; the user saw nothing.
+    withChat(Profile.Telegram, StatusCards.textOnly): chat =>
+      chat.rig.uow.accounts.saveSettings(chat.account, AccountSettings.Default.copy(locale = Some("uk")), chat.rig.clock.now())
+      chat.rig.line("250 мл")
+      Lang.within(Lang.Uk):
+        chat.rig.tapOn(ConsentCopy.statement(ConsentPurpose.Hydration), ConsentCopy.Agree)
+        val confirmed = chat.rig.tapOn(ConsentCopy.confirmation(ConsentPurpose.Hydration), ConsentCopy.Confirm)
+        assertEquals(chat.world.consents.events.toList, List("hydration:granted"))
+        assert(texts(confirmed).exists(_.contains(WaterCopy.goalAsk)), texts(confirmed).toString)
+        assert(texts(confirmed).contains(PromptCopy.offerWater), texts(confirmed).toString)
+        val recorded = chat.rig.tapOn(WaterCopy.goalAsk, WaterCopy.goalChoice(2000))
+        assertEquals(chat.liveWater, List(250), texts(recorded).toString)
 
   test("Add energy asks on the same message and the answer names the energy label"):
     withChat(Profile.Telegram): chat =>
