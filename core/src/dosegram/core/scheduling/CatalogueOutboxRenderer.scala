@@ -93,9 +93,9 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
   private def renderReminder(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     val dispatch = row.payloadAs[LoopDispatch.Reminder]("reminder")
     val facts = reminderFacts(row, dispatch.occurrenceId, dispatch.chatId)
-    val body = ReminderCopy
-      .reminderBody(facts.snapshot.medicationName, doseText(facts.snapshot), facts.snapshot.instructions)
-      .map(line => Node.Paragraph(List(Inline.Text(line))))
+    val body = (ReminderCopy
+      .reminderBody(facts.snapshot.medicationName, doseText(facts.snapshot), facts.snapshot.instructions) ++
+      repeatLines(dispatch, facts)).map(line => Node.Paragraph(List(Inline.Text(line))))
     val taken = token("dose.taken", facts.occ.id, 0)
     val skip = token("dose.skip", facts.occ.id, 0)
     val snoozes =
@@ -127,12 +127,30 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     )
     lower(row, facts.chat, capabilities, message)
 
+  /** BUX-REM-03 and BUX-REM-06: a repeat or a card back from a snooze says when the dose was scheduled and which
+    * reminder it is, and the final one says so; a first reminder sent more than 5 minutes late names its time.
+    */
+  private def repeatLines(dispatch: LoopDispatch.Reminder, facts: ReminderFacts): List[String] =
+    val scheduled = formatTime(facts.occ, facts.occ.state.scheduledFor)
+    val max = facts.policy.maxReminders
+    val last = Option.when(dispatch.kind == "repeat" && dispatch.reminderSeq >= max)(ReminderCopy.lastReminder)
+    val line3 = dispatch.kind match
+      case "repeat"      => Some(ReminderCopy.repeatLine(scheduled, math.min(dispatch.reminderSeq, max), max))
+      case "snooze_wake" => Some(ReminderCopy.snoozeWakeLine(scheduled))
+      case _             =>
+        Option.when(clock.now().isAfter(facts.occ.state.scheduledFor.plusSeconds(LateAfterSeconds)))(
+          ReminderCopy.repeatLine(scheduled, math.max(dispatch.reminderSeq, 1), max)
+        )
+    line3.toList ++ last
+
   private def renderMissedNotice(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     val dispatch = row.payloadAs[LoopDispatch.MissedNotice]("missed_notice")
     val facts = reminderFacts(row, dispatch.occurrenceId, dispatch.chatId)
     val time = formatTime(facts.occ, facts.occ.state.scheduledFor)
     val message = OutboundMessage(
-      body = List(Node.Paragraph(List(Inline.Text(ReminderCopy.missedNotice(facts.snapshot.medicationName, time))))),
+      // BUX-COR-05: the one safety sentence belongs on the missed card.
+      body = List(ReminderCopy.missedNotice(facts.snapshot.medicationName, time), ReminderCopy.unsureAdvice)
+        .map(line => Node.Paragraph(List(Inline.Text(line)))),
       blocks = List(
         Block.Choices(
           ChoiceSet(
@@ -146,7 +164,8 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
         )
       ),
       importance = Importance.Reminder,
-      silent = dispatch.silent,
+      // BUX-FSM-04: a missed dose never plays a sound; it can arrive at the start of quiet hours.
+      silent = true,
       dedupeKey = row.sendKey,
       correlationId = row.sendKey
     )
@@ -270,8 +289,11 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
       case OccurrenceStatus.Skipped => List(ReminderCopy.skippedConfirmation)
       case OccurrenceStatus.Missed  =>
         List(ReminderCopy.missedNotice(snapshot.medicationName, formatTime(occ, occ.state.scheduledFor)))
-      case _ =>
-        ReminderCopy.reminderBody(snapshot.medicationName, doseText(snapshot), snapshot.instructions)
+      case OccurrenceStatus.Snoozed =>
+        val until = occ.state.snoozedUntil.getOrElse(occ.state.scheduledFor)
+        reminder(snapshot) :+ ReminderCopy.snoozedUntil(formatTime(occ, until))
+      case OccurrenceStatus.Due if dispatch.reason == "superseded" => reminder(snapshot) :+ ReminderCopy.supersededCard
+      case _                                                       => reminder(snapshot)
     val keep =
       if occ.state.status == OccurrenceStatus.Taken && dispatch.reason == "resolved" then
         List(
@@ -359,11 +381,17 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
       .getOrElse(throw new IllegalArgumentException(s"unknown action '$action'"))
     codec.encode(CallbackMode.Direct, entry, subject, value).wire
 
+  private def reminder(snapshot: DoseSnapshot): List[String] =
+    ReminderCopy.reminderBody(snapshot.medicationName, doseText(snapshot), snapshot.instructions)
+
   private def doseText(snapshot: DoseSnapshot): Option[String] =
     snapshot.doseAmount.flatMap(amount => DoseUnits.doseText(Some(amount), snapshot.doseUnit))
 
   private def formatTime(occ: StoredOccurrence, at: Instant): String =
     DateTimeFormatter.ofPattern("HH:mm").withZone(occ.tz).format(at)
+
+  /** BUX-REM-03: a first reminder later than this after its time names the scheduled time. */
+  private val LateAfterSeconds = 5L * 60
 
   extension (row: OutboxMessage)
     private def payloadAs[A <: LoopDispatch](kind: String)(using scala.reflect.ClassTag[A]): A =

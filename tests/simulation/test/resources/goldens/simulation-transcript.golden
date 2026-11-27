@@ -135,10 +135,14 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-07T09:10:00Z p1 send/repeat occ:p1-2026-10-07-t0900:e2:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 2 of 3
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -148,18 +152,28 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-07T09:20:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-07T09:20:00Z p1 send/finalize occ:p1-2026-10-07-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-07-t0900:e2:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-07T09:20:00Z p1 send/repeat occ:p1-2026-10-07-t0900:e3:s3:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 3 of 3
+  
+  This is the last reminder for this dose.
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -252,6 +266,8 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Snoozed until 09:12.
 2026-10-08T09:07:00Z p2 send/initial occ:p2-2026-10-08-t0907:e1:s1:kinitial
   Time for Metformin, 500 mg.
   
@@ -272,6 +288,8 @@
   
   with breakfast
   
+  Scheduled 09:00 · back after your snooze
+  
   1) Taken 2) Snooze 10m 3) Skip
   
   4) Snooze 30m 5) Snooze 1h
@@ -283,18 +301,26 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Snoozed until 09:44.
 2026-10-08T09:14:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Snoozed until 09:44.
 2026-10-08T09:14:00Z p1 send/finalize occ:p1-2026-10-08-t0900:e4:s0:kfinalize_resolved->occ:p1-2026-10-08-t0900:e3:s1:ksnooze_wake
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Snoozed until 09:44.
 2026-10-08T09:44:00Z p1 send/snooze_wake occ:p1-2026-10-08-t0900:e5:s1:ksnooze_wake
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · back after your snooze
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -440,10 +466,14 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-10T09:10:00Z p1 send/repeat occ:p1-2026-10-10-t0900:e2:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 2 of 3
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -453,18 +483,28 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-10T09:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-10T09:20:00Z p1 send/finalize occ:p1-2026-10-10-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-10-t0900:e2:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-10T09:20:00Z p1 send/repeat occ:p1-2026-10-10-t0900:e3:s3:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 3 of 3
+  
+  This is the last reminder for this dose.
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -551,10 +591,14 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-11T09:10:00Z p1 send/repeat occ:p1-2026-10-11-t0900:e2:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 2 of 3
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -564,18 +608,28 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-11T09:20:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e2:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-11T09:20:00Z p1 send/finalize occ:p1-2026-10-11-t0900:e3:s0:kfinalize_superseded->occ:p1-2026-10-11-t0900:e2:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-11T09:20:00Z p1 send/repeat occ:p1-2026-10-11-t0900:e3:s3:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 3 of 3
+  
+  This is the last reminder for this dose.
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -583,6 +637,8 @@
   choices: 1) Taken -> dose.taken(p1-2026-10-11-t0900,0); 2) Snooze 10m -> dose.snooze(p1-2026-10-11-t0900,10); 3) Skip -> dose.skip(p1-2026-10-11-t0900,0); 4) Snooze 30m -> dose.snooze(p1-2026-10-11-t0900,30); 5) Snooze 1h -> dose.snooze(p1-2026-10-11-t0900,60)
 2026-10-11T11:00:00Z p1 send/missed occ:p1-2026-10-11-t0900:e4:s0:kmissed
   I did not get a response for Vitamin D at 09:00, so I marked it missed.
+  
+  If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions.
   
   1) I took it 2) Skip 3) Keep missed
   choices: 1) I took it -> dose.taken(p1-2026-10-11-t0900,0); 2) Skip -> dose.skip(p1-2026-10-11-t0900,0); 3) Keep missed -> dose.keep_missed(p1-2026-10-11-t0900,0)
@@ -821,22 +877,32 @@
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-14T08:20:00Z p1 send/finalize occ:p1-2026-10-14-t0900:e4:s0:kfinalize_superseded->occ:p1-2026-10-14-t0900:e3:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e2:s0:kfinalize_resolved->occ:p1-2026-10-14-t0900:e1:s1:kinitial
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Reminded again below.
 2026-10-14T08:20:00Z p1 send/repeat occ:p1-2026-10-14-t0900:e4:s2:krepeat
   Time for Vitamin D, 1000 IU.
   
   with breakfast
+  
+  Scheduled 09:00 · reminder 2 of 3
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -1785,8 +1851,12 @@
   choices: 1) Taken -> dose.taken(p2-2026-10-29-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t0907,10); 3) Skip -> dose.skip(p2-2026-10-29-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t0907,60)
 2026-10-29T09:17:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e2:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
   Time for Metformin, 500 mg.
+  
+  Reminded again below.
 2026-10-29T09:17:00Z p2 send/repeat occ:p2-2026-10-29-t0907:e2:s2:krepeat
   Time for Metformin, 500 mg.
+  
+  Scheduled 09:07 · reminder 2 of 3
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -1794,12 +1864,22 @@
   choices: 1) Taken -> dose.taken(p2-2026-10-29-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t0907,10); 3) Skip -> dose.skip(p2-2026-10-29-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t0907,60)
 2026-10-29T09:27:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
   Time for Metformin, 500 mg.
+  
+  Reminded again below.
 2026-10-29T09:27:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e2:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e1:s1:kinitial
   Time for Metformin, 500 mg.
+  
+  Reminded again below.
 2026-10-29T09:27:00Z p2 send/finalize occ:p2-2026-10-29-t0907:e3:s0:kfinalize_superseded->occ:p2-2026-10-29-t0907:e2:s2:krepeat
   Time for Metformin, 500 mg.
+  
+  Reminded again below.
 2026-10-29T09:27:00Z p2 send/repeat occ:p2-2026-10-29-t0907:e3:s3:krepeat
   Time for Metformin, 500 mg.
+  
+  Scheduled 09:07 · reminder 3 of 3
+  
+  This is the last reminder for this dose.
   
   1) Taken 2) Snooze 10m 3) Skip
   
@@ -1807,6 +1887,8 @@
   choices: 1) Taken -> dose.taken(p2-2026-10-29-t0907,0); 2) Snooze 10m -> dose.snooze(p2-2026-10-29-t0907,10); 3) Skip -> dose.skip(p2-2026-10-29-t0907,0); 4) Snooze 30m -> dose.snooze(p2-2026-10-29-t0907,30); 5) Snooze 1h -> dose.snooze(p2-2026-10-29-t0907,60)
 2026-10-29T11:07:00Z p2 send/missed occ:p2-2026-10-29-t0907:e4:s0:kmissed
   I did not get a response for Metformin at 09:07, so I marked it missed.
+  
+  If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions.
   
   1) I took it 2) Skip 3) Keep missed
   choices: 1) I took it -> dose.taken(p2-2026-10-29-t0907,0); 2) Skip -> dose.skip(p2-2026-10-29-t0907,0); 3) Keep missed -> dose.keep_missed(p2-2026-10-29-t0907,0)

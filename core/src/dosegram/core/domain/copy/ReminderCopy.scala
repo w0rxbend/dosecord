@@ -26,6 +26,23 @@ object ReminderCopy:
   /** Skip follow-up (UX safety copy: neutral). */
   def skippedConfirmation: String = tr("Marked skipped.", "Позначено як пропущену.")
 
+  /** BUX-REM-03 line 3 of a repeat: `Scheduled 09:00 · reminder 2 of 3`. */
+  def repeatLine(scheduled: String, seq: Int, max: Int): String =
+    tr(s"Scheduled $scheduled · reminder $seq of $max", s"Заплановано на $scheduled · нагадування $seq з $max")
+
+  /** BUX-REM-03 line 3 of the card that comes back after a snooze. */
+  def snoozeWakeLine(scheduled: String): String =
+    tr(s"Scheduled $scheduled · back after your snooze", s"Заплановано на $scheduled · після відкладення")
+
+  /** BUX-REM-06 `rem.last`, on the final reminder of a dose. */
+  def lastReminder: String = tr("This is the last reminder for this dose.", "Це останнє нагадування про цю дозу.")
+
+  /** `rem.snoozed`: the card after a snooze says until when, so the chat shows what happened, not only a toast. */
+  def snoozedUntil(time: String): String = tr(s"Snoozed until $time.", s"Відкладено до $time.")
+
+  /** `rem.superseded`: an earlier card of a dose that was reminded again below. */
+  def supersededCard: String = tr("Reminded again below.", "Нагадування надіслано ще раз нижче.")
+
   /** Snooze follow-up: `Okay, I'll remind you again at 09:10.` */
   def snoozeConfirmation(time: String): String =
     tr(s"Okay, I'll remind you again at $time.", s"Гаразд, нагадаю ще раз о $time.")
@@ -133,6 +150,11 @@ object ReminderCopy:
     CopyEntry("reminder.already_recorded", alreadyRecorded("09:03")),
     CopyEntry("reminder.skipped", skippedConfirmation),
     CopyEntry("reminder.snoozed", snoozeConfirmation("09:10")),
+    CopyEntry("reminder.repeat_line", repeatLine("09:00", 2, 3)),
+    CopyEntry("reminder.snooze_wake_line", snoozeWakeLine("09:00")),
+    CopyEntry("reminder.last", lastReminder),
+    CopyEntry("reminder.snoozed_card", snoozedUntil("09:10")),
+    CopyEntry("reminder.superseded", supersededCard),
     CopyEntry("reminder.missed", missedNotice("Vitamin D", "09:00")),
     CopyEntry("reminder.undone", undoConfirmation("11:15")),
     CopyEntry("reminder.undo_window_passed", undoWindowPassed),

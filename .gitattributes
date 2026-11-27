@@ -1,2 +1,4 @@
 # Vendored licence texts are kept byte for byte; their trailing spaces are not ours to fix.
 report-renderer/fonts/OFL-*.txt -whitespace
+# The simulation golden indents every body line by two spaces, blank lines included; the indent is its format.
+tests/simulation/test/resources/goldens/simulation-transcript.golden -whitespace
