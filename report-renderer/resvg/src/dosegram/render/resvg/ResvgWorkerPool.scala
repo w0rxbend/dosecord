@@ -10,21 +10,31 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** The long-lived rasteriser (ADR-022 addendum of 2026-11-15): `config.maximumConcurrentRenders` worker processes of
   * `dosegram-raster` (report-renderer/worker), each started on first use with the pinned fonts loaded once, then fed
   * one request at a time over standard input. A worker draws exactly what one resvg process per image draws; it only
-  * compresses the PNG faster. The limits are the per-image adapter's: one deadline for the wait and the render, the PNG
-  * size cap, and the worker's own caps on request size and canvas pixels. A worker that fails in any way, a timeout
-  * included, is killed and replaced on the next request, so a crash or a hang never reaches the JVM. Standard error is
-  * discarded, never logged.
+  * compresses the PNG faster. The limits are the per-image adapter's: one deadline for the wait, the worker's start and
+  * the render, the PNG size cap, and the worker's own caps on request size and canvas pixels. A worker starts on a
+  * thread of its own, so a slow start ends the render at its deadline and the started worker serves the next one. A
+  * worker that fails in any way, a timeout included, is killed and replaced on the next request, and so is one that
+  * ended between requests, so a crash or a hang never reaches the JVM. Standard error is discarded, never logged.
+  * `launch` starts the process; tests slow it down.
   */
-final class ResvgWorkerPool(config: ResvgConfig) extends Rasteriser, AutoCloseable:
+final class ResvgWorkerPool private[resvg] (config: ResvgConfig, launch: ProcessBuilder => Process)
+    extends Rasteriser,
+      AutoCloseable:
+  def this(config: ResvgConfig) = this(config, _.start())
+
   private val idle = LinkedBlockingQueue[Slot]()
   private val slots = Vector.fill(config.maximumConcurrentRenders)(Slot())
   slots.foreach(idle.add)
@@ -37,49 +47,74 @@ final class ResvgWorkerPool(config: ResvgConfig) extends Rasteriser, AutoCloseab
       case Some(slot) =>
         try
           if isClosed.get then Left(RasterFailure.Unavailable)
-          else slot.render(svg, zoom, StrictMath.max(1L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())))
+          else slot.render(svg, zoom, deadline)
         finally idle.add(slot)
 
   /** The process ids of the workers now running, for tests. */
   private[resvg] def runningWorkers: Vector[Long] = slots.flatMap(_.processId)
 
-  /** Ends every worker. A worker also ends by itself when the JVM exits, because its input closes. */
+  /** Ends every worker, one still starting included. A worker also ends by itself when the JVM exits, because its input
+    * closes.
+    */
   def close(): Unit =
     isClosed.set(true)
     slots.foreach(_.discard())
 
   /** One worker's place in the pool, used by one caller at a time: the queue hands it out. */
   private final class Slot:
-    @volatile private var current: Option[Worker] = None
+    @volatile private var current: Option[CompletableFuture[Either[RasterFailure, Worker]]] = None
 
-    def render(svg: String, zoom: Int, timeoutMillis: Long): Either[RasterFailure, PngImage] =
-      worker.flatMap { running =>
+    def render(svg: String, zoom: Int, deadline: Long): Either[RasterFailure, PngImage] =
+      worker(deadline).flatMap(running => ask(running, svg, zoom, deadline))
+
+    def processId: Option[Long] = started.map(_.processId)
+
+    def discard(): Unit =
+      current.foreach(_.thenAccept(_.foreach(_.kill())))
+      current = None
+
+    private def started: Option[Worker] =
+      current.filter(_.isDone).flatMap(_.getNow(Left(RasterFailure.Unavailable)).toOption)
+
+    /** The slot's worker, waited for until the deadline; a start that is late keeps going for the next request. */
+    private def worker(deadline: Long): Either[RasterFailure, Worker] =
+      val starting = current.filter(isUsable).getOrElse(start())
+      try
+        val started = starting.get(StrictMath.max(0L, deadline - System.nanoTime()), TimeUnit.NANOSECONDS)
+        if started.isLeft then current = None
+        started
+      catch
+        case _: TimeoutException        => Left(RasterFailure.TimedOut)
+        case failed: ExecutionException => throw failed.getCause
+
+    /** A start still running, or a worker that has not ended since its last answer. */
+    private def isUsable(starting: CompletableFuture[Either[RasterFailure, Worker]]): Boolean =
+      !starting.isDone || started.exists(_.isAlive)
+
+    private def start(): CompletableFuture[Either[RasterFailure, Worker]] =
+      discard()
+      val starting = CompletableFuture.supplyAsync(() => Worker.start(config, launch), Deadlines.starts)
+      current = Some(starting)
+      starting
+
+    /** One request against the rest of the deadline. A worker whose deadline fired is discarded even when its answer
+      * came in time, because the alarm may have killed it after the answer.
+      */
+    private def ask(running: Worker, svg: String, zoom: Int, deadline: Long): Either[RasterFailure, PngImage] =
+      val remaining = deadline - System.nanoTime()
+      if remaining <= 0 then Left(RasterFailure.TimedOut)
+      else
         val hasExpired = AtomicBoolean(false)
         val alarm = Deadlines.alarms.schedule(
           (() => { hasExpired.set(true); running.kill() }): Runnable,
-          timeoutMillis,
-          TimeUnit.MILLISECONDS
+          remaining,
+          TimeUnit.NANOSECONDS
         )
         val result =
           try running.ask(svg, zoom)
-          finally alarm.cancel(false)
-        if result.isLeft then discard()
+          finally if !alarm.cancel(false) then hasExpired.set(true)
+        if result.isLeft || hasExpired.get then discard()
         result.left.map(failure => if hasExpired.get then RasterFailure.TimedOut else failure)
-      }
-
-    def processId: Option[Long] = current.map(_.processId)
-
-    def discard(): Unit =
-      current.foreach(_.kill())
-      current = None
-
-    private def worker: Either[RasterFailure, Worker] =
-      current match
-        case Some(running) => Right(running)
-        case None          =>
-          val started = Worker.start(config)
-          current = started.toOption
-          started
 
 private object Deadlines:
   /** One daemon thread for the deadlines of every pool: it only kills processes. */
@@ -87,11 +122,17 @@ private object Deadlines:
     Thread.ofPlatform().daemon().name("dosegram-raster-deadline").unstarted(task)
   )
 
+  /** Daemon threads that start worker processes, so a caller waits for a start no longer than its deadline. */
+  val starts: ExecutorService =
+    Executors.newCachedThreadPool(task => Thread.ofPlatform().daemon().name("dosegram-raster-start").unstarted(task))
+
 private final class Worker(process: Process, maximumPngBytes: Int):
   private val input = DataOutputStream(BufferedOutputStream(process.getOutputStream))
   private val output = DataInputStream(BufferedInputStream(process.getInputStream))
 
   def processId: Long = process.pid()
+
+  def isAlive: Boolean = process.isAlive
 
   /** One request and its answer. A worker that never reads, never answers or floods is stopped by the caller's
     * deadline, which kills the process and so ends the blocked read or write here.
@@ -128,7 +169,7 @@ private object Worker:
   private val StatusPng = 0
   private val PngSignature: Array[Byte] = Array(0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a).map(_.toByte)
 
-  def start(config: ResvgConfig): Either[RasterFailure, Worker] =
+  def start(config: ResvgConfig, launch: ProcessBuilder => Process): Either[RasterFailure, Worker] =
     val command = List(
       config.binary.toString,
       "--fonts-dir",
@@ -138,6 +179,6 @@ private object Worker:
     )
     try
       Right(
-        Worker(ProcessBuilder(command*).redirectError(ProcessBuilder.Redirect.DISCARD).start(), config.maximumPngBytes)
+        Worker(launch(ProcessBuilder(command*).redirectError(ProcessBuilder.Redirect.DISCARD)), config.maximumPngBytes)
       )
     catch case _: IOException => Left(RasterFailure.Unavailable)

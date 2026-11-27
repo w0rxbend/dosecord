@@ -46,6 +46,9 @@ class ResvgWorkerPoolSuite extends munit.FunSuite:
   private def withFake(script: String, timeoutMillis: Long, maximumPngBytes: Int, workers: Int = 2): ResvgWorkerPool =
     ResvgWorkerPool(ResvgConfig(fakeWorker(script), PinnedFonts.dir, PinnedFonts.dir, timeoutMillis, maximumPngBytes, workers))
 
+  /** A shell `printf` of a well-formed answer: status 0, eight bytes, the PNG signature. */
+  private val PngAnswer = """printf '\000\000\000\000\010\211PNG\r\n\032\n'"""
+
   private def waterSvg(theme: Theme): String =
     SvgEmitter.emit(Samples.waters(1).render(Samples.context(theme, Privacy.Named)).head.scene)
 
@@ -152,6 +155,29 @@ class ResvgWorkerPoolSuite extends munit.FunSuite:
     assert(elapsed < 900, s"the second caller waited $elapsed ms against a 600 ms deadline")
     assertEquals(holding.get().left.toOption, Some(RasterFailure.TimedOut))
     first.shutdown()
+
+  test("a slow worker start counts against the deadline, and the worker it started draws the next image"):
+    val slowStart: ProcessBuilder => Process = builder =>
+      Thread.sleep(1500)
+      builder.start()
+    val config = ResvgConfig(fakeWorker(s"head -c 14 > /dev/null; $PngAnswer; exec sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 400, 1024, 1)
+    val slow = ResvgWorkerPool(config, slowStart)
+    val (first, elapsed) = elapsedMillis(slow.rasterise("<svg/>", 1))
+    assertEquals(first.left.toOption, Some(RasterFailure.TimedOut))
+    assert(elapsed < 1200, s"the caller waited $elapsed ms against a 400 ms deadline")
+    val started = System.nanoTime()
+    while slow.runningWorkers.isEmpty && System.nanoTime() - started < 30_000_000_000L do Thread.onSpinWait()
+    val (next, nextElapsed) = elapsedMillis(slow.rasterise("<svg/>", 1))
+    assert(next.isRight, s"$next")
+    assert(nextElapsed < 1200, s"the next image waited $nextElapsed ms: the started worker was not kept")
+    slow.close()
+
+  test("a worker that ended after its answer is replaced before the next image, which still draws"):
+    val once = withFake(s"head -c 14 > /dev/null; $PngAnswer; exit 0", 2000, 1024, workers = 1)
+    assert(once.rasterise("<svg/>", 1).isRight)
+    once.runningWorkers.foreach(pid => ProcessHandle.of(pid).ifPresent(handle => handle.onExit().get()))
+    assert(once.rasterise("<svg/>", 1).isRight, "the next image found the ended worker")
+    once.close()
 
   test("a worker that never reads its input cannot block the caller"):
     val large = "<svg>" + "x" * (4 * 1024 * 1024) + "</svg>"
