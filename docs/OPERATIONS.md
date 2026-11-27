@@ -506,3 +506,64 @@ sealed pages hold no plaintext, because the start's VACUUM pruned the old row ve
 cost at this write rate) or be set back with `ALTER SYSTEM RESET wal_recycle`. It does not
 reach the disk's free blocks, archived WAL or the base backups, which keep what they hold for
 the 35 days of backup retention (SEC-06). `WalSealingPgSuite` rehearses these steps.
+
+## 15. Deploying `main` of 2026-11-27 over the live V19 database (5b03df7 to the head, V22)
+
+The live bot runs `5b03df7` from `.live/run.sh` (long polling, `.live/wt-5b03df7`), and its
+database is at V19. The head of `main` adds one migration, V22 (section 14), and no environment
+variable the live start needs. `RENDER_WORKER_PATH` is new and optional: without it every image
+is drawn by one resvg process, as today. No Dockerfile step is needed for the live host, which
+runs the assembly. Every step is the owner's; `<sha>` is the head of `main` at or after the
+commit that adds this section, and `<pg>` is `dosegram-live-pg`:
+
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v19-$(date -u +%F).dump`.
+   Keep the file until step 6 has passed: there is no downgrade past V22 without it.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
+   `shutdown: pool closed`). Start the new release with the same script:
+   `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows, in this order:
+   - `Migrating schema "public" to version "22 - sealed file ids and export parameters"`;
+   - `sealing: telegram_file_cache.file_id sealed N value(s), verified 0` (on 2026-11-26 the live
+     database held 3 file ids) and `sealing: export_jobs.params sealed 0 value(s), verified 0`
+     (it held no export); one such line for every sealed column of every stage, `sealed 0` for
+     the earlier ones;
+   - `sealing: vacuumed telegram_file_cache` (and `export_jobs` when one was sealed);
+   - `migrate: 1 migration(s) applied, schema 22, N value(s) sealed, 0 key(s) rewrapped`;
+   - `purge: replayed 0 deletion(s) of the purge list`.
+5. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   - `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 22;
+   - `SELECT count(*) FROM telegram_file_cache WHERE file_id IS NOT NULL;` and
+     `SELECT count(*) FROM export_jobs WHERE params IS NOT NULL;` return 0;
+   - `curl -fsS http://127.0.0.1:18081/readyz` answers 200;
+   - in the chat: `/meds` lists the medications without any onboarding question, a button sent
+     before the deploy still answers, and a mood check-in in a state already sent comes back as
+     an image without a new upload.
+6. Clear the WAL of the old file ids (section 14, "The WAL after sealing").
+7. Delete the old worktree only after a day of normal use: `git worktree remove .live/wt-5b03df7`.
+
+What changes in the chat after this deploy, none of it checked on a real client yet: the
+seven-day `/stats` also sends "Water, 7 days", "Sleep, 7 nights" and "Mood by weekday"
+(IMG-20 to IMG-22); the medication presets add every 2 weeks, every 6 h from waking and weekdays
+plus weekend (ROADMAP G9.8, G9.9); the Ukrainian copy is the reviewed text; the refill notice
+carries its card.
+
+Rollback: stop the bot, restore the backup of step 1 into an empty database, start
+`LIVE_WT="$PWD/.live/wt-5b03df7" .live/run.sh`. `5b03df7` cannot read a sealed file id.
+
+Rehearsed on 2026-11-27 against a throwaway `postgres:18-alpine` container: `5b03df7`, started
+as `Main` starts with `ENVIRONMENT=production`, a key file and a purge list of mode 600, built a
+V19 database through the chat on the fake wire (onboarding, a medication with a name and
+instructions, its reminder tapped Taken, water with its image, mood with its image, a night, a
+meal with words, a record summary export, an add-medication form left after its first answer).
+Steps 1, 2 and 4 as written, with the head assembly on the console adapter in place of the
+token: the start logged the lines of step 4 (2 file ids and 1 export's parameters sealed),
+`/readyz` answered 200, SIGTERM ended with `shutdown: pool closed` and exit 0, and a second start
+logged `migrate: 0 migration(s) applied, schema 22`. The head on the fake wire then listed the
+sealed medication name with no onboarding question, finished the open form, answered seven
+buttons sent before the upgrade, and sent the mood image by its sealed file id without an upload.
+A scan of every column, a `pg_dump` and, after step 6, the WAL held none of the typed words or
+file ids; `dosegram_app` without a claim saw no row; 45 tables have forced row-level security.
+Not rehearsed: a real client, the Telegram transport, the rollback.
