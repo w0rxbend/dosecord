@@ -11,6 +11,7 @@ import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.ports.ConsentPurpose
 import dosegram.infra.Adapter
 import dosegram.infra.Environment
@@ -172,6 +173,12 @@ class NewUserWalkSuite extends PgSuite:
       labels.contains(l(MenuCopy.forMedication(MenuCopy.medicationsPause, "Magnesium"))),
       "each /meds row names its medication"
     )
+    // Finding 18: a water reminder sent while the one before it was still on its way left both in the chat.
+    val reminderWords = l(PromptCopy.waterNudge(HydrationDay(0, 0, None))).takeWhile(_ != '.')
+    val waterCards = lines.sliding(2).collect {
+      case List(head, body) if body.contains(reminderWords) && head.contains(" bot #") => head.split('#')(1).takeWhile(_ != ':')
+    }.toList
+    waterCards.dropRight(1).foreach(n => shows(s"the water reminder #$n gives way to the next", s"bot deletes #$n"))
 
   /** Labels whose English and Ukrainian forms differ: none of them may show in the Ukrainian walk. */
   private val EnglishOnly: Set[String] =

@@ -804,6 +804,7 @@ Nudges
 - R-SCH-24. Adaptive quieting (V1): after three consecutive nudges of one kind receive no response, that kind pauses for 7 days and the bot says so once, with "Turn back on". It never applies to reminders.
 - R-SCH-25. At most one unanswered nudge message per domain exists in the chat. When a new nudge of the same domain is due, the previous unanswered one is deleted if it is younger than 48 hours (PC-06), otherwise edited to a one-line expired state.
 - R-SCH-25a. Owner decision of 2026-11-13 (ADR-023): the daily budget of R-SCH-22 is a default. A nudge plan the user chose from a preset that carries its own cap (the water interval presets, including "Work hours, every 30 min") is capped by its own slot count and does not draw on the shared budget. Quiet hours (R-SCH-23), the 20-minute spacing between kinds, silent delivery, one open nudge per kind (R-SCH-25), the skip after an entry or a reached goal (R-HYD-10), and a one-tap way to pause or turn the plan off still apply to it. For such a plan, adaptive quieting is per day: after three unanswered nudges only every second slot is sent, after six the kind pauses until the next day, each said once.
+- R-SCH-25b. Supervisor decision, 2026-11-27 (finding 18 of the new-user review): a nudge that falls due while the previous one of its kind is being sent, so that it can be neither cancelled nor deleted yet, is decided on a later pass, once the previous message has its handle. Two nudges of one kind are never in the chat together.
 
 Priority, grouping and disclosure
 

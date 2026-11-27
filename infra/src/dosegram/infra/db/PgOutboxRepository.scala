@@ -163,6 +163,9 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
           SET status = 'cancelled', lease_until = NULL
           WHERE send_key = $sendKey AND status IN ('queued', 'failed_retry')""".execute() == 1
 
+  override def sendInFlight(sendKey: String): Boolean =
+    sql"""SELECT 1 FROM outbox_messages WHERE send_key = $sendKey AND status = 'sending'""".queryOne[Int]().nonEmpty
+
 object PgOutboxRepository:
   /** Reads every column the dispatcher needs, opening the payload with `keys`; the query must also project
     * `prev_attempted_at` (e.g. `attempted_at AS prev_attempted_at` for plain reads) and both `payload` columns.

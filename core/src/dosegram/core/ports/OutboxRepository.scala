@@ -163,6 +163,11 @@ trait OutboxRepository:
     */
   def cancelQueued(sendKey: String): Boolean
 
+  /** Whether the row of `sendKey` is being sent now (`sending`): claimed, too late to cancel, and without its handle
+    * yet. A double that never claims rows keeps this default.
+    */
+  def sendInFlight(sendKey: String): Boolean = false
+
 /** A `rendered_messages` row as the mediator's resolution rules need it (DESIGN.md section 4.6 step 5): the
   * `choice_map` plus whether finalize already removed the controls.
   */

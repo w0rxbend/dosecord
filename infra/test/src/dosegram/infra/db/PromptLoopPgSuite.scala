@@ -203,6 +203,29 @@ class PromptLoopPgSuite extends PgSuite:
         Some("cancelled")
       )
 
+  test("a slot that falls due while the previous prompt is being sent waits for it, then replaces it (review #18)"):
+    val rig = Rig()
+    rig.at("09:30")
+    rig.loop().tick()
+    val first = rig.prompts.head.sendKey.get
+    // The dispatcher claimed the send and waits on the chat's pace: no handle yet, too late to cancel.
+    withConnection: conn =>
+      given Connection = conn
+      sql"UPDATE outbox_messages SET status = 'sending' WHERE send_key = $first".execute()
+    rig.at("10:00")
+    rig.loop().tick()
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.status)), List("0930" -> PromptStatus.Sent), "decided later")
+    withConnection: conn =>
+      given Connection = conn
+      sql"UPDATE outbox_messages SET status = 'queued' WHERE send_key = $first".execute()
+    while rig.dispatcher.dispatchOnce() > 0 do ()
+    val firstHandle = rig.open.head._1
+    rig.clock.at = rig.clock.at.plusSeconds(30)
+    rig.tickAndSend()
+    assert(rig.adapter.ops.contains(VendorOp.Delete(firstHandle)), rig.adapter.ops)
+    assertEquals(rig.open.size, 1, "the chat holds one open water prompt")
+    assertEquals(rig.prompts.map(p => (p.slotKey, p.status)), List("0930" -> PromptStatus.Expired, "1000" -> PromptStatus.Sent))
+
   test("water logged within the interval skips the slot, and the goal reached stops the day"):
     val rig = Rig()
     rig.uow.transaction(tx => rig.hydration.setGoal(tx, rig.account, Some(1000)))

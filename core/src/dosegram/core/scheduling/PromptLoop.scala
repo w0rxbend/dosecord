@@ -224,6 +224,9 @@ final class PromptLoop(
           val monthlyToday =
             accountDay.exists(o => o.kind == PromptKind.MonthlyReport && o.status.wasSent && o.scheduleId != plan.id)
           sendReport(tx, plan, slot, previous, target, withImages = !monthlyToday, now)
+        // The previous prompt is being sent and has no handle yet, so it could be neither cancelled nor deleted: the
+        // slot stays undecided until a later pass (finding 18 of the review of 2026-11-27).
+        else if previous.exists(_.sendKey.exists(tx.outbox.sendInFlight)) then ()
         else
           previous.foreach(replace(tx, _, target, progress, now))
           send(tx, plan, SlotOf(slot, profile), notice, target, now)

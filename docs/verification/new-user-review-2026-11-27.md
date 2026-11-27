@@ -52,7 +52,7 @@ continuation in section 5.2 comes from a run with only the fix of finding 1 appl
 | 15 | The first card of onboarding has "Back" with nowhere to go (BUX-ONB-06). | dead end | Not fixed |
 | 16 | The zone picker is 21 zones in a four-wide grid; nothing is preselected by the client language. | too many taps | Not fixed |
 | 17 | `/stats` reads tersely: "1 still due, not counted", "your check-ins" in the sleep line. | confusing copy | Not fixed |
-| 18 | In one run two water reminders came 30 seconds apart (10:36 and 10:37) and the first was never deleted. Seen once on the stepped clock, not reproduced, not investigated. | messages pile up | Open |
+| 18 | In one run two water reminders came 30 seconds apart (10:36 and 10:37) and the first was never deleted. | messages pile up | Fixed: the prompt loop decided the next slot while the previous prompt was being sent (claimed, no handle yet), so it could neither cancel nor delete it; the slot now waits for a later pass (PRODUCT_SPEC R-SCH-25b) |
 | 19 | `/privacy` offers no export; it is the hidden `/export`. | dead end | Not fixed |
 
 Nothing in the walk read as clinical: the only guidance is the safety sentence of BUX-COR-05, now on the missed card,
