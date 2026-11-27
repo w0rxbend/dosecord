@@ -206,6 +206,22 @@ class MenuSuite extends munit.FunSuite:
         List("20:00 · Taken", "20:00 · Skip")
       )
 
+  test("/today keeps Taken and Skip apart when two doses share a time and one has a long name"):
+    // Verification of 2026-11-27: the name was cut with the action word, so both buttons read the same.
+    withRig: rig =>
+      val account = rig.seedAccount()
+      val long = "Omega-3 fish oil capsules, large"
+      rig.seedSchedule(account, "Zinc", dailyAt("09:00"), kyiv)
+      rig.seedSchedule(account, long, dailyAt("09:00"), kyiv)
+      rig.line("/today")
+      val labels = rig.lastChoiceMap("Today's doses").map(_.label).filter(_.startsWith("09:00"))
+      assertEquals(labels.size, 4, labels.toString)
+      assertEquals(labels.distinct.size, 4, s"every button reads differently: $labels")
+      assert(labels.forall(_.length <= ControlLimits.MaxLabelChars), labels.toString)
+      assertEquals(labels.count(_.endsWith("· Taken")), 2, labels.toString)
+      assertEquals(labels.count(_.endsWith("· Skip")), 2, labels.toString)
+      assert(labels.contains("09:00 Zinc · Taken"), labels.toString)
+
   test("/today caps at 8 rows with a pointer to /history"):
     withRig: rig =>
       val account = rig.seedAccount()

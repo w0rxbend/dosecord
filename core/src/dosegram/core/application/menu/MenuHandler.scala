@@ -444,17 +444,17 @@ final class MenuHandler(
       (if hidden > 0 then List(paragraph(MenuCopy.todayMore(hidden))) else Nil)
     val shared = doseRows.groupBy(timeOf).collect { case (time, occs) if occs.size > 1 => time }.toSet
     val doseBlocks = doseRows.map: occ =>
-      val key = if shared(timeOf(occ)) then s"${timeOf(occ)} ${nameOf(occ)}" else timeOf(occ)
+      val name = Option.when(shared(timeOf(occ)))(nameOf(occ))
       Block.Choices(
         ChoiceSet(
           id = s"today.dose.${occ.id}",
           choices = List(
             Choice.callback(
-              ControlLimits.fitLabel(MenuCopy.todayTaken(key)),
+              doseLabel(MenuCopy.todayTaken, timeOf(occ), name),
               directToken("dose.taken", occ.id),
               ChoiceStyle.Success
             ),
-            Choice.callback(ControlLimits.fitLabel(MenuCopy.todaySkip(key)), directToken("dose.skip", occ.id))
+            Choice.callback(doseLabel(MenuCopy.todaySkip, timeOf(occ), name), directToken("dose.skip", occ.id))
           )
         )
       )
@@ -500,6 +500,17 @@ final class MenuHandler(
 
   private def nameOf(occ: StoredOccurrence): String =
     occ.doseSnapshot.map(_.medicationName).getOrElse(MenuCopy.yourDose)
+
+  /** A `/today` dose button: its time, and its name when another open dose shares the time. A long name is shortened
+    * rather than the action word, so Taken and Skip never read the same (verification of 2026-11-27).
+    */
+  private def doseLabel(action: String => String, time: String, name: Option[String]): String =
+    name match
+      case None       => ControlLimits.fitLabel(action(time))
+      case Some(full) =>
+        val room = ControlLimits.MaxLabelChars - action(s"$time ").length
+        val shown = if full.length <= room then full else full.take(StrictMath.max(1, room - 1)) + "…"
+        ControlLimits.fitLabel(action(s"$time $shown"))
 
   private def statusText(occ: StoredOccurrence): String =
     val tz = occ.tz

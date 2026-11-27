@@ -650,7 +650,7 @@ Sleep: 7 h 10 min (your check-ins)
 | BUX-TODAY-08 | Pinning can be turned off in settings ("Pin the Today card"). |
 | BUX-TODAY-09 | Pinning must not add lasting clutter. If a pin by the bot leaves a service message in the chat that the bot cannot delete (spike SP-10), the pin setting defaults to off and the card is reached by `/today` and the menu. |
 
-Supervisor decision, 2026-11-27 (new-user review, finding 6 of [the walk-through](verification/new-user-review-2026-11-27.md)): `/today` as built is the dose list of the day. It lists every dose of the day in time order, answered and open together, and the two buttons of an open dose carry its local time ("20:00 · Taken", "20:00 · Skip"), with the medication name added when two open doses share a time. Before, the open doses came first and three open doses showed three identical "Taken" and "Skip" rows.
+Supervisor decision, 2026-11-27 (new-user review, finding 6 of [the walk-through](verification/new-user-review-2026-11-27.md)): `/today` as built is the dose list of the day. It lists every dose of the day in time order, answered and open together, and the two buttons of an open dose carry its local time ("20:00 · Taken", "20:00 · Skip"), with the medication name added when two open doses share a time. Before, the open doses came first and three open doses showed three identical "Taken" and "Skip" rows. Supervisor decision, 2026-11-27 (verification of the integration): a name too long for the 32-character label is shortened with "…" before the action word, never the action word itself, so the two buttons of one dose never read the same.
 
 ### 8.4 Navigation card
 
