@@ -666,7 +666,9 @@ are nine fixes and features on `main` (`168cfd1` to `69359f0`: the local rasteri
 refusals with "Adjust times", a nudge that waits for the previous send, edit or delete a recent
 meal with Undo, one card per dose, a second consent request replacing the open card, Cancel alone
 on a flow's first step, "Export my data" on `/privacy`, the open-dose wording of `/stats`), the
-chat analytics track (merge `880f4f6`) and image round 4 (merge `3dccd25`). Every step is the
+chat analytics track (merge `880f4f6`), image round 4 (merge `3dccd25`) and the fix of the
+verification of the integration (`f8dced7`: the buttons of an old `/stats meds` card ask for the
+medication consent once it is withdrawn). Every step is the
 owner's; `<sha>` is the head of `main` at or after the commit that adds this section, and `<pg>`
 is `dosegram-live-pg`:
 
@@ -689,6 +691,8 @@ is `dosegram-live-pg`:
    answers 200; in the chat `/reminders` lists "Morning summary", `/stats meds` lists the
    medications in registry order (with the medication consent), and `/stats month` with
    "Show as image" ends with the month in one image when the month has non-medication records.
+   The month card offers "Show as image" only once one area has records on 14 days of the
+   month; before that it says how many days are missing and has no image button.
 6. Delete the old worktree only after a day of normal use: `git worktree remove .live/wt-34c4733`.
 
 What changes in the chat, none of it checked on a real client yet:
@@ -707,16 +711,45 @@ What changes in the chat, none of it checked on a real client yet:
   "No data"; a weekday with no check-in says "No check-in".
 - The nine `main` commits listed above.
 
-Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-34c4733" .live/run.sh`. Flyway's
-default treats the applied V23 as a future version and ignores it, so while no account has turned
-the morning summary on, no restore should be needed (not rehearsed). Once a `report_daily` plan
-exists, `34c4733` throws "unknown prompt kind 'report_daily'" wherever it reads a plan or prompt
-of that kind, the prompt loop included; then restore the backup of step 1 into an empty database
-instead, losing what was recorded after the deploy. Buttons the head sent (`/stats meds`, a meal
-edit) may get no answer from `34c4733`.
+Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-34c4733" .live/run.sh`. Flyway
+logs `Schema "public" has a version (23) that is newer than the latest available migration (22) !`
+and starts; while no account has turned the morning summary on, `34c4733` answers as before and
+no restore is needed. Once a `report_daily` plan exists, `34c4733` still starts and answers
+`/readyz`, `/meds`, `/stats` and a water entry, but its prompt loop logs
+`prompt plan <id> failed: IllegalStateException` on every pass and `/reminders` gets no answer:
+the update is quarantined after repeated errors and the owner alert says so. Then restore the
+backup of step 1 into an empty database instead, losing what was recorded after the deploy:
+`docker exec -u postgres <pg> createdb -U dosegram -O dosegram dosegram_restore`, then
+`docker exec -i -u postgres <pg> pg_restore -U dosegram -d dosegram_restore --exit-on-error < <dump>`,
+and start `34c4733` with `DATABASE_URL` naming `dosegram_restore` (schema 22, no plan of that
+kind). Buttons the head sent (`/stats meds`, a meal edit) may get no answer from `34c4733`.
 
-Not rehearsed (supervisor decision, 2026-11-27): this section was written at the integration
-without a rehearsal over a seeded V22 database. The upgrade from earlier schemas to V23 runs in
-`SealingBackfillPgSuite` and `RlsSuite`, the head's plans with `report_daily` in
-`PromptLoopPgSuite` and `NewUserWalkSuite`, and `scripts/flyway-validate.sh` passed against a
-throwaway `postgres:18-alpine`. Not checked: a real client, the Telegram transport, the rollback.
+Rehearsed on 2026-11-27 against a throwaway `postgres:18-alpine` container on a free port, with
+a key file (`KEK_FILE`) and a purge list of mode 600, `ENVIRONMENT=production`, as in section 16:
+`34c4733`, started as `Main` starts with the production assembly on the fake wire and resvg
+drawing, built a V22 database through the chat in two starts (onboarding in English, a
+medication with a name and instructions at 09:00 and 13:00, the 09:00 reminder tapped Taken,
+water with the work-hours plan, mood, a night, a meal with words, the images consent with the
+week image and "Water, 7 days", mood images, the record summary export of 30 days, the 13:00 reminder left
+open, an add-medication form left after its first answer). Then steps 1 to 4 as written with
+`f8dced7` (the assembly started with `java -jar out/app/assembly.dest/out.jar run` on the
+console adapter in place of the token): after a start and SIGTERM of `34c4733`, the head logged
+`Migrating schema "public" to version "23 - morning summary prompt kind"`, 23 `sealing:` lines
+with `sealed 0`, `migrate: 1 migration(s) applied, schema 23, 0 value(s) sealed, 0 key(s) rewrapped`
+and `purge: replayed 0`; `/readyz` answered 200; SIGTERM ended with `shutdown: pool closed` and
+exit 0; a second start logged `migrate: 0 migration(s) applied, schema 23`. The head on the fake
+wire over that database found one account and one identity, listed the sealed medication name
+with no onboarding question, answered nine buttons sent before the upgrade, `/privacy`,
+`/today`, `/stats 30` with "Trends", `/stats trends` and its image, `/reminders` with
+"Morning summary: off", `/stats meds` with the medication and its strip, a water entry and a
+mood check-in with its image; nothing was quarantined and no outbox row died; the key file
+opened every sealed file id (6), the medication name, its instructions and the meal words. A
+scan of every column (594), a `pg_dump` and the WAL held none of the typed words, the first
+name or a file id; 45 tables have forced row-level security and `dosegram_app` without a claim
+saw no row. The rollback start of `34c4733` logged `schema 23`, answered `/readyz` with 200,
+answered `/meds`, `/reminders`, `/stats` and a water entry on the fake wire, and stopped
+cleanly. With a morning summary turned on by the head, `34c4733` behaved as the rollback
+paragraph says, and `34c4733` over the step-1 backup restored into `dosegram_restore` logged
+`schema 22`, answered `/readyz` with 200 and stopped cleanly. Not rehearsed: a real client, the
+Telegram transport, the month image over live data (the seeded month is below the 14-day gate),
+and renaming the restored database in place of changing `DATABASE_URL`.
