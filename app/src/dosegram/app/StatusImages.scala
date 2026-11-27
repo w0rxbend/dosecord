@@ -49,6 +49,7 @@ import dosegram.render.card.MainMeal
 import dosegram.render.card.MealProgress
 import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
+import dosegram.render.card.MonthPosterCard
 import dosegram.render.card.MoodCard
 import dosegram.render.card.MoodWeekdayCard
 import dosegram.render.card.MoodWeekdayData
@@ -208,6 +209,10 @@ final class RenderedStatusCards extends StatusCards:
       Option.unless(days.isEmpty)(MonthPages.days(days, context)),
       Option.unless(nights.isEmpty)(MonthPages.nights(nights, context))
     ).flatten.map(page(look)(_))
+
+  /** IMG-24: the month in one image, when the account shows water, food, sleep or mood. */
+  override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
+    ReportCards.monthPoster(view.figures).map(data => page(look)(MonthPosterCard.render(data, contextOf(look))))
 
   override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
     ReportCards.insight(view).map(data => page(look)(InsightCard.render(data, contextOf(look))))

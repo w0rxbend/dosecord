@@ -13,6 +13,7 @@ import dosegram.render.card.MilestoneKind
 import dosegram.render.card.MonthDaysData
 import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
+import dosegram.render.card.MonthPosterData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.MoodWeekdayData
@@ -625,6 +626,22 @@ object EnglishImageCopy extends ImageCopy:
 
   def waterWeekNone: String = "No water logged in these 7 days."
   def sleepWeekNone: String = "No night logged in these 7 nights."
+  def posterSubtitle: String = "Your month in one image"
+  def posterOrderNote: String = "Each day: one dot per area, in this order"
+  def posterFact(days: Int, total: Int): String = s"$days of ${plural(total, "day")} with records"
+
+  def posterText(data: MonthPosterData): String =
+    val areas = (data.dots :+ Domain.Mood).filter(data.tracked).map { domain =>
+      val recorded = data.recordedDays(domain)
+      domain match
+        case Domain.Mood  => s"Mood: ${checkInDays(recorded)}."
+        case Domain.Sleep => s"Sleep: ${plural(recorded, "night")}."
+        case _            => s"${domainName(domain)}: ${days(recorded)}."
+    }
+    val summary = s"${data.daysWithRecords} of ${plural(data.days.size, "day")} have a record."
+    (s"${monthYear(data.month)}, your month in one image. $summary" +: areas).mkString(" ")
+
+  def posterDiscreet: String = "Your month in one image."
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3

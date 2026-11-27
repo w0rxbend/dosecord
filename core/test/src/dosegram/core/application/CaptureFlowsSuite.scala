@@ -85,7 +85,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
   /** Records every view it was asked to lay out, and draws each card as a reference named after it, recording the chat
     * it was drawn for (ROADMAP G4.3: the report worker draws for the chat of the event).
     */
-  private final class RecordingCards extends StatusCards, CardDrawing:
+  private final class RecordingCards(poster: Boolean = false) extends StatusCards, CardDrawing:
     val moods: mutable.ListBuffer[MoodCardView] = mutable.ListBuffer.empty
     val waters: mutable.ListBuffer[WaterCardView] = mutable.ListBuffer.empty
     val days: mutable.ListBuffer[DayCardView] = mutable.ListBuffer.empty
@@ -127,6 +127,9 @@ class CaptureFlowsSuite extends munit.FunSuite:
     override def month(view: MonthCardView, look: CardLook): List[CardPage] =
       months += view
       List(image("month-1"), image("month-2")).flatten
+
+    override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
+      if poster then image("month-poster") else None
 
     override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
       insights += view
@@ -838,6 +841,18 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("month-1"), Some("month-2")))
       assertEquals(photos.flatMap(_.chunks), List("alt of month-1", "alt of month-2"))
       assertEquals(cards.months.map(view => (view.figures.month.toString, view.sleep)).toList, List(("2026-08", None)))
+
+  test("Show as image on a month sends the month in one image after its pages (IMG-24)"):
+    val cards = RecordingCards(poster = true)
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+      waterOn(chat, 22 to 40, _ => 1500)
+      chat.rig.line("/stats month")
+      chat.rig.tapOn("September 2026", ReportCopy.PreviousMonth)
+      val sent = chat.rig.tapOn("August 2026", "Show as image")
+      val photos = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("month-1"), Some("month-2"), Some("month-poster")))
+      assertEquals(photos.flatMap(_.chunks), List("alt of month-1", "alt of month-2", "alt of month-poster"))
 
   test("/insights without the cross-domain consent runs no comparison and offers it; the consent turns it on"):
     val cards = RecordingCards()

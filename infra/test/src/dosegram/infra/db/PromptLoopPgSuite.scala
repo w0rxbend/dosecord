@@ -521,6 +521,31 @@ class PromptLoopPgSuite extends PgSuite:
     assert(text.toString.contains("Your month"), text)
     assertEquals(rig.labels(text), List("Stop these"))
 
+  test("the month in one image is the last photo of the monthly album (IMG-24)"):
+    val pages = StatusCards.textOnly
+    val withPoster = new StatusCards:
+      export pages.{mood, water, day, sleep, food}
+      override def month(view: MonthCardView, look: CardLook): List[CardPage] =
+        (1 to 2).toList.map(page => CardPage(s"card.month.p$page", "<svg/>", s"Page $page of the month.", "month.png", false))
+      override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.month.poster.v1", "<svg/>", "November 2026, your month in one image.", "poster.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val rig = Rig(start = Instant.parse("2026-12-01T09:00:00+02:00"), preset = PromptPresets.MonthlyReport, cards = withPoster, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    (1 to 14).foreach { day =>
+      rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
+      rig.drink(500, s"poster-$day")
+    }
+    rig.clock.at = Instant.parse("2026-12-01T10:00:05+02:00")
+    rig.tickAndSend()
+    val List((_, album), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(
+      album.album.map(_.assetKey),
+      List("asset-card.month.p1", "asset-card.month.p2", "asset-card.month.poster.v1")
+    )
+    assert(text.toString.contains("Your month"), text)
+
   test("a monthly report of a month short of the gate sends nothing"):
     val first = Instant.parse("2027-01-01T09:00:00+02:00")
     val rig = Rig(start = first, preset = PromptPresets.MonthlyReport)

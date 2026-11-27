@@ -158,6 +158,9 @@ trait StatusCards:
   /** IMG-05: the pages of a month in order; empty when no page can be laid out. */
   def month(view: MonthCardView, look: CardLook): List[CardPage] = Nil
 
+  /** IMG-24, the month in one image, sent after the pages of IMG-05; `None` when no area it draws is shown. */
+  def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] = None
+
   /** IMG-13: one comparison the insight engine passed; `None` for a rule the card cannot draw. */
   def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] = None
 

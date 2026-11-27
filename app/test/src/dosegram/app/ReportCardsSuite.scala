@@ -157,4 +157,23 @@ class ReportCardsSuite extends munit.FunSuite:
     assertEquals(ReportCards.moodState(3.0, None).valence, 4)
     assertEquals(ReportCards.moodState(5.0, None).valence, 7)
     assertEquals(ReportCards.moodState(3.0, None).energy, 3)
+
+  test("the month in one image marks each day's recorded areas and mood, and never medication (IMG-24)"):
+    val Domain = dosegram.render.tokens.Domain
+    val doses = Some(days(1 to 20)(_ => MedicationDay(Map(medication -> DoseBuckets.ofResolved(AdherenceCounts(2, 0, 0, 0))))))
+    val month = figures(
+      medicationDays = doses,
+      water = Some(days(1 to 20)(_ => HydrationDay(1800, 3, Some(2000)))),
+      mood = Some(days(5 to 6)(_ => MoodDay(1, 4, 4, 4, 0, 0)))
+    )
+    val poster = ReportCards.monthPoster(month).getOrElse(fail("no poster"))
+    assertEquals(poster.tracked, Set(Domain.Water, Domain.Mood))
+    assertEquals(poster.days.count(_.recorded == Set(Domain.Water)), 20)
+    assertEquals(poster.days.count(_.mood.isDefined), 2)
+    assertEquals(poster.daysWithRecords, 20)
+    val page = cards.monthPoster(view(month), look).getOrElse(fail("no page"))
+    assertEquals(page.templateId, "card.month.poster.v1")
+    assert(page.altText.startsWith("October 2026, your month in one image. 20 of 31 days have a record."), page.altText)
+    assert(!page.altText.contains("Medication"), page.altText)
+    assertEquals(cards.monthPoster(view(figures(medicationDays = doses)), look), None, "medication alone has no poster")
 end ReportCardsSuite

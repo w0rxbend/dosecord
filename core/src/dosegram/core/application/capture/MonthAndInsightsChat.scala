@@ -52,7 +52,9 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
       case Left(_)                                   => turn.toast(ReminderCopy.staleControlToast)
       case Right(view) if !view.figures.isReportable => turn.toast(ReportCopy.imageUnavailable)
       case Right(view)                               =>
-        val pages = parts.cards.month(views.month(turn.tx, turn.accountId, view.figures, today(turn)), turn.look)
+        val month = views.month(turn.tx, turn.accountId, view.figures, today(turn))
+        // The month in one image closes the pages (VISUALS IMG-24).
+        val pages = parts.cards.month(month, turn.look) ++ parts.cards.monthPoster(month, turn.look).toList
         if pages.isEmpty then turn.toast(ReportCopy.imageUnavailable)
         else
           Reply(followUps =
