@@ -85,7 +85,11 @@ object StatsCopy:
           tr(s"${buckets.unknown} with no record, not counted", s"без запису — ${buckets.unknown}, не враховано")
         ),
         Option.when(buckets.open > 0)(
-          tr(s"${buckets.open} still due, not counted", s"ще очікують — ${buckets.open}, не враховано")
+          // Finding 17 of the review of 2026-11-27: "still due, not counted" read as a fault of the user's.
+          tr(
+            s"${buckets.open} still to answer, not counted yet",
+            s"ще без відповіді — ${buckets.open}, поки не враховано"
+          )
         ),
         Option.when(buckets.asNeeded > 0)(
           tr(s"As-needed logs: ${buckets.asNeeded}", s"Записи за потреби: ${buckets.asNeeded}")

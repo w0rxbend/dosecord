@@ -1516,6 +1516,8 @@ Buckets for a dose occurrence in a period:
 | Delay statistics | Median and nearest-rank 90th percentile of `effective_at - scheduled_for` over taken doses, excluding corrected entries | Fewer than 5 samples | Mini App and PDF only |
 | Exclusion counts | `U` and `O` | never | Always printed when non-zero: "2 with no record, not counted" |
 
+Supervisor decision, 2026-11-27 (finding 17 of [the new-user walk-through](verification/new-user-review-2026-11-27.md)): the chat's `/stats` prints the open count as "1 still to answer, not counted yet" ("ще без відповіді — 1, поки не враховано"); "still due, not counted" read as a fault of the user's. The count of `U` keeps "with no record, not counted". The sleep source "your check-ins" stays for now: it is shared by the chat, the Mini App and the image captions, and is left for one change across them.
+
 Attribution to a day (inherited): a taken dose counts on the local day of `effective_at`; a skipped or missed dose on the local day of its resolution; an open dose on its scheduled local day.
 
 Aggregation: totals over several medications pool the bucket counts. They are never the mean of per-medication percentages.

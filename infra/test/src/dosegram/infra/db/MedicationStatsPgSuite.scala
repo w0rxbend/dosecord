@@ -241,7 +241,7 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
         "16 of 16 taken doses on time",
         "20 of 24 answered",
         "4 with no record, not counted",
-        "1 still due, not counted"
+        "1 still to answer, not counted yet"
       )
     )
     assertEquals(month.flatMap(InsightPhrases.violations), Nil)
@@ -254,7 +254,7 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
         "3 of 3 taken doses on time",
         "4 of 5 answered",
         "1 with no record, not counted",
-        "1 still due, not counted"
+        "1 still to answer, not counted yet"
       )
     )
     assertEquals(week.flatMap(InsightPhrases.violations), Nil)

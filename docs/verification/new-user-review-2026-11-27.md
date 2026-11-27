@@ -51,7 +51,7 @@ continuation in section 5.2 comes from a run with only the fix of finding 1 appl
 | 14 | Ukrainian "Скасувати" is both Undo and Cancel. | confusing copy | Not fixed; for the native-speaker review |
 | 15 | The first card of onboarding has "Back" with nowhere to go (BUX-ONB-06). | dead end | Fixed: the first step of a flow offers Cancel alone (BOT_UX section 5.3, decision of 2026-11-27) |
 | 16 | The zone picker is 21 zones in a four-wide grid; nothing is preselected by the client language. | too many taps | Not fixed |
-| 17 | `/stats` reads tersely: "1 still due, not counted", "your check-ins" in the sleep line. | confusing copy | Not fixed |
+| 17 | `/stats` reads tersely: "1 still due, not counted", "your check-ins" in the sleep line. | confusing copy | Partly fixed: "1 still to answer, not counted yet" (VISUALS_AND_ANALYTICS, decision of 2026-11-27); "your check-ins" is shared with the Mini App and the image captions and left for one change across them |
 | 18 | In one run two water reminders came 30 seconds apart (10:36 and 10:37) and the first was never deleted. | messages pile up | Fixed: the prompt loop decided the next slot while the previous prompt was being sent (claimed, no handle yet), so it could neither cancel nor delete it; the slot now waits for a later pass (PRODUCT_SPEC R-SCH-25b) |
 | 19 | `/privacy` offers no export; it is the hidden `/export`. | dead end | Fixed: "Export my data" on the card (BOT_UX section 20.1, decision of 2026-11-27) |
 
@@ -74,6 +74,7 @@ and the urgent-help sentence of the mood consent.
 | 13 | Follows from 5: a finalize edits only the one card left. | `NewUserWalkSuite`, the simulation golden |
 | 15 | The first step of a flow has no "Back"; a first text or form step reads "Reply Cancel to stop." | `WizardEngineSuite` "a flow's first step offers Cancel alone...", the wizard transcript goldens, `NewUserWalkSuite` |
 | 19 | `/privacy` carries "Export my data", the full-archive button of `/export`. | `CaptureFlowsSuite` "/privacy offers the export...", `NewUserWalkSuite` (the tap prepares the file) |
+| 17 | The open-dose line of `/stats` reads "1 still to answer, not counted yet". | `StatsCopyGoldenSuite`, `UkrainianCatalogueSuite` |
 | 11 | The consent card's outbox key names its purpose; asking the same purpose again deletes the earlier card of the last 24 hours, or cancels it while queued. No migration. | `CaptureFlowsSuite` "a second image tap before the images consent...", `OutboxDispatcherSuite` (`recentSendKeys`), `NewUserWalkSuite` |
 | 10 | With two or more medications, each `/meds` row's "Pause" or "Resume" names its medication ("Pause · Magnesium"). | `MenuSuite` "/meds with two medications names each row's toggle...", `NewUserWalkSuite` |
 
