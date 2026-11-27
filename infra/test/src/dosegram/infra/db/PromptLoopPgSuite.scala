@@ -569,6 +569,32 @@ class PromptLoopPgSuite extends PgSuite:
     assertEquals(rig.open, Nil)
   // The morning summary (supervisor decision, 2026-11-27): yesterday in one message, at the time the user picked.
 
+  test("a report's text falls due after its images, so a batch never sends the text before the card"):
+    // The verification of 2026-11-28 saw the morning summary's text before its daily card: both rows fell due at the
+    // same instant, and a claimed batch has no order among equals.
+    val pages = StatusCards.textOnly
+    val dayCard = new StatusCards:
+      export pages.{mood, water, sleep, food}
+      override def day(view: DayCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.day.v1", "<svg/>", s"Day card of ${view.date}.", "day.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = dayCard, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    rig.clock.at = sundayAt("10:00")
+    rig.drink(700, "order-sunday")
+    rig.clock.at = mondayAt("08:00").plusSeconds(5)
+    rig.loop().tick()
+    val due = withConnection: conn =>
+      given Connection = conn
+      given RowMapper[(String, Instant)] = rs => (rs.getString(1), rs.getTimestamp(2).toInstant)
+      sql"""SELECT send_key, next_attempt_at FROM outbox_messages
+            WHERE account_id = ${rig.account} AND status = 'queued' AND kind = ${PromptLoop.OutboxKind}"""
+        .query[(String, Instant)]()
+    val (images, text) = due.partition(_._1.contains(":image"))
+    assertEquals((images.size, text.size), (1, 1), due)
+    assert(images.head._2.isBefore(text.head._2), due)
+
   test("the morning summary sends yesterday in one message after the daily card, with Stop these"):
     val pages = StatusCards.textOnly
     val dayCard = new StatusCards:

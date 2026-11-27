@@ -86,6 +86,12 @@ object OutboxDispatcher:
   /** The dispatch order of a claimed batch (DESIGN.md section 7.6): `ack > interaction_reply > reminder > info > bulk`.
     * Rate limiting is FIFO per dispatcher fork, so priority is realised by dispatching the batch in this order.
     */
+  /** A claimed batch in dispatch order: by priority, then in the order its rows fell due. The claim returns its rows in
+    * no order, and a report's text is due just after its card (PromptLoop).
+    */
+  def dispatchOrder(rows: List[OutboxMessage]): List[OutboxMessage] =
+    rows.sortBy(row => (priorityRank(row.importance), row.nextAttemptAt))
+
   def priorityRank(importance: String): Int = importance match
     case "ack"               => 0
     case "interaction_reply" => 1
@@ -118,7 +124,7 @@ final class OutboxDispatcher(
   def dispatchOnce(): Int =
     val now = clock.now()
     val rows = uow.transaction(_.outbox.claim(now, adapters.keys.toSeq, claimLimit, lease))
-    rows.sortBy(row => priorityRank(row.importance)).foreach(dispatchRow(_, now))
+    OutboxDispatcher.dispatchOrder(rows).foreach(dispatchRow(_, now))
     rows.size
 
   private def dispatchRow(row: OutboxMessage, now: Instant): Unit =

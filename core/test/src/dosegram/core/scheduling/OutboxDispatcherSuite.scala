@@ -40,6 +40,43 @@ class OutboxDispatcherSuite extends munit.FunSuite:
     assertEquals(OutboxDispatcher.jitteredBackoff(1, 0.5), Duration.ofSeconds(5), "first rung is exactly 5 s")
     assertEquals(OutboxDispatcher.jitteredBackoff(8, 1.0), OutboxDispatcher.backoff(8))
 
+  test("a claimed batch goes in priority order, then in the order its rows fell due"):
+    // The claim's UPDATE ... RETURNING has no order: a report's card and its text came back either way round.
+    val t0 = java.time.Instant.parse("2026-11-23T06:00:05Z")
+    def row(key: String, importance: String, due: java.time.Instant) =
+      dosegram.core.ports.OutboxMessage(
+        id = java.util.UUID.randomUUID(),
+        sendKey = key,
+        op = dosegram.core.ports.OutboxOp.Send,
+        kind = "prompt",
+        vendor = "fake",
+        accountId = None,
+        occurrenceId = None,
+        channelId = None,
+        epoch = None,
+        payload = "{}",
+        target = None,
+        importance = importance,
+        status = dosegram.core.ports.OutboxStatus.Sending,
+        attempts = 1,
+        nextAttemptAt = due,
+        leaseUntil = None,
+        attemptedAt = None,
+        previousAttemptedAt = None,
+        opsDone = 0,
+        possibleDuplicate = false,
+        platformMessageId = None,
+        lastError = None,
+        createdAt = t0,
+        sentAt = None
+      )
+    val claimed = List(
+      row("text", "info", t0.plusMillis(1)),
+      row("card", "info", t0),
+      row("ack", "ack", t0.plusSeconds(1))
+    )
+    assertEquals(OutboxDispatcher.dispatchOrder(claimed).map(_.sendKey), List("ack", "card", "text"))
+
   test("the dispatch order is ack > interaction_reply > reminder > info > bulk"):
     val shuffled = List("bulk", "reminder", "ack", "info", "interaction_reply")
     assertEquals(

@@ -308,7 +308,11 @@ final class PromptLoop(
       target: DeliveryTarget,
       now: Instant
   ): Unit =
-    (report.images :+ report.main).foreach(enqueueTo(tx, plan.accountId, target, _, now))
+    // A claimed batch has no order among rows due at one instant, so each image falls due a millisecond before the
+    // next and the last before the text: the card or the album always goes first (ReportComposer).
+    val messages = report.images :+ report.main
+    messages.zipWithIndex.foreach: (message, index) =>
+      enqueueTo(tx, plan.accountId, target, message, now.minusMillis((messages.size - 1 - index).toLong))
 
   private def render(
       tx: Tx,
