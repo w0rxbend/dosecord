@@ -580,6 +580,10 @@ export const en = {
     imageTheme: 'Images in chat',
     themes: { auto: 'Auto', light: 'Light', dark: 'Dark' },
     imageThemeHelp: 'The colours of the images the bot sends. This app follows your Telegram theme.',
+    // VISUALS section 4.6 (supervisor decision, 2026-11-28).
+    animatedMood: 'Animated mood',
+    animatedMoodHelp: 'Your mood answer in the chat moves gently for 3 seconds and loops. It stays still while reminders are discreet.',
+    animatedMoodReduced: 'Off while reduced motion is on for this device.',
     privacy: 'Privacy and consent',
     privacyHint: 'What you turned on, and how to change it',
     reminders: 'Reminders',

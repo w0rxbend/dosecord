@@ -46,19 +46,27 @@ object BlobGeometry:
     else 0.0
 
   /** The outline samples of a mood state, unit radius. */
-  def samples(state: MoodState): Vector[Point] = sampled(state.id, shape(state.energy), slump(state))
+  def samples(state: MoodState): Vector[Point] = samples(state, 0.0)
+
+  /** The outline samples with every harmonic phase turned by `phaseShift` radians: the wobble of the animated form
+    * (VISUALS section 4.6).
+    */
+  def samples(state: MoodState, phaseShift: Double): Vector[Point] =
+    sampled(state.id, shape(state.energy), slump(state), phaseShift)
 
   /** The outline samples of the "no entry" blob: the reference shape, never slumped. */
-  def noEntrySamples: Vector[Point] = sampled(MoodState.NoEntryId, shape(NoEntryEnergy), 0.0)
+  def noEntrySamples: Vector[Point] = sampled(MoodState.NoEntryId, shape(NoEntryEnergy), 0.0, 0.0)
 
-  def outline(state: MoodState): PathData = closedSpline(samples(state), tension(state))
+  def outline(state: MoodState): PathData = outline(state, 0.0)
+
+  def outline(state: MoodState, phaseShift: Double): PathData = closedSpline(samples(state, phaseShift), tension(state))
 
   def noEntryOutline: PathData = closedSpline(noEntrySamples, RoundTension)
 
   /** The radius of the raw polar curve at an angle, before posture is applied. */
-  def polarRadius(stateId: String, energyShape: EnergyShape, theta: Double): Double =
+  def polarRadius(stateId: String, energyShape: EnergyShape, theta: Double, phaseShift: Double = 0.0): Double =
     val harmonics = phases(stateId).zip(energyShape.harmonicWeights).zipWithIndex.map { case ((phase, weight), index) =>
-      energyShape.amplitude * weight * StrictMath.sin((index + FirstHarmonic) * theta + phase)
+      energyShape.amplitude * weight * StrictMath.sin((index + FirstHarmonic) * theta + phase + phaseShift)
     }
     1 + harmonics.sum
 
@@ -85,10 +93,15 @@ object BlobGeometry:
       }
       .closed
 
-  private def sampled(stateId: String, energyShape: EnergyShape, slumpDepth: Double): Vector[Point] =
+  private def sampled(
+      stateId: String,
+      energyShape: EnergyShape,
+      slumpDepth: Double,
+      phaseShift: Double
+  ): Vector[Point] =
     (0 until energyShape.sampleCount).toVector.map { index =>
       val theta = 2 * StrictMath.PI * index / energyShape.sampleCount
-      val radius = polarRadius(stateId, energyShape, theta)
+      val radius = polarRadius(stateId, energyShape, theta, phaseShift)
       postured(Point(radius * StrictMath.cos(theta), radius * StrictMath.sin(theta)), energyShape, slumpDepth)
     }
 

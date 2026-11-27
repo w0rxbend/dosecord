@@ -19,16 +19,17 @@ final class PgRenderAssets(dataSource: DataSource, keys: DataKeys):
   private val pooled = Pooled(dataSource)
   private val owner = KeyOwner.Service("render")
 
-  /** Stores the image, or replaces the one under the key and restarts its hour. */
-  def put(assetKey: String, png: Array[Byte], now: Instant): Unit =
+  /** Stores the image (or the animation, by its media type), or replaces the one under the key and restarts its hour.
+    */
+  def put(assetKey: String, bytes: Array[Byte], now: Instant, mime: String = "image/png"): Unit =
     val purgeAfter = now.plus(PgRenderAssets.Lifetime)
     pooled: conn ?=>
-      val sealedPng = keys.on(conn).seal(RenderBytes.field(owner, assetKey), png)
+      val sealedBytes = keys.on(conn).seal(RenderBytes.field(owner, assetKey), bytes)
       sql"""INSERT INTO render_assets (asset_key, mime, byte_size, bytes_enc, created_at, purge_after)
-            VALUES ($assetKey, 'image/png', ${png.length}, $sealedPng, $now, $purgeAfter)
+            VALUES ($assetKey, $mime, ${bytes.length}, $sealedBytes, $now, $purgeAfter)
             ON CONFLICT (asset_key) DO UPDATE
-              SET byte_size = EXCLUDED.byte_size, bytes_enc = EXCLUDED.bytes_enc, created_at = EXCLUDED.created_at,
-                  purge_after = EXCLUDED.purge_after""".execute()
+              SET mime = EXCLUDED.mime, byte_size = EXCLUDED.byte_size, bytes_enc = EXCLUDED.bytes_enc,
+                  created_at = EXCLUDED.created_at, purge_after = EXCLUDED.purge_after""".execute()
     ()
 
   def load(assetKey: String, now: Instant): Option[Array[Byte]] =

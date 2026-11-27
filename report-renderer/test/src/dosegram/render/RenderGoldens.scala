@@ -4,6 +4,7 @@ import dosegram.render.blob.MoodReading
 import dosegram.render.blob.MoodState
 import dosegram.render.card.CardOutput
 import dosegram.render.card.MoodCard
+import dosegram.render.card.MoodMotionCard
 import dosegram.render.card.Privacy
 import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.svg.SvgEmitter
@@ -30,7 +31,7 @@ object RenderGoldens:
 
   /** Every golden as its path under the golden directory and its expected content. */
   def expected: Vector[(String, String)] =
-    cardScenes ++ cardTexts ++ ukrainianTexts ++ blobScenes :+ ("tokens.css" -> TokensCss.render)
+    cardScenes ++ cardTexts ++ ukrainianTexts ++ blobScenes ++ motionFrames :+ ("tokens.css" -> TokensCss.render)
 
   def load(path: String): String =
     val stream = Option(getClass.getResourceAsStream(s"/goldens/$path"))
@@ -69,6 +70,17 @@ object RenderGoldens:
     yield
       val card = MoodCard.render(mood, Samples.context(theme, Privacy.Named))
       s"blob/${theme.toString.toLowerCase}/$id.svg" -> SvgEmitter.emit(card.scene)
+
+  /** Frames of the animated mood blob (VISUALS section 4.6): the start, a breath and the blink of four corner states. */
+  val MotionStates: Vector[MoodState] = Vector(MoodState(1, 5), MoodState(2, 1), MoodState(4, 3), MoodState(7, 5))
+  val MotionFrames: Vector[Int] = Vector(0, 15, 38)
+
+  private def motionFrames: Vector[(String, String)] =
+    for
+      state <- MotionStates
+      frames = MoodMotionCard.render(MoodReading(state, isEnergyGiven = true), Samples.context(Theme.Dark, Privacy.Aggregate)).frames
+      frame <- MotionFrames
+    yield f"motion/dark/${state.id}.f$frame%02d.svg" -> SvgEmitter.emit(frames(frame))
 
   private def textGolden(card: CardOutput): String =
     s"""file: ${card.fileName}

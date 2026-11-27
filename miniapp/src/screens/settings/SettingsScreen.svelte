@@ -6,6 +6,7 @@
   import AsyncView from '../../ui/AsyncView.svelte';
   import Screen from '../../ui/Screen.svelte';
   import LinkRow from '../../ui/LinkRow.svelte';
+  import { isReducedMotion } from '../../state/motion';
 
   interface Loaded {
     readonly account: AccountSettings;
@@ -14,6 +15,8 @@
 
   const THEMES: readonly ImageTheme[] = ['auto', 'light', 'dark'];
   const { api, tg } = useApp();
+  // Under reduced motion (MA-DS-5) "Animated mood" can be turned off here but not on (supervisor decision, 2026-11-28).
+  const reducedMotion = isReducedMotion(tg);
   const loaded = new Resource<Loaded>(async () => {
     const [account, notifications] = await Promise.all([api.settings(), api.notificationSettings()]);
     return { account, notifications };
@@ -28,8 +31,8 @@
   async function saveAccount(change: Partial<AccountSettingsInput>): Promise<void> {
     const before = loaded.data;
     if (!before) return;
-    const { language, timeZone, imageTheme, version } = before.account;
-    const input = { language, timeZone, imageTheme, ...change };
+    const { language, timeZone, imageTheme, animatedMood, version } = before.account;
+    const input = { language, timeZone, imageTheme, animatedMood, ...change };
     loaded.set({ ...before, account: { ...before.account, ...input } });
     // MA-SET-2: the new language shows at once; a failed save brings the previous one back.
     if (change.language !== undefined) setLocale(change.language);
@@ -122,6 +125,19 @@
           </div>
           <p class="muted help">{en.settings.imageThemeHelp}</p>
         </div>
+        <label class="toggle">
+          <span class="text">
+            <span>{en.settings.animatedMood}</span>
+            <span class="muted">{reducedMotion && !data.account.animatedMood ? en.settings.animatedMoodReduced : en.settings.animatedMoodHelp}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={data.account.animatedMood}
+            disabled={reducedMotion && !data.account.animatedMood}
+            onchange={(event) => saveAccount({ animatedMood: event.currentTarget.checked })}
+          />
+        </label>
       </fieldset>
 
       <section class="section" aria-labelledby="set-data">

@@ -26,6 +26,9 @@ enum RasterFailure:
   case Crashed(exitCode: Int)
   case NotPng
 
+  /** The frames were drawn but the video encoder refused them (the animated form, VISUALS section 4.6). */
+  case EncodingFailed
+
 /** Port: stage 5 of the pipeline (research brief 04 section 7.1). `zoom` is 1 for chat photos and 2 for the document
   * path.
   */

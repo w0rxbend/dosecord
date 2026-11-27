@@ -702,6 +702,8 @@ export interface AccountSettings {
   readonly languages: readonly Choice[];
   readonly timeZone: string;
   readonly imageTheme: ImageTheme;
+  /** "Animated mood": the answer to a mood check-in in the chat moves (VISUALS section 4.6). */
+  readonly animatedMood: boolean;
   readonly version: number;
 }
 
@@ -709,6 +711,7 @@ export interface AccountSettingsInput {
   readonly language: string;
   readonly timeZone: string;
   readonly imageTheme: ImageTheme;
+  readonly animatedMood: boolean;
 }
 
 export interface QuietHours {

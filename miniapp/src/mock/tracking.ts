@@ -90,6 +90,7 @@ export class MockTracking {
     ],
     timeZone: 'Europe/Kyiv',
     imageTheme: 'auto',
+    animatedMood: false,
     version: 1,
   };
   private notifications: NotificationSettings = {

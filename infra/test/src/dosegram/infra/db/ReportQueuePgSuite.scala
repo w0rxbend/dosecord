@@ -5,6 +5,7 @@ import dosegram.contracts.ChatRef
 import dosegram.contracts.Inline
 import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
+import dosegram.core.ports.CardMotion
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.NewReportRequest
 import dosegram.core.ports.ReportPage
@@ -81,6 +82,15 @@ class ReportQueuePgSuite extends PgSuite:
       val rs = conn.createStatement().executeQuery("SELECT status, error_class, finished_at IS NOT NULL FROM report_requests")
       rs.next()
       assertEquals((rs.getString(1), rs.getString(2), rs.getBoolean(3)), ("text_fallback", "Late", true))
+
+  test("the animated form of a page survives the round trip; a page without one reads back without one"):
+    val account = fixtures.account()
+    val motion = CardMotion(List("<svg id='f0'/>", "<svg id='f1'/>"), 20, "mood.motion.dg-blob-2.dg-motion-1.blob.v4.e3.dark", "dosegram-mood.mp4")
+    val animated = page(1, Some("mood.p4.plain.dark"))
+    val queued = request(account, t0, animated.copy(card = animated.card.copy(motion = Some(motion))), page(2))
+    uow.transaction(_.reports.enqueue(queued))
+    val claimed = uow.transaction(_.reports.claim(t0, lease)).getOrElse(fail("nothing claimed"))
+    assertEquals(claimed.pages.map(_.card.motion), List(Some(motion), None))
 
   test("two workers claiming at once take different requests, oldest first"):
     val account = fixtures.account()

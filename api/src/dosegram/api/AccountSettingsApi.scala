@@ -49,7 +49,11 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
         val now = clock.now()
         tx.accounts.saveSettings(
           accountId,
-          current.settings.copy(locale = Some(input.language), imageTheme = themeOf(input.imageTheme)),
+          current.settings.copy(
+            locale = Some(input.language),
+            imageTheme = themeOf(input.imageTheme),
+            animatedMood = input.animatedMood.getOrElse(current.settings.animatedMood)
+          ),
           now
         )
         if zone.getId != current.zone then
@@ -58,6 +62,7 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
         val changed = List(
           Option.when(current.settings.locale != Some(input.language))("locale"),
           Option.when(current.settings.imageTheme != themeOf(input.imageTheme))("image_theme"),
+          Option.when(input.animatedMood.exists(_ != current.settings.animatedMood))("animated_mood"),
           Option.when(zone.getId != current.zone)("timezone")
         ).flatten
         if changed.nonEmpty then tx.auditLog.record(SettingsAudit.changed(accountId, AuditChannel.MiniApp, changed))
@@ -157,7 +162,9 @@ object AccountSettingsApi:
   private def settingsView(stored: Stored): SettingsView =
     val language = stored.settings.locale.filter(code => Languages.exists(_.code == code)).getOrElse(DefaultLanguage)
     val theme = choiceOf(stored.settings.imageTheme)
-    SettingsView(language, Languages, stored.zone, theme, ContentVersion.of(language, stored.zone, theme.wire))
+    val animated = stored.settings.animatedMood
+    val version = ContentVersion.of(language, stored.zone, theme.wire, animated.toString)
+    SettingsView(language, Languages, stored.zone, theme, animated, version)
 
   private def notificationView(stored: Stored): NotificationSettingsView =
     val quiet = stored.settings.quietHours.map(hours => QuietHoursView(hours.start.value, hours.end.value))

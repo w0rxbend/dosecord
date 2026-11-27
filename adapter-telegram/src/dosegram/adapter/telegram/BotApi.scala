@@ -89,19 +89,22 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
     applyKeyboard(params, message.keyboard)
     call("sendMessage", params).flatMap(decoded(TelegramModels.decodeSent))
 
-  /** `sendPhoto` or `sendDocument`; an upload goes as multipart, a cached `file_id` as plain JSON (TG-35, TG-36). */
+  /** `sendPhoto`, `sendDocument` or `sendAnimation`; an upload goes as multipart, a cached `file_id` as plain JSON
+    * (TG-35, TG-36).
+    */
   def sendMedia(media: OutgoingMedia): Either[TelegramError, SentMessage] =
     val (method, fieldName) = media.kind match
-      case MediaKind.Photo    => ("sendPhoto", "photo")
-      case MediaKind.Document => ("sendDocument", "document")
+      case MediaKind.Photo     => ("sendPhoto", "photo")
+      case MediaKind.Document  => ("sendDocument", "document")
+      case MediaKind.Animation => ("sendAnimation", "animation")
     val params = ujson.Obj("chat_id" -> media.chatId.toDouble)
     media.captionHtml.foreach: caption =>
       params("caption") = caption
       params("parse_mode") = ParseMode
     applyDelivery(params, media.delivery)
     applyKeyboard(params, media.keyboard)
-    // Only a photo can be blurred; a document has no spoiler.
-    if media.hasSpoiler && media.kind == MediaKind.Photo then params("has_spoiler") = true
+    // A photo and an animation can be blurred; a document has no spoiler.
+    if media.hasSpoiler && media.kind != MediaKind.Document then params("has_spoiler") = true
     val file = media.payload match
       case MediaPayload.Cached(fileId) =>
         params(fieldName) = fileId

@@ -317,6 +317,57 @@ class TelegramAdapterSuite extends munit.FunSuite:
     assertEquals(handle.messageId, "1")
     assertEquals(rig.logs, List("telegram asset unavailable: sent the text equivalent (kind=Photo)"))
 
+  private val still = AttachmentRef(MediaKind.Photo, "mood-still", "image/png", "Mood: Pleasant.", Some("dosegram-mood.png"))
+  private val animation =
+    AttachmentRef(MediaKind.Animation, "mood-motion", "video/mp4", "Mood: Pleasant.", Some("dosegram-mood.mp4"), still = Some(still))
+
+  test("an animation goes with sendAnimation, its caption and keyboard; its file id is kept as an animation and reused"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("mood-motion", Array[Byte](0, 0, 0, 24))
+    val message = RenderedMessage(chunks = List("Pleasant · 08:00"), controls = List(buttons("dc:a")), attachment = Some(animation))
+    val first = rig.adapter.send(chat, message, "k1")
+    val upload = rig.messageCalls.last
+    assertEquals(upload.method, "sendAnimation")
+    assertEquals(upload.text("caption"), Some("Pleasant · 08:00"))
+    assertEquals(upload.request.file.map(f => (f.field, f.fileName, f.mimeType)), Some(("animation", "dosegram-mood.mp4", "video/mp4")))
+    assert(upload.request.params.obj.contains("reply_markup"))
+    assert(!upload.request.params.obj.contains("has_spoiler"))
+    assertEquals(first.messageId, "m1", "the handle marks a media message, so a tap edits its caption")
+    assertEquals(rig.fileIds.get("mood-motion", MediaKind.Animation), Some("fake-animation-1"))
+    assertEquals(rig.fileIds.get("mood-motion", MediaKind.Photo), None)
+
+    rig.timer.advance(Duration.ofSeconds(5))
+    rig.adapter.send(chat, message.copy(attachment = Some(animation.copy(hasSpoiler = true))), "k2")
+    val resend = rig.messageCalls.last
+    assertEquals((resend.method, resend.text("animation"), resend.request.file), ("sendAnimation", Some("fake-animation-1"), None))
+    assertEquals(resend.request.params("has_spoiler"), ujson.True, "an animation can be blurred like a photo")
+
+  test("an animation whose upload the API refuses is sent as its still photo, with the same caption and keyboard"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("mood-motion", Array[Byte](1))
+    rig.storeAsset("mood-still", Array[Byte](2))
+    val rejected = BotApiFixtures.error("wrong-file-id-400")
+    rig.wire.replyNext("sendAnimation", rejected.status, rejected.body)
+    val message = RenderedMessage(chunks = List("Pleasant · 08:00"), controls = List(buttons("dc:a")), attachment = Some(animation))
+    rig.adapter.send(chat, message, "k1")
+    assertEquals(rig.messageCalls.map(_.method), List("sendAnimation", "sendPhoto"))
+    val photoCall = rig.messageCalls.last
+    assertEquals(photoCall.text("caption"), Some("Pleasant · 08:00"))
+    assert(photoCall.request.params.obj.contains("reply_markup"))
+    assertEquals(photoCall.request.file.map(_.bytes.toList), Some(List[Byte](2)))
+    assertEquals(rig.fileIds.get("mood-motion", MediaKind.Animation), None)
+    assertEquals(rig.logs, List("telegram refused the upload: sent its still (kind=Animation)"))
+
+  test("an animation whose bytes are gone is sent as its still; a still without bytes is the text equivalent"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("mood-still", Array[Byte](2))
+    rig.adapter.send(chat, RenderedMessage(chunks = List("Pleasant · 08:00"), attachment = Some(animation)), "k1")
+    assertEquals(rig.messageCalls.map(_.method), List("sendPhoto"))
+    val bare = TelegramRig().started()
+    bare.adapter.send(chat, RenderedMessage(chunks = List("Pleasant · 08:00"), attachment = Some(animation)), "k1")
+    assertEquals(bare.messageCalls.map(_.method), List("sendMessage"))
+    assertEquals(bare.messageCalls.last.text("text"), Some("[image: Mood: Pleasant.]\n\nPleasant · 08:00"))
+
   test("a first chunk too long for a caption follows the image as text"):
     val rig = TelegramRig().started()
     rig.storeAsset("asset-week", Array[Byte](1))

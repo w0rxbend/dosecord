@@ -8591,6 +8591,9 @@
           },
           "imageTheme" : {
             "$ref" : "#/components/schemas/ImageThemeChoice"
+          },
+          "animatedMood" : {
+            "type" : "boolean"
           }
         }
       },
@@ -8601,6 +8604,7 @@
           "language",
           "timeZone",
           "imageTheme",
+          "animatedMood",
           "version"
         ],
         "properties" : {
@@ -8618,6 +8622,9 @@
           },
           "imageTheme" : {
             "$ref" : "#/components/schemas/ImageThemeChoice"
+          },
+          "animatedMood" : {
+            "type" : "boolean"
           },
           "version" : {
             "type" : "integer",

@@ -957,7 +957,7 @@ The pipeline, card catalogue, canvas rules and test strategy are specified in VI
 - R-VIS-9. No card contains a composite score, a causal statement, advice, a diagnosis or a judgement colour on a measured value. Multi-page reports carry the line "Recorded entries only. Not medical advice."
 - R-VIS-10. Every sleep card states the data tier in words and draws estimated intervals as visibly uncertain (R-SLP-14).
 - R-VIS-11. File names are neutral and carry no account identifier or medication name. Images carry no metadata.
-- R-VIS-12. Animation is opt-in. The default mood reply is a static image. An animated sticker has no caption (PC-24) and is therefore always followed by a text message.
+- R-VIS-12. Animation is opt-in. The default mood reply is a static image. An animated sticker has no caption (PC-24) and is therefore always followed by a text message. Supervisor decision, 2026-11-28: the first animated reply is a captioned silent video (`sendAnimation`, VISUALS section 4.6) behind the setting "Animated mood", off by default; it carries the same caption and buttons as the static image, the static image is its fallback, and discreet mode keeps the reply static.
 - R-VIS-13. A full-quality copy of a card is sent as a document only on explicit request.
 
 **Data captured.** No user data of its own. Rendered bytes are kept only until delivery and are purged within one hour of the terminal state; the reusable Telegram file identifier of a personal image is kept for at most 48 hours (R04 section 7.6). Settings: theme, names in images, protected content, animation.

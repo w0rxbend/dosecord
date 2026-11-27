@@ -45,7 +45,7 @@ final class PgAccountRepository(conn: Connection, reads: TransactionReads) exten
 
   override def settingsOf(accountId: UUID): Option[AccountSettings] =
     reads.settingsOf(accountId):
-      sql"SELECT locale, quiet_hours, discreet_default, image_theme FROM users WHERE id = $accountId"
+      sql"SELECT locale, quiet_hours, discreet_default, image_theme, animated_mood FROM users WHERE id = $accountId"
         .queryOne[AccountSettings]()
 
   override def saveSettings(accountId: UUID, settings: AccountSettings, now: Instant): Unit =
@@ -53,7 +53,8 @@ final class PgAccountRepository(conn: Connection, reads: TransactionReads) exten
     val quietHours = settings.quietHours.map(hours => Jsonb(write(hours)))
     val updated =
       sql"""UPDATE users SET locale = ${settings.locale}, quiet_hours = $quietHours,
-              discreet_default = ${settings.isDiscreet}, image_theme = ${settings.imageTheme.dbValue}, updated_at = $now
+              discreet_default = ${settings.isDiscreet}, image_theme = ${settings.imageTheme.dbValue},
+              animated_mood = ${settings.animatedMood}, updated_at = $now
             WHERE id = $accountId""".execute()
     require(updated == 1, s"account $accountId vanished before saveSettings")
 
@@ -70,5 +71,6 @@ object PgAccountRepository:
       locale = rs.optString("locale"),
       quietHours = rs.optJsonb("quiet_hours").map(json => read[QuietHours](json.value)),
       isDiscreet = rs.getBoolean("discreet_default"),
-      imageTheme = ImageTheme.fromDbValue(rs.getString("image_theme"))
+      imageTheme = ImageTheme.fromDbValue(rs.getString("image_theme")),
+      animatedMood = rs.getBoolean("animated_mood")
     )

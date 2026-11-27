@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="210.4" cy="179.2" r="167.2"><stop offset="0" stop-color="#707d9a"/><stop offset="1" stop-color="#48577b"/></radialGradient>
+</defs>
+<rect width="512" height="512" fill="#1c2435"/>
+<g>
+  <ellipse cx="256" cy="419.36" rx="114" ry="4.56" fill="#2f434d"/>
+  <path d="M410.92 240 C412.58 271.78 396.96 317.1 371.14 340.19 C345.32 363.28 293.72 379.09 256 378.55 C218.28 378 170.34 360.03 144.79 336.93 C119.24 313.84 102.57 271.98 102.71 240 C102.84 208.02 120.05 166.45 145.6 145.06 C171.15 123.67 220.06 110.92 256 111.66 C291.94 112.41 335.41 128.11 361.23 149.5 C387.05 170.89 409.27 208.22 410.92 240 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="214.96" cy="224.8" rx="11.4" ry="3.65" fill="#e8f0f4"/>
+  <ellipse cx="297.04" cy="224.8" rx="11.4" ry="3.65" fill="#e8f0f4"/>
+  <path d="M227.58 276.48 Q256 262.8 284.42 276.48" fill="none" stroke="#e8f0f4" stroke-width="6.84" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="203.16" y1="203.42" x2="226.76" y2="197.54" stroke="#e8f0f4" stroke-width="6.84" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="308.84" y1="203.42" x2="285.24" y2="197.54" stroke="#e8f0f4" stroke-width="6.84" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

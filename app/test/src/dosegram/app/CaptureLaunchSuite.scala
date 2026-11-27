@@ -129,7 +129,7 @@ class CaptureLaunchSuite extends PgSuite:
   ):
     private var updateSeq = firstUpdate
 
-    private val messageMethods = Set("sendMessage", "sendPhoto", "editMessageText", "editMessageCaption")
+    private val messageMethods = Set("sendMessage", "sendPhoto", "sendAnimation", "editMessageText", "editMessageCaption")
 
     /** The message calls so far, in order. */
     def messages: List[FakeTelegramTransport.RecordedCall] = wire.calls.filter(call => messageMethods(call.method))
@@ -170,7 +170,7 @@ class CaptureLaunchSuite extends PgSuite:
     /** Taps `label` on the message of `card`; a photo message is reported as one, as the Bot API does. */
     def tap(card: FakeTelegramTransport.RecordedCall, label: String, expected: Int): List[FakeTelegramTransport.RecordedCall] =
       val data = buttons(card).collectFirst { case (`label`, token) => token }.getOrElse(fail(s"no button '$label'"))
-      val isPhoto = card.method == "sendPhoto" || card.method == "editMessageCaption"
+      val isPhoto = Set("sendPhoto", "sendAnimation", "editMessageCaption")(card.method)
       val message = ujson.Obj(
         "message_id" -> messageId(card).toDouble,
         "chat" -> ujson.Obj("id" -> owner.toDouble, "type" -> "private"),
@@ -221,10 +221,34 @@ class CaptureLaunchSuite extends PgSuite:
     supervised:
       val config = settings
       val stores = StatusImages.Stores.durable(dataSource, telegram.botId, clock, DataKeys.development)
-      val images = StatusImages.over(drawingWith.getOrElse(rasteriser), stores, _ => ())
+      // A minute for an animation, as the pixel tests give their rasteriser; the budget itself is held by MotionSuite.
+      val images = StatusImages.over(drawingWith.getOrElse(rasteriser), stores, _ => (), motionBudgetMillis = 60000)
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource, DataKeys.development)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), idle, images), log = _ => ())
       test(Bot(clock, wire, rasteriser, firstUpdate))
+
+  /** The numbering stand-in for the still cards, and one real 512 px PNG for every frame of an animation, so the frames
+    * go through the encoder as in production. The frames drawn are counted.
+    */
+  private final class FramesRasteriser extends Rasteriser:
+    val stills = NumberingRasteriser()
+    val frames = java.util.concurrent.atomic.AtomicInteger()
+    private lazy val framePng =
+      val image = java.awt.image.BufferedImage(512, 512, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+      val out = java.io.ByteArrayOutputStream()
+      javax.imageio.ImageIO.write(image, "png", out)
+      out.toByteArray
+
+    override def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
+      if svg.contains("""width="512"""") then
+        frames.incrementAndGet()
+        Right(PngImage(IArray.unsafeFromArray(framePng)))
+      else stills.rasterise(svg, zoom)
+
+  private def animateMood(accountId: UUID, discreet: Boolean = false): Unit =
+    PgUnitOfWork(dataSource, () => monday, DataKeys.development).transaction: tx =>
+      val settings = tx.accounts.settingsOf(accountId).get
+      tx.accounts.saveSettings(accountId, settings.copy(animatedMood = true, isDiscreet = discreet), monday)
 
   /** One account whose Telegram identity and chat are the owner's. */
   private def seedOwner(): UUID =
@@ -343,6 +367,66 @@ class CaptureLaunchSuite extends PgSuite:
         strings("SELECT valence || ':' || COALESCE(energy::text, '-') FROM mood_checkins WHERE voided_at IS NULL ORDER BY created_at"),
         List("4:-", "4:2")
       )
+
+  test("with Animated mood on, a check-in is answered with the moving blob, captioned, with its buttons and its still"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+    animateMood(accountId)
+    val drawing = FramesRasteriser()
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(drawing)): bot =>
+      val List(prompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(_, first) = bot.tap(prompt, "4", expected = 2): @unchecked
+      assertEquals(first.method, "sendAnimation")
+      assertEquals(bot.body(first), "Pleasant · 08:00", "the caption names the level (VA-BL-04)")
+      assertEquals(bot.buttons(first).map(_._1), List(CheckInCopy.AddEnergy, "Undo"))
+      val upload = first.request.file.getOrElse(fail("the animation is uploaded"))
+      assertEquals((upload.field, upload.fileName, upload.mimeType), ("animation", "dosegram-mood.mp4", "video/mp4"))
+      assertEquals(String(upload.bytes.slice(4, 8), UTF_8), "ftyp", "the upload is an MP4 file")
+      assertEquals(drawing.frames.get, 60, "one loop of 60 frames")
+      assertEquals(drawing.stills.count, 1, "the still card is drawn too, as the fallback")
+      assertEquals(
+        strings("SELECT media_kind FROM telegram_file_cache"),
+        List("animation"),
+        "the animation's file id is kept"
+      )
+      assertEquals(strings("SELECT mime FROM render_assets ORDER BY mime"), List("image/png", "video/mp4"))
+
+      // A tap on the animation edits its caption, as on a photo.
+      val List(energyAsk) = bot.tap(first, CheckInCopy.AddEnergy, expected = 1): @unchecked
+      assertEquals(energyAsk.method, "editMessageCaption")
+
+      // The same state again is sent by its file id: nothing is drawn or uploaded a second time.
+      val List(secondPrompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(_, again) = bot.tap(secondPrompt, "4", expected = 2): @unchecked
+      assertEquals(again.method, "sendAnimation")
+      assertEquals(uploadOf(again), None)
+      assert(again.text("animation").exists(_.startsWith("fake-animation-")), again.text("animation").toString)
+      assertEquals(drawing.frames.get, 60, "a state's animation is drawn once")
+
+  test("with Animated mood on but a video that cannot be made, the still card is the answer"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+    animateMood(accountId)
+    launched: bot =>
+      val List(prompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(_, answer) = bot.tap(prompt, "4", expected = 2): @unchecked
+      assertEquals(answer.method, "sendPhoto")
+      assertEquals(uploadOf(answer), Some("png:1"), "the still card of the state")
+      assertEquals(bot.body(answer), "Pleasant · 08:00")
+      assertEquals(bot.rasteriser.count, 2, "the first frame was not a picture, so the drawing stopped there")
+      eventually("the request is finished")(strings("SELECT status FROM report_requests") == List("sent"))
+
+  test("in discreet mode Animated mood stays still: the still card is the answer and no frame is drawn"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+    animateMood(accountId, discreet = true)
+    val drawing = FramesRasteriser()
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(drawing)): bot =>
+      val List(prompt) = bot.say("/mood", expected = 1): @unchecked
+      val List(_, answer) = bot.tap(prompt, "4", expected = 2): @unchecked
+      assertEquals(answer.method, "sendPhoto")
+      assertEquals(drawing.frames.get, 0)
+      assertEquals(drawing.stills.count, 1)
 
   test("/stats today is text first; its image is the daily summary, drawn from the day's doses, water and mood"):
     val accountId = seedOwner()

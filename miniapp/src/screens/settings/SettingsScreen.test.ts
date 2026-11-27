@@ -59,6 +59,43 @@ describe('Settings', () => {
     }
   });
 
+  it('turns "Animated mood" on and off through the settings API; it is off for a new account', async () => {
+    const harness = createHarness();
+    const user = open(SettingsScreen, harness);
+
+    const animated = (await screen.findByRole('switch', { name: /Animated mood/ })) as HTMLInputElement;
+    expect(animated.checked).toBe(false);
+    await user.click(animated);
+
+    expect(await screen.findByText('Saved')).toBeTruthy();
+    expect((await harness.api.settings()).animatedMood).toBe(true);
+    await user.click(screen.getByRole('switch', { name: /Animated mood/ }));
+    expect((await harness.api.settings()).animatedMood).toBe(false);
+  });
+
+  it('under reduced motion "Animated mood" cannot be turned on, but one that is on can be turned off (MA-DS-5)', async () => {
+    document.documentElement.dataset.reducedMotion = 'true';
+    try {
+      const harness = createHarness();
+      const { language, timeZone, imageTheme, version } = await harness.api.settings();
+      await harness.api.saveSettings({ language, timeZone, imageTheme, animatedMood: true }, version);
+      const user = open(SettingsScreen, harness);
+
+      const on = (await screen.findByRole('switch', { name: /Animated mood/ })) as HTMLInputElement;
+      expect(on.checked).toBe(true);
+      expect(on.disabled).toBe(false);
+      await user.click(on);
+
+      expect(await screen.findByText('Saved')).toBeTruthy();
+      expect((await harness.api.settings()).animatedMood).toBe(false);
+      const off = screen.getByRole('switch', { name: /Animated mood/ }) as HTMLInputElement;
+      expect(off.disabled).toBe(true);
+      expect(screen.getByText('Off while reduced motion is on for this device.')).toBeTruthy();
+    } finally {
+      delete document.documentElement.dataset.reducedMotion;
+    }
+  });
+
   it('puts the previous value back with an inline error when the save fails', async () => {
     const harness = createHarness();
     harness.api.saveNotificationSettings = () => Promise.reject(new ApiError('server', 'REF-2'));

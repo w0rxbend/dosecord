@@ -19,6 +19,11 @@ final class SettingsApiSuite extends ApiSuite:
   private def settingsBody(timeZone: String, theme: String = "auto", language: String = "en"): ujson.Obj =
     ujson.Obj("language" -> language, "timeZone" -> timeZone, "imageTheme" -> theme)
 
+  private def animatedBody(animated: ujson.Value): ujson.Obj =
+    val body = settingsBody("Europe/Kyiv")
+    body("animatedMood") = animated
+    body
+
   test("the settings carry the language, the zone and the theme of the images; an edit needs the version read"):
     val token = login(telegramAccount("Europe/Kyiv"))
     val read = get("/api/v1/settings", token)
@@ -40,6 +45,24 @@ final class SettingsApiSuite extends ApiSuite:
     assertProblem(refused, 422, "validation_failed")
     assertEquals(refused.fieldErrors.toSet, Set("language" -> "unsupported", "timeZone" -> "unknown"))
     assertProblem(patch("/api/v1/settings", settingsBody("Europe/Kyiv", "sepia"), token, ifMatch(saved)), 400, "validation_failed")
+
+  test("Animated mood is off for a new account, is switched with the settings, and a body without it keeps it"):
+    val token = login(telegramAccount("Europe/Kyiv"))
+    val read = get("/api/v1/settings", token)
+    assertEquals(read.json("animatedMood").bool, false)
+    val on = patch("/api/v1/settings", animatedBody(ujson.True), token, ifMatch(read))
+    assertEquals(on.status, 200, on.body)
+    assertEquals(on.json("animatedMood").bool, true)
+    assertNotEquals(on.json("version").num, read.json("version").num, "the choice is part of the version")
+    val kept = patch("/api/v1/settings", settingsBody("Europe/Kyiv", "dark"), token, ifMatch(on))
+    assertEquals((kept.json("animatedMood").bool, kept.json("imageTheme").str), (true, "dark"))
+    val off = patch("/api/v1/settings", animatedBody(ujson.False), token, ifMatch(kept))
+    assertEquals(get("/api/v1/settings", token).json("animatedMood").bool, false, off.body)
+    assertProblem(
+      patch("/api/v1/settings", animatedBody(ujson.Str("yes")), token, ifMatch(off)),
+      400,
+      "validation_failed"
+    )
 
   test("Ukrainian is offered in its own name; once chosen, the bootstrap and the server's sentences follow (G2.22)"):
     val account = telegramAccount("Europe/Kyiv")

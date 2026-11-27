@@ -58,8 +58,8 @@
     if (!account || !preview) return;
     saving = true;
     try {
-      const { language, imageTheme, version } = account;
-      await api.saveSettings({ language, imageTheme, timeZone: preview.timeZone }, version);
+      const { language, imageTheme, animatedMood, version } = account;
+      await api.saveSettings({ language, imageTheme, animatedMood, timeZone: preview.timeZone }, version);
       tg.haptic('success');
       toasts.show(en.timeZone.saved);
       await tick();

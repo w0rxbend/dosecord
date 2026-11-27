@@ -2298,6 +2298,7 @@ export interface components {
             language: string;
             timeZone: string;
             imageTheme: components["schemas"]["ImageThemeChoice"];
+            animatedMood?: boolean;
         };
         /** SettingsView */
         SettingsView: {
@@ -2305,6 +2306,7 @@ export interface components {
             languages?: components["schemas"]["LanguageChoice"][];
             timeZone: string;
             imageTheme: components["schemas"]["ImageThemeChoice"];
+            animatedMood: boolean;
             /** Format: int64 */
             version: number;
         };

@@ -2,6 +2,7 @@ package dosegram.infra.db
 
 import dosegram.contracts.ChatRef
 import dosegram.contracts.OutboundMessage
+import dosegram.core.ports.CardMotion
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.NewReportRequest
 import dosegram.core.ports.ReportPage
@@ -91,6 +92,7 @@ object PgReportQueue:
             "spoiler" -> page.card.hasSpoiler,
             "shared" -> page.card.sharedKey.fold[ujson.Value](ujson.Null)(ujson.Str(_)),
             "discreet" -> page.card.discreetCaption.fold[ujson.Value](ujson.Null)(ujson.Str(_)),
+            "motion" -> page.card.motion.fold[ujson.Value](ujson.Null)(motionJson),
             "message" -> ujson.read(OutboundMessage.toJson(page.message))
           ))
       )
@@ -107,7 +109,20 @@ object PgReportQueue:
         hasSpoiler = page("spoiler").bool,
         sharedKey = page("shared").strOpt,
         // A request queued before the line existed has none.
-        discreetCaption = page.obj.get("discreet").flatMap(_.strOpt)
+        discreetCaption = page.obj.get("discreet").flatMap(_.strOpt),
+        // A request queued before animations has none.
+        motion = page.obj.get("motion").filterNot(_.isNull).map(motionOf)
       )
       ReportPage(card, OutboundMessage.fromJson(ujson.write(page("message"))))
     (upickle.default.read[ChatRef](json("chat")), pages)
+
+  private def motionJson(motion: CardMotion): ujson.Value =
+    ujson.Obj(
+      "frames" -> ujson.Arr.from(motion.frames.map(ujson.Str(_))),
+      "fps" -> motion.framesPerSecond,
+      "key" -> motion.sharedKey,
+      "file" -> motion.fileName
+    )
+
+  private def motionOf(json: ujson.Value): CardMotion =
+    CardMotion(json("frames").arr.toList.map(_.str), json("fps").num.toInt, json("key").str, json("file").str)

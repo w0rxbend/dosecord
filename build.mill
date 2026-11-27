@@ -106,6 +106,7 @@ object app extends DosegramModule:
       contracts,
       `report-renderer`,
       `report-renderer`.resvg,
+      `report-renderer`.motion,
       `report-pdf`
     )
   def mainClass = Some("dosegram.app.Main")
@@ -160,6 +161,15 @@ object `report-renderer` extends DosegramModule:
       def contactSheet() = Task.Command {
         runMain("dosegram.render.resvg.renderContactSheet", "out/report-renderer/preview")()
       }
+  // The animated mood blob (VISUALS section 4.6): frames drawn through the Rasteriser port, read back to pixels and
+  // encoded to H.264 in MP4 inside the JVM by JCodec (BSD), so no video binary is installed (research brief 04 section
+  // 10, supervisor decision of 2026-11-28).
+  object motion extends DosegramModule:
+    def moduleDeps = Seq(`report-renderer`)
+    def mvnDeps = Seq(mvn"org.jcodec:jcodec:0.2.5")
+    object test extends DosegramTests:
+      def moduleDeps = super.moduleDeps ++ Seq(`report-renderer`.test, `report-renderer`.resvg.test)
+      def forkEnv = super.forkEnv() ++ Map("DOSEGRAM_FONTS_DIR" -> fontsDir().path.toString)
 
 // ROADMAP G3.10 / VISUALS DOC-01: the record summary as a PDF. Research brief 04 section 11 recommends Typst and names
 // Apache PDFBox 3.0.8 (Apache-2.0) as the JVM fallback; no Typst binary is installed or pinned yet, so the fallback is

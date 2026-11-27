@@ -22,5 +22,6 @@ object PgFileIdCache:
   /** The `media_kind` value of the table. */
   private def column(kind: MediaKind): String =
     kind match
-      case MediaKind.Photo    => "photo"
-      case MediaKind.Document => "document"
+      case MediaKind.Photo     => "photo"
+      case MediaKind.Document  => "document"
+      case MediaKind.Animation => "animation"

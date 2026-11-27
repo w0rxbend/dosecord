@@ -229,6 +229,30 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals(withEnergy.assetKey, "mood.dg-blob-2.blob.v6.e2.energy.light")
     assert(withEnergy.altText.contains("Energy"), withEnergy.altText)
 
+  test("an animated mood page is keyed by its state and theme only; the still is laid out beside it (VISUALS 4.6)"):
+    val rig = Rig(CountingRasteriser())
+    val animated = light.copy(isAnimated = true)
+    val plain = rig.images.cards.mood(MoodCardView(pleasant, None), animated).get
+    val withEnergy = rig.images.cards.mood(MoodCardView(pleasant, Energy.of(3)), animated).get
+    val ukrainian = Lang.within(Lang.Uk)(rig.images.cards.mood(MoodCardView(pleasant, None), animated)).get
+    val motion = plain.motion.getOrElse(fail("no animated form"))
+    assertEquals(motion.sharedKey, "mood.motion.dg-blob-2.dg-motion-1.blob.v6.e3.light")
+    assertEquals(withEnergy.motion.map(_.sharedKey), Some(motion.sharedKey), "no words, so energy given or not is one video")
+    assertEquals(ukrainian.motion.map(_.sharedKey), Some(motion.sharedKey), "and one video for every language")
+    assertEquals((motion.frames.size, motion.framesPerSecond, motion.fileName), (60, 20, "dosegram-mood.mp4"))
+    assert(motion.frames.forall(_.contains("""width="512"""")))
+    assertEquals(rig.images.cards.mood(MoodCardView(pleasant, None), light).get.motion, None, "off unless asked for")
+    assertEquals(
+      rig.images.cards.mood(MoodCardView(pleasant, None), CardLook(ImageTheme.Dark, isDiscreet = false, isAnimated = true)).get.motion.map(_.sharedKey),
+      Some("mood.motion.dg-blob-2.dg-motion-1.blob.v6.e3.dark")
+    )
+
+  test("a video that cannot be made leaves the still card as the answer, logged by template and kind only"):
+    val rig = Rig(CountingRasteriser())
+    val answer = rig.images.drawn.mood(MoodCardView(pleasant, None), light.copy(isAnimated = true)).get
+    assertEquals(answer.kind, MediaKind.Photo)
+    assertEquals(rig.log.toList, List("animation not drawn, still sent: template=card.mood.v1 reason=NotPng"))
+
   test("a water card is keyed by its bytes and carries the day's figures as its text equivalent"):
     val rig = Rig(CountingRasteriser())
     val card = rig.images.drawn.water(water, light).get
@@ -420,4 +444,30 @@ class StatusImagesSuite extends munit.FunSuite:
       val png = images.store.load(card.get.assetKey).get
       assertEquals(png.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))
       assert(png.length > 5000, s"${card.get.assetKey}: ${png.length} bytes")
+
+  test("with the long-lived worker of this machine an animated mood answer is an MP4 loop with its still"):
+    val worker = sys.env
+      .get("DOSEGRAM_RASTER_WORKER")
+      .map(Path.of(_))
+      .orElse(sys.env.getOrElse("PATH", "").split(':').iterator.filter(_.nonEmpty).map(Path.of(_, "dosegram-raster")).find(Files.isExecutable(_)))
+    if sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true") then assert(worker.isDefined, "no dosegram-raster")
+    else assume(worker.isDefined, "no dosegram-raster")
+    val log = mutable.ListBuffer.empty[String]
+    val settings = RenderSettings("/bin/sh", sys.env("DOSEGRAM_FONTS_DIR"), Some(worker.get.toString))
+    // A minute for the loop, as the pixel tests give their rasteriser: the budget itself is held by MotionSuite.
+    val images = StatusImages.from(Some(settings), StatusImages.Stores.inMemory, log += _, motionBudgetMillis = 60000)
+    val look = light.copy(isAnimated = true)
+    images.drawn.mood(MoodCardView(Valence.of(1).get, Energy.of(1)), look) // warms the worker and the encoder
+    val started = System.nanoTime()
+    val answer = images.drawn.mood(MoodCardView(pleasant, Energy.of(5)), look).get
+    val millis = (System.nanoTime() - started) / 1_000_000
+    assertEquals(log.toList, Nil)
+    assertEquals((answer.kind, answer.mimeType, answer.fileName), (MediaKind.Animation, "video/mp4", Some("dosegram-mood.mp4")))
+    val video = images.store.load(answer.assetKey).get
+    assertEquals(String(video.slice(4, 8), UTF_8), "ftyp")
+    println(s"animated mood answer: ${video.length} bytes in $millis ms (PERFORMANCE.md section 4.7)")
+    assert(video.length < 1024 * 1024, s"${video.length} bytes")
+    val still = answer.still.get
+    assertEquals(images.store.load(still.assetKey).get.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))
+    assertEquals(answer.altText, still.altText, "the animation has the still card's text equivalent")
 end StatusImagesSuite

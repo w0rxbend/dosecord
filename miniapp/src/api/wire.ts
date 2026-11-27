@@ -552,6 +552,7 @@ export function toAccountSettings(wire: Wire['SettingsView']): AccountSettings {
     languages: (wire.languages ?? []).map((choice) => ({ value: choice.code, label: choice.label })),
     timeZone: wire.timeZone,
     imageTheme: wire.imageTheme,
+    animatedMood: wire.animatedMood,
     version: wire.version,
   };
 }

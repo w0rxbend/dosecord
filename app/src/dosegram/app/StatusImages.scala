@@ -16,6 +16,7 @@ import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
+import dosegram.core.ports.CardMotion
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.DayCardView
@@ -63,6 +64,7 @@ import dosegram.render.card.MonthPosterCard
 import dosegram.render.card.MoodCard
 import dosegram.render.card.MoodGalleryCard
 import dosegram.render.card.MoodGalleryData
+import dosegram.render.card.MoodMotionCard
 import dosegram.render.card.MoodWeekdayCard
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.MoodWeekdayRow
@@ -91,6 +93,7 @@ import dosegram.render.card.WeekHighlightsData
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
+import dosegram.render.motion.MotionRenderer
 import dosegram.render.resvg.ResvgConfig
 import dosegram.render.resvg.ResvgRasteriser
 import dosegram.render.resvg.ResvgWorkerPool
@@ -116,8 +119,15 @@ import scala.util.control.NonFatal
   * puts an image, the adapter loads it. An image that is gone is sent as its text equivalent by the adapter.
   */
 trait AssetStore extends MediaStore:
-  def put(assetKey: String, png: Array[Byte]): Unit
+  /** Stores the bytes of a drawn image, or of an animation, under the key with their media type. */
+  def put(assetKey: String, bytes: Array[Byte], mime: String): Unit
   def holds(assetKey: String): Boolean
+
+  final def put(assetKey: String, png: Array[Byte]): Unit = put(assetKey, png, AssetStore.Png)
+
+object AssetStore:
+  val Png = "image/png"
+  val Mp4 = "video/mp4"
 
 /** An asset store for the life of one process, for a composition without a database behind its images (the text-only
   * profile and the suites). It holds at most `maximumImages` images and drops the one that was read longest ago.
@@ -129,8 +139,8 @@ final class InMemoryAssetStore(maximumImages: Int) extends AssetStore:
   private val images = new java.util.LinkedHashMap[String, Array[Byte]](16, 0.75f, true):
     override def removeEldestEntry(eldest: java.util.Map.Entry[String, Array[Byte]]): Boolean = size() > maximumImages
 
-  override def put(assetKey: String, png: Array[Byte]): Unit = images.synchronized:
-    images.put(assetKey, png)
+  override def put(assetKey: String, bytes: Array[Byte], mime: String): Unit = images.synchronized:
+    images.put(assetKey, bytes)
     ()
 
   override def holds(assetKey: String): Boolean = images.synchronized(images.containsKey(assetKey))
@@ -191,7 +201,17 @@ final class RenderedStatusCards extends StatusCards:
     val drawing = contextOf(look)
     val key =
       s"mood.${BlobFigure.Revision}.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.${keyOf(drawing)}"
-    Some(page(look)(MoodCard.render(Some(reading), drawing), Some(key)))
+    val motion = Option.when(look.isAnimated)(moodMotion(reading, drawing))
+    Some(page(look)(MoodCard.render(Some(reading), drawing), Some(key)).copy(motion = motion))
+
+  /** The animated form of the mood card (VISUALS section 4.6). It carries no words, so one picture serves every
+    * language and both answers to energy: its key names the drawing and motion revisions, the state and the theme.
+    */
+  private def moodMotion(reading: MoodReading, context: CardContext): CardMotion =
+    val output = MoodMotionCard.render(reading, context)
+    val theme = context.theme.toString.toLowerCase(java.util.Locale.ROOT)
+    val key = s"mood.motion.${BlobFigure.Revision}.${MoodMotionCard.Revision}.${reading.state.id}.$theme"
+    CardMotion(output.frames.toList.map(SvgEmitter.emit), output.framesPerSecond, key, output.fileName)
 
   override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
     Some(page(look)(WaterCard.render(waterData(view), contextOf(look))))
@@ -335,14 +355,22 @@ final class RenderedStatusCards extends StatusCards:
   */
 final class RenderedCardDrawing(
     renderer: CardRenderer,
+    motions: MotionRenderer,
     store: AssetStore,
+    fileIds: FileIdCache,
     log: String => Unit,
     notices: DrawingNotices
 ) extends CardDrawing:
 
   import RenderedStatusCards.*
 
+  /** The still card first; a page with an animated form then becomes the animation, with the still as its fallback, or
+    * stays the still when the video cannot be made within its budget (VISUALS section 4.6).
+    */
   override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
+    still(page, chat).map(photo => page.motion.flatMap(animated(_, photo, page, chat)).getOrElse(photo))
+
+  private def still(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
     page.sharedKey.filter(store.holds) match
       case Some(key) => Right(reference(key, page))
       case None      =>
@@ -353,18 +381,50 @@ final class RenderedCardDrawing(
           store.put(key, png)
           reference(key, page)
 
+  // An animation is the same for everyone in its state and theme: once it is stored or uploaded it is not drawn again.
+  // A video that cannot be made is logged by its template and the kind of failure only, and the still is sent.
+  private def animated(
+      motion: CardMotion,
+      photo: AttachmentRef,
+      page: CardPage,
+      chat: Option[ChatRef]
+  ): Option[AttachmentRef] =
+    val isReady = store.holds(motion.sharedKey) || fileIds.get(motion.sharedKey, MediaKind.Animation).isDefined
+    def drawn: Boolean =
+      withNotice(chat)(motions.render(motion.frames.toVector, motion.framesPerSecond)) match
+        case Right(video) =>
+          store.put(motion.sharedKey, video.toArray, AssetStore.Mp4)
+          true
+        case Left(failure) =>
+          log(s"animation not drawn, still sent: template=${page.templateId} reason=${failure.productPrefix}")
+          false
+    Option.when(isReady || drawn):
+      AttachmentRef(
+        MediaKind.Animation,
+        motion.sharedKey,
+        AssetStore.Mp4,
+        photo.altText,
+        Some(motion.fileName),
+        photo.hasSpoiler,
+        photo.caption,
+        still = Some(photo)
+      )
+
   // A drawing that is still running after a second shows the upload status in its chat (VISUALS VA-FB-02); the
   // rasteriser's own deadline ends it at five seconds, and the worker then sends the text (VA-FB-01).
   private def rasterised(page: CardPage, chat: Option[ChatRef]): Either[String, Array[Byte]] =
-    val notice = chat.map(target =>
-      Slow.schedule((() => notices.drawing(target)): Runnable, SlowAfterMillis, TimeUnit.MILLISECONDS)
-    )
-    try
+    withNotice(chat):
       renderer.document(page.svg) match
         case Right(image)  => Right(image.toArray)
         case Left(failure) =>
           log(s"status image not drawn: template=${page.templateId} reason=${failure.productPrefix}")
           Left(failure.productPrefix)
+
+  private def withNotice[A](chat: Option[ChatRef])(drawing: => A): A =
+    val notice = chat.map(target =>
+      Slow.schedule((() => notices.drawing(target)): Runnable, SlowAfterMillis, TimeUnit.MILLISECONDS)
+    )
+    try drawing
     finally notice.foreach(_.cancel(false))
 
 object RenderedStatusCards:
@@ -485,15 +545,35 @@ object StatusImages:
     val stores = Stores.inMemory
     StatusImages(stores.assets, stores.fileIds, StatusCards.textOnly)
 
-  def over(rasteriser: Rasteriser, stores: Stores, log: String => Unit): StatusImages =
+  /** How long the report worker may spend on one animation before it sends the still card instead (supervisor decision
+    * of 2026-11-28): a loop took about 2 seconds on the development host (PERFORMANCE.md), and the request's own
+    * deadline (VISUALS VA-FB-01) is 5 seconds.
+    */
+  val MotionBudgetMillis: Long = 4000
+
+  /** `motionBudgetMillis` is [[MotionBudgetMillis]] in production; a suite on a loaded build host gives more, as the
+    * pixel tests give their rasteriser a minute.
+    */
+  def over(
+      rasteriser: Rasteriser,
+      stores: Stores,
+      log: String => Unit,
+      motionBudgetMillis: Long = MotionBudgetMillis
+  ): StatusImages =
     val notices = DrawingNotices(log)
-    val drawing = RenderedCardDrawing(CardRenderer(rasteriser), stores.assets, log, notices)
+    val motions = MotionRenderer(rasteriser, motionBudgetMillis)
+    val drawing = RenderedCardDrawing(CardRenderer(rasteriser), motions, stores.assets, stores.fileIds, log, notices)
     StatusImages(stores.assets, stores.fileIds, RenderedStatusCards(), notices, drawing)
 
   /** The renderer the settings name, or text only without them. A binary that cannot run fails the start: a bot that
     * silently never draws is worse than one that does not start.
     */
-  def from(render: Option[RenderSettings], stores: Stores, log: String => Unit): StatusImages =
+  def from(
+      render: Option[RenderSettings],
+      stores: Stores,
+      log: String => Unit,
+      motionBudgetMillis: Long = MotionBudgetMillis
+  ): StatusImages =
     render match
       case None           => StatusImages(stores.assets, stores.fileIds, StatusCards.textOnly)
       case Some(settings) =>
@@ -503,8 +583,9 @@ object StatusImages:
         if !Files.isDirectory(fonts) then throw IllegalArgumentException("RENDER_FONTS_DIR does not name a directory")
         val emptyResources = Files.createTempDirectory("dosegram-resvg-empty")
         settings.workerPath.map(Path.of(_)) match
-          case None         => over(ResvgRasteriser(ResvgConfig.standard(binary, fonts, emptyResources)), stores, log)
+          case None =>
+            over(ResvgRasteriser(ResvgConfig.standard(binary, fonts, emptyResources)), stores, log, motionBudgetMillis)
           case Some(worker) =>
             if !Files.isExecutable(worker) then
               throw IllegalArgumentException("RENDER_WORKER_PATH does not name an executable")
-            over(ResvgWorkerPool(ResvgConfig.standard(worker, fonts, emptyResources)), stores, log)
+            over(ResvgWorkerPool(ResvgConfig.standard(worker, fonts, emptyResources)), stores, log, motionBudgetMillis)

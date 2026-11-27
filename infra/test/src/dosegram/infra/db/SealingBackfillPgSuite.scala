@@ -202,8 +202,8 @@ class SealingBackfillPgSuite extends PgSuite:
     try
       val seed = seedAtV9(ds)
       val (result, lines) = logged(SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
-      assertEquals(result.schemaVersion, "24")
-      assertEquals(result.migrationsExecuted, 13)
+      assertEquals(result.schemaVersion, "25")
+      assertEquals(result.migrationsExecuted, 14)
       assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer, the dose unit, the export's parameters")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
@@ -255,7 +255,7 @@ class SealingBackfillPgSuite extends PgSuite:
       try again.createStatement().execute("DROP TABLE audit_log")
       finally again.close()
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals((result.schemaVersion, result.valuesSealed), ("24", 2),
+      assertEquals((result.schemaVersion, result.valuesSealed), ("25", 2),
         "the first start sealed every V10 value; the dose unit and the export's parameters wait for V19 and V22, which only this start reaches")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"))
     finally ds.close()
@@ -294,7 +294,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("24", 10, 4))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("25", 11, 4))
       assert(lines.result().contains("sealing: vacuumed outbox_messages, inbound_events"), lines.result().toString)
 
       val check = ds.getConnection
@@ -395,7 +395,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, keys, line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted), ("24", 4))
+      assertEquals((result.schemaVersion, result.migrationsExecuted), ("25", 5))
       assertEquals(result.valuesSealed, 1 + 2 + 1 + 2 + 4 + 1 + 1, "inbox, session, form, slots, events, reminder, unit")
       assert(lines.result().exists(_.startsWith("sealing: vacuumed ")), lines.result().toString)
 
@@ -427,7 +427,7 @@ class SealingBackfillPgSuite extends PgSuite:
       val dumped = dump(database)
       scanned.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
       val again = SchemaUpgrade.run(ds, keys, _ => ())
-      assertEquals(again, UpgradeResult(0, "24", 0, 0), "a second start finds nothing to seal")
+      assertEquals(again, UpgradeResult(0, "25", 0, 0), "a second start finds nothing to seal")
     finally ds.close()
 
   test("the upgrade from V19 seals the file ids and the export parameters, and the release reads both back"):
@@ -461,7 +461,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, keys, line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("24", 3, 3))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("25", 4, 3))
       assert(lines.result().contains("sealing: vacuumed telegram_file_cache, export_jobs"), lines.result().toString)
 
       val cache = PgTelegramFileCache(ds, 7000000004L, keys)
@@ -489,7 +489,7 @@ class SealingBackfillPgSuite extends PgSuite:
       intercept[SealBroken](cache.get(s"export.$summary", "document", t0))
       val dumped = dump(database)
       scanned.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
-      assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "24", 0, 0), "a second start seals nothing")
+      assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "25", 0, 0), "a second start seals nothing")
     finally ds.close()
 
   test("a second start finds nothing to seal and applies nothing"):
@@ -498,7 +498,7 @@ class SealingBackfillPgSuite extends PgSuite:
       seedAtV9(ds)
       SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
       val again = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(again, UpgradeResult(0, "24", 0, 0))
+      assertEquals(again, UpgradeResult(0, "25", 0, 0))
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "a run that seals nothing is not audited")
     finally ds.close()
 
@@ -516,7 +516,7 @@ class SealingBackfillPgSuite extends PgSuite:
       val version = Flyway.configure().dataSource(ds).load().info().current().getVersion.getVersion
       assertEquals(version, "10")
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(result.schemaVersion, "24")
+      assertEquals(result.schemaVersion, "25")
       assertEquals(result.valuesSealed, 1 + 1 + 1 + 1 + 1, "only the export, the image, the stored answer, the dose unit (V19) and the export's parameters (V22) were left")
       val meals = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
         .transaction(_.tracking.meals.listLive(seed.account, DateRange.single(day)))
