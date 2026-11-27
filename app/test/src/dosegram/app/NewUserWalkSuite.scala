@@ -1,0 +1,295 @@
+package dosegram.app
+
+import dosegram.adapter.telegram.FakeTelegramTransport
+import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.domain.copy.IdentityCopy
+import dosegram.core.domain.copy.Labels
+import dosegram.core.domain.copy.Lang
+import dosegram.core.domain.copy.MenuCopy
+import dosegram.core.domain.copy.PromptCopy
+import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.StatsCardCopy
+import dosegram.core.domain.copy.WaterCopy
+import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.ports.ConsentPurpose
+import dosegram.infra.Adapter
+import dosegram.infra.Environment
+import dosegram.infra.LogFormat
+import dosegram.infra.LogLevel
+import dosegram.infra.Role
+import dosegram.infra.Settings
+import dosegram.infra.TelegramSettings
+import dosegram.infra.TelegramUpdates
+import dosegram.infra.crypto.DataKeys
+import dosegram.infra.db.PgInboundInbox
+import dosegram.infra.db.PgSuite
+import dosegram.render.PngImage
+import dosegram.render.RasterFailure
+import dosegram.render.Rasteriser
+import ox.supervised
+
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files
+import java.nio.file.Path
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZoneId
+
+/** A new user's first day in the chat, walked through the production assembly on the fake wire, once in Ukrainian and
+  * once in English (docs/verification/new-user-review-2026-11-27.md). Nothing is seeded: `/start`, the medications,
+  * the reminders and every tracking domain go through the chat, the images through the report worker. The transcript
+  * is written to `$WALK_OUT` (or a temporary directory) for the review; the test holds the walk's invariants.
+  */
+class NewUserWalkSuite extends PgSuite:
+
+  override val munitTimeout = scala.concurrent.duration.Duration(600, "s")
+
+  // A Monday.
+  private val day = LocalDate.parse("2026-09-21")
+  private val ukrainian = NewUserWalk.User(8101L, "CanaryWalkerUk", Some("uk"), 10_000L)
+  private val english = NewUserWalk.User(8102L, "CanaryWalkerEn", Some("en"), 20_000L)
+
+  override def beforeEach(context: BeforeEach): Unit =
+    withConnection { conn =>
+      val st = conn.createStatement()
+      try
+        st.execute("SET session_replication_role = replica")
+        val rs = st.executeQuery(
+          "SELECT string_agg(quote_ident(tablename), ', ') FROM pg_tables " +
+            "WHERE schemaname = 'public' AND tablename <> 'flyway_schema_history'"
+        )
+        rs.next()
+        st.execute(s"TRUNCATE ${rs.getString(1)} CASCADE")
+        st.execute("SET session_replication_role = DEFAULT")
+      finally st.close()
+    }
+
+  private val fast = Workers.Cadence(
+    reminderPoll = Duration.ofMillis(100),
+    materialiserPeriod = Duration.ofMinutes(15),
+    outboxIdlePoll = Duration.ofMillis(50),
+    sessionSweepPeriod = Duration.ofMillis(100),
+    rollupIdlePoll = Duration.ofMillis(100),
+    imagePurgePeriod = Duration.ofMillis(100),
+    ownerAlertPeriod = Duration.ofMillis(100)
+  )
+
+  private val telegram = TelegramSettings(
+    "555000111:fake-wire-token",
+    FakeTelegramTransport.Bot.id,
+    TelegramUpdates.Poll,
+    Set(ukrainian.id, english.id)
+  )
+
+  private def settings: Settings =
+    val separator = if pg.jdbcUrl.contains("?") then "&" else "?"
+    Settings(
+      enabledAdapters = List(Adapter.Telegram),
+      databaseUrl = s"${pg.jdbcUrl}${separator}user=${pg.username}&password=${pg.password}",
+      callbackKeys = Settings.parseCallbackKeys("0:MDEyMzQ1Njc4OWFiY2RlZg").fold(error => fail(error), identity),
+      role = Role.All,
+      instanceId = "new-user-walk",
+      logLevel = LogLevel.Info,
+      logFormat = LogFormat.Plain,
+      consoleUserId = None,
+      telegram = Some(telegram),
+      publicBaseUrl = None,
+      healthPort = freePort(),
+      environment = Environment.Development
+    )
+
+  /** Draws every card: the bytes do not matter here, the caption (its text equivalent) does. */
+  private object AnyBytes extends Rasteriser:
+    override def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
+      Right(PngImage(IArray.unsafeFromArray(s"png:${svg.hashCode}".getBytes(UTF_8))))
+
+  private def strings(query: String): List[String] = withConnection { conn =>
+    val st = conn.createStatement()
+    try
+      val rs = st.executeQuery(query) // a query of this suite, never input
+      Iterator.continually(rs).takeWhile(_.next()).map(_.getString(1)).toList
+    finally st.close()
+  }
+
+  private def inFlight(clock: SteppedClock): Boolean =
+    strings(
+      s"""SELECT (SELECT count(*) FROM inbound_inbox WHERE status = 'pending')
+         |  + (SELECT count(*) FROM outbox_messages WHERE status IN ('queued', 'sending', 'failed_retry')
+         |       AND next_attempt_at <= '${clock.now().plusSeconds(120)}'::timestamptz)
+         |  + (SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering'))""".stripMargin
+    ).head.toInt > 0
+
+  /** Runs `script` as `user` and returns the transcript and every button label the bot showed. */
+  private def walk(user: NewUserWalk.User, zone: ZoneId, startAt: String)(
+      script: NewUserWalk => Unit
+  ): (List[String], Set[String]) =
+    val clock = SteppedClock(NewUserWalk.at(day, startAt, zone))
+    val wire = FakeTelegramTransport(clock)
+    val images = StatusImages.over(AnyBytes, StatusImages.Stores.inMemory, _ => ())
+    supervised:
+      val config = settings
+      val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource, DataKeys.development)))
+      Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast, images), log = _ => ())
+      val chat = NewUserWalk(clock, wire, user, () => zone, () => inFlight(clock))
+      try script(chat)
+      catch
+        case failure: AssertionError =>
+          println("inbox: " + strings("SELECT status || ':' || coalesce(failure_reason, '') FROM inbound_inbox ORDER BY sequence DESC LIMIT 5"))
+          println("outbox: " + strings("SELECT kind || ':' || status || ':' || next_attempt_at FROM outbox_messages ORDER BY created_at DESC LIMIT 5"))
+          throw failure
+      finally write(user, chat.transcript)
+      (chat.transcript, chat.labels)
+
+  private def write(user: NewUserWalk.User, lines: List[String]): Unit =
+    val dir = sys.env.get("WALK_OUT").map(Path.of(_)).getOrElse(Files.createTempDirectory("new-user-walk"))
+    Files.createDirectories(dir)
+    val file = dir.resolve(s"walk-${user.languageCode.getOrElse("none")}.txt")
+    Files.writeString(file, lines.mkString("\n") + "\n")
+    println(s"transcript: $file")
+
+  /** The walk's invariants: nothing failed on the way, and every image carried its text. */
+  private def assertClean(lines: List[String]): Unit =
+    assertEquals(strings("SELECT status FROM outbox_messages WHERE status IN ('dead', 'failed_permanent')"), Nil)
+    assertEquals(strings("SELECT status FROM inbound_inbox WHERE status = 'quarantined'"), Nil)
+    assert(!lines.exists(_.contains("(no caption)")), "an image without its text equivalent")
+
+  /** The fixes of the review, as the production path shows them (docs/verification/new-user-review-2026-11-27.md). */
+  private def assertReviewed(lang: Lang, lines: List[String], labels: Set[String]): Unit =
+    def l(text: => String): String = Lang.within(lang)(text)
+    val text = lines.mkString("\n")
+    def shows(clue: String, expected: String): Unit = assert(text.contains(expected), s"$clue: '$expected'")
+    assert(labels.contains(l(WizardCopy.addMedicationTitle)), "onboarding ends with Add medication")
+    shows("the closing line of onboarding", l(IdentityCopy.accountReadyMedication))
+    // The snooze lands a minute either side of 13:11 with the stepped clock: the words before the time.
+    shows("the snoozed card", l(ReminderCopy.snoozedUntil("§")).takeWhile(_ != '§'))
+    shows("a repeat says which reminder it is", l(ReminderCopy.repeatLine("20:00", 2, 3)))
+    shows("the final repeat says so", l(ReminderCopy.lastReminder))
+    shows("an earlier card points below", l(ReminderCopy.supersededCard))
+    shows("the missed notice carries the safety sentence", l(ReminderCopy.unsureAdvice))
+    assert(labels.contains(l(MenuCopy.todayTaken("20:00"))), "the /today buttons carry the dose time")
+    shows("the goal card names the typed amount", l(WaterCopy.goalPending(250)))
+    assert(
+      labels.contains(l(MenuCopy.forMedication(MenuCopy.medicationsPause, "Magnesium"))),
+      "each /meds row names its medication"
+    )
+
+  /** Labels whose English and Ukrainian forms differ: none of them may show in the Ukrainian walk. */
+  private val EnglishOnly: Set[String] =
+    def english(label: => String): Option[String] =
+      val (en, uk) = (Lang.within(Lang.En)(label), Lang.within(Lang.Uk)(label))
+      Option.when(en != uk)(en)
+    List(
+      english(ConsentCopy.onboardingLabel(ConsentPurpose.Medication)),
+      english(ConsentCopy.Agree),
+      english(ConsentCopy.Confirm),
+      english(Labels.Yes),
+      english(Labels.Change),
+      english(Labels.Create),
+      english(Labels.Taken),
+      english(Labels.Skip),
+      english(WizardCopy.everyDay),
+      english(WizardCopy.weekdays),
+      english(WizardCopy.chooseDays),
+      english(WizardCopy.noInstructions),
+      english(WizardCopy.addMedicationTitle)
+    ).flatten.toSet
+
+  /** The walk of the review: one script for both languages, the labels from the catalogue in the user's language. */
+  private def firstDay(lang: Lang, zone: ZoneId)(chat: NewUserWalk): Unit =
+    def l(label: => String): String = Lang.within(lang)(label)
+    def t(en: String, uk: String): String = if lang == Lang.Uk then uk else en
+    def at(local: String) = NewUserWalk.at(day, local, zone)
+    // A label in the user's language, or the English one where the bot showed that instead (a finding of the review).
+    def tap(label: => String): Unit =
+      val (own, english) = (l(label), Lang.within(Lang.En)(label))
+      chat.tapWhere(own)(shown => shown == own || shown == english)
+    chat.note("Onboarding: /start, the medication consent in two taps, the time zone")
+    chat.say("/start")
+    tap(ConsentCopy.onboardingLabel(ConsentPurpose.Medication))
+    tap(ConsentCopy.Agree)
+    tap(ConsentCopy.Confirm)
+    chat.tapWhere(zone.getId)(_.contains(zone.getId))
+    tap(Labels.Yes)
+    chat.note("First medication: Vitamin D, every day at 09:00")
+    // From the closing message of onboarding where it offers the button, else through /meds.
+    if !chat.newestButtons.contains(l(WizardCopy.addMedicationTitle)) then chat.say("/meds")
+    tap(WizardCopy.addMedicationTitle)
+    chat.say("Vitamin D")
+    chat.say("1000 IU")
+    chat.say("09:00")
+    tap(WizardCopy.noInstructions)
+    tap(WizardCopy.everyDay)
+    tap(Labels.Create)
+    chat.note("Second medication: Magnesium, on weekdays at 13:00 and 20:00, with instructions")
+    chat.say("/meds")
+    tap(WizardCopy.addMedicationTitle)
+    chat.say("Magnesium")
+    chat.say(t("1 tablet", "1 таблетка"))
+    chat.say("13:00 20:00")
+    chat.say(t("with food", "під час їжі"))
+    tap(WizardCopy.weekdays)
+    tap(Labels.Create)
+    chat.note("The medication list with both medications")
+    chat.say("/meds")
+    chat.note("Water: a typed amount, the water consent, the work-hours plan")
+    chat.say(t("250 ml", "250 мл"))
+    tap(ConsentCopy.Agree)
+    tap(ConsentCopy.Confirm)
+    tap(WaterCopy.goalChoice(2000))
+    tap(PromptCopy.presetName("water.work_hours_30"))
+    tap(PromptCopy.TurnOn)
+    chat.note("Mood: /mood, the mood consent, a check-in")
+    chat.say("/mood")
+    tap(ConsentCopy.Agree)
+    tap(ConsentCopy.Confirm)
+    chat.tap("4")
+    chat.note("Sleep: a typed night before the sleep consent")
+    chat.say(t("slept 23:30 7:10", "сон 23:30 7:10"))
+    tap(ConsentCopy.Agree)
+    tap(ConsentCopy.Confirm)
+    chat.tap("4")
+    chat.note("A meal typed before the nutrition consent")
+    chat.say(t("breakfast: porridge", "сніданок: каша"))
+    tap(ConsentCopy.Agree)
+    tap(ConsentCopy.Confirm)
+    chat.note("/today before the first dose")
+    chat.say("/today")
+    chat.note("09:00: the first reminder, answered with Taken")
+    chat.passUntil(at("09:01"))
+    tap(Labels.Taken)
+    chat.note("13:00: the Magnesium reminder, snoozed, then skipped when it comes back")
+    chat.passUntil(at("13:01"))
+    chat.tapWhere("Snooze")(_.startsWith(t("Snooze", "Відкласти")))
+    chat.passUntil(at("13:45"))
+    tap(Labels.Skip)
+    chat.note("/today after the answers")
+    chat.say("/today")
+    chat.note("/stats with images")
+    chat.say("/stats")
+    tap(WaterCopy.ShowAsImage)
+    tap(ConsentCopy.Agree)
+    tap(ConsentCopy.Confirm)
+    tap(StatsCardCopy.WaterWeek)
+    chat.note("/reminders")
+    chat.say("/reminders")
+    chat.note("/privacy")
+    chat.say("/privacy")
+    chat.note("The rest of the day: what the bot sends on its own until 22:00")
+    chat.passUntil(at("22:00"))
+
+  test("a new Ukrainian-speaking user's first day in the chat"):
+    val zone = ZoneId.of("Europe/Kyiv")
+    val (lines, shown) = walk(ukrainian, zone, "08:00")(firstDay(Lang.Uk, zone))
+    assertClean(lines)
+    assertReviewed(Lang.Uk, lines, shown)
+    // Walk-through of 2026-11-27: the onboarding and wizard buttons were English for a Ukrainian reader.
+    val english = EnglishOnly.filter(shown)
+    assertEquals(english, Set.empty[String], "English buttons in the Ukrainian walk")
+    assert(!lines.exists(_.contains("question 1 of")), "an English form heading in the Ukrainian walk")
+
+  test("a new English-speaking user's first day in the chat"):
+    val zone = ZoneId.of("Europe/London")
+    val (lines, shown) = walk(english, zone, "08:00")(firstDay(Lang.En, zone))
+    assertClean(lines)
+    assertReviewed(Lang.En, lines, shown)
+end NewUserWalkSuite
