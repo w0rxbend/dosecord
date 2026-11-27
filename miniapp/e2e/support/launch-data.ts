@@ -1,6 +1,6 @@
 // Launch data as Telegram signs it for third parties (research brief 02 section 11.3, ARCHITECTURE API-02), with the
 // suite's own Ed25519 key in place of Telegram's. The backend accepts that key only outside production.
-import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
+import { createHash, createHmac, createPrivateKey, createPublicKey, sign } from 'node:crypto';
 
 export const BOT_ID = 7000000001;
 export const TELEGRAM_USER_ID = 6000000123;
@@ -26,6 +26,23 @@ export function signedInitData(startParam?: string, authDate: Date = new Date())
     .map((key) => `${key}=${fields[key]}`)
     .join('\n');
   const signature = sign(null, Buffer.from(`${BOT_ID}:WebAppData\n${checkString}`), privateKey).toString('base64url');
-  // Real launch data also carries the HMAC `hash`; the server ignores it when a signature is present.
-  return new URLSearchParams({ ...fields, signature, hash: '0'.repeat(64) }).toString();
+  // Real launch data also carries the HMAC `hash` over every field but itself, signature included; the server ignores
+  // it when a signature is present.
+  return new URLSearchParams({ ...fields, signature, hash: hmacHash({ ...fields, signature }) }).toString();
+}
+
+/** The bot token the suite's launch data is hashed with; it belongs to no bot. */
+export const TEST_BOT_TOKEN = `${BOT_ID}:AAE2e-rehearsal-token-of-no-bot-000000`;
+
+/**
+ * The HMAC `hash` as Telegram computes it (research brief 02 section 11.3): HMAC-SHA-256 of the sorted fields, keyed
+ * by HMAC-SHA-256 of the bot token keyed by "WebAppData".
+ */
+export function hmacHash(fields: Record<string, string>, botToken: string = TEST_BOT_TOKEN): string {
+  const checkString = Object.keys(fields)
+    .sort()
+    .map((key) => `${key}=${fields[key]}`)
+    .join('\n');
+  const secret = createHmac('sha256', 'WebAppData').update(botToken).digest();
+  return createHmac('sha256', secret).update(checkString).digest('hex');
 }

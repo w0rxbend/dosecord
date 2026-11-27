@@ -106,9 +106,4 @@
     gap: var(--dg-space-3);
     min-block-size: var(--dg-target);
   }
-
-  .toggle input {
-    inline-size: 24px;
-    block-size: 24px;
-  }
 </style>

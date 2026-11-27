@@ -100,11 +100,6 @@
     font-weight: 600;
   }
 
-  .toggle input {
-    inline-size: 24px;
-    block-size: 24px;
-  }
-
   .times {
     display: grid;
     grid-template-columns: 1fr 1fr;

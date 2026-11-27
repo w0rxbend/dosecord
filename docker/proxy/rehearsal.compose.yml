@@ -1,0 +1,34 @@
+# Throwaway proxies of the local rehearsal (scripts/miniapp-rehearsal.sh, miniapp/e2e/proxy.mjs). Each runs on the
+# host network so that it reaches the application on 127.0.0.1, and binds the loopback interface only. Started under
+# a project name of its own and removed with `down -v` afterwards; never used on a public host.
+services:
+  caddy:
+    profiles: [caddy]
+    image: caddy:2.10.2-alpine
+    network_mode: host
+    command: [caddy, run, --config, /etc/caddy/rehearsal.Caddyfile, --adapter, caddyfile]
+    environment:
+      MINIAPP_HOST: localhost
+      MINIAPP_UPSTREAM: ${MINIAPP_UPSTREAM:?}
+      REHEARSAL_HTTP_PORT: ${REHEARSAL_HTTP_PORT:?}
+      REHEARSAL_HTTPS_PORT: ${REHEARSAL_HTTPS_PORT:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./rehearsal.Caddyfile:/etc/caddy/rehearsal.Caddyfile:ro
+      - caddy_data:/data
+
+  nginx:
+    profiles: [nginx]
+    image: nginx:1.30-alpine
+    network_mode: host
+    environment:
+      MINIAPP_HOST: localhost
+      MINIAPP_UPSTREAM: ${MINIAPP_UPSTREAM:?}
+      NGINX_ENVSUBST_FILTER: ^MINIAPP_
+    volumes:
+      # The template with its listen lines moved to the rehearsal's loopback ports (scripts/miniapp-rehearsal.sh).
+      - ${REHEARSAL_NGINX_TEMPLATE:-./nginx.conf.template}:/etc/nginx/templates/default.conf.template:ro
+      - ${REHEARSAL_CERT_DIR:-./absent}:/etc/letsencrypt/live/localhost:ro
+
+volumes:
+  caddy_data: {}

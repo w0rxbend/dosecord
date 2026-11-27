@@ -1,0 +1,13 @@
+# The local rehearsal of the proxy (scripts/miniapp-rehearsal.sh, pnpm --dir miniapp run e2e:https): the site of
+# ./Caddyfile unchanged, on ports from the environment, bound to the loopback interface, with a certificate from
+# Caddy's own local authority instead of a public one. Never used on a public host.
+{
+	admin off
+	local_certs
+	skip_install_trust
+	default_bind 127.0.0.1
+	http_port {$REHEARSAL_HTTP_PORT}
+	https_port {$REHEARSAL_HTTPS_PORT}
+}
+
+import Caddyfile

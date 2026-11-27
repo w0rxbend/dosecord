@@ -14,8 +14,10 @@ import dosegram.infra.Environment
 import dosegram.infra.LogFormat
 import dosegram.infra.LogLevel
 import dosegram.infra.MiniAppSettings
+import dosegram.infra.RenderSettings
 import dosegram.infra.Role
 import dosegram.infra.Settings
+import dosegram.infra.crypto.DataKeys
 import dosegram.infra.db.Database
 import dosegram.infra.db.Fixtures
 import dosegram.infra.db.Migrator
@@ -32,8 +34,9 @@ import scala.language.implicitConversions
   * [[Launch.start]] on a throwaway PostgreSQL, with the console adapter and the Mini App on one listener. Launch data
   * is verified with Ed25519 against the suite's own public key, which only a non-production environment accepts
   * (ARCHITECTURE API-02). One account exists, linked to the suite's Telegram user, with the consents of medication,
-  * water, mood and sleep and one daily medication. The process runs until it is killed; Testcontainers removes the
-  * database then.
+  * water, mood, sleep, food, imports and images in the chat and one daily medication. Cards are drawn as in production
+  * when `DOSEGRAM_RESVG` (scripts/fetch-resvg.sh) or the PATH names resvg, and are text otherwise. The process runs
+  * until it is killed; Testcontainers removes the database then.
   *
   * Arguments: the public port, the built Mini App directory, the public key (64 hex digits), the bot id and the
   * Telegram user id.
@@ -57,12 +60,16 @@ import scala.language.implicitConversions
     healthPort = freePort(),
     environment = Environment.Test,
     httpPort = port,
-    miniApp = Some(MiniAppSettings(Some(staticDir), Some(botId), Some(publicKey), hmacFallback = false))
+    miniApp = Some(MiniAppSettings(Some(staticDir), Some(botId), Some(publicKey), hmacFallback = false)),
+    render = E2eSeed.drawing
   )
   val rig = LaunchRig(Clock.system)
   val exitCode = Shutdown.serve(
     body = {
-      val parts = Launch.Parts(Clock.system, Map("console" -> rig.console), Workers.Cadence.Production)
+      // The durable image stores of production, so a preview and a queued card are drawn and kept as on the host.
+      val stores = StatusImages.Stores.durable(dataSource, botId, Clock.system, DataKeys(settings.kek, Clock.system))
+      val images = StatusImages.from(settings.render, stores, line => println(s"e2e backend: $line"))
+      val parts = Launch.Parts(Clock.system, Map("console" -> rig.console), Workers.Cadence.Production, images)
       val drain = Launch.start(settings, dataSource, parts, line => println(s"e2e backend: $line"))
       println(s"e2e backend: ready on 127.0.0.1:$port")
       drain
@@ -78,6 +85,28 @@ object E2eSeed:
   /** The name the suite looks for on Today and in the registry. */
   val MedicationName = "Vitamin D"
 
+  /** The resvg of scripts/fetch-resvg.sh (or the one on the PATH) and the pinned font pack, as the container image has
+    * them (ADR-022).
+    */
+  def drawing: Option[RenderSettings] =
+    sys.env
+      .get("DOSEGRAM_RESVG")
+      .filter(_.nonEmpty)
+      .orElse(onPath("resvg"))
+      .map: resvg =>
+        val fonts = sys.env.getOrElse("DOSEGRAM_FONTS_DIR", "report-renderer/fonts")
+        RenderSettings(resvg, fonts, sys.env.get("DOSEGRAM_RASTER_WORKER").filter(_.nonEmpty))
+
+  private def onPath(binary: String): Option[String] =
+    sys.env
+      .getOrElse("PATH", "")
+      .split(java.io.File.pathSeparatorChar)
+      .iterator
+      .filter(_.nonEmpty)
+      .map(java.nio.file.Path.of(_, binary))
+      .find(java.nio.file.Files.isExecutable(_))
+      .map(_.toString)
+
   /** The medication whose dose is due when the suite starts. */
   val DueMedicationName = "Iron"
 
@@ -91,7 +120,8 @@ object E2eSeed:
       ConsentPurpose.Mood,
       ConsentPurpose.Sleep,
       ConsentPurpose.Nutrition,
-      ConsentPurpose.Import
+      ConsentPurpose.Import,
+      ConsentPurpose.ImagesInChat
     )
     val conn = dataSource.getConnection
     try
