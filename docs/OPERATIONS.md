@@ -763,8 +763,11 @@ variable is added or made required. The commits since `3d9e9c3` are the fixes of
 review (`d577750`: one dose count on the `/stats meds` strip, "no record" doses on `/today`,
 Ukrainian counted nouns, the water offer after the goal, Europe/Kyiv suggested in Ukrainian
 onboarding, "your records" as the sleep source), image round 5 (merge `aac9ee1`) and the Mini
-App go-live rehearsal (merge `6f7fa3d`). Every step is the owner's; `<sha>` is the head of
-`main` at or after the commit that adds this section, and `<pg>` is `dosegram-live-pg`:
+App go-live rehearsal (merge `6f7fa3d`), and the two copy fixes of the verification of the
+integration (the weekly summary preset named "Monday at 09:00", the day it is sent, in place of
+"Sunday evening"; "Your latest mood check-in" for a gallery of one). Every step is the owner's;
+`<sha>` is the head of `main` at or after the commit that adds the rehearsal record below, and
+`<pg>` is `dosegram-live-pg`:
 
 1. Back up, with the bot still running:
    `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v23-$(date -u +%F).dump`.
@@ -793,6 +796,8 @@ What changes in the chat, none of it checked on a real client yet:
 - Dark and discreet personal cards use the new Rye `#a86614` and Beet `#b45689` from their next
   render; light cards and the mood blobs are unchanged, so shared mood file ids stay valid.
 - The fixes of `d577750` listed above.
+- `/reminders` names the weekly summary "Monday at 09:00" ("Понеділок о 09:00"), the time it was
+  always sent; a plan already on is unchanged (ADR-023 addendum of 2026-11-28).
 
 The Mini App stays off: `.live/run.sh` keeps `export MINIAPP_ENABLED=false` until the owner
 makes the one-time edit and the go-live steps of `docs/DEPLOY_MINIAPP.md` (DNS, a proxy from
@@ -803,9 +808,42 @@ Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-3d9e9c3" .live/run.sh`.
 schema change, so no restore is needed; it logs `schema 23`. Buttons the head sent ("Show as
 image" under `/mood history`, action id 474) may get no answer from `3d9e9c3`.
 
-Not rehearsed as a separate upgrade: with no migration, the start over the live V23 database is
-the second start of section 17, which was rehearsed (`migrate: 0 migration(s) applied, schema 23`).
-Checked at the head instead: `scripts/flyway-validate.sh` (21 migrations) and
-`scripts/check-frozen-migrations.sh` against a throwaway PostgreSQL, and `ProductionPathSuite`
-and `NewUserWalkSuite` on the production assembly and the fake wire. Not checked: a real client,
-the Telegram transport, the weekly album over live data.
+Rehearsed on 2026-11-27 against a throwaway `postgres:18-alpine` container on a free port, with
+a key file (`KEK_FILE`, mode 600) and a purge-list path in a directory of mode 700,
+`ENVIRONMENT=production`, as in section 17. `3d9e9c3`, started as `Main` starts with its
+production assembly on the fake wire and resvg drawing, built a V23 database through the chat in
+two starts (the first logged `migrate: 21 migration(s) applied, schema 23`): onboarding in
+English, a medication with a name and instructions at 09:00 and 13:00, the 09:00 reminder tapped
+Taken, water with the work-hours plan, mood four times, a night, a meal with words, the images
+consent with the week image, "Water, 7 days", `/stats meds` and its strip, the record summary
+export of 30 days, the weekly summary turned on from `/reminders`, the 13:00 reminder left open,
+an add-medication form left after its first answer. Then steps 1 to 4 as written, with the
+assemblies started by `java -jar out/app/assembly.dest/out.jar run` on the console adapter in
+place of the token: `3d9e9c3` started and stopped (`/readyz` 200, SIGTERM, `shutdown: pool
+closed`, exit 0); the `pg_dump -Fc` backup was written with mode 600; no purge list existed and
+no update was quarantined; the head logged the 23 `sealing:` lines with `sealed 0`,
+`migrate: 0 migration(s) applied, schema 23, 0 value(s) sealed, 0 key(s) rewrapped` and
+`purge: replayed 0 deletion(s) of the purge list`, answered `/readyz` with 200 and stopped with
+exit 0, twice. Step 5: the flyway maximum stayed 23 and the quarantined count 0. The head on the
+fake wire over that database found one account and one identity, sent the catch-up digest of the
+two doses that passed while no release ran, listed the sealed medication name with no onboarding
+question, answered eleven buttons sent by `3d9e9c3` (Taken, "+ 200 ml", "7 days", the export file,
+Undo, Skip, "30 days", "Pause for today", "Show as image" of the strip, "By medication", "Water,
+7 days") with an edit, a toast or an image, answered `/privacy`, `/today` (the passed doses as
+"no record (service outage)" with "I took it"), `/mood history` with the four seeded check-ins
+and its gallery as a photo, `/stats meds` and its strip, `/reminders` with the weekly summary on,
+a water entry and a mood prompt; stepped on to Monday 30 Nov 09:15, it sent the weekly report of
+23 to 29 Nov as an album of two (the week card, then the week highlights) from the plan
+`3d9e9c3` had turned on. Nothing was quarantined and no outbox row died; the key file opened
+every sealed file id (8), the medication name, its instructions and the meal words. A scan of
+every column (594), a `pg_dump` and the data directory with its WAL held none of the typed words,
+the first name or a file id (the zone name, the positive control, was found); 45 tables have
+forced row-level security and `dosegram_app` without a claim saw no row of `users`,
+`medications` or `mood_checkins`. Rollback: `3d9e9c3` over the upgraded database logged
+`migrate: 0 migration(s) applied, schema 23`, answered `/readyz` with 200, answered `/meds`,
+`/mood`, `/reminders`, `/stats` and a water entry on the fake wire with nothing quarantined or
+dead, and stopped cleanly; the head started again after it with the same lines. Not rehearsed: a
+real client, the Telegram transport, the weekly album over live data, and the answer of
+`3d9e9c3` to a gallery button (action id 474). The rehearsal's fake wire numbers messages from 1
+in every run, so a mood prompt of the head reused a seeded prompt's number and its tap was
+answered "Already recorded"; Telegram never reuses a message id in a chat.
