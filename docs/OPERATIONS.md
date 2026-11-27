@@ -567,3 +567,56 @@ buttons sent before the upgrade, and sent the mood image by its sealed file id w
 A scan of every column, a `pg_dump` and, after step 6, the WAL held none of the typed words or
 file ids; `dosegram_app` without a claim saw no row; 45 tables have forced row-level security.
 Not rehearsed: a real client, the Telegram transport, the rollback.
+
+## 16. Deploying `main` after the integration of 2026-11-27 over the live V22 database (50cda8f to the head, no migration)
+
+The live bot runs `50cda8f` from `.live/run.sh` (long polling, `.live/wt-50cda8f`), and its
+database is at V22. The head of `main` adds no migration, no table and no environment variable:
+the start applies nothing and the schema stays at 22. The commits since `50cda8f` are the five
+fixes of the verification of 2026-11-27 (`52a1ff9` to `3a71c00`), the new-user review
+(`feat/new-user-review`, merge `c96eb1c`) and the trends and share builder
+(`feat/trends-and-share`, merge `1fbc57d`). The Mini App stays off on live (no https
+`MINI_APP_URL`), so the share builder and the Insights changes are not reachable there. Every step
+is the owner's; `<sha>` is the head of `main` at or after the commit that adds this section, and
+`<pg>` is `dosegram-live-pg`:
+
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v22-$(date -u +%F).dump`.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
+   `shutdown: pool closed`). Start the new release with the same script:
+   `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows
+   a line starting `migrate: 0 migration(s) applied, schema 22` and
+   `purge: replayed 0 deletion(s) of the purge list`.
+5. Check: `curl -fsS http://127.0.0.1:18081/readyz` answers 200; in the chat, `/privacy` answers
+   (it failed with no reply for an account holding the images or comparisons consent), `/today`
+   lists the day in time order with timed buttons, `/stats 30` has a "Trends" button, and
+   `/stats trends` answers with the figures of each consented domain.
+6. Delete the old worktree only after a day of normal use: `git worktree remove .live/wt-50cda8f`.
+
+What changes in the chat, none of it checked on a real client yet:
+
+- Fixed quarantine paths: a Ukrainian user confirming the water consent after a typed amount
+  (a plan name past the button limit), and `/privacy` for an account holding the images or
+  comparisons consent (withdraw labels past the limit). Updates already quarantined stay
+  quarantined; they are not replayed.
+- Copy: shorter water plan names in both languages; withdraw buttons read "Withdraw: images" and
+  similar; onboarding and the add-medication wizard read their buttons in the reader's language,
+  and the form heading reads "Add medication (1/2)"; onboarding with medication ends with
+  "Add medication" and "Today" buttons; `/meds` rows name their medication when there are two
+  or more; the Ukrainian weekday heads of the week cards are two letters.
+- Reminders: a repeat says "Scheduled 13:00 · reminder 2 of 3", the last one says it is the last,
+  an earlier card says "Reminded again below.", a snoozed card says "Snoozed until HH:MM."; the
+  missed notice is always silent and carries the safety sentence.
+- A night typed before the sleep consent is held for 30 minutes and recorded at Confirm; a late
+  Undo on a meal or a night names the chat's own way while no Mini App opens.
+- The consent notice is version 2; a grant under version 1 stays in force with no new prompt.
+- Trends: `/stats trends` and "Trends" on the 30-day `/stats` (action id 411), with "30 days",
+  "90 days" and "Show as image" (IMG-23, sent after the images consent; it needs `RESVG_PATH`
+  and `RENDER_FONTS_DIR`, else the text is sent).
+
+Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-50cda8f" .live/run.sh`; the schema is
+unchanged, so no restore is needed. A "Trends" button or a held night created by the head may get
+no answer from `50cda8f`. Not rehearsed: this deploy, the rollback, a real client.

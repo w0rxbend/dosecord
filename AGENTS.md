@@ -39,14 +39,16 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-15 (`794dad1` and the docs after it), after
-eight rounds of parallel tracks were merged and wired together (the
-seventh: sleep, food and report depth, imports, row-level security, V14 to
-V17; the eighth: performance and privacy, image round 3, Mini App round,
-V19), plus the fixes of the verifications of 2026-11-14 (V13) and
-2026-11-15 (V18). The migrations are V1 to V19. The live database is at
-V17 (`dba2825`): `docs/OPERATIONS.md` section 13 is the owner's deploy of
-V18 and V19 in one start (sections 8 to 12 explain each part).
+State of `main` on 2026-11-27 (`f0d6626` and the docs after it), after
+nine rounds of parallel tracks were merged and wired together (the
+eighth: performance and privacy, image round 3, Mini App round, V19; the
+ninth: the new-user review and trends with the share builder, no
+migration), plus the fixes of the verifications of 2026-11-14 (V13),
+2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
+parameters). The migrations are V1 to V19 and V22; V20 and V21 must never
+be added. The live database is at V22 (`50cda8f`): `docs/OPERATIONS.md`
+section 16 is the owner's deploy of the head, with no migration (sections
+8 to 15 explain the earlier parts). The Mini App is off on live.
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -147,6 +149,14 @@ Appendix B and its status notes are the record; this is the short form.
   `ProductionPathSuite` starts from `/start` on the fake wire and scans
   every column and a `pg_dump` for the canaries it typed.
   `docs/PERFORMANCE.md` has the probes and the measured hot paths.
+- Trends and new-user review (2026-11-27): `/stats trends` and "Trends" on
+  the 30-day `/stats` (action id 411) with 30 and 90 days and the card
+  IMG-23, one source (`StatsQueryService.trends`) for the chat, the card
+  and `GET /insights/overview`; the Mini App share builder
+  (`GET /report-cards/{kind}/preview`). `NewUserWalkSuite` walks a new
+  user's first day on the production assembly in Ukrainian and English;
+  `docs/verification/new-user-review-2026-11-27.md` lists the findings,
+  fixed and open.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -194,10 +204,8 @@ Useful next, in this order:
 4. What the seventh round left open: of G2.3 the `SECURITY DEFINER` claim
    functions for the loops, a fail-closed `transaction`, the chat-keyed
    tables and the unbound idempotency and session stores; of G9.2 the 60-day
-   simulation and pre-rendering; of G9.4 the Trends line;
-   of G10.7 keeping a device night next to a
-   self-reported one, the device name and G10.6 (OA-12); the Mini App share
-   builder; checkpoints CP2-a, CP10-a, CP10-b; live sends of the album, the
+   simulation and pre-rendering; of G10.7 keeping a device night next to a
+   self-reported one, the device name and G10.6 (OA-12); checkpoints CP2-a, CP10-a, CP10-b; live sends of the album, the
    share card and the report offer.
 5. What the fourth round left open: the step-up, `/privacy` button and e2e
    flow of the export (G3.10).
@@ -205,7 +213,7 @@ Useful next, in this order:
    Ukrainian copy; every N weeks, interval from a fixed start and several day
    groups (G9.8, G9.9); the refill notice against the nudge budget, the
    course-finished message and pause with a date in the Mini App (G9.10,
-   G9.12); MA-INS-8 and the cross-representation test of G9.5.
+   G9.12).
 7. What the consent and store work of 2026-11-13 left open: the rest of
    onboarding (adult attestation, region, discreet choice, G2.8), the
    `StorageError` port of G2.1, and of G2.4b the file ids, step-up
@@ -228,6 +236,15 @@ Useful next, in this order:
    occurrence sheet for the actions the API already accepts (no Taken-at
    field), the as-needed sheet, one inline mood check-in, insight blocks
    that load near the viewport, and a week-chart tap that opens the day.
+10. What the ninth round left open: live sends of the trends message,
+    IMG-23 and a builder card; the IMG-23 contact-sheet review and greyscale
+    check; a PERFORMANCE.md probe for the share preview; the open findings
+    of the new-user review (two image consent cards from two taps, two
+    keyboards at once for the goal card and water-plan offer, re-edits of
+    every earlier card of a dose, one Ukrainian word for Undo and Cancel, a
+    Back with nowhere to go, no default zone, terse `/stats`, no export
+    button on `/privacy`, repeat cards not replacing the old one); the old
+    plan names in `miniapp/src/mock/reminders.ts`.
 
 ## Agent workflow
 
