@@ -663,6 +663,19 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(marks(11), List(DoseMark.Skipped))
       assertEquals(marks(3), List(DoseMark.TakenOnTime))
 
+  test("after the medication consent is withdrawn, the buttons of an old /stats meds card show no medication"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.ImagesInChat)
+      val everyDay = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
+      chat.rig.seedSchedule(chat.account, "Vitamin D", everyDay, kyiv)
+      chat.rig.line("/stats meds")
+      chat.world.consents.withdraw(chat.account, ConsentPurpose.Medication, chat.rig.clock.now())
+      val statement = ConsentCopy.statement(ConsentPurpose.Medication)
+      assertEquals(texts(chat.rig.tapOn("By medication", "14 days")), List(statement))
+      assertEquals(texts(chat.rig.tapOn("By medication", StatsCardCopy.ShowAsImage)), List(statement))
+      assertEquals(cards.strips.toList, Nil, "no strip is drawn without the medication consent")
+
   test("/stats meds with no medication says how to add one and offers no image"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Medication)

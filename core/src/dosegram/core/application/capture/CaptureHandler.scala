@@ -252,9 +252,11 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsShare     => share.picker(turn)
       case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
       case CaptureActions.ImportTemplate => imports.template(turn, value).getOrElse(stale(turn))
-      case CaptureActions.StatsMeds      => meds.card(turn, value.toInt)
+      case CaptureActions.StatsMeds      => medsShown(turn)(meds.card(turn, value.toInt))
       case CaptureActions.StatsMedsImage =>
-        MedsChat.daysOf(value).fold(stale(turn))(days => imageOf(turn, Pending.MedsImage(days))(meds.image(turn, days)))
+        MedsChat
+          .daysOf(value)
+          .fold(stale(turn))(days => medsShown(turn)(imageOf(turn, Pending.MedsImage(days))(meds.image(turn, days))))
       case _ => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
@@ -307,7 +309,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         mealOf(code.toLong).map(meal => food.typed(fresh, MealLine.Logged(meal, words))).getOrElse(stale(turn))
       case Pending.FoodImage       => food.image(fresh)
       case Pending.ImportCard      => imports.card(fresh)
-      case Pending.MedsImage(days) => meds.image(fresh, days)
+      case Pending.MedsImage(days) => medsShown(fresh)(meds.image(fresh, days))
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =
@@ -345,6 +347,12 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   /** IMG-23 of 30 or 90 days; any other value is a stale control. */
   private def trendsImage(turn: Turn, days: Long): Reply =
     StatsChat.trendPeriodOf(days).fold(stale(turn))(stats.trendsImage(turn, _))
+
+  /** A button of an old `/stats meds` card shows medications only while the medication consent holds; otherwise it
+    * answers with the consent prompt as a new message, as every medication button does (PRODUCT_SPEC R-IDC-9).
+    */
+  private def medsShown(turn: Turn)(shown: => Reply): Reply =
+    consent.guarded(turn.copy(source = None), ConsentPurpose.Medication, Pending.Stats)(shown)
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
     * of its own, so the card the request came from stays as it is.
