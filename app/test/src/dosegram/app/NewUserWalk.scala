@@ -18,7 +18,8 @@ final class NewUserWalk(
     val wire: FakeTelegramTransport,
     user: NewUserWalk.User,
     zone: () => ZoneId,
-    busy: () => Boolean
+    busy: () => Boolean,
+    behind: () => Boolean
 ):
   import NewUserWalk.*
 
@@ -87,9 +88,17 @@ final class NewUserWalk(
     record()
     while clock.now().isBefore(until) do
       clock.advance(Duration.ofSeconds(30))
-      Thread.sleep(15)
+      catchUp()
       record()
     settle()
+
+  /** Waits, without moving the clock, until the reminder loop has decided every dose due by now: on a loaded machine a
+    * repeat decided two steps late is folded into the next one, and the walk would miss what the user sees on time.
+    */
+  private def catchUp(): Unit =
+    val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos
+    Thread.sleep(15)
+    while behind() && System.nanoTime() < deadline do Thread.sleep(10)
 
   /** Waits until the bot has answered: nothing in flight and no new call for a while. */
   def settle(): Unit =

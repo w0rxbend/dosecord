@@ -130,6 +130,9 @@ object WizardCopy:
     "Напишіть «Назад», щоб повернутися, або «Скасувати», щоб зупинитися."
   )
 
+  /** The hint of a flow's first text or form step, which has nothing to go back to. */
+  def textCancelHint = tr("Reply Cancel to stop.", "Напишіть «Скасувати», щоб зупинитися.")
+
   /** FormRunner: a blank answer to a required field (M0.12b). */
   def fieldRequired =
     tr("That one is required — please type an answer.", "Це поле обов’язкове — введіть, будь ласка, відповідь.")
@@ -186,6 +189,7 @@ object WizardCopy:
     CopyEntry("wizard.cancel_current_setup", cancelCurrentSetup),
     CopyEntry("wizard.nothing_to_cancel", nothingToCancel),
     CopyEntry("wizard.text_nav_hint", textNavHint),
+    CopyEntry("wizard.text_cancel_hint", textCancelHint),
     CopyEntry("wizard.field_required", fieldRequired)
   )
 end WizardCopy

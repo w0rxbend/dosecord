@@ -210,6 +210,7 @@ final class WizardEngine(
       data,
       session.stepSeq,
       tx,
+      canGoBack = historyOf(session).nonEmpty,
       selected
     ).copy(dedupeKey = s"wizard:${session.id}:${session.stepSeq}:toggle:${event.eventId.uuid}")
     tx.sessions.save(
@@ -425,7 +426,7 @@ final class WizardEngine(
     val step = flow.steps(flow.firstStep)
     val accountId = principal.accountId.map(_.uuid)
     val entered = step.onEnter(Map.empty, accountId, tx)
-    val prompt = renderStepPrompt(event.chat, accountId, sessionId, step, entered, 0, tx)
+    val prompt = renderStepPrompt(event.chat, accountId, sessionId, step, entered, 0, tx, canGoBack = false)
     val now = clock.now()
     tx.sessions.insert(
       ConversationSession(
@@ -503,7 +504,8 @@ final class WizardEngine(
           step,
           dataOf(session),
           newSeq,
-          tx
+          tx,
+          canGoBack = historyOf(session).nonEmpty
         )
         val prompt = base.copy(body = paragraph(reason) +: base.body)
         val counted = dataOf(session) + (FailuresKey -> failures.toString)
@@ -558,7 +560,8 @@ final class WizardEngine(
       step,
       entered,
       newSeq,
-      tx
+      tx,
+      canGoBack = history.nonEmpty
     )
     val prompt = rendered.copy(body = notice.map(paragraph).toList ++ rendered.body)
     persist(session, step.id, entered, history, newSeq, prompt, tx)
@@ -604,7 +607,9 @@ final class WizardEngine(
   // ---------- Prompt rendering ----------
 
   /** Renders one step's prompt: body from the flow, controls from the step kind, `[Back]`/`[Cancel]` on every step — as
-    * a nav row on choice steps and as a typed hint on text/form steps (so bare digits stay wizard input).
+    * a nav row on choice steps and as a typed hint on text/form steps (so bare digits stay wizard input). The first
+    * step of a flow (`canGoBack` false) has nowhere to go back to and offers Cancel alone (finding 15 of the review of
+    * 2026-11-27, BOT_UX BUX-ONB-06).
     */
   private[chat] def renderStepPrompt(
       chat: ChatRef,
@@ -614,6 +619,7 @@ final class WizardEngine(
       data: Map[String, String],
       stepSeq: Int,
       tx: Tx,
+      canGoBack: Boolean,
       selected: List[String] = Nil
   ): OutboundMessage =
     val (blocks, extraBody) =
@@ -635,9 +641,10 @@ final class WizardEngine(
             maxSelect = maxSelect,
             numberHotkeys = !acceptsText
           )
-          (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, tx, !acceptsText)), Nil)
+          val nav = navBlock(chat, accountId, sessionId, stepSeq, tx, !acceptsText, canGoBack)
+          (List(Block.Choices(choices), nav), Nil)
         case StepKind.Text =>
-          (Nil, List(paragraph(WizardCopy.textNavHint)))
+          (Nil, List(paragraph(navHint(canGoBack))))
         case StepKind.Form(formId, titleOf, fieldsOf) =>
           val (title, fields) = (titleOf(), fieldsOf())
           val submit = mint(chat, accountId, sessionId, stepSeq, ConfirmAction, FormSubmitKey, tx)
@@ -648,7 +655,7 @@ final class WizardEngine(
           val filled = fields.map(f => f.copy(value = data.get(f.key)))
           (
             List(Block.FormBlock(Form(formId, title, filled, submit.wire))),
-            List(paragraph(WizardCopy.textNavHint))
+            List(paragraph(navHint(canGoBack)))
           )
     OutboundMessage(
       body = step.render(data) ++ extraBody,
@@ -657,28 +664,22 @@ final class WizardEngine(
       correlationId = s"wizard:$sessionId"
     )
 
+  private def navHint(canGoBack: Boolean): String =
+    if canGoBack then WizardCopy.textNavHint else WizardCopy.textCancelHint
+
   private def navBlock(
       chat: ChatRef,
       accountId: Option[UUID],
       sessionId: UUID,
       stepSeq: Int,
       tx: Tx,
-      numberHotkeys: Boolean
+      numberHotkeys: Boolean,
+      canGoBack: Boolean
   ): Block =
-    Block.Choices(
-      ChoiceSet(
-        id = "wizard.nav",
-        numberHotkeys = numberHotkeys,
-        choices = List(
-          Choice.callback(Labels.Back, mint(chat, accountId, sessionId, stepSeq, StepAction, BackKey, tx).wire),
-          Choice.callback(
-            Labels.Cancel,
-            mint(chat, accountId, sessionId, stepSeq, StepAction, CancelKey, tx).wire,
-            ChoiceStyle.Danger
-          )
-        )
-      )
-    )
+    def slot(key: String): String = mint(chat, accountId, sessionId, stepSeq, StepAction, key, tx).wire
+    val back = Option.when(canGoBack)(Choice.callback(Labels.Back, slot(BackKey)))
+    val cancel = Choice.callback(Labels.Cancel, slot(CancelKey), ChoiceStyle.Danger)
+    Block.Choices(ChoiceSet(id = "wizard.nav", numberHotkeys = numberHotkeys, choices = back.toList :+ cancel))
 
   private def mint(
       chat: ChatRef,

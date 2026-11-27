@@ -112,15 +112,21 @@ class NewUserWalkSuite extends PgSuite:
     finally st.close()
   }
 
+  /** Whether the bot has work in hand: an update, a message or an image, or a dose due by the clock. */
   private def inFlight(clock: SteppedClock): Boolean =
     strings(
       s"""SELECT (SELECT count(*) FROM inbound_inbox WHERE status = 'pending')
          |  + (SELECT count(*) FROM outbox_messages WHERE status IN ('queued', 'sending', 'failed_retry')
          |       AND next_attempt_at <= '${clock.now().plusSeconds(120)}'::timestamptz)
-         |  + (SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering'))
-         |  + (SELECT count(*) FROM dose_occurrences WHERE status IN ('pending', 'due', 'snoozed')
-         |       AND next_action_at <= '${clock.now()}'::timestamptz
-         |       AND error_count < ${dosegram.core.ports.OccurrenceRepository.QuarantineErrorThreshold})""".stripMargin
+         |  + (SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering'))""".stripMargin
+    ).head.toInt > 0 || dosesDue(clock)
+
+  /** Whether the reminder loop has a dose due by the clock that it has not decided yet. */
+  private def dosesDue(clock: SteppedClock): Boolean =
+    strings(
+      s"""SELECT count(*) FROM dose_occurrences WHERE status IN ('pending', 'due', 'snoozed')
+         |  AND next_action_at <= '${clock.now()}'::timestamptz
+         |  AND error_count < ${dosegram.core.ports.OccurrenceRepository.QuarantineErrorThreshold}""".stripMargin
     ).head.toInt > 0
 
   /** Runs `script` as `user` and returns the transcript and every button label the bot showed. */
@@ -134,7 +140,7 @@ class NewUserWalkSuite extends PgSuite:
       val config = settings
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource, DataKeys.development)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast, images), log = _ => ())
-      val chat = NewUserWalk(clock, wire, user, () => zone, () => inFlight(clock))
+      val chat = NewUserWalk(clock, wire, user, () => zone, () => inFlight(clock), () => dosesDue(clock))
       try script(chat)
       catch
         case failure: AssertionError =>
@@ -186,6 +192,10 @@ class NewUserWalkSuite extends PgSuite:
       labels.contains(l(MenuCopy.forMedication(MenuCopy.medicationsPause, "Magnesium"))),
       "each /meds row names its medication"
     )
+    // Finding 15: the first card of onboarding has nothing to go back to.
+    val welcome = lines.dropWhile(!_.contains("you: /start")).drop(1).takeWhile(line => !line.matches("""\S+ \S+ you.*"""))
+    assert(welcome.exists(_.contains(s"[${l(Labels.Cancel)}]")), s"the first onboarding card offers Cancel: $welcome")
+    assert(!welcome.exists(_.contains(s"[${l(Labels.Back)}]")), s"the first onboarding card offers no Back: $welcome")
     val consentCards = messagesWith(lines, " bot #", l(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
     assertEquals(consentCards.size, 2, "the images consent card, asked twice")
     shows("the first images consent card gives way to the second", s"bot deletes #${consentCards.head}")

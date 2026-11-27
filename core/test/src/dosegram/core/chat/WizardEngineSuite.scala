@@ -126,20 +126,39 @@ class WizardEngineSuite extends munit.FunSuite:
 
   // Acceptance 8: [Back]/[Cancel] on every step — as a nav row on choice steps, as a typed hint on text/form steps
   // (so a bare digit is never eaten while the wizard waits for free text, DESIGN.md section 4.6 step 5).
+  // The first step of a flow has nothing before it and offers Cancel alone (finding 15 of the review of 2026-11-27).
+  private def promptOf(h: WizardHarness, step: Step, canGoBack: Boolean): OutboundMessage =
+    h.uow.transaction(tx =>
+      h.engine.renderStepPrompt(
+        h.chat,
+        None,
+        UUID.randomUUID(),
+        step,
+        Map("name" -> "Widget", "color" -> "red", "a" -> "1", "b" -> "2"),
+        0,
+        tx,
+        canGoBack
+      )
+    )
+
+  test("a flow's first step offers Cancel alone: there is nothing to go back to"):
+    val h = WizardHarness()
+    flows.values.flatMap(_.steps.values).foreach: step =>
+      val prompt = promptOf(h, step, canGoBack = false)
+      step.kind match
+        case StepKind.Choices(_, _, _, _) =>
+          val labels = prompt.blocks.collect { case Block.Choices(cs) => cs.choices.map(_.label) }.flatten
+          assert(!labels.contains(Labels.Back), s"step '${step.id}' has no [Back]")
+          assert(labels.contains(Labels.Cancel), s"step '${step.id}' has [Cancel]")
+        case StepKind.Text | StepKind.Form(_, _, _) =>
+          val body = h.bodyText(Reply(replace = Some(prompt)))
+          assert(body.contains(WizardCopy.textCancelHint), s"step '${step.id}' carries the typed Cancel hint")
+          assert(!body.contains(WizardCopy.textNavHint), s"step '${step.id}' does not offer Back")
+
   test("every step renders with Back and Cancel"):
     val h = WizardHarness()
     flows.values.flatMap(_.steps.values).foreach: step =>
-      val prompt = h.uow.transaction(tx =>
-        h.engine.renderStepPrompt(
-          h.chat,
-          None,
-          UUID.randomUUID(),
-          step,
-          Map("name" -> "Widget", "color" -> "red", "a" -> "1", "b" -> "2"),
-          0,
-          tx
-        )
-      )
+      val prompt = promptOf(h, step, canGoBack = true)
       step.kind match
         case StepKind.Choices(_, _, _, _) =>
           val labels = prompt.blocks

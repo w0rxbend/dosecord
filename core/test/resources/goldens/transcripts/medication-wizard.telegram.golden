@@ -32,7 +32,7 @@ No medications yet. | [Today's doses] [Add medication] [Log dose] [Settings] | [
 > tap "Add medication"
 send: Let's add a medication.
 
-Reply Back to go back or Cancel to stop.
+Reply Cancel to stop.
 
 Add medication (1/2)
 

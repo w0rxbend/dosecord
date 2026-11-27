@@ -49,7 +49,7 @@ continuation in section 5.2 comes from a run with only the fix of finding 1 appl
 | 12 | The water goal card and the plan offer arrive together: two keyboards at once. | too many taps | Not fixed (8 explains it) |
 | 13 | Every finalize edits every earlier card of the dose again (one card edited twice in the same second). | messages pile up | Fixed: an earlier card is deleted and forgotten, so a finalize edits the one card left |
 | 14 | Ukrainian "Скасувати" is both Undo and Cancel. | confusing copy | Not fixed; for the native-speaker review |
-| 15 | The first card of onboarding has "Back" with nowhere to go (BUX-ONB-06). | dead end | Not fixed |
+| 15 | The first card of onboarding has "Back" with nowhere to go (BUX-ONB-06). | dead end | Fixed: the first step of a flow offers Cancel alone (BOT_UX section 5.3, decision of 2026-11-27) |
 | 16 | The zone picker is 21 zones in a four-wide grid; nothing is preselected by the client language. | too many taps | Not fixed |
 | 17 | `/stats` reads tersely: "1 still due, not counted", "your check-ins" in the sleep line. | confusing copy | Not fixed |
 | 18 | In one run two water reminders came 30 seconds apart (10:36 and 10:37) and the first was never deleted. | messages pile up | Fixed: the prompt loop decided the next slot while the previous prompt was being sent (claimed, no handle yet), so it could neither cancel nor delete it; the slot now waits for a later pass (PRODUCT_SPEC R-SCH-25b) |
@@ -72,6 +72,7 @@ and the urgent-help sentence of the mood consent.
 | 8 | The goal card adds "Your 250 ml is saved as soon as you pick one." | `CaptureFlowsSuite`, `NewUserWalkSuite` |
 | 9 | The missed notice is silent, carries the safety sentence, and is an edit of the dose's last card; it is a new message only when no card is recorded or the user deleted it. | `NewUserWalkSuite`, `ReminderLoopSuite`, `DoseIntakeSuite` "the missed notice edits the dose's card..." |
 | 13 | Follows from 5: a finalize edits only the one card left. | `NewUserWalkSuite`, the simulation golden |
+| 15 | The first step of a flow has no "Back"; a first text or form step reads "Reply Cancel to stop." | `WizardEngineSuite` "a flow's first step offers Cancel alone...", the wizard transcript goldens, `NewUserWalkSuite` |
 | 11 | The consent card's outbox key names its purpose; asking the same purpose again deletes the earlier card of the last 24 hours, or cancels it while queued. No migration. | `CaptureFlowsSuite` "a second image tap before the images consent...", `OutboxDispatcherSuite` (`recentSendKeys`), `NewUserWalkSuite` |
 | 10 | With two or more medications, each `/meds` row's "Pause" or "Resume" names its medication ("Pause · Magnesium"). | `MenuSuite` "/meds with two medications names each row's toggle...", `NewUserWalkSuite` |
 
