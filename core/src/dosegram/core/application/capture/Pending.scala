@@ -32,7 +32,9 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
 
   case SleepCard extends Pending(9, 0)
 
-  /** A typed night or nap; it is typed again after the consent, because the times do not fit in a button. */
+  /** A typed night or nap. Its times do not fit in a button, so it is held, sealed, until the confirming tap (finding 2
+    * of the verification of 2026-11-27); a card sent before then opens the sleep card.
+    */
   case SleepTyped extends Pending(10, 0)
   case SleepImage extends Pending(11, 0)
 

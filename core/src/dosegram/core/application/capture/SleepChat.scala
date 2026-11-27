@@ -28,9 +28,11 @@ import dosegram.core.domain.sleep.SleepEpisode
 import dosegram.core.domain.sleep.SleepInvalid
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.domain.sleep.SleepText
+import dosegram.core.domain.sleep.TypedSleep
 import dosegram.core.ports.Clock
 import dosegram.core.ports.StatusCards
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
@@ -133,13 +135,20 @@ private[capture] final class SleepChat(
     * guessed: the user is asked for both times.
     */
   def typed(turn: Turn, text: SleepText): Reply =
+    entryOf(turn, text).fold(turn.show(turn.message("sleep.ask", List(SleepCopy.ask), Nil)))(recordTyped(turn, _))
+
+  /** The night or nap a typed line states, with its edges as of now; `None` for a length without an edge. */
+  def entryOf(turn: Turn, text: SleepText): Option[TypedSleep] =
     val now = clock.now()
     text match
-      case SleepText.Night(bedtime, wakeTime) => enter(turn, SleepKind.Main, bedtime, wakeTime)
-      case SleepText.NapBetween(start, end)   => enter(turn, SleepKind.Nap, start, end)
-      case SleepText.NapFor(length)           =>
-        record(turn, EnterSleep(input(turn), SleepKind.Nap, now.minus(length), now))
-      case SleepText.SleptFor(_) | SleepText.NotSleep => turn.show(turn.message("sleep.ask", List(SleepCopy.ask), Nil))
+      case SleepText.Night(bedtime, wakeTime)         => Some(between(turn, SleepKind.Main, bedtime, wakeTime, now))
+      case SleepText.NapBetween(start, end)           => Some(between(turn, SleepKind.Nap, start, end, now))
+      case SleepText.NapFor(length)                   => Some(TypedSleep(SleepKind.Nap, now.minus(length), now))
+      case SleepText.SleptFor(_) | SleepText.NotSleep => None
+
+  /** Records a typed night or nap, one held while the consent was asked included. */
+  def recordTyped(turn: Turn, entry: TypedSleep): Reply =
+    record(turn, EnterSleep(input(turn), entry.kind, entry.onsetAt, entry.wakeAt))
 
   def rate(turn: Turn, episodeId: UUID, step: Long): Reply =
     Quality.of(step.toInt) match
@@ -156,10 +165,9 @@ private[capture] final class SleepChat(
     answered(turn, sleep.undoCheckin(turn.tx, turn.accountId, checkinId)): _ =>
       turn.show(turn.message("sleep.night.undone", List(SleepCopy.startUndone), Nil))
 
-  private def enter(turn: Turn, kind: SleepKind, start: LocalTime, end: LocalTime): Reply =
-    val wake = ClockNights.latestAt(end, clock.now(), turn.zone)
-    val onset = ClockNights.latestAt(start, wake.minusSeconds(1), turn.zone)
-    record(turn, EnterSleep(input(turn), kind, onset, wake))
+  private def between(turn: Turn, kind: SleepKind, start: LocalTime, end: LocalTime, now: Instant): TypedSleep =
+    val wake = ClockNights.latestAt(end, now, turn.zone)
+    TypedSleep(kind, ClockNights.latestAt(start, wake.minusSeconds(1), turn.zone), wake)
 
   private def record(turn: Turn, command: EnterSleep): Reply =
     answered(turn, sleep.enter(turn.tx, command))(entered => recorded(turn, entered.episode))

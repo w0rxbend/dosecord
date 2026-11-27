@@ -439,7 +439,9 @@ The basis is explicit consent per domain, captured by two taps, with a versioned
 | BUX-CONS-07 | A material change of the notice, or a new purpose, re-prompts with the same two stages. Silence is never treated as consent; features that depend on the new consent stay off until it is given. |
 | BUX-CONS-08 | Declining a consent always leaves a working product for the domains already agreed. The decline message names what stays off and how to turn it on later. |
 
-Supervisor decision, 2026-11-14 (BUX-CONS-04 as built for a typed meal; finding 8 of that day's verification): the words of a meal typed before the `nutrition` consent do not fit in the consent card's buttons, so they are held for 30 minutes, sealed with the account's key, one meal per account; "Confirm" records the meal with them, "Not now" forgets them, and after the 30 minutes "Confirm" opens the food card instead. A typed night or nap still has to be typed again after the `sleep` consent.
+Supervisor decision, 2026-11-14 (BUX-CONS-04 as built for a typed meal; finding 8 of that day's verification): the words of a meal typed before the `nutrition` consent do not fit in the consent card's buttons, so they are held for 30 minutes, sealed with the account's key, one meal per account; "Confirm" records the meal with them, "Not now" forgets them, and after the 30 minutes "Confirm" opens the food card instead.
+
+Supervisor decision, 2026-11-27 (BUX-CONS-04 for a typed night or nap; finding 2 of that day's verification): a night or nap typed before the `sleep` consent ("slept 23:30 7:10", "nap 20m") is held the same way, with its times worked out as of the typed message, for 30 minutes, sealed with the account's key, one per account. "Confirm" records it, "Not now" forgets it, and after the 30 minutes, or for a length without times, "Confirm" opens the sleep card instead.
 
 ### 5.6 Discreet mode choice
 

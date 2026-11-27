@@ -130,7 +130,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         case Some((bedtime, wakeTime)) => recordSleep(turn, SleepText.Night(bedtime, wakeTime))
         case None                      => turn.toast(SleepCopy.usage)
 
+  /** A typed night or nap. Without the consent it is held until the confirming tap (BUX-CONS-04), which records it. */
   private def recordSleep(turn: Turn, text: SleepText): Reply =
+    if !turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.Sleep) then
+      sleep.entryOf(turn, text).foreach(turn.tx.tracking.sleep.hold(turn.accountId, _, clock.now().plus(HeldFor)))
     consent.guarded(turn, ConsentPurpose.Sleep, Pending.SleepTyped)(sleep.typed(turn, text))
 
   /** `/food` (and `/meal`): the meal buttons, or a meal given as the argument. The words keep the case they were typed
@@ -147,7 +150,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def recordFood(turn: Turn, line: MealLine): Reply =
     line match
       case MealLine.Logged(mealType, words) if !turn.tx.consents.isGranted(turn.accountId, ConsentPurpose.Nutrition) =>
-        words.foreach(turn.tx.tracking.meals.hold(turn.accountId, _, clock.now().plus(CaptureHandler.HeldMealFor)))
+        words.foreach(turn.tx.tracking.meals.hold(turn.accountId, _, clock.now().plus(HeldFor)))
         consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodTyped(mealType.ordinal))(food.typed(turn, line))
       case _ => consent.guarded(turn, ConsentPurpose.Nutrition, Pending.FoodCard)(food.typed(turn, line))
 
@@ -245,11 +248,13 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Right(amount)           => recordWater(turn, amount.millilitres)(water.add(turn, amount))
       case Left(AmountOutOfBounds) => turn.toast(WaterCopy.tooMuch)
 
-  /** "Not now" forgets the words of a typed meal held for the consent; every other tap goes on as the card says. */
+  /** "Not now" forgets a typed meal or night held for the consent; every other tap goes on as the card says. */
   private def consentStep(turn: Turn, request: ConsentRequest): Reply =
     (request.stage, request.pending) match
       case (ConsentStage.Decline, Pending.FoodTyped(_)) =>
         turn.tx.tracking.meals.takeHeld(turn.accountId, clock.now()).discard
+      case (ConsentStage.Decline, Pending.SleepTyped) =>
+        turn.tx.tracking.sleep.takeHeld(turn.accountId, clock.now()).discard
       case _ => ()
     consent.step(turn, request)(resume(turn, _))
 
@@ -272,13 +277,16 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.MoodWeekdayImage      => stats.moodWeekdayImage(fresh)
       case Pending.Medication(screen)    => openMedication(fresh, screen)
       case Pending.SleepCard             => sleep.card(fresh)
-      case Pending.SleepTyped            => sleep.card(fresh)
-      case Pending.SleepImage            => sleep.image(fresh)
-      case Pending.Insights(image)       => if image then months.insightImage(fresh) else months.insights(fresh)
-      case Pending.MonthImage(index)     => months.monthImage(fresh, index)
-      case Pending.FoodCard              => food.card(fresh)
-      case Pending.FoodLog(code)         => mealOf(code.toLong).map(food.tap(fresh, _)).getOrElse(stale(turn))
-      case Pending.FoodTyped(code)       =>
+      case Pending.SleepTyped            =>
+        turn.tx.tracking.sleep
+          .takeHeld(turn.accountId, clock.now())
+          .fold(sleep.card(fresh))(sleep.recordTyped(fresh, _))
+      case Pending.SleepImage        => sleep.image(fresh)
+      case Pending.Insights(image)   => if image then months.insightImage(fresh) else months.insights(fresh)
+      case Pending.MonthImage(index) => months.monthImage(fresh, index)
+      case Pending.FoodCard          => food.card(fresh)
+      case Pending.FoodLog(code)     => mealOf(code.toLong).map(food.tap(fresh, _)).getOrElse(stale(turn))
+      case Pending.FoodTyped(code)   =>
         val words = turn.tx.tracking.meals.takeHeld(turn.accountId, clock.now())
         mealOf(code.toLong).map(meal => food.typed(fresh, MealLine.Logged(meal, words))).getOrElse(stale(turn))
       case Pending.FoodImage  => food.image(fresh)
@@ -342,8 +350,8 @@ private object CaptureHandler:
   val commandNames: Set[String] =
     (CommandRegistry.capture :+ CommandRegistry.Insights :+ CommandRegistry.Import).map(_.name).toSet + MealCommand
 
-  /** How long the words of a typed meal are held while its consent card is open. */
-  val HeldMealFor: java.time.Duration = java.time.Duration.ofMinutes(30)
+  /** How long a typed meal or night is held while its consent card is open. */
+  val HeldFor: java.time.Duration = java.time.Duration.ofMinutes(30)
 
   /** `/stats month`: the current month so far. */
   val MonthArgument = "month"

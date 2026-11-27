@@ -8,6 +8,7 @@ import dosegram.core.domain.sleep.SleepEpisode
 import dosegram.core.domain.sleep.SleepGoalChange
 import dosegram.core.domain.sleep.SleepInterval
 import dosegram.core.domain.sleep.SleepKind
+import dosegram.core.domain.sleep.TypedSleep
 import dosegram.core.ports.SleepRepository
 
 import java.time.Instant
@@ -22,6 +23,12 @@ final class InMemorySleep extends SleepRepository:
   val checkins: mutable.LinkedHashMap[UUID, SleepCheckin] = mutable.LinkedHashMap.empty
   val episodes: mutable.LinkedHashMap[UUID, SleepEpisode] = mutable.LinkedHashMap.empty
   private val goalChanges: mutable.Map[UUID, Vector[SleepGoalChange]] = mutable.Map.empty
+  private val held: mutable.Map[UUID, (TypedSleep, Instant)] = mutable.Map.empty
+
+  override def hold(accountId: UUID, typed: TypedSleep, until: Instant): Unit = held(accountId) = (typed, until)
+
+  override def takeHeld(accountId: UUID, now: Instant): Option[TypedSleep] =
+    held.remove(accountId).collect { case (typed, until) if !until.isBefore(now) => typed }
 
   def live: List[SleepEpisode] = episodes.values.filter(_.isLive).toList
 

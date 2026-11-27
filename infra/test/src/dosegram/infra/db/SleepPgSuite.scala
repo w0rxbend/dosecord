@@ -161,7 +161,7 @@ class SleepPgSuite extends PgSuite:
     withFreshConnection { conn =>
       given Connection = conn
       asApplication(conn, rig.account)
-      val sleep = PgSleepRepository(conn)
+      val sleep = PgSleepRepository(conn, DataKeys.development.on(conn))
       assertEquals(sleep.episode(rig.account, night.id), Some(night))
       assertEquals(sleep.episodeByClientKey(rig.account, "morning"), Some(night))
       assertEquals(sleep.latestLiveEpisode(rig.account), Some(night))

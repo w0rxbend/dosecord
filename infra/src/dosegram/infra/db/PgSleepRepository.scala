@@ -15,6 +15,8 @@ import dosegram.core.domain.sleep.SleepInterval
 import dosegram.core.domain.sleep.SleepKind
 import dosegram.core.domain.sleep.SleepOrigin
 import dosegram.core.domain.sleep.SleepTier
+import dosegram.core.domain.sleep.TypedSleep
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.SleepRepository
 
 import java.sql.Connection
@@ -28,10 +30,12 @@ import scala.language.implicitConversions
 /** Postgres `sleep_checkins`, `sleep_episodes` and `sleep_goals`. `occurred_at` of an episode is its wake instant and
   * `local_date` its sleep day, so the entry indexes serve the reads by day.
   */
-final class PgSleepRepository(conn: Connection) extends SleepRepository:
+final class PgSleepRepository(conn: Connection, keys: KeyService) extends SleepRepository:
   import PgSleepRepository.*
 
   private given Connection = conn
+
+  private val heldNight = HeldSlot("held-sleep", "heldSleep", keys)
 
   private given RowMapper[SleepCheckin] = rs =>
     SleepCheckin(
@@ -158,8 +162,29 @@ final class PgSleepRepository(conn: Connection) extends SleepRepository:
           WHERE account_id = $accountId AND effective_from <= $upTo
           ORDER BY effective_from""".query[SleepGoalChange]()
 
+  /** The night or nap lives in a `callback_slots` row that no button names, as the words of a held meal do. */
+  override def hold(accountId: UUID, typed: TypedSleep, until: Instant): Unit =
+    heldNight.hold(accountId, heldText(typed), until)
+
+  override def takeHeld(accountId: UUID, now: Instant): Option[TypedSleep] =
+    heldNight.take(accountId, now).map(typedOf)
+
 private object PgSleepRepository:
   private val Hundred = BigDecimal(100)
+
+  /** The held form: the kind and the two edges in epoch milliseconds, separated by spaces. */
+  private def heldText(typed: TypedSleep): String =
+    s"${typed.kind.dbValue} ${typed.onsetAt.toEpochMilli} ${typed.wakeAt.toEpochMilli}"
+
+  private def typedOf(text: String): TypedSleep =
+    text.split(' ') match
+      case Array(kind, onset, wake) =>
+        val sleepKind = SleepKind.values.find(_.dbValue == kind).getOrElse(corrupt("held sleep", kind))
+        TypedSleep(sleepKind, epochMilli(onset), epochMilli(wake))
+      case _ => corrupt("held sleep", s"${text.length} characters")
+
+  private def epochMilli(text: String): Instant =
+    text.toLongOption.map(Instant.ofEpochMilli).getOrElse(corrupt("held sleep", text))
 
   /** A stored word is inside its column CHECK; anything else is a corrupt row. */
   private def stored[A](rs: ResultSet, column: String, values: Array[A])(word: A => String): A =

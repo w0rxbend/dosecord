@@ -81,6 +81,11 @@ object Confidence:
       else if confidence >= 25 then ConfidenceBand.Low
       else ConfidenceBand.Hidden
 
+/** A night or nap typed in the chat, with its edges as of the typed message. Typed while the `sleep` consent is asked,
+  * it is held until the confirming tap records it (BOT_UX BUX-CONS-04).
+  */
+final case class TypedSleep(kind: SleepKind, onsetAt: Instant, wakeAt: Instant)
+
 /** One edge of an episode: the instant, the zone in force at that instant and where the instant comes from. */
 final case class SleepEdge(at: Instant, zone: ZoneId, source: EdgeSource)
 

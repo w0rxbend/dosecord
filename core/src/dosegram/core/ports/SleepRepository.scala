@@ -7,6 +7,7 @@ import dosegram.core.domain.sleep.SleepCheckin
 import dosegram.core.domain.sleep.SleepEpisode
 import dosegram.core.domain.sleep.SleepGoalChange
 import dosegram.core.domain.sleep.SleepInterval
+import dosegram.core.domain.sleep.TypedSleep
 
 import java.time.Instant
 import java.time.LocalDate
@@ -55,3 +56,11 @@ trait SleepRepository:
 
   /** Every goal change that took effect on or before `upTo`, oldest first. */
   def goals(accountId: UUID, upTo: LocalDate): List[SleepGoalChange]
+
+  /** Holds a night or nap typed while the `sleep` consent is asked (BOT_UX BUX-CONS-04), sealed, one per account, until
+    * `until`; a later hold replaces it. Nothing is a sleep record until [[takeHeld]] returns it after the consent.
+    */
+  def hold(accountId: UUID, typed: TypedSleep, until: Instant): Unit
+
+  /** Removes the held night or nap of the account and returns it unless it expired before `now`. */
+  def takeHeld(accountId: UUID, now: Instant): Option[TypedSleep]

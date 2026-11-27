@@ -119,7 +119,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
       override lazy val mood: MoodRepository = PgMoodRepository(conn)
       override lazy val rollups: RollupRepository = PgRollupRepository(conn)
       override lazy val doseHistory: DoseHistoryRepository = PgDoseHistoryRepository(conn)
-      override lazy val sleep: SleepRepository = PgSleepRepository(conn)
+      override lazy val sleep: SleepRepository = PgSleepRepository(conn, keyService)
       override lazy val meals: MealRepository = PgMealRepository(conn, keyService)
     override lazy val reminders: ReminderRepositories = PgReminderRepositories(conn)
     override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds, auditLog, keyService)
