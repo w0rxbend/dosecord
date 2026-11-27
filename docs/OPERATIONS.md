@@ -655,3 +655,68 @@ a claim saw no row. The rollback start of `50cda8f` over that database logged
 Not rehearsed: a real client, the Telegram transport, the rollback's answers to buttons the head
 sent. The images drawn on the stepped clock of the seed were sent as text ("Late"), so the reuse of
 a mood image by its file id was not shown.
+
+## 17. Deploying `main` after the second integration of 2026-11-27 over the live V22 database (34c4733 to the head, V23)
+
+The live bot runs `34c4733` from `.live/run.sh` (long polling, `.live/wt-34c4733`), and its
+database is at V22. The head of `main` adds one migration, `V23__morning_summary_prompt_kind.sql`:
+it replaces the CHECK on `prompt_schedules.kind` with the same list plus `report_daily`, changes
+no row and adds no table, sealed column or environment variable. The commits since `34c4733`
+are nine fixes and features on `main` (`168cfd1` to `69359f0`: the local rasteriser fetch, sleep
+refusals with "Adjust times", a nudge that waits for the previous send, edit or delete a recent
+meal with Undo, one card per dose, a second consent request replacing the open card, Cancel alone
+on a flow's first step, "Export my data" on `/privacy`, the open-dose wording of `/stats`), the
+chat analytics track (merge `880f4f6`) and image round 4 (merge `3dccd25`). Every step is the
+owner's; `<sha>` is the head of `main` at or after the commit that adds this section, and `<pg>`
+is `dosegram-live-pg`:
+
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v22-$(date -u +%F).dump`.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist. Note the number of
+   quarantined updates: `SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined';`.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
+   `shutdown: pool closed`). Start the new release with the same script:
+   `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows Flyway applying version 23
+   ("morning summary prompt kind"); the 23 `sealing: <table>.<column> sealed 0 value(s)` lines of
+   section 16; `migrate: 1 migration(s) applied, schema 23, 0 value(s) sealed, 0 key(s) rewrapped`;
+   `purge: replayed 0 deletion(s) of the purge list`; and the health listener on
+   `127.0.0.1:18081`. A second start logs `migrate: 0 migration(s) applied, schema 23`.
+5. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 23; the
+   quarantined count is the number of step 2. Then `curl -fsS http://127.0.0.1:18081/readyz`
+   answers 200; in the chat `/reminders` lists "Morning summary", `/stats meds` lists the
+   medications in registry order (with the medication consent), and `/stats month` with
+   "Show as image" ends with the month in one image when the month has non-medication records.
+6. Delete the old worktree only after a day of normal use: `git worktree remove .live/wt-34c4733`.
+
+What changes in the chat, none of it checked on a real client yet:
+
+- The morning summary is off until turned on: `/reminders` → "Morning summary" → 07:00, 08:00,
+  09:00 or 10:00 → "Turn on". It sends yesterday at that time, silently, inside the daily budget;
+  in quiet hours it is skipped that day, not held.
+- `/stats meds` and "By medication" on every `/stats` card (action ids 442, 443); its image is
+  the strip IMG-07 with "Item N" in place of names (images consent).
+- The monthly report album and "Show as image" on `/stats month` gain one photo, the month in
+  one image (IMG-24); it never shows medication.
+- In discreet mode an image is captioned with its card's generic line ("Your day so far.",
+  "By medication."), not its text; the alt text and the text fallback are unchanged. Report
+  requests queued before the deploy read back without the new key.
+- The calendar heat classes also differ by fill level; an empty water or sleep week says
+  "No data"; a weekday with no check-in says "No check-in".
+- The nine `main` commits listed above.
+
+Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-34c4733" .live/run.sh`. Flyway's
+default treats the applied V23 as a future version and ignores it, so while no account has turned
+the morning summary on, no restore should be needed (not rehearsed). Once a `report_daily` plan
+exists, `34c4733` throws "unknown prompt kind 'report_daily'" wherever it reads a plan or prompt
+of that kind, the prompt loop included; then restore the backup of step 1 into an empty database
+instead, losing what was recorded after the deploy. Buttons the head sent (`/stats meds`, a meal
+edit) may get no answer from `34c4733`.
+
+Not rehearsed (supervisor decision, 2026-11-27): this section was written at the integration
+without a rehearsal over a seeded V22 database. The upgrade from earlier schemas to V23 runs in
+`SealingBackfillPgSuite` and `RlsSuite`, the head's plans with `report_daily` in
+`PromptLoopPgSuite` and `NewUserWalkSuite`, and `scripts/flyway-validate.sh` passed against a
+throwaway `postgres:18-alpine`. Not checked: a real client, the Telegram transport, the rollback.

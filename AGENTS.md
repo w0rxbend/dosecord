@@ -39,16 +39,17 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-27 (`f0d6626` and the docs after it), after
-nine rounds of parallel tracks were merged and wired together (the
-eighth: performance and privacy, image round 3, Mini App round, V19; the
+State of `main` on 2026-11-27 (`3dccd25` and the docs after it), after
+ten rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
-migration), plus the fixes of the verifications of 2026-11-14 (V13),
-2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
-parameters). The migrations are V1 to V19 and V22; V20 and V21 must never
-be added. The live database is at V22 (`50cda8f`): `docs/OPERATIONS.md`
-section 16 is the owner's deploy of the head, with no migration (sections
-8 to 15 explain the earlier parts). The Mini App is off on live.
+migration; the tenth: chat analytics, V23, and image round 4), plus the
+fixes of the verifications of 2026-11-14 (V13), 2026-11-15 (V18) and
+2026-11-27, and V22 (sealed file ids and export parameters). The
+migrations are V1 to V19, V22 and V23; V20 and V21 must never be added,
+and the next is V24. The live database is at V22 (`34c4733`):
+`docs/OPERATIONS.md` section 17 is the owner's deploy of the head, which
+applies V23 (sections 8 to 16 explain the earlier parts). The Mini App
+is off on live.
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -157,6 +158,12 @@ Appendix B and its status notes are the record; this is the short form.
   user's first day on the production assembly in Ukrainian and English;
   `docs/verification/new-user-review-2026-11-27.md` lists the findings,
   fixed and open.
+- Chat analytics and image round 4 (2026-11-27): the morning summary
+  (`report_daily`, V23, off by default, from `/reminders`), `/stats meds`
+  with the per-medication strip (IMG-07, action ids 442, 443), the share
+  preview limits, the colour-vision check of every card, generic captions
+  under discreet images, and the month in one image (IMG-24) after the
+  monthly pages.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -245,6 +252,11 @@ Useful next, in this order:
     Back with nowhere to go, no default zone, terse `/stats`, no export
     button on `/privacy`, repeat cards not replacing the old one); the old
     plan names in `miniapp/src/mock/reminders.ts`.
+11. What the tenth round left open: live sends of the morning summary,
+    `/stats meds`, the poster and a discreet caption; a typed time for the
+    summary and pre-rendering (VA-PS-08); the strip caption that counts
+    open doses; the dark Beet and Rye contrast under protanopia (VISUALS
+    6.21, R5); CI attaching the vision sheets (G4.7).
 
 ## Agent workflow
 
