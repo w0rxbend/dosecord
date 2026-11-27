@@ -47,6 +47,18 @@ PGPORT=55432 scripts/flyway-validate.sh
 docker rm -f dosegram-flyway
 ```
 
+Without the pinned rasterisers the pixel tests skip, so a card change would be
+checked only in CI. `scripts/fetch-resvg.sh` puts resvg 0.49.0 (the release
+binary CI installs, same checksum) and `dosegram-raster` (built by
+`scripts/build-raster-worker.sh`) in `out/resvg` and prints the environment
+that makes `./mill __.test` draw and fail instead of skipping. Run it once per
+clean checkout (Linux x86_64, cargo, the network once):
+
+```sh
+eval "$(scripts/fetch-resvg.sh)"
+./mill __.test
+```
+
 The suites in `infra` and `app` start their own PostgreSQL through
 Testcontainers and are slow under parallel load; rerun before concluding that
 a failure is real.
