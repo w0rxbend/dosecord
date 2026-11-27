@@ -223,7 +223,10 @@ final class PromptLoop(
         if PromptLoop.isReport(plan.kind) then
           val monthlyToday =
             accountDay.exists(o => o.kind == PromptKind.MonthlyReport && o.status.wasSent && o.scheduleId != plan.id)
-          sendReport(tx, plan, slot, previous, target, withImages = !monthlyToday, now)
+          val withImages =
+            if plan.kind == PromptKind.DailyReport then !periodReportOn(tx, plan, profile, zone, slot, accountDay)
+            else !monthlyToday
+          sendReport(tx, plan, slot, previous, target, withImages, now)
         // The previous prompt is being sent and has no handle yet, so it could be neither cancelled nor deleted: the
         // slot stays undecided until a later pass (finding 18 of the review of 2026-11-27).
         else if previous.exists(_.sendKey.exists(tx.outbox.sendInFlight)) then ()
@@ -285,9 +288,10 @@ final class PromptLoop(
     val id = ids.next(now)
     val sendKey = s"prompt:$id"
     val silent = !plan.sound
-    val outcome =
-      if plan.kind == PromptKind.MonthlyReport then reports.monthly(tx, plan.accountId, slot.planDate, sendKey, silent)
-      else reports.weekly(tx, plan.accountId, slot.planDate, sendKey, silent, withImages)
+    val outcome = plan.kind match
+      case PromptKind.MonthlyReport => reports.monthly(tx, plan.accountId, slot.planDate, sendKey, silent)
+      case PromptKind.DailyReport   => reports.daily(tx, plan.accountId, slot.planDate, sendKey, silent, withImages)
+      case _                        => reports.weekly(tx, plan.accountId, slot.planDate, sendKey, silent, withImages)
     outcome match
       case ReportOutcome.NoRecords    => record(tx, plan, slot, PromptStatus.Suppressed, Some(SuppressReason.NoRecords))
       case ReportOutcome.Send(report) =>
@@ -324,7 +328,7 @@ final class PromptLoop(
       case PromptKind.Mood                                   => messages.mood(plan.accountId, id, notice, silent, key)
       case PromptKind.SleepBedtime | PromptKind.SleepMorning => messages.sleep(plan.kind, id, notice, silent, key)
       case PromptKind.Meal => messages.meal(id, MealNudge.mealOf(due.profile, due.slot), notice, silent, key)
-      case PromptKind.WeeklyReport | PromptKind.MonthlyReport =>
+      case PromptKind.WeeklyReport | PromptKind.MonthlyReport | PromptKind.DailyReport =>
         throw IllegalStateException(s"a report is composed by sendReport, not rendered: ${plan.kind.id}")
 
   /** The previous prompt of the plan leaves the chat: an open one is closed (answered when an entry followed it) and
@@ -438,6 +442,28 @@ final class PromptLoop(
       decidedAt = now
     )
 
+  /** Whether a weekly or monthly report is sent, or due, on the morning summary's day: the summary then goes as text,
+    * so the chat gets at most one unprompted personal image that day (PRODUCT_SPEC section 3.2, BOT_UX BUX-IMG-03), and
+    * the period's report keeps its card (supervisor decision, 2026-11-27).
+    */
+  private def periodReportOn(
+      tx: Tx,
+      plan: PromptSchedule,
+      profile: DayProfile,
+      zone: ZoneId,
+      slot: NudgeSlot,
+      accountDay: List[PromptOccurrence]
+  ): Boolean =
+    def periodic(kind: PromptKind): Boolean = PromptLoop.isReport(kind) && kind != PromptKind.DailyReport
+    val sent = accountDay.exists(o => periodic(o.kind) && o.status.wasSent)
+    val due = tx.reminders.prompts
+      .schedules(plan.accountId)
+      .filter(other => other.enabled && periodic(other.kind))
+      .exists(other =>
+        NudgeSlots.on(other.plan, profile, slot.planDate, zone, ReminderSettings.seedOf(plan.accountId)).nonEmpty
+      )
+    sent || due
+
   /** What the user recorded in the prompt's domain, read at due time (REM-14). Without the consent nothing is read. */
   private def progressOf(tx: Tx, plan: PromptSchedule, zone: ZoneId, now: Instant): DomainProgress =
     if !settings.consented(tx, plan.accountId, plan.kind) then DomainProgress.Empty
@@ -459,7 +485,7 @@ final class PromptLoop(
           DomainProgress(wakes.maxOption, 0, None)
         case PromptKind.Meal =>
           DomainProgress(tx.tracking.meals.listLive(plan.accountId, recent).map(_.occurredAt).maxOption, 0, None)
-        case PromptKind.WeeklyReport | PromptKind.MonthlyReport => DomainProgress.Empty
+        case PromptKind.WeeklyReport | PromptKind.MonthlyReport | PromptKind.DailyReport => DomainProgress.Empty
 
   /** Whether a meal slot's own meal has an entry on the slot's day. Only a meal plan reads meals, and only with the
     * consent, which the caller checked.
@@ -504,7 +530,7 @@ private final case class SlotOf(slot: NudgeSlot, profile: DayProfile)
 
 object PromptLoop:
 
-  def isReport(kind: PromptKind): Boolean = kind == PromptKind.WeeklyReport || kind == PromptKind.MonthlyReport
+  def isReport(kind: PromptKind): Boolean = PromptKind.Reports(kind)
 
   /** The outbox kind of every prompt row: a send, the delete of a replaced prompt, the edit to the pause notice. */
   val OutboxKind = "prompt"

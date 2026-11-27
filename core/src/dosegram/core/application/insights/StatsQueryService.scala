@@ -3,6 +3,7 @@ package dosegram.core.application.insights
 import dosegram.core.domain.AdherenceInput
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.GamificationCopy
+import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.BaselineStatements
 import dosegram.core.domain.insights.Comparison
@@ -252,6 +253,20 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
         if period == StatsPeriod.Today && countsOn then weekSoFar(tx, accountId, range.end) else Nil
       val body = if blocks.isEmpty then List(StatsCopy.Empty) else blocks
       PeriodSummary(zone, range, StatsCopy.header(period, zone) :: body ++ weekLine)
+
+  /** One finished local day in one line per domain, for the morning summary (supervisor decision, 2026-11-27): the
+    * doses taken of those due, water against the user's own goal, mood, the night that ended that day, and the meals. A
+    * domain without consent or without a record that day has no line; a day with nothing has no lines at all.
+    */
+  def dayLines(tx: Tx, accountId: UUID, date: LocalDate): List[String] =
+    val day = DateRange.single(date)
+    def block(purpose: ConsentPurpose)(lines: => List[String]): List[String] =
+      if tx.consents.isGranted(accountId, purpose) then lines else Nil
+    block(ConsentPurpose.Medication)(doseLines(tx, accountId, day).take(1)) ++
+      block(ConsentPurpose.Hydration)(hydrationDays(tx, accountId, day).get(date).map(ReportCopy.dayWater).toList) ++
+      block(ConsentPurpose.Mood)(moodDays(tx, accountId, day).get(date).map(ReportCopy.dayMood).toList) ++
+      block(ConsentPurpose.Sleep)(sleepDays(tx, accountId, day).get(date).map(ReportCopy.daySleep).toList) ++
+      block(ConsentPurpose.Nutrition)(foodLines(tx, accountId, StatsPeriod.Today, day))
 
   /** IR-04: mood on the days the user's own water goal was reached against the other recorded days. It runs only with
     * the `cross_domain_patterns` consent on top of both domain consents (VISUALS VA-IN-01).

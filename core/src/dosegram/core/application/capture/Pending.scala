@@ -66,6 +66,11 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   /** `/import`: the import card opens after the `import` consent. */
   case ImportCard extends Pending(15, 0)
 
+  /** The per-medication strip of `/stats meds` (VISUALS IMG-07) after the images consent; the argument is the period's
+    * days above [[Pending.MedsImageBase]], clear of every other stats image.
+    */
+  case MedsImage(days: Int) extends Pending(7, Pending.MedsImageBase + days)
+
   /** A medication command or button; the screen opens after the consent. */
   case Medication(screen: MedicationScreen) extends Pending(8, screen.code)
 
@@ -107,7 +112,11 @@ private[capture] object Pending:
       case SleepWeekImage.argument                                    => SleepWeekImage
       case MoodWeekdayImage.argument                                  => MoodWeekdayImage
       case days if TrendPeriod.of(days).exists(_ != TrendPeriod.Week) => TrendsImage(days)
+      case days if days > MedsImageBase                               => MedsImage(days - MedsImageBase)
       case _                                                          => DayImage
+
+  /** The argument of [[MedsImage]] starts above this, far from the stats images below it. */
+  val MedsImageBase = 1000
 
   /** The argument of [[FoodLog]] starts here; below it are [[FoodCard]] (0) and [[FoodImage]] (1). */
   val FoodLogBase = 2

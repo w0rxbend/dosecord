@@ -199,7 +199,7 @@ final class RemindersHandler(
     * place of its controls.
     */
   private def stopReport(ctx: Ctx, kind: PromptKind): Reply =
-    if kind != PromptKind.WeeklyReport && kind != PromptKind.MonthlyReport then stale
+    if !PromptKind.Reports(kind) then stale
     else
       settings.turnOff(ctx.tx, ctx.accountId, kind)
       show(ctx, "reminders.report_stopped", List(ReportCopy.stopped(kind)), Nil)
@@ -230,6 +230,8 @@ final class RemindersHandler(
     kindOf(value).collect:
       case PromptKind.WeeklyReport  => PromptPresets.WeeklyReport
       case PromptKind.MonthlyReport => PromptPresets.MonthlyReport
+      // Resume turns the stored plan on again as it was; the preset only names the kind.
+      case PromptKind.DailyReport => PromptPresets.MorningSummaries.head
 
   private def pauseAll(ctx: Ctx, hours: Option[Int]): Reply =
     settings.pauseAll(ctx.tx, ctx.accountId, hours)

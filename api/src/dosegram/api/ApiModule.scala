@@ -70,7 +70,7 @@ final class ApiModule(
   private val days = DayViews(uow, clock)
   private val doseActions = DoseActions(uow, clock)
   private val reportCards =
-    ReportCardsApi(uow, tracking.stats, cards, CardDelivery(clock, IdSource.uuidV7(SecureRandom())), pictures)
+    ReportCardsApi(uow, clock, tracking.stats, cards, CardDelivery(clock, IdSource.uuidV7(SecureRandom())), pictures)
   private val insights = Insights(uow, tracking)
   private val insightReports = InsightReports(uow, tracking, clock)
   private val history = History(uow, tracking, clock)

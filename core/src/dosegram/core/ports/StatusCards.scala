@@ -118,6 +118,16 @@ final case class TrendCardRow(domain: TrendDomain, figure: String, buckets: List
   */
 final case class TrendsCardView(window: DateRange, byWeek: Boolean, rows: List[TrendCardRow], text: String)
 
+/** One medication of IMG-07 (VISUALS section 6.8): its name, whether it is taken as needed, and for each day of the
+  * strip the marks of its scheduled doses in schedule order and the number of as-needed logs.
+  */
+final case class MedicationStripRow(name: String, asNeeded: Boolean, days: List[List[DoseMark]], logs: List[Int]):
+  require(days.size == logs.size, "one entry of marks and one of logs per day")
+
+/** IMG-07: the medications of the registry over the same days from `from`, in registry order. */
+final case class MedicationStripView(from: LocalDate, dayCount: Int, rows: List[MedicationStripRow]):
+  require(rows.forall(_.days.size == dayCount), "every row needs one entry per day")
+
 /** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
   * (VA-PV-03). Both are account settings the Mini App changes.
   */
@@ -187,6 +197,9 @@ trait StatusCards:
 
   /** IMG-23, the trends of a period, one row per domain on its own scale. */
   def trends(view: TrendsCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-07, the per-medication strip: one page per six medications at most; empty when none can be laid out. */
+  def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] = Nil
 
 object StatusCards:
 

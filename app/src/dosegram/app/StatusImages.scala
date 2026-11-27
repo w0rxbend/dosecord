@@ -21,6 +21,7 @@ import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.FoodCardView
 import dosegram.core.ports.ImageTheme
+import dosegram.core.ports.MedicationStripView
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.RefillCardView
@@ -47,6 +48,8 @@ import dosegram.render.card.FoodDayData
 import dosegram.render.card.InsightCard
 import dosegram.render.card.MainMeal
 import dosegram.render.card.MealProgress
+import dosegram.render.card.MedicationRow
+import dosegram.render.card.MedicationStripCard
 import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
 import dosegram.render.card.MoodCard
@@ -62,6 +65,7 @@ import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityCard
 import dosegram.render.card.SleepWeekCard
+import dosegram.render.card.StripData
 import dosegram.render.card.TrendRow
 import dosegram.render.card.TrendScale
 import dosegram.render.card.TrendsCard
@@ -263,6 +267,18 @@ final class RenderedStatusCards extends StatusCards:
         TrendRow(domain, row.figure, row.buckets.toVector, scale)
       val data = TrendsData(view.window.start, view.window.end, view.byWeek, rows, view.text)
       page(TrendsCard.render(data, contextOf(look)))
+
+  /** IMG-07 (supervisor decision, 2026-11-27): the chat draws no name (L1), so the rows are "Item 1" onward in registry
+    * order; each day holds its scheduled doses, then one as-needed glyph per log.
+    */
+  override def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] =
+    val rows = view.rows.toVector.map: row =>
+      val days = row.days
+        .zip(row.logs)
+        .toVector
+        .map((marks, logs) => marks.toVector.map(statusOf) ++ Vector.fill(logs)(DoseStatus.AsNeeded))
+      MedicationRow(row.name, row.asNeeded, days)
+    MedicationStripCard.render(StripData(view.from, view.dayCount, rows), contextOf(look)).toList.map(page(_))
 
   override def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] =
     val rows = weekdays.toVector.map(weekday => MoodWeekdayRow(weekday.day, weekday.mean.shown, weekday.days))

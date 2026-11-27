@@ -64,6 +64,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val months = MonthAndInsightsChat(parts, clock, tokens)
   private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val imports = ImportChat(tokens)
+  private val meds = MedsChat(parts, clock, tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = principal.accountId match
@@ -111,6 +112,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(months.month(turn, months.currentIndex(turn)))
     else if argument == StatsChat.TrendsArgument then
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(stats.trends(turn, TrendPeriod.Month))
+    else if argument == MedsChat.Argument then
+      consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(meds.card(turn, MedsChat.DefaultDays))
     else statsPeriod(turn, argument)
 
   private def statsPeriod(turn: Turn, argument: String): Reply =
@@ -249,7 +252,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsShare     => share.picker(turn)
       case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
       case CaptureActions.ImportTemplate => imports.template(turn, value).getOrElse(stale(turn))
-      case _                             => stale(turn)
+      case CaptureActions.StatsMeds      => meds.card(turn, value.toInt)
+      case CaptureActions.StatsMedsImage =>
+        MedsChat.daysOf(value).fold(stale(turn))(days => imageOf(turn, Pending.MedsImage(days))(meds.image(turn, days)))
+      case _ => stale(turn)
 
   /** A quick-add button. The amount is checked again here: the bounds may have changed since the button was made. */
   private def waterButton(turn: Turn, value: Long): Reply =
@@ -299,8 +305,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.FoodTyped(code)   =>
         val words = turn.tx.tracking.meals.takeHeld(turn.accountId, clock.now())
         mealOf(code.toLong).map(meal => food.typed(fresh, MealLine.Logged(meal, words))).getOrElse(stale(turn))
-      case Pending.FoodImage  => food.image(fresh)
-      case Pending.ImportCard => imports.card(fresh)
+      case Pending.FoodImage       => food.image(fresh)
+      case Pending.ImportCard      => imports.card(fresh)
+      case Pending.MedsImage(days) => meds.image(fresh, days)
 
   /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =

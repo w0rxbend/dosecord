@@ -9,6 +9,7 @@ import dosegram.core.application.sleep.EnterSleep
 import dosegram.core.application.sleep.SleepInput
 import dosegram.core.application.sleep.SleepService
 import dosegram.core.domain.EntrySource
+import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
@@ -60,6 +61,7 @@ import dosegram.core.ports.DoseMark
 import dosegram.core.ports.FoodCardView
 import dosegram.core.ports.FoodLineView
 import dosegram.core.ports.ImageTheme
+import dosegram.core.ports.MedicationStripView
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
@@ -69,6 +71,7 @@ import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
 
 import java.time.Duration
+import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 import scala.collection.mutable
@@ -166,6 +169,12 @@ class CaptureFlowsSuite extends munit.FunSuite:
     override def trends(view: TrendsCardView, look: CardLook): Option[CardPage] =
       trends += view
       Some(personal("trends", look))
+
+    val strips: mutable.ListBuffer[MedicationStripView] = mutable.ListBuffer.empty
+
+    override def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] =
+      strips += view
+      List(personal("strip", look))
 
     /** A personal week card. The spoiler follows discreet mode. The look list stays the one the theme test counts. */
     private def personal(key: String, look: CardLook): CardPage =
@@ -597,9 +606,66 @@ class CaptureFlowsSuite extends munit.FunSuite:
           StatsCardCopy.SleepWeek,
           StatsCardCopy.MoodWeekday,
           "Month",
-          "Patterns"
+          "Patterns",
+          StatsCardCopy.ByMedication
         )
       )
+
+  test("/stats meds lists each medication over 7 days with its own counts, 14 days on a tap, the strip on request"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication)
+      val everyDay = Rule.FixedTimes(List(SlotGroup(Weekday.values.toList, List(HhMm.unsafe("09:00")))))
+      val created = chat.rig.seedSchedule(chat.account, "Vitamin D", everyDay, kyiv)
+      def taken(daysBack: Int): Unit =
+        chat.rig.seedOccurrence(created.scheduleId, daysBack, LocalTime.of(9, 0), s"t$daysBack", occ =>
+          occ.copy(status = OccurrenceStatus.Taken, nextActionAt = None, takenAt = Some(occ.scheduledFor),
+            effectiveAt = Some(occ.scheduledFor)))
+        ()
+      taken(1)
+      taken(10)
+      chat.rig.seedOccurrence(created.scheduleId, 2, LocalTime.of(9, 0), "s2", occ =>
+        occ.copy(status = OccurrenceStatus.Skipped, nextActionAt = None, skippedAt = Some(occ.scheduledFor)))
+      val today = chat.rig.clock.now().atZone(kyiv).toLocalDate
+      // Today's 09:00 dose is still open: it is named, and not counted.
+      assertEquals(
+        chat.rig.line("/stats meds"),
+        List(
+          List(
+            StatsCardCopy.medsTitle(7, today),
+            "1. Vitamin D: 1 of 2 taken · skipped 1 · 1 still to answer, not counted yet",
+            StatsCardCopy.medsNote
+          ).mkString("\n\n")
+        )
+      )
+      assertEquals(
+        chat.rig.lastChoiceMap("By medication").map(_.label),
+        List("7 days", "14 days", StatsCardCopy.ShowAsImage)
+      )
+      val fortnight = texts(chat.rig.tapOn("By medication", "14 days"))
+      assert(fortnight.exists(_.contains("1. Vitamin D: 2 of 3 taken · skipped 1")), fortnight)
+      val asked = chat.rig.tapOn("By medication · last 14 days", StatsCardCopy.ShowAsImage)
+      assertEquals(texts(asked), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      assertEquals(cards.strips.toList, Nil, "the strip is not drawn before the images consent")
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = photos(chat.rig.tapOn("Please confirm", ConsentCopy.Confirm))
+      assertEquals(sent.map(_.attachment.map(_.assetKey)), List(Some("strip")))
+      assertEquals(sent.flatMap(_.chunks), List("alt of strip"))
+      val view = cards.strips.toList.last
+      assertEquals((view.from, view.dayCount), (today.minusDays(13), 14))
+      assertEquals(view.rows.map(row => (row.name, row.asNeeded)), List("Vitamin D" -> false))
+      val marks = view.rows.head.days
+      assertEquals(marks(13), List(DoseMark.Open))
+      assertEquals(marks(12), List(DoseMark.TakenOnTime))
+      assertEquals(marks(11), List(DoseMark.Skipped))
+      assertEquals(marks(3), List(DoseMark.TakenOnTime))
+
+  test("/stats meds with no medication says how to add one and offers no image"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication)
+      val today = chat.rig.clock.now().atZone(kyiv).toLocalDate
+      assertEquals(chat.rig.line("/stats meds"), List(s"${StatsCardCopy.medsTitle(7, today)}\n\n${StatsCardCopy.medsNone}"))
+      assertEquals(chat.rig.lastChoiceMap("By medication").map(_.label), List("7 days", "14 days"))
 
   test("the daily summary image is drawn from today's doses, water and mood, with today's text as its caption"):
     val cards = RecordingCards()
@@ -879,7 +945,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.grant(ConsentPurpose.Medication)
       assertEquals(
         chat.rig.line("/stats year"),
-        List("Send /stats, /stats today, /stats 7, /stats 30, /stats trends or /stats month.")
+        List("Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month or /stats meds.")
       )
 
   // ---------- Ownership, help, console ----------
@@ -1092,17 +1158,18 @@ class CaptureFlowsSuite extends munit.FunSuite:
       val weekCards = List(StatsCardCopy.WaterWeek, StatsCardCopy.SleepWeek, StatsCardCopy.MoodWeekday)
       assertEquals(
         chat.rig.lastChoiceMap("Last 7 days").map(_.label),
-        List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage) ++ weekCards ++ List("Month", "Patterns")
+        List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage) ++ weekCards ++
+          List("Month", "Patterns", StatsCardCopy.ByMedication)
       )
       chat.rig.line("/stats today")
       assertEquals(
         chat.rig.lastChoiceMap("Today · Europe/Kyiv").map(_.label),
-        List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage, "Month", "Patterns")
+        List("Today", "7 days", "30 days", StatsCardCopy.ShowAsImage, "Month", "Patterns", StatsCardCopy.ByMedication)
       )
       chat.rig.line("/stats 30")
       assertEquals(
         chat.rig.lastChoiceMap("Last 30 days").map(_.label),
-        List("Today", "7 days", "30 days", StatsCardCopy.Trends, "Month", "Patterns")
+        List("Today", "7 days", "30 days", StatsCardCopy.Trends, "Month", "Patterns", StatsCardCopy.ByMedication)
       )
 
       val asked = chat.rig.tapOn("Last 7 days", StatsCardCopy.WaterWeek)
@@ -1144,7 +1211,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assert(!month.contains("Medication:"), "a domain without a record in the period is left out")
       assertEquals(
         chat.rig.lastChoiceMap("Trends · last 30 days").map(_.label),
-        List("30 days", "90 days", StatsCardCopy.ShowAsImage, "Month", "Patterns")
+        List("30 days", "90 days", StatsCardCopy.ShowAsImage, "Month", "Patterns", StatsCardCopy.ByMedication)
       )
 
       val quarter = texts(chat.rig.tapOn("Trends · last 30 days", "90 days")).mkString("\n")
@@ -1191,7 +1258,8 @@ class CaptureFlowsSuite extends munit.FunSuite:
           "Сон за 7 ночей",
           "Настрій за днями тижня",
           "Місяць",
-          "Закономірності"
+          "Закономірності",
+          "За ліками"
         )
       )
       val sent = chat.rig.tapOn("Останні 7 днів", "Вода за 7 днів")

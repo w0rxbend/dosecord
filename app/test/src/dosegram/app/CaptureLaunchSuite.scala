@@ -356,7 +356,7 @@ class CaptureLaunchSuite extends PgSuite:
       assert(text.startsWith("Today · UTC"), text)
       assert(text.contains("Water today: 0.3 l"), text)
       assert(text.contains("Mood today: 5.0 (very pleasant) · 1 check-in"), text)
-      assertEquals(bot.buttons(stats).map(_._1), List("Today", "7 days", "30 days", "Show as image", "Month", "Patterns"))
+      assertEquals(bot.buttons(stats).map(_._1), List("Today", "7 days", "30 days", "Show as image", "Month", "Patterns", "By medication"))
 
       val List(photo) = bot.tap(stats, "Show as image", expected = 1): @unchecked
       assertEquals(photo.method, "sendPhoto")
@@ -386,7 +386,8 @@ class CaptureLaunchSuite extends PgSuite:
           "Sleep, 7 nights",
           "Mood by weekday",
           "Month",
-          "Patterns"
+          "Patterns",
+          "By medication"
         )
       )
       val List(picker) = bot.tap(stats, "Share a card", expected = 1): @unchecked
@@ -424,7 +425,8 @@ class CaptureLaunchSuite extends PgSuite:
           "Sleep, 7 nights",
           "Mood by weekday",
           "Month",
-          "Patterns"
+          "Patterns",
+          "By medication"
         )
       )
       val List(water) = bot.tap(stats, "Water, 7 days", expected = 1): @unchecked

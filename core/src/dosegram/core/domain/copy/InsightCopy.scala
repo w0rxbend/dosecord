@@ -263,16 +263,45 @@ object InsightCopy:
           s"${topic(rule)}: ${more(missing, "day")} in the smaller group of days.",
           s"${topic(rule)}: ще ${UkNouns.Days.count(missing)} у меншій групі днів."
         )
-      case InsightGap.Timing(missing) =>
+      case InsightGap.Timing(missing, true) =>
         tr(
           s"Dose times: ${more(missing, "answered dose")} in a second time of day.",
           s"Час доз: ще ${UkNouns.AnsweredDoses.count(missing)} в іншій частині дня."
         )
+      case InsightGap.Timing(missing, false) =>
+        tr(
+          s"Dose times: ${more(missing, "answered dose")} across two times of day, at least 10 in each.",
+          s"Час доз: ще ${UkNouns.AnsweredDoses.count(missing)} у двох частинах дня, щонайменше по 10 у кожній."
+        )
+      case InsightGap.Baseline(metric, missing, false) =>
+        tr(
+          s"${ownWeeks(metric)}: ${more(missing, "day")} with a record in the last 7 days.",
+          s"${ownWeeks(metric)}: ще ${UkNouns.Days.count(missing)} із записом за останні 7 днів."
+        )
+      case InsightGap.Baseline(metric, missing, true) =>
+        tr(
+          s"${ownWeeks(metric)}: ${more(missing, "earlier week")} with records on at least 3 days.",
+          s"${ownWeeks(metric)}: ще ${UkNouns.Weeks.count(missing)} раніше із записами щонайменше за 3 дні."
+        )
+
+  /** IR-11 in the list of rules close to their data: the area against the user's own previous weeks. */
+  def ownWeeks(metric: BaselineMetric): String =
+    metric match
+      case BaselineMetric.SleepMinutes => tr("Sleep against your previous weeks", "Сон порівняно з попередніми тижнями")
+      case BaselineMetric.WaterMillilitres =>
+        tr("Water against your previous weeks", "Вода порівняно з попередніми тижнями")
+      case BaselineMetric.MoodLevel => tr("Mood against your previous weeks", "Настрій порівняно з попередніми тижнями")
+
+  /** Under the rules close to their data (supervisor decision, 2026-11-27): a count reached is not a pattern found. */
+  def closeNote: String = tr(
+    "These are minimums. Once a rule has its data, it is shown only if it also passes the checks.",
+    "Це мінімуми. Коли даних для правила вистачить, його буде показано, лише якщо воно пройде й перевірки."
+  )
 
   /** The lines of the `/insights` card. */
   def lines(list: InsightList, crossDomain: Boolean): List[String] =
     val shown = if list.shown.isEmpty then List(none) else list.shown.map(text)
-    val close = if list.gaps.isEmpty then Nil else closeTitle :: list.gaps.map(gap)
+    val close = if list.gaps.isEmpty then Nil else (closeTitle :: list.gaps.map(gap)) :+ closeNote
     val consent = if crossDomain then Nil else List(crossDomainOff)
     (header(list.window) :: shown) ++ close ++ consent
 
@@ -328,7 +357,15 @@ object InsightCopy:
         CopyEntry("insight.ir07", timingSample),
         CopyEntry("insight.gap.days", gap(InsightGap.Pattern(InsightRule.SleepGoalAndMood, 4, inSmallerGroup = false))),
         CopyEntry("insight.gap.group", gap(InsightGap.Pattern(InsightRule.WorkDaysAndMood, 2, inSmallerGroup = true))),
-        CopyEntry("insight.gap.timing", gap(InsightGap.Timing(3))),
+        CopyEntry("insight.gap.timing", gap(InsightGap.Timing(3, inSecondSlot = true))),
+        CopyEntry("insight.gap.timing.both", gap(InsightGap.Timing(9, inSecondSlot = false))),
+        CopyEntry("insight.gap.baseline.days", gap(InsightGap.Baseline(BaselineMetric.SleepMinutes, 1, weeks = false))),
+        CopyEntry(
+          "insight.gap.baseline.weeks",
+          gap(InsightGap.Baseline(BaselineMetric.WaterMillilitres, 1, weeks = true))
+        ),
+        CopyEntry("insight.gap.baseline.mood", gap(InsightGap.Baseline(BaselineMetric.MoodLevel, 2, weeks = true))),
+        CopyEntry("insight.close_note", closeNote),
         CopyEntry("insight.title", header(window)),
         CopyEntry("insight.none", none),
         CopyEntry("insight.close", closeTitle),

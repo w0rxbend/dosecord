@@ -70,6 +70,21 @@ object TimingStatements:
         TimingStatement.Withheld(WithheldReason.UnstableBetweenHalves, window)
       else TimingStatement.Shown(highest, lowest, window)
 
+  /** What a statement short of doses still needs: the resolved doses missing from the two slots closest to
+    * [[MinimumDosesPerSlot]] each, and whether one slot already has its share, so only a second one is missing.
+    */
+  def shortfall(doses: Iterable[AdherenceInput], zone: ZoneId, window: DateRange): (Int, Boolean) =
+    val resolved = doses.toList
+      .filter(dose => Adherence.classify(dose).isDefined)
+      .filter(dose => window.contains(LocalDays.dateOf(dose.scheduledFor, zone)))
+      .groupMapReduce(slotOf(_, zone))(_ => 1)(_ + _)
+      .values
+      .toList
+      .sorted
+      .reverse
+    val best = (resolved ++ List(0, 0)).take(2)
+    (best.map(n => math.max(0, MinimumDosesPerSlot - n)).sum, best.head >= MinimumDosesPerSlot)
+
   /** The standardised size of a shown statement: the difference of shares over the pooled `sqrt(p (1 - p))`. */
   def standardisedSize(shown: TimingStatement.Shown): Double =
     val pooled = (shown.highest.lateOrUnanswered + shown.lowest.lateOrUnanswered).toDouble /
@@ -184,7 +199,16 @@ enum Insight:
 /** A rule that is short of its minimum data: what it still needs, as a count (VISUALS section 8.5, "Insights tab"). */
 enum InsightGap:
   case Pattern(rule: InsightRule, missing: Int, inSmallerGroup: Boolean)
-  case Timing(missing: Int)
+
+  /** IR-07: the answered doses still missing from the two times of day closest to their 10 each; `inSecondSlot` when
+    * one time of day already has its 10.
+    */
+  case Timing(missing: Int, inSecondSlot: Boolean)
+
+  /** IR-11: the recorded days the current week still needs (`weeks` false), or the earlier weeks with records on 3 days
+    * that are still missing (`weeks` true). Supervisor decision, 2026-11-27.
+    */
+  case Baseline(metric: BaselineMetric, missing: Int, weeks: Boolean)
 
 /** What the engine read for one account. A source the user did not consent to is `None` and no rule reads it;
   * `crossDomain` is the `cross_domain_patterns` consent. `today` is the account's current local day.
@@ -233,7 +257,9 @@ object InsightEngine:
           Insight.Baseline(shown, BaselineStatements.standardisedSize(shown))
         }
     val gaps =
-      comparisons.flatMap((result, _) => patternGap(result)) ++ timing.toList.flatMap(timingGap)
+      comparisons.flatMap((result, _) => patternGap(result)) ++
+        timing.toList.flatMap(timingGap(_, in)) ++
+        baselines.flatMap(baselineGap)
     InsightList(in.window, shown.sortBy(insight => (-insight.size, insight.number)).take(MaximumShown), gaps)
 
   /** The first insight of the list that the weekly report may carry (VISUALS section 8.5, "Selection"). */
@@ -265,9 +291,19 @@ object InsightEngine:
         Some(InsightGap.Pattern(rule, required - n, inSmallerGroup = true))
       case _ => None
 
-  private def timingGap(result: TimingStatement): Option[InsightGap] =
+  /** Close when the doses still missing are at most half of the 20 the two times of day need together. */
+  private def timingGap(result: TimingStatement, in: InsightInputs): Option[InsightGap] =
     result match
-      case TimingStatement.TooFewDoses(n, required, _) if n >= required * CloseShare =>
-        Some(InsightGap.Timing(required - n))
+      case TimingStatement.TooFewDoses(_, required, window) =>
+        val (missing, inSecondSlot) = TimingStatements.shortfall(in.doses.getOrElse(Nil), in.zone, window)
+        Option.when(missing <= 2 * required * CloseShare)(InsightGap.Timing(missing, inSecondSlot))
+      case _ => None
+
+  private def baselineGap(result: BaselineStatement): Option[InsightGap] =
+    result match
+      case BaselineStatement.TooFewDays(metric, n, required, _) if n >= required * CloseShare =>
+        Some(InsightGap.Baseline(metric, required - n, weeks = false))
+      case BaselineStatement.TooFewWeeks(metric, n, required, _) if n >= required * CloseShare =>
+        Some(InsightGap.Baseline(metric, required - n, weeks = true))
       case _ => None
 end InsightEngine

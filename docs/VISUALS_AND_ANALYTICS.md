@@ -818,7 +818,7 @@ Example caption: "Mood logged at 14:05: Good, steady. Tags: work, outdoors."
 | Field | Specification |
 |---|---|
 | Purpose | One picture of the local day: the day blob and one line per tracked domain. It is the image form of the "Today" message. |
-| Trigger | On demand ("Today picture" button under the Today card). Sent with the evening wrap-up when the user opted in (section 10). The Today text message is edited in place immediately on every log; its picture is refreshed only on demand or by the schedule, never on every log. |
+| Trigger | On demand ("Today picture" button under the Today card). Sent with the evening wrap-up when the user opted in (section 10), and, for the day before, ahead of the morning summary the user turned on (section 10.1; supervisor decision, 2026-11-27). The Today text message is edited in place immediately on every log; its picture is refreshed only on demand or by the schedule, never on every log. |
 | Data inputs | Local date and zone; per domain the values of section 4.7; the list of today's dose occurrences with status; mood state; evidence tier of the sleep value. |
 | Dimensions | portrait, 1080 by 1350 |
 | Privacy | L2 lists medication rows by name (at most 6, then "and N more"). L1 and discreet mode show one medication line with counts only. |
@@ -999,7 +999,7 @@ Example caption: "October 2026, all medications. All scheduled doses recorded as
 | Field | Specification |
 |---|---|
 | Purpose | Compare medications over the same 7 or 14 days, one row per medication. |
-| Trigger | On demand ("By medication"). |
+| Trigger | On demand ("By medication"): "Show as image" on `/stats meds` of 7 or 14 days (BOT_UX section 12.5; supervisor decision, 2026-11-27). In the chat the rows are labelled "Item 1" onward (L1). |
 | Data inputs | For each active medication and each local day: the ordered list of that day's occurrences with status. |
 | Dimensions | portrait, 1080 by 1350. At most 6 rows per image; more medications paginate (page 1 of N in the title), ordered by the user's registry order. |
 | Privacy | L2 with names. L1 and discreet mode: rows are labelled with neutral labels or "Item 1" onward, in registry order, and the caption omits names. |
@@ -1749,7 +1749,7 @@ Mood differences are in levels of the stored 1 to 5 scale (section 7.6).
 | Stability check 2 | Removing any single day must not change the sign of the difference or reduce its size below half the minimum display difference. |
 | Ranking | Among rules that pass, order by the standardised size: the absolute difference divided by the pooled standard deviation of the outcome (for shares, divided by `sqrt(p * (1 - p))` of the pooled share). Ties are broken by rule number. |
 | Selection for the weekly report | The first rule in the ranking that was not shown in the last 28 days (unless its direction has reversed) and is not dismissed. At most one. If none qualifies, the report has no pattern block; no filler sentence is generated. |
-| Insights tab | Up to 5 currently passing rules, in rank order, plus a list of rules that are close to their minimum data with the count still needed. |
+| Insights tab | Up to 5 currently passing rules, in rank order, plus a list of rules that are close to their minimum data with the count still needed. Supervisor decision, 2026-11-27: the list also holds IR-11 when the current week is short of its 3 recorded days or the earlier weeks of their 2 (at least half of the minimum, as for the other rules); IR-07 counts the answered doses missing from the two times of day closest to their 10 each, "in a second time of day" only when one already has its 10; and the chat closes the list with "These are minimums. Once a rule has its data, it is shown only if it also passes the checks." (`insight.close_note`), so a count reached never reads as a pattern promised. |
 | Record | Rule identifier, window, group definitions, the two values, the two sizes, unit, computed-at time, snapshot revision. |
 
 No probability, significance statement or confidence wording is shown to the user. The safeguards are the counts, the minimum sizes and the two stability checks, which the "How was this worked out?" view lists in plain words.
@@ -1943,6 +1943,7 @@ BOT_UX.md owns reminders, prompts and touchpoints. This section governs the repo
 | Refill notice (text; the IMG-15 card only on request from the notice) | On for each medication with a threshold | When the user sets a threshold | When the count reaches the threshold; outside quiet hours. The proactive notice is a text message (BOT_UX section 10.5); its "Show card" button sends IMG-15 as an Outcome | The count is at or below the threshold and the user has not acknowledged | Repeats every 72 hours, at most 3 times; stops on "Got it" or a count update |
 | Water goal picture (IMG-08) | Off | In water settings | When the goal is first reached that day | Goal reached | 1 per day |
 | Pattern card (IMG-13) | Never scheduled on its own | n/a | Inside the weekly report only | Section 8.5 | 1 per week |
+| Morning summary of yesterday (text; IMG-03 of yesterday first with the images consent) | Off | Never offered: turned on in `/reminders` (supervisor decision, 2026-11-27) | 07:00, 08:00, 09:00 or 10:00, as the user chose; never in quiet hours | At least one record on the day before; the card only on a day without a weekly or monthly report sent or due | 1 per day |
 
 ### 10.2 Rules
 
@@ -1963,6 +1964,8 @@ BOT_UX.md owns reminders, prompts and touchpoints. This section governs the repo
 | VA-PS-13 | Minimum-data gates are mentioned only inside a message the user asked for or inside a report, as a count ("3 more nights of sleep check-ins until the first sleep summary"). They are never sent as their own message. |
 
 Supervisor decision, 2026-11-14 (ROADMAP G9.2). The offer of section 10.1 is the one question of ROADMAP conflict X-19: a silent text message with "Yes, send it" and "No, thanks", sent at the report's own send time (the weekly one on Monday at 09:00 until the account has a week-start setting, the monthly one on the 1st at 10:00), at most 3 hours after it, never in quiet hours or in bedtime mode. It is asked once per account and report type: asking records the report's plan, switched off, so "No" and no answer leave it off and the question never returns; "Yes" turns the default plan on. Onboarding asks nothing about reports, and the reports stay in `/reminders` beside the other prompts, where they can be turned on without waiting for the offer. The interaction of VA-PS-06 is the latest `last_seen_at` of the account's linked identities or `last_used_at` of its Mini App sessions after the report's send time; a report without one within 24 hours is closed as expired, one with it as answered. Only reports sent since the plan last took its form count, so "Resume" starts the count afresh. The monthly report's pages go as one album, each page captioned with its text equivalent, followed by its text with the controls (section 6.6, ARCHITECTURE TG-42); the weekly report has one page and goes as one photo.
+
+Supervisor decision, 2026-11-27 (chat analytics). The morning summary of section 10.1 is the report kind `report_daily` (migration V23): one silent message with yesterday's doses taken of those answered, water against the user's own goal, mood, the night that ended that day and the meals, each behind its consent and only with a record, and "Stop these" (VA-PS-01); the daily card of yesterday goes first under VA-PS-07. It follows VA-PS-02, VA-PS-05, VA-PS-06 and VA-PS-09 as the weekly report does. Under VA-PS-03 it is text on a day with a weekly or monthly report, sent or due. Unlike VA-PS-04 it is not sent late: a summary that falls inside quiet hours is recorded as skipped for quiet hours, because a summary of yesterday held until later would arrive among the day's prompts; the times on offer lie outside the default quiet hours.
 
 ## 11. Acceptance: test layers and hand-offs
 
