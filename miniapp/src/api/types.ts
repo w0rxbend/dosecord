@@ -323,6 +323,8 @@ export interface InsightsOverview {
   readonly blocks: readonly InsightBlock[];
   /** The server's sentence for an account with no block at all. */
   readonly notice?: string;
+  /** The hit days of this Monday week, with the counts switch on (PRODUCT_SPEC R-GAM-1, ROADMAP G9.4). */
+  readonly counts?: string;
 }
 
 /** One domain of a month: its lines when it met the month's gate, else the gate with its progress. */
@@ -951,4 +953,29 @@ export interface ReportCards {
   /** The sentence shown before any card is sent, in the server's words. */
   readonly warning: string;
   readonly cards: readonly ReportCardOffer[];
+  /** The cards of the share builder (MINI_APP 7.11): each over its own periods, under its own title and warning. */
+  readonly builder: readonly ReportCardChoice[];
+  readonly builderTitle?: string;
+  readonly builderWarning?: string;
+}
+
+/** One period a builder card is drawn over, and the kind that names that card. */
+export interface ReportCardPeriod {
+  readonly days: number;
+  readonly label: string;
+  readonly kind: string;
+}
+
+/** One card of the share builder: its title and its periods. */
+export interface ReportCardChoice {
+  readonly card: string;
+  readonly title: string;
+  readonly periods: readonly ReportCardPeriod[];
+}
+
+/** A card as the chat would receive it: its PNG, base64, and its text equivalent; no PNG when no image can be drawn. */
+export interface ReportCardPreview {
+  readonly kind: string;
+  readonly altText: string;
+  readonly png?: string;
 }

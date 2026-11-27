@@ -248,6 +248,10 @@ trait ImageCopy:
   def moodWeekdayTooFew: String
   def moodWeekdayText(data: MoodWeekdayData): String
   def moodWeekdayDiscreet: String
+  def trendsTitle: String
+  def trendsPeriod(from: LocalDate, to: LocalDate, byWeek: Boolean): String
+  def trendsScaleNote: String
+  def trendsDiscreet: String
 
 /** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
 final case class MonthSummary(

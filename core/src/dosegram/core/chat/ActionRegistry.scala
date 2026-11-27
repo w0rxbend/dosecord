@@ -118,7 +118,10 @@ object ActionRegistry:
     // The shareable card from /stats (VISUALS IMG-17): the picker on the account; a fact on the account, its value the
     // fact's code plus 16 once discreet mode was confirmed (see ShareChat).
     ActionEntry(369, "stats.share", requiresSession = false),
-    ActionEntry(370, "stats.share_send", requiresSession = false)
+    ActionEntry(370, "stats.share_send", requiresSession = false),
+    // Analytics depth (411 to 440; ROADMAP G9.4, G9.5): the trends of /stats, direct mode on the account, the value the
+    // period's days (30 or 90). Its image is `stats.image` with the same value.
+    ActionEntry(411, "stats.trends", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

@@ -92,6 +92,7 @@ final class OpenApiSuite extends munit.FunSuite:
     "DELETE /api/v1/imports/{id}",
     "POST /api/v1/occurrences/{id}/actions",
     "GET /api/v1/report-cards",
+    "GET /api/v1/report-cards/{kind}/preview",
     "POST /api/v1/report-cards/{kind}/deliveries"
   )
 

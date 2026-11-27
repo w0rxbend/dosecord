@@ -1078,6 +1078,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report-cards/{kind}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The PNG of a card as the chat would receive it, with its text equivalent; nothing is sent. */
+        get: operations["previewReportCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/report-cards/{kind}/deliveries": {
         parameters: {
             query?: never;
@@ -1626,6 +1643,7 @@ export interface components {
             ranges?: number[];
             blocks?: components["schemas"]["InsightBlock"][];
             notice?: string;
+            counts?: string;
         };
         /** InventoryDocument */
         InventoryDocument: {
@@ -2047,6 +2065,12 @@ export interface components {
             /** Format: date-time */
             pausedUntil?: string;
         };
+        /** ReportCardChoice */
+        ReportCardChoice: {
+            card: string;
+            title: string;
+            periods?: components["schemas"]["ReportCardPeriod"][];
+        };
         /** ReportCardDelivery */
         ReportCardDelivery: {
             kind: string;
@@ -2061,12 +2085,28 @@ export interface components {
             kind: string;
             sentence: string;
         };
+        /** ReportCardPeriod */
+        ReportCardPeriod: {
+            /** Format: int32 */
+            days: number;
+            label: string;
+            kind: string;
+        };
+        /** ReportCardPreview */
+        ReportCardPreview: {
+            kind: string;
+            altText: string;
+            png?: string;
+        };
         /** ReportCards */
         ReportCards: {
             available: boolean;
             discreet: boolean;
             warning: string;
             cards?: components["schemas"]["ReportCardOffer"][];
+            builder?: components["schemas"]["ReportCardChoice"][];
+            builderTitle?: string;
+            builderWarning?: string;
         };
         /** Scene */
         Scene: {
@@ -5102,6 +5142,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportCards"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewReportCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCardPreview"];
                 };
             };
             default: {

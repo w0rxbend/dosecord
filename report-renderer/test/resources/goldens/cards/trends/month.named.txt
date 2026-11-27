@@ -1,0 +1,20 @@
+file: dosegram-trends.png
+spoiler: false
+caption: Trends · last 30 days · 10 Oct to 8 Nov
+Medication: 52 of 56 taken (93%) · skipped 2. Previous 30 days: 50 of 56 taken (89%).
+Water: goal reached on 15 of 22 recorded days. Previous 30 days: water logged on 18 days.
+Mood: 28 check-ins. Previous 30 days: check-ins on 20 days.
+Sleep: 25 nights logged. Previous 30 days: No data.
+Food: 30 meals logged on 15 days. Previous 30 days: No data.
+alt: Trends · last 30 days · 10 Oct to 8 Nov
+Medication: 52 of 56 taken (93%) · skipped 2. Previous 30 days: 50 of 56 taken (89%).
+Water: goal reached on 15 of 22 recorded days. Previous 30 days: water logged on 18 days.
+Mood: 28 check-ins. Previous 30 days: check-ins on 20 days.
+Sleep: 25 nights logged. Previous 30 days: No data.
+Food: 30 meals logged on 15 days. Previous 30 days: No data.
+full: Trends · last 30 days · 10 Oct to 8 Nov
+Medication: 52 of 56 taken (93%) · skipped 2. Previous 30 days: 50 of 56 taken (89%).
+Water: goal reached on 15 of 22 recorded days. Previous 30 days: water logged on 18 days.
+Mood: 28 check-ins. Previous 30 days: check-ins on 20 days.
+Sleep: 25 nights logged. Previous 30 days: No data.
+Food: 30 meals logged on 15 days. Previous 30 days: No data.

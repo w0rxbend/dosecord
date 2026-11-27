@@ -14,6 +14,16 @@ object ShareCopy:
     "Оберіть один факт для картки, яку можна переслати. На картці немає імені, дат, часу чи ліків. Кожен, кому ви її надішлете, зможе її зберегти."
   )
 
+  /** The share builder of the Mini App (MINI_APP section 7.11): its cards carry the user's own figures and dates. */
+  def builder: String = tr("Send a card to your chat", "Надіслати картку в чат")
+
+  def builderWarning: String = tr(
+    "These cards show your own figures and the dates they cover. The card goes to your chat with you; anyone you forward it to can keep it.",
+    "Ці картки показують ваші власні цифри й дати, яких вони стосуються. Картка надходить у ваш чат; кожен, кому ви її перешлете, зможе її зберегти."
+  )
+
+  def weekGlanceTitle: String = tr("Week at a glance", "Тиждень коротко")
+
   def nothing: String = tr(
     "Nothing to share from the last 7 days yet.",
     "За останні 7 днів поки немає чим поділитися."
@@ -38,6 +48,9 @@ object ShareCopy:
   def entries: List[CopyEntry] =
     List(
       CopyEntry("share.button", Share),
+      CopyEntry("share.builder", builder),
+      CopyEntry("share.builder.warning", builderWarning),
+      CopyEntry("share.builder.week_glance", weekGlanceTitle),
       CopyEntry("share.pick", pick),
       CopyEntry("share.nothing", nothing),
       CopyEntry("share.discreet", discreet),

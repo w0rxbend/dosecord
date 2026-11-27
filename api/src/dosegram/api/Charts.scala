@@ -314,7 +314,7 @@ object Charts:
     )
 
   /** The doses a day was scheduled to have: the answered, the unanswered and the open ones. As-needed logs are not. */
-  def scheduledIn(buckets: DoseBuckets): Int = buckets.resolved.resolved + buckets.unknown + buckets.open
+  def scheduledIn(buckets: DoseBuckets): Int = buckets.scheduled
 
   /** The doses of a day in words: "3 of 4 taken, 1 not confirmed". */
   def dosesOf(buckets: DoseBuckets): String =

@@ -118,6 +118,7 @@ private[capture] object CaptureActions:
   val FoodImage: ActionEntry = named("food.image")
   val StatsShare: ActionEntry = named("stats.share")
   val StatsShareSend: ActionEntry = named("stats.share_send")
+  val StatsTrends: ActionEntry = named("stats.trends")
   val ImportTemplate: ActionEntry = named("import.template")
 
   val all: Set[ActionEntry] = Set(
@@ -133,6 +134,7 @@ private[capture] object CaptureActions:
     MoodUndo,
     StatsShow,
     StatsImage,
+    StatsTrends,
     SleepStart,
     SleepUp,
     SleepRate,

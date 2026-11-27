@@ -172,6 +172,7 @@ export function buildOverview(
     ranges: [7, 30, 90],
     blocks,
     notice: blocks.length === 0 ? 'Statistics appear here for the records you turned on in the chat.' : undefined,
+    counts: hasHistory && blocks.length > 0 ? 'Days with records: water 3 of 7, mood 2 of 7.' : undefined,
   };
 }
 

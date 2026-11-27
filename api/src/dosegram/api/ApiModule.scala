@@ -11,6 +11,7 @@ import dosegram.core.application.imports.ImportService
 import dosegram.core.application.privacy.DeletionRequests
 import dosegram.core.application.reports.CardDelivery
 import dosegram.core.domain.copy.Lang
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
@@ -40,6 +41,8 @@ import scala.util.control.NonFatal
   *   the drawn mood states: the renderer's geometry, which the composition root converts (MINI_APP section 7.9).
   * @param cards
   *   the card layouts the chat uses, for the cards the app sends to the chat (VISUALS IMG-17); text only by default.
+  * @param pictures
+  *   draws a laid-out card as the PNG the chat would receive, for the share builder's preview; none by default.
   * @param log
   *   receives one line per unexpected failure: the request id and the exception class, never a message, a body or a
   *   path.
@@ -55,7 +58,8 @@ final class ApiModule(
     log: String => Unit,
     exportRequests: ExportRequests,
     deletionRequests: DeletionRequests,
-    cards: StatusCards = StatusCards.textOnly
+    cards: StatusCards = StatusCards.textOnly,
+    pictures: CardPage => Option[Array[Byte]] = _ => None
 ):
   import ApiModule.*
 
@@ -66,7 +70,7 @@ final class ApiModule(
   private val days = DayViews(uow, clock)
   private val doseActions = DoseActions(uow, clock)
   private val reportCards =
-    ReportCardsApi(uow, tracking.stats, cards, CardDelivery(clock, IdSource.uuidV7(SecureRandom())))
+    ReportCardsApi(uow, tracking.stats, cards, CardDelivery(clock, IdSource.uuidV7(SecureRandom())), pictures)
   private val insights = Insights(uow, tracking)
   private val insightReports = InsightReports(uow, tracking, clock)
   private val history = History(uow, tracking, clock)
@@ -668,11 +672,16 @@ final class ApiModule(
             yield (Rendering.etag(doc.version), doc)
   )
 
-  /** The shareable card of the Insights screen (VISUALS IMG-17), through the report queue (ROADMAP G4.3). */
+  /** The shareable card and the share builder of the Insights screen (VISUALS IMG-17, IMG-19, IMG-23), through the
+    * report queue (ROADMAP G4.3).
+    */
   private val reportCardEndpoints: List[ServerEndpoint[Any, Identity]] = List(
     ReportCardEndpoints.listReportCards
       .handleSecurity(authenticate)
       .handle(session => _ => guarded(Right(reportCards.list(session.accountId)))),
+    ReportCardEndpoints.previewReportCard
+      .handleSecurity(authenticate)
+      .handle(session => kind => guarded(reportCards.preview(session.accountId, kind))),
     ReportCardEndpoints.deliverReportCard
       .handleSecurity(authenticate)
       .handle: session =>

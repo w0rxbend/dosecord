@@ -20,8 +20,11 @@ import dosegram.core.domain.insights.SleepRegularity
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.Stat
+import dosegram.core.domain.insights.TrendDomain
+import dosegram.core.domain.insights.TrendPeriod
 
 import java.time.LocalDate
+import java.time.ZoneId
 
 /** The words of the Mini App dashboard (MINI_APP section 7.11): the comparison with the user's own previous period of
   * the same length, the food figures of a period and the bedtime regularity figures. A comparison is written with both
@@ -153,12 +156,47 @@ object TrendCopy:
       )
     else spread.toList ++ usual.toList
 
+  /** The first line of the trends in chat (ROADMAP G9.4, G9.5): the period and the zone its days are counted in. */
+  def header(period: TrendPeriod, zone: ZoneId): String =
+    tr(
+      s"Trends · last ${period.days} days · ${zone.getId}",
+      s"Динаміка · останні ${UkNouns.Days.count(period.days)} · ${zone.getId}"
+    )
+
+  /** The first line of the trends card's text equivalent: the header and the days the card covers, so every number the
+    * card draws is in its text (VISUALS VA-PR-01).
+    */
+  def cardHeader(period: TrendPeriod, zone: ZoneId, window: DateRange): String =
+    val days = tr(
+      s"${window.start.format(Formats.dayMonth)} to ${window.end.format(Formats.dayMonth)}",
+      s"${window.start.format(Formats.dayMonth)} – ${window.end.format(Formats.dayMonth)}"
+    )
+    s"${header(period, zone)} · $days"
+
+  /** The name of a domain as the trends and the Insights blocks head it. */
+  def title(domain: TrendDomain): String = domain match
+    case TrendDomain.Medication => tr("Medication", "Ліки")
+    case TrendDomain.Hydration  => tr("Water", "Вода")
+    case TrendDomain.Mood       => tr("Mood", "Настрій")
+    case TrendDomain.Sleep      => tr("Sleep", "Сон")
+    case TrendDomain.Nutrition  => tr("Food", "Їжа")
+
+  /** One domain of the trends in chat: its figures on one line after its name. */
+  def domainLine(domain: TrendDomain, figures: List[String]): String = s"${title(domain)}: ${figures.mkString(" · ")}"
+
+  /** One domain in the trends card's text equivalent: its headline and the comparison, both as the chat prints them. */
+  def cardSentence(domain: TrendDomain, headline: String, comparison: String): String =
+    s"${title(domain)}: $headline. $comparison."
+
   /** A mood mean with its level word, as every mood figure is printed: "3.4 (slightly pleasant)". */
   def moodMean(mean: Double): String = StatsCopy.meanWithLevel(mean)
 
   private def clock(minute: Int): String = f"${minute / 60}%02d:${minute % 60}%02d"
 
-  def entries: List[CopyEntry] = Samples.entries
+  def entries: List[CopyEntry] =
+    Samples.entries ++ TrendDomain.values.toList.map(domain =>
+      CopyEntry(s"trend.title.${domain.toString.toLowerCase(java.util.Locale.ROOT)}", title(domain))
+    )
 
   private object Samples:
     private val end = LocalDate.parse("2026-11-07")
@@ -184,6 +222,14 @@ object TrendCopy:
       CopyEntry("trend.previous.food", food(30, meals)),
       CopyEntry("trend.previous.no_data", food(7, MealStats.period(Map.empty, month))),
       CopyEntry("trend.food", foodFigures(meals).mkString("\n")),
+      CopyEntry("trend.header.30", header(TrendPeriod.Month, ZoneId.of("Europe/Kyiv"))),
+      CopyEntry("trend.header.90", header(TrendPeriod.Quarter, ZoneId.of("Europe/Kyiv"))),
+      CopyEntry("trend.card.header", cardHeader(TrendPeriod.Month, ZoneId.of("Europe/Kyiv"), month)),
+      CopyEntry("trend.line.water", domainLine(TrendDomain.Hydration, StatsCopy.waterFigures(waterSample))),
+      CopyEntry(
+        "trend.card.water",
+        cardSentence(TrendDomain.Hydration, StatsCopy.waterFigures(waterSample).head, water(30, waterSample))
+      ),
       CopyEntry("trend.sleep.regularity", regularity(regular).mkString("\n")),
       CopyEntry(
         "trend.sleep.regularity.gate",

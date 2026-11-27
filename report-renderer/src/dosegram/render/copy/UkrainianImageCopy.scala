@@ -646,6 +646,13 @@ object UkrainianImageCopy extends ImageCopy:
     s"Настрій за днями тижня, ${dateRange(data.from, data.to)}. ${rows.mkString(". ")}. ${insightScaleNote(Domain.Mood)}"
 
   def moodWeekdayDiscreet: String = "Настрій за днями тижня."
+  def trendsTitle: String = "Динаміка"
+
+  def trendsPeriod(from: LocalDate, to: LocalDate, byWeek: Boolean): String =
+    s"${dateRange(from, to)} · ${if byWeek then "за тижнями" else "за днями"}"
+
+  def trendsScaleNote: String = "Кожен рядок у власному масштабі"
+  def trendsDiscreet: String = "Динаміка за період."
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3

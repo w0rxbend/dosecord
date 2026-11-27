@@ -1,18 +1,20 @@
 package dosegram.api
 
+import dosegram.core.application.insights.TrendBlock
+import dosegram.core.application.insights.TrendSource
+import dosegram.core.application.insights.TrendsView
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.TrendCopy
-import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DaySeries
 import dosegram.core.domain.insights.MedicationFigures
 import dosegram.core.domain.insights.MoodStats
+import dosegram.core.domain.insights.TrendFrame
 import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
-import java.time.LocalDate
 import java.util.UUID
 
 /** `GET /insights/overview` (ARCHITECTURE section 9.5, MINI_APP section 7.11): the dashboard of a period of 7, 30 or 90
@@ -24,8 +26,6 @@ import java.util.UUID
   */
 final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
 
-  import Insights.*
-
   def overview(accountId: UUID, rangeDays: Int): Either[ApiFailure, InsightsOverview] =
     TrendPeriod
       .of(rangeDays)
@@ -33,123 +33,68 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
       .flatMap(period =>
         uow.transactionAs(accountId)(tx =>
           tracking.stats
-            .today(tx, accountId)
+            .trends(tx, accountId, period)
             .left
             .map(_ => ApiFailure.notFound())
-            .map(overviewOf(tx, accountId, period, _))
+            .map(overviewOf(tx, accountId, _))
         )
       )
 
-  private def overviewOf(tx: Tx, accountId: UUID, period: TrendPeriod, today: LocalDate): InsightsOverview =
-    val frame = Frame(period, period.current(today), period.previous(today))
-    val countsOn = tx.accounts.gamificationOf(accountId)
-    val blocks = List(
-      medication(tx, accountId, frame),
-      hydration(tx, accountId, frame, countsOn),
-      mood(tx, accountId, frame, countsOn),
-      sleep(tx, accountId, frame, countsOn),
-      food(tx, accountId, frame)
-    ).flatten
+  private def overviewOf(tx: Tx, accountId: UUID, view: TrendsView): InsightsOverview =
+    val frame = view.frame
+    val blocks = view.blocks.map(trend => blockOf(tx, accountId, frame, trend))
     InsightsOverview(
-      rangeDays = period.days,
+      rangeDays = frame.period.days,
       rangeLabel = ApiCopy.rangeLabel(frame.current),
-      timeZone = tx.accounts.timezoneOf(accountId).getOrElse("UTC"),
+      timeZone = view.zone.getId,
       ranges = TrendPeriod.values.toList.map(_.days),
       blocks = blocks,
-      notice = Option.when(blocks.isEmpty)(ApiCopy.noConsentedDomain)
+      notice = Option.when(blocks.isEmpty)(ApiCopy.noConsentedDomain),
+      counts = view.weekCounts
     )
 
-  // A refusal is a missing consent (or an account that is gone): the block is left out.
-  private def medication(tx: Tx, accountId: UUID, frame: Frame): Option[InsightBlock] =
-    for
-      view <- tracking.stats.medicationOver(tx, accountId, frame.current).toOption
-      previous <- tracking.stats.medicationOver(tx, accountId, frame.previous).toOption
-    yield
-      val days = view.period.days
-      val byBucket =
-        if frame.period.byWeek then Some(Charts.dosesByWeek(days, frame.weeks, frame.current))
-        else DaySeries.of(days, frame.current).shown.map(Charts.dosesByDay(_, frame.current))
-      val shares = frame.buckets.map: bucket =>
-        val pooled = bucket.dates.flatMap(days.get).map(_.total)
-        val scheduled = pooled.map(Charts.scheduledIn).sum
-        Option.when(scheduled > 0)(pooled.map(_.resolved.taken).sum.toDouble / scheduled)
-      block(
-        OverviewDomain.Medication,
-        StatsCopy.doseFigures(view.period.total),
-        Charts.doseOutcomes(view.period.total.buckets).toList ++ byBucket.toList,
-        TrendCopy.doses(frame.period.days, previous.period.total),
-        Charts.spark(shares, SceneTone.Recorded)
-      ).copy(medications = medicationRows(tx, accountId, view.period.perMedication))
-
-  private def hydration(tx: Tx, accountId: UUID, frame: Frame, countsOn: Boolean): Option[InsightBlock] =
-    for
-      view <- tracking.stats.hydrationOver(tx, accountId, frame.current).toOption
-      previous <- tracking.stats.hydrationOver(tx, accountId, frame.previous).toOption
-    yield
-      val chart =
-        if frame.period.byWeek then Some(Charts.waterByWeek(view.days, frame.weeks, frame.current))
-        else DaySeries.of(view.days, frame.current).shown.map(Charts.waterByDay(_, frame.current))
-      block(
-        OverviewDomain.Hydration,
-        if countsOn then StatsCopy.waterFigures(view.period) else StatsCopy.waterFiguresOmittingGates(view.period),
-        chart.toList,
-        TrendCopy.water(frame.period.days, previous.period),
-        Charts.spark(frame.means(view.days)(_.totalMl.toDouble), SceneTone.Hydration)
-      ).copy(vessel = vesselOf(tx, accountId))
-
-  private def mood(tx: Tx, accountId: UUID, frame: Frame, countsOn: Boolean): Option[InsightBlock] =
-    for
-      view <- tracking.stats.moodOver(tx, accountId, frame.current).toOption
-      previous <- tracking.stats.moodOver(tx, accountId, frame.previous).toOption
-    yield
-      val trend =
-        if frame.period.byWeek then Some(Charts.moodByWeek(view.days, frame.weeks, frame.current))
-        else DaySeries.of(view.days, frame.current).shown.map(Charts.moodByDay(_, frame.current))
-      val weekdays = MoodStats.byWeekday(view.days, frame.current)
-      val byWeekday =
-        Option.when(weekdays.exists(_.mean.shown.isDefined))(Charts.moodByWeekday(weekdays, frame.current))
-      block(
-        OverviewDomain.Mood,
-        if countsOn then StatsCopy.moodFigures(view.period) else StatsCopy.moodFiguresOmittingGates(view.period),
-        trend.toList ++ byWeekday.toList,
-        TrendCopy.mood(frame.period.days, previous.period),
-        Charts.spark(frame.means(view.days)(_.mean), SceneTone.Mood)
-      )
-
-  private def sleep(tx: Tx, accountId: UUID, frame: Frame, countsOn: Boolean): Option[InsightBlock] =
-    for
-      view <- tracking.stats.sleepOver(tx, accountId, frame.current).toOption
-      previous <- tracking.stats.sleepOver(tx, accountId, frame.previous).toOption
-      regularity <- tracking.stats.sleepRegularity(tx, accountId, frame.current).toOption
-    yield
-      val goal = regularity.goalMinutes
-      val chart =
-        if frame.period.byWeek then Some(Charts.sleepByWeek(view.days, frame.weeks, frame.current, goal))
-        else DaySeries.of(view.days, frame.current).shown.map(Charts.sleepByDay(_, frame.current, goal))
-      block(
-        OverviewDomain.Sleep,
-        if countsOn then StatsCopy.sleepFigures(view.period) else StatsCopy.sleepFiguresOmittingGates(view.period),
-        chart.toList ++ Charts.sleepTimes(regularity.bars, frame.current).toList,
-        TrendCopy.sleep(frame.period.days, previous.period),
-        Charts.spark(frame.means(view.days)(_.minutes.toDouble), SceneTone.Sleep)
-      ).copy(details = TrendCopy.regularity(regularity))
-
-  private def food(tx: Tx, accountId: UUID, frame: Frame): Option[InsightBlock] =
-    for
-      view <- tracking.stats.mealsOver(tx, accountId, frame.current).toOption
-      previous <- tracking.stats.mealsOver(tx, accountId, frame.previous).toOption
-    yield
-      val chart =
-        if frame.period.byWeek then Some(Charts.mealsByWeek(view.days, frame.weeks, frame.current))
-        else DaySeries.of(view.days, frame.current).shown.map(Charts.mealsByDay(_, frame.current))
-      val counts = frame.buckets.map(bucket => Some(bucket.dates.flatMap(view.days.get).map(_.mainMeals).sum.toDouble))
-      block(
-        OverviewDomain.Nutrition,
-        TrendCopy.foodFigures(view.period),
-        chart.toList,
-        TrendCopy.food(frame.period.days, previous.period),
-        Option.when(view.period.hasEntries)(Charts.spark(counts, SceneTone.Nutrition)).flatten
-      )
+  // The words come from the core's trend block as they are; the API adds the charts of its records.
+  private def blockOf(tx: Tx, accountId: UUID, frame: TrendFrame, trend: TrendBlock): InsightBlock =
+    def block(domain: OverviewDomain, charts: List[Chart], tone: SceneTone): InsightBlock =
+      Insights.block(domain, trend.lines, charts, trend.comparison, Charts.spark(trend.buckets, tone))
+    trend.source match
+      case TrendSource.Medication(period) =>
+        val byBucket =
+          if frame.period.byWeek then Some(Charts.dosesByWeek(period.days, frame.weeks, frame.current))
+          else DaySeries.of(period.days, frame.current).shown.map(Charts.dosesByDay(_, frame.current))
+        block(
+          OverviewDomain.Medication,
+          Charts.doseOutcomes(period.total.buckets).toList ++ byBucket.toList,
+          SceneTone.Recorded
+        ).copy(medications = medicationRows(tx, accountId, period.perMedication))
+      case TrendSource.Hydration(days) =>
+        val chart =
+          if frame.period.byWeek then Some(Charts.waterByWeek(days, frame.weeks, frame.current))
+          else DaySeries.of(days, frame.current).shown.map(Charts.waterByDay(_, frame.current))
+        block(OverviewDomain.Hydration, chart.toList, SceneTone.Hydration).copy(vessel = vesselOf(tx, accountId))
+      case TrendSource.Mood(days) =>
+        val trendChart =
+          if frame.period.byWeek then Some(Charts.moodByWeek(days, frame.weeks, frame.current))
+          else DaySeries.of(days, frame.current).shown.map(Charts.moodByDay(_, frame.current))
+        val weekdays = MoodStats.byWeekday(days, frame.current)
+        val byWeekday =
+          Option.when(weekdays.exists(_.mean.shown.isDefined))(Charts.moodByWeekday(weekdays, frame.current))
+        block(OverviewDomain.Mood, trendChart.toList ++ byWeekday.toList, SceneTone.Mood)
+      case TrendSource.Sleep(days, regularity) =>
+        val goal = regularity.goalMinutes
+        val chart =
+          if frame.period.byWeek then Some(Charts.sleepByWeek(days, frame.weeks, frame.current, goal))
+          else DaySeries.of(days, frame.current).shown.map(Charts.sleepByDay(_, frame.current, goal))
+        block(
+          OverviewDomain.Sleep,
+          chart.toList ++ Charts.sleepTimes(regularity.bars, frame.current).toList,
+          SceneTone.Sleep
+        ).copy(details = TrendCopy.regularity(regularity))
+      case TrendSource.Nutrition(days) =>
+        val chart =
+          if frame.period.byWeek then Some(Charts.mealsByWeek(days, frame.weeks, frame.current))
+          else DaySeries.of(days, frame.current).shown.map(Charts.mealsByDay(_, frame.current))
+        block(OverviewDomain.Nutrition, chart.toList, SceneTone.Nutrition)
 
   /** Today against the user's own goal; without a goal there is nothing to fill. */
   private def vesselOf(tx: Tx, accountId: UUID): Option[InsightVessel] =
@@ -175,19 +120,6 @@ final class Insights(uow: UnitOfWork, tracking: TrackingUseCases):
           .map(InsightReports.row(medication.id, medication.name, medication.status == MedicationStatus.Archived, _))
 
 object Insights:
-
-  /** The windows of one request: the period, its current window, the previous one of the same length, and the buckets
-    * its charts and small lines are drawn in.
-    */
-  private final case class Frame(period: TrendPeriod, current: DateRange, previous: DateRange):
-    val weeks: List[DateRange] = TrendPeriod.weeks(current)
-    val buckets: List[DateRange] = if period.byWeek then weeks else current.dates.map(DateRange.single)
-
-    /** Per bucket, the mean of a value over the recorded days in it; a bucket without a record is a gap. */
-    def means[A](days: Map[LocalDate, A])(value: A => Double): List[Option[Double]] =
-      buckets.map: bucket =>
-        val own = bucket.dates.flatMap(days.get).map(value)
-        Option.when(own.nonEmpty)(own.sum / own.size)
 
   private def block(
       domain: OverviewDomain,

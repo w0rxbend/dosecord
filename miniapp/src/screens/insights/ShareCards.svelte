@@ -5,6 +5,7 @@
   import { errorText, t as en } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
+  import ShareBuilder from './ShareBuilder.svelte';
 
   // The shareable card of the chat's "Share a card" (VISUALS IMG-17): each button is the sentence its card states, so
   // the person sees what is sent before it is sent (VA-IMG-17b). The card goes to the chat through the report queue.
@@ -67,6 +68,7 @@
           </div>
         {/if}
       </div>
+      {#if read.available && read.builder.length > 0}<ShareBuilder {read} />{/if}
     {/snippet}
   </AsyncView>
 </section>

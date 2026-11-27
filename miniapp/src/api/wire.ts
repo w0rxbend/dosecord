@@ -342,6 +342,7 @@ export function toInsightsOverview(wire: Wire['InsightsOverview'], asked: Insigh
       medications: block.medications?.map((row) => ({ ...row })),
     })),
     notice: wire.notice,
+    counts: wire.counts,
   };
 }
 

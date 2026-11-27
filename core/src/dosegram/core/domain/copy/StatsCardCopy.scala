@@ -1,6 +1,7 @@
 package dosegram.core.domain.copy
 
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.TrendPeriod
 
 /** The controls of the `/stats` card (BOT_UX section 12.5). The figures themselves are [[StatsCopy]]. */
 object StatsCardCopy:
@@ -16,9 +17,12 @@ object StatsCardCopy:
   /** IMG-22 on the seven-day card. The words are the card's title. */
   def MoodWeekday = tr("Mood by weekday", "Настрій за днями тижня")
 
+  /** The way from the 30 days to their trends (ROADMAP G9.4, G9.5); the words are the trends card's title. */
+  def Trends = tr("Trends", "Динаміка")
+
   def usage = tr(
-    "Send /stats, /stats today, /stats 7, /stats 30 or /stats month.",
-    "Надішліть /stats, /stats today, /stats 7, /stats 30 або /stats month."
+    "Send /stats, /stats today, /stats 7, /stats 30, /stats trends or /stats month.",
+    "Надішліть /stats, /stats today, /stats 7, /stats 30, /stats trends або /stats month."
   )
   def imageUnavailable = tr(
     "The image is not available right now. The figures above are complete.",
@@ -31,13 +35,18 @@ object StatsCardCopy:
       case StatsPeriod.Last7Days  => tr("7 days", "7 днів")
       case StatsPeriod.Last30Days => tr("30 days", "30 днів")
 
+  /** A period button of the trends: "30 days", "90 days". */
+  def trendsPeriod(period: TrendPeriod): String = tr(s"${period.days} days", UkNouns.Days.count(period.days))
+
   def entries: List[CopyEntry] =
     List(
       CopyEntry("statscard.show_as_image", ShowAsImage),
       CopyEntry("statscard.water_week", WaterWeek),
       CopyEntry("statscard.sleep_week", SleepWeek),
       CopyEntry("statscard.mood_weekday", MoodWeekday),
+      CopyEntry("statscard.trends", Trends),
       CopyEntry("statscard.usage", usage),
       CopyEntry("statscard.image_unavailable", imageUnavailable)
-    ) ++ StatsPeriod.values.toList.map(value => CopyEntry(s"statscard.period.${value.days}", period(value)))
+    ) ++ StatsPeriod.values.toList.map(value => CopyEntry(s"statscard.period.${value.days}", period(value))) ++
+      TrendPeriod.Trends.map(value => CopyEntry(s"statscard.trends.${value.days}", trendsPeriod(value)))
 end StatsCardCopy

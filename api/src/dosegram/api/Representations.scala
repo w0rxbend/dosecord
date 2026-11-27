@@ -348,7 +348,8 @@ final case class InsightBlock(
       Schema
 
 /** One block per domain whose consent is active. `notice` is set when there is none. `ranges` are the periods the
-  * server computes, so the client offers no other (MINI_APP section 15.1).
+  * server computes, so the client offers no other (MINI_APP section 15.1). `counts` is the hit days of the Monday week
+  * that contains today, present only with the counts switch on and a record this week (PRODUCT_SPEC R-GAM-1, R-GAM-5).
   */
 final case class InsightsOverview(
     rangeDays: Int,
@@ -356,6 +357,7 @@ final case class InsightsOverview(
     timeZone: String,
     ranges: List[Int],
     blocks: List[InsightBlock],
-    notice: Option[String] = None
+    notice: Option[String] = None,
+    counts: Option[String] = None
 ) derives ReadWriter,
       Schema

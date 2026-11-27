@@ -346,6 +346,13 @@ export const uk: Catalogue = {
     shareSend: 'Надіслати картку',
     shareSent: 'Картка вже прямує у ваш чат.',
     shareCancel: 'Скасувати',
+    // The share builder (MINI_APP 7.11, ROADMAP G9.5).
+    builder: 'Надіслати картку в чат',
+    builderCard: 'Картка',
+    builderPeriod: 'Період картки',
+    builderLoading: 'Готуємо попередній перегляд',
+    builderText: 'Текст картки',
+    builderSend: 'Надіслати в мій чат',
     range: 'Період',
     days: (count: number) => days(count),
     vessel: 'Вода сьогодні',

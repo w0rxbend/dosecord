@@ -1,0 +1,11 @@
+file: dosegram-trends.png
+spoiler: true
+caption: Trends over a period.
+alt: Trends · last 90 days · 11 Aug to 8 Nov
+Water: average 1.8 l a day. Previous 90 days: No data.
+Mood: 64 check-ins. Previous 90 days: No data.
+Sleep: 78 nights logged. Previous 90 days: No data.
+full: Trends · last 90 days · 11 Aug to 8 Nov
+Water: average 1.8 l a day. Previous 90 days: No data.
+Mood: 64 check-ins. Previous 90 days: No data.
+Sleep: 78 nights logged. Previous 90 days: No data.

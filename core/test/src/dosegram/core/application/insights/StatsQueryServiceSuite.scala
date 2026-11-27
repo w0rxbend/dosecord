@@ -32,6 +32,7 @@ import dosegram.core.domain.insights.Ratio
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.Stat
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
@@ -250,6 +251,51 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
       rig.stats.sleepRegularity(rig.tx, account, current),
       Left(StatsRefusal.ConsentMissing(ConsentPurpose.Sleep))
     )
+
+  test("trends over 30 days: one block per consented domain with its figures, the previous 30 days and day buckets"):
+    val consent = FakeConsent.all(account)
+    val rig = Rig(consent)
+    rig.on(40) { rig.drink(800, "w-previous"); rig.feel(2, "m-previous") }
+    List(1, 2, 3).foreach(back => rig.on(back) { rig.drink(1000 + back * 100, s"w$back"); rig.feel(4, s"m$back") })
+    consent.withdraw(account, ConsentPurpose.Nutrition)
+    val view = rig.stats.trends(rig.tx, account, TrendPeriod.Month).toOption.get
+    assertEquals(view.frame.current, DateRange.endingOn(today, 30))
+    assertEquals(view.frame.previous, DateRange.endingOn(today.minusDays(30), 30))
+    assertEquals(
+      view.blocks.map(_.domain),
+      List(TrendDomain.Medication, TrendDomain.Hydration, TrendDomain.Mood, TrendDomain.Sleep)
+    )
+    val water = view.blocks(1)
+    assertEquals(water.lines, StatsCopy.waterFigures(rig.stats.hydrationOver(rig.tx, account, view.frame.current).toOption.get.period))
+    assertEquals(water.comparison, "Previous 30 days: water logged on 1 day")
+    assertEquals(water.buckets.size, 30)
+    assertEquals(water.buckets.takeRight(4), List(Some(1300.0), Some(1200.0), Some(1100.0), None))
+    assert(!view.blocks(3).hasData, view.blocks(3).toString)
+    // 30 June 2026 is a Tuesday: of the three days only Monday 29 June is in its week.
+    assertEquals(view.weekCounts, Some("Days with records: water 1 of 7, mood 1 of 7."))
+
+  test("trends over 90 days are drawn in thirteen week buckets, the newest whole"):
+    val rig = Rig()
+    rig.on(0)(rig.eat(MealType.Lunch, "f0"))
+    rig.on(6)(rig.eat(MealType.Dinner, "f6"))
+    rig.on(7)(rig.eat(MealType.Breakfast, "f7"))
+    val food = rig.stats.trends(rig.tx, account, TrendPeriod.Quarter).toOption.get.blocks.last
+    assertEquals(food.domain, TrendDomain.Nutrition)
+    assertEquals(food.buckets.size, 13)
+    assertEquals(food.buckets.takeRight(2), List(Some(1.0), Some(2.0)))
+    assertEquals(food.buckets.head, None)
+
+  test("with counts off, trends omit the data gates and the week line"):
+    val rig = Rig()
+    rig.tx.accounts.setGamification(account, false, now)
+    rig.on(1)(rig.feel(4, "m1"))
+    val view = rig.stats.trends(rig.tx, account, TrendPeriod.Month).toOption.get
+    val mood = view.blocks.find(_.domain == TrendDomain.Mood).get
+    assertEquals(mood.lines, List("1 check-in", "1 of 30 days have data"))
+    assertEquals(view.weekCounts, None)
+    rig.tx.accounts.setGamification(account, true, now)
+    val gated = rig.stats.trends(rig.tx, account, TrendPeriod.Month).toOption.get.blocks.find(_.domain == TrendDomain.Mood)
+    assert(gated.get.lines.exists(_.contains("more days with a check-in for an average")), gated.toString)
 
   test("the calendar reads answer the recorded days of any range, and nothing without the consent"):
     val rig = Rig()

@@ -41,6 +41,62 @@ describe('Insights', () => {
     expect(harness.api.sharedCards).toEqual(['share-week-mood']);
   });
 
+  it('previews the chosen card and period as the drawn card with its text', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+
+    const builder = await block('Send a card to your chat');
+    expect(within(builder).getByText(/your own figures and the dates they cover/)).toBeTruthy();
+    expect(await within(builder).findByRole('img', { name: /^Week at a glance/ })).toBeTruthy();
+    expect(within(builder).queryByRole('group', { name: 'Period of the card' })).toBeNull();
+
+    await user.click(within(builder).getByLabelText('Trends'));
+    expect(await within(builder).findByRole('img', { name: /^Trends · last 30 days/ })).toBeTruthy();
+    await user.click(within(builder).getByLabelText('90 days'));
+    const card = await within(builder).findByRole('img', { name: /^Trends · last 90 days/ });
+    expect(card.getAttribute('src')).toBe('data:image/png;base64,iVBORw0KGgo=');
+    expect(harness.api.previewedCards).toEqual(['week-glance-7', 'trends-30', 'trends-90']);
+  });
+
+  it('sends the previewed card to the chat with one tap', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    const builder = await block('Send a card to your chat');
+    await within(builder).findByRole('img', { name: /^Week at a glance/ });
+
+    await user.click(within(builder).getByRole('button', { name: 'Send to my chat' }));
+    expect(harness.api.sharedCards).toEqual(['week-glance-7']);
+    expect(harness.toasts.current?.message).toBe('The card is on its way to your chat.');
+  });
+
+  it('shows the card as its text when no image can be drawn now', async () => {
+    const harness = createHarness();
+    harness.api.previewReportCard = async (kind) => ({ kind, altText: 'Week at a glance. Water: 5 of 7 days.' });
+    open(harness);
+    const builder = await block('Send a card to your chat');
+
+    expect(await within(builder).findByText('Week at a glance. Water: 5 of 7 days.')).toBeTruthy();
+    expect(within(builder).queryByRole('img')).toBeNull();
+  });
+
+  it('asks first in discreet mode before a built card is sent', async () => {
+    const harness = createHarness();
+    harness.api.discreet = true;
+    const user = open(harness);
+    const builder = await block('Send a card to your chat');
+    await within(builder).findByRole('img', { name: /^Week at a glance/ });
+
+    await user.click(within(builder).getByRole('button', { name: 'Send to my chat' }));
+    expect(harness.tg.popups).toHaveLength(1);
+    expect(harness.api.sharedCards).toEqual([]);
+  });
+
+  it("states this week's days with records once, above the blocks", async () => {
+    open(createHarness());
+    await block('Medication');
+    expect(screen.getAllByText('Days with records: water 3 of 7, mood 2 of 7.')).toHaveLength(1);
+  });
+
   it('shows a labelled skeleton, then one block per domain for the last 30 days', async () => {
     open(createHarness());
 
@@ -128,7 +184,9 @@ describe('Insights', () => {
     open(harness);
     await block('Medication');
 
-    expect(screen.getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual(['7', '30']);
+    // The range control of the screen; the share builder below has radios of its own.
+    const range = screen.getByRole('group', { name: 'Period' });
+    expect(within(range).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual(['7', '30']);
   });
 
   it('shows a mood block in the words of the server, without a chart', async () => {

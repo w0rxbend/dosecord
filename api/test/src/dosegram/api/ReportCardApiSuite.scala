@@ -75,3 +75,39 @@ final class ReportCardApiSuite extends ApiSuite:
     assertEquals(refused.fieldErrors, List("confirmed" -> "required"))
     val sent = post("/api/v1/report-cards/share-week-mood/deliveries", ujson.Obj("confirmed" -> true), token, newKey())
     assertEquals(sent.status, 202, sent.body)
+
+  test("the share builder offers the week at a glance and the trends of 30 and 90 days, each by its kind"):
+    val (token, _) = account()
+    val read = get("/api/v1/report-cards", token).json
+    val choices = read("builder").arr.map(choice => choice("card").str -> choice("periods").arr.map(_("kind").str).toList)
+    assertEquals(choices.toList, List("week-glance" -> List("week-glance-7"), "trends" -> List("trends-30", "trends-90")))
+    assertEquals(read("builderTitle").str, "Send a card to your chat")
+    assert(read("builderWarning").str.contains("your own figures and the dates"), read.toString)
+
+  test("a preview is the drawn card the chat would receive, with the trends' own text equivalent, and queues nothing"):
+    val (token, accountId) = account()
+    val preview = get("/api/v1/report-cards/trends-90/preview", token)
+    assertEquals(preview.status, 200, preview.body)
+    val png = java.util.Base64.getDecoder.decode(preview.json("png").str)
+    assertEquals(new String(png, java.nio.charset.StandardCharsets.UTF_8), "<svg id=\"trends-90\"/>")
+    assert(preview.json.obj.get("svg").isEmpty, "no SVG string is sent (ARCHITECTURE section 9.5.1)")
+    val alt = preview.json("altText").str
+    assert(alt.startsWith("Trends · last 90 days"), alt)
+    assert(alt.contains("Mood: 1 check-in"), alt)
+    assertEquals(queued(accountId), 0)
+
+  test("a builder card is queued for the chat with its text equivalent as the caption"):
+    val (token, accountId) = account()
+    val sent = post("/api/v1/report-cards/trends-30/deliveries", ujson.Obj(), token, newKey())
+    assertEquals(sent.status, 202, sent.body)
+    assertEquals(sent.json("kind").str, "trends-30")
+    assertEquals(post("/api/v1/report-cards/week-glance-7/deliveries", ujson.Obj(), token, newKey()).status, 429)
+    assertEquals(queued(accountId), 1)
+
+  test("without the images consent the builder is empty and a preview is refused; an unknown kind is not found"):
+    val (blocked, _) = account(images = false)
+    val read = get("/api/v1/report-cards", blocked).json
+    assertEquals(read.obj.get("builder"), None, "an empty builder is left out of the document")
+    assertProblem(get("/api/v1/report-cards/trends-30/preview", blocked), 403, "consent_required")
+    val (token, _) = account()
+    assertProblem(get("/api/v1/report-cards/trends-7/preview", token), 404, "not_found")

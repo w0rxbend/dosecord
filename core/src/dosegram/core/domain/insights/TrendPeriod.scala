@@ -23,6 +23,9 @@ object TrendPeriod:
 
   def of(days: Int): Option[TrendPeriod] = values.find(_.days == days)
 
+  /** The periods of the trends: the chat's `/stats trends`, the trends card and its share (ROADMAP G9.4, G9.5). */
+  val Trends: List[TrendPeriod] = List(Month, Quarter)
+
   /** The weeks of a window, oldest first, cut from its last day backwards: the latest week is whole and the oldest one
     * holds what is left (90 days are 12 whole weeks and 6 days).
     */
