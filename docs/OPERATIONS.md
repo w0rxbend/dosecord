@@ -763,9 +763,10 @@ variable is added or made required. The commits since `3d9e9c3` are the fixes of
 review (`d577750`: one dose count on the `/stats meds` strip, "no record" doses on `/today`,
 Ukrainian counted nouns, the water offer after the goal, Europe/Kyiv suggested in Ukrainian
 onboarding, "your records" as the sleep source), image round 5 (merge `aac9ee1`) and the Mini
-App go-live rehearsal (merge `6f7fa3d`), and the two copy fixes of the verification of the
-integration (the weekly summary preset named "Monday at 09:00", the day it is sent, in place of
-"Sunday evening"; "Your latest mood check-in" for a gallery of one). Every step is the owner's;
+App go-live rehearsal (merge `6f7fa3d`), and the fixes of the verification of the integration:
+the weekly summary preset named "Monday at 09:00", the day it is sent, in place of "Sunday
+evening"; "Your latest mood check-in" for a gallery of one; and a report's card or album always
+sent before its text (the morning summary's text once arrived first). Every step is the owner's;
 `<sha>` is the head of `main` at or after the commit that adds the rehearsal record below, and
 `<pg>` is `dosegram-live-pg`:
 
@@ -798,6 +799,9 @@ What changes in the chat, none of it checked on a real client yet:
 - The fixes of `d577750` listed above.
 - `/reminders` names the weekly summary "Monday at 09:00" ("Понеділок о 09:00"), the time it was
   always sent; a plan already on is unchanged (ADR-023 addendum of 2026-11-28).
+- The morning summary, the weekly and the monthly report send their card or album first, then the
+  text, every time: each image falls due a millisecond before the text, and a claimed batch goes
+  out in the order its rows fell due.
 
 The Mini App stays off: `.live/run.sh` keeps `export MINIAPP_ENABLED=false` until the owner
 makes the one-time edit and the go-live steps of `docs/DEPLOY_MINIAPP.md` (DNS, a proxy from
@@ -842,7 +846,10 @@ forced row-level security and `dosegram_app` without a claim saw no row of `user
 `medications` or `mood_checkins`. Rollback: `3d9e9c3` over the upgraded database logged
 `migrate: 0 migration(s) applied, schema 23`, answered `/readyz` with 200, answered `/meds`,
 `/mood`, `/reminders`, `/stats` and a water entry on the fake wire with nothing quarantined or
-dead, and stopped cleanly; the head started again after it with the same lines. Not rehearsed: a
+dead, and stopped cleanly; the head started again after it with the same lines. The verification
+ran on `f53c4b3`; the head with the fixes above then started over the same database with the
+same lines and answered `/meds`, `/mood`, `/reminders` ("Weekly summary: Monday at 09:00, next
+Mon 09:00"), `/stats` and a water entry with nothing quarantined or dead. Not rehearsed: a
 real client, the Telegram transport, the weekly album over live data, and the answer of
 `3d9e9c3` to a gallery button (action id 474). The rehearsal's fake wire numbers messages from 1
 in every run, so a mood prompt of the head reused a seeded prompt's number and its tap was
