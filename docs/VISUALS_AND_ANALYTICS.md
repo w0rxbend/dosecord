@@ -981,14 +981,16 @@ Food on the month (supervisor decision, 2026-11-14): food that meets the gate ha
 
 | Day class | Condition | Cell |
 |---|---|---|
-| All taken | Fraction equals 1 | `spruce.heat.4` solid |
-| Most | 0.75 up to but not including 1 | `spruce.heat.3` solid |
-| Some | 0.50 up to but not including 0.75 | `spruce.heat.2` solid |
-| Few | Above 0 and under 0.50 | `spruce.heat.1` solid |
+| All taken | Fraction equals 1 | `spruce.heat.4`, the whole cell |
+| Most | 0.75 up to but not including 1 | `spruce.heat.3`, filled to three quarters inside a `grid` outline |
+| Some | 0.50 up to but not including 0.75 | `spruce.heat.2`, filled to half inside a `grid` outline |
+| Few | Above 0 and under 0.50 | `spruce.heat.1`, filled to a quarter inside a `grid` outline |
 | None taken | Fraction equals 0 with at least one resolved dose | Hollow cell (the skipped glyph) when every resolved dose was skipped; empty cell with the dash when at least one was missed |
 | Not known | Only unknown doses | Hatched cell |
 | Open | The day is today or later and doses are open | Dotted outline |
 | Nothing scheduled | No dose | Empty cell in the `surface` tone, named "None scheduled" in the legend with the same cell |
+
+Supervisor decision, 2026-11-27 (image round 4, the greyscale and colour-vision check of VA-PR-06): the four classes with doses taken were told apart by lightness alone, and in greyscale and under simulated deuteranopia and protanopia "All taken" and "75 to 99%" were two near-equal dark cells. Each of them is now also a fill level: the cell fills from the bottom to the floor of its class (whole, three quarters, half, a quarter), and the rest of a cell that is not whole is its 4 px outline in `grid`, not a filled track, because in the dark theme the lowest step and a `grid` track are too close to tell apart. The heat step stays the fill colour, the legend draws the same cells, and the month's page 2 shares the cell. `ColourVisionSuite` holds the classes apart with their colours removed and the heat steps in order of lightness in greyscale and for both dichromacies; `renderVisionSheets` (report-renderer.resvg tests) draws every fixture light and dark, normal, greyscale, deuteranopia and protanopia, for review.
 
 Cells are 96 px squares in 128 px slots; the day number sits under the cell in `label` size and `ink3`, so no text lies on a coloured fill (VA-CO-03). Today has a 4 px `ink` outline around the slot. The weekday line, the grid and the legend sit on one `panel` (radius 40 px), the background the heat steps were validated against; the fact lines follow on the surface.
 

@@ -2,6 +2,7 @@ package dosegram.render.card
 
 import dosegram.render.chart.DoseGlyph
 import dosegram.render.chart.DoseStatus
+import dosegram.render.chart.Vessel
 import dosegram.render.copy.CalendarLines
 import dosegram.render.copy.DayClass
 import dosegram.render.scene.Align
@@ -19,8 +20,8 @@ import java.time.DayOfWeek
 import java.time.YearMonth
 
 /** IMG-06, `card.med.calendar.v1`: which days of a month had all, most, some or none of the scheduled doses recorded as
-  * taken. One hue in four lightness steps; "none", "no record" and "open" are shapes, never a failure colour (VISUALS
-  * D5). The day number sits under its cell, so no text lies on a coloured fill (VA-CO-03).
+  * taken. One hue in four lightness steps, each also a fill level; "none", "no record" and "open" are shapes, never a
+  * failure colour (VISUALS D5). The day number sits under its cell, so no text lies on a coloured fill (VA-CO-03).
   */
 object AdherenceCalendarCard:
   val TemplateId = "card.med.calendar.v1"
@@ -126,15 +127,29 @@ object AdherenceCalendarCard:
       case DayAdherence.Open             => Some(DayClass.StillOpen)
       case DayAdherence.NothingScheduled => None
 
+  /** A day's cell. The four classes with doses taken are one hue in four lightness steps and, so that they read the
+    * same in greyscale and to a reader with a red-green dichromacy, a cell that fills from the bottom to the floor of
+    * its class: whole, three quarters, half, a quarter (VA-PR-06; supervisor decision of 2026-11-27).
+    */
   private[card] def cell(dayClass: DayClass, box: Box, tokens: Tokens): Node =
-    def heat(step: Int): Node =
-      val square = Node.filledRect(box, box.width * CornerShare, tokens.spruceHeat(step))
-      Node.Mark(MarkMeta(s"calendar.$dayClass", Set(Channel.Colour, Channel.Label)), Vector(square))
+    // The rest of a cell that is not whole is its outline in `grid`, not a filled track: in the dark theme the lowest
+    // step and a `grid` track are too close in lightness to tell the fill from the track.
+    def heat(step: Int, level: Double): Node =
+      val radius = box.width * CornerShare
+      val colour = tokens.spruceHeat(step)
+      val nodes =
+        if level >= 1 then Vector(Node.filledRect(box, radius, colour))
+        else
+          Vector(
+            Node.outlinedRect(box.inset(2), radius, Stroke.butt(tokens.grid, 4)),
+            Node.filledPath(Vessel.levelPath(box, radius, level), colour)
+          )
+      Node.Mark(MarkMeta(s"calendar.$dayClass", Set(Channel.Colour, Channel.Position, Channel.Label)), nodes)
     dayClass match
-      case DayClass.AllTaken     => heat(3)
-      case DayClass.Most         => heat(2)
-      case DayClass.Some         => heat(1)
-      case DayClass.Few          => heat(0)
+      case DayClass.AllTaken     => heat(3, 1.0)
+      case DayClass.Most         => heat(2, 0.75)
+      case DayClass.Some         => heat(1, 0.5)
+      case DayClass.Few          => heat(0, 0.25)
       case DayClass.Skipped      => DoseGlyph.of(DoseStatus.Skipped, box, tokens)
       case DayClass.NotConfirmed => DoseGlyph.of(DoseStatus.Missed, box, tokens)
       case DayClass.NoRecord     => DoseGlyph.of(DoseStatus.Unknown, box, tokens)
