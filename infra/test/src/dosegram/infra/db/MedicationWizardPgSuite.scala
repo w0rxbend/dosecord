@@ -144,7 +144,7 @@ class MedicationWizardPgSuite extends PgSuite:
 
     def restartEngine(): WizardEngine =
       WizardEngine(
-        flows = Application.flows(clock, ScheduleLifecycle(uow, clock)),
+        flows = Application.flows(clock, ScheduleLifecycle(uow, clock), codec),
         flowCommands = Map.empty,
         codec = codec,
         clock = clock,

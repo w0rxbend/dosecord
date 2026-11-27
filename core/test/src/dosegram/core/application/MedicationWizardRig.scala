@@ -195,7 +195,7 @@ private final class MedicationWizardRig(
   /** A fresh engine over the same stores (the process "restarts"); its `resumePending` re-sends stored prompts. */
   def restartEngine(): WizardEngine =
     WizardEngine(
-      flows = Application.flows(clock, ScheduleLifecycle(uow, clock)),
+      flows = Application.flows(clock, ScheduleLifecycle(uow, clock), codec),
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,

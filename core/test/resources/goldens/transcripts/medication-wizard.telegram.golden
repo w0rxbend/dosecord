@@ -22,7 +22,7 @@ send: Pick your timezone: | [UTC-10:00 — Pacific/Honolulu] [UTC-08:00 — Amer
 send: It is 03:00 in Europe/Kyiv now. Correct? | [Yes] [Change] [Back] [Cancel]
 > tap "Yes"
 send: Consent recorded on 21 Sep 2026: medication records. Privacy notice version 2. Withdraw at any time with /privacy.
-send: You're all set — your account is ready. Try /menu or /help.
+send: You're all set — your account is ready. Add your first medication now? | [Add medication] [Today]
 > /menu
 What would you like to do?
 > tap "Medications"

@@ -413,6 +413,8 @@ stateDiagram-v2
 | BUX-ONB-06 | Every step has a way back except W, and `/cancel` ends onboarding at any step with `onb.cancelled`. |
 | BUX-ONB-07 | If the session expires, the next `/start` begins at W. A tap on the expired card yields `toast.wizard.expired` and renders W. |
 
+Supervisor decision, 2026-11-27 (new-user review, finding 7 of [the walk-through](verification/new-user-review-2026-11-27.md)): step R as built for an onboarding that chose medication is the closing message "You're all set — your account is ready. Add your first medication now?" with "Add medication" and "Today", the same screens as the menu's buttons; it replaced "Try /menu or /help", which left the first medication two commands away. An onboarding that chose another domain keeps the closing line without buttons.
+
 ### 5.4 Language
 
 | ID | Requirement |

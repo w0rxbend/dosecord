@@ -51,6 +51,12 @@ object IdentityCopy:
     "Готово — ваш акаунт створено. Спробуйте /menu або /help."
   )
 
+  /** Closing line of an onboarding that chose medication, above "Add medication" and "Today" (BOT_UX step R). */
+  def accountReadyMedication = tr(
+    "You're all set — your account is ready. Add your first medication now?",
+    "Готово — ваш акаунт створено. Додати перші ліки зараз?"
+  )
+
   /** Unlinked principals reach only identity flows and help (DESIGN.md section 6). */
   def createFirst = tr("Create your account first with /start.", "Спершу створіть акаунт командою /start.")
 
@@ -62,6 +68,7 @@ object IdentityCopy:
     CopyEntry("identity.timezone.not_found", zoneNotFound("Atlantis")),
     CopyEntry("identity.timezone.confirm_hint", confirmHint),
     CopyEntry("identity.already_linked", alreadyLinked),
+    CopyEntry("identity.account_ready_medication", accountReadyMedication),
     CopyEntry("identity.account_created", accountCreated),
     CopyEntry("identity.create_first", createFirst)
   )
