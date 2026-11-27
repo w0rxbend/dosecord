@@ -393,7 +393,7 @@ export class MockTracking {
       return {
         date,
         swatch: { state: 'value', step: 1, hasNoRecord: false },
-        name: `${prefix}, ${duration(minutes)}, your check-ins`,
+        name: `${prefix}, ${duration(minutes)}, your records`,
         value: `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
       };
     }

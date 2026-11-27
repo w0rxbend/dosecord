@@ -27,7 +27,7 @@ describe('Sleep screen', () => {
     await user.click(screen.getByRole('button', { name: 'Save night' }));
 
     expect(await within(now()).findByText('Last: 23:00 to 07:00, 8 h 00 min.')).toBeTruthy();
-    expect(within(now()).getByText('From your check-ins')).toBeTruthy();
+    expect(within(now()).getByText('From your records')).toBeTruthy();
     expect(screen.getByText('Night of Thu 12 Nov: 23:00 to 07:00, 8 h 00 min')).toBeTruthy();
     expect(calls(harness, 'sleep/episodes:create')).toHaveLength(1);
     expect(harness.toasts.current?.message).toBe('Saved');
@@ -74,11 +74,11 @@ describe('Sleep screen', () => {
     const user = open(createHarness());
 
     const nights = await screen.findByRole('region', { name: 'Last 7 nights' });
-    expect(within(nights).getByRole('img', { name: /^Sleep per night, 6 Nov to 12 Nov, from your check-ins\./ })).toBeTruthy();
+    expect(within(nights).getByRole('img', { name: /^Sleep per night, 6 Nov to 12 Nov, from your records\./ })).toBeTruthy();
     await user.click(within(nights).getByRole('button', { name: 'Show as table' }));
     expect(within(nights).getAllByRole('row')).toHaveLength(8);
     const figures = screen.getByRole('region', { name: 'Last 7 nights in figures' });
-    expect(within(figures).getByText('your check-ins')).toBeTruthy();
+    expect(within(figures).getByText('your records')).toBeTruthy();
   });
 
   it('removes a night', async () => {

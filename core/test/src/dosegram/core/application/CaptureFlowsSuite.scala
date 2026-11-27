@@ -246,21 +246,27 @@ class CaptureFlowsSuite extends munit.FunSuite:
         List(
           ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"),
           // The typed amount waits for the goal choice, and the card says so (walk-through of 2026-11-27).
-          s"${WaterCopy.goalAsk}\n\n${WaterCopy.goalPending(250)}",
-          PromptCopy.offerWater
+          s"${WaterCopy.goalAsk}\n\n${WaterCopy.goalPending(250)}"
         )
       )
-      // The goal card, then the offer of water prompts (ADR-023): a forced choice with nothing preselected.
-      assertEquals(
-        labels(confirmed),
-        List("1.5 l", "2.0 l", "2.5 l", WaterCopy.NoGoal) ++
-          PromptPresets.forKind(PromptKind.Water).map(p => PromptCopy.presetName(p.id)) :+ PromptCopy.NotNow
-      )
+      // The goal card alone: the offer of water prompts waits for the goal choice (finding 12 of 2026-11-27).
+      assertEquals(labels(confirmed), List("1.5 l", "2.0 l", "2.5 l", WaterCopy.NoGoal))
       assertEquals(chat.liveWater, Nil, "the amount waits for the goal choice")
 
       val recorded = chat.rig.tapOn(WaterCopy.goalAsk, "2.0 l")
-      assertEquals(texts(recorded), List("Water +250 ml. Today: 0.25 of 2.0 l (12%)."))
+      // Then the offer of water prompts (ADR-023): a forced choice with nothing preselected.
+      assertEquals(texts(recorded), List("Water +250 ml. Today: 0.25 of 2.0 l (12%).", PromptCopy.offerWater))
+      assert(
+        labels(recorded).endsWith(
+          PromptPresets.forKind(PromptKind.Water).map(p => PromptCopy.presetName(p.id)) :+ PromptCopy.NotNow
+        ),
+        labels(recorded).toString
+      )
       assertEquals(chat.liveWater, List(250))
+      val goalAgain = chat.rig.tapOn("Water +250 ml", WaterCopy.Goal)
+      val changed = chat.rig.tapOn(WaterCopy.goalAsk, "2.5 l")
+      assert(!texts(changed).contains(PromptCopy.offerWater), s"a later goal change offers nothing: ${texts(changed)}")
+      assert(texts(goalAgain).exists(_.startsWith(WaterCopy.goalAsk)), texts(goalAgain).toString)
 
   test("a second Confirm on an old card records nothing and does not run the input again"):
     withChat(Profile.Telegram): chat =>
@@ -490,9 +496,10 @@ class CaptureFlowsSuite extends munit.FunSuite:
         val confirmed = chat.rig.tapOn(ConsentCopy.confirmation(ConsentPurpose.Hydration), ConsentCopy.Confirm)
         assertEquals(chat.world.consents.events.toList, List("hydration:granted"))
         assert(texts(confirmed).exists(_.contains(WaterCopy.goalAsk)), texts(confirmed).toString)
-        assert(texts(confirmed).contains(PromptCopy.offerWater), texts(confirmed).toString)
+        assert(!texts(confirmed).contains(PromptCopy.offerWater), texts(confirmed).toString)
         val recorded = chat.rig.tapOn(WaterCopy.goalAsk, WaterCopy.goalChoice(2000))
         assertEquals(chat.liveWater, List(250), texts(recorded).toString)
+        assert(texts(recorded).contains(PromptCopy.offerWater), texts(recorded).toString)
 
   test("Add energy asks on the same message and the answer names the energy label"):
     withChat(Profile.Telegram): chat =>
@@ -821,7 +828,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(figures.map(view => (view.window.days, view.nights, view.bars.size)), List((14, 1, 1)))
       assertEquals(
         texts(sent),
-        List("Sleep: 1 night logged · 9 more nights for an average · your check-ins · 1 of 14 days have data")
+        List("Sleep: 1 night logged · 9 more nights for an average · your records · 1 of 14 days have data")
       )
 
   test("a typed night is the latest night with those clock times; a typed length is not guessed"):
@@ -850,7 +857,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.uow.transaction(tx => sleep.setGoal(tx, chat.account, Some(7 * 60)))
 
       val today = chat.rig.line("/stats today")
-      assert(today.exists(_.contains("Sleep last night: 5 h 40 min (your check-ins)")), s"got: $today")
+      assert(today.exists(_.contains("Sleep last night: 5 h 40 min (your records)")), s"got: $today")
       chat.rig.tapOn("Today · Europe/Kyiv", "Show as image")
       assertEquals(cards.days.head.sleep, Some(SleepCardView(Some(340), 420)))
 

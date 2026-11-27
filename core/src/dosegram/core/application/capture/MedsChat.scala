@@ -115,10 +115,14 @@ private[capture] object MedsChat:
     else
       val marks = row.days.flatten
       def count(wanted: DoseMark*): Int = marks.count(wanted.contains)
-      val taken = count(DoseMark.TakenOnTime, DoseMark.TakenLate)
-      val skipped = count(DoseMark.Skipped)
-      val missed = count(DoseMark.NotConfirmed)
-      StatsCardCopy.medsRow(position, row.name, taken, taken + skipped + missed, skipped, missed, count(DoseMark.Open))
+      val tally = StatsCardCopy.MedsTally(
+        taken = count(DoseMark.TakenOnTime, DoseMark.TakenLate),
+        skipped = count(DoseMark.Skipped),
+        missed = count(DoseMark.NotConfirmed),
+        open = count(DoseMark.Open),
+        noRecord = count(DoseMark.NoRecord)
+      )
+      StatsCardCopy.medsRow(position, row.name, tally)
 
   private def isLog(occurrence: StoredOccurrence): Boolean =
     occurrence.origin == OccurrenceOrigin.Manual && occurrence.status == OccurrenceStatus.Taken

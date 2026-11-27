@@ -16,7 +16,7 @@ import { addDays, formatDate, toTime } from './dates';
 import { lastDays, seeded } from './scenes';
 
 const LIMITS = { goalMinMinutes: 60, goalMaxMinutes: 1080 };
-const SOURCE = 'From your check-ins';
+const SOURCE = 'From your records';
 /** The mock's zone is Europe/Kyiv; November has no clock change, so the offset is fixed. */
 const OFFSET = '+02:00';
 const WIDTH = 320;
@@ -146,7 +146,7 @@ export class MockSleep {
       lines:
         logged.length === 0
           ? []
-          : [`${logged.length} ${logged.length === 1 ? 'night' : 'nights'} logged`, average, 'your check-ins', `${logged.length} of 7 days have data`],
+          : [`${logged.length} ${logged.length === 1 ? 'night' : 'nights'} logged`, average, 'your records', `${logged.length} of 7 days have data`],
       days: nights.map((night) => ({
         date: night.date,
         label: formatDate(night.date, { weekday: 'short' }),
@@ -256,7 +256,7 @@ export class MockSleep {
     return {
       id: 'sleep-by-day',
       title: 'Sleep per night',
-      summary: `Sleep per night, ${shortDate(nights[0]!.date)} to ${shortDate(nights.at(-1)!.date)}, from your check-ins. Nights logged on ${logged} of ${nights.length} days.${this.goal === undefined ? '' : ` Your goal: ${duration(this.goal)}.`}`,
+      summary: `Sleep per night, ${shortDate(nights[0]!.date)} to ${shortDate(nights.at(-1)!.date)}, from your records. Nights logged on ${logged} of ${nights.length} days.${this.goal === undefined ? '' : ` Your goal: ${duration(this.goal)}.`}`,
       scene: {
         width: WIDTH,
         height: plotHeight + 24,

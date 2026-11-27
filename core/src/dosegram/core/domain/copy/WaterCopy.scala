@@ -59,7 +59,10 @@ object WaterCopy:
         UkNouns.Percent.count(progress.percent.toLong)
     )
   def dailyLimit(limit: Int): String =
-    tr(s"A day holds at most $limit water entries.", s"За день можна зробити щонайбільше $limit записів води.")
+    tr(
+      s"A day holds at most $limit water entries.",
+      s"За день можна зробити щонайбільше ${UkNouns.Entries.count(limit)} води."
+    )
 
   /** The water card of `/water`. */
   def card(day: HydrationDay): String =

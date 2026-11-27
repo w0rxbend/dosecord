@@ -9,6 +9,11 @@ final case class DoseCounts(taken: Int, skipped: Int, missed: Int, open: Int, un
   /** Scheduled doses that count: everything except unknown. */
   def counted: Int = taken + skipped + missed + open
 
+  /** Scheduled doses with an answer: the denominator of `/stats meds` and its strip, where an open dose is not counted
+    * yet (supervisor decision, 2026-11-28).
+    */
+  def answered: Int = taken + skipped + missed
+
   /** Whole percent of counted doses recorded as taken, rounded to the nearest; 100 only when every counted dose was
     * taken, so rounding never turns "almost all" into "all". `None` when nothing counts (VA-PR-04).
     */

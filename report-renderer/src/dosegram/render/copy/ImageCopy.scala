@@ -76,7 +76,7 @@ trait ImageCopy:
   def takenOf(taken: Int, counted: Int): String
   def nothingLoggedYet: String
   def mealsOf(logged: Int, planned: Int): String
-  def fromYourCheckIns: String
+  def fromYourRecords: String
   def estimateOnly: String
   def dayText(day: DayData): String
   def dayDiscreet: String
@@ -121,6 +121,12 @@ trait ImageCopy:
   def asNeededName(name: String): String
   def logsOnDays(logs: Int, days: Int): String
   def stripEmpty: String
+
+  /** One strip row's figures, headline first: the one formatter of the row's summary on the card (the headline) and of
+    * its line in the caption (all of them), counted as the chat's `/stats meds` counts them. An open dose is "still to
+    * answer" and never in the denominator (supervisor decision, 2026-11-28).
+    */
+  def stripFigures(counts: DoseCounts): Vector[String]
   def stripText(lines: StripLines): String
   def stripDiscreet: String
 

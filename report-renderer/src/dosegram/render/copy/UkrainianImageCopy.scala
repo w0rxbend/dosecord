@@ -131,7 +131,7 @@ object UkrainianImageCopy extends ImageCopy:
   def takenOf(taken: Int, counted: Int): String = s"прийнято $taken з $counted"
   def nothingLoggedYet: String = "Поки нічого не записано"
   def mealsOf(logged: Int, planned: Int): String = s"$logged з ${count(planned, "прийому їжі", "прийомів їжі")}"
-  def fromYourCheckIns: String = "з ваших позначок"
+  def fromYourRecords: String = "з ваших записів"
   def estimateOnly: String = "Лише оцінка"
 
   def dayText(day: DayData): String =
@@ -143,7 +143,7 @@ object UkrainianImageCopy extends ImageCopy:
       if meals.planned <= 0 then s"Їжа: ${mealsLogged(meals.logged)}."
       else s"Їжа: записано ${meals.logged} з ${count(meals.planned, "прийому їжі", "прийомів їжі")}."
     val sleep = day.sleep.map {
-      case SleepEvidence.Recorded(minutes, _) => s"Сон: ${duration(minutes)}, з ваших позначок."
+      case SleepEvidence.Recorded(minutes, _) => s"Сон: ${duration(minutes)}, з ваших записів."
       case SleepEvidence.QuietWindowOnly      => "Сон: лише оцінка за активністю в боті, не тривалість."
       case SleepEvidence.NoRecord             => "Сон: запису поки немає."
     }
@@ -265,11 +265,21 @@ object UkrainianImageCopy extends ImageCopy:
 
   def stripEmpty: String = "За ці дні записів про ліки немає."
 
+  def stripFigures(counts: DoseCounts): Vector[String] =
+    val headline =
+      if counts.answered == 0 then "ще немає доз із відповіддю" else takenOf(counts.taken, counts.answered)
+    headline +: Vector(
+      Option.when(counts.skipped > 0)(s"пропущено ${counts.skipped}"),
+      Option.when(counts.missed > 0)(s"не підтверджено ${counts.missed}"),
+      Option.when(counts.open > 0)(s"ще без відповіді — ${counts.open}, поки не враховано"),
+      Option.when(counts.unknown > 0)(s"без запису — ${counts.unknown}, не враховано")
+    ).flatten
+
   def stripText(lines: StripLines): String =
     val rows = lines.rows.map { row =>
       val record = row.asNeededDays
         .map(logDays => logsOnDays(row.counts.asNeeded, logDays))
-        .getOrElse(if row.counts.counted == 0 then noData.toLowerCase else doseSentence(row.counts))
+        .getOrElse(stripFigures(row.counts).mkString(", "))
       s"${row.label}: $record."
     }
     (s"${dateRange(lines.from, lines.to)}." +: (if rows.isEmpty then Vector(stripEmpty) else rows)).mkString(" ")
@@ -316,7 +326,7 @@ object UkrainianImageCopy extends ImageCopy:
           case (Some(bed), Some(wake)) =>
             s"; час відбою різнився приблизно на $bed хв, час підйому — приблизно на $wake хв"
           case _ => ""
-        s"$nightCount з ваших позначок і записів$average$spread."
+        s"$nightCount з ваших записів$average$spread."
     val gaps = days - sleep.nights
     val missing = Option.when(sleep.nights > 0 && gaps > 0)(
       s"Без запису: ${counted(gaps, "ніч", "ночі", "ночей")}."
@@ -377,7 +387,7 @@ object UkrainianImageCopy extends ImageCopy:
     }
     val mood = month.moodCheckInDays.map(count => s"Настрій: ${checkInDays(count)}.")
     val sleep = month.sleep.map { (minutes, nights) =>
-      s"Сон: у середньому ${duration(minutes)} за ${counted(nights, "ніч", "ночі", "ночей")} з ваших позначок."
+      s"Сон: у середньому ${duration(minutes)} за ${counted(nights, "ніч", "ночі", "ночей")} з ваших записів."
     }
     val days = s"Днів із записами: ${month.daysWithRecords}."
     val previous = month.previousAdherence
@@ -513,7 +523,7 @@ object UkrainianImageCopy extends ImageCopy:
   def moodTimelineDiscreet: String = "Ваш настрій за ці дні."
   def monthDaysTitle: String = "День за днем"
   def monthNightsTitle: String = "Ночі й вода"
-  def sleepNights(nights: Int): String = s"${counted(nights, "ніч", "ночі", "ночей").capitalize} з ваших позначок."
+  def sleepNights(nights: Int): String = s"${counted(nights, "ніч", "ночі", "ночей").capitalize} з ваших записів."
 
   def monthWaterFact(goalDays: Option[GoalDays], recordedDays: Int): String =
     goalDays match
@@ -546,7 +556,7 @@ object UkrainianImageCopy extends ImageCopy:
   def monthNightsText(page: MonthNightsData): String =
     val sleep = page.sleep.filter(_.bars.nonEmpty).map { nights =>
       val average = nights.averageMinutes.fold(sleepNights(nights.nights))(minutes =>
-        s"у середньому ${duration(minutes)} за ${counted(nights.nights, "ніч", "ночі", "ночей")} з ваших позначок."
+        s"у середньому ${duration(minutes)} за ${counted(nights.nights, "ніч", "ночі", "ночей")} з ваших записів."
       )
       val spread = for
         bedtime <- nights.bedtimeSpreadMinutes
@@ -614,8 +624,8 @@ object UkrainianImageCopy extends ImageCopy:
     val summary =
       if recorded.isEmpty then sleepWeekNone
       else if recorded.size >= MinimumDaysForAverage then
-        s"У середньому ${duration(recorded.sum / recorded.size)} за ${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших позначок."
-      else s"${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших позначок."
+        s"У середньому ${duration(recorded.sum / recorded.size)} за ${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших записів."
+      else s"${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших записів."
     val perNight = nights.zipWithIndex.map { (night, index) =>
       val name = weekday(from.plusDays(index.toLong).getDayOfWeek)
       night match
@@ -719,7 +729,8 @@ object UkrainianImageCopy extends ImageCopy:
       case DayClass.NoRecord     => "немає запису"
       case DayClass.StillOpen    => "ще відкрито"
 
-  // "26 з 28 запланованих доз записано як прийняті (93%), 1 пропущено, 1 не підтверджено".
+  // "прийнято 26 з 28 запланованих доз (93%), пропущено 1, не підтверджено 1": the count of taken doses agrees with no
+  // verb, so "1 з 1 запланованої дози" never reads "записано як прийняті" (supervisor decision, 2026-11-28).
   private def doseSentence(counts: DoseCounts): String =
     val share = counts.takenPercent.filter(_ => counts.counted >= MinimumDosesForPercent).map(p => s" (${percent(p)})")
     val rest = Vector(
@@ -729,13 +740,13 @@ object UkrainianImageCopy extends ImageCopy:
       Option.when(counts.unknown > 0)(s"без запису ${counts.unknown}, не враховано")
     ).flatten
     val planned = count(counts.counted, "запланованої дози", "запланованих доз")
-    (s"${counts.taken} з $planned записано як прийняті${share.getOrElse("")}" +: rest).mkString(", ")
+    (s"прийнято ${counts.taken} з $planned${share.getOrElse("")}" +: rest).mkString(", ")
 
   private def sleepSentence(sleep: SleepWeek): String =
     val average = sleep.averageMinutes
       .map { minutes =>
         s"Сон: у середньому ${duration(minutes)} за ${counted(sleep.recordedNights, "ніч", "ночі", "ночей")} " +
-          "з ваших позначок."
+          "з ваших записів."
       }
       .getOrElse("Сон: цього тижня записів немає.")
     val estimates = Option.when(sleep.estimateNights > 0)(

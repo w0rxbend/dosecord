@@ -72,7 +72,7 @@ object StatsCopy:
         Option.when(resolved.taken > 0)(
           tr(
             s"${resolved.takenOnTime} of ${resolved.taken} taken doses on time",
-            s"вчасно — ${resolved.takenOnTime} з ${resolved.taken} прийнятих доз"
+            s"вчасно — ${resolved.takenOnTime} з ${UkNouns.TakenDosesOf.count(resolved.taken)}"
           )
         ),
         Option.when(resolved.resolved > 0)(
@@ -288,8 +288,10 @@ object StatsCopy:
       )
     )
 
-  /** Where every sleep figure comes from: what the user entered (MA-SLEEP-1). */
-  def SleepSource: String = tr("your check-ins", "ваші позначки")
+  /** Where every sleep figure comes from: what the user recorded, tapped or typed (MA-SLEEP-1). "your check-ins" read
+    * as the taps alone (finding 17 of the review of 2026-11-27; supervisor decision, 2026-11-28).
+    */
+  def SleepSource: String = tr("your records", "ваші записи")
 
   /** Hours and minutes, "7 h 05 min", as the images write a duration. */
   def duration(minutes: Int): String =

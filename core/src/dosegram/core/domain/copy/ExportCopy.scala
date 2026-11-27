@@ -175,12 +175,12 @@ object ExportCopy:
       case Some(value) =>
         tr(
           s"Taken: $taken of $resolved resolved doses ($value%).",
-          s"Прийнято: $taken з $resolved доз із відповіддю ($value%)."
+          s"Прийнято: $taken з ${UkNouns.AnsweredDosesOf.count(resolved)} ($value%)."
         )
       case None =>
         tr(
           s"Taken: $taken of $resolved resolved doses. Too few doses for a percentage.",
-          s"Прийнято: $taken з $resolved доз із відповіддю. Замало доз, щоб рахувати відсоток."
+          s"Прийнято: $taken з ${UkNouns.AnsweredDosesOf.count(resolved)}. Замало доз, щоб рахувати відсоток."
         )
 
   def asNeeded(count: Int): String = tr(s"As-needed doses logged: $count.", s"Записано доз за потреби: $count.")

@@ -127,7 +127,7 @@ object Sleep:
   val Limits: SleepLimits = SleepLimits(SleepBounds.MinGoalMinutes, SleepBounds.MaxGoalMinutes)
 
   /** Where every sleep value comes from (MA-SLEEP-1): every stored episode is the user's own entry. */
-  def Source: String = tr("From your check-ins", "З ваших позначок")
+  def Source: String = tr("From your records", "З ваших записів")
 
   /** Where a night came from, in words (MA-SLEEP-1): a device's night keeps its source (tier 3, PRODUCT_SPEC R-IMX-10).
     */

@@ -33,4 +33,14 @@ done < <(find "$migrations" -type f -print0 | sort -z)
 if [[ $failed -ne 0 ]]; then
   exit 1
 fi
-echo "check-frozen-migrations: $(wc -l < "$manifest") migrations unchanged"
+# The count is of the migration files, each listed and unchanged, with their versions, so that the line can be
+# compared with the docs ("V1 to V19, V22 and V23").
+versions=$(find "$migrations" -type f -name 'V*__*.sql' -printf '%f\n' | sed -E 's/^V([0-9]+)__.*/\1/' | sort -n)
+count=$(printf '%s\n' "$versions" | grep -c .)
+ranges=$(printf '%s\n' "$versions" | awk '
+  function run() { return start == last ? "V" start : (last == start + 1 ? "V" start ", V" last : "V" start " to V" last) }
+  NR == 1 { start = $1; last = $1; next }
+  $1 == last + 1 { last = $1; next }
+  { out = out sep run(); sep = ", "; start = $1; last = $1 }
+  END { print out sep run() }')
+echo "check-frozen-migrations: $count migrations unchanged ($ranges)"

@@ -46,6 +46,7 @@ object AccountCreateFlow:
   // Session-data keys.
   private[identity] val TimezoneKey = "timezone"
   private val ErrorKey = "tz_error"
+  private val SuggestedKey = "tz_suggested"
   private val PurposeKey = "consent_purpose"
   private val AgreedAtKey = "consent_agreed_at"
   private val ConfirmedAtKey = "consent_confirmed_at"
@@ -76,6 +77,15 @@ object AccountCreateFlow:
     "Australia/Sydney",
     "Pacific/Auckland"
   ).map(ZoneId.of)
+
+  /** The zone onboarding suggests for the language it runs in, or none: the live echo asks the user to confirm it, and
+    * "Change" opens the picker (finding 16 of the review of 2026-11-27; supervisor decision, 2026-11-28). English is
+    * spoken in most of the picker's zones, so it suggests none.
+    */
+  def suggestedZone(lang: Lang): Option[ZoneId] =
+    lang match
+      case Lang.Uk => Some(ZoneId.of("Europe/Kyiv"))
+      case Lang.En => None
 
   /** A typed city, zone id or UTC offset (the shared `ZoneText` grammar); an offset prefers a picker zone. */
   def parseZone(text: String, now: Instant): Option[ZoneId] = ZoneText.parse(text, now, pickerZones)
@@ -141,7 +151,11 @@ object AccountCreateFlow:
       render = data => List(paragraph(ConsentCopy.confirmation(purposeOf(data)))),
       accept = {
         case (StepInput.Chosen("confirm"), _) =>
-          Right(StepTransition.Next("timezone", Map(ConfirmedAtKey -> clock.now().toString, ErrorKey -> "")))
+          val confirmed = Map(ConfirmedAtKey -> clock.now().toString, ErrorKey -> "")
+          suggestedZone(Lang.current) match
+            case Some(zone) =>
+              Right(StepTransition.Next("confirm", confirmed ++ Map(TimezoneKey -> zone.getId, SuggestedKey -> "yes")))
+            case None => Right(StepTransition.Next("timezone", confirmed))
         case _ => Left(ConsentCopy.confirmHint)
       }
     )
@@ -161,7 +175,7 @@ object AccountCreateFlow:
       accept = {
         case (StepInput.Chosen(OtherKey), _) => Right(StepTransition.Next("timezone_custom"))
         case (StepInput.Chosen(key), _) if pickerZones.exists(_.getId == key) =>
-          Right(StepTransition.Next("confirm", Map(TimezoneKey -> key, ErrorKey -> "")))
+          Right(StepTransition.Next("confirm", Map(TimezoneKey -> key, ErrorKey -> "", SuggestedKey -> "")))
         case _ => Left(IdentityCopy.invalidZone)
       }
     ),
@@ -173,7 +187,7 @@ object AccountCreateFlow:
         case (StepInput.TextEntered(text), _) =>
           parseZone(text, clock.now()) match
             case Some(zone) =>
-              Right(StepTransition.Next("confirm", Map(TimezoneKey -> zone.getId, ErrorKey -> "")))
+              Right(StepTransition.Next("confirm", Map(TimezoneKey -> zone.getId, ErrorKey -> "", SuggestedKey -> "")))
             // An invalid zone re-shows the picker with a note naming what was typed, and writes no row
             // (acceptance 3): the buttons of common choices come back after the first failure.
             case None => Right(StepTransition.Next("timezone", Map(ErrorKey -> IdentityCopy.zoneNotFound(text))))
@@ -186,12 +200,15 @@ object AccountCreateFlow:
       render = data =>
         val zone = ZoneId.of(data(TimezoneKey))
         val local = clock.now().atZone(zone)
-        List(paragraph(WizardCopy.timezoneConfirm(f"${local.getHour}%02d:${local.getMinute}%02d", zone.getId)))
+        val suggested = data.get(SuggestedKey).filter(_.nonEmpty).map(_ => paragraph(IdentityCopy.timezoneSuggested))
+        suggested.toList :+
+          paragraph(WizardCopy.timezoneConfirm(f"${local.getHour}%02d:${local.getMinute}%02d", zone.getId))
       ,
       accept = {
         case (StepInput.Chosen("yes"), _)    => Right(StepTransition.Complete)
-        case (StepInput.Chosen("change"), _) => Right(StepTransition.Next("timezone", Map(ErrorKey -> "")))
-        case _                               => Left(IdentityCopy.confirmHint)
+        case (StepInput.Chosen("change"), _) =>
+          Right(StepTransition.Next("timezone", Map(ErrorKey -> "", SuggestedKey -> "")))
+        case _ => Left(IdentityCopy.confirmHint)
       }
     )
   )

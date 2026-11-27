@@ -245,7 +245,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val card = rig.images.drawn.sleep(figures, light).get
     assert(card.assetKey.matches("card\\.[0-9a-f]{64}"), card.assetKey)
     assertEquals(card.hasSpoiler, false)
-    assert(card.altText.startsWith("Sleep, 31 Oct to 13 Nov. 1 night from your check-ins and entries."), card.altText)
+    assert(card.altText.startsWith("Sleep, 31 Oct to 13 Nov. 1 night from your records."), card.altText)
     assert(card.altText.contains("Your goal is 7 h 30 min."), card.altText)
     val discreet = CardLook(ImageTheme.Dark, isDiscreet = true)
     assertEquals(rig.images.drawn.sleep(figures, discreet).map(_.hasSpoiler), Some(true))
@@ -259,7 +259,7 @@ class StatusImagesSuite extends munit.FunSuite:
     assert(full.altText.contains("Water: 1.25 of 2.0 l."), full.altText)
     val bare = rig.images.drawn.day(DayCardView(today, None, None, None, None), light).get
     val slept = rig.images.drawn.day(DayCardView(today, None, None, None, Some(SleepCardView(Some(430), 450))), light).get
-    assert(slept.altText.contains("Sleep: 7 h 10 min, from your check-ins."), slept.altText)
+    assert(slept.altText.contains("Sleep: 7 h 10 min, from your records."), slept.altText)
     val unslept = rig.images.drawn.day(DayCardView(today, None, None, None, Some(SleepCardView(None, 450))), light).get
     assert(unslept.altText.contains("Sleep: no record yet."), unslept.altText)
     assert(!bare.altText.contains("Medication") && !bare.altText.contains("Water"), bare.altText)
@@ -355,7 +355,7 @@ class StatusImagesSuite extends munit.FunSuite:
     val waterWeek = draw(rig.images.cards.waterWeek(view, light)).get
     assert(waterWeek.altText.contains("1.96 l a day on average. Goal reached on 2 of 3 recorded days."), waterWeek.altText)
     val sleepWeek = draw(rig.images.cards.sleepWeek(view, light)).get
-    assert(sleepWeek.altText.contains("1 night from your check-ins."), sleepWeek.altText)
+    assert(sleepWeek.altText.contains("1 night from your records."), sleepWeek.altText)
     assertEquals(rig.images.cards.sleepWeek(view.copy(sleep = None), light), None)
     val window = DateRange.endingOn(today, 28)
     val weekdays = java.time.DayOfWeek.values.toList.map(day => WeekdayMood(day, 0, Stat.Insufficient(0, 3, window)))

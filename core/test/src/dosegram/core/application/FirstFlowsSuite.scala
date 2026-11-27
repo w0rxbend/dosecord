@@ -89,16 +89,31 @@ class FirstFlowsSuite extends munit.FunSuite:
       assert(shows(agree, uk(ConsentCopy.Agree)), s"stage 1 button: $agree")
       val confirm = rig.line("1", localeHint = Some("uk"))
       assert(shows(confirm, uk(ConsentCopy.Confirm)), s"stage 2 button: $confirm")
-      rig.line("1", localeHint = Some("uk"))
-      val zone = rig.line("13", localeHint = Some("uk"))
+      // Leftover 4 (finding 16): the zone is suggested by the language and confirmed on the live echo, with no picker.
+      val zone = rig.line("1", localeHint = Some("uk"))
+      assert(shows(zone, uk(IdentityCopy.timezoneSuggested)) && shows(zone, "Europe/Kyiv"), s"the suggestion: $zone")
       assert(shows(zone, uk(Labels.Yes)) && shows(zone, uk(Labels.Change)), s"zone buttons: $zone")
       val done = rig.line("1", localeHint = Some("uk"))
       assert(done.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.accountCreated))), s"got: $done")
       val account = rig.uow.accounts.all.head
+      assertEquals(account.currentTimezone, "Europe/Kyiv")
       assertEquals(rig.uow.accounts.settingsOf(account.accountId).flatMap(_.locale), Some("uk"))
       // From now on the stored choice wins over a stale client tag.
       val help = rig.line("/help", localeHint = Some("en"))
       assert(help.exists(_.contains(Lang.within(Lang.Uk)(HelpCopy.intro))), s"got: $help")
+
+  test("a suggested zone can be changed: Change opens the picker and the picked zone is kept"):
+    ox.supervised:
+      val rig = FirstFlowsRig()
+      rig.push(Inbound.ConversationStarted(None), localeHint = Some("uk"))
+      (1 to 3).foreach(_ => rig.line("1", localeHint = Some("uk")))
+      val picker = rig.line("2", localeHint = Some("uk")) // Change
+      assert(picker.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezonePrompt))), s"the picker: $picker")
+      val echo = rig.line("10", localeHint = Some("uk")) // UTC+01:00 — Europe/London
+      assert(echo.exists(_.contains("Europe/London")), s"the echo: $echo")
+      assert(!echo.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezoneSuggested))), s"no suggestion: $echo")
+      rig.line("1", localeHint = Some("uk"))
+      assertEquals(rig.uow.accounts.all.head.currentTimezone, "Europe/London")
 
   test("an English or unknown client onboards in English and stores English"):
     ox.supervised:

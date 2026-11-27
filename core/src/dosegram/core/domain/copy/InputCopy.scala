@@ -30,7 +30,7 @@ object InputCopy:
       case TimeOfDay.Rejection.TooMany(max) =>
         tr(
           s"That is more than $max times. In chat a medication takes up to $max times a day; type $max or fewer.",
-          s"Це більше, ніж $max. У чаті для одних ліків можна задати до $max разів на день; введіть $max або менше."
+          s"Це більше, ніж $max. У чаті для одних ліків можна задати до ${UkNouns.TimesOf.count(max)} на день; введіть $max або менше."
         )
 
   def duration(rejection: SnoozeDuration.Rejection): String =

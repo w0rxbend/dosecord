@@ -206,6 +206,28 @@ class MenuSuite extends munit.FunSuite:
         List("20:00 · Taken", "20:00 · Skip")
       )
 
+  test("/today names a dose with no record by its reason and offers I took it and Skip for it"):
+    // Leftover 2 of 2026-11-28: a catch-up dose read "unknown" and offered no way to answer it from /today.
+    withRig: rig =>
+      val account = rig.seedAccount()
+      val outcome = rig.seedSchedule(account, "Vitamin D", dailyAt("20:00"), kyiv)
+      rig.seedOccurrence(outcome.scheduleId, daysBack = 0, LocalTime.of(7, 0), "undelivered",
+        _.copy(status = OccurrenceStatus.Unknown, nextActionAt = None,
+          unknownReason = Some(UnknownReason.Undelivered)))
+      val today = rig.line("/today").mkString("\n")
+      assert(today.contains("07:00 Vitamin D — no record (reminder not delivered)"), today)
+      assert(!today.contains("unknown"), today)
+      val labels = rig.lastChoiceMap("Today's doses").map(_.label).filter(_.contains("·"))
+      assertEquals(labels, List("07:00 · I took it", "07:00 · Skip", "20:00 · Taken", "20:00 · Skip"))
+      val tookIt = rig.lastChoiceMap("Today's doses").find(_.label == "07:00 · I took it").map(_.callback).get
+      rig.tapWithHandle(tookIt)
+      val after = rig.line("/today").mkString("\n")
+      assert(after.contains("07:00 Vitamin D — taken at"), after)
+      assertEquals(
+        rig.lastChoiceMap("Today's doses").map(_.label).filter(_.contains("·")),
+        List("20:00 · Taken", "20:00 · Skip")
+      )
+
   test("/today keeps Taken and Skip apart when two doses share a time and one has a long name"):
     // Verification of 2026-11-27: the name was cut with the action word, so both buttons read the same.
     withRig: rig =>
@@ -269,7 +291,7 @@ class MenuSuite extends munit.FunSuite:
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — taken at 11:30 (late)")), s"late: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — skipped at 10:00")), s"skipped: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — missed")), s"missed: $history")
-      assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — unknown")), s"unknown: $history")
+      assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — no record (service outage)")), s"no record: $history")
       // Today's pending dose is there too; only the last 7 days render (6 dose lines: 5 seeded + today).
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — scheduled")), s"today: $history")
       assertEquals(history.flatMap(_.split("\n")).count(_.contains("09:00 Vitamin D 1000 IU —")), 6,

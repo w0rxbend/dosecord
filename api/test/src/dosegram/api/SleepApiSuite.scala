@@ -34,7 +34,7 @@ final class SleepApiSuite extends ApiSuite:
     assertEquals(first.json("kind").str, "night")
     assertEquals(first.json("minutes").num.toInt, 450)
     assertEquals(first.json("duration").str, "7 h 30 min")
-    assertEquals(first.json("source").str, "From your check-ins")
+    assertEquals(first.json("source").str, "From your records")
     assert(first.json("text").str.matches("Night of \\w{3} \\d+ Nov: 23:30 to 07:00, 7 h 30 min"), first.body)
     assertEquals(night(token, hoursAgo(10.5), hoursAgo(3), key).json("id").str, first.json("id").str)
     assertEquals(get("/api/v1/sleep/episodes", token).json("items").arr.size, 1)
@@ -85,7 +85,7 @@ final class SleepApiSuite extends ApiSuite:
     val summary = get("/api/v1/sleep/summary", token).json
     assertEquals(summary("days").arr.size, 7)
     assertEquals(summary("lines").arr.map(_.str).toList.head, "1 night logged")
-    assert(summary("lines").arr.exists(_.str == "your check-ins"), summary.toString)
+    assert(summary("lines").arr.exists(_.str == "your records"), summary.toString)
     assertEquals(summary("chart")("id").str, "sleep-by-day")
     assertEquals(summary("chart")("marks").arr.count(_.str.endsWith("no night logged")), 6)
     assertEquals(summary("status")("text").str, "Last: 23:30 to 07:00, 7 h 30 min.")
@@ -96,7 +96,7 @@ final class SleepApiSuite extends ApiSuite:
     uow.transactionAs(account.accountId)(_.accounts.setGamification(account.accountId, false, clock.now()))
     val lines = get("/api/v1/sleep/summary", token).json("lines").arr.map(_.str).toList
     assert(lines.contains("1 night logged"), lines)
-    assert(lines.contains("your check-ins"), lines)
+    assert(lines.contains("your records"), lines)
     assert(!lines.exists(_.contains("more")), lines)
 
   test("a delete voids a night of any age; a second delete answers the same"):
@@ -121,5 +121,5 @@ final class SleepApiSuite extends ApiSuite:
     assertEquals(calendar.status, 200, calendar.body)
     assertEquals(calendar.json("domains").arr.map(_.str).toList, List("sleep"))
     assertEquals(calendar.json("days").arr.count(_("swatch")("state").str == "value"), 1)
-    assertEquals(calendar.json("summary").str, "November so far: 1 night logged, from your check-ins.")
+    assertEquals(calendar.json("summary").str, "November so far: 1 night logged, from your records.")
 end SleepApiSuite

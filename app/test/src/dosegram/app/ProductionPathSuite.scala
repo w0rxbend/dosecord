@@ -20,6 +20,7 @@ import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.PrivacyCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.IdSource
@@ -257,11 +258,12 @@ class ProductionPathSuite extends PgSuite:
     chat.tapLabel(Labels.Create, "")
     eventually("the schedule exists")(strings("SELECT status FROM medication_schedules") == List("active"))
 
-  /** A typed amount, the water consent in two stages, then the hourly plan from the offer. */
+  /** A typed amount, the water consent in two stages, the goal, then the hourly plan from the offer. */
   private def turnOnHourlyWater(chat: Chat): Unit =
     chat.say("250 ml", ConsentCopy.statement(ConsentPurpose.Hydration))
     chat.tapLabel(ConsentCopy.Agree, ConsentCopy.confirmation(ConsentPurpose.Hydration))
-    chat.tapLabel(ConsentCopy.Confirm, PromptCopy.offerWater)
+    chat.tapLabel(ConsentCopy.Confirm, WaterCopy.goalAsk)
+    chat.tapLabel(WaterCopy.goalChoice(2000), PromptCopy.offerWater)
     val hourly = PromptCopy.presetName("water.hourly")
     chat.tapLabel(hourly, PromptCopy.TurnOn)
     chat.tapLabel(PromptCopy.TurnOn, PromptCopy.applied(hourly))

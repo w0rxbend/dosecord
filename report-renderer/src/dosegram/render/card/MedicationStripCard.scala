@@ -92,8 +92,7 @@ object MedicationStripCard:
     val counts = DoseCounts.of(medication.days.flatten)
     val summary =
       if medication.isAsNeeded then copy.logsOnDays(counts.asNeeded, medication.days.count(_.nonEmpty))
-      else if counts.counted == 0 then copy.noData
-      else copy.takenOf(counts.taken, counts.counted)
+      else copy.stripFigures(counts).head
     val fitted = context.fitter.twoLines(label, TextStyle.BodyMedium, frame.width - SummaryWidthPx - 20)
     Row(label, fitted, summary, medication, cellPx)
 

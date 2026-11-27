@@ -1,5 +1,5 @@
 file: dosegram-medication-days.png
 spoiler: false
-caption: 27 Oct to 9 Nov. Metformin 500 mg: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 still open. Vitamin D: 7 of 7 scheduled doses recorded as taken (100%). Ibuprofen (as needed): 3 logs on 3 days.
-alt: 27 Oct to 9 Nov. Metformin 500 mg: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 still open. Vitamin D: 7 of 7 scheduled doses recorded as taken (100%). Ibuprofen (as needed): 3 logs on 3 days.
-full: 27 Oct to 9 Nov. Metformin 500 mg: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 still open. Vitamin D: 7 of 7 scheduled doses recorded as taken (100%). Ibuprofen (as needed): 3 logs on 3 days.
+caption: 27 Oct to 9 Nov. Metformin 500 mg: 26 of 27 taken, skipped 1, 1 still to answer, not counted yet. Vitamin D: 7 of 7 taken. Ibuprofen (as needed): 3 logs on 3 days.
+alt: 27 Oct to 9 Nov. Metformin 500 mg: 26 of 27 taken, skipped 1, 1 still to answer, not counted yet. Vitamin D: 7 of 7 taken. Ibuprofen (as needed): 3 logs on 3 days.
+full: 27 Oct to 9 Nov. Metformin 500 mg: 26 of 27 taken, skipped 1, 1 still to answer, not counted yet. Vitamin D: 7 of 7 taken. Ibuprofen (as needed): 3 logs on 3 days.

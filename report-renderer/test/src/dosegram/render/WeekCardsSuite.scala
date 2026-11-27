@@ -143,7 +143,7 @@ class WeekCardsSuite extends munit.FunSuite:
     val water = WaterWeekCard.render(Monday, Vector.fill(3)(Some(WaterProgress(1900, 2000))) ++ Vector.fill(4)(None), uk)
     assertEquals(figures(water).head, "1,9 л")
     val sleep = SleepWeekCard.render(Monday, Vector.fill(2)(SleepEvidence.Recorded(400, 480)) ++ Vector.fill(5)(SleepEvidence.NoRecord), uk)
-    assert(sleep.text.full.contains("2 ночі з ваших позначок"), sleep.text.full)
+    assert(sleep.text.full.contains("2 ночі з ваших записів"), sleep.text.full)
 
   // The second-reviewer pass of image round 4 (2026-11-27).
 

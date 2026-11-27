@@ -169,7 +169,7 @@ object History:
       else
         tr(
           s"${period(month, isCurrent)}: ${total.resolved.taken} of $scheduled doses taken.",
-          s"${period(month, isCurrent)}: прийнято ${total.resolved.taken} з $scheduled доз."
+          s"${period(month, isCurrent)}: прийнято ${total.resolved.taken} з ${Charts.UkDosesOf.count(scheduled)}."
         )
 
   private final case class WaterCells(days: Map[LocalDate, HydrationDay]) extends Cells:
@@ -267,8 +267,8 @@ object History:
         tr(s"${period(month, isCurrent)}: no night logged.", s"${period(month, isCurrent)}: ночей не записано.")
       else
         tr(
-          s"${period(month, isCurrent)}: ${ApiCopy.count(days.size, "night")} logged, from your check-ins.",
-          s"${period(month, isCurrent)}: записано ${ApiCopy.count(days.size, "night")} з ваших позначок."
+          s"${period(month, isCurrent)}: ${ApiCopy.count(days.size, "night")} logged, from your records.",
+          s"${period(month, isCurrent)}: записано ${ApiCopy.count(days.size, "night")} з ваших записів."
         )
   // One step only, like sleep: the number of meals is presence, not a target (VISUALS VA-ME-40, VA-ME-41).
   private final case class FoodCells(days: Map[LocalDate, MealDay]) extends Cells:

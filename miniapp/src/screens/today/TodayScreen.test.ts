@@ -225,7 +225,7 @@ describe('Today screen', () => {
 
     const sleep = await section('Sleep');
     expect(sleep.textContent).toMatch(/Last: \d\d:\d\d to \d\d:\d\d, \d h \d\d min\./);
-    expect(within(sleep).getByText('From your check-ins')).toBeTruthy();
+    expect(within(sleep).getByText('From your records')).toBeTruthy();
   });
 
   it('leaves sleep out when its consent is missing', async () => {

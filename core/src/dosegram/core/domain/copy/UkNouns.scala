@@ -13,6 +13,10 @@ private[copy] object UkNouns:
   val CheckIns = UkForms("позначка", "позначки", "позначок", "позначки")
   val Doses = UkForms("доза", "дози", "доз", "дози")
   val Times = UkForms("раз", "рази", "разів", "раза")
+
+  /** After "до": "до 1 разу", "до 8 разів". */
+  val TimesOf = UkForms("разу", "разів", "разів")
+  val Characters = UkForms("символ", "символи", "символів")
   val Levels = UkForms("рівень", "рівні", "рівнів", "рівня")
   val Weeks = UkForms("тиждень", "тижні", "тижнів", "тижня")
   val Months = UkForms("місяць", "місяці", "місяців", "місяця")
@@ -20,6 +24,12 @@ private[copy] object UkNouns:
   val Percent = UkForms("відсоток", "відсотки", "відсотків", "відсотка")
   val Schedules = UkForms("розклад", "розклади", "розкладів", "розкладу")
   val AnsweredDoses = UkForms("доза з відповіддю", "дози з відповіддю", "доз із відповіддю")
+
+  /** After "з": "з 1 дози з відповіддю", "з 2 доз із відповіддю". */
+  val AnsweredDosesOf = UkForms("дози з відповіддю", "доз із відповіддю", "доз із відповіддю")
+
+  /** After "з": "з 1 прийнятої дози", "з 5 прийнятих доз". */
+  val TakenDosesOf = UkForms("прийнятої дози", "прийнятих доз", "прийнятих доз")
 
   /** After "з вашими попередніми": a baseline always has at least two earlier weeks. */
   val WeeksWith = UkForms("тижнем", "тижнями", "тижнями")

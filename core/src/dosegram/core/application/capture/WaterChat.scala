@@ -68,16 +68,24 @@ private[capture] final class WaterChat(
   /** `water.goal.ask` (BUX-WATER-02): three example amounts and "No goal"; `pendingMl` is the amount to record after
     * the choice, or zero.
     */
-  def askGoal(turn: Turn, pendingMl: Int): Reply =
-    val examples = GoalExamplesMl.map(goal => goalButton(turn, WaterCopy.goalChoice(goal), goal, pendingMl))
-    val none = goalButton(turn, WaterCopy.NoGoal, NoGoalValue, pendingMl)
+  def askGoal(turn: Turn, pendingMl: Int): Reply = goalCard(turn, pendingMl, next = 0L)
+
+  /** The goal card right after the water consent: the offer of water reminders follows the goal choice, so that the two
+    * keyboards never arrive together (finding 12 of the review of 2026-11-27; supervisor decision, 2026-11-28).
+    */
+  def askGoalBeforePlans(turn: Turn, pendingMl: Int): Reply = goalCard(turn, pendingMl, next = PlansNext)
+
+  private def goalCard(turn: Turn, pendingMl: Int, next: Long): Reply =
+    def button(label: String, goalMl: Int): Choice = goalButton(turn, label, goalMl | next, pendingMl)
+    val examples = GoalExamplesMl.map(goal => button(WaterCopy.goalChoice(goal), goal))
+    val none = button(WaterCopy.NoGoal, NoGoalValue)
     val pending = Option.when(pendingMl > 0)(WaterCopy.goalPending(pendingMl)).toList
     turn.show(turn.message("water.goal", WaterCopy.goalAsk :: pending, List(examples, List(none))))
 
   /** A tap on the goal card: the goal is set from today on, then the pending amount is recorded or the card shown. */
   def setGoal(turn: Turn, value: Long): Reply =
     val goalMl = (value & GoalMask).toInt
-    val pendingMl = (value >> PendingShift).toInt
+    val pendingMl = ((value >> PendingShift) & PendingMask).toInt
     val target = Option.when(goalMl != NoGoalValue)(goalMl)
     answered(turn, hydration.setGoal(turn.tx, turn.accountId, target)): _ =>
       if pendingMl > 0 then addMillilitres(turn, pendingMl) else card(turn)
@@ -125,11 +133,8 @@ private[capture] final class WaterChat(
     val goal = Choice.callback(WaterCopy.Goal, accountToken(turn, CaptureActions.WaterGoalAsk, 0))
     List(undoRow, addRow, image :+ goal)
 
-  private def goalButton(turn: Turn, label: String, goalMl: Int, pendingMl: Int): Choice =
-    Choice.callback(
-      label,
-      accountToken(turn, CaptureActions.WaterGoal, goalMl.toLong | (pendingMl.toLong << PendingShift))
-    )
+  private def goalButton(turn: Turn, label: String, goal: Long, pendingMl: Int): Choice =
+    Choice.callback(label, accountToken(turn, CaptureActions.WaterGoal, goal | (pendingMl.toLong << PendingShift)))
 
   private def accountToken(turn: Turn, action: ActionEntry, value: Long): String =
     tokens.direct(action, turn.accountId, value)
@@ -139,10 +144,16 @@ private[capture] object WaterChat:
   /** The example amounts of the goal card. They are examples, not a recommendation (BUX-WATER-02). */
   val GoalExamplesMl: List[Int] = List(1500, 2000, 2500)
 
-  // The value of a `water.goal` token: the goal in bits 0-13 (zero means "No goal"), the pending amount above them.
+  // The value of a `water.goal` token: the goal in bits 0-13 (zero means "No goal"), the pending amount in bits 14-29,
+  // and bit 30 when the offer of water reminders follows the choice.
   private val PendingShift = 14
   private val GoalMask = (1L << PendingShift) - 1
+  private val PendingMask = (1L << 16) - 1
+  private val PlansNext = 1L << 30
   private val NoGoalValue = 0
+
+  /** Whether the goal tap of `value` is the one after the water consent, which the water reminders follow. */
+  def plansFollow(value: Long): Boolean = (value & PlansNext) != 0
 
   /** The figures of a day; a day without an entry still shows the goal in force. */
   def dayOf(view: WaterDayView): HydrationDay =

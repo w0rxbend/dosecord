@@ -442,18 +442,19 @@ final class MenuHandler(
       (doseRows ++ resolved).sortBy(_.scheduledFor).map(doseLine) ++
       logRows.map(medication => paragraph(MenuCopy.asNeededRow(medication.name))) ++
       (if hidden > 0 then List(paragraph(MenuCopy.todayMore(hidden))) else Nil)
-    val shared = doseRows.groupBy(timeOf).collect { case (time, occs) if occs.size > 1 => time }.toSet
-    val doseBlocks = doseRows.map: occ =>
+    // A dose with no record is answered as the catch-up digest answers it: "I took it" or "Skip" (BOT_UX row 9).
+    val noRecord = resolved.filter(_.status == OccurrenceStatus.Unknown).sortBy(_.scheduledFor).take(MaxTodayRows)
+    val answerable = noRecord ++ doseRows
+    val shared = answerable.groupBy(timeOf).collect { case (time, occs) if occs.size > 1 => time }.toSet
+    val doseBlocks = answerable.map: occ =>
       val name = Option.when(shared(timeOf(occ)))(nameOf(occ))
+      val taken = if occ.status == OccurrenceStatus.Unknown then MenuCopy.todayTookIt else MenuCopy.todayTaken
       Block.Choices(
         ChoiceSet(
           id = s"today.dose.${occ.id}",
           choices = List(
-            Choice.callback(
-              doseLabel(MenuCopy.todayTaken, timeOf(occ), name),
-              directToken("dose.taken", occ.id),
-              ChoiceStyle.Success
-            ),
+            Choice
+              .callback(doseLabel(taken, timeOf(occ), name), directToken("dose.taken", occ.id), ChoiceStyle.Success),
             Choice.callback(doseLabel(MenuCopy.todaySkip, timeOf(occ), name), directToken("dose.skip", occ.id))
           )
         )
@@ -528,8 +529,8 @@ final class MenuHandler(
       case OccurrenceStatus.Skipped =>
         MenuCopy.statusSkippedAt(formatTime(occ.state.skippedAt.getOrElse(occ.scheduledFor), tz))
       case OccurrenceStatus.Missed    => MenuCopy.statusMissed
-      case OccurrenceStatus.Unknown   => MenuCopy.statusUnknown
-      case OccurrenceStatus.Cancelled => MenuCopy.statusUnknown
+      case OccurrenceStatus.Unknown   => MenuCopy.statusNoRecord(occ.state.unknownReason)
+      case OccurrenceStatus.Cancelled => MenuCopy.statusNotScheduled
 
   // ---------- History ----------
 

@@ -1,5 +1,5 @@
 file: dosegram-sleep-week.png
 spoiler: true
 caption: Sleep, recent nights.
-alt: Sleep, 2 to 8 Nov. 7 h 23 min on average over 5 nights from your check-ins. Mon 7 h 10 min, Tue 7 h 35 min, Wed 6 h 20 min, Thu no record, Fri 7 h 20 min, Sat 8 h 30 min, Sun an estimate from bot activity, not counted. Your goal is 8 h 00 min.
-full: Sleep, 2 to 8 Nov. 7 h 23 min on average over 5 nights from your check-ins. Mon 7 h 10 min, Tue 7 h 35 min, Wed 6 h 20 min, Thu no record, Fri 7 h 20 min, Sat 8 h 30 min, Sun an estimate from bot activity, not counted. Your goal is 8 h 00 min.
+alt: Sleep, 2 to 8 Nov. 7 h 23 min on average over 5 nights from your records. Mon 7 h 10 min, Tue 7 h 35 min, Wed 6 h 20 min, Thu no record, Fri 7 h 20 min, Sat 8 h 30 min, Sun an estimate from bot activity, not counted. Your goal is 8 h 00 min.
+full: Sleep, 2 to 8 Nov. 7 h 23 min on average over 5 nights from your records. Mon 7 h 10 min, Tue 7 h 35 min, Wed 6 h 20 min, Thu no record, Fri 7 h 20 min, Sat 8 h 30 min, Sun an estimate from bot activity, not counted. Your goal is 8 h 00 min.

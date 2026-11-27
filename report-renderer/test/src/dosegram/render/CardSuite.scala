@@ -117,6 +117,25 @@ class CardSuite extends munit.FunSuite:
       assert(rows <= MedicationStripCard.MaximumRowsPerPage)
     }
 
+  test("a strip row's card summary and caption count an open dose the same way, outside the denominator"):
+    val row = dosegram.render.card.MedicationRow(
+      "Magnesium",
+      isAsNeeded = false,
+      Vector(Vector(DoseStatus.Skipped, DoseStatus.Open), Vector(DoseStatus.Unknown))
+    )
+    val strip = dosegram.render.card.StripData(java.time.LocalDate.of(2026, 9, 20), 2, Vector(row))
+    for copy <- Vector(EnglishImageCopy, dosegram.render.copy.UkrainianImageCopy) do
+      val context = Samples.context(Theme.Light, Privacy.Aggregate, copy)
+      val card = MedicationStripCard.render(strip, context).head
+      val figures = copy.stripFigures(dosegram.render.card.DoseCounts.of(row.days.flatten))
+      assertEquals(figures.head, copy.takenOf(0, 1))
+      assert(SvgEmitter.emit(card.scene).contains(SvgEmitter.escape(figures.head)), figures.head)
+      assert(card.text.altText.contains(s"${copy.itemLabel(1)}: ${figures.mkString(", ")}."), card.text.altText)
+    assertEquals(
+      EnglishImageCopy.stripFigures(dosegram.render.card.DoseCounts.of(row.days.flatten)),
+      Vector("0 of 1 taken", "skipped 1", "1 still to answer, not counted yet", "1 with no record, not counted")
+    )
+
   test("missed doses change the halo and the medication row, never the blob (VA-BL-01)"):
     val context = Samples.context(Theme.Light, Privacy.Named)
     def blobOf(card: CardOutput): Vector[Node] = card.scene.nodes.collect { case mark: Node.Mark if mark.meta == BlobFigure.Mark => mark }

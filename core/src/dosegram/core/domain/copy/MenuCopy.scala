@@ -1,5 +1,7 @@
 package dosegram.core.domain.copy
 
+import dosegram.core.domain.UnknownReason
+
 /** Menu copy (ROADMAP M1.4a recorded decision; tree per docs/MEDICATION_REMINDER_UX.md and ROADMAP M1.9). */
 object MenuCopy:
 
@@ -79,7 +81,18 @@ object MenuCopy:
   def statusTakenAt(time: String): String = tr(s"taken at $time", s"прийнято о $time")
   def statusSkippedAt(time: String): String = tr(s"skipped at $time", s"пропущено о $time")
   def statusMissed = tr("missed", "не підтверджено")
-  def statusUnknown = tr("unknown", "невідомо")
+
+  /** BOT_UX section 22.4: a dose with no record, with its reason where it is known (supervisor decision, 2026-11-28).
+    */
+  def statusNoRecord(reason: Option[UnknownReason]): String =
+    val why = reason.map {
+      case UnknownReason.Undelivered => tr(" (reminder not delivered)", " (нагадування не доставлено)")
+      case UnknownReason.Outage      => tr(" (service outage)", " (збій сервісу)")
+    }
+    tr("no record", "немає запису") + why.getOrElse("")
+
+  /** BOT_UX section 22.4: a cancelled dose. */
+  def statusNotScheduled = tr("not scheduled", "не заплановано")
   def takenLateSuffix = tr("late", "із запізненням")
 
   /** A Today row whose dose has no snapshot. */
@@ -91,6 +104,9 @@ object MenuCopy:
     */
   def todayTaken(time: String): String = tr(s"$time · Taken", s"$time · Прийнято")
   def todaySkip(time: String): String = tr(s"$time · Skip", s"$time · Пропустити")
+
+  /** The answer to a dose with no record, as the catch-up digest words it (ADR-012: the user's word is evidence). */
+  def todayTookIt(time: String): String = tr(s"$time · I took it", s"$time · Уже прийнято")
 
   def logDoseLabel(name: String): String = tr(s"Log $name", s"Записати: $name")
 
@@ -134,7 +150,10 @@ object MenuCopy:
         CopyEntry("menu.status.taken", statusTakenAt("09:03")),
         CopyEntry("menu.status.skipped", statusSkippedAt("12:00")),
         CopyEntry("menu.status.missed", statusMissed),
-        CopyEntry("menu.status.unknown", statusUnknown),
+        CopyEntry("menu.status.no_record", statusNoRecord(None)),
+        CopyEntry("menu.status.no_record.undelivered", statusNoRecord(Some(UnknownReason.Undelivered))),
+        CopyEntry("menu.status.no_record.outage", statusNoRecord(Some(UnknownReason.Outage))),
+        CopyEntry("menu.status.not_scheduled", statusNotScheduled),
         CopyEntry("menu.status.taken_late", takenLateSuffix),
         CopyEntry("menu.today.your_dose", yourDose),
         CopyEntry("menu.today.as_needed_row", asNeededRow("Vitamin C")),

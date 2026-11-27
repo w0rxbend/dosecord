@@ -775,7 +775,7 @@ Resource: `today` (one aggregated read for the day), `occurrences/{id}/actions`,
 | [ +150 ml ] [ +250 ml ] [ +500 ml ]    > |
 +------------------------------------------+
 | Mood     Not logged today  [ Check in ]  |
-| Sleep    7 h 10 min, your check-ins    > |
+| Sleep    7 h 10 min, your records      > |
 | Food     2 meals logged       [ Add ]    |
 +------------------------------------------+
 |  Today  |  Meds  |  Log  |  Insights     |
@@ -1372,7 +1372,7 @@ Resources: `sleep/episodes`, `sleep/checkins`, `sleep/estimates/{sleepDay}`, `sl
 +------------------------------------------+
 | Last night, Thu 12 Nov                   |
 |  23:40 to 06:50        7 h 10 min        |
-|  From your check-ins   Quality 4 of 5    |
+|  From your records     Quality 4 of 5    |
 |  [ Edit ]                                |
 +------------------------------------------+
 |  (shown instead when only an estimate    |
@@ -1393,7 +1393,7 @@ Resources: `sleep/episodes`, `sleep/checkins`, `sleep/estimates/{sleepDay}`, `sl
 |  Sun       |/////////////////|  at most  |
 |  Mon        |############|      7 h 00   |
 |  ...                                     |
-|  # your check-ins   / estimate           |
+|  # your records     / estimate           |
 +------------------------------------------+
 | Averages, last 7 nights                  |
 |  Duration        6 h 55 min              |
@@ -1432,7 +1432,7 @@ Behaviour:
 
 Requirements:
 
-MA-SLEEP-1. Every sleep value on the screen carries its source in words next to it: "From your check-ins", "Estimated from your activity in Dosegram", or "From your <device name>". [M]
+MA-SLEEP-1. Every sleep value on the screen carries its source in words next to it: "From your records", "Estimated from your activity in Dosegram", or "From your <device name>". [M] Supervisor decision, 2026-11-28 (finding 17 of the new-user review of 2026-11-27): "From your records" replaces "From your check-ins", which read as the taps alone; the API sends the words, and the chat and the image captions say the same.
 
 MA-SLEEP-2. An unconfirmed estimate is never shown as a duration or as bed and wake times without the words "at most" or "quiet from ... to ...", is always hatched in charts, and is excluded from every average on the screen. [M][G]
 

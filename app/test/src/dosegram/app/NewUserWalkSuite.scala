@@ -31,6 +31,9 @@ import dosegram.infra.db.PgSuite
 import dosegram.render.PngImage
 import dosegram.render.RasterFailure
 import dosegram.render.Rasteriser
+import dosegram.render.copy.EnglishImageCopy
+import dosegram.render.copy.UkrainianImageCopy
+import dosegram.render.svg.SvgEmitter
 import ox.supervised
 
 import java.nio.charset.StandardCharsets.UTF_8
@@ -103,10 +106,17 @@ class NewUserWalkSuite extends PgSuite:
       environment = Environment.Development
     )
 
-  /** Draws every card: the bytes do not matter here, the caption (its text equivalent) does. */
-  private object AnyBytes extends Rasteriser:
+  /** Draws every card: the bytes do not matter here, the caption (its text equivalent) does. Every scene drawn is kept,
+    * so that a test can read the words on a card.
+    */
+  final private class AnyBytes extends Rasteriser:
+    val drawn = java.util.concurrent.ConcurrentLinkedQueue[String]()
     override def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
+      drawn.add(svg)
       Right(PngImage(IArray.unsafeFromArray(s"png:${svg.hashCode}".getBytes(UTF_8))))
+
+  /** What a walk left: the transcript, every button label the bot showed and the SVG of every card it drew. */
+  final private case class Walked(lines: List[String], labels: Set[String], drawn: List[String])
 
   private def strings(query: String): List[String] = withConnection { conn =>
     val st = conn.createStatement()
@@ -140,13 +150,12 @@ class NewUserWalkSuite extends PgSuite:
          |  AND next_attempt_at <= '${clock.now()}'::timestamptz""".stripMargin
     ).head.toInt > 0
 
-  /** Runs `script` as `user` and returns the transcript and every button label the bot showed. */
-  private def walk(user: NewUserWalk.User, zone: ZoneId, startAt: String)(
-      script: NewUserWalk => Unit
-  ): (List[String], Set[String]) =
+  /** Runs `script` as `user` and returns what the walk left. */
+  private def walk(user: NewUserWalk.User, zone: ZoneId, startAt: String)(script: NewUserWalk => Unit): Walked =
     val clock = SteppedClock(NewUserWalk.at(day, startAt, zone))
     val wire = FakeTelegramTransport(clock)
-    val images = StatusImages.over(AnyBytes, StatusImages.Stores.inMemory, _ => ())
+    val rasteriser = AnyBytes()
+    val images = StatusImages.over(rasteriser, StatusImages.Stores.inMemory, _ => ())
     supervised:
       val config = settings
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource, DataKeys.development)))
@@ -159,7 +168,7 @@ class NewUserWalkSuite extends PgSuite:
           println("outbox: " + strings("SELECT kind || ':' || status || ':' || next_attempt_at FROM outbox_messages ORDER BY created_at DESC LIMIT 5"))
           throw failure
       finally write(user, chat.transcript)
-      (chat.transcript, chat.labels)
+      Walked(chat.transcript, chat.labels, rasteriser.drawn.toArray(Array.empty[String]).toList)
 
   private def write(user: NewUserWalk.User, lines: List[String]): Unit =
     val dir = sys.env.get("WALK_OUT").map(Path.of(_)).getOrElse(Files.createTempDirectory("new-user-walk"))
@@ -199,6 +208,10 @@ class NewUserWalkSuite extends PgSuite:
     shows("the missed notice carries the safety sentence", l(ReminderCopy.unsureAdvice))
     assert(labels.contains(l(MenuCopy.todayTaken("20:00"))), "the /today buttons carry the dose time")
     shows("the goal card names the typed amount", l(WaterCopy.goalPending(250)))
+    // Finding 12: the offer of water reminders comes after the goal choice, never beside the goal card.
+    val goalTap = lines.indexWhere(_.contains(s"you tap: [${l(WaterCopy.goalChoice(2000))}]"))
+    val offer = lines.indexWhere(_.contains(l(PromptCopy.offerWater)))
+    assert(goalTap >= 0 && offer > goalTap, s"the water offer (line $offer) follows the goal tap (line $goalTap)")
     assert(
       labels.contains(l(MenuCopy.forMedication(MenuCopy.medicationsPause, "Magnesium"))),
       "each /meds row names its medication"
@@ -217,7 +230,7 @@ class NewUserWalkSuite extends PgSuite:
     waterCards.dropRight(1).foreach(n => shows(s"the water reminder #$n gives way to the next", s"bot deletes #$n"))
 
   /** The morning summary and `/stats meds` (supervisor decision, 2026-11-27), as the production path shows them. */
-  private def assertAnalytics(lang: Lang, lines: List[String]): Unit =
+  private def assertAnalytics(lang: Lang, lines: List[String], drawn: List[String]): Unit =
     def l(text: => String): String = Lang.within(lang)(text)
     val text = lines.mkString("\n")
     def shows(clue: String, expected: String): Unit = assert(text.contains(expected), s"$clue: '$expected'")
@@ -240,6 +253,34 @@ class NewUserWalkSuite extends PgSuite:
     shows("/stats meds names the second medication", "2. Magnesium:")
     val strip = lines.indexWhere(_.contains(meds))
     assert(lines.drop(strip).exists(_.contains("[image")), "the strip of /stats meds")
+    assertSameDoseFigures(lang, lines.drop(strip), drawn)
+
+  /** Leftover 1 of 2026-11-28: each `/stats meds` row, the strip's caption and the strip itself state the same dose
+    * figures, so an open dose is counted the same way on all three ("0 of 1 taken · 1 still to answer", never "0 of 2").
+    * An image not drawn within its 5 seconds is sent as its text (VISUALS VA-FB-01), which a loaded test machine does:
+    * then the text equivalent is checked and the card is not, since none was drawn (`CardSuite` compares the card and
+    * its caption without a clock).
+    */
+  private def assertSameDoseFigures(lang: Lang, lines: List[String], drawn: List[String]): Unit =
+    val copy = if lang == Lang.Uk then UkrainianImageCopy else EnglishImageCopy
+    val at = lines.indexWhere(_.contains(s"${copy.itemLabel(1)}: "))
+    assert(at > 0, s"the strip's text: $lines")
+    val caption = lines(at)
+    val sentAsPhoto = lines(at - 1).contains("[image], caption:")
+    val strips = drawn.filter(_.contains(s">${SvgEmitter.escape(copy.stripTitle)}<"))
+    assert(!sentAsPhoto || strips.nonEmpty, "the strip sent as a photo was drawn")
+    for position <- 1 to 2 do
+      val row = lines.find(_.startsWith(s"      | $position. ")).getOrElse(fail(s"/stats meds row $position: $lines"))
+      val figures = row.drop(row.indexOf(": ") + 2).split(" · ").toList
+      val expected = s"${copy.itemLabel(position)}: ${figures.mkString(", ")}."
+      assert(caption.contains(expected), s"the caption states row $position as the chat does: '$expected' in '$caption'")
+      assert(
+        !sentAsPhoto || strips.exists(_.contains(s">${SvgEmitter.escape(figures.head)}<")),
+        s"the strip states row $position as the chat does: '${figures.head}'"
+      )
+    // Magnesium's 20:00 dose is still open at 13:46: it is in no denominator.
+    val open = Lang.within(lang)(StatsCardCopy.medsRow(2, "Magnesium", StatsCardCopy.MedsTally(0, 1, 0, 1, 0)))
+    assert(lines.exists(_.endsWith(open)), s"'$open' in $lines")
 
   /** The numbers of the messages that `marker` introduces (" bot #" for a send, " bot edits #" for an edit) and whose
     * text contains `text`.
@@ -285,7 +326,8 @@ class NewUserWalkSuite extends PgSuite:
     tap(ConsentCopy.onboardingLabel(ConsentPurpose.Medication))
     tap(ConsentCopy.Agree)
     tap(ConsentCopy.Confirm)
-    chat.tapWhere(zone.getId)(_.contains(zone.getId))
+    // Finding 16: a zone suggested by the language goes straight to the live echo; otherwise the picker comes first.
+    if !chat.newestButtons.contains(l(Labels.Yes)) then chat.tapWhere(zone.getId)(_.contains(zone.getId))
     tap(Labels.Yes)
     chat.note("First medication: Vitamin D, every day at 09:00")
     // From the closing message of onboarding where it offers the button, else through /meds.
@@ -370,10 +412,12 @@ class NewUserWalkSuite extends PgSuite:
 
   test("a new Ukrainian-speaking user's first day in the chat"):
     val zone = ZoneId.of("Europe/Kyiv")
-    val (lines, shown) = walk(ukrainian, zone, "08:00")(firstDay(Lang.Uk, zone))
+    val Walked(lines, shown, drawn) = walk(ukrainian, zone, "08:00")(firstDay(Lang.Uk, zone))
     assertClean(lines)
     assertReviewed(Lang.Uk, lines, shown)
-    assertAnalytics(Lang.Uk, lines)
+    assertAnalytics(Lang.Uk, lines, drawn)
+    assert(lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezoneSuggested))), "Kyiv suggested by the language")
+    assert(!lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezonePrompt))), "no picker before the suggestion")
     // Walk-through of 2026-11-27: the onboarding and wizard buttons were English for a Ukrainian reader.
     val english = EnglishOnly.filter(shown)
     assertEquals(english, Set.empty[String], "English buttons in the Ukrainian walk")
@@ -381,8 +425,8 @@ class NewUserWalkSuite extends PgSuite:
 
   test("a new English-speaking user's first day in the chat"):
     val zone = ZoneId.of("Europe/London")
-    val (lines, shown) = walk(english, zone, "08:00")(firstDay(Lang.En, zone))
+    val Walked(lines, shown, drawn) = walk(english, zone, "08:00")(firstDay(Lang.En, zone))
     assertClean(lines)
     assertReviewed(Lang.En, lines, shown)
-    assertAnalytics(Lang.En, lines)
+    assertAnalytics(Lang.En, lines, drawn)
 end NewUserWalkSuite

@@ -112,7 +112,7 @@ object EnglishImageCopy extends ImageCopy:
   def takenOf(taken: Int, counted: Int): String = s"$taken of $counted taken"
   def nothingLoggedYet: String = "Nothing logged yet"
   def mealsOf(logged: Int, planned: Int): String = s"$logged of $planned meals"
-  def fromYourCheckIns: String = "from your check-ins"
+  def fromYourRecords: String = "from your records"
   def estimateOnly: String = "Estimate only"
 
   def dayText(day: DayData): String =
@@ -124,7 +124,7 @@ object EnglishImageCopy extends ImageCopy:
       if meals.planned <= 0 then s"Food: ${mealsLogged(meals.logged)}."
       else s"Food: ${meals.logged} of ${meals.planned} meals logged."
     val sleep = day.sleep.map {
-      case SleepEvidence.Recorded(minutes, _) => s"Sleep: ${duration(minutes)}, from your check-ins."
+      case SleepEvidence.Recorded(minutes, _) => s"Sleep: ${duration(minutes)}, from your records."
       case SleepEvidence.QuietWindowOnly      => "Sleep: an estimate from bot activity only, not a duration."
       case SleepEvidence.NoRecord             => "Sleep: no record yet."
     }
@@ -241,11 +241,20 @@ object EnglishImageCopy extends ImageCopy:
 
   def stripEmpty: String = "No medication records for these days."
 
+  def stripFigures(counts: DoseCounts): Vector[String] =
+    val headline = if counts.answered == 0 then "no answered dose yet" else takenOf(counts.taken, counts.answered)
+    headline +: Vector(
+      Option.when(counts.skipped > 0)(s"skipped ${counts.skipped}"),
+      Option.when(counts.missed > 0)(s"not confirmed ${counts.missed}"),
+      Option.when(counts.open > 0)(s"${counts.open} still to answer, not counted yet"),
+      Option.when(counts.unknown > 0)(s"${counts.unknown} with no record, not counted")
+    ).flatten
+
   def stripText(lines: StripLines): String =
     val rows = lines.rows.map { row =>
       val record = row.asNeededDays
         .map(logDays => logsOnDays(row.counts.asNeeded, logDays))
-        .getOrElse(if row.counts.counted == 0 then noData.toLowerCase else doseSentence(row.counts))
+        .getOrElse(stripFigures(row.counts).mkString(", "))
       s"${row.label}: $record."
     }
     (s"${dateRange(lines.from, lines.to)}." +: (if rows.isEmpty then Vector(stripEmpty) else rows)).mkString(" ")
@@ -292,7 +301,7 @@ object EnglishImageCopy extends ImageCopy:
           case (Some(bed), Some(wake)) =>
             s"; bedtime varied by about $bed min and wake time by about $wake min"
           case _ => ""
-        s"$count from your check-ins and entries$average$spread."
+        s"$count from your records$average$spread."
     val gaps = days - sleep.nights
     val missing = Option.when(sleep.nights > 0 && gaps > 0)(
       if gaps == 1 then "1 night has no record." else s"$gaps nights have no record."
@@ -349,7 +358,7 @@ object EnglishImageCopy extends ImageCopy:
     }
     val mood = month.moodCheckInDays.map(count => s"Mood: ${checkInDays(count)}.")
     val sleep = month.sleep.map { (minutes, nights) =>
-      s"Sleep: ${duration(minutes)} on average over ${plural(nights, "night")} from your check-ins."
+      s"Sleep: ${duration(minutes)} on average over ${plural(nights, "night")} from your records."
     }
     val days = s"${plural(month.daysWithRecords, "day")} with records."
     val previous = month.previousAdherence
@@ -484,7 +493,7 @@ object EnglishImageCopy extends ImageCopy:
   def moodTimelineDiscreet: String = "Your mood over these days."
   def monthDaysTitle: String = "Day by day"
   def monthNightsTitle: String = "Nights and water"
-  def sleepNights(nights: Int): String = s"${plural(nights, "night")} from your check-ins."
+  def sleepNights(nights: Int): String = s"${plural(nights, "night")} from your records."
 
   def monthWaterFact(goalDays: Option[GoalDays], recordedDays: Int): String =
     goalDays match
@@ -516,7 +525,7 @@ object EnglishImageCopy extends ImageCopy:
   def monthNightsText(page: MonthNightsData): String =
     val sleep = page.sleep.filter(_.bars.nonEmpty).map { nights =>
       val average = nights.averageMinutes.fold(sleepNights(nights.nights))(minutes =>
-        s"${duration(minutes)} on average over ${plural(nights.nights, "night")} from your check-ins."
+        s"${duration(minutes)} on average over ${plural(nights.nights, "night")} from your records."
       )
       val spread = for
         bedtime <- nights.bedtimeSpreadMinutes
@@ -583,8 +592,8 @@ object EnglishImageCopy extends ImageCopy:
     val summary =
       if recorded.isEmpty then sleepWeekNone
       else if recorded.size >= MinimumDaysForAverage then
-        s"${duration(recorded.sum / recorded.size)} on average over ${plural(recorded.size, "night")} from your check-ins."
-      else s"${plural(recorded.size, "night")} from your check-ins."
+        s"${duration(recorded.sum / recorded.size)} on average over ${plural(recorded.size, "night")} from your records."
+      else s"${plural(recorded.size, "night")} from your records."
     val perNight = nights.zipWithIndex.map { (night, index) =>
       val name = weekday(from.plusDays(index.toLong).getDayOfWeek)
       night match
@@ -686,7 +695,7 @@ object EnglishImageCopy extends ImageCopy:
   private def sleepSentence(sleep: SleepWeek): String =
     val average = sleep.averageMinutes
       .map { minutes =>
-        s"Sleep: ${duration(minutes)} on average over ${plural(sleep.recordedNights, "night")} from your check-ins."
+        s"Sleep: ${duration(minutes)} on average over ${plural(sleep.recordedNights, "night")} from your records."
       }
       .getOrElse("Sleep: no records this week.")
     val estimates = Option.when(sleep.estimateNights > 0) {

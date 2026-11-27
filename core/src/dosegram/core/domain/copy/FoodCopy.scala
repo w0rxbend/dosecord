@@ -98,7 +98,7 @@ object FoodCopy:
 
   def tooLong(limit: Int): String = tr(
     s"A meal note can be at most $limit characters. Send a shorter one.",
-    s"Нотатка до прийому їжі може мати щонайбільше $limit символів. Надішліть коротшу."
+    s"Нотатка до прийому їжі може мати щонайбільше ${UkNouns.Characters.count(limit)}. Надішліть коротшу."
   )
 
   /** The meals logged today in time order: "Today: breakfast 08:10, lunch 13:05." */

@@ -1211,7 +1211,7 @@ What is shown at which tier
 | A sleep score | Never | Never | The vendor's score verbatim with its name; never recomputed or blended |
 | Wording such as "insomnia", "sleep disorder", "you should sleep more" | Never | Never | Never |
 
-- R-SLP-18. Every sleep card and chart states its tier in words ("estimated from activity", "your check-ins", "from your <device>") and draws a low-confidence interval as visibly uncertain. When sensor and self-reported data exist for the same sleep day, the sensor episode is used for metrics and the self-report is kept for the quality rating.
+- R-SLP-18. Every sleep card and chart states its tier in words ("estimated from activity", "your records", "from your <device>"; "your records" replaced "your check-ins" by supervisor decision, 2026-11-28, since a typed night is no check-in) and draws a low-confidence interval as visibly uncertain. When sensor and self-reported data exist for the same sleep day, the sensor episode is used for metrics and the self-report is kept for the quality rating.
 - R-SLP-19. The duration goal is set by the user. No general reference duration is shown in the first version (Q-10). The difference from the goal is stated as a number, never as a judgement.
 - R-SLP-20. Consistency is the circular standard deviation of onset and of wake clock times over 7, 14 or 28 sleep days, requiring 5 of 7, 10 of 14 or 20 of 28 days.
 

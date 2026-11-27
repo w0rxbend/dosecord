@@ -146,7 +146,7 @@ object DayCard:
     day.sleep.map {
       case SleepEvidence.Recorded(minutes, goalMinutes) =>
         val share = if goalMinutes <= 0 then 0.0 else StrictMath.min(1.0, minutes.toDouble / goalMinutes)
-        val note = Detail.Note(context.copy.fromYourCheckIns)
+        val note = Detail.Note(context.copy.fromYourRecords)
         Row(Domain.Sleep, context.copy.duration(minutes), HaloState.Progress(share, 0), note)
       case SleepEvidence.QuietWindowOnly =>
         Row(Domain.Sleep, context.copy.estimateOnly, HaloState.Estimate, Detail.Nothing)

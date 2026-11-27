@@ -135,7 +135,7 @@ function sleepBlock(tracking: MockTracking, dates: readonly LocalDate[]): Insigh
     ? {
         id: 'sleep',
         title: 'Sleep',
-        lines: [`${logged} nights logged`, 'your check-ins', `${logged} of ${dates.length} days have data`],
+        lines: [`${logged} nights logged`, 'your records', `${logged} of ${dates.length} days have data`],
         comparison: `Previous ${dates.length} days: ${Math.max(0, logged - 1)} nights logged`,
         spark: sparkOf(nights.map((night) => night.minutes), 'domain-sleep'),
         details: logged >= 5 ? ['Bedtime varied by about 35 min, wake time by about 20 min'] : [`${5 - logged} more nights for bedtime regularity`],

@@ -11,6 +11,9 @@ object IdentityCopy:
 
   def timezonePrompt = tr("Pick your timezone:", "Виберіть свій часовий пояс:")
 
+  /** Above the live echo of a zone suggested by the chat's language (supervisor decision, 2026-11-28). */
+  def timezoneSuggested = tr("Suggested from your language.", "Запропоновано за вашою мовою.")
+
   /** The "Other" picker entry leads to free-text entry of an IANA zone. */
   def timezoneOther = tr("Other — type your timezone", "Інший — ввести вручну")
   def timezoneCustomPrompt =
@@ -62,6 +65,7 @@ object IdentityCopy:
 
   def entries: List[CopyEntry] = List(
     CopyEntry("identity.timezone.prompt", timezonePrompt),
+    CopyEntry("identity.timezone.suggested", timezoneSuggested),
     CopyEntry("identity.timezone.other", timezoneOther),
     CopyEntry("identity.timezone.custom_prompt", timezoneCustomPrompt),
     CopyEntry("identity.timezone.invalid", invalidZone),

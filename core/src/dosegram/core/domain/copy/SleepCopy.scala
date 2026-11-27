@@ -109,7 +109,8 @@ object SleepCopy:
   /** Where an episode comes from: both edges tapped are check-ins, anything typed is the user's entry. */
   def sourceOf(episode: SleepEpisode): String =
     val edges = List(episode.interval.onset.source, episode.interval.wake.source)
-    if edges.forall(_ == EdgeSource.CheckIn) then StatsCopy.SleepSource else tr("your entry", "ваш запис")
+    if edges.forall(_ == EdgeSource.CheckIn) then tr("your check-ins", "ваші позначки")
+    else tr("your entry", "ваш запис")
 
   def entries: List[CopyEntry] =
     List(

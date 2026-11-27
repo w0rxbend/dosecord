@@ -417,6 +417,8 @@ Supervisor decision, 2026-11-27 (new-user review, finding 15 of [the walk-throug
 
 Supervisor decision, 2026-11-27 (new-user review, finding 7 of [the walk-through](verification/new-user-review-2026-11-27.md)): step R as built for an onboarding that chose medication is the closing message "You're all set — your account is ready. Add your first medication now?" with "Add medication" and "Today", the same screens as the menu's buttons; it replaced "Try /menu or /help", which left the first medication two commands away. An onboarding that chose another domain keeps the closing line without buttons.
 
+Supervisor decision, 2026-11-28 (finding 16 of [the walk-through](verification/new-user-review-2026-11-27.md)): onboarding in Ukrainian suggests Europe/Kyiv. After the confirming tap of the consent it goes straight to the live echo of step Z, with `identity.timezone.suggested` ("Suggested from your language.") above "It is 08:00 in Europe/Kyiv now. Right?" and [Yes] [Change]; "Change" opens the picker of 21 zones as before, and the zone is stored only on "Yes". English is spoken in most of the picker's zones, so an English onboarding suggests none and shows the picker first. Account -> Timezone always starts at the picker.
+
 ### 5.4 Language
 
 | ID | Requirement |
@@ -635,7 +637,7 @@ Doses: 2 of 4 recorded · next 21:00
 Water: 1.25 of 2.0 l (62%)
 Meals: 2 logged
 Mood: not logged yet
-Sleep: 7 h 10 min (your check-ins)
+Sleep: 7 h 10 min (your records)
 
 [ Doses ]      [ + 250 ml ]
 [ Mood ]  [ Meal ]  [ Sleep ]
@@ -655,6 +657,8 @@ Sleep: 7 h 10 min (your check-ins)
 | BUX-TODAY-09 | Pinning must not add lasting clutter. If a pin by the bot leaves a service message in the chat that the bot cannot delete (spike SP-10), the pin setting defaults to off and the card is reached by `/today` and the menu. |
 
 Supervisor decision, 2026-11-27 (new-user review, finding 6 of [the walk-through](verification/new-user-review-2026-11-27.md)): `/today` as built is the dose list of the day. It lists every dose of the day in time order, answered and open together, and the two buttons of an open dose carry its local time ("20:00 · Taken", "20:00 · Skip"), with the medication name added when two open doses share a time. Before, the open doses came first and three open doses showed three identical "Taken" and "Skip" rows. Supervisor decision, 2026-11-27 (verification of the integration): a name too long for the 32-character label is shortened with "…" before the action word, never the action word itself, so the two buttons of one dose never read the same.
+
+Supervisor decision, 2026-11-28 (leftover of the new-user review): a dose of the day with no record (`unknown`, for example after a reminder that was not delivered) reads "no record" with its reason in brackets where it is known, "(reminder not delivered)" or "(service outage)", as section 22.4 says; it read "unknown". Its row gets the correction of the catch-up digest (section 15.3, row 9 of section 9.5): "07:00 · I took it" (the digest's "I took it": the user's word is recorded as evidence, ADR-012) and "07:00 · Skip", before the buttons of the open doses. A cancelled dose, which `/today` does not list, would read "not scheduled".
 
 ### 8.4 Navigation card
 
@@ -1032,6 +1036,8 @@ number    = digits [ ( "." / "," ) digits ]
 
 Supervisor decision, 2026-11-27 (new-user review, findings 1 and 8 of [the walk-through](verification/new-user-review-2026-11-27.md)): (1) A plan name is a button label, so every plan name stays within 24 characters in every shipped locale, checked by `UkrainianCatalogueSuite` with the rest of the catalogue; the Ukrainian "М’яко: 4 рази на день під час їжі" (33 characters) had made the confirming tap of the water consent fail, and the update was quarantined with no answer. The shortened Ukrainian names are "Робочий час, кожні 30 хв", "Щогодини, 08:00–21:00", "М’яко: 4 рази з їжею", "Коли відстаю від цілі" and, for meals, "Якщо їжу не записано"; the English buttons read "Every hour, 08:00–21:00", "Gentle: 4 at meal times", "3 times, 10:00–20:00" and "If a meal is not logged". The plans themselves are those of ADR-023; only their labels are shorter. (2) When an amount was typed before the water consent, the goal card `water.goal.ask` adds `water.goal.pending` ("Your 250 ml is saved as soon as you pick one."), because the amount waits for that choice and the plan offer arrives beside it.
 
+Supervisor decision, 2026-11-28 (finding 12 of the walk-through, which replaces the end of item 2 above): right after the water consent the goal card comes alone, and the offer of water reminders (ADR-023) follows the tap on a goal or "No goal" on that card, as a new message after the recorded amount. The two keyboards no longer arrive together. A later goal change from the water card offers nothing; a user who never answers the goal card gets no offer and can choose a plan in `/reminders`.
+
 ### 11.3 Meals
 
 The food domain is a journal: meal type, time, optional words, optional photo. It is not a calorie counter (research 03 open question Q3).
@@ -1137,7 +1143,7 @@ Is that about when you slept?
 | ID | Requirement |
 |---|---|
 | BUX-SLEEP-01 | Between "Going to sleep" and "I'm up" (bedtime mode), and for at most 12 hours, all budgeted non-medication messages are held. Medication reminders follow their own policy. |
-| BUX-SLEEP-02 | Every sleep line states its source in words: "your check-ins", "estimated from activity here, confirmed by you", or the device name for imported data (research 05 section 8). |
+| BUX-SLEEP-02 | Every sleep line states its source in words: "your records", "estimated from activity here, confirmed by you", or the device name for imported data (research 05 section 8). Supervisor decision, 2026-11-28 (finding 17 of [the new-user walk-through](verification/new-user-review-2026-11-27.md)): the figures of nights the user tapped or typed say "your records" ("ваші записи"), in chat, the API, the Mini App and every image caption; "your check-ins" read as the taps alone and was wrong for a typed night. One episode still names how it was recorded: `sleep.morning` keeps "your check-ins" for both edges tapped and "your entry" for a typed one. |
 | BUX-SLEEP-03 | The estimate is a question, never a record. It uses the words "at most". It is stored only after "Yes" or "Adjust". It is shown only when the confidence defined in research 05 section 7.4 is at least 0.25, at most once per sleep day, never in quiet hours. It is evaluated only when a wake edge exists, and no earlier than 60 minutes after the first interaction of the morning or at the next interaction after those 60 minutes (PRODUCT_SPEC R-SLP-13); it is therefore never part of a Today card that is created before the user has interacted, and it is added to the existing Today card as an extra line and button row by an edit once it is available. Expected coverage is low: a user who only answers one evening and one morning reminder never sees the question, and the check-ins are the sleep feature. The consent purpose is `sleep_passive_estimate`. |
 | BUX-SLEEP-04 | "Adjust" shows both edges with "15 min earlier" and "15 min later" for each, "Type times", "Save" and "Cancel". Nothing is stored until "Save". |
 | BUX-SLEEP-05 | "Stop asking" turns the prompt off and says where to turn it on again. Three unanswered estimate prompts in a row pause the prompt for 7 days (research 05 section 7.5). |
@@ -1231,7 +1237,7 @@ Doses: taken 12 of 14 resolved · skipped 1 · no response 1
 2 records not delivered, not counted
 Water: goal reached on 4 of 7 days
 Mood: 6 check-ins
-Sleep: 5 nights logged, average 7 h 05 min (your check-ins)
+Sleep: 5 nights logged, average 7 h 05 min (your records)
 
 [ 7 days ] [ 30 days ] [ By medication ]
 [ Show as image ] [ Open stats ]
@@ -1253,6 +1259,8 @@ The seven-day card also offers the week cards of VISUALS IMG-20 to IMG-22 on the
 Supervisor decision, 2026-11-27 (ROADMAP G9.4, G9.5): the thirty-day card carries "Trends" (`statscard.trends`), and `/stats trends` opens the same card. It is the trends of the last 30 days: the header (`trend.header.30`), then per domain with a record its figures after its name (`trend.line.*`, the lines of the Mini App's Insights block) and the previous period of the same length (`trend.previous.*`), then, with the counts switch on, the week's days with records (`report.counts`). Its buttons are "30 days" and "90 days" (`statscard.trends.30`, `statscard.trends.90`; action `stats.trends`, id 411, value the days), "Show as image" when a domain has a record, and the month and the patterns. 90 days are the same lines over 90 days; the image of either is VISUALS IMG-23 through `stats.image` with the period's days as the value (30 or 90), after the images consent, captioned with its text equivalent. The usage line names `/stats trends`.
 
 Supervisor decision, 2026-11-27 (chat analytics): `/stats meds`, and "By medication" (`statscard.by_medication`) on the month-and-patterns row of every `/stats` card, list each medication of the registry, in registry order, over the last 7 days, today included (`statscard.meds.title`). A scheduled medication shows the doses recorded as taken of those answered, then the skipped and the not confirmed ones, and the open ones as "still to answer, not counted yet" (`statscard.meds.row`); a medication taken as needed shows its logs and the days they fall on, with no rate (`statscard.meds.as_needed`); an empty registry says how to add one (`statscard.meds.none`). The buttons are "7 days" and "14 days" (action `stats.meds`, id 442, value the days) and "Show as image" (action `stats.meds_image`, id 443, value the days). After the images consent (`Pending(7, 1000 + days)`) the image is the per-medication strip of VISUALS IMG-07, one photo per page, captioned with its text equivalent. The chat draws no name into an image (L1, VA-PV-03): the strip's rows are "Item 1" onward in the order of the text rows, and the line `statscard.meds.note` says so. The usage line names `/stats meds`.
+
+Supervisor decision, 2026-11-28 (leftover of the new-user review): the strip image of `/stats meds` counts as its text does. Each row's summary on the card is the row's first figure ("0 of 1 taken", answered doses only), and its line in the caption is every figure of the text row in the same order ("Item 2: 0 of 1 taken, skipped 1, 1 still to answer, not counted yet."); the caption had said "0 of 2 scheduled doses recorded as taken" for a row whose text said "0 of 1 taken". A dose with no record is listed as "N with no record, not counted" in the text too. The chat text and the image catalogue are two modules that share no code, so `NewUserWalkSuite` compares the three surfaces on the production path.
 
 ## 13. Image or text
 

@@ -225,7 +225,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         ConsentRequest.of(value).map(consentStep(turn, _)).getOrElse(stale(turn))
       case CaptureActions.ConsentWithdraw => consent.withdraw(turn, value)(stop(turn, _))
       case CaptureActions.WaterAdd        => waterButton(turn, value)
-      case CaptureActions.WaterGoal       => water.setGoal(turn, value)
+      case CaptureActions.WaterGoal       =>
+        val reply = water.setGoal(turn, value)
+        if WaterChat.plansFollow(value) then withWaterOffer(turn, reply) else reply
       case CaptureActions.WaterGoalAsk    => water.askGoal(turn, pendingMl = 0)
       case CaptureActions.WaterImage      => imageOf(turn, Pending.WaterImage)(water.image(turn))
       case CaptureActions.MoodCheckIn     => Valence.of(value.toInt).map(moodButton(turn, _)).getOrElse(stale(turn))
@@ -281,8 +283,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def resume(turn: Turn, pending: Pending): Reply =
     val fresh = turn.copy(source = None)
     pending match
-      case Pending.WaterCard             => withWaterOffer(fresh, water.askGoal(fresh, pendingMl = 0))
-      case Pending.WaterAdd(millilitres) => withWaterOffer(fresh, water.askGoal(fresh, millilitres))
+      case Pending.WaterCard             => water.askGoalBeforePlans(fresh, pendingMl = 0)
+      case Pending.WaterAdd(millilitres) => water.askGoalBeforePlans(fresh, millilitres)
       case Pending.MoodPrompt            => mood.prompt(fresh)
       case Pending.MoodCheckIn(step)     => Valence.of(step).map(mood.checkIn(fresh, _)).getOrElse(stale(turn))
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
@@ -311,7 +313,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.ImportCard      => imports.card(fresh)
       case Pending.MedsImage(days) => medsShown(fresh)(meds.image(fresh, days))
 
-  /** Right after the water consent the water prompts are offered, after the goal card (ADR-023). */
+  /** After the goal choice that follows the water consent, the water prompts are offered (ADR-023). */
   private def withWaterOffer(turn: Turn, reply: Reply): Reply =
     reply.copy(followUps = reply.followUps :+ WaterOffer.message(codec, turn.accountId, turn.clientKey))
 

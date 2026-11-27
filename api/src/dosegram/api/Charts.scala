@@ -143,8 +143,8 @@ object Charts:
       id = "sleep-by-day",
       title = tr("Sleep per night", "Сон за ніч"),
       summary = tr(
-        s"Sleep per night, ${ApiCopy.rangeLabel(window)}, from your check-ins. ",
-        s"Сон за ніч, ${ApiCopy.rangeLabel(window)}, з ваших позначок. "
+        s"Sleep per night, ${ApiCopy.rangeLabel(window)}, from your records. ",
+        s"Сон за ніч, ${ApiCopy.rangeLabel(window)}, з ваших записів. "
       ) +
         tr(
           s"Nights logged on ${recorded.size} of ${points.size} days.$goal",
@@ -323,7 +323,7 @@ object Charts:
       Option.when(resolved.skipped > 0)(tr(s"${resolved.skipped} skipped", s"пропущено ${resolved.skipped}")),
       Option.when(resolved.missed > 0)(tr(s"${resolved.missed} not confirmed", s"не підтверджено ${resolved.missed}")),
       Option.when(buckets.unknown > 0)(tr(s"${buckets.unknown} no record", s"без запису ${buckets.unknown}")),
-      Option.when(buckets.open > 0)(tr(s"${buckets.open} still due", s"ще очікують ${buckets.open}"))
+      Option.when(buckets.open > 0)(tr(s"${buckets.open} still due", s"ще без відповіді — ${buckets.open}"))
     ).flatten
     (tr(
       s"${resolved.taken} of ${scheduledIn(buckets)} taken",
@@ -341,6 +341,9 @@ object Charts:
   /** After "з" ("за 3 з 7 днів"): the genitive of the count (ROADMAP G2.22). */
   private val UkDaysOf = UkForms("дня", "днів", "днів")
   private val UkScheduledDosesOf = UkForms("запланованої дози", "запланованих доз", "запланованих доз")
+
+  /** After "з": "з 1 дози", "з 5 доз". */
+  private[api] val UkDosesOf = UkForms("дози", "доз", "доз")
 
   /** `3.4 (neutral), 2 days with a check-in`. */
   private def withCheckIn(mean: String, days: Int): String =
@@ -489,9 +492,9 @@ object Charts:
       "sleep-by-week",
       tr("Sleep per week", "Сон за тиждень"),
       tr(
-        s"Sleep per week, ${ApiCopy.rangeLabel(window)}, from your check-ins: the average of the nights logged. " +
+        s"Sleep per week, ${ApiCopy.rangeLabel(window)}, from your records: the average of the nights logged. " +
           s"Nights logged on ${recordedIn(days, window).size} of ${window.days} days.",
-        s"Сон за тиждень, ${ApiCopy.rangeLabel(window)}, з ваших позначок: середнє записаних ночей. " +
+        s"Сон за тиждень, ${ApiCopy.rangeLabel(window)}, з ваших записів: середнє записаних ночей. " +
           s"Ночі записано за ${recordedIn(days, window).size} з ${UkDaysOf.count(window.days)}."
       ),
       SceneTone.Sleep,
@@ -516,7 +519,7 @@ object Charts:
       tr(
         s"Scheduled doses by week, ${rangeSentence(window)} ${total.resolved.taken} of " +
           s"${ApiCopy.count(scheduledIn(total), "scheduled dose")} were recorded as taken.",
-        s"Заплановані дози за тиждень, ${rangeSentence(window)} Як прийняті записано ${total.resolved.taken} з " +
+        s"Заплановані дози за тиждень, ${rangeSentence(window)} Прийнято ${total.resolved.taken} з " +
           s"${UkScheduledDosesOf.count(scheduledIn(total))}."
       ),
       SceneTone.Recorded,
@@ -740,9 +743,9 @@ object Charts:
         id = "sleep-times",
         title = tr("Sleep times", "Час сну"),
         summary = tr(
-          s"Sleep times, ${ApiCopy.rangeLabel(window)}, from your check-ins: when each night began and ended, " +
+          s"Sleep times, ${ApiCopy.rangeLabel(window)}, from your records: when each night began and ended, " +
             s"on a clock from evening to morning. Nights logged on $nights of ${dates.size} days.",
-          s"Час сну, ${ApiCopy.rangeLabel(window)}, з ваших позначок: коли кожна ніч почалася й закінчилася, " +
+          s"Час сну, ${ApiCopy.rangeLabel(window)}, з ваших записів: коли кожна ніч почалася й закінчилася, " +
             s"на шкалі від вечора до ранку. Ночі записано за $nights з ${UkDaysOf.count(dates.size)}."
         ),
         scene = Scene(

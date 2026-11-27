@@ -844,14 +844,14 @@ Example caption: "Mood logged at 14:05: Good, steady. Tags: work, outdoors."
 | (drop) Water       1.4 of 2.0 l    |
 | (plate) Food       2 of 3 meals    |
 | (moon) Sleep       7 h 10 min      |
-|        from your check-ins         |
+|         from your records          |
 |                                    |
 | Recorded entries only.             |
 | Not medical advice.                |
 +------------------------------------+
 ```
 
-Example caption (L1): "Thu 12 Nov. Mood: Good, steady. Medication: 2 of 4 recorded as taken, 1 skipped, 1 still open. Water: 1.4 of 2.0 l. Food: 2 of 3 meals logged. Sleep: 7 h 10 min, from your check-ins."
+Example caption (L1): "Thu 12 Nov. Mood: Good, steady. Medication: 2 of 4 recorded as taken, 1 skipped, 1 still open. Water: 1.4 of 2.0 l. Food: 2 of 3 meals logged. Sleep: 7 h 10 min, from your records."
 
 | ID | Requirement |
 |---|---|
@@ -904,7 +904,7 @@ Row details:
 | Mood | One mini blob per day with a check-in; an empty slot otherwise | Number of check-in days and the average blob when N is at least 4 | none |
 | Sleep | One horizontal duration bar per night against the goal line; hatched outline for nights with only a quiet window | Mean duration of T2 and T3 nights; bedtime consistency when 5 of 7 nights exist | Previous four weeks' mean |
 
-Example caption: "Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 not confirmed. Water: goal reached on 5 of 7 recorded days, 1.9 l a day on average. Food: 19 meals logged. Mood: 6 check-in days, average 3.8 (pleasant). Sleep: 7 h 05 min on average over 6 nights from your check-ins; bedtime varied by about 35 min. One night is an estimate from bot activity and is not included in the average."
+Example caption: "Week 2 to 8 Nov. Medication: 26 of 28 scheduled doses recorded as taken (93%), 1 skipped, 1 not confirmed. Water: goal reached on 5 of 7 recorded days, 1.9 l a day on average. Food: 19 meals logged. Mood: 6 check-in days, average 3.8 (pleasant). Sleep: 7 h 05 min on average over 6 nights from your records; bedtime varied by about 35 min. One night is an estimate from bot activity and is not included in the average."
 
 | ID | Requirement |
 |---|---|
@@ -1027,6 +1027,8 @@ Example caption: "October 2026, all medications. All scheduled doses recorded as
 ```
 
 A day with several doses of one medication stacks up to 4 glyphs vertically in the day column; above 4 the column shows a proportional split. As-needed medications show circles on the days with a log and no adherence figure.
+
+Supervisor decision, 2026-11-28 (leftover of the new-user review): a row's figure counts the answered doses only, as the text of `/stats meds` does. The figure under a scheduled row is "T of A taken" with A the taken, skipped and not confirmed doses; an open dose is shown by its glyph and is "still to answer, not counted yet" in the caption, and a dose with no record is "with no record, not counted". The caption states each row's figures in the order of the chat's row ("Item 2: 0 of 1 taken, skipped 1, 1 still to answer, not counted yet."); it had counted the open dose in "0 of 2 scheduled doses recorded as taken". One formatter of the image catalogue (`ImageCopy.stripFigures`) gives the card's figure and the caption's line.
 
 Example caption (L2): "27 Oct to 9 Nov. Metformin 500 mg: 27 of 28 scheduled doses recorded as taken, 1 skipped. Vitamin D: 7 of 7. Ibuprofen (as needed): 3 logs on 3 days."
 
@@ -1194,7 +1196,7 @@ Example caption: "October 2026: 22 check-in days. Most frequent: Good (9 days). 
 |         bedtime   wake             |
 | 7 h 05 min average (11 nights)     |
 | Bedtime +-35 min, wake +-22 min    |
-| [=] your check-ins [/] estimate    |
+| [=] your records [/] estimate      |
 | from bot activity, not a duration  |
 +------------------------------------+
 ```
@@ -1212,13 +1214,13 @@ Example caption: "October 2026: 22 check-in days. Most frequent: Good (9 days). 
 | `tz_shift` nights | Drawn, with a small clock icon; excluded from regularity for that night and the next. |
 | Daylight saving nights | Clock times are drawn as local times; the caption gives the true duration and notes the transition. |
 
-Example caption: "Sleep, 27 Oct to 9 Nov. 11 nights from your check-ins: 7 h 05 min on average; bedtime varied by about 35 min and wake time by about 22 min. 1 night is an estimate from bot activity: at most 8 h 20 min, not counted in the average. 2 nights have no record. Your goal is 7 h 30 min."
+Example caption: "Sleep, 27 Oct to 9 Nov. 11 nights from your records: 7 h 05 min on average; bedtime varied by about 35 min and wake time by about 22 min. 1 night is an estimate from bot activity: at most 8 h 20 min, not counted in the average. 2 nights have no record. Your goal is 7 h 30 min."
 
 | ID | Requirement |
 |---|---|
 | VA-IMG-12a | The renderer takes tier and confidence as inputs for every episode, and a T1 episode can never be drawn with the solid bar style. Type-level and golden test. |
 | VA-IMG-12b | No sleep score, stage chart, efficiency, latency or awakening count is drawn from T1 or T2 data. Sensor-only values appear only with attribution and never blended with self-reported values. |
-| VA-IMG-12c | The caption states the source of every figure ("from your check-ins", "estimate from bot activity", vendor attribution). |
+| VA-IMG-12c | The caption states the source of every figure ("from your records", "estimate from bot activity", vendor attribution). |
 
 ### 6.14 IMG-13 Correlation insight card
 
@@ -1548,6 +1550,8 @@ Buckets for a dose occurrence in a period:
 
 Supervisor decision, 2026-11-27 (finding 17 of [the new-user walk-through](verification/new-user-review-2026-11-27.md)): the chat's `/stats` prints the open count as "1 still to answer, not counted yet" ("ще без відповіді — 1, поки не враховано"); "still due, not counted" read as a fault of the user's. The count of `U` keeps "with no record, not counted". The sleep source "your check-ins" stays for now: it is shared by the chat, the Mini App and the image captions, and is left for one change across them.
 
+Supervisor decision, 2026-11-28 (the rest of finding 17): the source of sleep figures from the user's own taps and typed nights is "your records" ("ваші записи"), "from your records" in a caption ("з ваших записів") and "From your records" in the Mini App, in one change across the chat, the API, the Mini App and the image captions; "your check-ins" read as the taps alone and was wrong for a typed night. VA-IMG-12c and the example captions read accordingly. The words of the images' Ukrainian dose sentence also changed so that no verb agrees with a count: "прийнято 26 з 28 запланованих доз (93%)", which had read "1 з 1 запланованої дози записано як прийняті" for one dose.
+
 Attribution to a day (inherited): a taken dose counts on the local day of `effective_at`; a skipped or missed dose on the local day of its resolution; an open dose on its scheduled local day.
 
 Aggregation: totals over several medications pool the bucket counts. They are never the mean of per-medication percentages.
@@ -1867,7 +1871,7 @@ The dashboard has five views, presented as tabs or as sections of one scrolling 
 | +----------------+ +---------------+ |
 | | (plate) Food   | | (moon) Sleep  | |
 | | 2 of 3 meals   | | 7 h 10 min    | |
-| | . : : . : : .  | | your check-ins| |
+| | . : : . : : .  | | your records  | |
 | +----------------+ +---------------+ |
 |  [ Log something ]   (MainButton)    |
 +--------------------------------------+

@@ -45,8 +45,10 @@ ninth: the new-user review and trends with the share builder, no
 migration; the tenth: chat analytics, V23, and image round 4), plus the
 fixes of the verifications of 2026-11-14 (V13), 2026-11-15 (V18) and
 2026-11-27, and V22 (sealed file ids and export parameters). The
-migrations are V1 to V19, V22 and V23; V20 and V21 must never be added,
-and the next is V24. The live database is at V22 (`34c4733`):
+migrations are V1 to V19, V22 and V23, 21 files
+(`scripts/check-frozen-migrations.sh` prints `21 migrations unchanged
+(V1 to V19, V22, V23)`); V20 and V21 must never be added, and the next
+is V24. The live database is at V22 (`34c4733`):
 `docs/OPERATIONS.md` section 17 is the owner's deploy of the head, which
 applies V23 (sections 8 to 16 explain the earlier parts). The Mini App
 is off on live.

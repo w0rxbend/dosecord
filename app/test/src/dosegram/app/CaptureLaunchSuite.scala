@@ -263,15 +263,16 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(stageTwo.method, "editMessageText")
       assertEquals(strings("SELECT 1 FROM consent_events"), Nil, "the first tap records no consent")
 
-      val List(receipt, goalAsk, offer) = bot.tap(stageTwo, ConsentCopy.Confirm, expected = 3): @unchecked
+      val List(receipt, goalAsk) = bot.tap(stageTwo, ConsentCopy.Confirm, expected = 2): @unchecked
       assertEquals(bot.body(receipt), ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"))
       // The typed amount waits for the goal, and the card says so (walk-through of 2026-11-27).
       assertEquals(bot.body(goalAsk), s"${WaterCopy.goalAsk}\n\n${WaterCopy.goalPending(250)}")
-      assertEquals(bot.body(offer), PromptCopy.offerWater, "the water prompts are offered after the consent (ADR-023)")
       assertEquals(strings("SELECT purpose || ':' || action FROM consent_events"), List("hydration:granted"))
       assertEquals(strings("SELECT octet_length(notice_hash)::text FROM consent_events"), List("32"))
 
-      val List(echo) = bot.tap(goalAsk, "2.0 l", expected = 1): @unchecked
+      // The water prompts are offered after the goal choice, never beside the goal card (ADR-023, finding 12).
+      val List(echo, offer) = bot.tap(goalAsk, "2.0 l", expected = 2): @unchecked
+      assertEquals(bot.body(offer), PromptCopy.offerWater, "the water prompts are offered after the goal choice")
       assertEquals(echo.method, "editMessageText")
       assertEquals(bot.body(echo), "Water +250 ml. Today: 0.25 of 2.0 l (12%).")
       assertEquals(strings("SELECT amount_ml || ' ' || source FROM hydration_entries"), List("250 bot"))
