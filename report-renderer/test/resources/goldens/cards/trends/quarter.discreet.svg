@@ -49,49 +49,49 @@
   <path d="M956.88 380 L956.88 341.28 A12 12 0 0 1 968.88 329.28 L989.88 329.28 A12 12 0 0 1 1001.88 341.28 L1001.88 380 Z" fill="#0072be"/>
 </g>
 <g>
-  <path d="M92 407.93 C96.45 407.93 102.24 416.33 105.34 421.7 C108.44 427.07 112.81 436.28 110.59 440.13 C108.37 443.98 98.2 444.8 92 444.8 C85.8 444.8 75.63 443.98 73.41 440.13 C71.19 436.28 75.56 427.07 78.66 421.7 C81.76 416.33 87.55 407.93 92 407.93 Z" fill="none" stroke="#bf3f75" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 407.93 C96.45 407.93 102.24 416.33 105.34 421.7 C108.44 427.07 112.81 436.28 110.59 440.13 C108.37 443.98 98.2 444.8 92 444.8 C85.8 444.8 75.63 443.98 73.41 440.13 C71.19 436.28 75.56 427.07 78.66 421.7 C81.76 416.33 87.55 407.93 92 407.93 Z" fill="none" stroke="#b45689" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="140" y="440" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Mood</text>
 <text x="140" y="492" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">64 check-ins</text>
 <line x1="64" y1="568" x2="1016" y2="568" stroke="#2f434d" stroke-width="4"/>
 <g>
-  <circle cx="100.62" cy="544.75" r="9" fill="#bf3f75"/>
+  <circle cx="100.62" cy="544.75" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="173.85" cy="540" r="9" fill="#bf3f75"/>
+  <circle cx="173.85" cy="540" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="247.08" cy="535.25" r="9" fill="#bf3f75"/>
+  <circle cx="247.08" cy="535.25" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="320.31" cy="530.5" r="9" fill="#bf3f75"/>
+  <circle cx="320.31" cy="530.5" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="393.54" cy="544.75" r="9" fill="#bf3f75"/>
+  <circle cx="393.54" cy="544.75" r="9" fill="#b45689"/>
 </g>
 <g>
   <rect x="454.77" y="542" width="24" height="24" rx="4" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <circle cx="540" cy="535.25" r="9" fill="#bf3f75"/>
+  <circle cx="540" cy="535.25" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="613.23" cy="530.5" r="9" fill="#bf3f75"/>
+  <circle cx="613.23" cy="530.5" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="686.46" cy="544.75" r="9" fill="#bf3f75"/>
+  <circle cx="686.46" cy="544.75" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="759.69" cy="540" r="9" fill="#bf3f75"/>
+  <circle cx="759.69" cy="540" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="832.92" cy="535.25" r="9" fill="#bf3f75"/>
+  <circle cx="832.92" cy="535.25" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="906.15" cy="530.5" r="9" fill="#bf3f75"/>
+  <circle cx="906.15" cy="530.5" r="9" fill="#b45689"/>
 </g>
 <g>
-  <circle cx="979.38" cy="544.75" r="9" fill="#bf3f75"/>
+  <circle cx="979.38" cy="544.75" r="9" fill="#b45689"/>
 </g>
 <g>
   <path d="M109.5 621.13 A19.13 19.13 0 1 1 86.87 598.5 A15.4 15.4 0 0 0 109.5 621.13 Z" fill="none" stroke="#9d7aef" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>

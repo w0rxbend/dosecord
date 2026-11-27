@@ -159,8 +159,8 @@ Contrast (WCAG 2 ratio, COMPUTED): `ink` 14.4 on light surface and 14.2 on dark 
 |---|---|---|---|---|
 | `medication` | Spruce | `#0d9675` | `#2cab88` | Dose cells, adherence bars and heatmaps |
 | `water` | Tide | `#02558f` | `#0072be` | Vessel fill, hydration bars |
-| `food` | Rye | `#955907` | `#9e5d00` | Meal marks, macro bar steps |
-| `mood` | Beet | `#940f52` | `#bf3f75` | The mood series where mood sits beside other domains as one coloured series. The blob itself uses the valence ramp of section 4.4. |
+| `food` | Rye | `#955907` | `#a86614` | Meal marks, macro bar steps |
+| `mood` | Beet | `#940f52` | `#b45689` | The mood series where mood sits beside other domains as one coloured series. The blob itself uses the valence ramp of section 4.4. |
 | `sleep` | Dusk | `#8a66d9` | `#9d7aef` | Sleep bars and regularity marks |
 | `body` | none | `ink2` | `ink2` | Measurement lines, always single-series |
 
@@ -170,10 +170,13 @@ Validation results (COMPUTED, 2026-11-12, all five hues, all-pairs mode, which i
 |---|---|---|
 | Lightness band | pass (0.43 to 0.77) | pass (0.48 to 0.67) |
 | Chroma floor 0.10 | pass | pass |
-| Worst pair under simulated protanopia or deuteranopia | 11.7 (Rye and Spruce); target 8 or more | 9.1 (Beet and Spruce); target 8 or more |
-| Worst pair, normal vision | 18.3 (Beet and Rye); floor 15 | 16.7 (Beet and Rye); floor 15 |
-| Contrast against the panel | 3.73 or more | 3.46 or more |
-| Contrast against the `surface` | 3.38 or more | 3.13 or more |
+| Worst pair under simulated protanopia or deuteranopia | 11.7 (Rye and Spruce); target 8 or more | 8.1 (Beet and Spruce, deuteranopia); target 8 or more |
+| Worst pair, normal vision | 18.3 (Beet and Rye); floor 15 | 16.0 (Beet and Rye); floor 15 |
+| Contrast against the panel | 3.73 or more | 3.58 or more |
+| Contrast against the `surface` | 3.38 or more | 3.23 or more |
+| Contrast against the `surface` and the panel under simulated protanopia, deuteranopia and in greyscale | 3.13 or more | 3.04 or more (Tide, deuteranopia) |
+
+Supervisor decision, 2026-11-28 (finding R5 of the image review of 2026-11-27, image round 5). In the dark theme Rye and Beet fell to 2.7:1 and 2.6:1 against the `surface` under simulated protanopia. Both are lifted within their own hue family, and nothing else changes: Rye from `#9e5d00` to `#a86614` (OKLCH 0.54 0.121 64.7 to 0.57 0.122 64.6, the same hue a step lighter) and Beet from `#bf3f75` to `#b45689` (OKLCH 0.56 0.170 358.1 to 0.58 0.135 348.4, a step lighter, a little less saturated and turned 10 degrees towards magenta). A lighter Beet of the old hue would have met the contrast but fallen to 5 in the pair with Spruce under deuteranopia; the turn keeps the pair at 8.1. Every domain hue now keeps 3:1 against the `surface` and the panel in both themes for normal vision, greyscale, protanopia and deuteranopia (`ColourVisionSuite`, Machado matrices at severity 1.0); the light theme was already above it and is unchanged. Rye stays an amber brown and Beet a berry pink, so the identity of section 3.1 holds. Every dark and discreet golden was regenerated in the same change and each changed picture was reviewed.
 
 The colours follow the domain, never the position in a chart. A view that hides one domain does not repaint the others.
 
@@ -1461,7 +1464,7 @@ Supervisor decision, 2026-11-27 (image round 4, the second-reviewer pass). A rev
 | R2 | IMG-20, IMG-21 | A week with nothing logged drew a hero "0" over "days logged", which reads as an amount of zero (VA-PR-03, VA-PR-04) | Fixed: the hero is "No data" with "No water logged in these 7 days." or "No night logged in these 7 nights." under it, and the text equivalent says the same; fixture `sleep-week/empty` added |
 | R3 | IMG-22 | A weekday with no check-in read "Fewer than 3 days" and "0 check-in days, fewer than 3" | Fixed: "No check-in" on the card, "Thu: no check-in." in the text |
 | R4 | IMG-05 page 2 | The Ukrainian day heads of the medication panel are one letter, which the decision above allowed only for the mood panel | Documented: both panels are about 46 px a column, too narrow for two letters at 40 px |
-| R5 | all | In the dark theme, under simulated protanopia, Beet (mood) and Rye (food) fall to 2.5:1 to 3.0:1 against the surface and the panel (COMPUTED; 3.1:1 to 3.6:1 with normal vision) | Not changed: every such mark also has its row name, its icon or its place, and a palette change re-runs the validator of section 3.3.2 and every golden. Open for the owner's palette review (Q4) |
+| R5 | all | In the dark theme, under simulated protanopia, Beet (mood) and Rye (food) fall to 2.5:1 to 3.0:1 against the surface and the panel (COMPUTED; 3.1:1 to 3.6:1 with normal vision) | Fixed 2026-11-28: the dark Rye and Beet are lighter (section 3.3.2, supervisor decision of that day); every domain hue keeps 3:1 for every reader |
 | R6 | IMG-19, IMG-23, IMG-05 page 1 | A card of two or three rows leaves an empty band above the footer | Not changed: the decision of 2026-11-15 keeps the grid under the title; the band is the square's room, not lost data |
 | R7 | IMG-15 | The Ukrainian unit under the hero is the noun alone ("таблеток"), the English one "tablets left" | Not changed: "залишилось" needs a second line in the 240 px column, and the title already says it |
 

@@ -6,16 +6,16 @@
 <text x="96" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Work days</text>
 <line x1="96" y1="376" x2="852" y2="376" stroke="#2f434d" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
 <g>
-  <line x1="96" y1="376" x2="492.9" y2="376" stroke="#bf3f75" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="492.9" cy="376" r="22" fill="#bf3f75" stroke="#071820" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="376" x2="492.9" y2="376" stroke="#b45689" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="492.9" cy="376" r="22" fill="#b45689" stroke="#071820" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="984" y="396" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">3.1</text>
 <text x="96" y="428" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">20 days</text>
 <text x="96" y="512" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Free days</text>
 <line x1="96" y1="592" x2="852" y2="592" stroke="#2f434d" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
 <g>
-  <line x1="96" y1="592" x2="625.2" y2="592" stroke="#bf3f75" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="625.2" cy="592" r="22" fill="#bf3f75" stroke="#071820" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="592" x2="625.2" y2="592" stroke="#b45689" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="625.2" cy="592" r="22" fill="#b45689" stroke="#071820" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="984" y="612" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">3.8</text>
 <text x="96" y="644" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">8 days</text>

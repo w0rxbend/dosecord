@@ -15,7 +15,7 @@
 </g>
 <g>
   <path d="M507.09 716 A272 272 0 0 1 270 478.91" fill="none" stroke="#2f434d" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M507.09 716 A272 272 0 0 1 310.13 591.41" fill="none" stroke="#9e5d00" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M507.09 716 A272 272 0 0 1 310.13 591.41" fill="none" stroke="#a86614" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
   <path d="M270 413.09 A272 272 0 0 1 507.09 176" fill="none" stroke="#2f434d" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
@@ -29,8 +29,8 @@
   <path d="M770.52 655.52 C764.45 663.92 755.35 674.18 755.35 682.35 A15.17 15.17 0 0 0 785.68 682.35 C785.68 674.18 776.58 663.92 770.52 655.52 Z" fill="none" stroke="#0072be" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
-  <circle cx="309.48" cy="676.52" r="21" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M309.48 666.02 A10.5 10.5 0 0 1 319.98 676.52" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="309.48" cy="676.52" r="21" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M309.48 666.02 A10.5 10.5 0 0 1 319.98 676.52" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g>
   <path d="M326.98 220.62 A19.13 19.13 0 1 1 304.35 197.98 A15.4 15.4 0 0 0 326.98 220.62 Z" fill="none" stroke="#9d7aef" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
@@ -75,8 +75,8 @@
 <text x="144" y="1006" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Water</text>
 <text x="1016" y="1008" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">1.4 of 2.0 l</text>
 <g>
-  <circle cx="92" cy="1066" r="21" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M92 1055.5 A10.5 10.5 0 0 1 102.5 1066" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="92" cy="1066" r="21" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 1055.5 A10.5 10.5 0 0 1 102.5 1066" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="144" y="1082" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Food</text>
 <text x="1016" y="1084" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4" text-anchor="end">2 of 3 meals</text>

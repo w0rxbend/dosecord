@@ -3,16 +3,16 @@
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Food</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">Thu 12 Nov</text>
 <g>
-  <path d="M534 482 L286 482 A248 248 0 0 1 534 234 Z" fill="#9e5d00"/>
+  <path d="M534 482 L286 482 A248 248 0 0 1 534 234 Z" fill="#a86614"/>
 </g>
 <g>
   <path d="M546 482 L546 234 A248 248 0 0 1 794 482 Z" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <path d="M534 494 L534 742 A248 248 0 0 1 286 494 Z" fill="#9e5d00"/>
+  <path d="M534 494 L534 742 A248 248 0 0 1 286 494 Z" fill="#a86614"/>
 </g>
 <g>
-  <path d="M546 494 L794 494 A248 248 0 0 1 546 742 Z" fill="#9e5d00"/>
+  <path d="M546 494 L794 494 A248 248 0 0 1 546 742 Z" fill="#a86614"/>
 </g>
 <text x="64" y="356" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Breakfast</text>
 <text x="64" y="412" font-family="IBM Plex Sans" font-weight="600" font-size="56" fill="#e8f0f4">08:10</text>

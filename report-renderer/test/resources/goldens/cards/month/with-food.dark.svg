@@ -59,7 +59,7 @@
   <path d="M896 714 L896 671.74 A12 12 0 0 1 908 659.74 L948 659.74 A12 12 0 0 1 960 671.74 L960 714 Z" fill="#0072be"/>
 </g>
 <g>
-  <path d="M92 743.93 C96.45 743.93 102.24 752.33 105.34 757.7 C108.44 763.07 112.81 772.28 110.59 776.13 C108.37 779.98 98.2 780.8 92 780.8 C85.8 780.8 75.63 779.98 73.41 776.13 C71.19 772.28 75.56 763.07 78.66 757.7 C81.76 752.33 87.55 743.93 92 743.93 Z" fill="none" stroke="#bf3f75" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 743.93 C96.45 743.93 102.24 752.33 105.34 757.7 C108.44 763.07 112.81 772.28 110.59 776.13 C108.37 779.98 98.2 780.8 92 780.8 C85.8 780.8 75.63 779.98 73.41 776.13 C71.19 772.28 75.56 763.07 78.66 757.7 C81.76 752.33 87.55 743.93 92 743.93 Z" fill="none" stroke="#b45689" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="136" y="778" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Mood</text>
 <text x="1016" y="778" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">22 check-in days</text>
@@ -115,25 +115,25 @@
   <rect x="898" y="944" width="60" height="60" rx="12" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <circle cx="92" cy="1056" r="21" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M92 1045.5 A10.5 10.5 0 0 1 102.5 1056" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="92" cy="1056" r="21" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 1045.5 A10.5 10.5 0 0 1 102.5 1056" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="136" y="1070" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Food</text>
 <text x="1016" y="1070" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">54 meals logged</text>
 <g>
-  <path d="M192 1152 L192 1126.35 A12 12 0 0 1 204 1114.35 L244 1114.35 A12 12 0 0 1 256 1126.35 L256 1152 Z" fill="#9e5d00"/>
+  <path d="M192 1152 L192 1126.35 A12 12 0 0 1 204 1114.35 L244 1114.35 A12 12 0 0 1 256 1126.35 L256 1152 Z" fill="#a86614"/>
 </g>
 <g>
-  <path d="M368 1152 L368 1100 A12 12 0 0 1 380 1088 L420 1088 A12 12 0 0 1 432 1100 L432 1152 Z" fill="#9e5d00"/>
+  <path d="M368 1152 L368 1100 A12 12 0 0 1 380 1088 L420 1088 A12 12 0 0 1 432 1100 L432 1152 Z" fill="#a86614"/>
 </g>
 <g>
-  <path d="M544 1152 L544 1107.53 A12 12 0 0 1 556 1095.53 L596 1095.53 A12 12 0 0 1 608 1107.53 L608 1152 Z" fill="#9e5d00"/>
+  <path d="M544 1152 L544 1107.53 A12 12 0 0 1 556 1095.53 L596 1095.53 A12 12 0 0 1 608 1107.53 L608 1152 Z" fill="#a86614"/>
 </g>
 <g>
   <rect x="722" y="1090" width="60" height="60" rx="12" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
-  <path d="M896 1152 L896 1118.82 A12 12 0 0 1 908 1106.82 L948 1106.82 A12 12 0 0 1 960 1118.82 L960 1152 Z" fill="#9e5d00"/>
+  <path d="M896 1152 L896 1118.82 A12 12 0 0 1 908 1106.82 L948 1106.82 A12 12 0 0 1 960 1118.82 L960 1152 Z" fill="#a86614"/>
 </g>
 <text x="64" y="1214" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8">September: 91% of scheduled doses taken.</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>

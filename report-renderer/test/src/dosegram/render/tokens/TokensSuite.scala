@@ -30,7 +30,7 @@ class TokensSuite extends munit.FunSuite:
       StrictMath.pow(one.lightness - other.lightness, 2) + StrictMath.pow(one.a - other.a, 2) + StrictMath.pow(one.b - other.b, 2)
     )
 
-  Vector(Tokens.Light -> (11.7, 18.3), Tokens.Dark -> (9.1, 16.7)).foreach { case (tokens, (deficient, normal)) =>
+  Vector(Tokens.Light -> (11.7, 18.3), Tokens.Dark -> (8.1, 16.0)).foreach { case (tokens, (deficient, normal)) =>
     test(s"${tokens.theme}: every pair of domain hues stays apart under colour-vision deficiency"):
       val worst = Vector(Protanopia, Deuteranopia).map(matrix => worstPair(tokens.domainHues, simulated(_, matrix))).min
       assert(worst >= 8, s"worst pair is $worst")
