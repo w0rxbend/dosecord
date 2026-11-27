@@ -35,9 +35,11 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock, privacyBu
   private def confirm(turn: Turn, request: ConsentRequest, resume: Pending => Reply): Reply =
     val now = clock.now()
     val notice = ConsentNotice(ConsentCopy.NoticeVersion, ConsentCopy.statement(request.purpose), ConsentCopy.Locale)
-    // A second tap on an old card records nothing and must not run the pending input a second time.
-    if !turn.tx.consents.grant(turn.accountId, request.purpose, notice, request.taps(now)) then
-      turn.toast(ReminderCopy.staleControlToast)
+    // A second tap on an old card records nothing and must not run the pending input a second time, also when the
+    // purpose was granted under an earlier notice version, which stays in force (PRODUCT_SPEC R-IDC-11).
+    if turn.tx.consents.isGranted(turn.accountId, request.purpose) ||
+      !turn.tx.consents.grant(turn.accountId, request.purpose, notice, request.taps(now))
+    then turn.toast(ReminderCopy.staleControlToast)
     else
       val receipt = List(ConsentCopy.receipt(request.purpose, turn.localDate(now)))
       val resumed = resume(request.pending)

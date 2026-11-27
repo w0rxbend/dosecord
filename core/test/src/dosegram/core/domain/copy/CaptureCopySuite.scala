@@ -28,7 +28,7 @@ class CaptureCopySuite extends munit.FunSuite:
       assert(ConsentCopy.statement(purpose).startsWith("I agree that Dosegram "), purpose.id)
       assert(ConsentCopy.confirmation(purpose).startsWith("Please confirm: Dosegram "), purpose.id)
       assert(ConsentCopy.confirmation(purpose).endsWith("You can withdraw at any time with /privacy."), purpose.id)
-      assert(ConsentCopy.receipt(purpose, "13 Nov 2026").contains("Privacy notice version 1."), purpose.id)
+      assert(ConsentCopy.receipt(purpose, "13 Nov 2026").contains("Privacy notice version 2."), purpose.id)
 
   test("routine copy stays inside 160 characters and an outcome inside 80 (BUX-MSG-03)"):
     val outcomes = List("water.added", "water.added.goal_reached", "water.undone", "checkin.undone")

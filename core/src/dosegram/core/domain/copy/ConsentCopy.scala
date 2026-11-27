@@ -9,12 +9,15 @@ import java.util.Locale as JavaLocale
 
 /** Consent copy (BOT_UX section 5.5 and the transcript of section 21.7; PRODUCT_SPEC R-IDC-6, R-IDC-7). The statement
   * is shown in the message at both stages, and the ledger stores its hash under [[NoticeVersion]]: a change of a
-  * statement is a new version.
+  * statement is a new version, and `ConsentNoticeVersionSuite` pins the text of each version.
   */
 object ConsentCopy:
 
-  /** The version of the statements below; the consent ledger records it with every grant. */
-  val NoticeVersion: Int = 1
+  /** The version of the statements below; the consent ledger records it with every grant. Version 2 is the Ukrainian
+    * wording of 2026-11-15; a grant under version 1 stays in force, because that change was not material (PRODUCT_SPEC
+    * R-IDC-11, supervisor decision of 2026-11-27).
+    */
+  val NoticeVersion: Int = 2
 
   /** The locale of the statements below; the consent ledger records it with every grant (PRODUCT_SPEC R-LOC-11). */
   def Locale: String = Lang.current.code

@@ -248,6 +248,16 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(again, List(ReminderCopy.staleControlToast))
       assertEquals(chat.world.consents.events.toList, List("mood:granted"))
 
+  test("a Confirm on a card from before the notice version changed records nothing when the purpose is already on"):
+    withChat(Profile.Telegram): chat =>
+      chat.rig.line("250 ml")
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      chat.grant(ConsentPurpose.Hydration) // granted meanwhile under notice version 1 (finding 4, 2026-11-27)
+      val (_, confirmWire) = chat.rig.controlOn("Please confirm", ConsentCopy.Confirm)
+      assertEquals(chat.rig.tap(confirmWire), List(ReminderCopy.staleControlToast))
+      assertEquals(chat.world.consents.events.toList, List("hydration:granted"))
+      assertEquals(chat.liveWater, Nil, "the typed amount is not run a second time")
+
   test("Not now leaves the domain off and says how to turn it on later"):
     withChat(Profile.Telegram): chat =>
       chat.rig.command("water")

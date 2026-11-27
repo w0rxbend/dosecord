@@ -1593,7 +1593,7 @@ B: (edit) Please confirm: Dosegram may store and process your medication
 
 U: taps Confirm
 B: (send, never edited) Consent recorded on 12 Nov 2026: medication records.
-   Privacy notice version 1. Withdraw at any time with /privacy.
+   Privacy notice version 2. Withdraw at any time with /privacy.
 B: (edit of the set-up card) Should reminder messages show medication names?
    Messages can appear on your lock screen.
    [ Show names ]  [ Hide names ]
@@ -1830,7 +1830,7 @@ B: (edit) Please confirm: Dosegram may store and process your water intake
 
 U: taps Confirm
 B: (send, never edited) Consent recorded on 13 Nov 2026: water records.
-   Privacy notice version 1. Withdraw at any time with /privacy.
+   Privacy notice version 2. Withdraw at any time with /privacy.
 B: (edit) Set a daily amount to count towards? Pick any amount that suits
    you. Dosegram does not recommend an amount.
    [ 1.5 l ]  [ 2.0 l ]  [ 2.5 l ]
