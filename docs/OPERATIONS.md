@@ -575,22 +575,32 @@ database is at V22. The head of `main` adds no migration, no table and no enviro
 the start applies nothing and the schema stays at 22. The commits since `50cda8f` are the five
 fixes of the verification of 2026-11-27 (`52a1ff9` to `3a71c00`), the new-user review
 (`feat/new-user-review`, merge `c96eb1c`) and the trends and share builder
-(`feat/trends-and-share`, merge `1fbc57d`). The Mini App stays off on live (no https
-`MINI_APP_URL`), so the share builder and the Insights changes are not reachable there. Every step
-is the owner's; `<sha>` is the head of `main` at or after the commit that adds this section, and
-`<pg>` is `dosegram-live-pg`:
+(`feat/trends-and-share`, merge `1fbc57d`), and the two fixes of the verification of the
+integration (`87632ae`, the pixel hashes of the trends card; `2f3d01d`, `/today` labels). The Mini
+App stays off on live (no https `MINI_APP_URL`), so the share builder and the Insights changes are
+not reachable there. Every step is the owner's; `<sha>` is the head of `main` at or after the
+commit that adds the rehearsal record below, and `<pg>` is `dosegram-live-pg`:
 
 1. Back up, with the bot still running:
    `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v22-$(date -u +%F).dump`.
-2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist. Note the number of
+   quarantined updates: `SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined';`.
 3. Build the release next to the running one:
    `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
 4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
    `shutdown: pool closed`). Start the new release with the same script:
    `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows
-   a line starting `migrate: 0 migration(s) applied, schema 22` and
-   `purge: replayed 0 deletion(s) of the purge list`.
-5. Check: `curl -fsS http://127.0.0.1:18081/readyz` answers 200; in the chat, `/privacy` answers
+   `Schema "public" is up to date. No migration necessary.`; one
+   `sealing: <table>.<column> sealed 0 value(s), verified 0` line for each of the 23 sealed
+   columns; `migrate: 0 migration(s) applied, schema 22, 0 value(s) sealed, 0 key(s) rewrapped`;
+   `purge: replayed 0 deletion(s) of the purge list`; and
+   `/healthz, /readyz and /metrics listening on 127.0.0.1:18081`. A line `sealed N` with N above 0
+   means a plaintext value was found and sealed: the start is still good, but say so in the
+   deploy note.
+5. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 22;
+   the quarantined count is the number of step 2. Then `curl -fsS http://127.0.0.1:18081/readyz` answers 200; in the chat, `/meds` lists
+   the medications with no onboarding question, `/privacy` answers
    (it failed with no reply for an account holding the images or comparisons consent), `/today`
    lists the day in time order with timed buttons, `/stats 30` has a "Trends" button, and
    `/stats trends` answers with the figures of each consented domain.
@@ -606,7 +616,8 @@ What changes in the chat, none of it checked on a real client yet:
   similar; onboarding and the add-medication wizard read their buttons in the reader's language,
   and the form heading reads "Add medication (1/2)"; onboarding with medication ends with
   "Add medication" and "Today" buttons; `/meds` rows name their medication when there are two
-  or more; the Ukrainian weekday heads of the week cards are two letters.
+  or more; the Ukrainian weekday heads of the week cards are two letters; two open doses at one
+  time on `/today` name their medication, a long name shortened before "Taken" or "Skip".
 - Reminders: a repeat says "Scheduled 13:00 · reminder 2 of 3", the last one says it is the last,
   an earlier card says "Reminded again below.", a snoozed card says "Snoozed until HH:MM."; the
   missed notice is always silent and carries the safety sentence.
@@ -619,4 +630,28 @@ What changes in the chat, none of it checked on a real client yet:
 
 Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-50cda8f" .live/run.sh`; the schema is
 unchanged, so no restore is needed. A "Trends" button or a held night created by the head may get
-no answer from `50cda8f`. Not rehearsed: this deploy, the rollback, a real client.
+no answer from `50cda8f`.
+
+Rehearsed on 2026-11-27 against a throwaway `postgres:18-alpine` container on a free port, with
+a key file and a purge list of mode 600, as `.live/run.sh` starts the bot (`ENVIRONMENT=production`,
+the same variables): `50cda8f`, started as `Main` starts with the production assembly on the fake
+wire, built a V22 database through the chat (onboarding in English, a medication with a name and
+instructions at 09:00 and 13:00, the 09:00 reminder tapped Taken, water with the work-hours plan,
+mood, a night, a meal with words, the images consent and "Water, 7 days" as an image, the record
+summary export, the 13:00 reminder left open, an add-medication form left after its first
+answer), in two starts. Then steps 1 to 4 as written, with `faf63bf` and again with `2f3d01d`, the
+head assembly on the console adapter in place of the token: each start logged the lines of step
+4, `/readyz` answered 200, SIGTERM ended with `shutdown: pool closed` and exit 0, and a second
+start logged the same lines. The head on the fake wire, over that database, then
+listed the sealed medication name with no onboarding question, answered nine buttons sent before
+the upgrade (the catch-up Taken recorded the open 13:00 dose; the others answered with an edit or
+a toast), answered `/privacy`, `/today`, `/stats 30` with "Trends", `/stats trends` and its image,
+a water entry and a mood check-in with its image. No update was quarantined and no outbox row
+died; the key file opened every sealed file id, the medication name, its instructions and the
+meal words. A scan of every column (594), a `pg_dump` and the WAL held none of the typed words,
+the first name or a file id; 45 tables have forced row-level security and `dosegram_app` without
+a claim saw no row. The rollback start of `50cda8f` over that database logged
+`migrate: 0 migration(s) applied, schema 22`, answered `/readyz` with 200 and stopped cleanly.
+Not rehearsed: a real client, the Telegram transport, the rollback's answers to buttons the head
+sent. The images drawn on the stepped clock of the seed were sent as text ("Late"), so the reuse of
+a mood image by its file id was not shown.
