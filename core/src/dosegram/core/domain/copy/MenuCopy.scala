@@ -82,6 +82,13 @@ object MenuCopy:
   /** A Today row whose dose has no snapshot. */
   def yourDose: String = tr("Your dose", "Ваша доза")
   def asNeededRow(name: String): String = tr(s"$name — as needed", s"$name — за потреби")
+
+  /** The buttons of one open dose on `/today` carry its time, so three rows of them are not three identical pairs
+    * (walk-through of 2026-11-27). `time` is the dose's local time, with its name added when two doses share it.
+    */
+  def todayTaken(time: String): String = tr(s"$time · Taken", s"$time · Прийнято")
+  def todaySkip(time: String): String = tr(s"$time · Skip", s"$time · Пропустити")
+
   def logDoseLabel(name: String): String = tr(s"Log $name", s"Записати: $name")
 
   def entries: List[CopyEntry] =
