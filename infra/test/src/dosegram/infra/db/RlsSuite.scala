@@ -178,28 +178,38 @@ class RlsSuite extends PgSuite:
       assertServing(PgUnitOfWork(ds, MutableClock(at), DataKeys.development), a, b)
     finally ds.close()
 
+  /** A cluster of its own for the schema owner: the owner creates the roles in V1 as on a fresh host, so it may grant
+    * them in V14. It starts with the suite, so the test's time limit measures the upgrade, not a container start.
+    */
+  private var ownerCluster: Option[PostgreSQLContainer] = None
+
+  override def beforeAll(): Unit =
+    super.beforeAll()
+    ownerCluster = Some(PostgreSQLContainer.Def(dockerImageName = DockerImageName.parse("postgres:18-alpine")).start())
+
+  override def afterAll(): Unit =
+    try ownerCluster.foreach(_.stop())
+    finally super.afterAll()
+
   test("a schema owner that is not a superuser upgrades in place, joins the serving roles and keeps every row"):
-    // A cluster of its own: the owner creates the roles in V1 as on a fresh host, so it may grant them in V14.
-    val cluster = PostgreSQLContainer.Def(dockerImageName = DockerImageName.parse("postgres:18-alpine")).start()
+    val cluster = ownerCluster.getOrElse(fail("the schema owner's cluster did not start"))
+    val admin = DriverManager.getConnection(cluster.jdbcUrl, cluster.username, cluster.password)
     try
-      val admin = DriverManager.getConnection(cluster.jdbcUrl, cluster.username, cluster.password)
-      try
-        admin.createStatement().execute("CREATE ROLE schema_owner LOGIN CREATEROLE PASSWORD 'owner'")
-        admin.createStatement().execute("CREATE DATABASE owned OWNER schema_owner")
-      finally admin.close()
-      val url = cluster.jdbcUrl.replace(s"/${cluster.databaseName}", "/owned")
-      val ds = Database.pooled(url, "schema_owner", "owner")
-      try
-        Flyway.configure().dataSource(ds).target("13").load().migrate()
-        val (a, b) = withConnectionOf(ds)(seedAtV13)
-        SchemaUpgrade.run(ds, DataKeys.development, _ => ())
-        withConnectionOf(ds): conn =>
-          assertEquals(RowSecurity.missingGrant(conn), None, "V14 made the owner a member of the serving roles")
-          assertEquals(countOf(conn, "SELECT count(*) FROM hydration_entries"), 2L, "the owner's start-up stages see all")
-          assertEquals(countOf(conn, "SELECT count(*) FROM inbound_events"), 1L)
-        assertServing(PgUnitOfWork(ds, MutableClock(at), DataKeys.development), a, b)
-      finally ds.close()
-    finally cluster.stop()
+      admin.createStatement().execute("CREATE ROLE schema_owner LOGIN CREATEROLE PASSWORD 'owner'")
+      admin.createStatement().execute("CREATE DATABASE owned OWNER schema_owner")
+    finally admin.close()
+    val url = cluster.jdbcUrl.replace(s"/${cluster.databaseName}", "/owned")
+    val ds = Database.pooled(url, "schema_owner", "owner")
+    try
+      Flyway.configure().dataSource(ds).target("13").load().migrate()
+      val (a, b) = withConnectionOf(ds)(seedAtV13)
+      SchemaUpgrade.run(ds, DataKeys.development, _ => ())
+      withConnectionOf(ds): conn =>
+        assertEquals(RowSecurity.missingGrant(conn), None, "V14 made the owner a member of the serving roles")
+        assertEquals(countOf(conn, "SELECT count(*) FROM hydration_entries"), 2L, "the owner's start-up stages see all")
+        assertEquals(countOf(conn, "SELECT count(*) FROM inbound_events"), 1L)
+      assertServing(PgUnitOfWork(ds, MutableClock(at), DataKeys.development), a, b)
+    finally ds.close()
 
   private def withConnectionOf[A](ds: javax.sql.DataSource)(f: Connection => A): A =
     val conn = ds.getConnection
