@@ -290,7 +290,8 @@ final class WizardEngine(
                   step.accept(StepInput.TextEntered(text), dataOf(session)) match
                     case Left(reason)   => reprompt(event, session, step, reason, None, tx)
                     case Right(through) => transition(event, principal, session, flow, through, None, tx)
-              case StepKind.Form(_, title, fields) =>
+              case StepKind.Form(_, titleOf, fieldsOf) =>
+                val (title, fields) = (titleOf(), fieldsOf())
                 tx.formRuns.loadForUpdate(session.id) match
                   case None      => inner.handle(event, principal, tx)
                   case Some(run) =>
@@ -637,7 +638,8 @@ final class WizardEngine(
           (List(Block.Choices(choices), navBlock(chat, accountId, sessionId, stepSeq, tx, !acceptsText)), Nil)
         case StepKind.Text =>
           (Nil, List(paragraph(WizardCopy.textNavHint)))
-        case StepKind.Form(formId, title, fields) =>
+        case StepKind.Form(formId, titleOf, fieldsOf) =>
+          val (title, fields) = (titleOf(), fieldsOf())
           val submit = mint(chat, accountId, sessionId, stepSeq, ConfirmAction, FormSubmitKey, tx)
           // A re-rendered form (e.g. `[Back]` from the next step) pre-fills the previous answers: the FormRunner
           // keeps them on an empty re-answer.

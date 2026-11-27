@@ -6,7 +6,9 @@ import dosegram.core.chat.MediatorFakes.*
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.IdentityCopy
+import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
+import dosegram.core.ports.ConsentPurpose
 import ox.Ox
 
 import java.nio.file.Files
@@ -79,8 +81,17 @@ class FirstFlowsSuite extends munit.FunSuite:
       val notice = rig.push(Inbound.ConversationStarted(None), localeHint = Some("uk"))
       val ukrainianNotice = Lang.within(Lang.Uk)(ConsentCopy.notice.head)
       assert(notice.exists(_.contains(ukrainianNotice)), s"the Ukrainian notice card: $notice")
-      (1 to 3).foreach(_ => rig.line("1", localeHint = Some("uk"))) // Ліки, Погоджуюся, Підтвердити
-      rig.line("13", localeHint = Some("uk"))
+      // The buttons too (walk-through of 2026-11-27: they were built once, in English, with the flow).
+      def uk(label: => String): String = Lang.within(Lang.Uk)(label)
+      def shows(lines: List[String], label: String): Boolean = lines.exists(_.contains(label))
+      assert(shows(notice, uk(ConsentCopy.onboardingLabel(ConsentPurpose.Medication))), s"domain buttons: $notice")
+      val agree = rig.line("1", localeHint = Some("uk"))
+      assert(shows(agree, uk(ConsentCopy.Agree)), s"stage 1 button: $agree")
+      val confirm = rig.line("1", localeHint = Some("uk"))
+      assert(shows(confirm, uk(ConsentCopy.Confirm)), s"stage 2 button: $confirm")
+      rig.line("1", localeHint = Some("uk"))
+      val zone = rig.line("13", localeHint = Some("uk"))
+      assert(shows(zone, uk(Labels.Yes)) && shows(zone, uk(Labels.Change)), s"zone buttons: $zone")
       val done = rig.line("1", localeHint = Some("uk"))
       assert(done.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.accountCreated))), s"got: $done")
       val account = rig.uow.accounts.all.head

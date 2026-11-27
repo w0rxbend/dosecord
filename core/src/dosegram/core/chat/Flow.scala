@@ -61,14 +61,21 @@ enum StepKind:
   case Text
 
   /** A form: the mediator FormRunner asks one field per message and yields one FormAnswered. Re-rendered with session
-    * data, the fields carry their previous answers as pre-filled values (M1.9 `[Back]` pre-fill).
+    * data, the fields carry their previous answers as pre-filled values (M1.9 `[Back]` pre-fill). The title and the
+    * fields are read at render time, in the reader's language.
     */
-  case Form(formId: String, title: String, fields: List[Field])
+  case Form(formId: String, title: () => String, fields: () => List[Field])
 
 object StepKind:
-  /** A static option list (the common case). */
-  def choices(options: List[(String, String)]): StepKind =
+  /** A static option list (the common case). The labels are read at render time, so they follow the reader's language
+    * (walk-through of 2026-11-27: a list built once with the flow showed English buttons to a Ukrainian reader).
+    */
+  def choices(options: => List[(String, String)]): StepKind =
     StepKind.Choices(_ => options)
+
+  /** A form whose title and fields are read at render time, like [[choices]]. */
+  def form(formId: String, title: => String, fields: => List[Field]): StepKind =
+    StepKind.Form(formId, () => title, () => fields)
 
 final case class Step(
     id: String,

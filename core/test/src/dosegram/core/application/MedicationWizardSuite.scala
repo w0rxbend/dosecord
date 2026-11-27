@@ -96,11 +96,11 @@ class MedicationWizardSuite extends munit.FunSuite:
       rig.line("/menu")
       rig.line("2")
       rig.line("2") // Add medication: the form step's first question is out
-      assert(rig.lastChunks.exists(_.contains("question 1 of 2")), s"form question out: ${rig.lastChunks}")
+      assert(rig.lastChunks.exists(_.contains("(1/2)")), s"form question out: ${rig.lastChunks}")
 
       val restarted = rig.restartEngine()
       assertEquals(restarted.resumePending(), 1, "the stored form prompt is re-sent")
-      assert(rig.lastChunks.exists(_.contains("question 1 of 2")), "the re-sent prompt is the form's")
+      assert(rig.lastChunks.exists(_.contains("(1/2)")), "the re-sent prompt is the form's")
 
       // The flow completes after the restart.
       rig.line("Vitamin D")
@@ -207,7 +207,7 @@ class MedicationWizardSuite extends munit.FunSuite:
         form.fields.map(f => f.key -> f.value),
         List("name" -> Some("Vitamin D"), "dose" -> Some("1000 IU"))
       )
-      assert(rig.lastChunks.exists(_.contains("[current: Vitamin D]")), s"the current value is shown: ${rig.lastChunks}")
+      assert(rig.lastChunks.exists(_.contains("[Vitamin D]")), s"the current value is shown: ${rig.lastChunks}")
       // Re-answering with the same values lands back on the days step with the data intact.
       rig.line("Vitamin D")
       rig.line("1000 IU")

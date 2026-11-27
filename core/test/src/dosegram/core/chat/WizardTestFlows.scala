@@ -67,7 +67,7 @@ object WizardTestFlows:
     steps = Map(
       "details" -> Step(
         id = "details",
-        kind = StepKind.Form("details-form", "Details", formFields),
+        kind = StepKind.form("details-form", "Details", formFields),
         render = _ => List(paragraph("Fill in the details.")),
         accept = {
           case (StepInput.FormAnswered(fields), _) =>

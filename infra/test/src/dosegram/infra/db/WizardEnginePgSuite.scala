@@ -92,7 +92,7 @@ class WizardEnginePgSuite extends PgSuite:
     steps = Map(
       "details" -> Step(
         id = "details",
-        kind = StepKind.Form("details-form", "Details", formFields),
+        kind = StepKind.form("details-form", "Details", formFields),
         render = _ => List(paragraph("Fill in the details.")),
         accept = {
           case (StepInput.FormAnswered(fields), _) =>
@@ -350,12 +350,12 @@ class WizardEnginePgSuite extends PgSuite:
 
       m.push(command("form"))
       await(sendsOf(rig.adapter).size == 1, "the form prompt asks question 1")
-      assert(sendsOf(rig.adapter).last.message.chunks.exists(_.contains("question 1 of 2")))
+      assert(sendsOf(rig.adapter).last.message.chunks.exists(_.contains("(1/2)")))
       assertEquals(countSql("SELECT count(*) FROM form_runs"), 1L, "one form run started")
 
       m.push(message("1"))
       await(sendsOf(rig.adapter).size == 2, "question 2")
-      assert(sendsOf(rig.adapter).last.message.chunks.exists(_.contains("question 2 of 2")))
+      assert(sendsOf(rig.adapter).last.message.chunks.exists(_.contains("(2/2)")))
 
       m.push(message("2"))
       await(sendsOf(rig.adapter).size == 3, "the flow advanced past the form step")

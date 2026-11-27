@@ -179,7 +179,7 @@ object AddMedicationFlow:
     steps = Map(
       "form" -> Step(
         id = "form",
-        kind = StepKind.Form(formId, WizardCopy.addMedicationTitle, formFields),
+        kind = StepKind.form(formId, WizardCopy.addMedicationTitle, formFields),
         render = _ => List(paragraph(WizardCopy.addMedicationIntro)),
         accept = {
           case (StepInput.FormAnswered(fields), _) =>

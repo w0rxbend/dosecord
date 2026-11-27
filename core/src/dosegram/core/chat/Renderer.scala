@@ -150,13 +150,14 @@ object Renderer:
   def formQuestionNodes(title: String, fields: List[Field], index: Int, current: Option[String] = None): List[Node] =
     val field = fields(index)
     val hint = field.placeholder.map(p => s" ($p)").getOrElse("")
-    val currentText = current.filter(_.nonEmpty).map(v => s" [current: $v]").getOrElse("")
+    // No words of a language here: the reply is rendered after the handler, outside the reader's language.
+    val currentText = current.filter(_.nonEmpty).map(v => s" [$v]").getOrElse("")
     val options =
       if field.options.nonEmpty then
         " " + field.options.zipWithIndex.map((o, i) => s"${i + 1}) ${o.label}").mkString(" ")
       else ""
     List(
-      Node.Paragraph(List(Inline.Text(s"$title — question ${index + 1} of ${fields.size}:"))),
+      Node.Paragraph(List(Inline.Text(s"$title (${index + 1}/${fields.size})"))),
       Node.Paragraph(List(Inline.Text(s"${field.label}$hint$currentText$options")))
     )
 

@@ -190,10 +190,10 @@ class WizardEngineSuite extends munit.FunSuite:
 
     val q1 = h.message("")
     assert(h.bodyText(q1).contains(WizardCopy.fieldRequired), s"blank required answer: ${h.bodyText(q1)}")
-    assert(h.bodyText(q1).contains("question 1 of 2"), "the same field is re-asked")
+    assert(h.bodyText(q1).contains("(1/2)"), "the same field is re-asked")
 
     val q2 = h.message("1")
-    assert(h.bodyText(q2).contains("question 2 of 2"), s"next question: ${h.bodyText(q2)}")
+    assert(h.bodyText(q2).contains("(2/2)"), s"next question: ${h.bodyText(q2)}")
     assertEquals(h.uow.formRuns.all.head.fieldIndex, 1)
 
     h.message("2")
