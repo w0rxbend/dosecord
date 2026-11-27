@@ -162,8 +162,8 @@ class CaptureFlowsSuite extends munit.FunSuite:
   /** The tables behind the rig's transaction, as the tests inspect them. */
   private final class World(val tracking: InMemoryTracking, val consents: InMemoryConsentLedger)
 
-  private def parts(uow: UnitOfWork, cards: StatusCards)(clock: Clock): CaptureParts =
-    CaptureParts.over(uow, clock, SequentialIds(), cards)
+  private def parts(uow: UnitOfWork, cards: StatusCards, appOpens: Boolean = true)(clock: Clock): CaptureParts =
+    CaptureParts.over(uow, clock, SequentialIds(), cards).copy(appOpens = appOpens)
 
   private final class Chat(val rig: MedicationWizardRig, val world: World, val account: UUID):
     def grant(purposes: ConsentPurpose*): Unit =
@@ -171,12 +171,14 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
     def liveWater: List[Int] = world.tracking.entries.values.filter(_.isLive).map(_.amount.millilitres).toList
 
-  private def withChat(profile: Profile, cards: StatusCards = RecordingCards())(test: Chat => Unit): Unit =
+  private def withChat(profile: Profile, cards: StatusCards = RecordingCards(), appOpens: Boolean = true)(
+      test: Chat => Unit
+  ): Unit =
     val drawing = cards match
       case recording: RecordingCards => recording
       case _                         => CardDrawing.unavailable
     ox.supervised:
-      val rig = MedicationWizardRig(profile, captureParts = Some(uow => parts(uow, cards)), drawing = drawing)
+      val rig = MedicationWizardRig(profile, captureParts = Some(uow => parts(uow, cards, appOpens)), drawing = drawing)
       val account = rig.seedAccount(consents = Nil)
       test(Chat(rig, World(rig.uow.tracking, rig.uow.consents), account))
 
@@ -567,6 +569,16 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(chat.world.tracking.sleep.live.map(_.quality.map(_.step)), List(Some(4)))
       assertEquals(chat.rig.command("sleep"), List(night))
 
+  test("a late Undo on a night points to the app, or to Adjust times when no app opens (MINI_APP_URL unset)"):
+    for (appOpens, expected) <- List(true -> SleepCopy.undoWindowPassed, false -> SleepCopy.undoWindowPassedInChat) do
+      withChat(Profile.Telegram, appOpens = appOpens): chat =>
+        chat.grant(ConsentPurpose.Sleep)
+        chat.rig.line("slept 23:30 7:10")
+        val (_, undo) = chat.rig.controlOn("Slept 23:30 to 07:10", "Undo")
+        chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofMinutes(16))
+        assertEquals(chat.rig.tap(undo), List(expected))
+        assertEquals(chat.world.tracking.sleep.live.size, 1)
+
   test("Adjust times moves each edge by 15 minutes, stores nothing until Save, and keeps the rating (BUX-SLEEP-04)"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Sleep)
@@ -860,6 +872,16 @@ class CaptureFlowsSuite extends munit.FunSuite:
       val undone = chat.rig.tapOn(FoodCopy.saved(MealType.Snack, "03:00", withNote = true), "Undo")
       assertEquals(texts(undone), List(FoodCopy.undone))
       assertEquals(liveMeals(chat), Nil)
+
+  test("a late Undo on a meal points to the app, or to /privacy when no app opens (MINI_APP_URL unset)"):
+    for (appOpens, expected) <- List(true -> FoodCopy.undoWindowPassed, false -> FoodCopy.undoWindowPassedInChat) do
+      withChat(Profile.Telegram, appOpens = appOpens): chat =>
+        chat.grant(ConsentPurpose.Nutrition)
+        chat.rig.line("snack: apple")
+        val (_, undo) = chat.rig.controlOn(FoodCopy.saved(MealType.Snack, "03:00", withNote = true), "Undo")
+        chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofMinutes(16))
+        assertEquals(chat.rig.tap(undo), List(expected))
+        assertEquals(liveMeals(chat).size, 1)
 
   test("/food lists the meals logged today above the buttons"):
     withChat(Profile.Telegram): chat =>

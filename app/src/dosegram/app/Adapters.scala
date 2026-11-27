@@ -62,7 +62,7 @@ object Adapters:
     val codec = CallbackCodec(settings.callbackKeys)
     val capture = CaptureParts
       .over(uow, parts.clock, IdSource.uuidV7(SecureRandom()), parts.images.cards)
-      .copy(purgeList = FilePurgeList(Path.of(settings.purgeListPath)))
+      .copy(purgeList = FilePurgeList(Path.of(settings.purgeListPath)), appOpens = settings.miniAppUrl.isDefined)
     val mediator = ChatMediator(
       uow,
       adapters,

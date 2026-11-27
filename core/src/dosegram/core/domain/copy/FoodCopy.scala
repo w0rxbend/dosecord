@@ -31,6 +31,12 @@ object FoodCopy:
     "This can no longer be undone here. Change it in the app.",
     "Тут це вже не скасувати. Змініть запис у застосунку."
   )
+
+  /** The late Undo without an app to open (MINI_APP_URL unset): the chat's own way, deleting the domain's records. */
+  def undoWindowPassedInChat = tr(
+    "This can no longer be undone. All meal records can be deleted with /privacy.",
+    "Це вже не скасувати. Усі записи про їжу можна видалити через /privacy."
+  )
   def noneToday = tr("No meal logged today.", "Сьогодні прийомів їжі не записано.")
   def EditInApp = tr("Edit in app", "Змінити в застосунку")
   def ShowAsImage = tr("Show as image", "Показати як зображення")
@@ -146,6 +152,7 @@ object FoodCopy:
       CopyEntry("food.undone", undone),
       CopyEntry("food.unknown", unknown),
       CopyEntry("food.undo_window_passed", undoWindowPassed),
+      CopyEntry("food.undo_window_passed.chat", undoWindowPassedInChat),
       CopyEntry("food.none_today", noneToday),
       CopyEntry("food.today", today(List(MealType.Breakfast -> "08:10", MealType.Lunch -> "13:05"))),
       CopyEntry("food.too_long", tooLong(300)),

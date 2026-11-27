@@ -48,7 +48,8 @@ private[capture] final class SleepChat(
     cards: StatusCards,
     delivery: CardDelivery,
     clock: Clock,
-    tokens: Tokens
+    tokens: Tokens,
+    appOpens: Boolean
 ):
 
   /** Where sleep stands: the open nap or night, or the latest night, and the buttons that fit. */
@@ -208,8 +209,9 @@ private[capture] final class SleepChat(
 
   private def refusalText(refusal: SleepRefusal): String =
     refusal match
-      case SleepRefusal.UnknownEpisode | SleepRefusal.UnknownCheckin      => SleepCopy.unknown
-      case SleepRefusal.UndoWindowPassed                                  => SleepCopy.undoWindowPassed
+      case SleepRefusal.UnknownEpisode | SleepRefusal.UnknownCheckin => SleepCopy.unknown
+      case SleepRefusal.UndoWindowPassed                             =>
+        if appOpens then SleepCopy.undoWindowPassed else SleepCopy.undoWindowPassedInChat
       case SleepRefusal.Overlaps(_)                                       => SleepCopy.overlaps
       case SleepRefusal.NightExists(_)                                    => SleepCopy.nightExists
       case SleepRefusal.Invalid(SleepInvalid.TooShort(SleepKind.Main, _)) => SleepCopy.tooShort

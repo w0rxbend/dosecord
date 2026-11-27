@@ -59,9 +59,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val mood = MoodChat(parts.mood, parts.cards, parts.delivery, clock, tokens)
   private val share = ShareChat(parts, tokens)
   private val stats = StatsChat(parts, tokens, share)
-  private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens)
+  private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
-  private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens)
+  private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val imports = ImportChat(tokens)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =

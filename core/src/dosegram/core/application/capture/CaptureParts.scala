@@ -18,8 +18,10 @@ import dosegram.core.scheduling.ScheduleLifecycle
 /** What the capture flows of the chat are assembled from: the use cases of the tracking domains, the status images and
   * their delivery through the report queue (ROADMAP G4.3). The consent ledger that gates them is on the transaction;
   * `withdrawal` is what ends with the medication consent. `purgeList` is where a deleted account is listed outside the
-  * database (ROADMAP G2.17); without one an account deletion fails and deletes nothing. The composition root builds one
-  * and hands it to [[dosegram.core.application.Application.withCapture]].
+  * database (ROADMAP G2.17); without one an account deletion fails and deletes nothing. `appOpens` is whether an app
+  * button opens the Mini App (its address is set); without it the chat names its own way instead of the app (finding 3
+  * of the verification of 2026-11-27). The composition root builds one and hands it to
+  * [[dosegram.core.application.Application.withCapture]].
   */
 final case class CaptureParts(
     hydration: HydrationService,
@@ -30,7 +32,8 @@ final case class CaptureParts(
     withdrawal: MedicationWithdrawal,
     nutrition: NutritionService,
     delivery: CardDelivery,
-    purgeList: PurgeList = CaptureParts.NoPurgeList
+    purgeList: PurgeList = CaptureParts.NoPurgeList,
+    appOpens: Boolean = true
 )
 
 object CaptureParts:

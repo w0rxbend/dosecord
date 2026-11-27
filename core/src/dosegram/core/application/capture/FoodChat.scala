@@ -34,7 +34,8 @@ private[capture] final class FoodChat(
     cards: StatusCards,
     delivery: CardDelivery,
     clock: Clock,
-    tokens: Tokens
+    tokens: Tokens,
+    appOpens: Boolean
 ):
 
   /** The meals logged today and the four meal buttons, the one that fits the time of day marked; with a meal logged,
@@ -118,7 +119,8 @@ private[capture] final class FoodChat(
   private def refusalText(refusal: MealRefusal): String =
     refusal match
       case MealRefusal.UnknownMeal      => FoodCopy.unknown
-      case MealRefusal.UndoWindowPassed => FoodCopy.undoWindowPassed
+      case MealRefusal.UndoWindowPassed =>
+        if appOpens then FoodCopy.undoWindowPassed else FoodCopy.undoWindowPassedInChat
       // The consent was withdrawn, or the account is gone, after the button was sent; the chat never sets a time.
       case MealRefusal.ConsentMissing | MealRefusal.UnknownAccount | MealRefusal.InFuture =>
         ReminderCopy.staleControlToast

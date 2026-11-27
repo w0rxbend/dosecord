@@ -1465,6 +1465,8 @@ Images in chat: on
 | BUX-UNDO-05 | Actions without undo are stated as such before they run: account deletion (unless the user chose the 7-day delay, research 06 section 9.3), deletion of a domain's data, and withdrawal of consent with deletion. Their confirmation buttons name the action. |
 | BUX-UNDO-06 | Entries older than 15 minutes are changed with "Edit entry" from `/history` (last 7 days) or in the Mini App (any date). Edits are appended as new revisions. |
 
+Supervisor decision, 2026-11-27 (BUX-UNDO-04 for a meal or a night while no Mini App opens; finding 3 of that day's verification): a late Undo on a meal or a night says "Change it in the app" only when `MINI_APP_URL` is set. Without it the toast names the chat's own way: for a night, "Adjust times" on the same card (`sleep.undo_window_passed.chat`); for a meal, which has no edit in the chat, deleting the meal records with `/privacy` (`food.undo_window_passed.chat`).
+
 ### 18.2 The `/undo` command
 
 `/undo` finds the user's most recent undoable action inside the 15-minute window and asks before acting, because the command has no visible referent (C16):

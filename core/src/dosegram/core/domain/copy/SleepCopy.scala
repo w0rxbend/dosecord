@@ -47,6 +47,12 @@ object SleepCopy:
     "This can no longer be undone here. Change it in the app.",
     "Тут це вже не скасувати. Змініть запис у застосунку."
   )
+
+  /** The late Undo without an app to open (MINI_APP_URL unset): "Adjust times" sits beside Undo on the same card. */
+  def undoWindowPassedInChat = tr(
+    s"This can no longer be undone. To change the times, tap $AdjustTimes.",
+    s"Це вже не скасувати. Щоб змінити час, натисніть «$AdjustTimes»."
+  )
   def overlaps = tr(
     "This overlaps a night or nap you already logged. Change that one in the app.",
     "Цей час перетинається з уже записаною ніччю чи денним сном. Змініть той запис у застосунку."
@@ -120,6 +126,7 @@ object SleepCopy:
       CopyEntry("sleep.night.undone", startUndone),
       CopyEntry("sleep.unknown", unknown),
       CopyEntry("sleep.undo_window_passed", undoWindowPassed),
+      CopyEntry("sleep.undo_window_passed.chat", undoWindowPassedInChat),
       CopyEntry("sleep.overlap", overlaps),
       CopyEntry("sleep.night_exists", nightExists),
       CopyEntry("sleep.invalid", invalid),
