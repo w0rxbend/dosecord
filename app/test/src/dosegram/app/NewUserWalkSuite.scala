@@ -448,6 +448,11 @@ class NewUserWalkSuite extends PgSuite:
     val english = EnglishOnly.filter(shown)
     assertEquals(english, Set.empty[String], "English buttons in the Ukrainian walk")
     assert(!lines.exists(_.contains("question 1 of")), "an English form heading in the Ukrainian walk")
+    // Leftover 2 of the verification of 2026-11-28: the wizard's summary reads the dose through the unit catalogue, as
+    // /meds does.
+    val said = lines.filter(_.startsWith("      | "))
+    assert(!said.exists(_.contains("Vitamin D 1000 IU,")), "the wizard's summary with the English unit")
+    assert(said.exists(_.contains("Vitamin D 1000 МО,")), "the wizard's summary in the Ukrainian unit")
 
   test("a new English-speaking user's first day in the chat"):
     val zone = ZoneId.of("Europe/London")

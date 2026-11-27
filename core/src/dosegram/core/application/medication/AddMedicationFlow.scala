@@ -14,6 +14,7 @@ import dosegram.core.domain.ReminderPolicy
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.domain.copy.DoseUnits
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.InputCopy
 import dosegram.core.domain.copy.Labels
@@ -385,9 +386,20 @@ object AddMedicationFlow:
       else Nil
     primary ++ changeDays ++ List(ChangeTimezoneKey -> WizardCopy.changeTimezoneLabel)
 
+  /** The typed dose as `/meds` shows it once saved: the amount and the unit through the unit catalogue, so a Ukrainian
+    * summary reads "1000 МО" where the user typed "1000 IU" (leftover 2 of the verification of 2026-11-28).
+    */
+  private def shownDose(data: Map[String, String]): Option[String] =
+    data
+      .get(DoseKey)
+      .filter(_.nonEmpty)
+      .map: typed =>
+        val (amount, unit) = parseDose(typed)
+        DoseUnits.doseText(amount, unit).getOrElse(typed)
+
   private def confirmRender(data: Map[String, String]): RichText =
     val name = data.getOrElse(NameKey, "")
-    val dose = data.get(DoseKey).filter(_.nonEmpty)
+    val dose = shownDose(data)
     val zone = data.getOrElse(TimezoneKey, "UTC")
     val offer = data.get(ExistingKey).filter(_.nonEmpty).map(_ => WizardCopy.offerUpdate(name)).toList
     val preview =
@@ -405,7 +417,7 @@ object AddMedicationFlow:
 
   private def timesCard(data: Map[String, String], offer: List[String], preview: Option[String]): RichText =
     val name = data.getOrElse(NameKey, "")
-    val dose = data.get(DoseKey).filter(_.nonEmpty)
+    val dose = shownDose(data)
     val times = data.getOrElse(TimesKey, "")
     val zone = data.getOrElse(TimezoneKey, "UTC")
     if times.isEmpty then
