@@ -112,6 +112,15 @@ object InsightCopy:
           s"У робочі дні (${UkNouns.Days.count(first.days)}) ваш середній настрій був ${meanWithLevel(first.mean)}. " +
             s"У вихідні (${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
         )
+      case InsightRule.PlannedMealsAndMood =>
+        tr(
+          s"On the ${first.days} days you logged every meal you planned, your average mood was " +
+            s"${meanWithLevel(first.mean)}. On the ${second.days} other days with a meal logged it was " +
+            s"${meanWithLevel(second.mean)}.",
+          s"У дні, коли ви записали всі заплановані прийоми їжі (${UkNouns.Days.count(first.days)}), ваш середній " +
+            s"настрій був ${meanWithLevel(first.mean)}. В інші дні із записаною їжею " +
+            s"(${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
+        )
 
   /** What a rule pairs, for the line that says how many days it still needs. */
   def recordsOf(rule: InsightRule): String =
@@ -124,19 +133,23 @@ object InsightCopy:
         )
       case InsightRule.BedtimeAndMood =>
         tr("both a night and a mood check-in", "і записаною ніччю, і позначкою настрою")
-      case InsightRule.WorkDaysAndSleep => tr("a night recorded", "записаною ніччю")
-      case InsightRule.WorkDaysAndWater => tr("water recorded", "записом води")
-      case InsightRule.WorkDaysAndMood  => tr("a mood check-in", "позначкою настрою")
+      case InsightRule.WorkDaysAndSleep    => tr("a night recorded", "записаною ніччю")
+      case InsightRule.WorkDaysAndWater    => tr("water recorded", "записом води")
+      case InsightRule.WorkDaysAndMood     => tr("a mood check-in", "позначкою настрою")
+      case InsightRule.PlannedMealsAndMood =>
+        tr("both a meal logged and a mood check-in", "і записаною їжею, і позначкою настрою")
 
   /** The short name of a rule in the list of rules that are close to their data. */
   def topic(rule: InsightRule): String =
     rule match
-      case InsightRule.WaterGoalAndMood => tr("Water goal and mood", "Ціль щодо води й настрій")
-      case InsightRule.SleepGoalAndMood => tr("Sleep goal and mood", "Ціль сну й настрій")
-      case InsightRule.BedtimeAndMood   => tr("Bedtime and mood", "Час відходу до сну й настрій")
-      case InsightRule.WorkDaysAndSleep => tr("Work days and sleep", "Робочі дні й сон")
-      case InsightRule.WorkDaysAndWater => tr("Work days and water", "Робочі дні й вода")
-      case InsightRule.WorkDaysAndMood  => tr("Work days and mood", "Робочі дні й настрій")
+      case InsightRule.WaterGoalAndMood    => tr("Water goal and mood", "Ціль щодо води й настрій")
+      case InsightRule.SleepGoalAndMood    => tr("Sleep goal and mood", "Ціль сну й настрій")
+      case InsightRule.BedtimeAndMood      => tr("Bedtime and mood", "Час відходу до сну й настрій")
+      case InsightRule.WorkDaysAndSleep    => tr("Work days and sleep", "Робочі дні й сон")
+      case InsightRule.WorkDaysAndWater    => tr("Work days and water", "Робочі дні й вода")
+      case InsightRule.WorkDaysAndMood     => tr("Work days and mood", "Робочі дні й настрій")
+      case InsightRule.PlannedMealsAndMood =>
+        tr("Planned meals and mood", "Заплановані прийоми їжі й настрій")
 
   def slotName(slot: DoseSlot): String =
     slot match
@@ -354,6 +367,7 @@ object InsightCopy:
         CopyEntry("insight.ir06.sleep", shown(InsightRule.WorkDaysAndSleep, 410, 470)),
         CopyEntry("insight.ir06.water", shown(InsightRule.WorkDaysAndWater, 2100, 1600)),
         CopyEntry("insight.ir06.mood", shown(InsightRule.WorkDaysAndMood, 3.2, 3.9)),
+        CopyEntry("insight.ir05", shown(InsightRule.PlannedMealsAndMood, 3.8, 3.3)),
         CopyEntry("insight.ir07", timingSample),
         CopyEntry("insight.gap.days", gap(InsightGap.Pattern(InsightRule.SleepGoalAndMood, 4, inSmallerGroup = false))),
         CopyEntry("insight.gap.group", gap(InsightGap.Pattern(InsightRule.WorkDaysAndMood, 2, inSmallerGroup = true))),

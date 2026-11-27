@@ -1,0 +1,5 @@
+file: dosegram-year.png
+spoiler: true
+caption: Your year in records.
+alt: 2026, your year in records, 1 Jan to 12 Nov. 288 of 316 days have a record. Water: 205 days (Mar 24, Apr 24, May 25, Jun 24, Jul 25, Aug 25, Sep 24, Oct 25, Nov 9). Food: 119 days (Jun 22, Jul 23, Aug 21, Sep 22, Oct 22, Nov 9). Sleep: 211 nights (Jan 21, Feb 19, Mar 20, Apr 20, May 21, Jun 20, Jul 21, Aug 20, Sep 20, Oct 21, Nov 8). Mood: 36 check-in days (Sep 15, Oct 15, Nov 6).
+full: 2026, your year in records, 1 Jan to 12 Nov. 288 of 316 days have a record. Water: 205 days (Mar 24, Apr 24, May 25, Jun 24, Jul 25, Aug 25, Sep 24, Oct 25, Nov 9). Food: 119 days (Jun 22, Jul 23, Aug 21, Sep 22, Oct 22, Nov 9). Sleep: 211 nights (Jan 21, Feb 19, Mar 20, Apr 20, May 21, Jun 20, Jul 21, Aug 20, Sep 20, Oct 21, Nov 8). Mood: 36 check-in days (Sep 15, Oct 15, Nov 6).

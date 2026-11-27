@@ -310,7 +310,11 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         442 -> "stats.meds",
         443 -> "stats.meds_image",
         // Image round 5 (supervisor decision, 2026-11-28).
-        474 -> "mood.history_image"
+        474 -> "mood.history_image",
+        // Analytics round 6 (supervisor decision, 2026-11-28).
+        505 -> "stats.year",
+        506 -> "stats.year_image",
+        507 -> "whatsnew.switch"
       )
     )
 

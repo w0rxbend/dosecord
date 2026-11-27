@@ -51,4 +51,24 @@ class InsightCopySuite extends munit.FunSuite:
     val gate = MonthCopy.entries.find(_.id == "stats.month.gate").get.text
     assert(gate.contains(MonthCopy.gateTitle), gate)
     assert(!gate.contains("%"), gate)
+
+  test("the year text shows each month's figure from 14 days, the days in brackets below, and the year before"):
+    val year = YearCopy.entries.find(_.id == "stats.year").get.text.linesIterator.toList
+    assertEquals(
+      year,
+      List(
+        "2026 · Europe/Kyiv",
+        "Days with records: 245 of 312",
+        YearCopy.gateNote,
+        "Doses taken of those answered: Mar 87% · Apr 90% · May 90% · Jun 90% · Jul 90% · Aug 90% · Sep 90% · Oct 92% · Nov —",
+        "2026: 90% (240 days)",
+        "Water, a day with records: Mar 1.7 l · Apr 1.8 l · May 1.9 l · Jun 2.0 l · Jul 2.0 l · Aug 2.1 l · Sep 2.2 l · Oct (13) · Nov —",
+        "2026: 2.0 l (120 days) · 2025: 1.8 l (60 days)",
+        // Twelve days of mood: the month and the year are under their gates, so no figure and no year line.
+        "Mood, average of the days with a check-in: Oct (12) · Nov —",
+        "Sleep, a night with records: Mar 7 h 05 min · Apr 7 h 08 min · May 7 h 11 min · Jun 7 h 14 min · Jul 7 h 07 min · Aug 7 h 07 min · Sep 7 h 22 min · Oct — · Nov —",
+        "2026: 7 h 10 min (200 nights)"
+      )
+    )
+
 end InsightCopySuite

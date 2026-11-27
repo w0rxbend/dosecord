@@ -1,5 +1,7 @@
 package dosegram.core.domain.insights
 
+import dosegram.core.domain.nutrition.MealPlan
+
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -7,7 +9,7 @@ import java.time.LocalDate
   * user's own work days. `Medication` is read by the single-domain timing statement IR-07 only.
   */
 enum InsightSource:
-  case Hydration, Mood, Sleep, Calendar, Medication
+  case Hydration, Mood, Sleep, Calendar, Medication, Nutrition
 
 /** A measure a comparison rule may read, with the source it comes from. No medication measure is in this list, and none
   * may be added: taken, skipped, missed, timing, punctuality and as-needed logs are excluded from both sides of every
@@ -21,6 +23,9 @@ enum InsightVariable(val source: InsightSource):
   case WorkDay extends InsightVariable(InsightSource.Calendar)
   case SleepDuration extends InsightVariable(InsightSource.Sleep)
   case WaterVolume extends InsightVariable(InsightSource.Hydration)
+
+  /** IR-05: every main meal of the user's own plan has an entry that day. A count of logging, never an amount. */
+  case AllPlannedMealsLogged extends InsightVariable(InsightSource.Nutrition)
 
 /** The unit of a rule's outcome, which decides how its values are worded. */
 enum OutcomeUnit:
@@ -58,6 +63,12 @@ enum InsightRule(
 
   /** IR-06: the user's work days against free days; the day's mood mean. */
   case WorkDaysAndMood extends InsightRule("IR-06", InsightVariable.WorkDay, InsightVariable.DailyMoodMean, 0.3)
+
+  /** IR-05: days with every planned main meal logged against the other days with a meal logged; the day's mood mean.
+    * Supervisor decision, 2026-11-28: the energy outcome of the rule table waits for a recorded energy mean per day.
+    */
+  case PlannedMealsAndMood
+      extends InsightRule("IR-05", InsightVariable.AllPlannedMealsLogged, InsightVariable.DailyMoodMean, 0.3)
 
   def unit: OutcomeUnit =
     outcome match
@@ -122,6 +133,8 @@ object Comparisons:
         in.hydration.map(days => workDayPairs(days.view.mapValues(_.totalMl.toDouble).toMap, in.workDays, window))
       case InsightRule.WorkDaysAndMood =>
         in.mood.map(days => workDayPairs(days.view.mapValues(_.mean).toMap, in.workDays, window))
+      case InsightRule.PlannedMealsAndMood =>
+        for meals <- in.meals; mood <- in.mood yield plannedMealPairs(meals, mood, in.mealPlan, window)
 
   private def waterGoalPairs(
       hydration: Map[LocalDate, HydrationDay],
@@ -163,6 +176,23 @@ object Comparisons:
         (date, night) <- steady
         checkins <- mood.get(date)
       yield PairedDay(date, clockDistance(night.bedtimeMinute, median) <= BedtimeBandMinutes, checkins.mean)
+
+  /** IR-05. Only a day with a meal entry and a check-in is paired: a day with nothing logged is no record, never a day
+    * of fewer meals (VA-PR-03). Without a planned main meal no day is paired.
+    */
+  private def plannedMealPairs(
+      meals: Map[LocalDate, MealDay],
+      mood: Map[LocalDate, MoodDay],
+      plan: MealPlan,
+      window: DateRange
+  ): List[PairedDay] =
+    if plan.planned.isEmpty then Nil
+    else
+      for
+        date <- window.dates
+        day <- meals.get(date).filter(_.meals > 0)
+        checkins <- mood.get(date)
+      yield PairedDay(date, plan.planned.forall(day.logged), checkins.mean)
 
   /** IR-06: a recorded day is a work day or a free day of the user's own week; for sleep, the sleep day. */
   private def workDayPairs(

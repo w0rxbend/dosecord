@@ -13,6 +13,7 @@ import dosegram.core.domain.insights.HighlightDomain
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
+import dosegram.core.domain.insights.YearFigures
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
@@ -88,6 +89,7 @@ import dosegram.render.card.WeekCard
 import dosegram.render.card.WeekGlanceCard
 import dosegram.render.card.WeekHighlightsCard
 import dosegram.render.card.WeekHighlightsData
+import dosegram.render.card.YearCard
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.EnglishImageCopy
 import dosegram.render.copy.UkrainianImageCopy
@@ -228,6 +230,10 @@ final class RenderedStatusCards extends StatusCards:
   /** IMG-24: the month in one image, when the account shows water, food, sleep or mood. */
   override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
     ReportCards.monthPoster(view.figures).map(data => page(look)(MonthPosterCard.render(data, contextOf(look))))
+
+  /** IMG-30 (analytics round 6): the one-year card, when water, food, sleep or mood has a record in the year. */
+  override def year(view: YearFigures, look: CardLook): Option[CardPage] =
+    ReportCards.year(view).map(data => page(look)(YearCard.render(data, contextOf(look))))
 
   override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
     ReportCards.insight(view).map(data => page(look)(InsightCard.render(data, contextOf(look))))

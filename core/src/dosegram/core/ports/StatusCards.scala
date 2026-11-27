@@ -9,6 +9,7 @@ import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
+import dosegram.core.domain.insights.YearFigures
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
@@ -191,6 +192,9 @@ trait StatusCards:
 
   /** IMG-24, the month in one image, sent after the pages of IMG-05; `None` when no area it draws is shown. */
   def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-30, the one-year card of `/stats year`; `None` when no area it draws has a record in the year. */
+  def year(view: YearFigures, look: CardLook): Option[CardPage] = None
 
   /** IMG-13: one comparison the insight engine passed; `None` for a rule the card cannot draw. */
   def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] = None

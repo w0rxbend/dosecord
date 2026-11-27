@@ -2,6 +2,7 @@ package dosegram.core.domain.insights
 
 import dosegram.core.domain.Adherence
 import dosegram.core.domain.AdherenceInput
+import dosegram.core.domain.nutrition.MealPlan
 
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -211,7 +212,8 @@ enum InsightGap:
   case Baseline(metric: BaselineMetric, missing: Int, weeks: Boolean)
 
 /** What the engine read for one account. A source the user did not consent to is `None` and no rule reads it;
-  * `crossDomain` is the `cross_domain_patterns` consent. `today` is the account's current local day.
+  * `crossDomain` is the `cross_domain_patterns` consent. `today` is the account's current local day. `mealPlan` is the
+  * user's own plan, which IR-05 reads with the meal days.
   */
 final case class InsightInputs(
     today: LocalDate,
@@ -222,7 +224,9 @@ final case class InsightInputs(
     nights: Option[Map[LocalDate, NightFacts]],
     doses: Option[List[AdherenceInput]],
     workDays: Set[DayOfWeek],
-    crossDomain: Boolean
+    crossDomain: Boolean,
+    meals: Option[Map[LocalDate, MealDay]] = None,
+    mealPlan: MealPlan = MealPlan.Default
 )
 
 /** The current insights of an account: the passing rules in rank order, at most five, and the rules close to their

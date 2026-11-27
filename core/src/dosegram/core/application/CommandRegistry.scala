@@ -191,8 +191,18 @@ object CommandRegistry:
     description = "Change the language."
   )
 
+  /** `/whatsnew` (supervisor decision, 2026-11-28; BOT_UX section 6.5): hidden, and declared so the mediator
+    * acknowledges it.
+    */
+  val WhatsNew: CommandSpec = CommandSpec(
+    name = "whatsnew",
+    description = "Show what the latest update added."
+  )
+
   val withCaptureByName: Map[String, CommandSpec] =
-    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export :+ Import :+ Language).map(spec => spec.name -> spec).toMap
+    (withCapture :+ Reminders :+ Meal :+ Insights :+ Export :+ Import :+ Language :+ WhatsNew)
+      .map(spec => spec.name -> spec)
+      .toMap
 
   /** `/snooze <minutes>` — usage from the spec's args so help cannot drift from the registry. */
   def usage(spec: CommandSpec): String =

@@ -2,6 +2,8 @@ package dosegram.core.domain.insights
 
 import dosegram.core.domain.AdherenceInput
 import dosegram.core.domain.OccurrenceStatus
+import dosegram.core.domain.nutrition.MealPlan
+import dosegram.core.domain.nutrition.MealType
 import dosegram.core.domain.sleep.SleepGoalChange
 
 import java.time.DayOfWeek
@@ -30,9 +32,11 @@ class InsightEngineSuite extends munit.FunSuite:
       mood: Option[Map[LocalDate, MoodDay]] = None,
       nights: Option[Map[LocalDate, NightFacts]] = None,
       doses: Option[List[AdherenceInput]] = None,
-      crossDomain: Boolean = true
+      crossDomain: Boolean = true,
+      meals: Option[Map[LocalDate, MealDay]] = None,
+      plan: MealPlan = MealPlan.Default
   ): InsightInputs =
-    InsightInputs(today, window, zone, hydration, mood, nights, doses, weekdays, crossDomain)
+    InsightInputs(today, window, zone, hydration, mood, nights, doses, weekdays, crossDomain, meals, plan)
 
   private def pairs(rule: InsightRule, nights: Map[LocalDate, NightFacts], mood: Map[LocalDate, MoodDay]) =
     Comparisons.pairedDays(rule, inputs(nights = Some(nights), mood = Some(mood))).get
@@ -97,6 +101,57 @@ class InsightEngineSuite extends munit.FunSuite:
       Comparisons.compare(InsightRule.WorkDaysAndWater, paired, window),
       Comparison.Withheld(InsightRule.WorkDaysAndWater, WithheldReason.BelowMinimumDifference, window)
     )
+
+  // ---------- IR-05 (analytics round 6) ----------
+
+  private val allMain = MealDay(1, 1, 1, 0)
+  private val lunchOnly = MealDay(0, 1, 0, 0)
+
+  private def mealsAndMood(meal: Int => Option[MealDay], valence: Int => Int) =
+    val meals = window.dates.zipWithIndex.flatMap((date, i) => meal(i).map(date -> _)).toMap
+    val mood = window.dates.zipWithIndex.map((date, i) => date -> moodDay(valence(i))).toMap
+    (meals, mood)
+
+  test("IR-05 groups the days with a meal logged by whether every planned main meal was logged"):
+    val (meals, mood) = mealsAndMood(i => Some(if i % 2 == 0 then allMain else lunchOnly), i => if i % 2 == 0 then 4 else 3)
+    val paired = Comparisons.pairedDays(InsightRule.PlannedMealsAndMood, inputs(meals = Some(meals), mood = Some(mood))).get
+    Comparisons.compare(InsightRule.PlannedMealsAndMood, paired, window) match
+      case Comparison.Shown(_, first, second, _) =>
+        assertEquals((first, second), (GroupMean(14, 4.0), GroupMean(14, 3.0)))
+      case other => fail(s"expected a shown comparison, got $other")
+
+  test("IR-05 pairs no day without a meal entry: nothing logged is not fewer meals"):
+    val (meals, mood) = mealsAndMood(i => Option.when(i % 2 == 0)(allMain), _ => 3)
+    val paired = Comparisons.pairedDays(InsightRule.PlannedMealsAndMood, inputs(meals = Some(meals), mood = Some(mood))).get
+    assertEquals(paired.size, 14)
+    assert(paired.forall(_.inFirstGroup), clue(paired))
+
+  test("IR-05 reads the user's own plan: a lunch alone is every planned meal when only lunch is planned"):
+    val (meals, mood) = mealsAndMood(_ => Some(lunchOnly), _ => 3)
+    val paired = Comparisons.pairedDays(
+      InsightRule.PlannedMealsAndMood,
+      inputs(meals = Some(meals), mood = Some(mood), plan = MealPlan(Set(MealType.Lunch)))
+    ).get
+    assert(paired.nonEmpty && paired.forall(_.inFirstGroup), clue(paired))
+
+  test("IR-05 pairs nothing without a planned meal"):
+    val (meals, mood) = mealsAndMood(_ => Some(allMain), _ => 3)
+    assertEquals(
+      Comparisons.pairedDays(
+        InsightRule.PlannedMealsAndMood,
+        inputs(meals = Some(meals), mood = Some(mood), plan = MealPlan(Set.empty))
+      ),
+      Some(Nil)
+    )
+
+  test("IR-05 runs only with the nutrition source and the cross-domain consent"):
+    val (meals, mood) = mealsAndMood(i => Some(if i % 2 == 0 then allMain else lunchOnly), i => if i % 2 == 0 then 4 else 3)
+    def isMealRule(insight: Insight) = insight match
+      case Insight.Pattern(comparison, _) => comparison.rule == InsightRule.PlannedMealsAndMood
+      case _                              => false
+    assert(InsightEngine.evaluate(inputs(meals = Some(meals), mood = Some(mood))).shown.exists(isMealRule))
+    assert(!InsightEngine.evaluate(inputs(mood = Some(mood))).shown.exists(isMealRule))
+    assert(!InsightEngine.evaluate(inputs(meals = Some(meals), mood = Some(mood), crossDomain = false)).shown.exists(isMealRule))
 
   // ---------- IR-07 ----------
 

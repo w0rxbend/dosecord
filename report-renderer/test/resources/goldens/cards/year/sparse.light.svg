@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Your year: 2026</text>
+<text x="64" y="176" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">Days with a record, week by week</text>
+<text x="64" y="244" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">J</text>
+<text x="224" y="244" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">F</text>
+<text x="64" y="312" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Water</text>
+<rect x="52" y="320" width="341" height="104" rx="24" fill="#ffffff"/>
+<g>
+  <circle cx="82.5" cy="405.5" r="4.5" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <rect x="104" y="332" width="37" height="80" rx="3" fill="#cdd6db"/>
+  <rect x="104" y="401" width="37" height="11" rx="3" fill="#02558f"/>
+</g>
+<g>
+  <rect x="144" y="332" width="37" height="80" rx="3" fill="#cdd6db"/>
+  <rect x="144" y="401" width="37" height="11" rx="3" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="202.5" cy="405.5" r="4.5" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <rect x="224" y="332" width="37" height="80" rx="3" fill="#cdd6db"/>
+  <rect x="224" y="401" width="37" height="11" rx="3" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="282.5" cy="405.5" r="4.5" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <rect x="304" y="332" width="37" height="80" rx="3" fill="#cdd6db"/>
+  <rect x="304" y="401" width="37" height="11" rx="3" fill="#02558f"/>
+</g>
+<g>
+  <rect x="344" y="332" width="37" height="80" rx="3" fill="#cdd6db"/>
+  <rect x="344" y="396" width="37" height="16" rx="3" fill="#02558f"/>
+</g>
+<g>
+  <rect x="78.67" y="444" width="14.67" height="44" rx="3" fill="#cdd6db"/>
+  <rect x="78.67" y="458.67" width="14.67" height="29.33" rx="3" fill="#02558f"/>
+</g>
+<text x="120" y="480" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Taller: more days with a record that week</text>
+<g>
+  <circle cx="86" cy="522" r="4.5" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="120" y="536" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">No record that week</text>
+<text x="64" y="592" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Each cell: one week, Monday to Sunday</text>
+<text x="64" y="664" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">5 of 51 days with records</text>
+<text x="64" y="1016" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

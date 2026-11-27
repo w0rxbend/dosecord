@@ -677,6 +677,30 @@ class PromptLoopPgSuite extends PgSuite:
     // Wednesday's two glasses make the highest day; medication is never a row.
     assertEquals(view.rows, List(DayHighlight(HighlightDomain.Water, List(0, 2, 4), Some(List(2) -> 1700.0))))
 
+  // Analytics round 6 (supervisor decision, 2026-11-28): IR-05 reaches the weekly report as its one pattern.
+  test("the weekly report carries IR-05: mood on days with every planned meal logged, both counts, not a cause"):
+    val rig = Rig(start = Instant.parse("2026-11-02T08:00:00+02:00"), preset = PromptPresets.WeeklyReport)
+    fixtures.grant(rig.account, ConsentPurpose.Nutrition, ConsentPurpose.Mood, ConsentPurpose.CrossDomainPatterns)
+    val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)
+    (3 to 22).foreach: day =>
+      val all = day % 2 == 0
+      rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
+      val meals = if all then List(MealType.Breakfast, MealType.Lunch, MealType.Dinner) else List(MealType.Lunch)
+      rig.uow.transaction: tx =>
+        meals.foreach: meal =>
+          assert(parts.nutrition.log(tx, LogMeal(rig.account, MealInput(meal, None, None), EntrySource.Bot, s"m$day$meal")).isRight)
+        val valence = dosegram.core.domain.mood.Valence.of(if all then 4 else 3).get
+        val checkIn = dosegram.core.application.mood.CheckIn(
+          rig.account, valence, None, Nil, EntryDay.Today, EntrySource.Bot, s"c$day"
+        )
+        assert(parts.mood.checkIn(tx, checkIn).isRight)
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    val (_, message) = chatOf(rig).lastOption.getOrElse(fail("no report was sent"))
+    assert(message.toString.contains("On the 10 days you logged every meal you planned"), message)
+    assert(message.toString.contains("On the 10 other days with a meal logged"), message)
+    assert(message.toString.contains("It does not show a cause."), message)
+
   test("the morning summary of a day without records sends nothing (VA-PS-05)"):
     val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8))
     rig.clock.at = mondayAt("08:00").plusSeconds(5)

@@ -69,6 +69,7 @@ object EnglishImageCopy extends ImageCopy:
 
   def footer: String = "Recorded entries only. Not medical advice."
   def detailsBelow: String = "Details below."
+  def year: YearImageCopy = EnglishYearImageCopy
 
   def domainName(domain: Domain): String =
     domain match

@@ -130,6 +130,15 @@ object MediatorFakes:
     override def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit =
       this.synchronized(if enabled then gamificationOff -= accountId else gamificationOff += accountId)
 
+    // Every account of the fake is created after the notes began, as a new account is in production (V26).
+    private val whatsNew = scala.collection.mutable.Map.empty[UUID, WhatsNewState]
+    override def whatsNewOf(accountId: UUID): WhatsNewState =
+      this.synchronized(whatsNew.getOrElse(accountId, WhatsNewState(None, enabled = true)))
+    override def setWhatsNewSeen(accountId: UUID, release: Int, now: Instant): Unit =
+      this.synchronized(whatsNew.update(accountId, whatsNewOf(accountId).copy(seen = Some(release))))
+    override def setWhatsNewEnabled(accountId: UUID, enabled: Boolean, now: Instant): Unit =
+      this.synchronized(whatsNew.update(accountId, whatsNewOf(accountId).copy(enabled = enabled)))
+
   final class InMemoryAudit extends AuditRepository:
     private val entries = ListBuffer.empty[AuditEntry]
     def all: List[AuditEntry] = this.synchronized(entries.toList)

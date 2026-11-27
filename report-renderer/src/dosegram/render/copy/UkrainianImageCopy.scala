@@ -86,6 +86,7 @@ object UkrainianImageCopy extends ImageCopy:
 
   def footer: String = "Лише записані дані. Не є медичною порадою."
   def detailsBelow: String = "Подробиці нижче."
+  def year: YearImageCopy = UkrainianYearImageCopy
 
   def domainName(domain: Domain): String =
     domain match

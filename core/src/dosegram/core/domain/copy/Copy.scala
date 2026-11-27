@@ -45,5 +45,7 @@ object Copy:
       ImportCopy.entries ++
       PrivacyCopy.entries ++
       GamificationCopy.entries ++
-      ShareCopy.entries
+      ShareCopy.entries ++
+      YearCopy.entries ++
+      WhatsNewCopy.entries
 end Copy

@@ -506,4 +506,27 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     assert(!off.crossDomain)
     assertEquals(patterns(off), Nil)
     assertEquals(off.list.window, DateRange.endingOn(today, 28))
+
+  test("IR-05 (analytics round 6): mood on days with every planned meal logged, behind food, mood and cross-domain"):
+    def recorded(without: Option[ConsentPurpose]): InsightsView =
+      val consent = FakeConsent.all(account)
+      val rig = Rig(consent)
+      (1 to 20).foreach { daysAgo =>
+        val all = daysAgo % 2 == 0
+        rig.on(daysAgo):
+          val logged = if all then List(MealType.Breakfast, MealType.Lunch, MealType.Dinner) else List(MealType.Lunch)
+          logged.foreach(meal => rig.eat(meal, s"f$daysAgo-$meal"))
+          rig.feel(if all then 4 else 3, s"m$daysAgo")
+      }
+      without.foreach(consent.withdraw(account, _))
+      rig.stats.insights(rig.tx, account, ComparisonWindow.Days28).toOption.get
+    def meals(view: InsightsView): List[(Int, Int)] =
+      view.list.shown.collect {
+        case Insight.Pattern(comparison, _) if comparison.rule == InsightRule.PlannedMealsAndMood =>
+          comparison.first.days -> comparison.second.days
+      }
+    val on = recorded(None)
+    assertEquals(meals(on), List(10 -> 10), clue(on.list))
+    assertEquals(meals(recorded(Some(ConsentPurpose.Nutrition))), Nil)
+    assertEquals(meals(recorded(Some(ConsentPurpose.CrossDomainPatterns))), Nil)
 end StatsQueryServiceSuite

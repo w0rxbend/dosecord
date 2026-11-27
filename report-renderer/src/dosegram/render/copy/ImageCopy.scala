@@ -47,6 +47,9 @@ trait ImageCopy:
   // Shared.
   def footer: String
   def detailsBelow: String
+
+  /** The one-year card (IMG-30), one block per language. */
+  def year: YearImageCopy
   def domainName(domain: Domain): String
   def itemLabel(position: Int): String
   def dayDate(date: LocalDate): String
