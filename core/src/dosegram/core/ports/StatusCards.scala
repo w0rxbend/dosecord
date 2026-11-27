@@ -4,6 +4,7 @@ import dosegram.contracts.AttachmentRef
 import dosegram.contracts.ChatRef
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.DayHighlight
 import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
@@ -13,6 +14,7 @@ import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
 
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** One mood check-in as its image shows it: the captured steps and nothing else (VISUALS VA-BL-01). */
@@ -128,6 +130,25 @@ final case class MedicationStripRow(name: String, asNeeded: Boolean, days: List[
 final case class MedicationStripView(from: LocalDate, dayCount: Int, rows: List[MedicationStripRow]):
   require(rows.forall(_.days.size == dayCount), "every row needs one entry per day")
 
+// Image round 5 (supervisor decision, 2026-11-28): the blob gallery of `/mood history` (VISUALS IMG-26) and the week
+// highlights of the weekly report (VISUALS IMG-25).
+
+/** One check-in of the gallery at its own local time: the captured steps and nothing else (VISUALS VA-BL-01). */
+final case class MoodGalleryEntry(at: LocalDateTime, valence: Valence, energy: Option[Energy])
+
+/** IMG-26: the latest check-ins, oldest first. */
+final case class MoodGalleryView(entries: List[MoodGalleryEntry])
+
+/** The one observation of the weekly report under the insight rules, as the catalogue words it, and the days of the
+  * window it was found in.
+  */
+final case class WeekObservation(windowDays: Int, sentence: String)
+
+/** IMG-25: the seven days from `from`, the highlight of each shown domain with a record (never medication), and the
+  * weekly report's observation when one passed the rules.
+  */
+final case class WeekHighlightsView(from: LocalDate, rows: List[DayHighlight], observation: Option[WeekObservation])
+
 /** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
   * (VA-PV-03). Both are account settings the Mini App changes.
   */
@@ -206,6 +227,12 @@ trait StatusCards:
 
   /** IMG-07, the per-medication strip: one page per six medications at most; empty when none can be laid out. */
   def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] = Nil
+
+  /** IMG-26, the blob gallery of `/mood history`; `None` when no check-in can be drawn. */
+  def moodGallery(view: MoodGalleryView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-25, the week highlights, the second photo of the weekly report. */
+  def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] = None
 
 object StatusCards:
 

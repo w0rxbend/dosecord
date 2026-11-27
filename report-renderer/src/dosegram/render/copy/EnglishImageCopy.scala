@@ -5,6 +5,8 @@ import dosegram.render.card.DayAdherence
 import dosegram.render.card.DayData
 import dosegram.render.card.DoseCounts
 import dosegram.render.card.FoodDayData
+import dosegram.render.card.HighlightFigure
+import dosegram.render.card.HighlightRow
 import dosegram.render.card.InsightData
 import dosegram.render.card.InsightRule
 import dosegram.render.card.MainMeal
@@ -15,6 +17,7 @@ import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
 import dosegram.render.card.MonthPosterData
 import dosegram.render.card.MoodCalendarData
+import dosegram.render.card.MoodGalleryData
 import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.ShareFact
@@ -22,6 +25,7 @@ import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
+import dosegram.render.card.WeekHighlightsData
 import dosegram.render.chart.DoseStatus
 import dosegram.render.tokens.Domain
 
@@ -651,6 +655,72 @@ object EnglishImageCopy extends ImageCopy:
     (s"${monthYear(data.month)}, your month in one image. $summary" +: areas).mkString(" ")
 
   def posterDiscreet: String = "Your month in one image."
+
+  // Image round 5 (2026-11-28): the mood gallery (IMG-26) and the week highlights (IMG-25).
+  def galleryTitle: String = "Recent check-ins"
+  def galleryFact(count: Int): String = plural(count, "check-in")
+  def galleryOrderNote: String = "Oldest first, one per check-in"
+
+  def galleryText(data: MoodGalleryData): String =
+    val (first, last) = (data.checkIns.head.at.toLocalDate, data.checkIns.last.at.toLocalDate)
+    val entries = data.checkIns.map: checkIn =>
+      s"${dayDate(checkIn.at.toLocalDate)} ${time(checkIn.at.toLocalTime)}: ${moodLabel(checkIn.reading)}"
+    (s"Your latest ${plural(data.checkIns.size, "mood check-in")}, ${
+        if first == last then dayDate(first) else dateRange(first, last)
+      }, oldest first." +: entries)
+      .mkString(" ")
+
+  def galleryDiscreet: String = "Recent mood check-ins."
+  def highlightTitle: String = "Week highlights"
+  def highlightDayMark: String = "The day named in the row"
+  def highlightOtherMark: String = "Another day with a record"
+  def highlightObservationTitle(days: Int): String = s"One observation, last ${this.days(days)}"
+
+  def highlightLine(from: LocalDate, row: HighlightRow): String =
+    row.highlight match
+      case Some((days, figure)) =>
+        val lead = figure match
+          case HighlightFigure.Water(_)     => "Most"
+          case HighlightFigure.MainMeals(_) => "Most main meals"
+          case HighlightFigure.Mood(_)      => "Highest daily mood"
+          case HighlightFigure.Night(_)     => "Longest night"
+        s"$lead: ${days.map(day => weekday(from.plusDays(day.toLong).getDayOfWeek)).mkString(", ")} · ${highlightValue(figure)}"
+      case None => highlightRecords(row)
+
+  def highlightText(data: WeekHighlightsData): String =
+    val rows = data.rows.map { row =>
+      val said = row.highlight match
+        case Some((days, figure)) =>
+          val on = joined(days.map(day => weekday(data.from.plusDays(day.toLong).getDayOfWeek)))
+          figure match
+            case HighlightFigure.Water(_)     => s"the most on $on, ${highlightValue(figure)}"
+            case HighlightFigure.MainMeals(_) => s"the most main meals on $on, ${highlightValue(figure)}"
+            case HighlightFigure.Mood(mean)   =>
+              val level = valenceName(dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence)
+                .toLowerCase(java.util.Locale.ROOT)
+              s"the highest daily average on $on, ${highlightValue(figure)} on the 1 to 5 scale ($level)"
+            case HighlightFigure.Night(_) => s"the longest night on $on, ${highlightValue(figure)}"
+        case None => highlightRecords(row).toLowerCase(java.util.Locale.ROOT)
+      s"${domainName(row.domain)}: $said."
+    }
+    val observation = data.observation.map(seen => s"One observation, last ${days(seen.days)}: ${seen.sentence}")
+    ((s"Week highlights, ${dateRange(data.from, data.to)}." +: rows) ++ observation).mkString(" ")
+
+  def highlightDiscreet: String = "Highlights of a week."
+
+  private def highlightValue(figure: HighlightFigure): String =
+    figure match
+      case HighlightFigure.Water(millilitres) => litresAmount(millilitres)
+      case HighlightFigure.MainMeals(count)   => count.toString
+      case HighlightFigure.Mood(mean)         => insightValue(mean)
+      case HighlightFigure.Night(minutes)     => duration(minutes)
+
+  private def highlightRecords(row: HighlightRow): String =
+    if row.domain == Domain.Sleep then s"Records on ${plural(row.recorded.size, "night")}"
+    else s"Records on ${days(row.recorded.size)}"
+
+  private def joined(words: Vector[String]): String =
+    if words.size <= 1 then words.mkString else s"${words.init.mkString(", ")} and ${words.last}"
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3

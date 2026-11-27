@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<rect width="1080" height="1350" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">Week highlights</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561" text-anchor="end"></text>
+<text x="64" y="180" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#435561">16 to 22 Nov</text>
+<text x="629.71" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">M</text>
+<text x="689.14" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="748.57" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">W</text>
+<text x="808" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">T</text>
+<text x="867.43" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">F</text>
+<text x="926.86" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<text x="986.29" y="240" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">S</text>
+<g>
+  <path d="M92 263 C85.93 271.4 76.83 281.67 76.83 289.83 A15.17 15.17 0 0 0 107.17 289.83 C107.17 281.67 98.07 271.4 92 263 Z" fill="none" stroke="#02558f" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="296" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Water</text>
+<text x="140" y="352" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e">Most: Wed · 2.15 l</text>
+<g>
+  <circle cx="629.71" cy="284" r="9" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="689.14" cy="284" r="9" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="748.57" cy="284" r="22" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="808" cy="284" r="14" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="867.43" cy="284" r="9" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="926.86" cy="284" r="9" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="986.29" cy="284" r="9" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="92" cy="412" r="21" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 401.5 A10.5 10.5 0 0 1 102.5 412" fill="none" stroke="#955907" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="424" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Food</text>
+<text x="140" y="480" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e">Most main meals: Tue, Fri · 3</text>
+<g>
+  <circle cx="629.71" cy="412" r="9" fill="#955907"/>
+</g>
+<g>
+  <circle cx="689.14" cy="412" r="22" fill="#955907"/>
+</g>
+<g>
+  <circle cx="748.57" cy="412" r="9" fill="#955907"/>
+</g>
+<g>
+  <circle cx="808" cy="412" r="9" fill="#955907"/>
+</g>
+<g>
+  <circle cx="867.43" cy="412" r="22" fill="#955907"/>
+</g>
+<g>
+  <circle cx="926.86" cy="412" r="9" fill="#955907"/>
+</g>
+<g>
+  <circle cx="986.29" cy="412" r="9" fill="#955907"/>
+</g>
+<g>
+  <path d="M92 519.93 C96.45 519.93 102.24 528.33 105.34 533.7 C108.44 539.07 112.81 548.28 110.59 552.13 C108.37 555.98 98.2 556.8 92 556.8 C85.8 556.8 75.63 555.98 73.41 552.13 C71.19 548.28 75.56 539.07 78.66 533.7 C81.76 528.33 87.55 519.93 92 519.93 Z" fill="none" stroke="#940f52" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="552" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mood</text>
+<text x="140" y="608" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e">Highest daily mood: Sat · 4.5</text>
+<g>
+  <circle cx="629.71" cy="540" r="9" fill="#940f52"/>
+</g>
+<g>
+  <circle cx="689.14" cy="540" r="14" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="748.57" cy="540" r="9" fill="#940f52"/>
+</g>
+<g>
+  <circle cx="808" cy="540" r="9" fill="#940f52"/>
+</g>
+<g>
+  <circle cx="867.43" cy="540" r="14" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="926.86" cy="540" r="22" fill="#940f52"/>
+</g>
+<g>
+  <circle cx="986.29" cy="540" r="9" fill="#940f52"/>
+</g>
+<g>
+  <path d="M109.5 673.13 A19.13 19.13 0 1 1 86.87 650.5 A15.4 15.4 0 0 0 109.5 673.13 Z" fill="none" stroke="#8a66d9" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="680" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sleep</text>
+<text x="140" y="736" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e">Longest night: Fri · 8 h 05 min</text>
+<g>
+  <circle cx="629.71" cy="668" r="9" fill="#8a66d9"/>
+</g>
+<g>
+  <circle cx="689.14" cy="668" r="9" fill="#8a66d9"/>
+</g>
+<g>
+  <circle cx="748.57" cy="668" r="14" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="808" cy="668" r="9" fill="#8a66d9"/>
+</g>
+<g>
+  <circle cx="867.43" cy="668" r="22" fill="#8a66d9"/>
+</g>
+<g>
+  <circle cx="926.86" cy="668" r="9" fill="#8a66d9"/>
+</g>
+<g>
+  <circle cx="986.29" cy="668" r="14" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <circle cx="86" cy="798" r="22" fill="#435561"/>
+</g>
+<text x="120" y="812" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">The day named in the row</text>
+<g>
+  <circle cx="86" cy="854" r="9" fill="#435561"/>
+</g>
+<text x="120" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Another day with a record</text>
+<g>
+  <circle cx="643.4" cy="854" r="14" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="677.4" y="868" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">No record</text>
+<text x="64" y="924" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mood is the daily average on the 1 to 5 scale.</text>
+<text x="64" y="1004" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#13242e">One observation, last 28 days</text>
+<text x="64" y="1054" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#13242e">On the 18 days after a night at or above your 7 h 30</text>
+<text x="64" y="1104" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#13242e">min goal, your average mood was 3.7 (pleasant). On</text>
+<text x="64" y="1154" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#13242e">the 9 other days it was 3.0 (neutral). This compares</text>
+<text x="64" y="1204" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#13242e">your own days. It does not show a cause.</text>
+<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

@@ -14,6 +14,13 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   case WaterCard extends Pending(1, 0)
   case WaterAdd(millilitres: Int) extends Pending(2, millilitres)
   case MoodPrompt extends Pending(3, 0)
+
+  /** `/mood history` after the mood consent (image round 5). Kind 3 is shared; a card sent before it opens the prompt.
+    */
+  case MoodHistory extends Pending(3, 1)
+
+  /** The blob gallery of `/mood history` (VISUALS IMG-26) after the images consent. */
+  case MoodHistoryImage extends Pending(3, 2)
   case MoodCheckIn(step: Int) extends Pending(4, step)
   case Stats extends Pending(5, 0)
   case WaterImage extends Pending(6, 0)
@@ -88,7 +95,7 @@ private[capture] object Pending:
     kind match
       case 1  => Some(WaterCard)
       case 2  => Some(WaterAdd(argument))
-      case 3  => Some(MoodPrompt)
+      case 3  => Some(moodOf(argument))
       case 4  => Some(MoodCheckIn(argument))
       case 5  => Some(Stats)
       case 6  => Some(WaterImage)
@@ -114,6 +121,12 @@ private[capture] object Pending:
       case days if TrendPeriod.of(days).exists(_ != TrendPeriod.Week) => TrendsImage(days)
       case days if days > MedsImageBase                               => MedsImage(days - MedsImageBase)
       case _                                                          => DayImage
+
+  private def moodOf(argument: Int): Pending =
+    argument match
+      case MoodHistory.argument      => MoodHistory
+      case MoodHistoryImage.argument => MoodHistoryImage
+      case _                         => MoodPrompt
 
   /** The argument of [[MedsImage]] starts above this, far from the stats images below it. */
   val MedsImageBase = 1000

@@ -14,6 +14,7 @@ import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.MoodCheckin
@@ -24,9 +25,12 @@ import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.MoodGalleryEntry
+import dosegram.core.ports.MoodGalleryView
 import dosegram.core.ports.StatusCards
 import dosegram.core.scheduling.OutboxDispatcher
 
+import java.time.LocalDateTime
 import java.util.UUID
 
 /** The mood check-in in chat (BOT_UX section 11.4): one tap records, the answer is the mood image with the labels and
@@ -46,6 +50,39 @@ private[capture] final class MoodChat(
     val steps = Valence.steps.map: step =>
       Choice.callback(step.step.toString, tokens.direct(CaptureActions.MoodCheckIn, turn.accountId, step.step.toLong))
     turn.show(turn.message("mood.prompt", List(CheckInCopy.prompt, CheckInCopy.scale), List(steps)))
+
+  /** `/mood history` (image round 5, supervisor decision of 2026-11-28): the latest check-ins of the last year, oldest
+    * first, each at its own local day and time with its words, and "Show as image" for their blob gallery (VISUALS
+    * IMG-26). Nothing is ranked, averaged or judged.
+    */
+  def history(turn: Turn): Reply =
+    recent(turn) match
+      case Nil      => turn.show(turn.message("mood.history", List(CheckInCopy.historyEmpty), Nil))
+      case checkIns =>
+        val lines = CheckInCopy.historyTitle(checkIns.size) :: checkIns.map: checkin =>
+          val at = checkin.occurredAt.atZone(checkin.zone)
+          val time = f"${at.getHour}%02d:${at.getMinute}%02d"
+          CheckInCopy.historyLine(at.toLocalDate, time, checkin.valence, checkin.energy)
+        val image =
+          Choice.callback(StatsCardCopy.ShowAsImage, tokens.direct(CaptureActions.MoodHistoryImage, turn.accountId, 0))
+        turn.show(turn.message("mood.history", lines, List(List(image))))
+
+  /** The blob gallery of `/mood history` as a new photo, captioned with its text equivalent. */
+  def historyImage(turn: Turn): Reply =
+    val entries = recent(turn).map: checkin =>
+      MoodGalleryEntry(LocalDateTime.ofInstant(checkin.occurredAt, checkin.zone), checkin.valence, checkin.energy)
+    Option.when(entries.nonEmpty)(MoodGalleryView(entries)).flatMap(cards.moodGallery(_, turn.look)) match
+      case Some(page) =>
+        val caption = turn.message(s"mood.history.${page.templateId}", List(page.altText), Nil)
+        Reply(followUps = turn.images(delivery, List(page -> caption)))
+      case None => turn.toast(StatsCardCopy.imageUnavailable)
+
+  /** The live check-ins of the last year, the latest [[MoodChat.HistorySize]], oldest first. */
+  private def recent(turn: Turn): List[MoodCheckin] =
+    val today = clock.now().atZone(turn.zone).toLocalDate
+    turn.tx.tracking.mood
+      .listLive(turn.accountId, DateRange.endingOn(today, MoodChat.HistoryDays))
+      .takeRight(MoodChat.HistorySize)
 
   /** Records the step. With an image the answer is a new photo message, because a text message cannot become one;
     * without an image the confirmation takes the place of the prompt.
@@ -178,6 +215,12 @@ private[capture] final class MoodChat(
 
 private object MoodChat:
   private val Prefix = "mood.prompt:"
+
+  /** `/mood history` shows this many check-ins, the most the gallery draws. */
+  val HistorySize = 14
+
+  /** How far back `/mood history` looks. */
+  val HistoryDays = 366
 
   /** The client key of a check-in from a prompt: the prompt message itself, so one prompt records once. */
   def promptKey(prompt: MessageHandle): String = s"$Prefix${prompt.vendor}:${prompt.chatId}:${prompt.messageId}"

@@ -7,7 +7,7 @@
   <rect x="504" y="194" width="72" height="212" rx="16" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
   <rect x="620" y="194" width="72" height="212" rx="16" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
   <rect x="736" y="194" width="72" height="212" rx="16" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
-  <rect x="848" y="190" width="80" height="220" rx="18" fill="#bf3f75"/>
+  <rect x="848" y="190" width="80" height="220" rx="18" fill="#b45689"/>
 </g>
 <text x="540" y="566" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4" text-anchor="middle">Mood logged on</text>
 <text x="540" y="732" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4" text-anchor="middle">1 of 7 days</text>

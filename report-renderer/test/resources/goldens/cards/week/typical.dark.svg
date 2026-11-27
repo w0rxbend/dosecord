@@ -158,49 +158,49 @@
   <path d="M920 674.8 L920 604.8 A12 12 0 0 1 932 592.8 L964 592.8 A12 12 0 0 1 976 604.8 L976 674.8 Z" fill="#0072be"/>
 </g>
 <g>
-  <circle cx="92" cy="717.6" r="21" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M92 707.1 A10.5 10.5 0 0 1 102.5 717.6" fill="none" stroke="#9e5d00" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="92" cy="717.6" r="21" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 707.1 A10.5 10.5 0 0 1 102.5 717.6" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="136" y="731.6" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Food</text>
 <text x="1016" y="731.6" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">19 meals logged</text>
 <g>
-  <circle cx="96" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="132" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="168" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="132" cy="767.6" r="8" fill="#9e5d00"/>
+  <circle cx="96" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="132" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="168" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="132" cy="767.6" r="8" fill="#a86614"/>
 </g>
 <g>
-  <circle cx="232" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="268" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="304" cy="803.6" r="14" fill="#9e5d00"/>
+  <circle cx="232" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="268" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="304" cy="803.6" r="14" fill="#a86614"/>
 </g>
 <g>
-  <circle cx="386" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="422" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="404" cy="767.6" r="8" fill="#9e5d00"/>
+  <circle cx="386" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="422" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="404" cy="767.6" r="8" fill="#a86614"/>
 </g>
 <g>
-  <circle cx="504" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="540" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="576" cy="803.6" r="14" fill="#9e5d00"/>
+  <circle cx="504" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="540" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="576" cy="803.6" r="14" fill="#a86614"/>
 </g>
 <g>
-  <circle cx="640" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="676" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="712" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="676" cy="767.6" r="8" fill="#9e5d00"/>
+  <circle cx="640" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="676" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="712" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="676" cy="767.6" r="8" fill="#a86614"/>
 </g>
 <g>
-  <circle cx="794" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="830" cy="803.6" r="14" fill="#9e5d00"/>
+  <circle cx="794" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="830" cy="803.6" r="14" fill="#a86614"/>
 </g>
 <g>
-  <circle cx="912" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="948" cy="803.6" r="14" fill="#9e5d00"/>
-  <circle cx="984" cy="803.6" r="14" fill="#9e5d00"/>
+  <circle cx="912" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="948" cy="803.6" r="14" fill="#a86614"/>
+  <circle cx="984" cy="803.6" r="14" fill="#a86614"/>
 </g>
 <g>
-  <path d="M92 852.33 C96.45 852.33 102.24 860.73 105.34 866.1 C108.44 871.47 112.81 880.68 110.59 884.53 C108.37 888.38 98.2 889.2 92 889.2 C85.8 889.2 75.63 888.38 73.41 884.53 C71.19 880.68 75.56 871.47 78.66 866.1 C81.76 860.73 87.55 852.33 92 852.33 Z" fill="none" stroke="#bf3f75" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 852.33 C96.45 852.33 102.24 860.73 105.34 866.1 C108.44 871.47 112.81 880.68 110.59 884.53 C108.37 888.38 98.2 889.2 92 889.2 C85.8 889.2 75.63 888.38 73.41 884.53 C71.19 880.68 75.56 871.47 78.66 866.1 C81.76 860.73 87.55 852.33 92 852.33 Z" fill="none" stroke="#b45689" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="136" y="886.4" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Mood</text>
 <text x="1016" y="886.4" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">6 check-in days</text>
@@ -302,7 +302,7 @@
 </g>
 <text x="640.68" y="1202" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Estimate</text>
 <g>
-  <circle cx="853.44" cy="1188" r="8" fill="#9e5d00"/>
+  <circle cx="853.44" cy="1188" r="8" fill="#a86614"/>
 </g>
 <text x="887.44" y="1202" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Snack</text>
 <text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>

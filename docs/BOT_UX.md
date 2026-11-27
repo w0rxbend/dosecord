@@ -1107,6 +1107,8 @@ Free text: `mood 4`, `/mood 4`, `mood 2 tired after work` (step, then an optiona
 | BUX-MOOD-08 | The mapping of the five chat steps to stored values and to the image states is owned by `PRODUCT_SPEC.md` and `VISUALS_AND_ANALYTICS.md` (open question OQ-3). |
 | BUX-MOOD-10 | Owner decision of 2026-11-13: one prompt is one check-in. The first tap on a prompt edits it in place into the recorded level ("Pleasant · 21:04") and removes its 1 to 5 buttons; with an image, the image follows as its own message and carries "Add energy" and "Undo", otherwise the edited prompt carries them. The check-in is keyed by the prompt message, so a later, racing or post-restart tap on the same prompt records nothing and answers `checkin.already_recorded` ("Already recorded at 21:04."), or `checkin.prompt_undone` ("This check-in was undone.") once the check-in, or its energy step, was undone. Undo of a check-in from a prompt also edits the prompt into `checkin.undone`, so the prompt no longer shows the level. Further check-ins the same day (BUX-MOOD-05) come from a new `/mood`, a new prompt or `mood <step>`. |
 
+Supervisor decision, 2026-11-28 (image round 5): `/mood history` (also `/mood історія`), behind the mood consent like `/mood` (`Pending(3, 1)`), lists the latest live check-ins of the last 366 days, at most 14, oldest first, each at its own local day and time with the words of its caption (`checkin.history.title`, `checkin.history.line`: "Mon 21 Sep 08:03 · Pleasant"); nothing is averaged, ranked or judged (BUX-MOOD-06). Without a check-in it says how to record one (`checkin.history.empty`) and offers no image. Its one button is "Show as image" (action `mood.history_image`, id 474 of the range 474 to 493, direct mode on the account, value 0): after the images consent (`Pending(3, 2)`) it sends the blob gallery of VISUALS IMG-26 as a new photo, captioned with its text equivalent, behind a spoiler in discreet mode. An old button after the mood consent was withdrawn asks for that consent in a message of its own and draws nothing. The usage line of `/mood` names `/mood history`.
+
 ### 11.5 Sleep
 
 Sleep cannot be read from Telegram presence (section 1.2). Input is by check-in, by typed times, or by confirming an estimate.
@@ -1226,6 +1228,7 @@ How are you feeling right now?
 | BUX-WEEK-03 | Buttons: "Text view", "Open stats" (`web_app`), "Turn off weekly report". |
 | BUX-WEEK-04 | The report states counts and the user's own previous period. It shows days-in-window counts ("5 of 7 days"), never a streak that can be lost, and never a reward for taking medication (research 03 section 6.2). |
 | BUX-WEEK-05 | Monthly reports and correlation cards are later stages and follow the same rules, with the minimum-data gates of `VISUALS_AND_ANALYTICS.md`. |
+| BUX-WEEK-06 | Supervisor decision, 2026-11-28 (image round 5): with the images consent the report's image is an album of two, the weekly card and the week highlights (VISUALS IMG-25, section 6.24), each captioned with its text equivalent, and then the text with "Stop these". The highlights name, per shown domain except medication, the day of the week with the highest figure, and repeat the report's one pattern sentence with its non-causal sentence. |
 
 ### 12.5 Statistics in chat
 

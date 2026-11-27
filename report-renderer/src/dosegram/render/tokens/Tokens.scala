@@ -76,8 +76,8 @@ object Tokens:
     attention = Rgb.hex("#ea942f"),
     spruce = Rgb.hex("#2cab88"),
     tide = Rgb.hex("#0072be"),
-    rye = Rgb.hex("#9e5d00"),
-    beet = Rgb.hex("#bf3f75"),
+    rye = Rgb.hex("#a86614"),
+    beet = Rgb.hex("#b45689"),
     dusk = Rgb.hex("#9d7aef"),
     spruceLate = Rgb.hex("#038265"),
     spruceHeat = Vector("#04614b", "#038265", "#29a987", "#8bd6bc").map(Rgb.hex)

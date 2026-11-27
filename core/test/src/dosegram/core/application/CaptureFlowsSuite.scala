@@ -64,6 +64,7 @@ import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MedicationStripView
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.MoodGalleryView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.TrendsCardView
 import dosegram.core.ports.UnitOfWork
@@ -178,6 +179,12 @@ class CaptureFlowsSuite extends munit.FunSuite:
     override def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] =
       strips += view
       List(personal("strip", look))
+
+    val galleries: mutable.ListBuffer[MoodGalleryView] = mutable.ListBuffer.empty
+
+    override def moodGallery(view: MoodGalleryView, look: CardLook): Option[CardPage] =
+      galleries += view
+      Some(personal("mood-gallery", look))
 
     /** A personal week card. The spoiler follows discreet mode. The look list stays the one the theme test counts. */
     private def personal(key: String, look: CardLook): CardPage =
@@ -472,6 +479,52 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(chat.rig.line("mood 2"), List("Unpleasant · 03:00"), "a typed check-in is text as well")
       assertEquals(cards.moods.toList, Nil, "no mood card is drawn without the consent")
       assertEquals(chat.world.tracking.checkins.values.map(_.valence.step).toList.sorted, List(2, 4))
+
+  // Image round 5 (supervisor decision, 2026-11-28): /mood history and its blob gallery (VISUALS IMG-26).
+  test("/mood history lists the latest check-ins, oldest first, and Show as image sends their gallery after the consent"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Mood)
+      chat.rig.line("mood 2")
+      chat.rig.line("mood 4")
+      val shown = chat.rig.line("/mood history")
+      assertEquals(
+        shown,
+        List(s"${CheckInCopy.historyTitle(2)}\n\nMon 21 Sep 03:00 · Unpleasant\n\nMon 21 Sep 03:00 · Pleasant")
+      )
+      val asked = chat.rig.tapOn(CheckInCopy.historyTitle(2), StatsCardCopy.ShowAsImage)
+      assertEquals(texts(asked), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      assertEquals(cards.galleries.toList, Nil, "nothing is drawn before the images consent")
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = photos(chat.rig.tapOn("Please confirm", ConsentCopy.Confirm))
+      assertEquals(sent.map(_.attachment.map(_.assetKey)), List(Some("mood-gallery")))
+      assertEquals(sent.flatMap(_.chunks), List("alt of mood-gallery"))
+      assertEquals(cards.galleries.toList.flatMap(_.entries.map(entry => (entry.valence.step, entry.energy))), List(2 -> None, 4 -> None))
+
+  test("/mood history keeps the latest fourteen; without check-ins it says how to record one and offers no image"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+      assertEquals(chat.rig.line("/mood history"), List(CheckInCopy.historyEmpty))
+      (1 to 16).foreach(step => chat.rig.line(s"mood ${1 + step % 5}"))
+      val shown = chat.rig.line("/mood history").mkString
+      assert(shown.startsWith(CheckInCopy.historyTitle(14)), shown)
+      assertEquals(shown.split("\n\n").size, 15)
+      chat.rig.tapOn(CheckInCopy.historyTitle(14), StatsCardCopy.ShowAsImage)
+      assertEquals(cards.galleries.toList.map(_.entries.size), List(14))
+      assertEquals(cards.galleries.head.entries.last.valence.step, 1 + 16 % 5, "the newest is the last")
+
+  test("an old /mood history button asks for the mood consent once it is withdrawn, and draws nothing"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Mood, ConsentPurpose.ImagesInChat)
+      chat.rig.line("mood 3")
+      chat.rig.line("/mood history")
+      val (_, wire) = chat.rig.controlOn(CheckInCopy.historyTitle(1), StatsCardCopy.ShowAsImage)
+      chat.world.consents.withdraw(chat.account, ConsentPurpose.Mood, chat.rig.clock.now())
+      val asked = chat.rig.tap(wire)
+      assertEquals(asked, List(ConsentCopy.statement(ConsentPurpose.Mood)))
+      assertEquals(cards.galleries.toList, Nil)
 
   test("a Ukrainian account types its check-in and water in Ukrainian and is answered in Ukrainian (ROADMAP G2.22)"):
     withChat(Profile.Telegram, StatusCards.textOnly): chat =>

@@ -40,6 +40,19 @@ class ColourVisionSuite extends munit.FunSuite:
     val shapes = DoseStatus.values.toVector.map(status => shapeOf(DoseGlyph.of(status, Cell, Tokens.Dark)))
     assertEquals(shapes.distinct.size, shapes.size)
 
+  // Finding R5 of the second-reviewer pass (2026-11-27): Beet and Rye fell to 2.5:1 on the dark surface under
+  // simulated protanopia. Every domain hue keeps the 3:1 of a meaningful graphic (VA-CO-05) for every reader.
+  test("every domain hue keeps 3:1 against the surface and the panel for every reader, in both themes"):
+    for
+      theme <- Theme.values
+      tokens = Tokens.of(theme)
+      vision <- Vision.values
+      hue <- tokens.domainHues
+      background <- Vector(tokens.surface, tokens.panel)
+    do
+      val ratio = vision.see(hue).contrast(vision.see(background))
+      assert(ratio >= 3, s"$theme, $vision: ${hue.hex} on ${background.hex} is $ratio")
+
   test("the heat steps keep their order of lightness in greyscale and for both red-green dichromacies"):
     Theme.values.foreach { theme =>
       val steps = Tokens.of(theme).spruceHeat

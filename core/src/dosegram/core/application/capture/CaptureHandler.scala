@@ -165,6 +165,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
 
   private def moodCommand(turn: Turn, argument: String): Reply =
     if argument.isEmpty then consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodPrompt)(mood.prompt(turn))
+    else if HistoryArguments(argument) then
+      consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodHistory)(mood.history(turn))
     else
       argument.toIntOption.flatMap(Valence.of) match
         case Some(valence) => recordMood(turn, valence)
@@ -255,6 +257,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
       case CaptureActions.ImportTemplate => imports.template(turn, value).getOrElse(stale(turn))
       case CaptureActions.StatsMeds      => medsShown(turn)(meds.card(turn, value.toInt))
+      case CaptureActions.MoodHistoryImage =>
+        moodShown(turn)(imageOf(turn, Pending.MoodHistoryImage)(mood.historyImage(turn)))
       case CaptureActions.StatsMedsImage =>
         MedsChat
           .daysOf(value)
@@ -287,6 +291,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.WaterAdd(millilitres) => water.askGoalBeforePlans(fresh, millilitres)
       case Pending.MoodPrompt            => mood.prompt(fresh)
       case Pending.MoodCheckIn(step)     => Valence.of(step).map(mood.checkIn(fresh, _)).getOrElse(stale(turn))
+      case Pending.MoodHistory           => mood.history(fresh)
+      case Pending.MoodHistoryImage      => moodShown(fresh)(mood.historyImage(fresh))
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
@@ -356,6 +362,12 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def medsShown(turn: Turn)(shown: => Reply): Reply =
     consent.guarded(turn.copy(source = None), ConsentPurpose.Medication, Pending.Stats)(shown)
 
+  /** A button of an old `/mood history` card shows check-ins only while the mood consent holds; otherwise it asks for
+    * the consent in a message of its own, as `/mood` does.
+    */
+  private def moodShown(turn: Turn)(shown: => Reply): Reply =
+    consent.guarded(turn.copy(source = None), ConsentPurpose.Mood, Pending.MoodHistory)(shown)
+
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
     * of its own, so the card the request came from stays as it is.
     */
@@ -393,6 +405,9 @@ private object CaptureHandler:
     * it by the user's own preset.
     */
   val DefaultGlass: WaterTextParser = WaterTextParser(HydrationBounds.DefaultPresetsMl.head)
+
+  /** `/mood history`, in either shipped language. */
+  val HistoryArguments: Set[String] = Set("history", "історія")
 
   private val MoodLine = """(?iu)(?:mood|настрій)\s+(\d)""".r
 

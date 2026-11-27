@@ -180,6 +180,11 @@ class UkrainianNumbersSuite extends munit.FunSuite:
     "nights_logged" -> (n => UkrainianImageCopy.nightsLogged(n)),
     "mood_weekday_days" -> (n => UkrainianImageCopy.moodWeekdayDays(n)),
     "poster_fact" -> (n => UkrainianImageCopy.posterFact(n, n)),
+    "gallery_fact" -> (n => UkrainianImageCopy.galleryFact(n)),
+    "highlight_records" -> (n =>
+      UkrainianImageCopy.highlightLine(Day, dosegram.render.card.HighlightRow(dosegram.render.tokens.Domain.Water, Vector.tabulate(n.max(1))(identity).take(7), None))),
+    "highlight_nights" -> (n =>
+      UkrainianImageCopy.highlightLine(Day, dosegram.render.card.HighlightRow(dosegram.render.tokens.Domain.Sleep, Vector.tabulate(n.max(1))(identity).take(7), None))),
     "week_doses" -> (n => UkrainianImageCopy.weekDoses(DoseCounts.of(statuses(n)))),
     "strip_figures" -> (n => UkrainianImageCopy.stripFigures(DoseCounts.of(statuses(n))).mkString(", ")),
     "day_text" -> (n => UkrainianImageCopy.dayText(DayData(Day, None, Some(statuses(n)), None, None, None))),

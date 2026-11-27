@@ -59,7 +59,7 @@
   <path d="M896 796 L896 740.17 A12 12 0 0 1 908 728.17 L948 728.17 A12 12 0 0 1 960 740.17 L960 796 Z" fill="#0072be"/>
 </g>
 <g>
-  <path d="M92 827.93 C96.45 827.93 102.24 836.33 105.34 841.7 C108.44 847.07 112.81 856.28 110.59 860.13 C108.37 863.98 98.2 864.8 92 864.8 C85.8 864.8 75.63 863.98 73.41 860.13 C71.19 856.28 75.56 847.07 78.66 841.7 C81.76 836.33 87.55 827.93 92 827.93 Z" fill="none" stroke="#bf3f75" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 827.93 C96.45 827.93 102.24 836.33 105.34 841.7 C108.44 847.07 112.81 856.28 110.59 860.13 C108.37 863.98 98.2 864.8 92 864.8 C85.8 864.8 75.63 863.98 73.41 860.13 C71.19 856.28 75.56 847.07 78.66 841.7 C81.76 836.33 87.55 827.93 92 827.93 Z" fill="none" stroke="#b45689" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <text x="136" y="862" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Mood</text>
 <text x="1016" y="862" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">22 check-in days</text>
