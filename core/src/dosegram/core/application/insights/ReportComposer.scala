@@ -20,19 +20,26 @@ import dosegram.core.domain.insights.Consistency
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.InsightEngine
 import dosegram.core.domain.insights.LoggingDomain
+import dosegram.core.domain.insights.MealStats
 import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.NightFacts
 import dosegram.core.domain.insights.SleepRegularity
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.DayCardView
+import dosegram.core.ports.FoodLineView
 import dosegram.core.ports.MonthCardView
+import dosegram.core.ports.MoodCardView
+import dosegram.core.ports.SleepCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.Tx
+import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
 import dosegram.core.ports.WeekDayFood
 import dosegram.core.ports.WeekDayMood
@@ -76,6 +83,34 @@ final class ReportViews(stats: StatsQueryService):
       window.dates.map(date => days.get(date).map(day => WeekDayFood(day.logged.size, day.snacks)))
     }
     WeekCardView(window.start, doses, water, mood, sleep, food)
+
+  /** IMG-03 for a finished day, as the morning summary draws it: the last check-in of the day, the doses in schedule
+    * order, water and the night against the user's own goals, the meals against the plan. Each domain behind its
+    * consent; a domain the card cannot draw without inventing a figure is left to the text.
+    */
+  def day(tx: Tx, accountId: UUID, date: LocalDate): DayCardView =
+    def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+    val single = DateRange.single(date)
+    val mood = Option
+      .when(granted(ConsentPurpose.Mood))(tx.tracking.mood.listLive(accountId, single).maxByOption(_.occurredAt))
+      .flatten
+      .map(checkin => MoodCardView(checkin.valence, checkin.energy))
+    val doses = Option.when(granted(ConsentPurpose.Medication))(DoseMarks.of(tx, accountId, date))
+    val water = stats.hydrationCalendar(tx, accountId, single).toOption.flatMap(_.get(date)).flatMap { day =>
+      day.goalMl.map(goal => WaterCardView(date, day.totalMl, goal, day.entries))
+    }
+    val sleep = stats.sleepCalendar(tx, accountId, single).toOption.flatMap { nights =>
+      NightFacts
+        .goalOn(date, tx.tracking.sleep.goals(accountId, date))
+        .map(SleepCardView(nights.get(date).map(_.minutes), _))
+    }
+    val food = stats.mealCalendar(tx, accountId, single).toOption.map { days =>
+      val plan = tx.tracking.meals.plan(accountId).getOrElse(MealPlan.Default)
+      val regular = MealStats.regular(date, days.get(date), plan)
+      if plan.planned.isEmpty then FoodLineView(regular.logged.size, 0)
+      else FoodLineView(regular.plannedLogged, plan.planned.size)
+    }
+    DayCardView(date, mood, doses, water, sleep, food)
 
   /** The theme and discreet mode the account set for its images. */
   def look(tx: Tx, accountId: UUID): CardLook =
@@ -132,6 +167,28 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
           if !withImages || !imagesAllowed(tx, accountId) then Nil
           else drawn(cards.week(views.week(tx, accountId, week), views.look(tx, accountId)).toList)
         ReportOutcome.Send(compose(PromptKind.WeeklyReport, accountId, lines, images, key, silent))
+
+  /** The morning summary (supervisor decision, 2026-11-27): the day before `planDate` in one message, one line per
+    * domain, with the daily card (IMG-03) first when the account allows images in chat. A day without a record in any
+    * domain sends nothing (VA-PS-05, VA-IMG-03a). `withImages` is false on a day that already had the monthly report.
+    */
+  def daily(
+      tx: Tx,
+      accountId: UUID,
+      planDate: LocalDate,
+      key: String,
+      silent: Boolean,
+      withImages: Boolean
+  ): ReportOutcome =
+    val yesterday = planDate.minusDays(1)
+    stats.dayLines(tx, accountId, yesterday) match
+      case Nil   => ReportOutcome.NoRecords
+      case lines =>
+        val images =
+          if !withImages || !imagesAllowed(tx, accountId) then Nil
+          else drawn(cards.day(views.day(tx, accountId, yesterday), views.look(tx, accountId)).toList)
+        val text = ReportCopy.dailyTitle(yesterday) :: lines
+        ReportOutcome.Send(compose(PromptKind.DailyReport, accountId, text, images, key, silent))
 
   /** The calendar month before `planDate`; produced only when a domain meets the gate of R-INS-11. */
   def monthly(tx: Tx, accountId: UUID, planDate: LocalDate, key: String, silent: Boolean): ReportOutcome =

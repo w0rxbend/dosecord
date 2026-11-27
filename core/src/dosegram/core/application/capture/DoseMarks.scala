@@ -16,7 +16,7 @@ private[application] object DoseMarks:
   def of(tx: Tx, accountId: UUID, date: LocalDate): List[DoseMark] =
     tx.occurrences.listForAccountBetween(accountId, date, date).sortBy(_.scheduledFor).flatMap(markOf)
 
-  private def markOf(occurrence: StoredOccurrence): Option[DoseMark] =
+  def markOf(occurrence: StoredOccurrence): Option[DoseMark] =
     occurrence.status match
       case OccurrenceStatus.Taken =>
         val late = occurrence.state.effectiveAt.exists(_.isAfter(occurrence.state.dueWindowEnd))

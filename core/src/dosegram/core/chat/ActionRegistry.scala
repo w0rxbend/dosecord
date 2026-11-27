@@ -129,7 +129,11 @@ object ActionRegistry:
     ActionEntry(413, "food.pick", requiresSession = false),
     ActionEntry(414, "food.edit", requiresSession = false),
     ActionEntry(415, "food.delete", requiresSession = false),
-    ActionEntry(416, "food.restore", requiresSession = false)
+    ActionEntry(416, "food.restore", requiresSession = false),
+    // Analytics in chat (442 to 471; supervisor decision, 2026-11-27): /stats meds, direct mode on the account, the
+    // value the period's days (7 or 14); its strip image (VISUALS IMG-07) with the same value.
+    ActionEntry(442, "stats.meds", requiresSession = false),
+    ActionEntry(443, "stats.meds_image", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

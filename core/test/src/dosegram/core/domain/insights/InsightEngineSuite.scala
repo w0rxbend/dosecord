@@ -281,4 +281,32 @@ class InsightEngineSuite extends munit.FunSuite:
   test("the timing statement needs no cross-domain consent (IR-07 is single-domain)"):
     val list = InsightEngine.evaluate(inputs(doses = Some(twoSlots(Set(0, 1, 4, 7, 10, 13))), crossDomain = false))
     assert(list.shown.exists(_.isInstanceOf[Insight.Timing]), clue(list))
+
+  // ---------- close to the minimum data (supervisor decision, 2026-11-27) ----------
+
+  private def daysBack[A](value: Int => Option[A]): Map[LocalDate, A] =
+    (0 until 35).flatMap(back => value(back).map(today.minusDays(back.toLong) -> _)).toMap
+
+  test("a timing statement short in both slots needs the doses of both, not of the better one alone"):
+    // Eight days of a morning dose and three of an evening dose: 2 more mornings and 7 more evenings are needed.
+    val doses = lastFortnight.takeRight(8).map(dose(_, morning, OccurrenceStatus.Taken)) ++
+      lastFortnight.takeRight(3).map(dose(_, evening, OccurrenceStatus.Taken))
+    assertEquals(InsightEngine.evaluate(inputs(doses = Some(doses))).gaps, List(InsightGap.Timing(9, inSecondSlot = false)))
+
+  test("a timing statement with one slot ready needs the doses of a second one"):
+    val doses = lastFortnight.map(dose(_, morning, OccurrenceStatus.Taken)) ++
+      lastFortnight.takeRight(7).map(dose(_, evening, OccurrenceStatus.Taken))
+    assertEquals(InsightEngine.evaluate(inputs(doses = Some(doses))).gaps, List(InsightGap.Timing(3, inSecondSlot = true)))
+
+  test("the own-week comparison is listed when the current week or the earlier weeks are one short"):
+    val days = InsightEngine.evaluate(inputs(nights = Some(daysBack(back => Option.when(back >= 5)(night(400))))))
+    assert(days.gaps.contains(InsightGap.Baseline(BaselineMetric.SleepMinutes, 1, weeks = false)), clue(days))
+    val weeks = InsightEngine.evaluate(inputs(hydration = Some(daysBack(back =>
+      Option.when(back < 10)(HydrationDay(1500, 3, None))
+    ))))
+    assert(weeks.gaps.contains(InsightGap.Baseline(BaselineMetric.WaterMillilitres, 1, weeks = true)), clue(weeks))
+
+  test("an own-week comparison far from its data is not listed"):
+    val list = InsightEngine.evaluate(inputs(mood = Some(daysBack(back => Option.when(back == 0)(moodDay(4))))))
+    assert(!list.gaps.exists(_.isInstanceOf[InsightGap.Baseline]), clue(list))
 end InsightEngineSuite

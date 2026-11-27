@@ -83,10 +83,19 @@ object PromptCopy:
   def kindButton(kind: PromptKind): String = kindName(kind)
 
   def choosePreset(kind: PromptKind): String =
-    tr(
-      s"${kindName(kind)} reminders. Pick one; you see the times before it starts.",
-      s"Нагадування «${kindName(kind)}». Виберіть варіант — час ви побачите, перш ніж він запрацює."
-    )
+    if kind == PromptKind.DailyReport then
+      tr(
+        "Morning summary: yesterday in one message, with its card when images are on. Pick a time; you see the next " +
+          "days before it starts. It is never sent in quiet hours and counts toward your daily reminder budget.",
+        "Ранковий підсумок: учорашній день одним повідомленням, із карткою, якщо зображення ввімкнено. Виберіть час — " +
+          "найближчі дні ви побачите, перш ніж він запрацює. Він не надходить у тихі години й входить у ваш денний " +
+          "ліміт нагадувань."
+      )
+    else
+      tr(
+        s"${kindName(kind)} reminders. Pick one; you see the times before it starts.",
+        s"Нагадування «${kindName(kind)}». Виберіть варіант — час ви побачите, перш ніж він запрацює."
+      )
   def preview(name: String, times: List[String]): String =
     if times.isEmpty then
       tr(
@@ -142,6 +151,7 @@ object PromptCopy:
     case PromptKind.Meal          => tr("Meals", "Їжа")
     case PromptKind.WeeklyReport  => tr("Weekly summary", "Тижневий підсумок")
     case PromptKind.MonthlyReport => tr("Monthly summary", "Місячний підсумок")
+    case PromptKind.DailyReport   => tr("Morning summary", "Ранковий підсумок")
 
   /** The name of each preset of the catalogue, by id. */
   def presetName(id: String): String = id match
@@ -158,6 +168,7 @@ object PromptCopy:
     case "meal.anchors"        => tr("If a meal is not logged", "Якщо їжу не записано")
     case "report.weekly"       => tr("Sunday evening", "Неділя ввечері")
     case "report.monthly"      => tr("On the 1st", "Першого числа")
+    case MorningSummaryId(hh)  => tr(s"Every day at $hh:00", s"Щодня о $hh:00")
     case "med.morning"         => tr("Once in the morning", "Раз уранці")
     case "med.evening"         => tr("Once in the evening", "Раз увечері")
     case "med.twice_daily" => tr("Twice a day, at wake and bedtime", "Двічі на день: після пробудження й перед сном")
@@ -174,6 +185,9 @@ object PromptCopy:
     case "med.weekday_weekend" =>
       tr("Weekdays at wake, weekend an hour later", "Будні після пробудження, вихідні на годину пізніше")
     case other => other
+
+  /** A morning summary's preset id names its hour (`report.daily.08`). */
+  private val MorningSummaryId = """report\.daily\.(\d\d)""".r
 
   def clock(at: LocalTime): String = f"${at.getHour}%02d:${at.getMinute}%02d"
 
@@ -224,5 +238,8 @@ object PromptCopy:
     CopyEntry("reminders.day_usage", dayUsage),
     CopyEntry("reminders.day_saved", daySaved),
     CopyEntry("reminders.work_order", workOrder),
-    CopyEntry("reminders.offer_water", offerWater)
+    CopyEntry("reminders.offer_water", offerWater),
+    CopyEntry("reminders.kind.daily", kindName(PromptKind.DailyReport)),
+    CopyEntry("reminders.preset.daily", presetName("report.daily.08")),
+    CopyEntry("reminders.choose.daily", choosePreset(PromptKind.DailyReport))
   )

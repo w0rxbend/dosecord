@@ -8,11 +8,14 @@ import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.PromptCopy
+import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.domain.insights.HydrationDay
+import dosegram.core.domain.reminders.PromptKind
+import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.ports.ConsentPurpose
 import dosegram.infra.Adapter
 import dosegram.infra.Environment
@@ -213,6 +216,31 @@ class NewUserWalkSuite extends PgSuite:
     val waterCards = messagesWith(lines, " bot #", reminderWords)
     waterCards.dropRight(1).foreach(n => shows(s"the water reminder #$n gives way to the next", s"bot deletes #$n"))
 
+  /** The morning summary and `/stats meds` (supervisor decision, 2026-11-27), as the production path shows them. */
+  private def assertAnalytics(lang: Lang, lines: List[String]): Unit =
+    def l(text: => String): String = Lang.within(lang)(text)
+    val text = lines.mkString("\n")
+    def shows(clue: String, expected: String): Unit = assert(text.contains(expected), s"$clue: '$expected'")
+    shows("the morning summary is on", l(PromptCopy.presetName(PromptPresets.morningSummary(8).id)))
+    val summary = l(ReportCopy.dailyTitle(day))
+    val sent = messagesWith(lines, " bot #", summary)
+    assertEquals(sent.size, 1, "one morning summary of the first day")
+    val at = lines.indexWhere(line => line.contains(s" bot #${sent.head}:"))
+    assert(lines(at).startsWith("Tue 08:0"), s"the summary comes at the chosen time: ${lines(at)}")
+    // The daily card goes first, with its text equivalent as its caption; the summary's text names each domain.
+    assert(lines.take(at).reverse.takeWhile(!_.contains(" you")).exists(_.contains("[image")), "the daily card before it")
+    val body = lines.drop(at + 1).takeWhile(_.startsWith("      "))
+    def t(en: String, uk: String): String = if lang == Lang.Uk then uk else en
+    List(t("Doses: ", "Дози: "), t("Water: ", "Вода: "), t("Mood: ", "Настрій: "), t("Sleep: ", "Сон: "))
+      .foreach(domain => assert(body.exists(_.contains(domain)), s"the summary's $domain line: $body"))
+    assert(body.exists(_.contains(l(ReportCopy.StopThese))), s"Stop these: $body")
+    val meds = l(StatsCardCopy.medsTitle(7, day))
+    shows("/stats meds", meds)
+    shows("/stats meds names the first medication", "1. Vitamin D:")
+    shows("/stats meds names the second medication", "2. Magnesium:")
+    val strip = lines.indexWhere(_.contains(meds))
+    assert(lines.drop(strip).exists(_.contains("[image")), "the strip of /stats meds")
+
   /** The numbers of the messages that `marker` introduces (" bot #" for a send, " bot edits #" for an edit) and whose
     * text contains `text`.
     */
@@ -324,18 +352,28 @@ class NewUserWalkSuite extends PgSuite:
     tap(StatsCardCopy.WaterWeek)
     chat.note("/reminders")
     chat.say("/reminders")
+    chat.note("The morning summary: on from /reminders, every day at 08:00")
+    tap(PromptCopy.kindName(PromptKind.DailyReport))
+    tap(PromptCopy.presetName(PromptPresets.morningSummary(8).id))
+    tap(PromptCopy.TurnOn)
+    chat.note("/stats meds: each medication over 7 days, and its strip")
+    chat.say("/stats meds")
+    tap(StatsCardCopy.ShowAsImage)
     chat.note("/privacy")
     chat.say("/privacy")
     // Finding 19: /privacy offers the export.
     tap(ExportCopy.ExportMyData)
     chat.note("The rest of the day: what the bot sends on its own until 22:00")
     chat.passUntil(at("22:00"))
+    chat.note("The next morning: the summary of the first day at 08:00")
+    chat.passUntil(NewUserWalk.at(day.plusDays(1), "08:05", zone))
 
   test("a new Ukrainian-speaking user's first day in the chat"):
     val zone = ZoneId.of("Europe/Kyiv")
     val (lines, shown) = walk(ukrainian, zone, "08:00")(firstDay(Lang.Uk, zone))
     assertClean(lines)
     assertReviewed(Lang.Uk, lines, shown)
+    assertAnalytics(Lang.Uk, lines)
     // Walk-through of 2026-11-27: the onboarding and wizard buttons were English for a Ukrainian reader.
     val english = EnglishOnly.filter(shown)
     assertEquals(english, Set.empty[String], "English buttons in the Ukrainian walk")
@@ -346,4 +384,5 @@ class NewUserWalkSuite extends PgSuite:
     val (lines, shown) = walk(english, zone, "08:00")(firstDay(Lang.En, zone))
     assertClean(lines)
     assertReviewed(Lang.En, lines, shown)
+    assertAnalytics(Lang.En, lines)
 end NewUserWalkSuite

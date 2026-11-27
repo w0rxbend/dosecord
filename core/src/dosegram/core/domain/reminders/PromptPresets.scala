@@ -132,6 +132,22 @@ object PromptPresets:
   val MonthlyReport: PromptPreset =
     PromptPreset("report.monthly", PromptKind.MonthlyReport, NudgePlan.Monthly(1, at(10)), ownCap = false)
 
+  /** The morning summary of yesterday at a time the user picks (supervisor decision, 2026-11-27): one message with the
+    * daily card, inside the shared budget and quiet hours like every report.
+    */
+  def morningSummary(hour: Int): PromptPreset =
+    PromptPreset(
+      f"report.daily.$hour%02d",
+      PromptKind.DailyReport,
+      NudgePlan.AtTimes(List(at(hour)), DaySet.Every),
+      ownCap = false
+    )
+
+  /** The times the morning summary can be sent at. */
+  val MorningSummaryHours: List[Int] = List(7, 8, 9, 10)
+
+  val MorningSummaries: List[PromptPreset] = MorningSummaryHours.map(morningSummary)
+
   val all: List[PromptPreset] = List(
     WaterWorkHours,
     WaterHourly,
@@ -145,7 +161,7 @@ object PromptPresets:
     MealAnchors,
     WeeklyReport,
     MonthlyReport
-  )
+  ) ++ MorningSummaries
 
   /** The kinds whose prompts are sent today. */
   val wired: Set[PromptKind] = Set(
@@ -155,7 +171,8 @@ object PromptPresets:
     PromptKind.SleepMorning,
     PromptKind.Meal,
     PromptKind.WeeklyReport,
-    PromptKind.MonthlyReport
+    PromptKind.MonthlyReport,
+    PromptKind.DailyReport
   )
 
   def byId(id: String): Option[PromptPreset] = all.find(_.id == id)

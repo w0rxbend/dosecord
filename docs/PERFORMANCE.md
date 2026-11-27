@@ -24,6 +24,7 @@ the numbers depend on the host. The query counts of section 3 do have a test.
 | Chat round trip | `./mill app.test.runMain dosegram.app.chatRoundTripProbe 30` | The process of `ProductionPathSuite` on the fake Telegram wire: `/start`, a medication, then `/help` and `/today`, timed from the update entering the wire to its inbox row, its answer's outbox row and its `sendMessage` |
 | API latency | `./mill api.test.runMain dosegram.api.apiLatencyProbe 50` | The API's routes on the real Netty interpreter (the `ApiSuite` harness) for one account with 90 days of data, all written through the production services: 182 doses, 541 water entries, 271 meals, 91 mood check-ins, 91 nights and 364 rollups. Each route gets 10 warm-up calls and 50 measured calls, plus one call with its statements counted |
 | Reminder loop | `./mill infra.test.runMain dosegram.infra.perf.reminderTickProbe 1000` | 1000 accounts, each with a daily 09:00 dose and a delivery channel (seeded through `ScheduleLifecycle`), plus 90 days of dose history each (91,000 more rows). Then the loop's `tickOnce` while idle, and busy from 09:05 until every due dose is claimed |
+| Share preview | `./mill app.test.runMain dosegram.app.sharePreviewProbe <resvg> $PWD/report-renderer/fonts 30 [<dosegram-raster>]` | `GET /report-cards/{kind}/preview` draws its card inside the request: each card of the share builder laid out, drawn through `StatusImages.from`, read back from the store and encoded as base64, as `MiniAppEdge` wires it; then 8 previews at the same moment through `PreviewLimits` (section 4.6) |
 | RSS | `scripts/rss-check.sh` against the compose stack (section 4.5) | The resident memory of the app container while idle, and right after it has sent 1000 reminders seeded by `dosegram.infra.perf.loadSeed` |
 
 `StatementLog` (in `infra/test`) counts the statements a probe's own database runs, with their server time, by
@@ -164,3 +165,25 @@ The image of the `feat/renderer-perf-vitals` branch, which adds the worker and s
 138 MB and then 144 MB (141,760 kB and 147,004 kB, both `rss-check: PASS`) under its own project name. No worker runs
 until the first card is drawn, so the idle figure has none; each worker that has drawn adds about 13 MB outside the
 JVM (section 4.1).
+
+### 4.6 The share builder's preview
+
+Measured on 2026-11-27 on the `feat/chat-analytics` branch (load average 7 to 8), 30 samples per card after 3 warm-up
+previews, resvg 0.49.0 and `dosegram-raster` 0.49.0 built from the pinned sources. Every builder card is personal and
+keyed by its bytes, so every preview draws.
+
+| Probe | Worker p50 | Worker p95 | Process p50 | Process p95 |
+|---|---|---|---|---|
+| preview share-week-mood (IMG-17) | 12.5 | 17.2 | 43.9 | 53.0 |
+| preview week-glance-7 (IMG-19) | 14.3 | 17.5 | 45.1 | 54.8 |
+| preview trends-30 (IMG-23) | 15.2 | 25.5 | 46.6 | 108.2 |
+| preview trends-90 (IMG-23) | 11.9 | 13.6 | 70.2 | 97.1 |
+
+All times in ms. The preview is the only route that rasterises inside a request, on the two rasterisers the report
+worker also uses (ARCHITECTURE RND-07), so a burst of previews could hold the chat's images back. Supervisor decision,
+2026-11-27: `PreviewLimits` lets an account ask for 10 previews a minute and lets 2 previews draw at once across the
+process; a preview over either limit is answered 429 with `Retry-After` (60 seconds at most for the minute, 1 second
+for a busy slot) before anything is read or drawn, and the Mini App shows its "try again" state. In the probe's burst of
+8 previews at the same moment, 2 were drawn and 6 answered 429, in 23 ms with the worker and 77 ms with one process per
+card. The minute's count is in memory, like the request limits of API-18, and so is valid while one process serves the
+API.

@@ -215,12 +215,18 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
   private def weekCard(turn: Turn, label: String, pending: Pending): Choice =
     Choice.callback(label, tokens.direct(CaptureActions.StatsImage, turn.accountId, pending.argument.toLong))
 
-  /** The month so far and the patterns: one tap away from any period (VISUALS sections 6.6 and 8.5). */
+  /** The month so far, the patterns and the medications one by one: one tap away from any period (VISUALS sections 6.6,
+    * 6.8 and 8.5).
+    */
   private def more(turn: Turn, today: LocalDate): List[Choice] =
     val month = MonthAndInsightsChat.indexOf(java.time.YearMonth.from(today)).toLong
     List(
       Choice.callback(ReportCopy.ThisMonth, tokens.direct(CaptureActions.StatsMonth, turn.accountId, month)),
-      Choice.callback(ReportCopy.Patterns, tokens.direct(CaptureActions.InsightsShow, turn.accountId, 0))
+      Choice.callback(ReportCopy.Patterns, tokens.direct(CaptureActions.InsightsShow, turn.accountId, 0)),
+      Choice.callback(
+        StatsCardCopy.ByMedication,
+        tokens.direct(CaptureActions.StatsMeds, turn.accountId, MedsChat.DefaultDays.toLong)
+      )
     )
 
 private[capture] object StatsChat:

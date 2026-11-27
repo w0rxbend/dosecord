@@ -305,7 +305,10 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         413 -> "food.pick",
         414 -> "food.edit",
         415 -> "food.delete",
-        416 -> "food.restore"
+        416 -> "food.restore",
+        // Analytics in chat (supervisor decision, 2026-11-27).
+        442 -> "stats.meds",
+        443 -> "stats.meds_image"
       )
     )
 

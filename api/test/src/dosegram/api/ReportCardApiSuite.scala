@@ -96,6 +96,18 @@ final class ReportCardApiSuite extends ApiSuite:
     assert(alt.contains("Mood: 1 check-in"), alt)
     assertEquals(queued(accountId), 0)
 
+  test("the share builder's preview is limited to 10 a minute per account, then 429 with Retry-After"):
+    val (token, _) = account()
+    (1 to PreviewLimits.PerMinute).foreach: n =>
+      assertEquals(get("/api/v1/report-cards/trends-30/preview", token).status, 200, s"preview $n")
+    val refused = get("/api/v1/report-cards/trends-30/preview", token)
+    assertProblem(refused, 429, "rate_limited")
+    assert(refused.header("Retry-After").exists(_.toLong >= 1), refused.toString)
+    val (other, _) = account()
+    assertEquals(get("/api/v1/report-cards/trends-30/preview", other).status, 200, "another account has its own minute")
+    clock.at = clock.now().plusSeconds(61)
+    assertEquals(get("/api/v1/report-cards/trends-30/preview", token).status, 200, "the next minute previews again")
+
   test("a builder card is queued for the chat with its text equivalent as the caption"):
     val (token, accountId) = account()
     val sent = post("/api/v1/report-cards/trends-30/deliveries", ujson.Obj(), token, newKey())

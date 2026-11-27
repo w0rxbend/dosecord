@@ -24,8 +24,16 @@ enum PromptKind(val id: String, val consent: Option[String]):
   case WeeklyReport extends PromptKind("report_weekly", None)
   case MonthlyReport extends PromptKind("report_monthly", None)
 
+  /** The morning summary of yesterday (supervisor decision, 2026-11-27): off until the user picks a time. Last, because
+    * a button carries a kind by its ordinal.
+    */
+  case DailyReport extends PromptKind("report_daily", None)
+
 object PromptKind:
   def byId(id: String): Option[PromptKind] = values.find(_.id == id)
+
+  /** The kinds that send a report of a finished period rather than a nudge. */
+  val Reports: Set[PromptKind] = Set(WeeklyReport, MonthlyReport, DailyReport)
 
 /** A time of day given as a clock time or relative to an anchor of the day profile. */
 enum TimeRef:

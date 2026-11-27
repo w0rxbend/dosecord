@@ -22,6 +22,8 @@ import dosegram.core.domain.EntrySource
 import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.nutrition.MealType
+import dosegram.core.domain.QuietHours
+import dosegram.core.domain.reminders.Anchor
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.DaySet
 import dosegram.core.domain.reminders.NudgePlan
@@ -35,10 +37,12 @@ import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.DayCardView
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.PromptOccurrence
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.WeekCardView
 import dosegram.core.scheduling.CatalogueOutboxRenderer
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.core.scheduling.PromptLoop
@@ -535,6 +539,99 @@ class PromptLoopPgSuite extends PgSuite:
       List(PromptStatus.Suppressed -> Some(SuppressReason.NoRecords))
     )
     assertEquals(rig.open, Nil)
+  // The morning summary (supervisor decision, 2026-11-27): yesterday in one message, at the time the user picked.
+
+  test("the morning summary sends yesterday in one message after the daily card, with Stop these"):
+    val pages = StatusCards.textOnly
+    val dayCard = new StatusCards:
+      export pages.{mood, water, sleep, food}
+      override def day(view: DayCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.day.v1", "<svg/>", s"Day card of ${view.date}.", "day.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = dayCard, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    rig.clock.at = sundayAt("10:00")
+    rig.drink(700, "d-sunday")
+    rig.clock.at = mondayAt("07:30")
+    rig.drink(300, "d-monday")
+    rig.clock.at = mondayAt("08:00").plusSeconds(5)
+    rig.tickAndSend()
+    val List((_, photo), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(photo.attachment.map(_.altText), Some("Day card of 2026-11-22."))
+    assert(text.toString.contains("Yesterday, Sun 22 Nov"), text)
+    // Yesterday's 700 ml, not this morning's 300 ml.
+    assert(text.toString.contains("Water: 0.7 l"), text)
+    assertEquals(rig.labels(text), List("Stop these"))
+    val sent = rig.allPrompts.filter(_.kind == PromptKind.DailyReport)
+    assertEquals(sent.map(p => (p.status, p.budgeted)), List(PromptStatus.Sent -> true), "it counts toward the budget")
+    // One summary a day: a later pass sends nothing more.
+    rig.clock.at = mondayAt("08:40")
+    rig.tickAndSend()
+    assertEquals(chatOf(rig).size, 2)
+
+  test("on the day of the weekly report the morning summary goes as text: one unprompted image a day"):
+    val pages = StatusCards.textOnly
+    val cards = new StatusCards:
+      export pages.{mood, water, sleep, food}
+      override def day(view: DayCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.day.v1", "<svg/>", "Day card.", "day.png", false))
+      override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.week.v1", "<svg/>", "Week card.", "week.png", false))
+    val drawing: CardDrawing = (page, _) =>
+      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = cards, drawing = drawing)
+    rig.uow.transaction(tx => assert(rig.settings.apply(tx, rig.account, PromptPresets.WeeklyReport).isRight))
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    rig.clock.at = sundayAt("10:00")
+    rig.drink(700, "i-sunday")
+    rig.clock.at = mondayAt("08:00").plusSeconds(5)
+    rig.tickAndSend()
+    val List((_, summary)) = chatOf(rig): @unchecked
+    assertEquals(summary.attachment, None)
+    assert(summary.toString.contains("Yesterday, Sun 22 Nov"), summary)
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    assertEquals(chatOf(rig).flatMap(_._2.attachment).map(_.altText), List("Week card."))
+
+  test("the morning summary of a day without records sends nothing (VA-PS-05)"):
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8))
+    rig.clock.at = mondayAt("08:00").plusSeconds(5)
+    rig.tickAndSend()
+    assertEquals(rig.allPrompts.map(p => (p.status, p.reason)), List(PromptStatus.Suppressed -> Some(SuppressReason.NoRecords)))
+    assertEquals(chatOf(rig), Nil)
+
+  test("the morning summary is held in quiet hours and by the shared daily budget"):
+    val quiet = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(7))
+    quiet.uow.transaction(tx =>
+      assert(quiet.settings.setQuiet(tx, quiet.account, QuietHours(HhMm.unsafe("22:00"), HhMm.unsafe("07:30"))).isRight)
+    )
+    quiet.clock.at = sundayAt("10:00")
+    quiet.drink(700, "q-sunday")
+    quiet.clock.at = mondayAt("07:00").plusSeconds(5)
+    quiet.tickAndSend()
+    assertEquals(
+      quiet.allPrompts.filter(_.kind == PromptKind.DailyReport).map(_.reason),
+      List(Some(SuppressReason.QuietHours))
+    )
+    assertEquals(chatOf(quiet), Nil)
+    // Three meal nudges and an evening mood prompt spend the default budget of four before the summary at 10:00.
+    val busy = Rig(start = sundayAt("09:00"), preset = PromptPresets.MealAnchors, consent = ConsentPurpose.Nutrition)
+    List(ConsentPurpose.Mood, ConsentPurpose.Hydration).foreach(fixtures.grant(busy.account, _))
+    busy.uow.transaction: tx =>
+      List(PromptPresets.MoodEvening, PromptPresets.morningSummary(10))
+        .foreach(preset => assert(busy.settings.apply(tx, busy.account, preset).isRight))
+      List(Anchor.Breakfast -> "07:10", Anchor.Lunch -> "07:40", Anchor.Dinner -> "08:10").foreach: (anchor, at) =>
+        assert(busy.settings.setAnchor(tx, busy.account, anchor, LocalTime.parse(at)).isRight)
+    busy.clock.at = sundayAt("10:00")
+    busy.drink(700, "b-sunday")
+    List("07:10", "07:40", "08:10", "09:10", "10:00").foreach: hhmm =>
+      busy.clock.at = mondayAt(hhmm).plusSeconds(5)
+      busy.tickAndSend()
+    val monday = busy.allPrompts.filter(_.planDate == LocalDate.parse("2026-11-23"))
+    assertEquals(monday.count(p => p.budgeted && p.status.wasSent), 4)
+    assertEquals(monday.filter(_.kind == PromptKind.DailyReport).map(_.reason), List(Some(SuppressReason.Budget)))
+
   test("meal nudges (G8.4): each meal anchor names its meal, a meal logged that day suppresses it, a tap logs it"):
     val rig = Rig(start = kyiv("07:00"), preset = PromptPresets.MealAnchors, consent = ConsentPurpose.Nutrition)
     val parts = CaptureParts.over(rig.uow, rig.clock, ids, StatusCards.textOnly)

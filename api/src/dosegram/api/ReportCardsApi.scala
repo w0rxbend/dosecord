@@ -2,6 +2,7 @@ package dosegram.api
 
 import dosegram.api.ApiJson.ReadWriter
 import dosegram.api.ApiJson.jsonBody
+import dosegram.api.auth.AttemptLimiter
 import dosegram.contracts.ChatRef
 import dosegram.contracts.Inline
 import dosegram.contracts.Node
@@ -17,6 +18,7 @@ import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.CardPage
+import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ReportPage
 import dosegram.core.ports.StatusCards
@@ -25,7 +27,10 @@ import dosegram.core.ports.UnitOfWork
 import sttp.model.StatusCode
 import sttp.tapir.*
 
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.Semaphore
 
 /** One card the Mini App may send to the chat, named by its kind and by the sentence the card states (VA-IMG-17b). */
 final case class ReportCardOffer(kind: String, sentence: String) derives ReadWriter, Schema
@@ -106,10 +111,12 @@ object ReportCardEndpoints:
   */
 final class ReportCardsApi(
     uow: UnitOfWork,
+    clock: Clock,
     stats: StatsQueryService,
     cards: StatusCards,
     delivery: CardDelivery,
-    pictures: CardPage => Option[Array[Byte]]
+    pictures: CardPage => Option[Array[Byte]],
+    previews: PreviewLimits = PreviewLimits.default()
 ):
   import ReportCardsApi.*
 
@@ -137,10 +144,12 @@ final class ReportCardsApi(
     * worker draws it (ARCHITECTURE RND-05). Nothing is sent.
     */
   def preview(accountId: UUID, kind: String): Either[ApiFailure, ReportCardPreview] =
-    val laidOut = uow.transactionAs(accountId): tx =>
-      imagesConsent(tx, accountId).flatMap(_ => pageOf(tx, accountId, kind, look(tx, accountId)))
-    laidOut.map: card =>
-      ReportCardPreview(kind, card.altText, pictures(card).map(java.util.Base64.getEncoder.encodeToString))
+    for
+      _ <- previews.admit(accountId, clock.now())
+      card <- uow.transactionAs(accountId): tx =>
+        imagesConsent(tx, accountId).flatMap(_ => pageOf(tx, accountId, kind, look(tx, accountId)))
+      png <- previews.drawing(pictures(card))
+    yield ReportCardPreview(kind, card.altText, png.map(java.util.Base64.getEncoder.encodeToString))
 
   def deliver(
       accountId: UUID,
@@ -234,3 +243,34 @@ object ReportCardsApi:
     ),
     TrendsKind.choice
   )
+
+/** The limits of the share builder's preview (supervisor decision, 2026-11-27; docs/PERFORMANCE.md section 4.6): the
+  * preview draws its card inside the request, on the rasterisers the report worker also uses, so an account may ask for
+  * `perMinute` previews a minute, and at most `drawingAtOnce` are drawn at the same moment across the process. A
+  * preview over either limit is answered 429 with `Retry-After` before anything is read or drawn; the counters are in
+  * memory, valid while one process serves the API (API-18).
+  */
+final class PreviewLimits(perAccount: AttemptLimiter, drawingAtOnce: Int):
+  private val underway = Semaphore(drawingAtOnce)
+
+  /** Counts one preview of the account; `Left` with the 429 problem when its minute is spent. */
+  def admit(accountId: UUID, now: Instant): Either[ApiFailure, Unit] =
+    perAccount
+      .attempt(accountId.toString, now)
+      .map(wait => ApiFailure.rateLimited(math.max(1L, wait.toSeconds)))
+      .toLeft(())
+
+  /** Draws when a drawing slot is free; `Left` with a one-second 429 when every slot is busy. */
+  def drawing[A](draw: => A): Either[ApiFailure, A] =
+    if !underway.tryAcquire() then Left(ApiFailure.rateLimited(1))
+    else
+      try Right(draw)
+      finally underway.release()
+
+object PreviewLimits:
+
+  /** Ten previews a minute per account; two drawings at once, one per rasteriser of ARCHITECTURE RND-07. */
+  val PerMinute = 10
+  val DrawingAtOnce = 2
+
+  def default(): PreviewLimits = PreviewLimits(AttemptLimiter(PerMinute, Duration.ofMinutes(1)), DrawingAtOnce)
