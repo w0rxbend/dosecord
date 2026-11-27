@@ -4890,6 +4890,59 @@
         ]
       }
     },
+    "/api/v1/report-cards/{kind}/preview" : {
+      "get" : {
+        "description" : "The PNG of a card as the chat would receive it, with its text equivalent; nothing is sent.",
+        "operationId" : "previewReportCard",
+        "parameters" : [
+          {
+            "name" : "kind",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportCardPreview"
+                }
+              }
+            }
+          },
+          "default" : {
+            "description" : "",
+            "headers" : {
+              "Retry-After" : {
+                "required" : false,
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security" : [
+          {
+            "httpAuth" : [
+            ]
+          }
+        ]
+      }
+    },
     "/api/v1/report-cards/{kind}/deliveries" : {
       "post" : {
         "description" : "Queues the card for the account's chat, where the report worker sends it.",
@@ -6612,6 +6665,9 @@
           },
           "notice" : {
             "type" : "string"
+          },
+          "counts" : {
+            "type" : "string"
           }
         }
       },
@@ -7886,6 +7942,28 @@
           }
         }
       },
+      "ReportCardChoice" : {
+        "title" : "ReportCardChoice",
+        "type" : "object",
+        "required" : [
+          "card",
+          "title"
+        ],
+        "properties" : {
+          "card" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "periods" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReportCardPeriod"
+            }
+          }
+        }
+      },
       "ReportCardDelivery" : {
         "title" : "ReportCardDelivery",
         "type" : "object",
@@ -7930,6 +8008,46 @@
           }
         }
       },
+      "ReportCardPeriod" : {
+        "title" : "ReportCardPeriod",
+        "type" : "object",
+        "required" : [
+          "days",
+          "label",
+          "kind"
+        ],
+        "properties" : {
+          "days" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ReportCardPreview" : {
+        "title" : "ReportCardPreview",
+        "type" : "object",
+        "required" : [
+          "kind",
+          "altText"
+        ],
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "altText" : {
+            "type" : "string"
+          },
+          "png" : {
+            "type" : "string"
+          }
+        }
+      },
       "ReportCards" : {
         "title" : "ReportCards",
         "type" : "object",
@@ -7953,6 +8071,18 @@
             "items" : {
               "$ref" : "#/components/schemas/ReportCardOffer"
             }
+          },
+          "builder" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReportCardChoice"
+            }
+          },
+          "builderTitle" : {
+            "type" : "string"
+          },
+          "builderWarning" : {
+            "type" : "string"
           }
         }
       },

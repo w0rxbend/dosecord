@@ -34,6 +34,7 @@ import type {
   ImportTemplateKind,
   ImportView,
   ReminderPresets,
+  ReportCardPreview,
   Reminders,
   ReminderTimeline,
   SleepEpisode,
@@ -201,6 +202,8 @@ export interface ApiClient {
   /** The shareable cards (report-cards) and a send to the chat through the report queue (report-cards/{kind}/deliveries). */
   reportCards(): Promise<ReportCards>;
   deliverReportCard(kind: string, confirmed: boolean, idempotencyKey: string): Promise<void>;
+  /** The card of a kind as the chat would receive it (report-cards/{kind}/preview); nothing is sent. */
+  previewReportCard(kind: string): Promise<ReportCardPreview>;
   /** One calendar month; absent is the current month. */
   insightMonth(month?: string): Promise<InsightMonth>;
   /** The patterns of the last 28 days. */

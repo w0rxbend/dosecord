@@ -19,6 +19,8 @@ import dosegram.core.ports.FoodCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.TrendsCardView
+import dosegram.core.ports.WeekCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.Tx
@@ -111,7 +113,9 @@ trait ApiSuite extends PgSuite:
     line => logged.synchronized { logged += line; () },
     Application.exportRequests(clock, ApiSuite.Codec),
     Application.deletionRequests(clock, ApiSuite.Codec),
-    ApiSuite.ShareCards
+    ApiSuite.ShareCards,
+    // Stands in for the rasteriser: the "PNG" of a card is the bytes of its document.
+    page => Some(page.svg.getBytes(java.nio.charset.StandardCharsets.UTF_8))
   )
 
   override def beforeAll(): Unit =
@@ -266,5 +270,9 @@ object ApiSuite:
     override def food(view: FoodCardView, look: CardLook): Option[CardPage] = None
     override def share(view: ShareCardView, look: CardLook): Option[CardPage] =
       Some(CardPage("share", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>", ShareFacts.label(view), "card.png", hasSpoiler = false))
+    override def weekGlance(view: WeekCardView, look: CardLook): Option[CardPage] =
+      Some(CardPage("card.week.glance.v1", "<svg id=\"glance\"/>", s"week from ${view.from}", "card.png", look.isDiscreet))
+    override def trends(view: TrendsCardView, look: CardLook): Option[CardPage] =
+      Some(CardPage("card.trends.v1", s"<svg id=\"trends-${view.window.days}\"/>", view.text, "card.png", look.isDiscreet))
 
   final case class TelegramAccount(accountId: UUID, telegramUserId: Long)

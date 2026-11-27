@@ -94,6 +94,8 @@
   <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
     {#snippet children(data)}
       {#if data.notice}<p class="muted notice">{data.notice}</p>{/if}
+      <!-- The week's hit days with the counts switch on (ROADMAP G9.4): a count of days with records, nothing to keep. -->
+      {#if data.counts}<p class="muted notice">{data.counts}</p>{/if}
       {#if data.blocks.length > 0 && !withData(data)}
         <div class="section"><EmptyState message={en.insights.empty} art="all" /></div>
       {/if}

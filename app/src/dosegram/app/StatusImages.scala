@@ -10,6 +10,7 @@ import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardDrawing
@@ -25,6 +26,7 @@ import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.RefillCardView
 import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.TrendsCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
 import dosegram.infra.RenderSettings
@@ -60,6 +62,10 @@ import dosegram.render.card.ShareFact
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepRegularityCard
 import dosegram.render.card.SleepWeekCard
+import dosegram.render.card.TrendRow
+import dosegram.render.card.TrendScale
+import dosegram.render.card.TrendsCard
+import dosegram.render.card.TrendsData
 import dosegram.render.card.WaterCard
 import dosegram.render.card.WaterData
 import dosegram.render.card.WaterProgress
@@ -243,6 +249,20 @@ final class RenderedStatusCards extends StatusCards:
 
   override def sleepWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
     ReportCards.week(view).sleep.map(nights => page(SleepWeekCard.render(view.from, nights, contextOf(look))))
+
+  /** IMG-23 (ROADMAP G9.4, G9.5): mood is drawn on its 1 to 5 scale, every other domain as bars from zero. */
+  override def trends(view: TrendsCardView, look: CardLook): Option[CardPage] =
+    Option.when(view.rows.nonEmpty):
+      val rows = view.rows.toVector.map: row =>
+        val (domain, scale) = row.domain match
+          case TrendDomain.Medication => Domain.Medication -> TrendScale.FromZero
+          case TrendDomain.Hydration  => Domain.Water -> TrendScale.FromZero
+          case TrendDomain.Mood       => Domain.Mood -> TrendScale.Levels
+          case TrendDomain.Sleep      => Domain.Sleep -> TrendScale.FromZero
+          case TrendDomain.Nutrition  => Domain.Food -> TrendScale.FromZero
+        TrendRow(domain, row.figure, row.buckets.toVector, scale)
+      val data = TrendsData(view.window.start, view.window.end, view.byWeek, rows, view.text)
+      page(TrendsCard.render(data, contextOf(look)))
 
   override def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] =
     val rows = weekdays.toVector.map(weekday => MoodWeekdayRow(weekday.day, weekday.mean.shown, weekday.days))

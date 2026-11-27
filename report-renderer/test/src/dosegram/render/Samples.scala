@@ -11,6 +11,7 @@ import dosegram.render.copy.UkrainianImageCopy
 import dosegram.render.copy.GoalDays as GoalDaysOf
 import dosegram.render.text.TableTextMeasurer
 import dosegram.render.text.TextFitter
+import dosegram.render.tokens.Domain
 import dosegram.render.tokens.Theme
 
 import java.time.DayOfWeek
@@ -591,10 +592,78 @@ object Samples:
     )
   )
 
+  // IMG-23: the figures are the caller's words, as the core writes them in each language (ROADMAP G9.5).
+  private def trendsMonth(copy: ImageCopy): TrendsData =
+    val days = 30
+    def series(value: Int => Option[Double]): Vector[Option[Double]] = Vector.tabulate(days)(value)
+    val doses = series(day => if day % 9 == 4 then None else Some(if day % 5 == 0 then 0.5 else 1.0))
+    val water = series(day => Option.when(day % 4 != 1)(1300.0 + (day * 137) % 900))
+    val mood = series(day => Option.when(day % 3 != 2)(2.0 + (day * 7 % 9) / 3.0))
+    val sleep = series(day => Option.when(day % 6 != 3)(380.0 + (day * 53) % 120))
+    val food = series(day => Option.when(day % 2 == 0)(1.0 + day % 3))
+    val (figures, text) = copy match
+      case UkrainianImageCopy =>
+        (
+          Vector("прийнято 52 з 56 (93%) · пропущено 2", "ціль досягнуто в 15 з 22 днів із записами", "28 позначок",
+            "записано 25 ночей", "30 прийомів їжі за 15 днів"),
+          "Динаміка · останні 30 днів · 10 жовтня – 8 листопада\nЛіки: прийнято 52 з 56 (93%) · пропущено 2. " +
+            "Попередні 30 днів: прийнято 50 з 56 (89%).\nВода: ціль досягнуто в 15 з 22 днів із записами. " +
+            "Попередні 30 днів: вода записана за 18 днів.\nНастрій: 28 позначок. Попередні 30 днів: позначки за 20 днів.\n" +
+            "Сон: записано 25 ночей. Попередні 30 днів: немає даних.\nЇжа: 30 прийомів їжі за 15 днів. Попередні 30 днів: немає даних."
+        )
+      case _ =>
+        (
+          Vector("52 of 56 taken (93%) · skipped 2", "goal reached on 15 of 22 recorded days", "28 check-ins",
+            "25 nights logged", "30 meals logged on 15 days"),
+          "Trends · last 30 days · 10 Oct to 8 Nov\nMedication: 52 of 56 taken (93%) · skipped 2. " +
+            "Previous 30 days: 50 of 56 taken (89%).\nWater: goal reached on 15 of 22 recorded days. " +
+            "Previous 30 days: water logged on 18 days.\nMood: 28 check-ins. Previous 30 days: check-ins on 20 days.\n" +
+            "Sleep: 25 nights logged. Previous 30 days: No data.\nFood: 30 meals logged on 15 days. Previous 30 days: No data."
+        )
+    val rows = Vector(
+      TrendRow(Domain.Medication, figures(0), doses, TrendScale.FromZero),
+      TrendRow(Domain.Water, figures(1), water, TrendScale.FromZero),
+      TrendRow(Domain.Mood, figures(2), mood, TrendScale.Levels),
+      TrendRow(Domain.Sleep, figures(3), sleep, TrendScale.FromZero),
+      TrendRow(Domain.Food, figures(4), food, TrendScale.FromZero)
+    )
+    TrendsData(LocalDate.of(2026, 10, 10), LocalDate.of(2026, 11, 8), byWeek = false, rows, text)
+
+  private def trendsQuarter(copy: ImageCopy): TrendsData =
+    val weeks = 13
+    val water = Vector.tabulate(weeks)(week => Option.when(week > 1)(1500.0 + (week * 211) % 700))
+    val mood = Vector.tabulate(weeks)(week => Option.when(week != 5)(2.5 + (week % 4) * 0.5))
+    val sleep = Vector.tabulate(weeks)(week => Some(400.0 + (week * 37) % 80))
+    val (figures, text) = copy match
+      case UkrainianImageCopy =>
+        (
+          Vector("у середньому 1,8 л на день", "64 позначки", "записано 78 ночей"),
+          "Динаміка · останні 90 днів · 11 серпня – 8 листопада\nВода: у середньому 1,8 л на день. " +
+            "Попередні 90 днів: немає даних.\nНастрій: 64 позначки. Попередні 90 днів: немає даних.\n" +
+            "Сон: записано 78 ночей. Попередні 90 днів: немає даних."
+        )
+      case _ =>
+        (
+          Vector("average 1.8 l a day", "64 check-ins", "78 nights logged"),
+          "Trends · last 90 days · 11 Aug to 8 Nov\nWater: average 1.8 l a day. Previous 90 days: No data.\n" +
+            "Mood: 64 check-ins. Previous 90 days: No data.\nSleep: 78 nights logged. Previous 90 days: No data."
+        )
+    val rows = Vector(
+      TrendRow(Domain.Water, figures(0), water, TrendScale.FromZero),
+      TrendRow(Domain.Mood, figures(1), mood, TrendScale.Levels),
+      TrendRow(Domain.Sleep, figures(2), sleep, TrendScale.FromZero)
+    )
+    TrendsData(LocalDate.of(2026, 8, 11), LocalDate.of(2026, 11, 8), byWeek = true, rows, text)
+
+  val trends: Vector[Fixture] = Vector(
+    Fixture("trends/month", context => Vector(TrendsCard.render(trendsMonth(context.copy), context))),
+    Fixture("trends/quarter", context => Vector(TrendsCard.render(trendsQuarter(context.copy), context)))
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
       moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
-      refills
+      refills ++ trends
 
   /** Every card the contact sheet and the golden suite show. */
   val review: Vector[Fixture] = all

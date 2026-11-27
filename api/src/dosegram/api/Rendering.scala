@@ -11,11 +11,13 @@ import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.MoodLabels
 import dosegram.core.domain.copy.ScheduleWords
+import dosegram.core.domain.copy.TrendCopy
 import dosegram.core.domain.copy.UkForms
 import dosegram.core.domain.copy.decimal
 import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MoodDay
+import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MedicationStatus
 import dosegram.core.ports.ScheduleStatus
@@ -95,12 +97,14 @@ object ApiCopy:
     case InsightDomain.Mood       => tr("Mood", "Настрій")
     case InsightDomain.Sleep      => tr("Sleep", "Сон")
     case InsightDomain.Nutrition  => tr("Food", "Їжа")
-  def overviewTitle(domain: OverviewDomain): String = domain match
-    case OverviewDomain.Medication => tr("Medication", "Ліки")
-    case OverviewDomain.Hydration  => tr("Water", "Вода")
-    case OverviewDomain.Mood       => tr("Mood", "Настрій")
-    case OverviewDomain.Sleep      => tr("Sleep", "Сон")
-    case OverviewDomain.Nutrition  => tr("Food", "Їжа")
+
+  /** The chat's trends name each domain the same way (ROADMAP G9.5). */
+  def overviewTitle(domain: OverviewDomain): String = TrendCopy.title(domain match
+    case OverviewDomain.Medication => TrendDomain.Medication
+    case OverviewDomain.Hydration  => TrendDomain.Hydration
+    case OverviewDomain.Mood       => TrendDomain.Mood
+    case OverviewDomain.Sleep      => TrendDomain.Sleep
+    case OverviewDomain.Nutrition  => TrendDomain.Nutrition)
   def clock(at: Instant, zone: ZoneId): String = Clock.format(at.atZone(zone))
 
   // ---------- tracking ----------

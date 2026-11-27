@@ -36,6 +36,8 @@ import dosegram.core.domain.insights.SleepRegularity
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.TrendFrame
+import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.ports.Clock
@@ -141,6 +143,48 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
     answer(tx, accountId, ConsentPurpose.Sleep): _ =>
       val goal = NightFacts.goalOn(range.end, tx.tracking.sleep.goals(accountId, range.end))
       SleepRegularity.view(tx.tracking.sleep.liveEpisodes(accountId, range), range, goal)
+
+  /** The trends of a dashboard period (ROADMAP G9.4, G9.5): the one source of the chat's trends, the trends card and
+    * the Mini App's Insights blocks. A domain without consent is absent (PRODUCT_SPEC R-IDC-9).
+    */
+  def trends(tx: Tx, accountId: UUID, period: TrendPeriod): Either[StatsRefusal, TrendsView] =
+    zoneOf(tx, accountId).map: zone =>
+      val today = LocalDays.dateOf(clock.now(), zone)
+      val frame = TrendFrame.of(period, today)
+      val countsOn = tx.accounts.gamificationOf(accountId)
+      def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+      def both[A](read: DateRange => A): (A, A) = read(frame.current) -> read(frame.previous)
+      val blocks = List(
+        Option.when(granted(ConsentPurpose.Medication)):
+          val (current, previous) = both(medicationPeriod(tx, accountId, zone, _))
+          TrendBlocks.medication(frame, current, previous)
+        ,
+        Option.when(granted(ConsentPurpose.Hydration)):
+          val (current, previous) = both(hydrationView(tx, accountId, zone, _))
+          TrendBlocks.hydration(frame, current.period, current.days, previous.period, countsOn)
+        ,
+        Option.when(granted(ConsentPurpose.Mood)):
+          val (current, previous) = both(moodView(tx, accountId, zone, _))
+          TrendBlocks.mood(frame, current.period, current.days, previous.period, countsOn)
+        ,
+        Option.when(granted(ConsentPurpose.Sleep)):
+          val (current, previous) = both(sleepView(tx, accountId, zone, _))
+          val goal = NightFacts.goalOn(frame.current.end, tx.tracking.sleep.goals(accountId, frame.current.end))
+          val regularity =
+            SleepRegularity.view(tx.tracking.sleep.liveEpisodes(accountId, frame.current), frame.current, goal)
+          TrendBlocks.sleep(frame, current.period, current.days, regularity, previous.period, countsOn)
+        ,
+        Option.when(granted(ConsentPurpose.Nutrition)):
+          val (current, previous) = both(mealDays(tx, accountId, _).filter((_, day) => day.meals > 0))
+          TrendBlocks.nutrition(
+            frame,
+            MealStats.period(current, frame.current),
+            current,
+            MealStats.period(previous, frame.previous)
+          )
+      ).flatten
+      val weekCounts = if countsOn then weekSoFar(tx, accountId, today).headOption else None
+      TrendsView(zone, frame, blocks, weekCounts)
 
   private def hydrationView(tx: Tx, accountId: UUID, zone: ZoneId, range: DateRange): HydrationPeriodView =
     val days = hydrationDays(tx, accountId, range)

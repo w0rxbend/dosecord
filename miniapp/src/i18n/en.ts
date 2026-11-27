@@ -331,6 +331,13 @@ export const en = {
     shareSend: 'Send the card',
     shareSent: 'The card is on its way to your chat.',
     shareCancel: 'Cancel',
+    // The share builder (MINI_APP 7.11, ROADMAP G9.5).
+    builder: 'Send a card to your chat',
+    builderCard: 'Card',
+    builderPeriod: 'Period of the card',
+    builderLoading: 'Drawing the preview',
+    builderText: 'Text of the card',
+    builderSend: 'Send to my chat',
     range: 'Period',
     days: (count: number) => `${count} days`,
     vessel: 'Water today',

@@ -759,6 +759,7 @@ Conventions for every entry:
 | IMG-20 | Water, 7 days (section 6.21) | `card.water.week.v1` | square | personal | L1 | on demand |
 | IMG-21 | Sleep, 7 nights (section 6.21) | `card.sleep.week.v1` | square | personal | L1 | on demand |
 | IMG-22 | Mood by weekday (section 6.21) | `card.mood.weekday.v1` | square | personal | L1 | on demand |
+| IMG-23 | Trends, 30 or 90 days (section 6.22) | `card.trends.v1` | square up to three rows, portrait above | personal | L1 | on demand (`/stats trends`, the Mini App share builder) |
 | DOC-01 | Record summary (PDF) | `doc.summary.v1` | a4 | personal | L3 | on demand only |
 
 ### 6.2 IMG-01 Reminder card (withdrawn)
@@ -1447,6 +1448,17 @@ The same round amended three existing layouts after the contact-sheet review. Pa
 ## 7. Metric definitions
 
 Every number in an image, a caption, the PDF and the Mini App is one of the metrics below, computed by one pure function in `core` over a snapshot. A metric that is not defined here is not displayed.
+
+
+### 6.22 Trends of 30 or 90 days (IMG-23)
+
+Supervisor decision, 2026-11-27 (ROADMAP G9.4, G9.5, analytics depth track). IMG-23, `card.trends.v1`, draws the trends of `/stats trends` and of the Mini App's Insights blocks as small multiples: one row per domain with a record in the period, in the order medication, water, mood, sleep, food, each on its own scale (section 3.2). A row has the domain icon and name, the block's headline figure as the core writes it (the first line of the Insights block, which the chat prints after the domain's name), and one mark per bucket: a bar from zero per day for 30 days, per week for 90 days (the weeks of section 9.2, the newest whole), and for mood a dot on the 1 to 5 scale, because a bar from zero would read as an amount. Medication is the share of each bucket's scheduled doses recorded as taken, water and sleep the mean of the recorded days, food the meals logged. A bucket without a record is a dotted slot, never a bar of zero (VA-PR-03). The legend names the dotted slot and says that each row has its own scale. Up to three rows fit the square; four or five take the portrait, and the rows close up when a legend of two lines (Ukrainian) would reach the footer.
+
+The comparison with the user's own previous period of the same length (MINI_APP MA-INS-3) is not drawn: five rows with three lines each do not fit the portrait at the 40 px minimum of VA-TY-01. It is in the text equivalent, which is one sentence per row, "Water: average 1.6 l a day. Previous 30 days: average 1.4 l a day.", under the header of the chat's trends. Nothing on the card ranks a row, colours a change or names a cause. A figure below its minimum sample is the figure the core prints for it: what it still needs with the counts switch on, the coverage with it off (PRODUCT_SPEC R-GAM-5). Discreet mode keeps the rows, captions "Trends over a period." and sends the card behind a spoiler. Goldens: `trends/month` (five rows by day) and `trends/quarter` (three rows by week), light, dark and discreet, English and Ukrainian text equivalents.
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-23 | One row per domain with a record: icon, name, the headline figure, a bar per day or week from zero on the row's own scale (mood a dot on 1 to 5), a dotted slot for a bucket without a record | The header of the chat's trends, then per row its headline and the previous period, as the chat prints them | "Show as image" on `/stats trends` (BOT_UX section 12.5); the share builder of the Mini App (MINI_APP section 7.11) |
 
 ### 7.1 Common definitions
 

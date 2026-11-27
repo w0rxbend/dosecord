@@ -98,7 +98,9 @@ object MiniAppEdge:
       log,
       Application.exportRequests(parts.clock, CallbackCodec(settings.callbackKeys)),
       Application.deletionRequests(parts.clock, CallbackCodec(settings.callbackKeys)),
-      parts.images.cards
+      parts.images.cards,
+      // The share builder's preview is drawn like a card of the report worker, after the request's transaction.
+      page => parts.images.drawing.draw(page, None).toOption.flatMap(ref => parts.images.store.load(ref.assetKey))
     )
     fork:
       WorkerLoop

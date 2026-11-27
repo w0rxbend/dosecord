@@ -31,6 +31,7 @@ import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.InsightRule
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
@@ -59,6 +60,7 @@ import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.TrendsCardView
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
@@ -155,6 +157,12 @@ class CaptureFlowsSuite extends munit.FunSuite:
       Option.when(window.days == 7 && weekdays.size == 7 && weekdays.exists(_.days > 0))(
         personal("mood-weekday", look)
       )
+
+    val trends: mutable.ListBuffer[TrendsCardView] = mutable.ListBuffer.empty
+
+    override def trends(view: TrendsCardView, look: CardLook): Option[CardPage] =
+      trends += view
+      Some(personal("trends", look))
 
     /** A personal week card. The spoiler follows discreet mode. The look list stays the one the theme test counts. */
     private def personal(key: String, look: CardLook): CardPage =
@@ -817,7 +825,10 @@ class CaptureFlowsSuite extends munit.FunSuite:
   test("an unknown period is answered with the usage"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Medication)
-      assertEquals(chat.rig.line("/stats year"), List("Send /stats, /stats today, /stats 7, /stats 30 or /stats month."))
+      assertEquals(
+        chat.rig.line("/stats year"),
+        List("Send /stats, /stats today, /stats 7, /stats 30, /stats trends or /stats month.")
+      )
 
   // ---------- Ownership, help, console ----------
 
@@ -995,7 +1006,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.line("/stats 30")
       assertEquals(
         chat.rig.lastChoiceMap("Last 30 days").map(_.label),
-        List("Today", "7 days", "30 days", "Month", "Patterns")
+        List("Today", "7 days", "30 days", StatsCardCopy.Trends, "Month", "Patterns")
       )
 
       val asked = chat.rig.tapOn("Last 7 days", StatsCardCopy.WaterWeek)
@@ -1019,6 +1030,51 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(photos(mood).map(_.attachment.map(_.assetKey)), List(Some("mood-weekday")))
       assertEquals(photos(mood).flatMap(_.chunks), List("alt of mood-weekday"))
       assert(cards.moodWeekdays.toList.last.exists(_.days > 0))
+
+  test("/stats trends shows each domain with its previous 30 days; 90 days switch to weeks (ROADMAP G9.4, G9.5)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration, ConsentPurpose.Mood)
+      chat.rig.line("500 ml")
+      chat.rig.line("mood 4")
+
+      val month = chat.rig.line("/stats trends").mkString("\n")
+      assert(month.contains("Trends · last 30 days · Europe/Kyiv"), month)
+      // The counts switch is on: a figure below its minimum says what it still needs (R-GAM-3).
+      assert(month.contains("Water: 9 more recorded days for an average · 1 of 30 days have data"), month)
+      assert(month.contains("Previous 30 days: No data"), month)
+      assert(month.contains("Mood: 1 check-in · 9 more days with a check-in for an average"), month)
+      assert(month.contains("Days with records: water 1 of 7, mood 1 of 7."), month)
+      assert(!month.contains("Medication:"), "a domain without a record in the period is left out")
+      assertEquals(
+        chat.rig.lastChoiceMap("Trends · last 30 days").map(_.label),
+        List("30 days", "90 days", StatsCardCopy.ShowAsImage, "Month", "Patterns")
+      )
+
+      val quarter = texts(chat.rig.tapOn("Trends · last 30 days", "90 days")).mkString("\n")
+      assert(quarter.contains("Trends · last 90 days"), quarter)
+      assert(quarter.contains("Previous 90 days: No data"), quarter)
+
+  test("Show as image on the trends asks the images consent, then sends IMG-23 with its text equivalent"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      chat.rig.line("500 ml")
+      chat.rig.line("/stats trends")
+      val asked = chat.rig.tapOn("Trends · last 30 days", StatsCardCopy.ShowAsImage)
+      assertEquals(texts(asked), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      assertEquals(cards.trends.toList, Nil, "the card is not drawn before the images consent")
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = photos(chat.rig.tapOn("Please confirm", ConsentCopy.Confirm))
+      assertEquals(sent.map(_.attachment.map(_.assetKey)), List(Some("trends")))
+      assertEquals(sent.flatMap(_.chunks), List("alt of trends"))
+      val view = cards.trends.toList.last
+      assertEquals(view.window.days, 30)
+      assertEquals(view.byWeek, false)
+      assertEquals(view.rows.map(_.domain), List(TrendDomain.Hydration))
+      assertEquals(view.rows.head.figure, "9 more recorded days for an average")
+      assertEquals(view.rows.head.buckets.flatten, List(500.0))
+      assert(view.text.contains("Water: 9 more recorded days for an average. Previous 30 days: No data."), view.text)
 
   test("a discreet Ukrainian account gets the week cards in Ukrainian behind a spoiler (IMG-20)"):
     val cards = RecordingCards()

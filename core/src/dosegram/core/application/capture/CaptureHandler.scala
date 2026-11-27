@@ -26,6 +26,7 @@ import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.hydration.WaterText
 import dosegram.core.domain.hydration.WaterTextParser
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealLine
 import dosegram.core.domain.nutrition.MealTextParser
@@ -108,6 +109,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def statsCommand(turn: Turn, argument: String): Reply =
     if argument == MonthArgument then
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(months.month(turn, months.currentIndex(turn)))
+    else if argument == StatsChat.TrendsArgument then
+      consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(stats.trends(turn, TrendPeriod.Month))
     else statsPeriod(turn, argument)
 
   private def statsPeriod(turn: Turn, argument: String): Reply =
@@ -220,6 +223,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.WaterImage      => imageOf(turn, Pending.WaterImage)(water.image(turn))
       case CaptureActions.MoodCheckIn     => Valence.of(value.toInt).map(moodButton(turn, _)).getOrElse(stale(turn))
       case CaptureActions.StatsShow       => stats.show(turn, value)
+      case CaptureActions.StatsTrends     => stats.showTrends(turn, value)
       case CaptureActions.SleepStart      => sleep.goingToSleep(turn)
       case CaptureActions.SleepUp         => sleep.wakeUp(turn)
       case CaptureActions.SleepNap        => sleep.nap(turn)
@@ -275,6 +279,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.WaterWeekImage        => stats.waterWeekImage(fresh)
       case Pending.SleepWeekImage        => stats.sleepWeekImage(fresh)
       case Pending.MoodWeekdayImage      => stats.moodWeekdayImage(fresh)
+      case Pending.TrendsImage(days)     => trendsImage(fresh, days.toLong)
       case Pending.Medication(screen)    => openMedication(fresh, screen)
       case Pending.SleepCard             => sleep.card(fresh)
       case Pending.SleepTyped            =>
@@ -309,8 +314,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
           ConsentPurpose.ImagesInChat | ConsentPurpose.Nutrition | ConsentPurpose.Import =>
         ()
 
-  /** `stats.image`: 7 is the week at a glance, 20 to 22 the week cards, and every other value the daily summary. The
-    * card is drawn only after the images consent, because `image` is by-name.
+  /** `stats.image`: 7 is the week at a glance, 20 to 22 the week cards, 30 and 90 the trends, and every other value the
+    * daily summary. The card is drawn only after the images consent, because `image` is by-name.
     */
   private def statsImage(turn: Turn, value: Long): Reply =
     def send(pending: Pending)(image: => Reply): Reply = imageOf(turn, pending)(image)
@@ -321,7 +326,13 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       send(Pending.SleepWeekImage)(stats.sleepWeekImage(turn))
     else if value == Pending.MoodWeekdayImage.argument.toLong then
       send(Pending.MoodWeekdayImage)(stats.moodWeekdayImage(turn))
+    else if StatsChat.trendPeriodOf(value).isDefined then
+      send(Pending.TrendsImage(value.toInt))(trendsImage(turn, value))
     else send(Pending.DayImage)(stats.dayImage(turn, dosesToday(turn)))
+
+  /** IMG-23 of 30 or 90 days; any other value is a stale control. */
+  private def trendsImage(turn: Turn, days: Long): Reply =
+    StatsChat.trendPeriodOf(days).fold(stale(turn))(stats.trendsImage(turn, _))
 
   /** A personal image needs the `images_in_chat` consent first (BOT_UX BUX-IMG-04). The consent is asked in a message
     * of its own, so the card the request came from stays as it is.

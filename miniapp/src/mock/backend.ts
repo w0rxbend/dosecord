@@ -407,7 +407,37 @@ export class MockBackend implements ApiClient {
       warning:
         'Pick one fact for a card you can forward. The card shows no name, date, time or medication. Anyone you send this to can keep it.',
       cards: this.tracking.isOn('mood') ? [{ kind: 'share-week-mood', sentence: 'Mood logged on 4 of 7 days' }] : [],
+      builder: [
+        { card: 'week-glance', title: 'Week at a glance', periods: [{ days: 7, label: '7 days', kind: 'week-glance-7' }] },
+        {
+          card: 'trends',
+          title: 'Trends',
+          periods: [
+            { days: 30, label: '30 days', kind: 'trends-30' },
+            { days: 90, label: '90 days', kind: 'trends-90' },
+          ],
+        },
+      ],
+      builderTitle: 'Send a card to your chat',
+      builderWarning:
+        'These cards show your own figures and the dates they cover. The card goes to your chat with you; anyone you forward it to can keep it.',
     }));
+
+  /** The kinds the person previewed, in order; tests read it. */
+  readonly previewedCards: string[] = [];
+
+  previewReportCard: ApiClient['previewReportCard'] = (kind) =>
+    this.respond('report-cards/preview', () => {
+      this.previewedCards.push(kind);
+      const days = kind.split('-').pop() ?? '7';
+      const title = kind.startsWith('trends') ? `Trends · last ${days} days` : 'Week at a glance';
+      return {
+        kind,
+        // The eight signature bytes of a PNG stand in for the drawn card.
+        png: 'iVBORw0KGgo=',
+        altText: `${title}. Water: average 1.6 l a day. Previous ${days} days: average 1.4 l a day.`,
+      };
+    });
 
   deliverReportCard: ApiClient['deliverReportCard'] = async (kind, confirmed, key) => {
     await this.respond('report-cards/deliveries', () =>

@@ -1,5 +1,6 @@
 package dosegram.core.application.capture
 
+import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
 
@@ -29,6 +30,9 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
 
   /** Mood by weekday over the seven days (VISUALS IMG-22). */
   case MoodWeekdayImage extends Pending(7, 22)
+
+  /** The trends card of 30 or 90 days (VISUALS IMG-23); the argument is the period's days. */
+  case TrendsImage(days: Int) extends Pending(7, days)
 
   case SleepCard extends Pending(9, 0)
 
@@ -98,11 +102,12 @@ private[capture] object Pending:
     */
   private def statsImageOf(argument: Int): Pending =
     argument match
-      case WeekImage.argument        => WeekImage
-      case WaterWeekImage.argument   => WaterWeekImage
-      case SleepWeekImage.argument   => SleepWeekImage
-      case MoodWeekdayImage.argument => MoodWeekdayImage
-      case _                         => DayImage
+      case WeekImage.argument                                         => WeekImage
+      case WaterWeekImage.argument                                    => WaterWeekImage
+      case SleepWeekImage.argument                                    => SleepWeekImage
+      case MoodWeekdayImage.argument                                  => MoodWeekdayImage
+      case days if TrendPeriod.of(days).exists(_ != TrendPeriod.Week) => TrendsImage(days)
+      case _                                                          => DayImage
 
   /** The argument of [[FoodLog]] starts here; below it are [[FoodCard]] (0) and [[FoodImage]] (1). */
   val FoodLogBase = 2

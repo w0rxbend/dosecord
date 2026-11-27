@@ -6,6 +6,7 @@ import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.Valence
@@ -107,6 +108,16 @@ final case class RefillCardView(
     text: String
 )
 
+/** One domain of IMG-23: its headline figure as the chat and the Mini App print it, and one value per bucket of the
+  * period, oldest first, `None` for a bucket without a record.
+  */
+final case class TrendCardRow(domain: TrendDomain, figure: String, buckets: List[Option[Double]])
+
+/** IMG-23 (ROADMAP G9.4, G9.5): the trends of a 30-day or 90-day period, by day or by week, one row per domain with a
+  * record; `text` is the card's text equivalent, written by the caller from the same values.
+  */
+final case class TrendsCardView(window: DateRange, byWeek: Boolean, rows: List[TrendCardRow], text: String)
+
 /** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
   * (VA-PV-03). Both are account settings the Mini App changes.
   */
@@ -173,6 +184,9 @@ trait StatusCards:
 
   /** IMG-22, mood by weekday over `window`, Monday to Sunday (VISUALS section 7.6). */
   def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] = None
+
+  /** IMG-23, the trends of a period, one row per domain on its own scale. */
+  def trends(view: TrendsCardView, look: CardLook): Option[CardPage] = None
 
 object StatusCards:
 

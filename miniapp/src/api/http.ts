@@ -404,7 +404,19 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
     insightList: async () => toInsightList(await request<Wire['InsightList']>('insights/correlations')),
     reportCards: async () => {
       const read = await request<Wire['ReportCards']>('report-cards');
-      return { available: read.available, discreet: read.discreet, warning: read.warning, cards: read.cards ?? [] };
+      return {
+        available: read.available,
+        discreet: read.discreet,
+        warning: read.warning,
+        cards: read.cards ?? [],
+        builder: (read.builder ?? []).map((choice) => ({ ...choice, periods: choice.periods ?? [] })),
+        builderTitle: read.builderTitle,
+        builderWarning: read.builderWarning,
+      };
+    },
+    previewReportCard: async (kind) => {
+      const read = await request<Wire['ReportCardPreview']>(`report-cards/${id(kind)}/preview`);
+      return { kind: read.kind, altText: read.altText, png: read.png };
     },
     deliverReportCard: async (kind, confirmed, key) => {
       const body: Wire['ReportCardDeliveryInput'] = { confirmed };

@@ -29,6 +29,10 @@ final case class DoseBuckets(
   def resolved: AdherenceCounts = AdherenceCounts(takenOnTime, takenLate, skipped, missed)
   def isEmpty: Boolean = this == DoseBuckets.zero
 
+  /** The doses the day was scheduled to have: the answered, the unanswered and the open ones. As-needed logs are not.
+    */
+  def scheduled: Int = resolved.resolved + unknown + open
+
   def combine(other: DoseBuckets): DoseBuckets =
     DoseBuckets(
       takenOnTime + other.takenOnTime,

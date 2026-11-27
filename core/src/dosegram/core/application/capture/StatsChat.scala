@@ -4,6 +4,7 @@ import dosegram.contracts.Choice
 import dosegram.contracts.Reply
 import dosegram.core.application.insights.PeriodSummary
 import dosegram.core.application.insights.ReportViews
+import dosegram.core.application.insights.TrendsView
 import dosegram.core.application.nutrition.FoodViews
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.ReminderCopy
@@ -12,6 +13,7 @@ import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.StatsPeriod
+import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
@@ -93,6 +95,48 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
         .fold(Nil)(recorded => MoodStats.byWeekday(recorded, summary.window))
       parts.cards.moodWeekday(summary.window, days, turn.look)
 
+  /** The trends of 30 or 90 days (ROADMAP G9.4, G9.5): each domain's figures and the previous period of the same
+    * length, the words the Mini App's Insights blocks show, with the period switch and "Show as image".
+    */
+  def trends(turn: Turn, period: TrendPeriod): Reply =
+    parts.stats.trends(turn.tx, turn.accountId, period) match
+      case Left(_)     => turn.toast(ReminderCopy.staleControlToast)
+      case Right(view) =>
+        turn.show(turn.message("stats.trends", view.lines, trendRows(turn, view) :+ more(turn, view.frame.current.end)))
+
+  /** The tap on a trends period; the value is the number of days of the period. */
+  def showTrends(turn: Turn, days: Long): Reply =
+    StatsChat.trendPeriodOf(days) match
+      case Some(period) => trends(turn, period)
+      case None         => turn.toast(ReminderCopy.staleControlToast)
+
+  /** IMG-23: the trends card, captioned with the card's own text equivalent, as a new message. */
+  def trendsImage(turn: Turn, period: TrendPeriod): Reply =
+    val card = for
+      view <- parts.stats.trends(turn.tx, turn.accountId, period).toOption
+      trends <- view.card
+      page <- parts.cards.trends(trends, turn.look)
+    yield page
+    card match
+      case Some(page) =>
+        val caption = turn.message(s"stats.image.${page.templateId}", List(page.altText), Nil)
+        Reply(followUps = turn.images(parts.delivery, List(page -> caption)))
+      case None => turn.toast(StatsCardCopy.imageUnavailable)
+
+  private def trendRows(turn: Turn, view: TrendsView): List[List[Choice]] =
+    val periods = TrendPeriod.Trends.map: value =>
+      Choice.callback(
+        StatsCardCopy.trendsPeriod(value),
+        tokens.direct(CaptureActions.StatsTrends, turn.accountId, value.days.toLong)
+      )
+    val image = Option.when(view.hasData)(
+      Choice.callback(
+        StatsCardCopy.ShowAsImage,
+        tokens.direct(CaptureActions.StatsImage, turn.accountId, view.frame.period.days.toLong)
+      )
+    )
+    List(periods) ++ image.map(List(_)).toList
+
   /** The seven-day view, then `draw`. No card means the same toast as "Show as image". */
   private def withWeek(turn: Turn)(draw: (PeriodSummary, WeekCardView) => Option[CardPage]): Reply =
     parts.stats.summary(turn.tx, turn.accountId, StatsPeriod.Last7Days) match
@@ -151,6 +195,13 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
       Choice.callback(StatsCardCopy.ShowAsImage, tokens.direct(CaptureActions.StatsImage, turn.accountId, days))
     // The shareable card (VISUALS IMG-17) is a fact of the last seven days, so it is offered beside them.
     val shareable = if period == StatsPeriod.Last7Days then share.button(turn) else None
+    // The 30 days lead on to their trends over 30 and 90 days (ROADMAP G9.4).
+    val trends = Option.when(period == StatsPeriod.Last30Days)(
+      Choice.callback(
+        StatsCardCopy.Trends,
+        tokens.direct(CaptureActions.StatsTrends, turn.accountId, TrendPeriod.Month.days.toLong)
+      )
+    )
     // IMG-20 to IMG-22 sit on their own row of the seven days, after the glance and the share.
     val weekCards = Option.when(period == StatsPeriod.Last7Days)(
       List(
@@ -159,7 +210,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
         weekCard(turn, StatsCardCopy.MoodWeekday, Pending.MoodWeekdayImage)
       )
     )
-    List(periods, image.toList ++ shareable.toList) ++ weekCards.toList
+    List(periods, image.toList ++ shareable.toList ++ trends.toList) ++ weekCards.toList
 
   private def weekCard(turn: Turn, label: String, pending: Pending): Choice =
     Choice.callback(label, tokens.direct(CaptureActions.StatsImage, turn.accountId, pending.argument.toLong))
@@ -178,6 +229,11 @@ private[capture] object StatsChat:
   val WeekImageValue: Long = 7
 
   def periodOf(days: Long): Option[StatsPeriod] = StatsPeriod.values.find(_.days.toLong == days)
+
+  def trendPeriodOf(days: Long): Option[TrendPeriod] = TrendPeriod.Trends.find(_.days.toLong == days)
+
+  /** `/stats trends`: the trends of the last 30 days. */
+  val TrendsArgument = "trends"
 
   /** `/stats`, `/stats today`, `/stats 7`, `/stats 30`; no argument is the last seven days. */
   def periodOf(argument: String): Option[StatsPeriod] =

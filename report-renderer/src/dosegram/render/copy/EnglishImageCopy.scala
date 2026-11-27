@@ -614,6 +614,13 @@ object EnglishImageCopy extends ImageCopy:
     s"Mood by weekday, ${dateRange(data.from, data.to)}. ${rows.mkString(". ")}. ${insightScaleNote(Domain.Mood)}"
 
   def moodWeekdayDiscreet: String = "Mood by weekday."
+  def trendsTitle: String = "Trends"
+
+  def trendsPeriod(from: LocalDate, to: LocalDate, byWeek: Boolean): String =
+    s"${dateRange(from, to)} · ${if byWeek then "by week" else "by day"}"
+
+  def trendsScaleNote: String = "Each row on its own scale"
+  def trendsDiscreet: String = "Trends over a period."
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3
