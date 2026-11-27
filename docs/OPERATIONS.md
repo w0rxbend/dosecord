@@ -854,3 +854,39 @@ real client, the Telegram transport, the weekly album over live data, and the an
 `3d9e9c3` to a gallery button (action id 474). The rehearsal's fake wire numbers messages from 1
 in every run, so a mood prompt of the head reused a seeded prompt's number and its tap was
 answered "Already recorded"; Telegram never reuses a message id in a chat.
+
+## 19. Deploying `main` with V24 over the live V23 database (3d9e9c3 to the head)
+
+Section 18 deploys `b1c73da` and no migration. The head after it adds V24 (`c01d700`) and three
+copy and chat fixes: the messages of one answer reach the chat in their order even when one must
+be retried (`outbox_messages.follows`, ARCHITECTURE section 10.17); the Ukrainian
+add-medication summary shows "1000 МО" as `/meds` does (`e6cb71c`); a Taken, Skip, Snooze, Undo
+or correction tapped on a reminder card leaves only the edited card, with no short message
+beside it (`f331220`); `/history` says "not confirmed" for a missed dose, and the Mini App's dose
+charts say "still to answer" (`c360ba6`). No environment variable is added or made required.
+
+V24 is one `ALTER TABLE outbox_messages ADD COLUMN follows uuid`: nullable, no default, so
+PostgreSQL changes only the catalogue and rewrites no row. Every step is the owner's; `<sha>` is
+the head of `main` and `<pg>` is `dosegram-live-pg`:
+
+1. Steps 1 to 3 of section 18 (backup, purge-list mode and quarantined count, the worktree and
+   `./mill app.assembly` of `<sha>`); the backup file is the V23 restore point.
+2. Stop the running bot and start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows the
+   `sealing:` lines with `sealed 0`, then `migrate: 1 migration(s) applied, schema 24, 0 value(s)
+   sealed, 0 key(s) rewrapped`.
+3. Check, read-only: `SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns
+   24; `SELECT count(*) FROM outbox_messages WHERE follows IS NOT NULL AND status IN ('queued',
+   'sending', 'failed_retry');` falls back to 0 within a minute of the last answer; the quarantined
+   count is that of step 1; `curl -fsS http://127.0.0.1:18081/readyz` answers 200. In the chat:
+   `/stats meds` with "Show as image" sends the strip pages in order, and a Skip on a reminder
+   card edits that card and sends nothing else.
+
+Rollback without a restore: stop the bot and start the previous release. Flyway ignores an
+applied migration that the older release does not have, the older code does not write
+`follows`, and its claim does not read it, so rows queued by the head are sent in the older
+claim's order. Restore the backup of step 1 only if V23 itself must come back.
+
+Not rehearsed: this section was written from the code and the tests (`OutboxDispatcherSuite`,
+`ReplyOrderSuite`, `SealingBackfillPgSuite` and `RlsSuite` upgrade to schema 24); no throwaway
+copy of a V23 database was upgraded and rolled back, and nothing ran on a real client or the
+Telegram transport.

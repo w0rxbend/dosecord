@@ -51,8 +51,9 @@ The migrations are V1 to V19 and V22 to V24, 22 files
 (`scripts/check-frozen-migrations.sh` prints `22 migrations unchanged
 (V1 to V19, V22 to V24)`); V20 and V21 must never be added, and the
 next is V25. The live database is at V23 (`3d9e9c3`):
-`docs/OPERATIONS.md` section 18 is the owner's deploy of the head, with
-no migration (sections 8 to 17 explain the earlier parts). The Mini App
+`docs/OPERATIONS.md` section 19 is the owner's deploy of the head, with
+V24 (section 18 deploys `b1c73da`; sections 8 to 17 explain the earlier
+parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
