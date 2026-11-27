@@ -2,6 +2,7 @@ package dosegram.app
 
 import dosegram.adapter.telegram.FakeTelegramTransport
 import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.domain.copy.ExportCopy
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
@@ -129,6 +130,13 @@ class NewUserWalkSuite extends PgSuite:
          |  AND error_count < ${dosegram.core.ports.OccurrenceRepository.QuarantineErrorThreshold}""".stripMargin
     ).head.toInt > 0
 
+  /** Whether a dose or a message due by the clock waits for its worker. */
+  private def dueNow(clock: SteppedClock): Boolean =
+    dosesDue(clock) || strings(
+      s"""SELECT count(*) FROM outbox_messages WHERE status IN ('queued', 'sending', 'failed_retry')
+         |  AND next_attempt_at <= '${clock.now()}'::timestamptz""".stripMargin
+    ).head.toInt > 0
+
   /** Runs `script` as `user` and returns the transcript and every button label the bot showed. */
   private def walk(user: NewUserWalk.User, zone: ZoneId, startAt: String)(
       script: NewUserWalk => Unit
@@ -140,7 +148,7 @@ class NewUserWalkSuite extends PgSuite:
       val config = settings
       val adapter = TelegramAssembly.adapter(config, telegram, wire, clock)(images, Some(PgInboundInbox(dataSource, DataKeys.development)))
       Launch.start(config, dataSource, Launch.Parts(clock, Map("telegram" -> adapter), fast, images), log = _ => ())
-      val chat = NewUserWalk(clock, wire, user, () => zone, () => inFlight(clock), () => dosesDue(clock))
+      val chat = NewUserWalk(clock, wire, user, () => zone, () => inFlight(clock), () => dueNow(clock))
       try script(chat)
       catch
         case failure: AssertionError =>
@@ -192,6 +200,7 @@ class NewUserWalkSuite extends PgSuite:
       labels.contains(l(MenuCopy.forMedication(MenuCopy.medicationsPause, "Magnesium"))),
       "each /meds row names its medication"
     )
+    shows("/privacy starts the export", l(ExportCopy.preparing))
     // Finding 15: the first card of onboarding has nothing to go back to.
     val welcome = lines.dropWhile(!_.contains("you: /start")).drop(1).takeWhile(line => !line.matches("""\S+ \S+ you.*"""))
     assert(welcome.exists(_.contains(s"[${l(Labels.Cancel)}]")), s"the first onboarding card offers Cancel: $welcome")
@@ -317,6 +326,8 @@ class NewUserWalkSuite extends PgSuite:
     chat.say("/reminders")
     chat.note("/privacy")
     chat.say("/privacy")
+    // Finding 19: /privacy offers the export.
+    tap(ExportCopy.ExportMyData)
     chat.note("The rest of the day: what the bot sends on its own until 22:00")
     chat.passUntil(at("22:00"))
 

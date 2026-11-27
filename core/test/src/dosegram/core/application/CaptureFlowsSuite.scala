@@ -14,6 +14,8 @@ import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.ConsentCopy
+import dosegram.core.domain.copy.ExportCopy
+import dosegram.core.domain.copy.PrivacyCopy
 import dosegram.core.domain.copy.HelpCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
@@ -301,6 +303,21 @@ class CaptureFlowsSuite extends munit.FunSuite:
       val withdrawn = chat.rig.tapOn("Water records", ConsentCopy.withdrawLabel(ConsentPurpose.Hydration))
       assertEquals(texts(withdrawn), List(ConsentCopy.withdrawn(ConsentPurpose.Hydration)))
       assertEquals(chat.rig.command("water"), List(ConsentCopy.statement(ConsentPurpose.Hydration)))
+
+  // The tap itself runs the export on the production path: NewUserWalkSuite.
+  test("/privacy offers the export of every record, with or without a consent (finding 19)"):
+    withChat(Profile.Telegram): chat =>
+      chat.rig.command("privacy")
+      assertEquals(
+        chat.rig.lastChoiceMap(ConsentCopy.privacyNone).map(_.label),
+        List(ExportCopy.ExportMyData, PrivacyCopy.DeleteData)
+      )
+      chat.grant(ConsentPurpose.Hydration)
+      chat.rig.command("privacy")
+      assertEquals(
+        chat.rig.lastChoiceMap(ConsentCopy.privacyTitle).map(_.label),
+        List(ConsentCopy.withdrawLabel(ConsentPurpose.Hydration), ExportCopy.ExportMyData, PrivacyCopy.DeleteData)
+      )
 
   test("/privacy without a consent says so"):
     withChat(Profile.Telegram): chat =>

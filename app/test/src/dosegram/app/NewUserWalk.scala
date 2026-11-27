@@ -92,13 +92,17 @@ final class NewUserWalk(
       record()
     settle()
 
-  /** Waits, without moving the clock, until the reminder loop has decided every dose due by now: on a loaded machine a
-    * repeat decided two steps late is folded into the next one, and the walk would miss what the user sees on time.
+  /** Waits until the workers have done what is due by now, moving the clock only by tenths of a second: on a loaded
+    * machine a repeat decided two steps late is folded into the next one, and a send paced behind a delete in the same
+    * second would wait while the walk runs the clock on by many minutes.
     */
   private def catchUp(): Unit =
     val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos
     Thread.sleep(15)
-    while behind() && System.nanoTime() < deadline do Thread.sleep(10)
+    while behind() && System.nanoTime() < deadline do
+      // The adapter paces sends to one per chat and second on the stepped clock.
+      clock.advance(Duration.ofMillis(100))
+      Thread.sleep(10)
 
   /** Waits until the bot has answered: nothing in flight and no new call for a while. */
   def settle(): Unit =

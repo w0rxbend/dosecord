@@ -126,7 +126,9 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock, privacyBu
           tokens.direct(CaptureActions.ConsentWithdraw, turn.accountId, code)
         )
       )
-    turn.show(turn.message("privacy.card", lines, buttons :+ List(privacyButtons.menuButton(turn.accountId))))
+    val actions =
+      List(List(privacyButtons.exportButton(turn.accountId)), List(privacyButtons.menuButton(turn.accountId)))
+    turn.show(turn.message("privacy.card", lines, buttons ++ actions))
 
   /** Withdrawal takes effect at once, in the transaction of the tap: the domain's commands return to the consent
     * prompt, and `stop` ends whatever the purpose kept running (PRODUCT_SPEC R-IDC-10). A domain's withdrawal offers

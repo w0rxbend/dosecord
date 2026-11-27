@@ -7,10 +7,12 @@ import dosegram.contracts.ChoiceStyle
 import dosegram.contracts.Inline
 import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
+import dosegram.core.application.exports.ExportActions
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
+import dosegram.core.domain.copy.ExportCopy
 import dosegram.core.domain.copy.PrivacyCopy
 import dosegram.core.ports.DataDomain
 
@@ -114,6 +116,12 @@ final class PrivacyMessages(codec: CallbackCodec):
     )
 
   def text(kind: String, key: String, line: String): OutboundMessage = message(kind, key, List(line), Nil)
+
+  /** The "Export my data" button of the `/privacy` card: the full archive, as the first button of `/export` offers it
+    * (finding 19 of the review of 2026-11-27).
+    */
+  def exportButton(accountId: UUID): Choice =
+    button(accountId, ExportCopy.ExportMyData, ExportActions.Start, ExportActions.FullArchive)
 
   /** The "Delete data" button of the `/privacy` card. */
   def menuButton(accountId: UUID): Choice = button(accountId, PrivacyCopy.DeleteData, DeleteMenu, 0L)
