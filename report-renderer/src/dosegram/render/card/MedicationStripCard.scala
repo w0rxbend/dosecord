@@ -132,7 +132,7 @@ object MedicationStripCard:
   private def weekdays(strip: StripData, line: WeekdayLine, frame: CardFrame, context: CardContext): Vector[Node] =
     val look = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
     (0 until strip.dayCount).toVector.map { day =>
-      val initial = context.copy.weekdayInitial(strip.from.plusDays(day.toLong).getDayOfWeek)
+      val initial = context.copy.weekdayHead(strip.from.plusDays(day.toLong).getDayOfWeek)
       val x = frame.left + day * (line.cellPx + CellGapPx) + line.cellPx / 2
       frame.text(initial, Point(x, line.baseline), look, line.cellPx + CellGapPx)
     }

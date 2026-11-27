@@ -128,7 +128,7 @@ object WeekBars:
     val look = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
     val slotWidth = frame.width / DayCount
     (0 until DayCount).toVector.map { day =>
-      val initial = context.copy.weekdayInitial(week.from.plusDays(day.toLong).getDayOfWeek)
+      val initial = context.copy.weekdayHead(week.from.plusDays(day.toLong).getDayOfWeek)
       frame.text(initial, Point(frame.left + (day + 0.5) * slotWidth, baseline), look, slotWidth)
     }
 

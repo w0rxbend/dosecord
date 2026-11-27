@@ -100,6 +100,9 @@ object UkrainianImageCopy extends ImageCopy:
 
   def monthYear(month: YearMonth): String = s"${MonthNames(month.getMonthValue - 1)} ${month.getYear}"
   def weekdayInitial(day: DayOfWeek): String = weekday(day).take(1)
+
+  // Two letters: one would draw "П В С Ч П С Н", two Mondays and Fridays, two Wednesdays and Saturdays.
+  def weekdayHead(day: DayOfWeek): String = weekday(day)
   def weekdayShort(day: DayOfWeek): String = weekday(day).take(2)
   def time(time: LocalTime): String = f"${time.getHour}%02d:${time.getMinute}%02d"
   def percent(value: Int): String = s"$value%"

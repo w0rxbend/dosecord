@@ -14,6 +14,8 @@ import dosegram.render.svg.SvgEmitter
 import dosegram.render.svg.SvgProfile
 import dosegram.render.tokens.Theme
 
+import java.time.DayOfWeek
+
 /** ROADMAP G2.22, VISUALS VA-L10N-02: every card drawn with the Ukrainian catalogue passes the checks the English cards
   * pass: the scene lints (which include text fitting its slot), the SVG profile, the numbers of the image in the text
   * equivalent, the footer, the caption limit, and a glyph for every Ukrainian character.
@@ -34,6 +36,15 @@ class UkrainianCardsSuite extends munit.FunSuite:
 
   private def texts(card: CardOutput): Vector[String] =
     Node.flatten(card.scene.nodes).collect { case text: Node.Text => text.content }
+
+  test("the Ukrainian weekday heads of IMG-19 to IMG-21 tell the seven days apart, as IMG-22 does"):
+    assertEquals(DayOfWeek.values.toVector.map(UkrainianImageCopy.weekdayHead).distinct.size, 7)
+    val weekCards = Set("week-glance/typical", "water-week/typical", "sleep-week/typical")
+    val week = Vector("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд")
+    cards(Theme.Light, Privacy.Named).filter((name, _) => weekCards(name)).foreach { (name, card) =>
+      val heads = Node.flatten(card.scene.nodes).collect { case text: Node.Text if text.kind == TextKind.Axis => text.content }
+      assert(heads.containsSlice(week), s"$name draws the weekdays as $heads")
+    }
 
   test("every Ukrainian scene passes the scene lints in both themes"):
     everyVariant.foreach { (name, card, theme) =>

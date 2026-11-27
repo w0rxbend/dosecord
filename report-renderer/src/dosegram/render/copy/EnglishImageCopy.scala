@@ -83,6 +83,7 @@ object EnglishImageCopy extends ImageCopy:
 
   def monthYear(month: YearMonth): String = s"${MonthNames(month.getMonthValue - 1)} ${month.getYear}"
   def weekdayInitial(day: DayOfWeek): String = weekday(day).take(1)
+  def weekdayHead(day: DayOfWeek): String = weekdayInitial(day)
   def weekdayShort(day: DayOfWeek): String = weekday(day).take(2)
   def time(time: LocalTime): String = f"${time.getHour}%02d:${time.getMinute}%02d"
   def percent(value: Int): String = s"$value%"

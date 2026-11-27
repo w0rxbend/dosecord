@@ -59,6 +59,20 @@ class WeekCardsSuite extends munit.FunSuite:
     val weekdayRow = (card: CardOutput) => Node.flatten(card.scene.nodes).collect { case t: Node.Text if t.kind == TextKind.Axis => t.anchor.y }.distinct
     assertEquals(weekdayRow(two), weekdayRow(four))
 
+  test("a glance of five full rows spreads them down to the footer's clearance, not 150 px above it"):
+    val everyDay = WeekData(
+      Monday,
+      Some(Vector.fill(7)(Vector(TakenOnTime))),
+      Some(Vector.fill(7)(Some(WaterProgress(2000, 2000)))),
+      Some(Vector.fill(7)(Some(MealDay(3, 0)))),
+      Some(Vector.fill(7)(Some(MoodState(4, 3)))),
+      Some(Vector.fill(7)(SleepEvidence.Recorded(480, 480)))
+    )
+    val card = WeekGlanceCard.render(everyDay, context)
+    val footerBaseline = card.scene.size.height - CardFrame.MarginPx
+    val lowest = Node.flatten(card.scene.nodes).collect { case t: Node.Text if t.content != context.copy.footer => t.anchor.y }.max
+    assert(footerBaseline - lowest <= 2 * Legend.RowPx, s"the last line ends ${footerBaseline - lowest} px above the footer")
+
   test("a medication day with nothing scheduled has no cell, and the legend says what the empty place means"):
     val withBlankDays = WeekGlanceCard.render(week, context)
     assert(texts(withBlankDays, TextKind.Label).contains(context.copy.glanceBlankNote), texts(withBlankDays, TextKind.Label))

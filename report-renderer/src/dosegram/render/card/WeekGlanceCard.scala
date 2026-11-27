@@ -35,6 +35,7 @@ object WeekGlanceCard:
   private val CellsLeftPx = 380.0
   private val CellPx = 80.0
   private val RowPitchPx = 112.0
+  private val MaxRowPitchPx = 140.0
   private val WeekdayBaseline = 204.0
   private val RowsTop = 236.0
   private val RowsToLegendPx = 8.0
@@ -65,17 +66,25 @@ object WeekGlanceCard:
     ).flatten
     val cells = rows.flatMap(_._2)
     val legend = Legend.flow(legendItems(cells, context), frame.width, context.fitter)
-    // The grid starts under the title whatever its row count: a week of two domains leaves its room below, not above.
-    val legendTop = RowsTop + rows.size * RowPitchPx + RowsToLegendPx
+    val pitch = rowPitch(rows.size, legend.height, frame)
+    val legendTop = RowsTop + rows.size * pitch + RowsToLegendPx
     val nodes = frame.header(copy.glanceTitle, copy.dateRange(week.from, week.from.plusDays(DayCount - 1L)))
       ++ weekdays(week, WeekdayBaseline, frame, context)
       ++ rows.zipWithIndex.flatMap { case ((domain, days), index) =>
-        row(domain, days, RowsTop + index * RowPitchPx, frame, context)
+        row(domain, days, RowsTop + index * pitch, frame, context)
       }
       ++ legend.nodes(Point(frame.left, legendTop), frame, context.fitter)
       :+ frame.footer
     val text = TextEquivalent.of(copy.weekText(WeekCard.summarise(week)), copy.glanceDiscreet, context)
     CardOutput(frame.scene(TemplateId, nodes), text, "dosegram-week-glance.png", context.privacy == Privacy.Discreet)
+
+  // The grid starts under the title whatever its row count. The room left above the footer's clearance is shared out
+  // between the rows, up to a pitch that still reads as one grid, so a full week does not end 150 px above the footer
+  // (finding 5 of the verification of 2026-11-27) and a week of two domains still leaves its room below, not above.
+  private def rowPitch(rowCount: Int, legendHeight: Double, frame: CardFrame): Double =
+    val spare = frame.bodyBottom - (RowsTop + rowCount * RowPitchPx + RowsToLegendPx + legendHeight)
+    if rowCount == 0 || spare <= 0 then RowPitchPx
+    else StrictMath.min(MaxRowPitchPx, StrictMath.floor(RowPitchPx + spare / rowCount))
 
   // The day's share of its resolved doses taken (VISUALS section 7.2, day fraction). A day whose doses are all open or
   // unknown has no record yet; a day with no dose scheduled has no cell at all.
@@ -131,7 +140,7 @@ object WeekGlanceCard:
     val look = TextLook(TextStyle.Label, frame.tokens.ink3, Align.Middle, TextKind.Axis)
     val slotWidth = (frame.right - CellsLeftPx) / DayCount
     (0 until DayCount).toVector.map { day =>
-      val initial = context.copy.weekdayInitial(week.from.plusDays(day.toLong).getDayOfWeek)
+      val initial = context.copy.weekdayHead(week.from.plusDays(day.toLong).getDayOfWeek)
       frame.text(initial, Point(CellsLeftPx + (day + 0.5) * slotWidth, baseline), look, slotWidth)
     }
 

@@ -48,7 +48,14 @@ trait ImageCopy:
   def dayDate(date: LocalDate): String
   def dateRange(from: LocalDate, to: LocalDate): String
   def monthYear(month: YearMonth): String
+
+  /** One letter, for a column too narrow for more (the mood calendar of a month). */
   def weekdayInitial(day: DayOfWeek): String
+
+  /** The head of a day column of a week: one or two letters from the locale (VISUALS section 6), two where one letter
+    * would leave two days alike.
+    */
+  def weekdayHead(day: DayOfWeek): String
   def weekdayShort(day: DayOfWeek): String
   def time(time: LocalTime): String
   def percent(value: Int): String
