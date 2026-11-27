@@ -186,6 +186,9 @@ class NewUserWalkSuite extends PgSuite:
       labels.contains(l(MenuCopy.forMedication(MenuCopy.medicationsPause, "Magnesium"))),
       "each /meds row names its medication"
     )
+    val consentCards = messagesWith(lines, " bot #", l(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+    assertEquals(consentCards.size, 2, "the images consent card, asked twice")
+    shows("the first images consent card gives way to the second", s"bot deletes #${consentCards.head}")
     // Finding 18: a water reminder sent while the one before it was still on its way left both in the chat.
     val reminderWords = l(PromptCopy.waterNudge(HydrationDay(0, 0, None))).takeWhile(_ != '.')
     val waterCards = messagesWith(lines, " bot #", reminderWords)
@@ -294,6 +297,8 @@ class NewUserWalkSuite extends PgSuite:
     chat.say("/today")
     chat.note("/stats with images")
     chat.say("/stats")
+    tap(WaterCopy.ShowAsImage)
+    // Finding 11: a second image tap before the consent replaces the open consent card.
     tap(WaterCopy.ShowAsImage)
     tap(ConsentCopy.Agree)
     tap(ConsentCopy.Confirm)

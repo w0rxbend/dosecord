@@ -384,6 +384,28 @@ class CaptureFlowsSuite extends munit.FunSuite:
       // The card is drawn for the chat of the tap, so its adapter can show the upload status while it is drawn.
       assertEquals(cards.chats.toList.map(_.exists(_.chatId.nonEmpty)), List(true))
 
+  test("a second image tap before the images consent replaces the open consent card instead of adding one (finding 11)"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Hydration)
+      chat.rig.command("water")
+      chat.rig.tapOn("Water today", "Goal")
+      chat.rig.tapOn(WaterCopy.goalAsk, "2.0 l")
+      chat.rig.line("500 ml")
+      chat.rig.tapOn("Water +500 ml", WaterCopy.ShowAsImage)
+      val (firstCard, _) = chat.rig.controlOn("I agree that", ConsentCopy.Agree)
+      val again = chat.rig.tapOn("Water +500 ml", WaterCopy.ShowAsImage)
+      assertEquals(texts(again), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)), "the card is asked again below")
+      chat.rig.dispatchOnce()
+      assertEquals(
+        chat.rig.ops.collect { case VendorOp.Delete(handle) => handle.messageId },
+        List(firstCard.messageId),
+        "the earlier card is deleted"
+      )
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      assertEquals(sent.count { case VendorOp.Send(_, m, _, _) => m.attachment.isDefined; case _ => false }, 1)
+
   // ---------- Mood ----------
 
   test("/mood asks; a tap records and is answered with the mood image, captioned with the label and the time"):

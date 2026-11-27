@@ -10,6 +10,11 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DataDomain
+import dosegram.core.ports.NewOutboxMessage
+import dosegram.core.ports.OutboxOp
+
+import java.time.Duration
+import java.util.UUID
 
 /** The two-stage consent of BOT_UX section 5.5 and the `/privacy` card of section 20.1. A consent is recorded only on
   * the "Confirm" tap; the card then becomes the receipt and is not edited again, and the input that opened the card
@@ -21,7 +26,42 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock, privacyBu
   /** Runs `granted` when the purpose is on; otherwise shows stage 1 with `pending` in its buttons. */
   def guarded(turn: Turn, purpose: ConsentPurpose, pending: Pending)(granted: => Reply): Reply =
     if turn.tx.consents.isGranted(turn.accountId, purpose) then granted
-    else turn.show(stageOne(turn, ConsentRequest.asking(purpose, pending)))
+    else
+      val card = stageOne(turn, ConsentRequest.asking(purpose, pending))
+        .copy(dedupeKey = s"${cardPrefix(purpose)}${turn.event.vendor}:${turn.event.vendorEventId}")
+      removeEarlierCards(turn, purpose, card.dedupeKey)
+      turn.show(card)
+
+  /** One consent card per purpose (finding 11 of the review of 2026-11-27; supervisor decision, BOT_UX section 5.5): a
+    * card of the last day for the same purpose is deleted, or cancelled while still queued, so the new card with the
+    * newest pending input is the only one. An older card is left alone: the chat may no longer delete it.
+    */
+  private def removeEarlierCards(turn: Turn, purpose: ConsentPurpose, current: String): Unit =
+    val now = clock.now()
+    val vendor = turn.event.vendor
+    turn.tx.outbox
+      .recentSendKeys(turn.accountId, cardPrefix(purpose), now.minus(ConsentFlow.OpenCardWindow))
+      .filterNot(_ == current)
+      .foreach: key =>
+        turn.tx.outbox.recordedHandle(vendor, key) match
+          case Some(handle) =>
+            turn.tx.outbox.enqueue(
+              NewOutboxMessage(
+                id = UUID.randomUUID(),
+                sendKey = s"$key:delete",
+                op = OutboxOp.Delete,
+                kind = ConsentFlow.CardDeleteKind,
+                vendor = vendor,
+                accountId = Some(turn.accountId),
+                payload = "{}",
+                target = Some(handle),
+                importance = "interaction_reply",
+                nextAttemptAt = now
+              )
+            )
+          case None => turn.tx.outbox.cancelQueued(key)
+
+  private def cardPrefix(purpose: ConsentPurpose): String = s"consent.card.${ConsentRequest.codeOf(purpose)}:"
 
   /** One tap on a consent card. `resume` runs the pending input once the consent is recorded. */
   def step(turn: Turn, request: ConsentRequest)(resume: Pending => Reply): Reply =
@@ -99,3 +139,13 @@ private[capture] final class ConsentFlow(tokens: Tokens, clock: Clock, privacyBu
         val choices = DataDomain.ofPurpose(purpose).toList.flatMap(privacyButtons.afterWithdrawal(turn.accountId, _))
         turn.show(turn.message("privacy.withdrawn", List(ConsentCopy.withdrawn(purpose)), choices))
       case _ => turn.toast(ReminderCopy.staleControlToast)
+
+private[capture] object ConsentFlow:
+
+  /** How far back a new consent card looks for an earlier one of its purpose: within a day the chat can still delete
+    * it.
+    */
+  val OpenCardWindow: Duration = Duration.ofHours(24)
+
+  /** The outbox kind of the delete of an earlier consent card. */
+  val CardDeleteKind = "consent_card_delete"

@@ -447,6 +447,8 @@ Supervisor decision, 2026-11-14 (BUX-CONS-04 as built for a typed meal; finding 
 
 Supervisor decision, 2026-11-27 (BUX-CONS-04 for a typed night or nap; finding 2 of that day's verification): a night or nap typed before the `sleep` consent ("slept 23:30 7:10", "nap 20m") is held the same way, with its times worked out as of the typed message, for 30 minutes, sealed with the account's key, one per account. "Confirm" records it, "Not now" forgets it, and after the 30 minutes, or for a length without times, "Confirm" opens the sleep card instead.
 
+Supervisor decision, 2026-11-27 (one consent card per purpose; finding 11 of [the new-user walk-through](verification/new-user-review-2026-11-27.md)): when a purpose's consent is asked again within 24 hours, for example by a second image button tapped before the `images_in_chat` consent, the earlier card of that purpose is deleted (or not sent, if it is still queued) and the new card, carrying the newest pending input, is the only one. The open request needs no table of its own: it is the account's outbox row of that purpose's card, found by its key. A card older than 24 hours stays, since the chat may no longer delete it.
+
 ### 5.6 Discreet mode choice
 
 | ID | Requirement |

@@ -59,6 +59,7 @@ final class InMemoryUnitOfWork extends UnitOfWork:
     override def deliveredFor(occurrenceId: UUID): Boolean = false
     override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
     override def cancelQueued(sendKey: String): Boolean = false
+    override def recentSendKeys(accountId: UUID, prefix: String, since: Instant): List[String] = Nil
 
   private val tx: Tx = new Tx:
     override def sessions: SessionRepository = InMemoryUnitOfWork.this.sessions

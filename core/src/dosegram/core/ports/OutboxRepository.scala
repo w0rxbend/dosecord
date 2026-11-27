@@ -163,6 +163,12 @@ trait OutboxRepository:
     */
   def cancelQueued(sendKey: String): Boolean
 
+  /** The `send_key`s that start with `prefix` of the account's rows due at or after `since` (`next_attempt_at`, on the
+    * application's clock), newest first: the earlier consent cards of a purpose, which a new one replaces (finding 11
+    * of the review of 2026-11-27).
+    */
+  def recentSendKeys(accountId: UUID, prefix: String, since: Instant): List[String]
+
   /** Whether the row of `sendKey` is being sent now (`sending`): claimed, too late to cancel, and without its handle
     * yet. A double that never claims rows keeps this default.
     */

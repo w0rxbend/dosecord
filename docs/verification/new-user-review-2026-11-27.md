@@ -45,7 +45,7 @@ continuation in section 5.2 comes from a run with only the fix of finding 1 appl
 | 8 | After the water consent the typed amount waited, silently, for the goal choice, while the plan offer arrived beside it; a user who chose only a plan never got the amount recorded. | missing confirmation | Fixed (the goal card says so) |
 | 9 | The missed notice arrived at 22:00, the start of quiet hours, as a new message with sound, without the safety sentence of BUX-COR-05. | messages pile up | Fixed: the missed notice edits the last card, silent, with the safety sentence |
 | 10 | `/meds` with two medications repeats "[Pause] [Pause for...] [Archive]" twice with no name. | inconsistent buttons | Fixed |
-| 11 | Two image buttons tapped before the images consent send two identical consent cards. | messages pile up | Not fixed: a consent card keeps its state only in its buttons, so a second tap cannot find the open card; it needs a stored open request per account and purpose |
+| 11 | Two image buttons tapped before the images consent send two identical consent cards. | messages pile up | Fixed: a second request for the same purpose within a day deletes the earlier card, found by its outbox key (BOT_UX section 5.5, decision of 2026-11-27) |
 | 12 | The water goal card and the plan offer arrive together: two keyboards at once. | too many taps | Not fixed (8 explains it) |
 | 13 | Every finalize edits every earlier card of the dose again (one card edited twice in the same second). | messages pile up | Fixed: an earlier card is deleted and forgotten, so a finalize edits the one card left |
 | 14 | Ukrainian "Скасувати" is both Undo and Cancel. | confusing copy | Not fixed; for the native-speaker review |
@@ -72,6 +72,7 @@ and the urgent-help sentence of the mood consent.
 | 8 | The goal card adds "Your 250 ml is saved as soon as you pick one." | `CaptureFlowsSuite`, `NewUserWalkSuite` |
 | 9 | The missed notice is silent, carries the safety sentence, and is an edit of the dose's last card; it is a new message only when no card is recorded or the user deleted it. | `NewUserWalkSuite`, `ReminderLoopSuite`, `DoseIntakeSuite` "the missed notice edits the dose's card..." |
 | 13 | Follows from 5: a finalize edits only the one card left. | `NewUserWalkSuite`, the simulation golden |
+| 11 | The consent card's outbox key names its purpose; asking the same purpose again deletes the earlier card of the last 24 hours, or cancels it while queued. No migration. | `CaptureFlowsSuite` "a second image tap before the images consent...", `OutboxDispatcherSuite` (`recentSendKeys`), `NewUserWalkSuite` |
 | 10 | With two or more medications, each `/meds` row's "Pause" or "Resume" names its medication ("Pause · Magnesium"). | `MenuSuite` "/meds with two medications names each row's toggle...", `NewUserWalkSuite` |
 
 ## 4. Not checked

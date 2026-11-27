@@ -232,6 +232,7 @@ private object ConsoleMediatorFakes:
     override def deliveredFor(occurrenceId: UUID): Boolean = false
     override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0
     override def cancelQueued(sendKey: String): Boolean = false
+    override def recentSendKeys(accountId: UUID, prefix: String, since: Instant): List[String] = Nil
 
   final class InMemorySessions extends SessionRepository:
     override def loadForUpdate(principalKey: String, vendor: String, chatId: String): Option[ConversationSession] =

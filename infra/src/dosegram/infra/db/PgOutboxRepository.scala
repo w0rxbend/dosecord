@@ -163,6 +163,11 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
           SET status = 'cancelled', lease_until = NULL
           WHERE send_key = $sendKey AND status IN ('queued', 'failed_retry')""".execute() == 1
 
+  override def recentSendKeys(accountId: java.util.UUID, prefix: String, since: Instant): List[String] =
+    sql"""SELECT send_key FROM outbox_messages
+          WHERE account_id = $accountId AND starts_with(send_key, $prefix) AND next_attempt_at >= $since
+          ORDER BY next_attempt_at DESC, send_key""".query[String]()
+
   override def sendInFlight(sendKey: String): Boolean =
     sql"""SELECT 1 FROM outbox_messages WHERE send_key = $sendKey AND status = 'sending'""".queryOne[Int]().nonEmpty
 

@@ -192,6 +192,23 @@ class OutboxDispatcherSuite extends PgSuite:
     assert(!uow.transaction(_.outbox.enqueue(newSend("key-dup", t0))), "sequential duplicate rejected")
     assertEquals(countOutboxRows("key-dup"), 1)
 
+  test("recentSendKeys lists the account's keys with the prefix due since the given time, newest first"):
+    val uow = PgUnitOfWork(dataSource, Clock.system, DataKeys.development)
+    val fixtures = Fixtures(dataSource)
+    val account = fixtures.account()
+    val stranger = fixtures.account()
+    def row(key: String, at: Instant, owner: UUID = account) =
+      uow.transaction(_.outbox.enqueue(newSend(key, at).copy(accountId = Some(owner), kind = "interaction_reply")))
+    row("consent.card.5:fake:old", t0.minusSeconds(25 * 3600))
+    row("consent.card.5:fake:a", t0.minusSeconds(60))
+    row("consent.card.5:fake:b", t0)
+    row("consent.card.50:fake:c", t0)
+    row("consent.card.5:fake:other", t0, stranger)
+    assertEquals(
+      uow.transaction(_.outbox.recentSendKeys(account, "consent.card.5:", t0.minusSeconds(24 * 3600))),
+      List("consent.card.5:fake:b", "consent.card.5:fake:a")
+    )
+
   // Acceptance 2: crash between the vendor call and the record write -> at most one extra send,
   // flagged possible_duplicate, no extra state change.
   test("crash after the vendor send yields at most one extra send flagged possible_duplicate and no extra state"):

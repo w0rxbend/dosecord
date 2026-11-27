@@ -275,6 +275,12 @@ object MediatorFakes:
       doomed.foreach(msg => states(msg.id) = states(msg.id).copy(status = OutboxStatus.Cancelled))
       doomed.nonEmpty
 
+    override def recentSendKeys(accountId: UUID, prefix: String, since: Instant): List[String] = this.synchronized:
+      enqueued.toList.reverse.collect {
+        case msg if msg.accountId.contains(accountId) && msg.sendKey.startsWith(prefix) && !msg.nextAttemptAt.isBefore(since) =>
+          msg.sendKey
+      }
+
     private def toOutboxMessage(msg: NewOutboxMessage, s: State, previousAttemptedAt: Option[Instant]): OutboxMessage =
       OutboxMessage(
         id = msg.id,
