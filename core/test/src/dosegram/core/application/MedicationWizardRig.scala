@@ -279,6 +279,9 @@ private final class MedicationWizardRig(
 
   def ops: List[VendorOp] = fake.synchronized(fake.ops.toList)
 
+  /** The next adapter call throws `error` (failure injection). */
+  def failNext(error: ChatError): Unit = fake.failNext(error)
+
   def lastOps: List[VendorOp] = ops
 
   def lastChunks: List[String] =

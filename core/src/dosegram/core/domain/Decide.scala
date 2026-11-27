@@ -259,7 +259,11 @@ object Decide:
       Transition(
         row,
         Some(systemAction(DoseActionKind.ReminderSent, occ, OccurrenceStatus.Due, now)),
-        List(DispatchIntent.Reminder(ReminderKind.SnoozeWake, quiet.contains(now), occ.reminderSeq)),
+        // BOT_UX section 9.5 row 4: the snoozed card gives way to the new one.
+        List(
+          DispatchIntent.FinalizeControls(FinalizeReason.Superseded),
+          DispatchIntent.Reminder(ReminderKind.SnoozeWake, quiet.contains(now), occ.reminderSeq)
+        ),
         None,
         Feedback.None
       )

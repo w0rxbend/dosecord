@@ -63,6 +63,12 @@ final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessag
           controlsRemoved = false
         )
 
+  override def detachFromSubject(handle: MessageHandle): Unit =
+    sql"""UPDATE rendered_messages SET subject_type = NULL, subject_id = NULL
+          WHERE vendor = ${handle.vendor} AND chat_id = ${handle.chatId} AND message_id = ${handle.messageId}"""
+      .execute()
+    ()
+
   override def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle] =
     sql"""SELECT vendor, chat_id, message_id, revision FROM rendered_messages
           WHERE subject_type = $subjectType AND subject_id = $subjectId

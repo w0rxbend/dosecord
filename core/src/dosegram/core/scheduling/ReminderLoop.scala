@@ -5,6 +5,7 @@ import dosegram.contracts.Actor as ContractsActor
 import dosegram.contracts.DigestItem
 import dosegram.contracts.Event
 import dosegram.contracts.LoopDispatch
+import dosegram.contracts.MessageHandle
 import dosegram.core.domain.Decide
 import dosegram.core.domain.DecideContext
 import dosegram.core.domain.DispatchIntent
@@ -245,21 +246,56 @@ final class ReminderLoop(
       case DispatchIntent.MissedNotice(notBefore, silent) =>
         if catchUp then digest.add(tx, occ, epoch, now, notBefore)
         else
-          perChannel(tx, occ): channel =>
-            NewOutboxMessage(
-              id = UUID.randomUUID(),
-              sendKey = sendKey(occ, epoch, "s0", "missed", channel),
-              op = OutboxOp.Send,
-              kind = "missed_notice",
-              vendor = channel.vendor,
-              accountId = Some(occ.accountId),
-              occurrenceId = Some(occ.id),
-              channelId = Some(channel.channelId),
-              epoch = Some(epoch),
-              payload = LoopDispatch.toJson(LoopDispatch.MissedNotice(occ.id, channel.chatId, silent)),
-              importance = "reminder",
-              nextAttemptAt = notBefore.getOrElse(now)
-            )
+          // BOT_UX section 9.5 row 8 (BUX-FSM-04): the missed notice is an edit of the dose's card, never a new
+          // message; only a dose without a recorded card gets one.
+          tx.renderedMessages.handlesForSubject("occurrence", occ.id).lastOption match
+            case Some(card) => editToMissed(tx, occ, card, epoch, notBefore.getOrElse(now), silent)
+            case None       => sendMissed(tx, occ, epoch, notBefore.getOrElse(now), silent)
+
+  private def editToMissed(
+      tx: Tx,
+      occ: StoredOccurrence,
+      card: MessageHandle,
+      epoch: Int,
+      at: Instant,
+      silent: Boolean
+  ): Unit =
+    val target = OutboxDispatcher.encodeHandle(card)
+    tx.outbox.enqueue(
+      NewOutboxMessage(
+        id = UUID.randomUUID(),
+        sendKey = s"occ:${occ.id}:e$epoch:s0:kmissed:t$target",
+        op = OutboxOp.Edit,
+        kind = "missed_notice",
+        vendor = card.vendor,
+        accountId = Some(occ.accountId),
+        occurrenceId = Some(occ.id),
+        channelId = None,
+        epoch = Some(epoch),
+        payload = LoopDispatch.toJson(LoopDispatch.MissedNotice(occ.id, Some(card.chatId), silent)),
+        target = Some(target),
+        importance = "reminder",
+        nextAttemptAt = at
+      )
+    )
+    ()
+
+  private def sendMissed(tx: Tx, occ: StoredOccurrence, epoch: Int, at: Instant, silent: Boolean): Unit =
+    perChannel(tx, occ): channel =>
+      NewOutboxMessage(
+        id = UUID.randomUUID(),
+        sendKey = sendKey(occ, epoch, "s0", "missed", channel),
+        op = OutboxOp.Send,
+        kind = "missed_notice",
+        vendor = channel.vendor,
+        accountId = Some(occ.accountId),
+        occurrenceId = Some(occ.id),
+        channelId = Some(channel.channelId),
+        epoch = Some(epoch),
+        payload = LoopDispatch.toJson(LoopDispatch.MissedNotice(occ.id, channel.chatId, silent)),
+        importance = "reminder",
+        nextAttemptAt = at
+      )
 
   /** The per-tick digest folder (DESIGN.md section 7.5): one digest per account per 15-minute bucket. The bucket is
     * anchored on the account's first folded row of the tick (`floor(first next_action_at / 15 min)`; rows are claimed

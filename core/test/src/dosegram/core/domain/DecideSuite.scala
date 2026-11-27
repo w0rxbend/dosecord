@@ -370,7 +370,13 @@ class DecideSuite extends munit.FunSuite:
     assertEquals(result.row.snoozedUntil, None)
     assertEquals(result.row.reminderSeq, 1) // unchanged
     assertEquals(result.row.nextActionAt, Some(t("09:40")))
-    assertEquals(result.dispatches, List(DispatchIntent.Reminder(ReminderKind.SnoozeWake, silent = false, 1)))
+    assertEquals(
+      result.dispatches,
+      List(
+        DispatchIntent.FinalizeControls(FinalizeReason.Superseded),
+        DispatchIntent.Reminder(ReminderKind.SnoozeWake, silent = false, 1)
+      )
+    )
     assertEquals(result.action.map(_.action), Some(DoseActionKind.ReminderSent))
 
   test("(snoozed, tick) at wake inside quiet hours: delivered with the silent flag"):
@@ -384,7 +390,13 @@ class DecideSuite extends munit.FunSuite:
     )
     val result = Decide.decide(night, policy, quiet("22:00", "06:00"), t("23:30"), tick())
     assertEquals(result.row.status, OccurrenceStatus.Due)
-    assertEquals(result.dispatches, List(DispatchIntent.Reminder(ReminderKind.SnoozeWake, silent = true, 1)))
+    assertEquals(
+      result.dispatches,
+      List(
+        DispatchIntent.FinalizeControls(FinalizeReason.Superseded),
+        DispatchIntent.Reminder(ReminderKind.SnoozeWake, silent = true, 1)
+      )
+    )
 
   test("(snoozed, tick) past miss deadline with delivery: missed"):
     val result = Decide.decide(snoozedOcc(t("09:30")), policy, noQuiet, t("11:00"), tick(delivered = true))

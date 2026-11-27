@@ -25,7 +25,7 @@ outbox by kind and status:
   interaction_reply/sent=20
   missed_notice/sent=2
   reminder/sent=109
-  reminder_finalize/sent=169
+  reminder_finalize/sent=153
 dose_actions by action and actor:
   reminder_sent/system=109
   taken/user=101

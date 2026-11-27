@@ -117,7 +117,10 @@ class NewUserWalkSuite extends PgSuite:
       s"""SELECT (SELECT count(*) FROM inbound_inbox WHERE status = 'pending')
          |  + (SELECT count(*) FROM outbox_messages WHERE status IN ('queued', 'sending', 'failed_retry')
          |       AND next_attempt_at <= '${clock.now().plusSeconds(120)}'::timestamptz)
-         |  + (SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering'))""".stripMargin
+         |  + (SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering'))
+         |  + (SELECT count(*) FROM dose_occurrences WHERE status IN ('pending', 'due', 'snoozed')
+         |       AND next_action_at <= '${clock.now()}'::timestamptz
+         |       AND error_count < ${dosegram.core.ports.OccurrenceRepository.QuarantineErrorThreshold})""".stripMargin
     ).head.toInt > 0
 
   /** Runs `script` as `user` and returns the transcript and every button label the bot showed. */
@@ -165,7 +168,17 @@ class NewUserWalkSuite extends PgSuite:
     shows("the snoozed card", l(ReminderCopy.snoozedUntil("§")).takeWhile(_ != '§'))
     shows("a repeat says which reminder it is", l(ReminderCopy.repeatLine("20:00", 2, 3)))
     shows("the final repeat says so", l(ReminderCopy.lastReminder))
-    shows("an earlier card points below", l(ReminderCopy.supersededCard))
+    // Findings 5, 9 and 13: one card per dose. A repeat or a card back from a snooze takes the place of the one
+    // before (BOT_UX section 9.5 rows 2 and 4), and the missed notice is an edit of the last card (row 8).
+    val repeats = messagesWith(lines, " bot #", l(ReminderCopy.repeatLine("20:00", 2, 3)))
+    assert(repeats.nonEmpty, "the second reminder of the 20:00 dose")
+    repeats.foreach(n => shows(s"the reminder #$n gives way to the next", s"bot deletes #$n"))
+    assert(messagesWith(lines, " bot #", l(ReminderCopy.snoozeWakeLine("13:00"))).nonEmpty, "the card after the snooze")
+    val snoozed = messagesWith(lines, " bot edits #", l(ReminderCopy.snoozedUntil("§")).takeWhile(_ != '§'))
+    snoozed.foreach(n => shows(s"the snoozed card #$n gives way to the one after the snooze", s"bot deletes #$n"))
+    val missed = l(ReminderCopy.missedNotice("Magnesium", "20:00"))
+    assert(messagesWith(lines, " bot edits #", missed).nonEmpty, "the missed notice edits the dose's card")
+    assertEquals(messagesWith(lines, " bot #", missed), Nil, "the missed notice is never a new message")
     shows("the missed notice carries the safety sentence", l(ReminderCopy.unsureAdvice))
     assert(labels.contains(l(MenuCopy.todayTaken("20:00"))), "the /today buttons carry the dose time")
     shows("the goal card names the typed amount", l(WaterCopy.goalPending(250)))
@@ -175,10 +188,17 @@ class NewUserWalkSuite extends PgSuite:
     )
     // Finding 18: a water reminder sent while the one before it was still on its way left both in the chat.
     val reminderWords = l(PromptCopy.waterNudge(HydrationDay(0, 0, None))).takeWhile(_ != '.')
-    val waterCards = lines.sliding(2).collect {
-      case List(head, body) if body.contains(reminderWords) && head.contains(" bot #") => head.split('#')(1).takeWhile(_ != ':')
-    }.toList
+    val waterCards = messagesWith(lines, " bot #", reminderWords)
     waterCards.dropRight(1).foreach(n => shows(s"the water reminder #$n gives way to the next", s"bot deletes #$n"))
+
+  /** The numbers of the messages that `marker` introduces (" bot #" for a send, " bot edits #" for an edit) and whose
+    * text contains `text`.
+    */
+  private def messagesWith(lines: List[String], marker: String, text: String): List[String] =
+    lines.zipWithIndex.collect {
+      case (line, i) if line.contains(marker) && lines.drop(i + 1).takeWhile(_.startsWith("      ")).exists(_.contains(text)) =>
+        line.split('#')(1).takeWhile(_ != ':')
+    }
 
   /** Labels whose English and Ukrainian forms differ: none of them may show in the Ukrainian walk. */
   private val EnglishOnly: Set[String] =

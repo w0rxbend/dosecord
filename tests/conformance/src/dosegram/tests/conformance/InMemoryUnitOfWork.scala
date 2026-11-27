@@ -177,6 +177,8 @@ final class InMemoryRenderedMessages extends RenderedMessageRepository:
     }
   override def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle] = this.synchronized:
     subjects.toList.collect { case (h, st, sid) if st == subjectType && sid == subjectId => h }
+  override def detachFromSubject(handle: MessageHandle): Unit = this.synchronized:
+    subjects.filterInPlace((h, _, _) => !sameMessage(h, handle))
 
 final class InMemorySessions extends SessionRepository:
   private val rows = scala.collection.mutable.LinkedHashMap.empty[UUID, ConversationSession]

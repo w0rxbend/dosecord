@@ -186,6 +186,11 @@ object MediatorFakes:
     override def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle] = this.synchronized:
       rows.toList.collect { case (h, _, _, Some(st), Some(sid)) if st == subjectType && sid == subjectId => h }
 
+    override def detachFromSubject(handle: MessageHandle): Unit = this.synchronized:
+      rows.mapInPlace((h, map, removed, st, sid) =>
+        if sameMessage(h, handle) then (h, map, removed, None, None) else (h, map, removed, st, sid)
+      )
+
   final class InMemoryOutbox extends OutboxRepository:
     private val enqueued = ListBuffer.empty[NewOutboxMessage]
     private val sent = ListBuffer.empty[UUID]

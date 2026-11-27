@@ -499,7 +499,7 @@ class DoseIntakeSuite extends munit.FunSuite:
       rig.tapFrom(fresh, freshWire)
       assertEquals(manualTakenRows(rig).size, 2)
 
-  test("a repeat reminder finalizes the previous message"):
+  test("a repeat reminder deletes the previous message, or replaces it where the vendor cannot delete (BOT_UX 9.5 row 2)"):
     withRig: rig =>
       val account = rig.seedAccount()
       channel(rig, account)
@@ -509,13 +509,14 @@ class DoseIntakeSuite extends munit.FunSuite:
       rig.dispatchOnce() // m1: the initial reminder
       rig.clock.at = due.plusSeconds(11 * 60) // 09:16 Kyiv, past the 10-minute cadence
       rig.tickLoop() // the repeat
-      val finalizes = rig.uow.outbox.allEnqueued.filter(m => m.op == OutboxOp.Finalize)
-      assert(finalizes.exists(_.target.contains("dm:user-1:m1")), s"the previous message is finalized: $finalizes")
-      assert(finalizes.exists(_.payload.contains("superseded")), s"as superseded: $finalizes")
+      val deletes = rig.uow.outbox.allEnqueued.filter(m => m.op == OutboxOp.Delete)
+      assert(deletes.exists(_.target.contains("dm:user-1:m1")), s"the previous message is deleted: $deletes")
+      assert(deletes.exists(_.payload.contains("superseded")), s"as superseded: $deletes")
+      assertEquals(rig.uow.renderedMessages.handlesForSubject("occurrence", occurrenceId), Nil, "and forgotten")
       assertEquals(rig.uow.occurrences.get(occurrenceId).get.state.reminderSeq, 2)
       rig.dispatchOnce()
-      // The superseded finalize goes out as a replacement (the console cannot edit) carrying the reminder text with
-      // the controls dropped; the repeat itself is the new reminder with a fresh choice_map.
+      // The console can neither delete nor edit: the superseded card goes out as a replacement carrying the reminder
+      // text with the controls dropped; the repeat itself is the new reminder with a fresh choice_map.
       val replacement = rig.ops.collect {
         case VendorOp.Send(_, m, _, _) if m.chunks.exists(_.contains("Time for Vitamin D")) => m
       }.filter(_.choiceMap.isEmpty).lastOption
@@ -524,6 +525,78 @@ class DoseIntakeSuite extends munit.FunSuite:
         case VendorOp.Send(_, m, _, _) if m.chunks.exists(_.contains("Time for Vitamin D")) => m
       }.lastOption.get
       assert(repeat.choiceMap.nonEmpty, "the repeat carries fresh controls")
+
+  test("on Telegram a repeat deletes the earlier card, and a card Telegram refuses to delete gets the superseded text"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      val account = rig.seedAccount()
+      channel(rig, account)
+      seedDueDose(rig, account)
+      rig.tickLoop()
+      rig.dispatchOnce() // m1: the initial reminder
+      rig.clock.at = due.plusSeconds(11 * 60)
+      rig.tickLoop()
+      rig.dispatchOnce() // deletes m1, sends m2
+      assertEquals(rig.ops.collect { case VendorOp.Delete(h) => h.messageId }, List("m1"))
+      rig.clock.at = due.plusSeconds(22 * 60)
+      rig.tickLoop()
+      rig.failNext(ChatError.Permanent("message can't be deleted", channelFatal = false))
+      rig.dispatchOnce()
+      val superseded = rig.ops.collect { case VendorOp.Edit(h, m) if h.messageId == "m2" => m }
+      assertEquals(superseded.size, 1, s"the refused delete edits m2 instead: ${rig.ops}")
+      assert(superseded.head.chunks.mkString.contains(ReminderCopy.supersededCard), superseded.head.chunks.mkString)
+      assertEquals(superseded.head.choiceMap, Nil, "without controls")
+
+  test("a card that reaches the chat after its dose was reminded again is deleted at once (BOT_UX 9.5, finding 5)"):
+    ox.supervised:
+      val repeatDuringSend = java.util.concurrent.atomic.AtomicBoolean(true)
+      lazy val rig: MedicationWizardRig = MedicationWizardRig(
+        Profile.Telegram,
+        beforeSend = _ =>
+          // The repeat is decided while the first card is on the wire: it has no handle to delete yet.
+          if repeatDuringSend.getAndSet(false) then
+            rig.clock.at = due.plusSeconds(11 * 60)
+            rig.tickLoop()
+      )
+      val account = rig.seedAccount()
+      channel(rig, account)
+      val scheduleId = seedDueDose(rig, account)
+      val occurrenceId = rig.uow.occurrences.listBySchedule(scheduleId).head.id
+      rig.tickLoop()
+      rig.dispatchOnce() // m1 arrives after the repeat; the repeat's own send is m2
+      rig.dispatchOnce()
+      assertEquals(rig.ops.collect { case VendorOp.Delete(h) => h.messageId }, List("m1"))
+      assertEquals(rig.uow.renderedMessages.handlesForSubject("occurrence", occurrenceId).map(_.messageId), List("m2"))
+
+  test("the missed notice edits the dose's card, and goes out as a new message when the user deleted that card"):
+    ox.supervised:
+      val rig = MedicationWizardRig(Profile.Telegram)
+      val account = rig.seedAccount()
+      channel(rig, account)
+      val scheduleId = seedDueDose(rig, account)
+      val occurrenceId = rig.uow.occurrences.listBySchedule(scheduleId).head.id
+      // The reminder and its two repeats, each on time (a tick far past its wake folds into a digest instead).
+      List(0, 11, 22).foreach: minutes =>
+        rig.clock.at = due.plusSeconds(minutes * 60L)
+        rig.tickLoop()
+        rig.dispatchOnce()
+      rig.clock.at = rig.uow.occurrences.get(occurrenceId).get.state.missDeadline.plusSeconds(1)
+      rig.tickLoop()
+      assertEquals(rig.uow.occurrences.get(occurrenceId).get.status, OccurrenceStatus.Missed)
+      val missed = rig.uow.outbox.allEnqueued.filter(_.kind == "missed_notice")
+      assertEquals(missed.map(m => (m.op, m.target)), List(OutboxOp.Edit -> Some("dm:user-1:m3")))
+      rig.failNext(
+        ChatError.Permanent("message to edit not found", channelFatal = false, ChatError.PermanentReason.MissingTarget)
+      )
+      rig.dispatchOnce()
+      val notice = rig.ops.collect { case VendorOp.Send(_, m, _, _) if m.chunks.mkString.contains("Vitamin D") => m }
+      assertEquals(notice.size, 4, s"three reminders, then the notice as a new message: ${rig.ops}")
+      assert(notice.last.chunks.mkString.contains(ReminderCopy.unsureAdvice), notice.last.chunks.mkString)
+      assertEquals(
+        rig.uow.renderedMessages.handlesForSubject("occurrence", occurrenceId).map(_.messageId),
+        List("m4"),
+        "the deleted card is forgotten and the new notice recorded, so its answer finalizes it"
+      )
 
   // ---------- ROADMAP G9.12: the limits the user set for an as-needed medication ----------
 

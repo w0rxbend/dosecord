@@ -4,6 +4,7 @@ import dosegram.contracts.CapabilityProfile
 import dosegram.contracts.ChatAdapter
 import dosegram.contracts.ChatError
 import dosegram.contracts.ChatRef
+import dosegram.contracts.DeleteCapability
 import dosegram.contracts.EditCapability
 import dosegram.contracts.MessageHandle
 import dosegram.contracts.RenderedMessage
@@ -13,6 +14,7 @@ import dosegram.core.ports.OutboxMessage
 import dosegram.core.ports.OutboxMetrics
 import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.OutboxReason
+import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
 import java.time.Duration
@@ -140,12 +142,8 @@ final class OutboxDispatcher(
         case OutboxOp.Send                     => dispatchSend(row, adapter, now)
         case OutboxOp.Edit | OutboxOp.Finalize =>
           dispatchEdit(row, adapter, now)
-        case OutboxOp.Delete =>
-          val target = decodeHandle(row.vendor, requiredTarget(row))
-          throttle(row, target.chatId)
-          adapter.delete(target)
-          uow.transaction(_.outbox.markSent(row.id, requiredTarget(row), now, possibleDuplicate = false))
-          metrics.sent(row.vendor, row.kind)
+        case OutboxOp.Delete if row.kind == FinalizeDispatch.Kind => dispatchSupersede(row, adapter, now)
+        case OutboxOp.Delete                                      => dispatchDelete(row, adapter, now)
     catch
       case _: DigestEmpty =>
         // M1.8 (DESIGN.md section 7.5): every digest item resolved or went stale before the send — the digest is
@@ -169,6 +167,22 @@ final class OutboxDispatcher(
         uow.transaction(_.outbox.failPermanently(row.id, e.getMessage))
         metrics.failed(row.vendor, row.kind, OutboxReason.Permanent)
 
+  private def dispatchDelete(row: OutboxMessage, adapter: ChatAdapter, now: Instant): Unit =
+    val target = decodeHandle(row.vendor, requiredTarget(row))
+    throttle(row, target.chatId)
+    adapter.delete(target)
+    uow.transaction(_.outbox.markSent(row.id, requiredTarget(row), now, possibleDuplicate = false))
+    metrics.sent(row.vendor, row.kind)
+
+  /** A superseded reminder card is deleted (BOT_UX section 9.5 rows 2 and 4); where the vendor cannot delete its own
+    * messages, or the delete is refused for good, the card is edited to the superseded text without controls instead.
+    */
+  private def dispatchSupersede(row: OutboxMessage, adapter: ChatAdapter, now: Instant): Unit =
+    if adapter.capabilities.deleteOwn == DeleteCapability.NoDelete then dispatchEdit(row, adapter, now)
+    else
+      try dispatchDelete(row, adapter, now)
+      catch case e: ChatError.Permanent if !e.channelFatal => dispatchEdit(row, adapter, now)
+
   /** Interaction edits retain a replacement handle before terminal bookkeeping so a lease retry edits that handle
     * instead of creating another replacement. Only a typed missing target permits fallback; permissions and private
     * hooks must never trigger a named channel send.
@@ -177,18 +191,19 @@ final class OutboxDispatcher(
     val target = decodeHandle(row.vendor, row.platformMessageId.getOrElse(requiredTarget(row)))
     val (_, rendered) = render(row, adapter)
     throttle(row, target.chatId)
-    val handle =
-      if adapter.capabilities.editOwn == EditCapability.NoEdit then
-        adapter.send(ChatRef(row.vendor, target.chatId), rendered, row.sendKey)
+    val cannotEdit = adapter.capabilities.editOwn == EditCapability.NoEdit
+    // `gone`: the user deleted the target, so the edit went out as a new message.
+    val (handle, gone) =
+      if cannotEdit then (adapter.send(ChatRef(row.vendor, target.chatId), rendered, row.sendKey), false)
       else
-        try adapter.edit(target, rendered)
+        try (adapter.edit(target, rendered), false)
         catch
           case e: ChatError.Permanent
-              if row.kind == "interaction_reply" && !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
-            adapter.send(ChatRef(row.vendor, target.chatId), rendered, s"${row.sendKey}:replacement")
+              if ReplacedWhenGone(row.kind) && !e.channelFatal && e.reason == ChatError.PermanentReason.MissingTarget =>
+            (adapter.send(ChatRef(row.vendor, target.chatId), rendered, s"${row.sendKey}:replacement"), true)
     uow.transaction: tx =>
-      if !forgetsChat(row) && (row.kind == "interaction_reply" || adapter.capabilities.editOwn == EditCapability.NoEdit)
-      then
+      if gone then tx.renderedMessages.detachFromSubject(target)
+      if !forgetsChat(row) && (row.kind == "interaction_reply" || cannotEdit || gone) then
         tx.renderedMessages.record(
           handle,
           row.accountId,
@@ -206,6 +221,11 @@ final class OutboxDispatcher(
       uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = false))
     forgetIfOrphaned(row)
     metrics.sent(row.vendor, row.kind)
+
+  /** Edits that go out as a new message when the user deleted their target: the answer to an update, and the missed
+    * notice, which edits the dose's last card (BOT_UX section 9.5 row 8).
+    */
+  private val ReplacedWhenGone = Set("interaction_reply", "missed_notice")
 
   /** The answer to an update that deleted the account of its chat: it was kept with no account and no chat (V13), and
     * once it is sent no row may name the chat (ARCHITECTURE SEC-16), so it records no handle.
@@ -324,12 +344,24 @@ final class OutboxDispatcher(
               choiceMap = rendered.choiceMap,
               now
             )
+          staleCard(tx, row, sent, now)
         }
         sent
     uow.transaction(_.outbox.markSent(row.id, encodeHandle(handle), now, possibleDuplicate = resumeDuplicate))
     forgetIfOrphaned(row)
     metrics.sent(row.vendor, row.kind)
     if resumeDuplicate && !row.possibleDuplicate then metrics.possibleDuplicate(row.vendor)
+
+  /** A reminder card whose occurrence moved on while it was on the wire is superseded or finalized at once, so no card
+    * keeps controls the occurrence no longer has (BUX-FSM-03).
+    */
+  private def staleCard(tx: Tx, row: OutboxMessage, sent: MessageHandle, now: Instant): Unit =
+    for
+      occurrenceId <- row.occurrenceId
+      epoch <- row.epoch
+      accountId <- row.accountId
+      if tx.occurrences.epochIsStale(occurrenceId, epoch)
+    do FinalizeDispatch.enqueueStale(tx, occurrenceId, accountId, sent, now)
 
   private def requiredTarget(row: OutboxMessage): String =
     row.target.getOrElse(throw UnrenderableRow(s"${row.op.db} op without a target"))

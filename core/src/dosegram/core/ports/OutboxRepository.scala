@@ -206,6 +206,11 @@ trait RenderedMessageRepository:
     */
   def handlesForSubject(subjectType: String, subjectId: UUID): List[MessageHandle]
 
+  /** Forgets that `handle` shows its subject: a card that is being deleted is no target of a later finalize (BOT_UX
+    * section 9.5 rows 2 and 4). A double without subjects keeps this default.
+    */
+  def detachFromSubject(handle: MessageHandle): Unit = ()
+
   /** Quoted-reply numbers resolve through the target's `choice_map` unconditionally (DESIGN.md section 4.6 step 5).
     */
   def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap]

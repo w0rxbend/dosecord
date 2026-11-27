@@ -17,6 +17,7 @@ import dosegram.core.ports.NewOccurrence
 import dosegram.core.ports.NewSchedule
 import dosegram.core.ports.NewScheduleRevision
 import dosegram.core.ports.OccurrenceOrigin
+import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.Wake
 
 import java.time.Duration
@@ -156,6 +157,33 @@ class ReminderLoopSuite extends munit.FunSuite:
       1,
       "exactly one dose_due.v1 per pending -> due transition"
     )
+
+  test("a repeat deletes the earlier card and forgets it, so the chat holds one card per dose (BOT_UX 9.5 row 2)"):
+    val uow = MediatorFakes.InMemoryUnitOfWork()
+    val s = seed(uow, t0)
+    val l = loop(uow)
+    l.tick(t0.plusSeconds(60))
+    val first = dosegram.contracts.MessageHandle("console", "dm:owner", "m1")
+    uow.renderedMessages.record(first, Some(s.accountId), "reminder", Some("occurrence"), Some(s.occurrenceId), Some(1), Nil, t0)
+    l.tick(t0.plusSeconds(60).plus(Duration.ofMinutes(10)))
+    val delete = uow.outbox.allEnqueued(1)
+    assertEquals((delete.op, delete.target), (OutboxOp.Delete, Some("dm:owner:m1")))
+    assertEquals(uow.renderedMessages.handlesForSubject("occurrence", s.occurrenceId), Nil)
+
+  test("the missed notice edits the dose's card instead of sending a new message (BOT_UX 9.5 row 8, BUX-FSM-04)"):
+    val uow = MediatorFakes.InMemoryUnitOfWork()
+    val s = seed(uow, t0, ReminderPolicy.Default.copy(maxReminders = 1))
+    val l = loop(uow)
+    l.tick(t0.plusSeconds(60))
+    val reminder = uow.outbox.allEnqueued.head
+    uow.outbox.markSent(reminder.id, "dm:owner:m1", t0.plusSeconds(61), possibleDuplicate = false)
+    val card = dosegram.contracts.MessageHandle("console", "dm:owner", "m1")
+    uow.renderedMessages.record(card, Some(s.accountId), "reminder", Some("occurrence"), Some(s.occurrenceId), Some(1), Nil, t0)
+    val deadline = uow.occurrences.get(s.occurrenceId).get.state.missDeadline
+    l.tick(deadline.plusSeconds(1))
+    assertEquals(uow.occurrences.get(s.occurrenceId).get.status, OccurrenceStatus.Missed)
+    val missed = uow.outbox.allEnqueued.filter(_.kind == "missed_notice")
+    assertEquals(missed.map(m => (m.op, m.target)), List(OutboxOp.Edit -> Some("dm:owner:m1")))
 
   test("nothing due claims nothing"):
     val uow = MediatorFakes.InMemoryUnitOfWork()

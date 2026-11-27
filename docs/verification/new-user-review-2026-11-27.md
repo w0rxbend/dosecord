@@ -39,15 +39,15 @@ continuation in section 5.2 comes from a run with only the fix of finding 1 appl
 | 2 | `/privacy` got no answer for an account holding the images consent in Ukrainian ("Відкликати: зображення в цьому чаті", 35) or the comparisons consent in English ("Withdraw: comparisons across domains", 36). Found by the walk after the first fixes. | dead end | Fixed |
 | 3 | Ukrainian: English buttons and headings in onboarding ("Medication", "Water", "Mood", "I agree", "Confirm", "Yes", "Change") and in the add-medication wizard ("Add medication — question 1 of 2", "Name (e.g. Vitamin D)", "Every day", "Weekdays", "Choose days..."). The step labels were built once, with the flow, in English. | confusing copy | Fixed |
 | 4 | After "Snooze 10m" the card kept its text and lost its buttons; only a toast said when it would come back. | missing confirmation | Fixed |
-| 5 | One dose sent up to four identical cards (13:01, 13:13, 13:47, plus a missed notice): no "reminder 2 of 3", no "last reminder", and every earlier card kept the same words with its buttons gone. | messages pile up | Partly fixed: line 3, the last-reminder sentence and "Reminded again below." on earlier cards; the cards are still separate messages |
+| 5 | One dose sent up to four identical cards (13:01, 13:13, 13:47, plus a missed notice): no "reminder 2 of 3", no "last reminder", and every earlier card kept the same words with its buttons gone. | messages pile up | Fixed: line 3 and the last-reminder sentence; the earlier card is deleted when the dose is reminded again or comes back from a snooze (BOT_UX section 9.5, decision of 2026-11-27) |
 | 6 | `/today` listed the open 20:00 dose before the answered 09:00 and 13:00 ones, under three identical "Taken" and "Skip" rows that did not say which dose they answer. | inconsistent buttons | Fixed |
 | 7 | Onboarding ended with "Try /menu or /help": the first medication was two commands and a tap away. | too many taps | Fixed |
 | 8 | After the water consent the typed amount waited, silently, for the goal choice, while the plan offer arrived beside it; a user who chose only a plan never got the amount recorded. | missing confirmation | Fixed (the goal card says so) |
-| 9 | The missed notice arrived at 22:00, the start of quiet hours, as a new message with sound, without the safety sentence of BUX-COR-05. | messages pile up | Partly fixed: silent, with the safety sentence; still a separate message |
+| 9 | The missed notice arrived at 22:00, the start of quiet hours, as a new message with sound, without the safety sentence of BUX-COR-05. | messages pile up | Fixed: the missed notice edits the last card, silent, with the safety sentence |
 | 10 | `/meds` with two medications repeats "[Pause] [Pause for...] [Archive]" twice with no name. | inconsistent buttons | Fixed |
 | 11 | Two image buttons tapped before the images consent send two identical consent cards. | messages pile up | Not fixed: a consent card keeps its state only in its buttons, so a second tap cannot find the open card; it needs a stored open request per account and purpose |
 | 12 | The water goal card and the plan offer arrive together: two keyboards at once. | too many taps | Not fixed (8 explains it) |
-| 13 | Every finalize edits every earlier card of the dose again (one card edited twice in the same second). | messages pile up | Not fixed |
+| 13 | Every finalize edits every earlier card of the dose again (one card edited twice in the same second). | messages pile up | Fixed: an earlier card is deleted and forgotten, so a finalize edits the one card left |
 | 14 | Ukrainian "Скасувати" is both Undo and Cancel. | confusing copy | Not fixed; for the native-speaker review |
 | 15 | The first card of onboarding has "Back" with nowhere to go (BUX-ONB-06). | dead end | Not fixed |
 | 16 | The zone picker is 21 zones in a four-wide grid; nothing is preselected by the client language. | too many taps | Not fixed |
@@ -66,11 +66,12 @@ and the urgent-help sentence of the mood consent.
 | 2 | A withdraw button names its domain in one word ("Withdraw: images"). | `UkrainianCatalogueSuite` (both languages), `NewUserWalkSuite` |
 | 3 | `StepKind.choices` and `StepKind.form` read labels, form titles and fields at render time; the form heading shows "(1/2)". | `FirstFlowsSuite` (Ukrainian onboarding buttons), `NewUserWalkSuite` (no English button), the renderer and wizard goldens |
 | 4 | The snoozed card reads "Snoozed until 13:11." | `NewUserWalkSuite` |
-| 5 | Repeats carry "Scheduled 13:00 · reminder 2 of 3", the final one "This is the last reminder for this dose.", a card back from a snooze "Scheduled 13:00 · back after your snooze", and earlier cards "Reminded again below." | `NewUserWalkSuite` |
+| 5 | Repeats carry "Scheduled 13:00 · reminder 2 of 3", the final one "This is the last reminder for this dose.", and a card back from a snooze "Scheduled 13:00 · back after your snooze". The earlier card is deleted and its handle forgotten in the transaction of the repeat or the snooze wake; a card that arrived after its dose moved on is deleted or finalized at once; where the delete is refused the card reads "Reminded again below." | `NewUserWalkSuite`, `DoseIntakeSuite` (repeat, refused delete, card on the wire during a repeat), `ReminderLoopSuite`, `DecideSuite` |
 | 6 | `/today` in time order; buttons "20:00 · Taken" and "20:00 · Skip", with the name when two open doses share a time. | `MenuSuite` "/today lists the day in time order...", `NewUserWalkSuite` |
 | 7 | The closing message offers "Add medication" and "Today" after an onboarding with medication. | the wizard transcript goldens, `NewUserWalkSuite` |
 | 8 | The goal card adds "Your 250 ml is saved as soon as you pick one." | `CaptureFlowsSuite`, `NewUserWalkSuite` |
-| 9 | The missed notice is silent and carries the safety sentence. | `NewUserWalkSuite` |
+| 9 | The missed notice is silent, carries the safety sentence, and is an edit of the dose's last card; it is a new message only when no card is recorded or the user deleted it. | `NewUserWalkSuite`, `ReminderLoopSuite`, `DoseIntakeSuite` "the missed notice edits the dose's card..." |
+| 13 | Follows from 5: a finalize edits only the one card left. | `NewUserWalkSuite`, the simulation golden |
 | 10 | With two or more medications, each `/meds` row's "Pause" or "Resume" names its medication ("Pause · Magnesium"). | `MenuSuite` "/meds with two medications names each row's toggle...", `NewUserWalkSuite` |
 
 ## 4. Not checked
