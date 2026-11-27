@@ -21,6 +21,9 @@ object MenuCopy:
   def medicationsLogDose = tr("Log dose", "Записати дозу")
   def medicationsPause = tr("Pause", "Призупинити")
   def medicationsResume = tr("Resume", "Відновити")
+
+  /** A `/meds` toggle with its medication's name, when the list has more than one row: "Pause · Vitamin D". */
+  def forMedication(label: String, name: String): String = s"$label · $name"
   def medicationsSettings = tr("Settings", "Налаштування")
   def medicationsHistory = tr("History", "Історія")
 

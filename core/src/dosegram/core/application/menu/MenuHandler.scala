@@ -340,16 +340,20 @@ final class MenuHandler(
        else rows.map((medication, schedule) => paragraph(medicationLine(tx, medication, schedule))))
     val toggles = rows.map: (medication, schedule) =>
       val paused = schedule.status == ScheduleStatus.Paused
+      // With two or more rows the toggle names its medication, so the rows are not identical (walk-through of
+      // 2026-11-27); a single row needs no name.
+      def named(label: String): String =
+        if rows.sizeIs > 1 then ControlLimits.fitLabel(MenuCopy.forMedication(label, medication.name)) else label
       val toggle =
         if paused then
           Choice.callback(
-            MenuCopy.medicationsResume,
+            named(MenuCopy.medicationsResume),
             mint(chat, accountId, MenuOpenAction, KeyResumePrefix + medication.id, tx).wire,
             ChoiceStyle.Primary
           )
         else
           Choice.callback(
-            MenuCopy.medicationsPause,
+            named(MenuCopy.medicationsPause),
             mint(chat, accountId, MenuOpenAction, KeyPausePrefix + medication.id, tx).wire
           )
       // R-REG-5: a pause that ends on its own, offered next to the open-ended one (ROADMAP G9.12).

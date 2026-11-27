@@ -297,6 +297,18 @@ class MenuSuite extends munit.FunSuite:
       assert(labels.contains("Add medication"), labels.toString)
       assert(labels.contains("Pause"), labels.toString)
 
+  test("/meds with two medications names each row's toggle by its medication"):
+    // Walk-through of 2026-11-27: two identical "[Pause] [Pause for...] [Archive]" rows did not say which was which.
+    withRig: rig =>
+      val account = rig.seedAccount()
+      rig.seedSchedule(account, "Vitamin D", dailyAt("09:00"), kyiv)
+      rig.seedSchedule(account, "Magnesium", dailyAt("13:00"), kyiv)
+      rig.line("/meds")
+      val labels = rig.lastChoiceMap("Medications").map(_.label)
+      assert(labels.contains("Pause · Vitamin D"), labels.toString)
+      assert(labels.contains("Pause · Magnesium"), labels.toString)
+      assert(!labels.contains("Pause"), labels.toString)
+
   test("/meds before an account exists asks to create one and shows nothing"):
     withRig: rig =>
       assertEquals(rig.line("/meds"), List(IdentityCopy.createFirst))

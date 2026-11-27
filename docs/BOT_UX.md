@@ -949,6 +949,8 @@ When the user entered a remaining count and a threshold in the Mini App, the bot
 
 Supervisor decision, 2026-11-14, owner asleep (ROADMAP G9.10). As built, `refill.low` reads "About 6 tablets of <name> left by your count. At your current schedule that covers until about Sun 15 Nov.", adds `refill.count_off` when a deduction stopped at zero, and has "Refilled +N" (the last refill quantity, shown only once a refill was recorded), "Show card" (IMG-15 with its text equivalent as the caption, VISUALS section 10.1) and "Stop for this pack". "Remind me in 3 days" is not a button: the notice repeats every 3 days by itself (PRODUCT_SPEC R-REG-14). A first count, a new count and a refill of another quantity are entered in the Mini App. The medication list adds "Pause for..." beside "Pause" with 3, 7, 14 and 30 days (`med.pause_for`, `med.paused_until`); the schedule resumes at local midnight of the date with the silent `med.resumed_on`.
 
+Supervisor decision, 2026-11-27 (new-user review, finding 10 of [the walk-through](verification/new-user-review-2026-11-27.md)): when the medication list as built has two or more rows, each row's "Pause" or "Resume" button carries its medication's name ("Pause · Vitamin D"), cut to the label limit; "Pause for..." and "Archive" follow on the same row and open a card that names the medication. Two rows of "[Pause] [Pause for...] [Archive]" had not said which medication each answered. A list of one medication keeps the plain "Pause".
+
 ## 11. Quick capture
 
 ### 11.1 Inbound router
