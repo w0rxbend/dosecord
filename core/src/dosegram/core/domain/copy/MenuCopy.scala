@@ -80,7 +80,9 @@ object MenuCopy:
   def statusSnoozedUntil(time: String): String = tr(s"snoozed until $time", s"відкладено до $time")
   def statusTakenAt(time: String): String = tr(s"taken at $time", s"прийнято о $time")
   def statusSkippedAt(time: String): String = tr(s"skipped at $time", s"пропущено о $time")
-  def statusMissed = tr("missed", "не підтверджено")
+
+  /** BOT_UX section 22.4: a missed dose is "not confirmed", never "missed". */
+  def statusMissed = tr("not confirmed", "не підтверджено")
 
   /** BOT_UX section 22.4: a dose with no record, with its reason where it is known (supervisor decision, 2026-11-28).
     */

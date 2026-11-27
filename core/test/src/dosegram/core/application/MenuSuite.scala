@@ -290,7 +290,9 @@ class MenuSuite extends munit.FunSuite:
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — taken at 09:10")), s"on-time: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — taken at 11:30 (late)")), s"late: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — skipped at 10:00")), s"skipped: $history")
-      assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — missed")), s"missed: $history")
+      // BOT_UX section 22.4: a missed dose is "not confirmed" (leftover 4 of the verification of 2026-11-28).
+      assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — not confirmed")), s"missed: $history")
+      assert(!history.exists(_.contains("— missed")), s"the word the status table forbids: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — no record (service outage)")), s"no record: $history")
       // Today's pending dose is there too; only the last 7 days render (6 dose lines: 5 seeded + today).
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — scheduled")), s"today: $history")

@@ -267,7 +267,7 @@ object Charts:
       Outcome(tr("not confirmed", "не підтверджено"), buckets.missed, SceneTone.Ink, OutcomeLook(Some(0.25), outlined)),
       Outcome(tr("no record", "немає запису"), buckets.unknown, SceneTone.Separator, OutcomeLook(None, outlined)),
       Outcome(
-        tr("still due", "ще очікують"),
+        tr("still to answer", "ще без відповіді"),
         buckets.open,
         SceneTone.Separator,
         OutcomeLook(Some(0.4), Some(SceneStyle.Dashed))
@@ -323,7 +323,7 @@ object Charts:
       Option.when(resolved.skipped > 0)(tr(s"${resolved.skipped} skipped", s"пропущено ${resolved.skipped}")),
       Option.when(resolved.missed > 0)(tr(s"${resolved.missed} not confirmed", s"не підтверджено ${resolved.missed}")),
       Option.when(buckets.unknown > 0)(tr(s"${buckets.unknown} no record", s"без запису ${buckets.unknown}")),
-      Option.when(buckets.open > 0)(tr(s"${buckets.open} still due", s"ще без відповіді — ${buckets.open}"))
+      Option.when(buckets.open > 0)(tr(s"${buckets.open} still to answer", s"ще без відповіді — ${buckets.open}"))
     ).flatten
     (tr(
       s"${resolved.taken} of ${scheduledIn(buckets)} taken",

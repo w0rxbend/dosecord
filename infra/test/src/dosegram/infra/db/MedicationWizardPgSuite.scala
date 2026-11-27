@@ -513,7 +513,7 @@ class MedicationWizardPgSuite extends PgSuite:
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — taken at 09:10")), s"on-time: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — taken at 11:30 (late)")), s"late: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — skipped at 10:00")), s"skipped: $history")
-      assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — missed")), s"missed: $history")
+      assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — not confirmed")), s"missed: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — no record (service outage)")), s"no record: $history")
       assert(history.exists(_.contains("09:00 Vitamin D 1000 IU — scheduled")), s"today: $history")
 
