@@ -115,5 +115,5 @@ class RoundFiveCardsSuite extends munit.FunSuite:
 
   test("a gallery of one day names that day, not a range of one"):
     val card = MoodGalleryCard.render(MoodGalleryData(Vector(checkIn(9, 8, 4, None))), Samples.context(Theme.Dark, Privacy.Aggregate))
-    assert(card.text.full.startsWith("Your latest 1 mood check-in, Mon 9 Nov, oldest first."), card.text.full)
+    assert(card.text.full.startsWith("Your latest mood check-in, Mon 9 Nov, oldest first."), card.text.full)
     assert(texts(card.scene.nodes).contains("Mon 9 Nov"))

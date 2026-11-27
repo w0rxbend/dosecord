@@ -665,7 +665,8 @@ object EnglishImageCopy extends ImageCopy:
     val (first, last) = (data.checkIns.head.at.toLocalDate, data.checkIns.last.at.toLocalDate)
     val entries = data.checkIns.map: checkIn =>
       s"${dayDate(checkIn.at.toLocalDate)} ${time(checkIn.at.toLocalTime)}: ${moodLabel(checkIn.reading)}"
-    (s"Your latest ${plural(data.checkIns.size, "mood check-in")}, ${
+    val latest = if data.checkIns.size == 1 then "mood check-in" else plural(data.checkIns.size, "mood check-in")
+    (s"Your latest $latest, ${
         if first == last then dayDate(first) else dateRange(first, last)
       }, oldest first." +: entries)
       .mkString(" ")

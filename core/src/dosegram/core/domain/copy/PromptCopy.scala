@@ -166,7 +166,7 @@ object PromptCopy:
     case "sleep.bedtime"       => tr("30 min before bedtime", "За 30 хв до сну")
     case "sleep.morning"       => tr("At wake time", "У час пробудження")
     case "meal.anchors"        => tr("If a meal is not logged", "Якщо їжу не записано")
-    case "report.weekly"       => tr("Sunday evening", "Неділя ввечері")
+    case "report.weekly"       => tr("Monday at 09:00", "Понеділок о 09:00")
     case "report.monthly"      => tr("On the 1st", "Першого числа")
     case MorningSummaryId(hh)  => tr(s"Every day at $hh:00", s"Щодня о $hh:00")
     case "med.morning"         => tr("Once in the morning", "Раз уранці")
