@@ -1057,6 +1057,8 @@ Photo:
 | BUX-FOOD-05 | Until the photo stage is released (`ROADMAP.md` decides; research 06 open question Q12 recommends text first), a photo replies `food.photo.later` and is not downloaded. |
 | BUX-FOOD-06 | Undo of a photo meal deletes the stored photo with the entry. |
 
+Supervisor decision, 2026-11-27 (a meal changed in chat; review of that day): `/food` carries "Change a meal" once a meal was logged in the last 7 days. It lists the 5 latest meals of those days, newest first, one button each ("Lunch · Mon 13:05", `food.recent`), and Cancel back to `/food`. A meal shows its type, day and time, never its words (`food.picked`), with "Edit", "Delete" and "Back". "Edit" asks which meal it was (`food.edit`); a type stores a changed copy that keeps the time and words (PRODUCT_SPEC R-NUT-10) and answers `food.changed` with Undo, which is the same edit back to the type before. "Delete" voids the meal at once and answers `food.deleted` with Undo, which for 15 minutes brings back a copy with the same type, words and time (`food.restored`). The time is not changed in chat. The late Undo of a meal now names this way (`food.undo_window_passed.chat`) instead of `/privacy`.
+
 ### 11.4 Mood
 
 Prompt, from `/mood`, the Today card, or the evening wrap-up:
@@ -1479,7 +1481,7 @@ Images in chat: on
 | BUX-UNDO-05 | Actions without undo are stated as such before they run: account deletion (unless the user chose the 7-day delay, research 06 section 9.3), deletion of a domain's data, and withdrawal of consent with deletion. Their confirmation buttons name the action. |
 | BUX-UNDO-06 | Entries older than 15 minutes are changed with "Edit entry" from `/history` (last 7 days) or in the Mini App (any date). Edits are appended as new revisions. |
 
-Supervisor decision, 2026-11-27 (BUX-UNDO-04 for a meal or a night while no Mini App opens; finding 3 of that day's verification): a late Undo on a meal or a night says "Change it in the app" only when `MINI_APP_URL` is set. Without it the toast names the chat's own way: for a night, "Adjust times" on the same card (`sleep.undo_window_passed.chat`); for a meal, which has no edit in the chat, deleting the meal records with `/privacy` (`food.undo_window_passed.chat`).
+Supervisor decision, 2026-11-27 (BUX-UNDO-04 for a meal or a night while no Mini App opens; finding 3 of that day's verification): a late Undo on a meal or a night says "Change it in the app" only when `MINI_APP_URL` is set. Without it the toast names the chat's own way: for a night, "Adjust times" on the same card (`sleep.undo_window_passed.chat`); for a meal, deleting the meal records with `/privacy` (`food.undo_window_passed.chat`; superseded the same day by "Change a meal" on `/food`, section 11.3).
 
 Supervisor decision, 2026-11-27 (the sleep refusals while no Mini App opens): a typed or tapped night that overlaps a stored night or nap, or a second night for a day that has one, says "Change it in the app" only when `MINI_APP_URL` is set. Without it the refusal is a new message that names the chat's own way and carries "Adjust times" for the stored episode (`sleep.overlap.chat`, `sleep.night_exists.chat`); the stored one is never overwritten.
 

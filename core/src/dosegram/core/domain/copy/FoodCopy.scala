@@ -32,11 +32,42 @@ object FoodCopy:
     "Тут це вже не скасувати. Змініть запис у застосунку."
   )
 
-  /** The late Undo without an app to open (MINI_APP_URL unset): the chat's own way, deleting the domain's records. */
+  /** The late Undo without an app to open (MINI_APP_URL unset): the chat's own way, "Change a meal" on `/food`. */
   def undoWindowPassedInChat = tr(
-    "This can no longer be undone. All meal records can be deleted with /privacy.",
-    "Це вже не скасувати. Усі записи про їжу можна видалити через /privacy."
+    s"This can no longer be undone. To edit or delete it, send /food and tap $ChangeMeal.",
+    s"Це вже не скасувати. Щоб змінити чи видалити запис, надішліть /food і натисніть «$ChangeMeal»."
   )
+
+  // ---------- a recent meal changed in chat (supervisor decision, 2026-11-27) ----------
+
+  def ChangeMeal = tr("Change a meal", "Змінити прийом їжі")
+  def Edit = tr("Edit", "Змінити")
+  def Delete = tr("Delete", "Видалити")
+  def recentTitle = tr(
+    "Your latest meals. Tap one to edit or delete it.",
+    "Ваші останні прийоми їжі. Натисніть на один, щоб змінити чи видалити його."
+  )
+  def noRecent = tr("No meal logged in the last 7 days.", "За останні 7 днів прийомів їжі не записано.")
+  def editAsk = tr("Which meal was it?", "Який це був прийом їжі?")
+
+  /** A recent meal's button: "Lunch · Mon 13:05". */
+  def recentLabel(mealType: MealType, day: String, time: String): String = s"${label(mealType)} · $day $time"
+
+  def picked(mealType: MealType, day: String, time: String, withNote: Boolean): String =
+    if withNote then
+      tr(
+        s"${label(mealType)}, $day $time, with your note.",
+        s"${label(mealType)}, $day $time, разом із вашою нотаткою."
+      )
+    else s"${label(mealType)}, $day $time."
+  def changed(mealType: MealType, day: String, time: String): String =
+    tr(s"Changed: ${lower(mealType)}, $day $time.", s"Змінено: ${lower(mealType)}, $day $time.")
+  def deleted(mealType: MealType, day: String, time: String): String =
+    tr(s"Deleted: ${lower(mealType)}, $day $time.", s"Видалено: ${lower(mealType)}, $day $time.")
+  def restored(mealType: MealType, day: String, time: String): String =
+    tr(s"Restored: ${lower(mealType)}, $day $time.", s"Відновлено: ${lower(mealType)}, $day $time.")
+
+  private def lower(mealType: MealType): String = label(mealType).toLowerCase(java.util.Locale.ROOT)
   def noneToday = tr("No meal logged today.", "Сьогодні прийомів їжі не записано.")
   def EditInApp = tr("Edit in app", "Змінити в застосунку")
   def ShowAsImage = tr("Show as image", "Показати як зображення")
@@ -153,6 +184,14 @@ object FoodCopy:
       CopyEntry("food.unknown", unknown),
       CopyEntry("food.undo_window_passed", undoWindowPassed),
       CopyEntry("food.undo_window_passed.chat", undoWindowPassedInChat),
+      CopyEntry("food.recent", recentTitle),
+      CopyEntry("food.recent.none", noRecent),
+      CopyEntry("food.recent.button", recentLabel(MealType.Lunch, "Mon", "13:05")),
+      CopyEntry("food.picked", picked(MealType.Lunch, "Mon", "13:05", withNote = true)),
+      CopyEntry("food.edit", editAsk),
+      CopyEntry("food.changed", changed(MealType.Dinner, "Mon", "13:05")),
+      CopyEntry("food.deleted", deleted(MealType.Lunch, "Mon", "13:05")),
+      CopyEntry("food.restored", restored(MealType.Lunch, "Mon", "13:05")),
       CopyEntry("food.none_today", noneToday),
       CopyEntry("food.today", today(List(MealType.Breakfast -> "08:10", MealType.Lunch -> "13:05"))),
       CopyEntry("food.too_long", tooLong(300)),

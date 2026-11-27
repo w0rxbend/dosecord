@@ -4,16 +4,20 @@ import dosegram.contracts.AppRoute
 import dosegram.contracts.Choice
 import dosegram.contracts.ChoiceStyle
 import dosegram.contracts.Reply
+import dosegram.core.application.nutrition.ChangeMeal
 import dosegram.core.application.nutrition.FoodViews
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
 import dosegram.core.application.nutrition.MealRefusal
 import dosegram.core.application.nutrition.NutritionService
 import dosegram.core.application.reports.CardDelivery
+import dosegram.core.chat.ActionEntry
 import dosegram.core.domain.EntrySource
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.WizardCopy
+import dosegram.core.domain.nutrition.MealEntry
 import dosegram.core.domain.nutrition.MealLine
 import dosegram.core.domain.nutrition.MealText
 import dosegram.core.domain.nutrition.MealTimes
@@ -47,7 +51,91 @@ private[capture] final class FoodChat(
       val lines = Option.when(logged.nonEmpty)(FoodCopy.today(logged)).toList ++ (FoodCopy.which :: hint.toList)
       val image = Option.when(logged.nonEmpty):
         Choice.callback(FoodCopy.ShowAsImage, tokens.direct(CaptureActions.FoodImage, turn.accountId, 0))
-      turn.show(turn.message("food.which", lines, buttons(turn) :+ image.toList))
+      val change = Option.when(nutrition.latest(turn.tx, turn.accountId, 1).exists(_.nonEmpty)):
+        Choice.callback(FoodCopy.ChangeMeal, tokens.direct(CaptureActions.FoodRecent, turn.accountId, 0))
+      turn.show(turn.message("food.which", lines, buttons(turn) :+ image.toList :+ change.toList))
+
+  /** "Change a meal": the latest meals of the week, one button each (supervisor decision, 2026-11-27). */
+  def recent(turn: Turn): Reply =
+    answered(turn, nutrition.latest(turn.tx, turn.accountId, FoodChat.RecentLimit)): meals =>
+      if meals.isEmpty then turn.toast(FoodCopy.noRecent)
+      else
+        val rows = meals.map: meal =>
+          List(
+            Choice.callback(
+              FoodCopy.recentLabel(meal.mealType, day(turn, meal), time(turn, meal)),
+              on(CaptureActions.FoodPick, meal.id)
+            )
+          )
+        turn.show(turn.message("food.recent", List(FoodCopy.recentTitle), rows :+ List(cancel(turn))))
+
+  /** One meal with Edit and Delete. Its words are never echoed. */
+  def pick(turn: Turn, mealId: UUID): Reply =
+    answered(turn, nutrition.get(turn.tx, turn.accountId, mealId)): meal =>
+      val line = FoodCopy.picked(meal.mealType, day(turn, meal), time(turn, meal), withNote = meal.text.nonEmpty)
+      val rows = List(
+        List(
+          Choice.callback(FoodCopy.Edit, on(CaptureActions.FoodEdit, meal.id)),
+          Choice.callback(FoodCopy.Delete, on(CaptureActions.FoodDelete, meal.id))
+        ),
+        List(Choice.callback(Labels.Back, tokens.direct(CaptureActions.FoodRecent, turn.accountId, 0)))
+      )
+      turn.show(turn.message("food.picked", List(line), rows))
+
+  /** Edit: `value` 0 asks which meal it was; the meal type's ordinal plus one stores it, keeping the time and words.
+    * The outcome's Undo is the same edit back to the type before.
+    */
+  def edit(turn: Turn, mealId: UUID, value: Long): Reply =
+    if value == 0 then
+      answered(turn, nutrition.get(turn.tx, turn.accountId, mealId)): meal =>
+        val types = MealType.values.toList.map(t =>
+          Choice.callback(FoodCopy.label(t), on(CaptureActions.FoodEdit, meal.id, t.ordinal + 1L))
+        )
+        val back = Choice.callback(Labels.Back, on(CaptureActions.FoodPick, meal.id))
+        turn.show(turn.message("food.edit", List(FoodCopy.editAsk), types.grouped(2).toList :+ List(back)))
+    else
+      FoodChat.typeOf(value - 1) match
+        case None           => turn.toast(ReminderCopy.staleControlToast)
+        case Some(mealType) =>
+          answered(turn, nutrition.get(turn.tx, turn.accountId, mealId)): before =>
+            val command = ChangeMeal(
+              turn.accountId,
+              mealId,
+              MealInput(mealType, before.text, at = None),
+              EntrySource.Bot,
+              turn.clientKey
+            )
+            answered(turn, nutrition.change(turn.tx, command)): changed =>
+              val entry = changed.entry
+              val undo =
+                Choice.callback(Labels.Undo, on(CaptureActions.FoodEdit, entry.id, before.mealType.ordinal + 1L))
+              val line = FoodCopy.changed(entry.mealType, day(turn, entry), time(turn, entry))
+              turn.show(turn.message("food.changed", List(line), List(List(undo))))
+
+  /** Delete: the meal is voided at once; Undo brings it back within 15 minutes. */
+  def delete(turn: Turn, mealId: UUID): Reply =
+    answered(turn, nutrition.get(turn.tx, turn.accountId, mealId)): meal =>
+      answered(turn, nutrition.delete(turn.tx, turn.accountId, mealId)): _ =>
+        val undo = Choice.callback(Labels.Undo, on(CaptureActions.FoodRestore, meal.id))
+        val line = FoodCopy.deleted(meal.mealType, day(turn, meal), time(turn, meal))
+        turn.show(turn.message("food.deleted", List(line), List(List(undo))))
+
+  def restore(turn: Turn, mealId: UUID): Reply =
+    answered(turn, nutrition.restore(turn.tx, turn.accountId, mealId, turn.clientKey)): restored =>
+      val entry = restored.entry
+      turn.show(
+        turn.message("food.restored", List(FoodCopy.restored(entry.mealType, day(turn, entry), time(turn, entry))), Nil)
+      )
+
+  private def on(action: ActionEntry, mealId: UUID, value: Long = 0): String = tokens.direct(action, mealId, value)
+
+  private def cancel(turn: Turn): Choice =
+    Choice.callback(Labels.Cancel, tokens.direct(CaptureActions.FoodRecent, turn.accountId, FoodChat.BackToCard))
+
+  private def time(turn: Turn, meal: MealEntry): String = turn.localTime(meal.occurredAt)
+
+  private def day(turn: Turn, meal: MealEntry): String =
+    WizardCopy.weekdayLabels(meal.occurredAt.atZone(turn.zone).getDayOfWeek.getValue - 1)
 
   /** IMG-09 for today, sent as a new photo with the day in words as its caption (VISUALS VA-TX-01). */
   def image(turn: Turn): Reply =
@@ -126,6 +214,15 @@ private[capture] final class FoodChat(
         ReminderCopy.staleControlToast
 
 private[capture] object FoodChat:
+
+  /** How many meals "Change a meal" lists. */
+  val RecentLimit = 5
+
+  /** The `food.recent` value of Cancel under the recent meals: back to the `/food` card. */
+  val BackToCard: Long = 1
+
+  def typeOf(ordinal: Long): Option[MealType] =
+    Option.when(ordinal >= 0 && ordinal < MealType.values.length)(MealType.fromOrdinal(ordinal.toInt))
 
   /** The food diary of the Mini App (MINI_APP section 3.4, S-08). */
   val DiaryRoute: AppRoute = AppRoute("food")

@@ -113,6 +113,30 @@ final class NutritionService(clock: Clock, ids: IdSource):
           val changed = tx.tracking.meals.void(accountId, mealId, reason, now)
           Right(MealRemoved(dayView(tx, accountId, meal.localDate, meal.zone), changed))
 
+  /** Brings back a meal deleted less than 15 minutes ago as a new entry with its type, words and time (the Undo of a
+    * delete in chat). `clientKey` makes a second tap restore it once.
+    */
+  def restore(tx: Tx, accountId: UUID, mealId: UUID, clientKey: String): Either[MealRefusal, MealRecorded] =
+    consented(tx, accountId): _ =>
+      tx.tracking.meals.get(accountId, mealId) match
+        case None                      => Left(MealRefusal.UnknownMeal)
+        case Some(meal) if meal.isLive => Left(MealRefusal.UnknownMeal)
+        case Some(meal)
+            if meal.voidedAt.exists(at => Duration.between(at, clock.now()).compareTo(MealBounds.UndoWindow) > 0) =>
+          Left(MealRefusal.UndoWindowPassed)
+        case Some(meal) =>
+          log(
+            tx,
+            LogMeal(accountId, MealInput(meal.mealType, meal.text, Some(meal.occurredAt)), EntrySource.Bot, clientKey)
+          )
+
+  /** The latest live meals of the last seven days, newest first: the ones the chat can change. */
+  def latest(tx: Tx, accountId: UUID, limit: Int): Either[MealRefusal, List[MealEntry]] =
+    consented(tx, accountId): zone =>
+      val today = LocalDays.dateOf(clock.now(), zone)
+      val entries = tx.tracking.meals.listLive(accountId, DateRange.between(today.minusDays(6), today))
+      Right(entries.sortBy(_.occurredAt).reverse.take(limit))
+
   def get(tx: Tx, accountId: UUID, mealId: UUID): Either[MealRefusal, MealEntry] =
     consented(tx, accountId)(_ =>
       tx.tracking.meals.get(accountId, mealId).filter(_.isLive).toRight(MealRefusal.UnknownMeal)

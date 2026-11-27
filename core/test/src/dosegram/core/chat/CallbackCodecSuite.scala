@@ -299,7 +299,13 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         368 -> "reminders.counts",
         369 -> "stats.share",
         370 -> "stats.share_send",
-        411 -> "stats.trends"
+        411 -> "stats.trends",
+        // Meals changed in chat (review of 2026-11-27).
+        412 -> "food.recent",
+        413 -> "food.pick",
+        414 -> "food.edit",
+        415 -> "food.delete",
+        416 -> "food.restore"
       )
     )
 

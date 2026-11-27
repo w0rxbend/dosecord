@@ -208,6 +208,10 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Some(CaptureActions.SleepAdjustSave)   => sleep.adjustSave(turn, ref.subject, ref.value)
       case Some(CaptureActions.SleepAdjustCancel) => sleep.adjustCancel(turn, ref.subject)
       case Some(CaptureActions.FoodUndo)          => food.undo(turn, ref.subject)
+      case Some(CaptureActions.FoodPick)          => food.pick(turn, ref.subject)
+      case Some(CaptureActions.FoodEdit)          => food.edit(turn, ref.subject, ref.value)
+      case Some(CaptureActions.FoodDelete)        => food.delete(turn, ref.subject)
+      case Some(CaptureActions.FoodRestore)       => food.restore(turn, ref.subject)
       // Every other button names the account it was made for: a tap from another account is a stale button.
       case Some(action) if ref.subject == turn.accountId => onAccountTap(turn, action, ref.value)
       case _                                             => stale(turn)
@@ -241,6 +245,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
         )
       case CaptureActions.FoodLog        => mealOf(value).map(foodButton(turn, _)).getOrElse(stale(turn))
       case CaptureActions.FoodImage      => imageOf(turn, Pending.FoodImage)(food.image(turn))
+      case CaptureActions.FoodRecent     => if value == FoodChat.BackToCard then food.card(turn) else food.recent(turn)
       case CaptureActions.StatsShare     => share.picker(turn)
       case CaptureActions.StatsShareSend => share.send(turn.copy(source = None), value)
       case CaptureActions.ImportTemplate => imports.template(turn, value).getOrElse(stale(turn))

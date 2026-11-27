@@ -116,6 +116,11 @@ private[capture] object CaptureActions:
   val FoodLog: ActionEntry = named("food.log")
   val FoodUndo: ActionEntry = named("food.undo")
   val FoodImage: ActionEntry = named("food.image")
+  val FoodRecent: ActionEntry = named("food.recent")
+  val FoodPick: ActionEntry = named("food.pick")
+  val FoodEdit: ActionEntry = named("food.edit")
+  val FoodDelete: ActionEntry = named("food.delete")
+  val FoodRestore: ActionEntry = named("food.restore")
   val StatsShare: ActionEntry = named("stats.share")
   val StatsShareSend: ActionEntry = named("stats.share_send")
   val StatsTrends: ActionEntry = named("stats.trends")
@@ -154,6 +159,11 @@ private[capture] object CaptureActions:
     FoodLog,
     FoodUndo,
     FoodImage,
+    FoodRecent,
+    FoodPick,
+    FoodEdit,
+    FoodDelete,
+    FoodRestore,
     StatsShare,
     StatsShareSend,
     ImportTemplate

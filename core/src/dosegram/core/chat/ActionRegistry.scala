@@ -121,7 +121,15 @@ object ActionRegistry:
     ActionEntry(370, "stats.share_send", requiresSession = false),
     // Analytics depth (411 to 440; ROADMAP G9.4, G9.5): the trends of /stats, direct mode on the account, the value the
     // period's days (30 or 90). Its image is `stats.image` with the same value.
-    ActionEntry(411, "stats.trends", requiresSession = false)
+    ActionEntry(411, "stats.trends", requiresSession = false),
+    // Meals changed in chat (412 to 421; review of 2026-11-27, BOT_UX section 11.3). Direct mode: the recent meals on
+    // the account, value 1 back to the /food card; pick, edit, delete and restore on the meal, the edit's value 0 for the question and the meal type's
+    // ordinal plus one for the answer.
+    ActionEntry(412, "food.recent", requiresSession = false),
+    ActionEntry(413, "food.pick", requiresSession = false),
+    ActionEntry(414, "food.edit", requiresSession = false),
+    ActionEntry(415, "food.delete", requiresSession = false),
+    ActionEntry(416, "food.restore", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

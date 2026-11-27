@@ -15,6 +15,7 @@ import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.HelpCopy
+import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
@@ -935,6 +936,50 @@ class CaptureFlowsSuite extends munit.FunSuite:
         chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofMinutes(16))
         assertEquals(chat.rig.tap(undo), List(expected))
         assertEquals(liveMeals(chat).size, 1)
+
+  test("Change a meal on /food edits the type of a recent meal, with Undo, and keeps its time and words"):
+    withChat(Profile.Telegram, appOpens = false): chat =>
+      chat.grant(ConsentPurpose.Nutrition)
+      chat.rig.line("lunch: soup")
+      chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofMinutes(20))
+      chat.rig.line("/food")
+      val recent = chat.rig.tapOn(FoodCopy.which, FoodCopy.ChangeMeal)
+      assertEquals(texts(recent), List(FoodCopy.recentTitle))
+      val lunch = FoodCopy.recentLabel(MealType.Lunch, "Mon", "03:00")
+      assertEquals(labels(recent), List(lunch, Labels.Cancel))
+      val picked = chat.rig.tapOn(FoodCopy.recentTitle, lunch)
+      assertEquals(texts(picked), List(FoodCopy.picked(MealType.Lunch, "Mon", "03:00", withNote = true)))
+      assertEquals(labels(picked), List(FoodCopy.Edit, FoodCopy.Delete, Labels.Back))
+      val asked = chat.rig.tapOn(FoodCopy.picked(MealType.Lunch, "Mon", "03:00", withNote = true), FoodCopy.Edit)
+      assertEquals(texts(asked), List(FoodCopy.editAsk))
+      val changed = chat.rig.tapOn(FoodCopy.editAsk, FoodCopy.label(MealType.Dinner))
+      assertEquals(texts(changed), List(FoodCopy.changed(MealType.Dinner, "Mon", "03:00")))
+      assertEquals(liveMeals(chat), List(MealType.Dinner -> Some("soup")))
+      val undone = chat.rig.tapOn(FoodCopy.changed(MealType.Dinner, "Mon", "03:00"), Labels.Undo)
+      assertEquals(texts(undone), List(FoodCopy.changed(MealType.Lunch, "Mon", "03:00")))
+      assertEquals(liveMeals(chat), List(MealType.Lunch -> Some("soup")))
+
+  test("Delete on a recent meal removes it, Undo brings it back with its time and words"):
+    withChat(Profile.Telegram, appOpens = false): chat =>
+      chat.grant(ConsentPurpose.Nutrition)
+      chat.rig.line("breakfast: oats")
+      chat.rig.line("snack: apple")
+      chat.rig.clock.at = chat.rig.clock.at.plus(Duration.ofMinutes(30))
+      chat.rig.line("/food")
+      chat.rig.tapOn(FoodCopy.which, FoodCopy.ChangeMeal)
+      val snack = FoodCopy.recentLabel(MealType.Snack, "Mon", "03:00")
+      chat.rig.tapOn(FoodCopy.recentTitle, snack)
+      val deleted = chat.rig.tapOn(FoodCopy.picked(MealType.Snack, "Mon", "03:00", withNote = true), FoodCopy.Delete)
+      assertEquals(texts(deleted), List(FoodCopy.deleted(MealType.Snack, "Mon", "03:00")))
+      assertEquals(liveMeals(chat), List(MealType.Breakfast -> Some("oats")))
+      val restored = chat.rig.tapOn(FoodCopy.deleted(MealType.Snack, "Mon", "03:00"), Labels.Undo)
+      assertEquals(texts(restored), List(FoodCopy.restored(MealType.Snack, "Mon", "03:00")))
+      assertEquals(liveMeals(chat).toSet, Set[(MealType, Option[String])](MealType.Breakfast -> Some("oats"), MealType.Snack -> Some("apple")))
+      assertEquals(chat.world.tracking.meals.live.map(_.occurredAt).distinct.size, 1, "the time is kept")
+
+  test("the late Undo on a meal names Change a meal on /food when no app opens"):
+    assert(FoodCopy.undoWindowPassedInChat.contains(FoodCopy.ChangeMeal), FoodCopy.undoWindowPassedInChat)
+    assert(Lang.within(Lang.Uk)(FoodCopy.undoWindowPassedInChat).contains(Lang.within(Lang.Uk)(FoodCopy.ChangeMeal)))
 
   test("/food lists the meals logged today above the buttons"):
     withChat(Profile.Telegram): chat =>
