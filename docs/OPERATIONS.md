@@ -753,3 +753,59 @@ paragraph says, and `34c4733` over the step-1 backup restored into `dosegram_res
 `schema 22`, answered `/readyz` with 200 and stopped cleanly. Not rehearsed: a real client, the
 Telegram transport, the month image over live data (the seeded month is below the 14-day gate),
 and renaming the restored database in place of changing `DATABASE_URL`.
+
+## 18. Deploying `main` after the third integration of 2026-11-27 over the live V23 database (3d9e9c3 to the head, no migration)
+
+The live bot runs `3d9e9c3` from `.live/run.sh` (long polling, `.live/wt-3d9e9c3`), and its
+database is at V23. The head of `main` adds no migration: the migration files and
+`scripts/frozen-migrations.sha256` are byte for byte those of `3d9e9c3`, and no environment
+variable is added or made required. The commits since `3d9e9c3` are the fixes of the new-user
+review (`d577750`: one dose count on the `/stats meds` strip, "no record" doses on `/today`,
+Ukrainian counted nouns, the water offer after the goal, Europe/Kyiv suggested in Ukrainian
+onboarding, "your records" as the sleep source), image round 5 (merge `aac9ee1`) and the Mini
+App go-live rehearsal (merge `6f7fa3d`). Every step is the owner's; `<sha>` is the head of
+`main` at or after the commit that adds this section, and `<pg>` is `dosegram-live-pg`:
+
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v23-$(date -u +%F).dump`.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist. Note the number of
+   quarantined updates: `SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined';`.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
+   `shutdown: pool closed`). Start the new release with the same script:
+   `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows the 23 `sealing:` lines of section
+   16 with `sealed 0`, `migrate: 0 migration(s) applied, schema 23, 0 value(s) sealed, 0 key(s) rewrapped`,
+   `purge: replayed 0 deletion(s) of the purge list` and the health listener on `127.0.0.1:18081`.
+5. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   `SELECT max(version::int) FROM flyway_schema_history WHERE success;` still returns 23; the
+   quarantined count is the number of step 2. Then `curl -fsS http://127.0.0.1:18081/readyz`
+   answers 200; in the chat `/mood history` lists the latest check-ins (with the mood consent)
+   and its "Show as image" sends the gallery (with the images consent); `/stats meds` with
+   "Show as image" counts the same answered doses in the text, the caption and the card.
+6. Delete the old worktree only after a day of normal use: `git worktree remove .live/wt-3d9e9c3`.
+
+What changes in the chat, none of it checked on a real client yet:
+
+- With the images consent, the weekly report on Monday is an album of two: the week card, then
+  the week highlights (IMG-25). It is still one unprompted image message.
+- `/mood history` (also `/mood історія`) and its gallery (IMG-26, action id 474).
+- Dark and discreet personal cards use the new Rye `#a86614` and Beet `#b45689` from their next
+  render; light cards and the mood blobs are unchanged, so shared mood file ids stay valid.
+- The fixes of `d577750` listed above.
+
+The Mini App stays off: `.live/run.sh` keeps `export MINIAPP_ENABLED=false` until the owner
+makes the one-time edit and the go-live steps of `docs/DEPLOY_MINIAPP.md` (DNS, a proxy from
+`docker/proxy/`, the Mini App build per release, `MINI_APP_URL`, `scripts/miniapp-preflight.sh`,
+then BotFather). That switch is independent of this deploy and can follow it on any later start.
+
+Rollback: stop the bot and start `LIVE_WT="$PWD/.live/wt-3d9e9c3" .live/run.sh`. There is no
+schema change, so no restore is needed; it logs `schema 23`. Buttons the head sent ("Show as
+image" under `/mood history`, action id 474) may get no answer from `3d9e9c3`.
+
+Not rehearsed as a separate upgrade: with no migration, the start over the live V23 database is
+the second start of section 17, which was rehearsed (`migrate: 0 migration(s) applied, schema 23`).
+Checked at the head instead: `scripts/flyway-validate.sh` (21 migrations) and
+`scripts/check-frozen-migrations.sh` against a throwaway PostgreSQL, and `ProductionPathSuite`
+and `NewUserWalkSuite` on the production assembly and the fake wire. Not checked: a real client,
+the Telegram transport, the weekly album over live data.

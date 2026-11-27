@@ -39,19 +39,21 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-27 (`3dccd25` and the docs after it), after
-ten rounds of parallel tracks were merged and wired together (the
+State of `main` on 2026-11-27 (`6f7fa3d` and the docs after it), after
+eleven rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
-migration; the tenth: chat analytics, V23, and image round 4), plus the
-fixes of the verifications of 2026-11-14 (V13), 2026-11-15 (V18) and
-2026-11-27, and V22 (sealed file ids and export parameters). The
-migrations are V1 to V19, V22 and V23, 21 files
+migration; the tenth: chat analytics, V23, and image round 4; the
+eleventh: image round 5 and the Mini App go-live rehearsal, no
+migration), plus the fixes of the verifications of 2026-11-14 (V13),
+2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
+parameters). The migrations are V1 to V19, V22 and V23, 21 files
 (`scripts/check-frozen-migrations.sh` prints `21 migrations unchanged
 (V1 to V19, V22, V23)`); V20 and V21 must never be added, and the next
-is V24. The live database is at V22 (`34c4733`):
-`docs/OPERATIONS.md` section 17 is the owner's deploy of the head, which
-applies V23 (sections 8 to 16 explain the earlier parts). The Mini App
-is off on live.
+is V24. The live database is at V23 (`3d9e9c3`):
+`docs/OPERATIONS.md` section 18 is the owner's deploy of the head, with
+no migration (sections 8 to 17 explain the earlier parts). The Mini App
+is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
+it on.
 Appendix B and its status notes are the record; this is the short form.
 
 - Foundation: G0.3 (`d6a033d`), G0.4 (`b6530a3`) and G0.5 (`fb6b317`) are
@@ -166,6 +168,13 @@ Appendix B and its status notes are the record; this is the short form.
   preview limits, the colour-vision check of every card, generic captions
   under discreet images, and the month in one image (IMG-24) after the
   monthly pages.
+- Image round 5 and the Mini App go-live rehearsal (2026-11-27): the dark
+  Rye and Beet that keep every domain hue at 3:1 for every reader (R5),
+  the week highlights as the second photo of the weekly report (IMG-25),
+  `/mood history` with its blob gallery (IMG-26, action id 474);
+  `scripts/miniapp-env.sh`, `miniapp-preflight.sh` and
+  `miniapp-rehearsal.sh`, the Caddy and nginx files in `docker/proxy/`,
+  and `pnpm --dir miniapp run e2e:https`, the browser suite over TLS.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -256,9 +265,14 @@ Useful next, in this order:
     plan names in `miniapp/src/mock/reminders.ts`.
 11. What the tenth round left open: live sends of the morning summary,
     `/stats meds`, the poster and a discreet caption; a typed time for the
-    summary and pre-rendering (VA-PS-08); the strip caption that counts
-    open doses; the dark Beet and Rye contrast under protanopia (VISUALS
-    6.21, R5); CI attaching the vision sheets (G4.7).
+    summary and pre-rendering (VA-PS-08); CI attaching the vision sheets
+    (G4.7).
+12. What the eleventh round left open: the owner's go-live of the Mini
+    App (public host, certificate, BotFather, OA-8) and live check LS-6;
+    the share builder offered without `RESVG_PATH` (its preview answers
+    404, DEPLOY_MINIAPP.md); live sends of the weekly album with
+    highlights and the mood gallery; their contact-sheet review by another
+    reviewer; the Mini App palette, which R5 did not change.
 
 ## Agent workflow
 
