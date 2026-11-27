@@ -259,7 +259,8 @@ class NewUserWalkSuite extends PgSuite:
     tap(Labels.Taken)
     chat.note("13:00: the Magnesium reminder, snoozed, then skipped when it comes back")
     chat.passUntil(at("13:01"))
-    chat.tapWhere("Snooze")(_.startsWith(t("Snooze", "Відкласти")))
+    // The dose's own ten-minute snooze: a water reminder due in the same minute also has a snooze button.
+    tap(Labels.snooze(10))
     chat.passUntil(at("13:45"))
     tap(Labels.Skip)
     chat.note("/today after the answers")
