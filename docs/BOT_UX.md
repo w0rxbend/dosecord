@@ -1516,6 +1516,8 @@ Consents:
 [ Back ]            [ Menu ]
 ```
 
+Supervisor decision, 2026-11-27 (new-user review, finding 2 of [the walk-through](verification/new-user-review-2026-11-27.md)): a "Withdraw" button names its domain in one word ("Withdraw: images", "Відкликати: зображення"; medication, water, mood, sleep, meals, comparisons, images, imports), and the consent line above it keeps the full name. "Withdraw: comparisons across domains" (36 characters) and "Відкликати: зображення в цьому чаті" (35) were longer than a label may be, so `/privacy` failed with no answer for every account holding that consent.
+
 ### 20.2 Export
 
 | ID | Requirement |

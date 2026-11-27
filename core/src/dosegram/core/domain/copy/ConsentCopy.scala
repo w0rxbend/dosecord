@@ -250,8 +250,23 @@ object ConsentCopy:
   def privacyLine(purpose: ConsentPurpose, date: String): String =
     tr(s"${wording(purpose).short.capitalize}: since $date", s"${wording(purpose).short.capitalize}: від $date")
 
+  /** A button label, so the domain is named in one word: "Withdraw: comparisons across domains" (36) and "Відкликати:
+    * зображення в цьому чаті" (35) were longer than a label may be, and `/privacy` failed for an account holding that
+    * consent (walk-through of 2026-11-27).
+    */
   def withdrawLabel(purpose: ConsentPurpose): String =
-    tr(s"Withdraw: ${wording(purpose).short}", s"Відкликати: ${wording(purpose).short}")
+    tr(s"Withdraw: ${domainWord(purpose)._1}", s"Відкликати: ${domainWord(purpose)._2}")
+
+  private def domainWord(purpose: ConsentPurpose): (String, String) =
+    purpose match
+      case ConsentPurpose.Medication          => ("medication", "ліки")
+      case ConsentPurpose.Hydration           => ("water", "вода")
+      case ConsentPurpose.Mood                => ("mood", "настрій")
+      case ConsentPurpose.Sleep               => ("sleep", "сон")
+      case ConsentPurpose.Nutrition           => ("meals", "їжа")
+      case ConsentPurpose.CrossDomainPatterns => ("comparisons", "порівняння")
+      case ConsentPurpose.ImagesInChat        => ("images", "зображення")
+      case ConsentPurpose.Import              => ("imports", "імпорт")
 
   /** States exactly what the withdrawal did (PRODUCT_SPEC R-IDC-10, BOT_UX BUX-CONS-06). */
   def withdrawn(purpose: ConsentPurpose): String =

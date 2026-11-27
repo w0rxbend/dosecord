@@ -99,7 +99,7 @@ class AuditPgSuite extends PgSuite:
       rig.line("/meds")
       rig.consent()
       rig.line("/privacy")
-      rig.tap("Your consents", "Withdraw: meal records")
+      rig.tap("Your consents", "Withdraw: meals")
       // An export asked for by the app and confirmed in the chat, made by the worker, fetched with a ticket.
       val ids = IdSource.uuidV7(SecureRandom())
       val requests = Application.exportRequests(rig.clock, rig.codec)
