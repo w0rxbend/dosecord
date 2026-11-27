@@ -1,0 +1,5 @@
+file: dosegram-sleep-week.png
+spoiler: true
+caption: Sleep, recent nights.
+alt: Sleep, 2 to 8 Nov. No night logged in these 7 nights. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record.
+full: Sleep, 2 to 8 Nov. No night logged in these 7 nights. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record.

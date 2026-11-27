@@ -589,7 +589,7 @@ object UkrainianImageCopy extends ImageCopy:
     val recorded = days.flatten
     val period = s"Вода, ${dateRange(from, from.plusDays(days.size - 1L))}."
     val summary =
-      if recorded.isEmpty then "Днів із записами: 0."
+      if recorded.isEmpty then waterWeekNone
       else
         val average = Option.when(recorded.size >= MinimumDaysForAverage)(
           s"У середньому ${litresAmount(recorded.map(_.volumeMl).sum / recorded.size)} на день."
@@ -611,7 +611,7 @@ object UkrainianImageCopy extends ImageCopy:
     val period = s"Сон, ${dateRange(from, from.plusDays(nights.size - 1L))}."
     val recorded = nights.collect { case SleepEvidence.Recorded(minutes, _) => minutes }
     val summary =
-      if recorded.isEmpty then "Записано 0 ночей."
+      if recorded.isEmpty then sleepWeekNone
       else if recorded.size >= MinimumDaysForAverage then
         s"У середньому ${duration(recorded.sum / recorded.size)} за ${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших позначок."
       else s"${counted(recorded.size, "ніч", "ночі", "ночей")} з ваших позначок."
@@ -641,7 +641,8 @@ object UkrainianImageCopy extends ImageCopy:
           val level = valenceName(dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence)
             .toLowerCase(java.util.Locale.ROOT)
           s"${weekday(row.day)}: ${insightValue(mean)} ($level), $checkIns"
-        case None => s"${weekday(row.day)}: $checkIns, менше 3"
+        case None if row.checkInDays == 0 => s"${weekday(row.day)}: без позначок"
+        case None                         => s"${weekday(row.day)}: $checkIns, менше 3"
     }
     s"Настрій за днями тижня, ${dateRange(data.from, data.to)}. ${rows.mkString(". ")}. ${insightScaleNote(Domain.Mood)}"
 
@@ -653,6 +654,9 @@ object UkrainianImageCopy extends ImageCopy:
 
   def trendsScaleNote: String = "Кожен рядок у власному масштабі"
   def trendsDiscreet: String = "Динаміка за період."
+
+  def waterWeekNone: String = "За ці 7 днів воду не записано."
+  def sleepWeekNone: String = "За ці 7 ночей сон не записано."
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3

@@ -558,7 +558,7 @@ object EnglishImageCopy extends ImageCopy:
     val recorded = days.flatten
     val period = s"Water, ${dateRange(from, from.plusDays(days.size - 1L))}."
     val summary =
-      if recorded.isEmpty then "0 days logged."
+      if recorded.isEmpty then waterWeekNone
       else
         val average = Option.when(recorded.size >= MinimumDaysForAverage)(
           s"${litresAmount(recorded.map(_.volumeMl).sum / recorded.size)} a day on average."
@@ -580,7 +580,7 @@ object EnglishImageCopy extends ImageCopy:
     val period = s"Sleep, ${dateRange(from, from.plusDays(nights.size - 1L))}."
     val recorded = nights.collect { case SleepEvidence.Recorded(minutes, _) => minutes }
     val summary =
-      if recorded.isEmpty then "0 nights logged."
+      if recorded.isEmpty then sleepWeekNone
       else if recorded.size >= MinimumDaysForAverage then
         s"${duration(recorded.sum / recorded.size)} on average over ${plural(recorded.size, "night")} from your check-ins."
       else s"${plural(recorded.size, "night")} from your check-ins."
@@ -609,6 +609,7 @@ object EnglishImageCopy extends ImageCopy:
           val level = valenceName(dosegram.render.blob.MoodState.quantised((mean - 3) / 2, 0.5).valence)
             .toLowerCase(java.util.Locale.ROOT)
           s"${weekday(row.day)}: ${insightValue(mean)} ($level) over ${plural(row.checkInDays, "check-in day")}"
+        case None if row.checkInDays == 0 => s"${weekday(row.day)}: no check-in"
         case None => s"${weekday(row.day)}: ${plural(row.checkInDays, "check-in day")}, fewer than 3"
     }
     s"Mood by weekday, ${dateRange(data.from, data.to)}. ${rows.mkString(". ")}. ${insightScaleNote(Domain.Mood)}"
@@ -621,6 +622,9 @@ object EnglishImageCopy extends ImageCopy:
 
   def trendsScaleNote: String = "Each row on its own scale"
   def trendsDiscreet: String = "Trends over a period."
+
+  def waterWeekNone: String = "No water logged in these 7 days."
+  def sleepWeekNone: String = "No night logged in these 7 nights."
 
   // A weekly average is shown from three recorded days (VISUALS section 7.1).
   private val MinimumDaysForAverage = 3

@@ -546,7 +546,8 @@ object Samples:
   val sleepWeeks: Vector[Fixture] = Vector(
     Fixture("sleep-week/sparse", context => Vector(SleepWeekCard.render(sparseWeek.from, sparseWeek.sleep.get, context))),
     Fixture("sleep-week/typical", context => Vector(SleepWeekCard.render(typicalWeek.from, typicalWeek.sleep.get, context))),
-    Fixture("sleep-week/dense", context => Vector(SleepWeekCard.render(denseWeek.from, denseWeek.sleep.get, context)))
+    Fixture("sleep-week/dense", context => Vector(SleepWeekCard.render(denseWeek.from, denseWeek.sleep.get, context))),
+    Fixture("sleep-week/empty", context => Vector(SleepWeekCard.render(typicalWeek.from, Vector.fill(7)(SleepEvidence.NoRecord), context)))
   )
 
   private def weekdayRows(means: Vector[(Option[Double], Int)]): Vector[MoodWeekdayRow] =

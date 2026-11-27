@@ -253,6 +253,10 @@ trait ImageCopy:
   def trendsScaleNote: String
   def trendsDiscreet: String
 
+  // Image round 4 (2026-11-27): a week of IMG-20 or IMG-21 with nothing logged.
+  def waterWeekNone: String
+  def sleepWeekNone: String
+
 /** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
 final case class MonthSummary(
     month: YearMonth,

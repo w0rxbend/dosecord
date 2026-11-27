@@ -71,13 +71,8 @@ object MoodWeekdayCard:
   private def drawRow(row: MoodWeekdayRow, top: Double, frame: CardFrame, context: CardContext): Vector[Node] =
     val tokens = frame.tokens
     val copy = context.copy
-    val labels = Vector(
-      frame.text(
-        copy.weekdayName(row.day),
-        Point(frame.left, top + LabelBaselinePx),
-        frame.look(TextStyle.BodyMedium, tokens.ink),
-        DaysLeftPx - frame.left - 8
-      ),
+    // A weekday without a check-in has no count: its row says "No check-in" instead of "0 days".
+    val count = Option.when(row.checkInDays > 0)(
       frame.text(
         copy.moodWeekdayDays(row.checkInDays),
         Point(DaysLeftPx, top + LabelBaselinePx),
@@ -85,6 +80,12 @@ object MoodWeekdayCard:
         TrackLeft - DaysLeftPx - 24
       )
     )
+    val labels = frame.text(
+      copy.weekdayName(row.day),
+      Point(frame.left, top + LabelBaselinePx),
+      frame.look(TextStyle.BodyMedium, tokens.ink),
+      DaysLeftPx - frame.left - 8
+    ) +: count.toVector
     row.mean match
       case Some(mean) =>
         val y = top + TrackYPx
@@ -104,7 +105,7 @@ object MoodWeekdayCard:
       case None =>
         val look = TextLook(TextStyle.Body, tokens.ink3, Align.Start, TextKind.Label)
         labels :+ frame.text(
-          copy.moodWeekdayTooFew,
+          if row.checkInDays == 0 then copy.noCheckIn else copy.moodWeekdayTooFew,
           Point(TrackLeft, top + LabelBaselinePx),
           look,
           frame.right - TrackLeft

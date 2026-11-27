@@ -435,7 +435,7 @@ class CaptureLaunchSuite extends PgSuite:
 
       val List(sleep) = bot.tap(stats, "Sleep, 7 nights", expected = 1): @unchecked
       assertEquals(sleep.method, "sendPhoto")
-      assert(bot.body(sleep).contains("0 nights logged."), bot.body(sleep))
+      assert(bot.body(sleep).contains("No night logged in these 7 nights."), bot.body(sleep))
       assert(bot.rasteriser.shows(bot.rasteriser.count, "Sleep, 7 nights"))
 
       val List(mood) = bot.tap(stats, "Mood by weekday", expected = 1): @unchecked

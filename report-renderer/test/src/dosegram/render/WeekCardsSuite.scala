@@ -144,3 +144,31 @@ class WeekCardsSuite extends munit.FunSuite:
     assertEquals(figures(water).head, "1,9 л")
     val sleep = SleepWeekCard.render(Monday, Vector.fill(2)(SleepEvidence.Recorded(400, 480)) ++ Vector.fill(5)(SleepEvidence.NoRecord), uk)
     assert(sleep.text.full.contains("2 ночі з ваших позначок"), sleep.text.full)
+
+  // The second-reviewer pass of image round 4 (2026-11-27).
+
+  test("a week with nothing logged draws no zero: the water and sleep heroes say there is no data"):
+    val english = dosegram.render.copy.EnglishImageCopy
+    val water = WaterWeekCard.render(Monday, Vector.fill(7)(None), context)
+    val sleep = SleepWeekCard.render(Monday, Vector.fill(7)(SleepEvidence.NoRecord), context)
+    Vector(water -> english.waterWeekNone, sleep -> english.sleepWeekNone).foreach { (card, sentence) =>
+      assert(!figures(card).contains("0"), figures(card))
+      assert(figures(card).contains(english.noData), figures(card))
+      assert(texts(card, TextKind.Label).contains(sentence), texts(card, TextKind.Label))
+      assert(card.text.full.contains(sentence), card.text.full)
+    }
+    val uk = Samples.context(Theme.Light, Privacy.Aggregate, UkrainianImageCopy)
+    val ukWater = WaterWeekCard.render(Monday, Vector.fill(7)(None), uk)
+    assert(ukWater.text.full.contains(UkrainianImageCopy.waterWeekNone), ukWater.text.full)
+
+  test("a weekday without a check-in says so, not that it has fewer than three days"):
+    val english = dosegram.render.copy.EnglishImageCopy
+    val rows = DayOfWeek.values.toVector.map(day => MoodWeekdayRow(day, None, if day == DayOfWeek.THURSDAY then 0 else 2))
+    val data = MoodWeekdayData(Monday.minusDays(21), Monday.plusDays(6), rows)
+    val card = MoodWeekdayCard.render(data, context)
+    val labels = Node.flatten(card.scene.nodes).collect { case text: Node.Text => text.content }
+    assertEquals(labels.count(_ == english.noCheckIn), 1)
+    assertEquals(labels.count(_ == english.moodWeekdayTooFew), 6)
+    assert(card.text.full.contains("Thu: no check-in."), card.text.full)
+    val uk = MoodWeekdayCard.render(data, Samples.context(Theme.Light, Privacy.Aggregate, UkrainianImageCopy))
+    assert(uk.text.full.contains("Чт: без позначок."), uk.text.full)
