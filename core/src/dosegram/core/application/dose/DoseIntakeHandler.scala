@@ -9,6 +9,7 @@ import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.CallbackMode
 import dosegram.core.chat.ChatHandler
+import dosegram.core.domain.DispatchIntent
 import dosegram.core.domain.DoseSnapshot
 import dosegram.core.domain.DstKind
 import dosegram.core.domain.Feedback
@@ -176,10 +177,14 @@ final class DoseIntakeHandler(codec: CallbackCodec, clock: Clock, inner: ChatHan
       platformIdentityId = Some(principal.identityId.uuid),
       platformMessageId = source.map(_.messageId)
     )
+    // The tapped message is a card of this dose, which the finalize below edits to the outcome (BOT_UX section 9.5).
+    val fromCard = source.exists(tx.renderedMessages.handlesForSubject("occurrence", occ.id).contains)
     commands.answer(tx, occ, userEvent, by) match
       case DoseOutcome.Unchanged(feedback)         => noTransitionReply(event, occ, feedback)
       case DoseOutcome.Applied(transition, events) =>
-        val reply = feedbackReply(occ, transition, events)
+        val edited = fromCard && transition.dispatches.exists(_.isInstanceOf[DispatchIntent.FinalizeControls])
+        // One card per dose (BUX-FSM-02): the edit is the confirmation, so a spent answer drops the toast.
+        val reply = feedbackReply(occ, transition, events).copy(toastOnAnswerOnly = edited)
         if transition.feedback == Feedback.LogUndone then
           reply.copy(replace = source.map(logUndoneCard(event, principal, occ, _, tx)))
         else reply

@@ -78,6 +78,11 @@ final class NewUserWalk(
       if newest().isDefined then settle()
       newest()
 
+  /** Waits, without moving the clock, until a button labelled `label` was shown: a worker that runs late on a loaded
+    * machine decides a prompt after the walk has settled. False when none came.
+    */
+  def awaitLabel(label: String): Boolean = awaitButton(_ == label).isDefined
+
   /** The labels of the newest message that has a keyboard. */
   def newestButtons: List[String] = keyboards.lastOption.toList.flatMap(_._2.flatten)
 

@@ -54,7 +54,8 @@ object ChatMediator:
       sends: List[PlannedSend],
       toast: Option[String],
       domainEvents: List[NewDomainEvent],
-      forgotten: Boolean
+      forgotten: Boolean,
+      toastOnAnswerOnly: Boolean = false
   )
 
   /** The content-free code of a failed event: the SQL state of a database error, else the class of the error. Never its
@@ -274,7 +275,14 @@ final class ChatMediator(
         now
       )
       Outcome.Processed(
-        DeliveryPlan(effectivePrincipal.accountId.map(_.uuid), sends, reply.toast, appendedEvents, kept.isEmpty)
+        DeliveryPlan(
+          effectivePrincipal.accountId.map(_.uuid),
+          sends,
+          reply.toast,
+          appendedEvents,
+          kept.isEmpty,
+          reply.toastOnAnswerOnly
+        )
       )
 
   /** ADR-015: a message with an attachment or an album is always a new message, so it never edits the message it
@@ -381,7 +389,7 @@ final class ChatMediator(
     val adapter = adapters(event.vendor)
     // The messages go in order: after the first that fails, the rest wait for it in the outbox (V24).
     plan.sends.forall(deliveredNow(event, adapter, plan, _)).discard
-    plan.toast.foreach(deliverToast(event, adapter, _))
+    plan.toast.foreach(deliverToast(event, adapter, _, plan.toastOnAnswerOnly))
 
   /** Sends one message of the answer at once; false when it failed and its queued safety row redelivers it. */
   private def deliveredNow(
@@ -465,11 +473,13 @@ final class ChatMediator(
     catch case _: SQLException => () // the safety row redelivers
 
   /** The toast rides the single-shot answer while it is unspent, and degrades to a short auto-deleting message once the
-    * ack before database work has spent it (DESIGN.md section 4.6 step 8).
+    * ack before database work has spent it (DESIGN.md section 4.6 step 8), unless the edit of the tapped card already
+    * shows it (`answerOnly`, BOT_UX BUX-FSM-02).
     */
-  private def deliverToast(event: InboundEvent, adapter: ChatAdapter, toast: String): Unit =
+  private def deliverToast(event: InboundEvent, adapter: ChatAdapter, toast: String, answerOnly: Boolean): Unit =
     event.interaction match
       case Some(interaction) if !interaction.acked => interaction.answer(Some(toast))
+      case Some(_) if answerOnly                   => ()
       case _                                       =>
         try
           adapter.send(
@@ -509,7 +519,7 @@ final class ChatMediator(
                   )
                 else message
                 PlannedSend(replay, tx.outbox.replyId(event.vendor, message.dedupeKey))
-            DeliveryPlan(row.accountId, sends, reply.toast, Nil, forgotten = false)
+            DeliveryPlan(row.accountId, sends, reply.toast, Nil, forgotten = false, reply.toastOnAnswerOnly)
 
   /** The catalogue failure notice when the database is unavailable (R68: visibly fails): the single-shot answer while
     * it is unspent, a silent message otherwise.

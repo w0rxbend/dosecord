@@ -402,13 +402,16 @@ final case class CapabilityProfile(
 // ---------- Handler reply (DESIGN.md section 4.6 step 7) ----------
 
 /** What a core handler returns for one inbound event. Stored as the `inbound_events.reply` document and replayed
-  * verbatim on a duplicate delivery (C3); `sessionPatch` arrives with the wizard engine (M0.12b).
+  * verbatim on a duplicate delivery (C3); `sessionPatch` arrives with the wizard engine (M0.12b). `toastOnAnswerOnly`:
+  * the toast of a tap rides the tap's single answer and is dropped once that answer is spent, instead of becoming a
+  * short message, because an edit of the card the tap came from already shows the outcome (BOT_UX BUX-FSM-02).
   */
 final case class Reply(
     replace: Option[OutboundMessage] = None,
     followUps: List[OutboundMessage] = Nil,
     toast: Option[String] = None,
-    domainEvents: List[Event] = Nil
+    domainEvents: List[Event] = Nil,
+    toastOnAnswerOnly: Boolean = false
 ) derives ReadWriter
 
 object Reply:

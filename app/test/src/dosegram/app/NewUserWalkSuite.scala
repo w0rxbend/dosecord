@@ -206,6 +206,11 @@ class NewUserWalkSuite extends PgSuite:
     assert(messagesWith(lines, " bot #", l(ReminderCopy.snoozeWakeLine("13:00"))).nonEmpty, "the card after the snooze")
     val snoozed = messagesWith(lines, " bot edits #", l(ReminderCopy.snoozedUntil("§")).takeWhile(_ != '§'))
     snoozed.foreach(n => shows(s"the snoozed card #$n gives way to the one after the snooze", s"bot deletes #$n"))
+    // Leftover 3 of the verification of 2026-11-28: after Skip the card is edited to the outcome, and the outcome is
+    // never also a message of its own (BUX-FSM-02).
+    val skipped = l(ReminderCopy.skippedConfirmation)
+    assert(messagesWith(lines, " bot edits #", skipped).nonEmpty, "Skip edits the dose's card")
+    assertEquals(messagesWith(lines, " bot #", skipped), Nil, "the outcome of Skip is never a new message")
     val missed = l(ReminderCopy.missedNotice("Magnesium", "20:00"))
     assert(messagesWith(lines, " bot edits #", missed).nonEmpty, "the missed notice edits the dose's card")
     assertEquals(messagesWith(lines, " bot #", missed), Nil, "the missed notice is never a new message")
@@ -434,6 +439,8 @@ class NewUserWalkSuite extends PgSuite:
     chat.passUntil(at("22:00"))
     chat.note("The next morning: the summary of the first day at 08:00")
     chat.passUntil(NewUserWalk.at(day.plusDays(1), "08:05", zone))
+    // The prompt loop may decide the 08:00 summary after the walk settled at 08:05; the assertions below check it.
+    chat.awaitLabel(l(ReportCopy.StopThese))
 
   test("a new Ukrainian-speaking user's first day in the chat"):
     val zone = ZoneId.of("Europe/Kyiv")

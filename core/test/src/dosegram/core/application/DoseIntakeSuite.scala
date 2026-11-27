@@ -155,6 +155,23 @@ class DoseIntakeSuite extends munit.FunSuite:
         List(DoseActionKind.ReminderSent, DoseActionKind.Skipped)
       )
 
+  test("on Telegram, Skip on the reminder card edits the card and sends no message of its own (BUX-FSM-02)"):
+    // Leftover 3 of the verification of 2026-11-28: once the early ack had spent the tap's answer, "Marked skipped."
+    // was also sent as a message beside the card it was edited into.
+    withTelegramRig: rig =>
+      val account = rig.seedAccount()
+      channel(rig, account)
+      val scheduleId = seedDueDose(rig, account)
+      rig.tickLoop()
+      rig.dispatchOnce() // the reminder card
+      val (card, skip) = rig.controlOn("Time for Vitamin D", "Skip")
+      val (_, ops) = rig.tapFrom(card, skip)
+      assertEquals(rig.uow.occurrences.listBySchedule(scheduleId).head.status, OccurrenceStatus.Skipped)
+      assertEquals(ops.collect { case VendorOp.Send(_, m, _, _) => m.chunks.mkString }, Nil, "no message beside the card")
+      rig.dispatchOnce() // the finalize edit
+      val edited = rig.ops.collect { case VendorOp.Edit(h, m) if h.messageId == card.messageId => m.chunks.mkString }
+      assert(edited.exists(_.contains(ReminderCopy.skippedConfirmation)), s"the card shows the outcome: $edited")
+
   test("Snooze snoozes to the chosen time; options past the next occurrence are filtered out"):
     withRig: rig =>
       val account = rig.seedAccount()
