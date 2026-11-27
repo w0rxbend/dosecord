@@ -69,7 +69,8 @@ final case class OutboxMessage(
 /** What a producer enqueues. `payload` is an opaque JSON document to the core; the dispatcher's renderer interprets it.
   * `target` (non-send ops) is the encoded handle `chatId:messageId` of the message to act on. `chatId` is the chat of
   * an answer while the chat has an identity: account deletion deletes the answers of the chat with the account, the
-  * ones queued before the account existed included (ARCHITECTURE SEC-16).
+  * ones queued before the account existed included (ARCHITECTURE SEC-16). `follows` is the row this one waits for: it
+  * is claimed only once that row left the queue (V24, [[OutboxRepository.enqueueInOrder]]).
   */
 final case class NewOutboxMessage(
     id: UUID,
@@ -85,7 +86,8 @@ final case class NewOutboxMessage(
     target: Option[String] = None,
     importance: String = "info",
     nextAttemptAt: Instant,
-    chatId: Option[String] = None
+    chatId: Option[String] = None,
+    follows: Option[UUID] = None
 )
 
 /** The outbox half of the per-event transaction (ADR-003). Claim/record are deliberately separate short transactions:
@@ -105,6 +107,19 @@ trait OutboxRepository:
   /** Insert; false when a row with the same `send_key` already exists (ON CONFLICT DO NOTHING). */
   def enqueue(msg: NewOutboxMessage): Boolean
 
+  /** The messages of one answer, in the order the user reads them (V24): each row follows the last row inserted before
+    * it, so the claim takes it only once that row left the queue, whatever retries the earlier one needs. One result
+    * per message, as [[enqueue]] gives it.
+    */
+  def enqueueInOrder(messages: List[NewOutboxMessage]): List[Boolean] =
+    messages
+      .foldLeft((Option.empty[UUID], List.empty[Boolean])):
+        case ((previous, results), message) =>
+          val inserted = enqueue(message.copy(follows = previous))
+          (if inserted then Some(message.id) else previous, inserted :: results)
+      ._2
+      .reverse
+
   /** The digest fold of DESIGN.md section 7.5 (ROADMAP M1.8): inserts the digest row, or merges the payload's `items`
     * into the still-queued row with the same `send_key` (one digest per account per 15-minute bucket) and pushes
     * `next_attempt_at` to the later instant. Returns false when the bucket's digest already left the queue (sent, dead,
@@ -114,7 +129,8 @@ trait OutboxRepository:
 
   /** Short claim (tx1 of DESIGN.md section 7.6): rows due for the owned vendors, `FOR UPDATE SKIP LOCKED`, flipped to
     * `sending` with `lease_until = now + lease`, `attempted_at = now` and `attempts + 1`. Rows stuck in `sending` are
-    * re-claimable once their lease expired.
+    * re-claimable once their lease expired. A row whose `follows` row is still queued, retrying or being sent is not
+    * due yet (V24).
     */
   def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage]
 

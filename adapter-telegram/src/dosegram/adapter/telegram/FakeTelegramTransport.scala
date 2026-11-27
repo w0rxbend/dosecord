@@ -27,6 +27,7 @@ final class FakeTelegramTransport(
   private val lock = new Object
   private val recorded = mutable.ListBuffer.empty[RecordedCall]
   private val scripted = mutable.Map.empty[String, mutable.Queue[WireReply]]
+  private val aimed = mutable.ListBuffer.empty[(WireRequest => Boolean, WireReply)]
   private val pendingUpdates = mutable.ListBuffer.empty[ujson.Value]
   private var commands: Map[String, ujson.Value] = Map.empty
   private var messageSeq = lastMessageId
@@ -45,23 +46,39 @@ final class FakeTelegramTransport(
   def replyNext(method: String, status: Int, body: ujson.Value): Unit =
     replyNext(method, WireReply.Http(status, ujson.write(body)))
 
+  /** The first call that `matches` gets `reply` instead of the default answer: one message among the calls of many
+    * chats, which a per-method script cannot single out.
+    */
+  def replyOnceWhen(matches: WireRequest => Boolean, reply: WireReply): Unit = lock.synchronized:
+    aimed += ((matches, reply))
+    ()
+
   /** Queues updates for `getUpdates`; they stay queued until a call confirms them with a higher `offset`. */
   def enqueueUpdates(updates: ujson.Value*): Unit = lock.synchronized:
     pendingUpdates ++= updates
     ()
+
+  /** Whether an update queued for `getUpdates` is not yet confirmed: the bot has not taken it into its inbox. */
+  def hasPendingUpdates: Boolean = lock.synchronized(pendingUpdates.nonEmpty)
 
   /** Makes the fake refuse message calls beyond `limits` with a 429, as the real API does (section 7.6). */
   def enforce(limits: FloodLimits): Unit = lock.synchronized { floodLimits = Some(limits) }
 
   override def call(request: WireRequest): WireReply =
     val reply = lock.synchronized:
-      val answered = scripted.get(request.method).filter(_.nonEmpty).map(_.dequeue()).getOrElse(answer(request))
+      val answered = takeAimed(request)
+        .orElse(scripted.get(request.method).filter(_.nonEmpty).map(_.dequeue()))
+        .getOrElse(answer(request))
       recorded += RecordedCall(clock.now(), request, answered)
       answered
     if request.method == "getUpdates" && isEmptyBatch(reply) && !idlePoll.isZero then Thread.sleep(idlePoll.toMillis)
     reply
 
   private def isEmptyBatch(reply: WireReply): Boolean = reply == ok(ujson.Arr())
+
+  private def takeAimed(request: WireRequest): Option[WireReply] =
+    val at = aimed.indexWhere((matches, _) => matches(request))
+    Option.when(at >= 0)(aimed.remove(at)._2)
 
   /** Telegram keeps one command list per `language_code`, and one without it. */
   private def languageOf(request: WireRequest): String =

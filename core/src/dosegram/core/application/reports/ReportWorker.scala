@@ -73,20 +73,20 @@ final class ReportWorker(
   ): Unit =
     val now = clock.now()
     uow.transaction: tx =>
-      messages.foreach: message =>
-        tx.outbox.enqueue(
-          NewOutboxMessage(
-            id = ids.next(now),
-            sendKey = message.dedupeKey,
-            op = OutboxOp.Send,
-            kind = OutboxKind,
-            vendor = request.chat.vendor,
-            accountId = Some(request.accountId),
-            payload = InteractionReplyPayload.encode(message, request.chat),
-            importance = OutboxKind,
-            nextAttemptAt = now
-          )
+      // The pages go in their order, an image before the text sent in place of the next one (V24).
+      val rows = messages.map: message =>
+        NewOutboxMessage(
+          id = ids.next(now),
+          sendKey = message.dedupeKey,
+          op = OutboxOp.Send,
+          kind = OutboxKind,
+          vendor = request.chat.vendor,
+          accountId = Some(request.accountId),
+          payload = InteractionReplyPayload.encode(message, request.chat),
+          importance = OutboxKind,
+          nextAttemptAt = now
         )
+      tx.outbox.enqueueInOrder(rows)
       val status = if failure.isEmpty then ReportStatus.Sent else ReportStatus.TextFallback
       tx.reports.finish(request.id, status, failure, renderMillis, now)
 

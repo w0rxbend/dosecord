@@ -330,6 +330,35 @@ class OutboxDispatcherSuite extends PgSuite:
     assertEquals(dispatcher(uow, adapter, clock).dispatchOnce(), 1)
     assertEquals(rowBySendKey("key-retry").status, OutboxStatus.Sent)
 
+  test("the messages of one answer go in their order even when the first must be retried (V24)"):
+    // Leftover 1 of the verification of 2026-11-28: an image and its text fell due at one instant, and a claimed batch
+    // has no order among them; a first row that failed was retried after the row behind it had been sent.
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val adapter = newAdapter()
+    val answer = List("answer:image", "answer:text", "answer:more").map(newSend(_, t0))
+    assertEquals(uow.transaction(_.outbox.enqueueInOrder(answer)), List(true, true, true))
+    adapter.inner.failNext(ChatError.Retryable("vendor unavailable"))
+    assertEquals(dispatcher(uow, adapter, clock).dispatchOnce(), 1, "only the first row of the answer is due")
+    assertEquals(rowBySendKey("answer:image").status, OutboxStatus.FailedRetry)
+    assertEquals(dispatcher(uow, adapter, clock).dispatchOnce(), 0, "the rows behind it wait for its retry")
+    clock.at = t0.plusSeconds(5)
+    while dispatcher(uow, adapter, clock).dispatchOnce() > 0 do ()
+    assertEquals(sendsOf(adapter).map(_.sendKey), List("answer:image", "answer:text", "answer:more"))
+
+  test("a row of an answer goes once the row before it is dead, and a row that follows nothing is never held"):
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val adapter = newAdapter()
+    uow.transaction(_.outbox.enqueueInOrder(List(newSend("dead:first", t0), newSend("dead:second", t0))))
+    uow.transaction(_.outbox.enqueue(newSend("alone", t0)))
+    withConnection { conn =>
+      given Connection = conn
+      sql"UPDATE outbox_messages SET status = 'dead' WHERE send_key = 'dead:first'".execute()
+    }
+    while dispatcher(uow, adapter, clock).dispatchOnce() > 0 do ()
+    assertEquals(sendsOf(adapter).map(_.sendKey).toSet, Set("dead:second", "alone"))
+
   // Edit op: idempotent by content against the recorded target.
   test("edit op edits the target handle and marks sent"):
     val clock = new MutableClock(t0)

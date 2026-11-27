@@ -34,7 +34,7 @@ if [[ $failed -ne 0 ]]; then
   exit 1
 fi
 # The count is of the migration files, each listed and unchanged, with their versions, so that the line can be
-# compared with the docs ("V1 to V19, V22 and V23").
+# compared with the docs ("V1 to V19 and V22 to V24").
 versions=$(find "$migrations" -type f -name 'V*__*.sql' -printf '%f\n' | sed -E 's/^V([0-9]+)__.*/\1/' | sort -n)
 count=$(printf '%s\n' "$versions" | grep -c .)
 ranges=$(printf '%s\n' "$versions" | awk '

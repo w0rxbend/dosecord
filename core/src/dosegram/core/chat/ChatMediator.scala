@@ -244,26 +244,27 @@ final class ChatMediator(
       val chatKey = kept.map(_ => event.chat.chatId)
       val appendedEvents =
         reply.domainEvents.map(appendDomainEvent(_, stamped, effectivePrincipal, tx, correlationId, now))
-      val sends = (reply.replace.toList ++ reply.followUps)
-        .map(asDelivered)
-        .map: message =>
-          val outboxId = UUID.randomUUID()
-          val enqueued = tx.outbox.enqueue(
-            NewOutboxMessage(
-              id = outboxId,
-              sendKey = message.dedupeKey,
-              op = if message.replaces.isDefined then OutboxOp.Edit else OutboxOp.Send,
-              kind = "interaction_reply",
-              vendor = event.vendor,
-              accountId = effectivePrincipal.accountId.map(_.uuid),
-              payload = InteractionReplyPayload.encode(message, event.chat),
-              target = message.replaces.map(OutboxDispatcher.encodeHandle),
-              importance = "interaction_reply",
-              nextAttemptAt = now.plus(SyncSafetyDelay),
-              chatId = chatKey
-            )
-          )
-          PlannedSend(message, Option.when(enqueued)(outboxId))
+      val messages = (reply.replace.toList ++ reply.followUps).map(asDelivered)
+      val rows = messages.map: message =>
+        NewOutboxMessage(
+          id = UUID.randomUUID(),
+          sendKey = message.dedupeKey,
+          op = if message.replaces.isDefined then OutboxOp.Edit else OutboxOp.Send,
+          kind = "interaction_reply",
+          vendor = event.vendor,
+          accountId = effectivePrincipal.accountId.map(_.uuid),
+          payload = InteractionReplyPayload.encode(message, event.chat),
+          target = message.replaces.map(OutboxDispatcher.encodeHandle),
+          importance = "interaction_reply",
+          nextAttemptAt = now.plus(SyncSafetyDelay),
+          chatId = chatKey
+        )
+      // The safety rows keep the answer's order: each waits for the one before it (V24).
+      val sends = messages
+        .lazyZip(rows)
+        .lazyZip(tx.outbox.enqueueInOrder(rows))
+        .map: (message, row, enqueued) =>
+          PlannedSend(message, Option.when(enqueued)(row.id))
       tx.inboundEvents.complete(
         event.vendor,
         event.vendorEventId,
@@ -378,17 +379,26 @@ final class ChatMediator(
     */
   private def deliverAfterCommit(event: InboundEvent, plan: DeliveryPlan): Unit =
     val adapter = adapters(event.vendor)
-    plan.sends.foreach: planned =>
-      val (ops, _) =
-        Renderer.render(planned.message, event.chat, adapter.capabilities, planned.message.dedupeKey)
-      ops.foreach:
-        case VendorOp.Send(chat, rendered, sendKey, _) =>
-          try
-            val handle = deliverSend(adapter, planned.message.replaces, chat, rendered, sendKey)
-            recordDelivery(plan, planned, handle, rendered)
-          catch case _: ChatError => () // the queued safety row redelivers
-        case _ => ()
+    // The messages go in order: after the first that fails, the rest wait for it in the outbox (V24).
+    plan.sends.forall(deliveredNow(event, adapter, plan, _)).discard
     plan.toast.foreach(deliverToast(event, adapter, _))
+
+  /** Sends one message of the answer at once; false when it failed and its queued safety row redelivers it. */
+  private def deliveredNow(
+      event: InboundEvent,
+      adapter: ChatAdapter,
+      plan: DeliveryPlan,
+      planned: PlannedSend
+  ): Boolean =
+    val (ops, _) = Renderer.render(planned.message, event.chat, adapter.capabilities, planned.message.dedupeKey)
+    ops.forall:
+      case VendorOp.Send(chat, rendered, sendKey, _) =>
+        try
+          val handle = deliverSend(adapter, planned.message.replaces, chat, rendered, sendKey)
+          recordDelivery(plan, planned, handle, rendered)
+          true
+        catch case _: ChatError => false
+      case _ => true
 
   /** An edit of the source where the vendor edits at any age (a missing source is replaced by a new message), a plain
     * send otherwise. Only the first chunk fits the edit; later chunks are new messages and the last carries the

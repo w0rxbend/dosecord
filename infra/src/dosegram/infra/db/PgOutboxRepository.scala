@@ -64,12 +64,12 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
     val sealedPayload = keys.sealText(OutboxPayload.forRow(msg.accountId, msg.id), msg.payload)
     sql"""INSERT INTO outbox_messages
             (id, send_key, op, kind, vendor, account_id, occurrence_id, channel_id, epoch,
-             payload_enc, asset_keys, chat_key, target, importance, status, next_attempt_at)
+             payload_enc, asset_keys, chat_key, target, importance, status, next_attempt_at, follows)
           VALUES (${msg.id}, ${msg.sendKey}, ${msg.op.db}, ${msg.kind}, ${msg.vendor}, ${msg.accountId},
                   ${msg.occurrenceId}, ${msg.channelId}, ${msg.epoch}, $sealedPayload,
                   ${PgOutboxRepository.assetKeys(msg.payload).toArray}, ${msg.chatId},
                   ${msg.target.map(t => Jsonb(PgOutboxRepository.wrapJsonString(t)))}, ${msg.importance},
-                  'queued', ${msg.nextAttemptAt})
+                  'queued', ${msg.nextAttemptAt}, ${msg.follows})
           ON CONFLICT (send_key) DO NOTHING""".execute() == 1
 
   override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] =
@@ -77,10 +77,12 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
     val vendorArray = vendors.toArray
     sql"""WITH due AS (
             SELECT id, attempted_at AS prev_attempted_at
-            FROM outbox_messages
+            FROM outbox_messages m
             WHERE vendor = ANY($vendorArray)
               AND next_attempt_at <= $now
               AND (status IN ('queued', 'failed_retry') OR (status = 'sending' AND lease_until < $now))
+              AND NOT EXISTS (SELECT 1 FROM outbox_messages earlier
+                              WHERE earlier.id = m.follows AND earlier.status IN ('queued', 'failed_retry', 'sending'))
             ORDER BY next_attempt_at
             LIMIT $limit
             FOR UPDATE SKIP LOCKED

@@ -113,7 +113,8 @@ final class NewUserWalk(
     while !done do
       if System.nanoTime() > deadline then throw AssertionError(s"the bot did not settle; ${lines.takeRight(10)}")
       val now = wire.calls.count(call => !Silent(call.method))
-      if now != count || busy() then
+      // An update still on the wire has not reached the inbox, so the inbox does not count it yet.
+      if now != count || busy() || wire.hasPendingUpdates then
         count = now
         quietSince = System.nanoTime()
         // The adapter paces sends to one per chat and second on the stepped clock.

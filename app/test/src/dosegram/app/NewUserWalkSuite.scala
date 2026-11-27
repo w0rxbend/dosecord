@@ -80,6 +80,9 @@ class NewUserWalkSuite extends PgSuite:
     sessionSweepPeriod = Duration.ofMillis(100),
     rollupIdlePoll = Duration.ofMillis(100),
     imagePurgePeriod = Duration.ofMillis(100),
+    // The walk moves the clock half a second every few milliseconds while the bot is busy: a report worker that slept
+    // its production 250 ms claimed a card past its 5-second deadline and sent the text in its place.
+    reportIdlePoll = Duration.ofMillis(20),
     ownerAlertPeriod = Duration.ofMillis(100)
   )
 

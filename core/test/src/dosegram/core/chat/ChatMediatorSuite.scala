@@ -135,6 +135,23 @@ class ChatMediatorSuite extends munit.FunSuite:
       assertEquals(adapter.inner.synchronized(adapter.inner.ops).count(_.isInstanceOf[VendorOp.Edit]), 0)
       assertEquals(uow.outbox.allEnqueued.map(_.op.db), List("send"), "the safety row is a send, not an edit")
 
+  test("an answer of several messages stops at the first send that fails, and its safety rows wait in order (V24)"):
+    // Leftover 1 of the verification of 2026-11-28: the second message went out at once while the first waited for its
+    // retry, so the user read them the wrong way round.
+    ox.supervised:
+      val uow = InMemoryUnitOfWork()
+      val adapter = SyncAdapter(FakeAdapter(CapabilityProfiles.Telegram))
+      val answer = List(outbound("first", "reply-a"), outbound("second", "reply-b"), outbound("third", "reply-c"))
+      val m = mediator(uow, adapter, RecordingHandler(_ => Reply(followUps = answer)))
+      adapter.inner.synchronized(adapter.inner.failNext(ChatError.Retryable("vendor unavailable")))
+
+      // pushAndWait returns once the answer's messages were tried at once.
+      assertEquals(m.pushAndWait(event(Inbound.MessageReceived("hi", None, truncated = false), "evt-order")), Settlement.Done)
+      assertEquals(sendsOf(adapter), Nil, "nothing after the failed first message goes out at once")
+      val rows = uow.outbox.allEnqueued
+      assertEquals(rows.map(_.sendKey), List("reply-a", "reply-b", "reply-c"))
+      assertEquals(rows.map(_.follows), None :: rows.init.map(row => Some(row.id)), "each row waits for the one before")
+
   // ADR-015: user media and deep-link payloads reach the handler stamped, like any other inbound event.
   test("a received photo and a start payload reach the handler with their content"):
     ox.supervised:

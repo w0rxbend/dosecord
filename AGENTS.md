@@ -46,10 +46,11 @@ migration; the tenth: chat analytics, V23, and image round 4; the
 eleventh: image round 5 and the Mini App go-live rehearsal, no
 migration), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
-parameters). The migrations are V1 to V19, V22 and V23, 21 files
-(`scripts/check-frozen-migrations.sh` prints `21 migrations unchanged
-(V1 to V19, V22, V23)`); V20 and V21 must never be added, and the next
-is V24. The live database is at V23 (`3d9e9c3`):
+parameters), and V24 (the order of an answer's messages, 2026-11-28).
+The migrations are V1 to V19 and V22 to V24, 22 files
+(`scripts/check-frozen-migrations.sh` prints `22 migrations unchanged
+(V1 to V19, V22 to V24)`); V20 and V21 must never be added, and the
+next is V25. The live database is at V23 (`3d9e9c3`):
 `docs/OPERATIONS.md` section 18 is the owner's deploy of the head, with
 no migration (sections 8 to 17 explain the earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn

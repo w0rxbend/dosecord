@@ -140,21 +140,22 @@ final class PromptLoop(
     unseen
 
   private def enqueueTo(tx: Tx, accountId: UUID, target: DeliveryTarget, message: OutboundMessage, now: Instant): Unit =
-    tx.outbox.enqueue(
-      NewOutboxMessage(
-        id = ids.next(now),
-        sendKey = message.dedupeKey,
-        op = OutboxOp.Send,
-        kind = PromptLoop.OutboxKind,
-        vendor = target.vendor,
-        accountId = Some(accountId),
-        channelId = Some(target.channelId),
-        payload = OutboundMessage.toJson(message),
-        importance = "info",
-        nextAttemptAt = now
-      )
-    )
+    tx.outbox.enqueue(rowOf(accountId, target, message, now))
     ()
+
+  private def rowOf(accountId: UUID, target: DeliveryTarget, message: OutboundMessage, now: Instant): NewOutboxMessage =
+    NewOutboxMessage(
+      id = ids.next(now),
+      sendKey = message.dedupeKey,
+      op = OutboxOp.Send,
+      kind = PromptLoop.OutboxKind,
+      vendor = target.vendor,
+      accountId = Some(accountId),
+      channelId = Some(target.channelId),
+      payload = OutboundMessage.toJson(message),
+      importance = "info",
+      nextAttemptAt = now
+    )
 
   private def decidePlan(tx: Tx, planId: UUID): Boolean =
     tx.reminders.prompts.lockEnabled(planId) match
@@ -309,10 +310,13 @@ final class PromptLoop(
       now: Instant
   ): Unit =
     // A claimed batch has no order among rows due at one instant, so each image falls due a millisecond before the
-    // next and the last before the text: the card or the album always goes first (ReportComposer).
+    // next and the last before the text, and each row waits for the one before it to leave the queue (V24): the card
+    // or the album always goes first (ReportComposer), even when it must be retried.
     val messages = report.images :+ report.main
-    messages.zipWithIndex.foreach: (message, index) =>
-      enqueueTo(tx, plan.accountId, target, message, now.minusMillis((messages.size - 1 - index).toLong))
+    val rows = messages.zipWithIndex.map: (message, index) =>
+      rowOf(plan.accountId, target, message, now.minusMillis((messages.size - 1 - index).toLong))
+    tx.outbox.enqueueInOrder(rows)
+    ()
 
   private def render(
       tx: Tx,
