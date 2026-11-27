@@ -617,6 +617,18 @@ class CaptureFlowsSuite extends munit.FunSuite:
         assertEquals(chat.rig.tap(undo), List(expected))
         assertEquals(chat.world.tracking.sleep.live.size, 1)
 
+  test("with no app to open, a night that exists or overlaps is refused with Adjust times for the stored one"):
+    withChat(Profile.Telegram, appOpens = false): chat =>
+      chat.grant(ConsentPurpose.Sleep)
+      chat.rig.line("slept 23:30 7:10")
+      assertEquals(chat.rig.line("/sleep 22:00 6:00"), List(SleepCopy.nightExistsInChat))
+      val opened = chat.rig.tapOn(SleepCopy.nightExistsInChat, SleepCopy.AdjustTimes)
+      assertEquals(texts(opened), List(SleepCopy.adjusting("23:30", "07:10")))
+      assertEquals(chat.rig.line("nap 6:00 7:00"), List(SleepCopy.overlapsInChat))
+      val again = chat.rig.tapOn(SleepCopy.overlapsInChat, SleepCopy.AdjustTimes)
+      assertEquals(texts(again), List(SleepCopy.adjusting("23:30", "07:10")))
+      assertEquals(chat.world.tracking.sleep.live.map(_.duration.toMinutes), List(460L))
+
   test("Adjust times moves each edge by 15 minutes, stores nothing until Save, and keeps the rating (BUX-SLEEP-04)"):
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Sleep)

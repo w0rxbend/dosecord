@@ -1481,6 +1481,8 @@ Images in chat: on
 
 Supervisor decision, 2026-11-27 (BUX-UNDO-04 for a meal or a night while no Mini App opens; finding 3 of that day's verification): a late Undo on a meal or a night says "Change it in the app" only when `MINI_APP_URL` is set. Without it the toast names the chat's own way: for a night, "Adjust times" on the same card (`sleep.undo_window_passed.chat`); for a meal, which has no edit in the chat, deleting the meal records with `/privacy` (`food.undo_window_passed.chat`).
 
+Supervisor decision, 2026-11-27 (the sleep refusals while no Mini App opens): a typed or tapped night that overlaps a stored night or nap, or a second night for a day that has one, says "Change it in the app" only when `MINI_APP_URL` is set. Without it the refusal is a new message that names the chat's own way and carries "Adjust times" for the stored episode (`sleep.overlap.chat`, `sleep.night_exists.chat`); the stored one is never overwritten.
+
 ### 18.2 The `/undo` command
 
 `/undo` finds the user's most recent undoable action inside the 15-minute window and asks before acting, because the command has no visible referent (C16):

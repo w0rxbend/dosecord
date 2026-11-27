@@ -61,6 +61,16 @@ object SleepCopy:
     "That day already has a night. Change it in the app.",
     "Для цього дня ніч уже записано. Змініть її в застосунку."
   )
+
+  /** The overlap and night-exists refusals without an app to open: "Adjust times" for the stored one is below. */
+  def overlapsInChat = tr(
+    s"This overlaps a night or nap you already logged. To change that one, tap $AdjustTimes.",
+    s"Цей час перетинається з уже записаною ніччю чи денним сном. Щоб змінити той запис, натисніть «$AdjustTimes»."
+  )
+  def nightExistsInChat = tr(
+    s"That day already has a night. To change it, tap $AdjustTimes.",
+    s"Для цього дня ніч уже записано. Щоб змінити її, натисніть «$AdjustTimes»."
+  )
   def invalid = tr(
     "Those times are not a night: the wake time must be after the bedtime and in the past.",
     "Цей час не схожий на ніч: пробудження має бути пізніше, ніж відхід до сну, і вже в минулому."
@@ -129,6 +139,8 @@ object SleepCopy:
       CopyEntry("sleep.undo_window_passed.chat", undoWindowPassedInChat),
       CopyEntry("sleep.overlap", overlaps),
       CopyEntry("sleep.night_exists", nightExists),
+      CopyEntry("sleep.overlap.chat", overlapsInChat),
+      CopyEntry("sleep.night_exists.chat", nightExistsInChat),
       CopyEntry("sleep.invalid", invalid),
       CopyEntry("sleep.too_short", tooShort),
       CopyEntry("sleep.image.button", ShowAsImage),

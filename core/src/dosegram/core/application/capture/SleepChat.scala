@@ -204,8 +204,19 @@ private[capture] final class SleepChat(
 
   private def answered[A](turn: Turn, outcome: Either[SleepRefusal, A])(reply: A => Reply): Reply =
     outcome match
-      case Right(value)  => reply(value)
+      case Right(value)                                       => reply(value)
+      case Left(SleepRefusal.Overlaps(existing)) if !appOpens => adjustInstead(turn, SleepCopy.overlapsInChat, existing)
+      case Left(SleepRefusal.NightExists(existing)) if !appOpens =>
+        adjustInstead(turn, SleepCopy.nightExistsInChat, existing)
       case Left(refusal) => turn.toast(refusalText(refusal))
+
+  /** Without an app to open, the refusal is a new message with "Adjust times" for the stored night or nap, the chat's
+    * own way to change it (supervisor decision, 2026-11-27).
+    */
+  private def adjustInstead(turn: Turn, text: String, existing: SleepEpisode): Reply =
+    val adjust =
+      Choice.callback(SleepCopy.AdjustTimes, token("sleep.adjust", existing.id, SleepShifts.value(SleepShifts.Zero)))
+    Reply(followUps = List(turn.message("sleep.refused", List(text), List(List(adjust)))))
 
   private def refusalText(refusal: SleepRefusal): String =
     refusal match
