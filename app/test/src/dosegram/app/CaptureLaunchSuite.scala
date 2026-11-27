@@ -458,7 +458,8 @@ class CaptureLaunchSuite extends PgSuite:
       assert(bot.buttons(stats).map(_._1).contains("Вода за 7 днів"))
       val List(photo) = bot.tap(stats, "Вода за 7 днів", expected = 1): @unchecked
       assertEquals(photo.method, "sendPhoto")
-      assert(bot.body(photo).contains("Ціль — та, яку задали ви."), bot.body(photo))
+      // Behind the spoiler the caption is the card's generic line, not its figures (VISUALS VA-PV-03).
+      assertEquals(bot.body(photo), "Вода за останні дні.")
       assertEquals(photo.request.params.obj.get("has_spoiler"), Some(ujson.True))
       assert(bot.rasteriser.shows(bot.rasteriser.count, "Вода за 7 днів"))
 

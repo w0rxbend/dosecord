@@ -79,3 +79,16 @@ class CardDeliverySuite extends munit.FunSuite:
     val world = ReportWorld()
     assertEquals(world.uow.transaction(tx => delivery(world).answer(tx, world.account, world.chat, Nil)), Nil)
     assertEquals(world.uow.reports.all, Nil)
+
+  test("a card laid out in discreet mode is captioned with its own generic line, queued or sent as text (VA-PV-03)"):
+    val world = ReportWorld()
+    def discreet(n: Int) =
+      val plain = page(n)
+      plain.copy(card = plain.card.copy(hasSpoiler = true, discreetCaption = Some("Water today.")))
+    world.uow.transaction(tx => delivery(world).answer(tx, world.account, world.chat, List(discreet(1), page(2))))
+    val List(row) = world.uow.reports.all: @unchecked
+    assertEquals(row.request.pages.map(page => lines(page.message)), List(List("Water today."), List("caption 2")))
+    assertEquals(row.request.pages.map(_.card.altText), List("Water today: 1 of 2.0 l", "Water today: 2 of 2.0 l"))
+    // One image is underway, so the next is answered as text: the text equivalent in place, the generic line after it.
+    val now = world.uow.transaction(tx => delivery(world).answer(tx, world.account, world.chat, List(discreet(3))))
+    assertEquals(now.map(lines), List(List(ImageCopy.inPlace("Water today: 3 of 2.0 l"), "Water today.")))

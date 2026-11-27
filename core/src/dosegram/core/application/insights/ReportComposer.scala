@@ -228,7 +228,7 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       case List(single) =>
         List(
           OutboundMessage(
-            body = List(Node.Paragraph(List(Inline.Text(single.altText)))),
+            body = List(Node.Paragraph(List(Inline.Text(single.albumCaption)))),
             attachment = Some(single),
             silent = silent,
             dedupeKey = ReportComposer.imageKey(key, 0),

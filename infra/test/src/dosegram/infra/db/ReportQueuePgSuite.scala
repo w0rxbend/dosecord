@@ -32,7 +32,16 @@ class ReportQueuePgSuite extends PgSuite:
 
   private def page(n: Int, shared: Option[String] = None): ReportPage =
     ReportPage(
-      CardPage("water", s"<svg id='$n'>&amp;</svg>", s"Water today: $n", "water.png", hasSpoiler = n % 2 == 0, shared),
+      // An even page is laid out in discreet mode: behind the spoiler, with its generic line (VISUALS VA-PV-03).
+      CardPage(
+        "water",
+        s"<svg id='$n'>&amp;</svg>",
+        s"Water today: $n",
+        "water.png",
+        hasSpoiler = n % 2 == 0,
+        shared,
+        Option.when(n % 2 == 0)("Water today.")
+      ),
       OutboundMessage(body = List(Node.Paragraph(List(Inline.Text(s"caption $n")))), dedupeKey = s"image:$n", correlationId = "c")
     )
 

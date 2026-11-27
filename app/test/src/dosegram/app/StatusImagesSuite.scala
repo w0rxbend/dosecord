@@ -301,6 +301,21 @@ class StatusImagesSuite extends munit.FunSuite:
     val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water), None)
     assertEquals(rig.images.drawn.day(day, discreet).map(_.hasSpoiler), Some(true))
 
+  test("a card laid out in discreet mode carries its generic caption to the photo; a named one carries none (VA-PV-03)"):
+    val rig = Rig(CountingRasteriser())
+    val discreet = light.copy(isDiscreet = true)
+    val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water), None)
+    val shown = rig.images.cards.day(day, discreet).get
+    assertEquals(shown.discreetCaption, Some("Your day so far."))
+    assertEquals(rig.images.drawing.draw(shown, None).toOption.flatMap(_.caption), Some("Your day so far."))
+    assert(shown.altText.contains("Water: 1.25 of 2.0 l."), shown.altText)
+    assertEquals(rig.images.cards.water(water, discreet).flatMap(_.discreetCaption), Some("Water today."))
+    val mood = rig.images.cards.mood(MoodCardView(pleasant, None), discreet)
+    assertEquals(mood.flatMap(_.discreetCaption), Some("Mood logged."))
+    val named = rig.images.cards.day(day, light).get
+    assertEquals(named.discreetCaption, None)
+    assertEquals(rig.images.drawing.draw(named, None).toOption.flatMap(_.caption), None)
+
   test("a card that cannot be drawn gives no image, and the log names the template and the failure only"):
     val failing: Rasteriser = (_, _) => Left(RasterFailure.TimedOut)
     val rig = Rig(failing)

@@ -383,7 +383,7 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
     val photos = pictures
       .zip(payloads)
       .map: (picture, payload) =>
-        val caption = VendorMarkup.render(plain(picture.altText), capabilities.markup)
+        val caption = VendorMarkup.render(plain(picture.albumCaption), capabilities.markup)
         AlbumPhoto(payload, Some(caption), picture.hasSpoiler)
     api
       .sendMediaGroup(envelope.chatId, photos, envelope.delivery)
