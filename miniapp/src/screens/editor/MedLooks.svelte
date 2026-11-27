@@ -93,13 +93,6 @@
     cursor: pointer;
   }
 
-  .toggle input {
-    flex: none;
-    inline-size: var(--dg-space-6);
-    block-size: var(--dg-space-6);
-    accent-color: var(--dg-accent);
-  }
-
   .toggle span span {
     display: block;
   }

@@ -1,14 +1,26 @@
 // Browser end-to-end suite (ROADMAP G3.12): the production build of the Mini App against the real application on a
 // throwaway PostgreSQL, under the application's own security headers, with a stand-in for Telegram's script whose
-// launch data is signed by the suite's key. `pnpm run e2e` runs the flows, then the accessibility scan on a fresh
-// backend; `pnpm run e2e:screens` takes the screenshots of every screen at 360 and 390 px in both schemes. Needs Docker
-// and a JDK.
+// launch data is signed by the suite's key. `pnpm run e2e` runs the flows, then the accessibility scan and the walk
+// on fresh backends; `pnpm run e2e:screens` takes the screenshots of every screen at 360 and 390 px in both schemes.
+// With E2E_ORIGIN=https (`pnpm run e2e:https`) the same suite runs through the TLS proxy of docker/proxy/Caddyfile on
+// https://localhost, and the project `origin` checks what only that origin shows. Needs Docker and a JDK.
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { BOT_ID, PUBLIC_KEY_HEX, TELEGRAM_USER_ID } from './e2e/support/launch-data';
+import { proxyPorts } from './e2e/support/origin';
 
 const port = Number(process.env.E2E_PORT ?? 18481);
 const dist = fileURLToPath(new URL('./dist', import.meta.url));
+const proxy = proxyPorts(process.env);
+
+const backend = {
+  command: `node e2e/backend.mjs ${port} ${dist} ${PUBLIC_KEY_HEX} ${BOT_ID} ${TELEGRAM_USER_ID}`,
+  url: `http://127.0.0.1:${port}/app/`,
+  timeout: 300_000,
+  reuseExistingServer: false,
+  stdout: 'pipe' as const,
+  gracefulShutdown: { signal: 'SIGTERM' as const, timeout: 30_000 },
+};
 
 export default defineConfig({
   testDir: 'e2e',
@@ -25,7 +37,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: [['list']],
   use: {
-    baseURL: `http://127.0.0.1:${port}`,
+    baseURL: proxy ? `https://localhost:${proxy.https}` : `http://127.0.0.1:${port}`,
+    // The rehearsal's certificate comes from Caddy's local authority, which the browser does not know.
+    ignoreHTTPSErrors: proxy !== undefined,
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
     isMobile: true,
@@ -38,14 +52,23 @@ export default defineConfig({
     { name: 'flows', testMatch: ['navigation.spec.ts', 'flows.spec.ts'] },
     // Its own run and backend: the flows use the six session exchanges a minute that one user is allowed (API-18).
     { name: 'a11y', testMatch: 'a11y.spec.ts' },
+    // Its own run and backend for the same reason: sleep, a meal with words, the share builder and the export.
+    { name: 'walk', testMatch: 'walk.spec.ts' },
     { name: 'screens', testMatch: 'screens.spec.ts' },
+    ...(proxy ? [{ name: 'origin', testMatch: 'origin.spec.ts' }] : []),
   ],
-  webServer: {
-    command: `node e2e/backend.mjs ${port} ${dist} ${PUBLIC_KEY_HEX} ${BOT_ID} ${TELEGRAM_USER_ID}`,
-    url: `http://127.0.0.1:${port}/app/`,
-    timeout: 300_000,
-    reuseExistingServer: false,
-    stdout: 'pipe',
-    gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
-  },
+  webServer: proxy
+    ? [
+        backend,
+        {
+          command: `node e2e/proxy.mjs 127.0.0.1:${port} ${proxy.https} ${proxy.http}`,
+          url: `https://localhost:${proxy.https}/app/`,
+          ignoreHTTPSErrors: true,
+          timeout: 120_000,
+          reuseExistingServer: false,
+          stdout: 'pipe' as const,
+          gracefulShutdown: { signal: 'SIGTERM' as const, timeout: 30_000 },
+        },
+      ]
+    : backend,
 });

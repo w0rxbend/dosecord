@@ -13,8 +13,10 @@
     "build": "vite build && node scripts/check-budget.mjs",
     "api:generate": "node scripts/api-types.mjs",
     "api:check": "node scripts/api-types.mjs --check",
-    "e2e": "vite build && playwright test --project=flows && playwright test --project=a11y",
-    "e2e:screens": "vite build && playwright test --project=screens"
+    "e2e": "vite build && playwright test --project=flows && playwright test --project=a11y && playwright test --project=walk",
+    "e2e:screens": "vite build && playwright test --project=screens",
+    "e2e:https": "vite build && E2E_ORIGIN=https playwright test --project=origin && E2E_ORIGIN=https playwright test --project=flows && E2E_ORIGIN=https playwright test --project=a11y && E2E_ORIGIN=https playwright test --project=walk",
+    "e2e:https:screens": "vite build && E2E_ORIGIN=https playwright test --project=screens"
   },
   "dependencies": {
     "svelte": "^5.57.3"

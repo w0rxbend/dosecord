@@ -126,11 +126,6 @@
     font-weight: 600;
   }
 
-  .toggle input {
-    inline-size: 24px;
-    block-size: 24px;
-  }
-
   .presets {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));

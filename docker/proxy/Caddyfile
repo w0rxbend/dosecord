@@ -1,0 +1,22 @@
+# The TLS proxy of the Mini App (docs/DEPLOY_MINIAPP.md section 3). Caddy obtains and renews the certificate
+# itself; ports 80 and 443 must reach it. MINIAPP_HOST is the public host name; MINIAPP_UPSTREAM is the public
+# listener of the application (HTTP_ADDRESS:HTTP_PORT). Only /app/ and /api/ are forwarded; /healthz never is.
+# Caddy writes no access log unless a `log` directive asks for one: a request line can hold a record id.
+{$MINIAPP_HOST} {
+	request_body {
+		max_size 64KB
+	}
+
+	handle /app* {
+		encode zstd gzip
+		reverse_proxy {$MINIAPP_UPSTREAM:127.0.0.1:18082}
+	}
+
+	handle /api/* {
+		reverse_proxy {$MINIAPP_UPSTREAM:127.0.0.1:18082}
+	}
+
+	handle {
+		respond 404
+	}
+}

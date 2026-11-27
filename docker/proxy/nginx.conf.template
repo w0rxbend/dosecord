@@ -1,0 +1,46 @@
+# The TLS proxy of the Mini App with nginx (docs/DEPLOY_MINIAPP.md section 3). ${MINIAPP_HOST} is the public host
+# name and ${MINIAPP_UPSTREAM} the public listener of the application (HTTP_ADDRESS:HTTP_PORT). Fill both in with
+#   MINIAPP_HOST=<host> MINIAPP_UPSTREAM=127.0.0.1:18082 \
+#     envsubst '${MINIAPP_HOST} ${MINIAPP_UPSTREAM}' < docker/proxy/nginx.conf.template
+# (the nginx image does the same for a file under /etc/nginx/templates/). The application sets every security
+# header itself, so no add_header line is here: nginx would send a second copy next to the application's own.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${MINIAPP_HOST};
+    access_log off;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${MINIAPP_HOST};
+
+    ssl_certificate     /etc/letsencrypt/live/${MINIAPP_HOST}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${MINIAPP_HOST}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # A request line can hold a record id; AGENTS.md forbids logging request URLs.
+    access_log off;
+    client_max_body_size 64k;
+    server_tokens off;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+
+    location /app {
+        gzip on;
+        gzip_types text/css text/javascript application/javascript image/svg+xml;
+        proxy_pass http://${MINIAPP_UPSTREAM};
+    }
+
+    location /api/ {
+        proxy_pass http://${MINIAPP_UPSTREAM};
+    }
+
+    location / {
+        return 404;
+    }
+}

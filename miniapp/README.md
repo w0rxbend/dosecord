@@ -18,7 +18,16 @@ pnpm --dir miniapp run api:generate  # rewrite src/api/schema.d.ts after the Ope
 pnpm --dir miniapp run dev     # plain browser, http://localhost:5173/app/
 pnpm --dir miniapp run e2e     # browser suite against the real application (Docker and a JDK)
 pnpm --dir miniapp run e2e:screens   # every screen at 390 px, light and dark, into screenshots/
+pnpm --dir miniapp run e2e:https     # the same suite through the TLS proxy of docker/proxy/Caddyfile
+pnpm --dir miniapp run e2e:https:screens   # the screenshots through that https origin
 ```
+
+The walk (`e2e/walk.spec.ts`) checks the share builder's drawn preview, so the backend needs resvg: on the PATH,
+or `eval "$(scripts/fetch-resvg.sh)"` first. With `E2E_ORIGIN=https` (the `e2e:https` scripts) Playwright also
+starts Caddy in a throwaway compose project (`e2e/proxy.mjs`) on `https://localhost:18443` and
+`http://localhost:18480` (`E2E_HTTPS_PORT`, `E2E_HTTP_PORT`), and runs `e2e/origin.spec.ts`: the headers over TLS,
+the proxy's paths, redirect and body limit, forged launch data, and framing by Telegram Web against another site.
+The server half of the go-live rehearsal is `scripts/miniapp-rehearsal.sh` ([docs/DEPLOY_MINIAPP.md](../docs/DEPLOY_MINIAPP.md)).
 
 ## Development mode
 
@@ -76,7 +85,8 @@ of `app.test` and starts `dosegram.app.e2eBackend`: the assembled application on
 PostgreSQL (Testcontainers), serving the production build from `dist/`, with one account, its
 consents and one medication. The Telegram script is replaced in the browser by a stand-in that
 implements the part of `Telegram.WebApp` the app uses and carries launch data signed with the
-suite's own Ed25519 key, which the backend accepts only outside production. Every test fails on a
+suite's own Ed25519 key, which the backend accepts only outside production, and hashed with a test bot token
+as Telegram hashes it. Every test fails on a
 content-security-policy violation, a page error or a request to any origin except the app's own
 and `telegram.org`. The session exchange is limited to six a minute per user, so a new test that
 launches the app counts against that budget; the screenshot run launches once per scheme and

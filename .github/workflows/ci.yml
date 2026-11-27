@@ -186,6 +186,13 @@ jobs:
       - run: npm install --global pnpm@12.18.0
       - run: pnpm --dir miniapp install --frozen-lockfile
       - run: pnpm --dir miniapp exec playwright install --with-deps chromium
+      # The walk's share builder shows the card the server draws, as on the host (ADR-022).
+      - name: install resvg 0.49.0
+        run: |
+          curl -fsSL -o /tmp/resvg.tar.gz https://github.com/linebender/resvg/releases/download/v0.49.0/resvg-linux-x86_64.tar.gz
+          echo "216637e75e909e53e3098b0875cd5f7da2fdc8b4359771b4a29b539afff9d3f5  /tmp/resvg.tar.gz" | sha256sum -c -
+          sudo tar xzf /tmp/resvg.tar.gz -C /usr/local/bin resvg
+          resvg --version | grep -qx '0.49.0'
       - run: pnpm --dir miniapp run e2e
 
   # M0.5: the Dockerfile is born here — build the image, then a compose smoke

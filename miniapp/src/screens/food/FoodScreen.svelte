@@ -170,4 +170,13 @@
   .text {
     flex: 1;
   }
+
+  /* The day arrows, drawn as History draws its month arrows. */
+  svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
 </style>
