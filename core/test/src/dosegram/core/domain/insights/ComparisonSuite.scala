@@ -31,7 +31,7 @@ class ComparisonSuite extends munit.ScalaCheckSuite:
     assert(InsightVariable.values.forall(_.source != InsightSource.Medication))
     assertEquals(
       InsightRule.values.map(_.id).toList,
-      List("IR-04", "IR-01", "IR-02", "IR-06", "IR-06", "IR-06")
+      List("IR-04", "IR-01", "IR-02", "IR-06", "IR-06", "IR-06", "IR-05")
     )
 
   test("the registry holds the minimum differences of the rule table (VISUALS section 8.4)"):
@@ -43,7 +43,8 @@ class ComparisonSuite extends munit.ScalaCheckSuite:
         InsightRule.BedtimeAndMood -> 0.3,
         InsightRule.WorkDaysAndSleep -> 30.0,
         InsightRule.WorkDaysAndWater -> 300.0,
-        InsightRule.WorkDaysAndMood -> 0.3
+        InsightRule.WorkDaysAndMood -> 0.3,
+        InsightRule.PlannedMealsAndMood -> 0.3
       )
     )
 

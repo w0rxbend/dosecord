@@ -55,6 +55,11 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   /** The pages of a month after the images consent; the argument is the month's index, `year * 12 + month - 1`. */
   case MonthImage(index: Int) extends Pending(13, index)
 
+  /** The one-year card (VISUALS IMG-30) after the images consent. It shares kind 13: the argument is the year, far
+    * below every month index, which starts at `year * 12`.
+    */
+  case YearImage(year: Int) extends Pending(13, year)
+
   /** `/food` and its meal buttons. The food cases share kind 14, told apart by the argument: the kind has four bits. A
     * card sent before [[FoodTyped]] existed carries this case for a typed meal, which then opens the food card.
     */
@@ -105,7 +110,7 @@ private[capture] object Pending:
       case 10 => Some(SleepTyped)
       case 11 => Some(SleepImage)
       case 12 => Some(Insights(argument == 1))
-      case 13 => Some(MonthImage(argument))
+      case 13 => Some(if argument < YearImageLimit then YearImage(argument) else MonthImage(argument))
       case 14 => foodOf(argument)
       case 15 => Some(ImportCard)
       case _  => None
@@ -127,6 +132,9 @@ private[capture] object Pending:
       case MoodHistory.argument      => MoodHistory
       case MoodHistoryImage.argument => MoodHistoryImage
       case _                         => MoodPrompt
+
+  /** An argument of kind 13 below this is a year: the index of January of the year 834 is above it. */
+  val YearImageLimit = 10000
 
   /** The argument of [[MedsImage]] starts above this, far from the stats images below it. */
   val MedsImageBase = 1000

@@ -1,0 +1,5 @@
+file: dosegram-year.png
+spoiler: false
+caption: 2026, your year in records, 1 Jan to 20 Feb. 5 of 51 days have a record. Water: 5 days (Jan 3, Feb 2).
+alt: 2026, your year in records, 1 Jan to 20 Feb. 5 of 51 days have a record. Water: 5 days (Jan 3, Feb 2).
+full: 2026, your year in records, 1 Jan to 20 Feb. 5 of 51 days have a record. Water: 5 days (Jan 3, Feb 2).

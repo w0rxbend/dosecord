@@ -13,6 +13,8 @@ import dosegram.core.domain.insights.MonthStats
 import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.PairedDay
 import dosegram.core.domain.insights.SleepNight
+import dosegram.core.domain.insights.YearSources
+import dosegram.core.domain.insights.YearStats
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.ImageTheme
@@ -176,4 +178,26 @@ class ReportCardsSuite extends munit.FunSuite:
     assert(page.altText.startsWith("October 2026, your month in one image. 20 of 31 days have a record."), page.altText)
     assert(!page.altText.contains("Medication"), page.altText)
     assertEquals(cards.monthPoster(view(figures(medicationDays = doses)), look), None, "medication alone has no poster")
+
+  test("the one-year card draws a week cell per area from the week of 1 January, never medication (IMG-30)"):
+    val Domain = dosegram.render.tokens.Domain
+    val today = LocalDate.parse("2026-11-12")
+    val doses = Some(days(1 to 20)(_ => MedicationDay(Map(medication -> DoseBuckets.ofResolved(AdherenceCounts(2, 0, 0, 0))))))
+    def year(water: Option[Map[LocalDate, HydrationDay]], mood: Option[Map[LocalDate, MoodDay]]) =
+      YearStats.of(2026, today, YearSources(doses, water, mood, None, None))
+    val figures = year(Some(days(1 to 20)(_ => HydrationDay(1800, 3, None))), Some(Map.empty))
+    val data = ReportCards.year(figures).getOrElse(fail("no year card"))
+    assertEquals(data.rows.map(_.domain), Vector(Domain.Water, Domain.Mood))
+    // 1 January 2026 is a Thursday, 12 November a Thursday: 46 weeks of four, seven and four days.
+    assertEquals(data.rows.head.weeks.size, 46)
+    assertEquals((data.rows.head.weeks.head.days, data.rows.head.weeks.last.days), (4, 4))
+    assertEquals(data.rows.head.recordedDays, 20)
+    assertEquals(data.rows.head.monthly(9), 20)
+    assertEquals(data.daysWithRecords, 20)
+    val page = cards.year(figures, look).getOrElse(fail("no page"))
+    assertEquals(page.templateId, "card.year.v1")
+    assert(page.altText.startsWith("2026, your year in records, 1 Jan to 12 Nov. 20 of 316 days have a record."), page.altText)
+    assert(!page.altText.contains("Medication"), page.altText)
+    assertEquals(cards.year(year(None, None), look), None, "medication alone has no year card")
+    assertEquals(cards.year(year(Some(Map.empty), None), look), None, "an area without a record draws no year card")
 end ReportCardsSuite

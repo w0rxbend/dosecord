@@ -9,6 +9,8 @@ import dosegram.core.domain.insights.MonthFigures
 import dosegram.core.domain.insights.MonthStats
 import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.TrendDomain
+import dosegram.core.domain.insights.YearFigures
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.WeekCardView
@@ -35,11 +37,18 @@ import dosegram.render.card.SleepNightBar
 import dosegram.render.card.SleepRegularityData
 import dosegram.render.card.WaterProgress
 import dosegram.render.card.WeekData
+import dosegram.render.card.YearCard
+import dosegram.render.card.YearStripData
+import dosegram.render.card.YearStripRow
+import dosegram.render.card.YearWeek
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.GoalDays
 import dosegram.render.tokens.Domain
 
 import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 
 /** The view models of the report cards, built from the core's figures (ADR-022: the core never sees the renderer).
   * Every figure here is one the core computed; this object only changes its shape. A domain the core left out (no
@@ -57,6 +66,8 @@ object ReportCards:
       case CoreRule.BedtimeAndMood                               => Some(InsightRule.BedtimeMood)
       case CoreRule.WorkDaysAndMood                              => Some(InsightRule.WorkDayMood)
       case CoreRule.WorkDaysAndSleep | CoreRule.WorkDaysAndWater => None
+      // IR-05 is text only until the card has its group labels (supervisor decision, 2026-11-28).
+      case CoreRule.PlannedMealsAndMood => None
     rule.map(drawn =>
       InsightData(
         drawn,
@@ -144,6 +155,29 @@ object ReportCards:
         PosterDay(recorded.filter(tracked), figures.moodDays.get(date).filter(_ => tracked(Domain.Mood)).map(dayMood))
       }
       MonthPosterData(figures.month, WeekStart, tracked, days)
+
+  /** IMG-30 (analytics round 6): each shown area among water, food, sleep and mood with its recorded days per week from
+    * the week of 1 January and per month, in the card's order. Medication is never on it (VISUALS section 7.3). `None`
+    * when none of the four has a record in the year.
+    */
+  def year(figures: YearFigures): Option[YearStripData] =
+    val window = figures.window
+    val areas = Map(
+      Domain.Water -> TrendDomain.Hydration,
+      Domain.Food -> TrendDomain.Nutrition,
+      Domain.Sleep -> TrendDomain.Sleep,
+      Domain.Mood -> TrendDomain.Mood
+    )
+    val shown = YearCard.Order.flatMap(domain => figures.recorded.get(areas(domain)).map(domain -> _))
+    val drawn = shown.flatMap(_._2).toSet
+    Option.when(drawn.nonEmpty):
+      val start = window.start.`with`(TemporalAdjusters.previousOrSame(WeekStart))
+      val byWeek = window.dates.groupBy(date => ChronoUnit.WEEKS.between(start, date)).toVector.sortBy(_._1).map(_._2)
+      def row(domain: Domain, days: Set[LocalDate]): YearStripRow =
+        val weeks = byWeek.map(week => YearWeek(week.count(days), week.size)).toVector
+        val months = (1 to window.end.getMonthValue).toVector.map(month => days.count(_.getMonthValue == month))
+        YearStripRow(domain, weeks, months)
+      YearStripData(figures.year, window.start, window.end, WeekStart, shown.map(row), drawn.size)
 
   /** Page 3: the month's nights, its water and its meals, each only for a domain that met its gate. */
   def monthNights(figures: MonthFigures, view: MonthCardView): MonthNightsData =

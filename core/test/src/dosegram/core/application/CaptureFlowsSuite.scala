@@ -37,6 +37,7 @@ import dosegram.core.domain.insights.InsightRule
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
+import dosegram.core.domain.insights.YearFigures
 import dosegram.core.application.hydration.HydrationService
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.mood.CheckIn
@@ -47,6 +48,7 @@ import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.copy.InsightCopy
 import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.domain.copy.ReportCopy
+import dosegram.core.domain.copy.YearCopy
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
@@ -134,6 +136,12 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
     override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
       if poster then image("month-poster") else None
+
+    val years: mutable.ListBuffer[YearFigures] = mutable.ListBuffer.empty
+
+    override def year(view: YearFigures, look: CardLook): Option[CardPage] =
+      years += view
+      image("year")
 
     override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
       insights += view
@@ -993,6 +1001,53 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("month-1"), Some("month-2"), Some("month-poster")))
       assertEquals(photos.flatMap(_.chunks), List("alt of month-1", "alt of month-2", "alt of month-poster"))
 
+  // ---------- The year (analytics round 6, supervisor decision, 2026-11-28) ----------
+
+  test("/stats year shows the months so far behind the 14-day gate and the year before; a tap opens that year"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      // 21 September 2026 is the rig's day: 19 days of August, and 21 days of October and November 2025.
+      waterOn(chat, 22 to 40, _ => 1500)
+      waterOn(chat, 315 to 335, _ => 2000)
+      val year = chat.rig.line("/stats year").head.split("\n\n").toList
+      assertEquals(
+        year,
+        List(
+          "2026 · Europe/Kyiv",
+          "Days with records: 19 of 264",
+          YearCopy.gateNote,
+          "Water, a day with records: Aug 1.5 l · Sep —",
+          "2026: 1.5 l (19 days) · 2025: 2.0 l (21 days)"
+        )
+      )
+      assertEquals(chat.rig.lastChoiceMap("2026 · Europe/Kyiv").map(_.label), List("◀ 2025", "Show as image"))
+      val tapped = chat.rig.tapOn("2026 · Europe/Kyiv", "◀ 2025")
+      val before = texts(tapped).head.split("\n\n").toList
+      assertEquals(before.take(2), List("2025 · Europe/Kyiv", "Days with records: 21 of 365"))
+      assertEquals(before.last, "2025: 2.0 l (21 days)")
+      assertEquals(labels(tapped), List("2026 ▶", "Show as image"))
+
+  test("/stats year without a record says so and offers neither image nor another year"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      val year = chat.rig.line("/stats year").head.split("\n\n").toList
+      assertEquals(year, List("2026 · Europe/Kyiv", "Days with records: 0 of 264", "Nothing was recorded in 2026."))
+      assertEquals(chat.rig.lastChoiceMap("2026 · Europe/Kyiv"), Nil)
+
+  test("Show as image on the year asks the image consent, then sends the one-year card captioned with its text"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      waterOn(chat, 22 to 40, _ => 1500)
+      chat.rig.line("/stats year")
+      assertEquals(texts(chat.rig.tapOn("2026 · Europe/Kyiv", "Show as image")), List(ConsentCopy.statement(ConsentPurpose.ImagesInChat)))
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      val photos = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("year")))
+      assertEquals(photos.flatMap(_.chunks), List("alt of year"))
+      assertEquals(cards.years.map(view => (view.year, view.recorded.keySet)).toList, List(2026 -> Set(TrendDomain.Medication, TrendDomain.Hydration)))
+
   test("/insights without the cross-domain consent runs no comparison and offers it; the consent turns it on"):
     val cards = RecordingCards()
     withChat(Profile.Telegram, cards): chat =>
@@ -1032,8 +1087,8 @@ class CaptureFlowsSuite extends munit.FunSuite:
     withChat(Profile.Telegram): chat =>
       chat.grant(ConsentPurpose.Medication)
       assertEquals(
-        chat.rig.line("/stats year"),
-        List("Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month or /stats meds.")
+        chat.rig.line("/stats decade"),
+        List("Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year or /stats meds.")
       )
 
   // ---------- Ownership, help, console ----------

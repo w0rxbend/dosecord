@@ -39,6 +39,9 @@ import dosegram.core.domain.insights.SleepStats
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.insights.TrendFrame
 import dosegram.core.domain.insights.TrendPeriod
+import dosegram.core.domain.insights.YearFigures
+import dosegram.core.domain.insights.YearSources
+import dosegram.core.domain.insights.YearStats
 import dosegram.core.domain.nutrition.MealPlan
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.ports.Clock
@@ -82,6 +85,9 @@ final case class PeriodSummary(zone: ZoneId, window: DateRange, lines: List[Stri
 
 /** A calendar month as every surface reads it: the figures and the zone they were computed in. */
 final case class MonthView(zone: ZoneId, figures: MonthFigures)
+
+/** A calendar year as `/stats year` and the one-year card read it: the figures and the zone they were computed in. */
+final case class YearView(zone: ZoneId, today: LocalDate, figures: YearFigures)
 
 /** The current insights of an account and whether cross-domain comparisons are on (VISUALS VA-IN-01). */
 final case class InsightsView(zone: ZoneId, list: InsightList, crossDomain: Boolean)
@@ -308,6 +314,25 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
         )
       )
 
+  /** A calendar year (supervisor decision, 2026-11-28, analytics round 6): one row per area whose consent is active,
+    * read once over the year and the year before it, the only baseline. A year after the current one is the current
+    * one.
+    */
+  def year(tx: Tx, accountId: UUID, year: Int): Either[StatsRefusal, YearView] =
+    zoneOf(tx, accountId).map: zone =>
+      val today = LocalDays.dateOf(clock.now(), zone)
+      val shown = Math.min(year, today.getYear)
+      val read = DateRange.between(LocalDate.of(shown - 1, 1, 1), YearStats.window(shown, today).end)
+      def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+      val sources = YearSources(
+        medication = Option.when(granted(ConsentPurpose.Medication))(medicationDays(tx, accountId, read)),
+        hydration = Option.when(granted(ConsentPurpose.Hydration))(hydrationDays(tx, accountId, read)),
+        mood = Option.when(granted(ConsentPurpose.Mood))(moodDays(tx, accountId, read)),
+        sleep = Option.when(granted(ConsentPurpose.Sleep))(sleepDays(tx, accountId, read)),
+        food = Option.when(granted(ConsentPurpose.Nutrition))(mealDays(tx, accountId, read))
+      )
+      YearView(zone, today, YearStats.of(shown, today, sources))
+
   /** The current insights (VISUALS section 8.5): every rule of the registry whose sources have consent, over the last
     * `window` local days; the baseline statements read the last five weeks. Cross-domain rules run only with the
     * `cross_domain_patterns` consent; the timing statement and the baselines are single-domain.
@@ -332,7 +357,10 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
         doses = Option.when(granted(ConsentPurpose.Medication))(dosesOf(tx, accountId, zone, range)),
         // Only IR-06 reads the work days, and it runs only with the cross-domain consent.
         workDays = if crossDomain then workDaysOf(tx, accountId) else DayProfile.Default.work.days,
-        crossDomain = crossDomain
+        crossDomain = crossDomain,
+        // Only IR-05 reads the meals, and it runs only with the cross-domain consent.
+        meals = Option.when(crossDomain && granted(ConsentPurpose.Nutrition))(mealDays(tx, accountId, range)),
+        mealPlan = tx.tracking.meals.plan(accountId).getOrElse(MealPlan.Default)
       )
       InsightsView(zone, InsightEngine.evaluate(inputs), crossDomain)
 

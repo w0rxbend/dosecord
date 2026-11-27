@@ -29,7 +29,8 @@ object CommandCopy:
     "insights" -> "Закономірності у ваших записах.",
     "export" -> "Експортувати записи або створити зведення.",
     "import" -> "Перенести записи з файлу.",
-    "language" -> "Змінити мову."
+    "language" -> "Змінити мову.",
+    "whatsnew" -> "Показати, що додало останнє оновлення."
   )
 
   /** The description of the command `name`; `english` is the registry's text. */

@@ -136,7 +136,13 @@ object ActionRegistry:
     ActionEntry(443, "stats.meds_image", requiresSession = false),
     // Image round 5 (474 to 493; supervisor decision, 2026-11-28): the blob gallery of /mood history (VISUALS IMG-26),
     // direct mode on the account, value 0.
-    ActionEntry(474, "mood.history_image", requiresSession = false)
+    ActionEntry(474, "mood.history_image", requiresSession = false),
+    // Analytics round 6 (505 to 524; supervisor decision, 2026-11-28): /stats year, direct mode on the account, the
+    // value the year; its one-year card (VISUALS IMG-30) with the same value. "What's new" after a release: value 0
+    // stops these messages, value 1 turns them back on.
+    ActionEntry(505, "stats.year", requiresSession = false),
+    ActionEntry(506, "stats.year_image", requiresSession = false),
+    ActionEntry(507, "whatsnew.switch", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

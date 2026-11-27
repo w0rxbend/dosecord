@@ -754,10 +754,46 @@ object Samples:
     )
   )
 
+  // Analytics round 6 (2026-11-28): the one-year card (IMG-30), a typical year so far of four areas and a sparse one.
+  private def yearOf(to: LocalDate, rows: Vector[(Domain, LocalDate => Boolean)]): YearStripData =
+    val from = LocalDate.of(to.getYear, 1, 1)
+    val start = from.`with`(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val dates = Iterator.iterate(from)(_.plusDays(1)).takeWhile(!_.isAfter(to)).toVector
+    val strips = rows.map { (domain, recorded) =>
+      val weeks = dates.groupBy(date => java.time.temporal.ChronoUnit.WEEKS.between(start, date)).toVector.sortBy(_._1)
+        .map((_, days) => YearWeek(days.count(recorded), days.size))
+      val monthly = (1 to to.getMonthValue).toVector.map(month => dates.count(date => date.getMonthValue == month && recorded(date)))
+      YearStripRow(domain, weeks, monthly)
+    }
+    YearStripData(to.getYear, from, to, DayOfWeek.MONDAY, strips, dates.count(date => rows.exists(_._2(date))))
+
+  val years: Vector[Fixture] = Vector(
+    Fixture(
+      "year/typical",
+      context =>
+        val year = yearOf(
+          Today,
+          Vector(
+            Domain.Water -> (date => date.getMonthValue >= 3 && date.getDayOfYear % 5 != 0),
+            Domain.Food -> (date => date.getMonthValue >= 6 && date.getDayOfWeek.getValue <= 5),
+            Domain.Sleep -> (date => date.getDayOfYear % 3 != 0),
+            Domain.Mood -> (date => date.getMonthValue >= 9 && date.getDayOfMonth % 2 == 0)
+          )
+        )
+        Vector(YearCard.render(year, context))
+    ),
+    Fixture(
+      "year/sparse",
+      context =>
+        val year = yearOf(LocalDate.of(2026, 2, 20), Vector(Domain.Water -> (date => date.getDayOfMonth % 9 == 0)))
+        Vector(YearCard.render(year, context))
+    )
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
       moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
-      refills ++ trends ++ posters ++ galleries ++ highlights
+      refills ++ trends ++ posters ++ galleries ++ highlights ++ years
 
   /** Every card the contact sheet and the golden suite show. */
   val review: Vector[Fixture] = all

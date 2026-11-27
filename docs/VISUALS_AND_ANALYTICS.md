@@ -769,6 +769,7 @@ Conventions for every entry:
 | IMG-24 | The month in one image (section 6.23) | `card.month.poster.v1` | portrait | personal | L1 | scheduled (last photo of IMG-05), on demand (`/stats month`) |
 | IMG-25 | Week highlights (section 6.24) | `card.week.highlights.v1` | square, portrait with an observation | personal | L1 | scheduled (second photo of IMG-04) |
 | IMG-26 | Mood gallery (section 6.25) | `card.mood.gallery.v1` | square | personal | L1 | on demand (`/mood history`) |
+| IMG-30 | The year, week by week (section 6.30) | `card.year.v1` | square up to two areas, portrait above | personal | L1 | on demand (`/stats year`) |
 | DOC-01 | Record summary (PDF) | `doc.summary.v1` | a4 | personal | L3 | on demand only |
 
 ### 6.2 IMG-01 Reminder card (withdrawn)
@@ -1472,6 +1473,16 @@ Supervisor decision, 2026-11-27 (image round 4, the second-reviewer pass). A rev
 
 No other defect was found: no text is cut, no Ukrainian card cuts a word its English card shows whole, no mark is carried by colour alone after R1, and the discreet variants draw no name.
 
+### 6.30 The year, week by week (IMG-30)
+
+Supervisor decision, 2026-11-28 (analytics round 6). IMG-30, `card.year.v1`, is the one-year card of `/stats year` (BOT_UX section 12.5), numbered apart from the image track's range. Under the title "Your year: 2026" and the line "Days with a record, week by week", a month's initial stands over the week that holds its first day, and each shown area among water, food, sleep and mood, in that order, has its name and a calendar heat strip on a `panel` band: one cell per week, weeks from the account's week start (Monday) from the week of 1 January to the week of the year's last day (today in the current year), the first and the last cut at the year's edges. A cell is a `grid` track that fills from the bottom, in the area's hue, to the share of its days in the year with a record (a recorded day of section 7.1: a water entry, a meal, a main night, a check-in), at least 8 px when it has one, so the height carries the count without the colour (VA-PR-06); a week without a record is a 4 px `ink3` ring, never an empty fill or a bar of zero (VA-PR-03). The legend names the fill ("Taller: more days with a record that week"), the ring and the cell ("Each cell: one week, Monday to Sunday"); the one figure is the days with records of the drawn areas beside the year's days. The cells record logging only: no value, level, goal or mood state enters them, and nothing ranks a week, scores the year or joins weeks into a run. Medication is never on it, as on IMG-24: a picture of dose answers by day would be the consistency counter that section 7.3 and R-GAM-2 forbid; the year's text carries its figures. An area whose consent is active is drawn even without a record, as a strip of rings; the card is not offered when none of the four has a record in the year. One or two areas take the square, three or four the portrait.
+
+Text equivalent: "2026, your year in records, 1 Jan to 12 Nov. 288 of 316 days have a record. Water: 210 days (Mar 25, Apr 24, ...). Food: 115 days (...). Sleep: 211 nights (...). Mood: 37 check-in days (...)." Discreet mode keeps the cells (L1), captions "Your year in records." and sends the photo behind a spoiler. Both languages have the card's words (`YearImageCopy`); the Ukrainian month initials (С Л Б К Т Ч Л С В Ж Л Г) repeat letters, so the text equivalent names each month.
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-30 | One strip per shown area among water, food, sleep and mood: a week cell filled to the share of its days with a record, a ring for a week without one; the days with records | The year and its window, the days with records, then per area its recorded days and each month's | "Show as image" on `/stats year` |
+
 ## 7. Metric definitions
 
 Every number in an image, a caption, the PDF and the Mini App is one of the metrics below, computed by one pure function in `core` over a snapshot. A metric that is not defined here is not displayed.
@@ -1799,6 +1810,8 @@ Each rule compares two groups of local days and one outcome. "Pairing" says whic
 | IR-11 | This period; the own baseline (section 7.1) | Any single-domain headline metric | Period against periods | The "about the same" limits of section 7.1 |
 
 Mood differences are in levels of the stored 1 to 5 scale (section 7.6).
+
+Supervisor decision, 2026-11-28 (analytics round 6): IR-05 is built, the most useful rule not yet built whose sources the product records (IR-08 and IR-09 wait for tags). It reads the user's own meal plan of today (`meal_plans`, the three main meals by default): a day is in the first group when every planned main meal has an entry, and in the second when it has at least one meal entry (a snack counts) but not every planned one. A day without any meal entry is no record and is paired with nothing, so "nothing logged" never reads as "fewer meals" (VA-PR-03); with no planned main meal the rule pairs no day. The outcome is the daily mood mean only: the energy outcome waits for a recorded daily energy mean. It needs the `nutrition`, `mood` and `cross_domain_patterns` consents, uses the minimum data and both stability checks of section 8.5, and reaches `/insights`, the Mini App's patterns and the weekly report through the one ranked list (`insight.ir05`: "On the {n1} days you logged every meal you planned, your average mood was {mean one}. On the {n2} other days with a meal logged it was {mean two}." with the closing sentence of section 8.6). It has no pattern card yet (IMG-13 draws IR-01, IR-02, IR-04 and IR-06 on mood), so its text is the whole of it.
 
 ### 8.5 Procedure
 

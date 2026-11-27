@@ -62,6 +62,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val stats = StatsChat(parts, tokens, share)
   private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
+  private val years = YearChat(parts, clock, tokens)
   private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val imports = ImportChat(tokens)
   private val meds = MedsChat(parts, clock, tokens)
@@ -110,6 +111,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private def statsCommand(turn: Turn, argument: String): Reply =
     if argument == MonthArgument then
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(months.month(turn, months.currentIndex(turn)))
+    else if argument == YearChat.Argument then
+      consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(years.year(turn, years.currentYear(turn)))
     else if argument == StatsChat.TrendsArgument then
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(stats.trends(turn, TrendPeriod.Month))
     else if argument == MedsChat.Argument then
@@ -243,6 +246,9 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsMonth      => months.month(turn, value.toInt)
       case CaptureActions.StatsMonthImage =>
         imageOf(turn, Pending.MonthImage(value.toInt))(months.monthImage(turn, value.toInt))
+      case CaptureActions.StatsYear      => years.year(turn, value.toInt)
+      case CaptureActions.StatsYearImage =>
+        imageOf(turn, Pending.YearImage(value.toInt))(years.yearImage(turn, value.toInt))
       case CaptureActions.InsightsShow    => months.insights(turn)
       case CaptureActions.InsightsImage   => imageOf(turn, Pending.Insights(image = true))(months.insightImage(turn))
       case CaptureActions.InsightsCompare =>
@@ -310,6 +316,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.SleepImage        => sleep.image(fresh)
       case Pending.Insights(image)   => if image then months.insightImage(fresh) else months.insights(fresh)
       case Pending.MonthImage(index) => months.monthImage(fresh, index)
+      case Pending.YearImage(year)   => years.yearImage(fresh, year)
       case Pending.FoodCard          => food.card(fresh)
       case Pending.FoodLog(code)     => mealOf(code.toLong).map(food.tap(fresh, _)).getOrElse(stale(turn))
       case Pending.FoodTyped(code)   =>

@@ -890,3 +890,25 @@ Not rehearsed: this section was written from the code and the tests (`OutboxDisp
 `ReplyOrderSuite`, `SealingBackfillPgSuite` and `RlsSuite` upgrade to schema 24); no throwaway
 copy of a V23 database was upgraded and rolled back, and nothing ran on a real client or the
 Telegram transport.
+
+## 20. V26 of analytics round 6: the "What's new" note (supervisor decision, 2026-11-28)
+
+Analytics round 6 (branch `feat/analytics-6`) adds `V26__whats_new_notice.sql`: two columns on
+`users`, `whats_new_seen integer` (added with the default 0, which fills every existing row, then
+the default is dropped, so a later account starts empty) and `whats_new_enabled boolean NOT NULL
+DEFAULT true`. Both are catalogue-only changes in PostgreSQL 11 and later: no row is rewritten.
+No environment variable is added. After the deploy, the owner's account gets the note once, after
+the answer to its next command (BOT_UX section 6.5); "Don't show these" turns it off.
+
+Ordering: the image track of the same round was assigned V25. Deploy V26 only together with V25
+when that track added one, or with no V25 at all: Flyway refuses a V25 found later as older than
+the applied V26 (`Detected resolved migration not applied to database`), and repairing that is
+not allowed (ADR-002 addendum). The checks after the start, read-only:
+`SELECT max(version::int) FROM flyway_schema_history WHERE success;` returns 26;
+`SELECT count(*) FROM users WHERE whats_new_seen IS NULL;` returns 0 until a new account exists.
+
+Rollback without a restore: the previous release ignores both columns. A restart of the head
+after it sends nothing twice, because the account's `whats_new_seen` is already the release.
+
+Not rehearsed: written from the code and `WhatsNewPgSuite`; no copy of the live database was
+upgraded, and nothing was sent to a real client.

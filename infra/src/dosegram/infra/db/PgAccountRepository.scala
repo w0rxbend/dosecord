@@ -6,6 +6,7 @@ import dosegram.core.domain.QuietHours
 import dosegram.core.ports.AccountRepository
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.ImageTheme
+import dosegram.core.ports.WhatsNewState
 import upickle.default.read
 import upickle.default.write
 
@@ -64,7 +65,23 @@ final class PgAccountRepository(conn: Connection, reads: TransactionReads) exten
     sql"UPDATE users SET gamification_enabled = $enabled, updated_at = $now WHERE id = $accountId".execute()
     ()
 
+  override def whatsNewOf(accountId: UUID): WhatsNewState =
+    sql"SELECT whats_new_seen, whats_new_enabled FROM users WHERE id = $accountId"
+      .queryOne[WhatsNewState]()
+      .getOrElse(WhatsNewState(None, enabled = false))
+
+  override def setWhatsNewSeen(accountId: UUID, release: Int, now: Instant): Unit =
+    sql"UPDATE users SET whats_new_seen = $release, updated_at = $now WHERE id = $accountId".execute()
+    ()
+
+  override def setWhatsNewEnabled(accountId: UUID, enabled: Boolean, now: Instant): Unit =
+    sql"UPDATE users SET whats_new_enabled = $enabled, updated_at = $now WHERE id = $accountId".execute()
+    ()
+
 object PgAccountRepository:
+  private given RowMapper[WhatsNewState] = rs =>
+    WhatsNewState(rs.optInt("whats_new_seen"), rs.getBoolean("whats_new_enabled"))
+
   private given RowMapper[AccountSettings] = rs =>
     AccountSettings(
       locale = rs.optString("locale"),

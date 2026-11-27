@@ -37,6 +37,11 @@ object AccountSettings:
   /** The column defaults of a new `users` row. */
   val Default: AccountSettings = AccountSettings(None, None, isDiscreet = false, ImageTheme.Auto)
 
+/** The "What's new" note of an account (supervisor decision, 2026-11-28; BOT_UX section 6.5): the last release it was
+  * told about, `None` for an account created after the notes began, which has nothing to catch up on, and its switch.
+  */
+final case class WhatsNewState(seen: Option[Int], enabled: Boolean)
+
 /** `users` / `platform_identities` / `delivery_channels` (DESIGN.md section 6, ROADMAP M0.12d): account creation is one
   * transactional write — the `users` row (handle and display name left NULL: generated/neutral, never the vendor
   * nickname, K8), the link on the current platform identity, and the primary delivery channel.
@@ -66,6 +71,13 @@ trait AccountRepository:
   def gamificationOf(accountId: UUID): Boolean
 
   def setGamification(accountId: UUID, enabled: Boolean, now: Instant): Unit
+
+  /** The "What's new" state; an unknown account has none to show (`seen` absent, the switch off). */
+  def whatsNewOf(accountId: UUID): WhatsNewState
+
+  def setWhatsNewSeen(accountId: UUID, release: Int, now: Instant): Unit
+
+  def setWhatsNewEnabled(accountId: UUID, enabled: Boolean, now: Instant): Unit
 
   /** The language a message for the account is written in, when no inbound event of its own carries one. */
   def languageOf(accountId: UUID): Lang = settingsOf(accountId).fold(Lang.En)(_.lang)

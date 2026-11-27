@@ -239,6 +239,9 @@ final class TrackingTxDouble(
       TrackingTxDouble.this.synchronized {
         if enabled then gamificationOff -= accountId else gamificationOff += accountId
       }
+    override def whatsNewOf(accountId: UUID): WhatsNewState = WhatsNewState(None, enabled = true)
+    override def setWhatsNewSeen(accountId: UUID, release: Int, now: Instant): Unit = absent("accounts")
+    override def setWhatsNewEnabled(accountId: UUID, enabled: Boolean, now: Instant): Unit = absent("accounts")
   override def sessions: SessionRepository = absent("sessions")
   override def outbox: OutboxRepository = absent("outbox")
   override def renderedMessages: RenderedMessageRepository = absent("renderedMessages")
