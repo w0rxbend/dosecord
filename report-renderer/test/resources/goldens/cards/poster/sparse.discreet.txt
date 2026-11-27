@@ -1,0 +1,5 @@
+file: dosegram-month-poster.png
+spoiler: true
+caption: Your month in one image.
+alt: September 2026, your month in one image. 13 of 30 days have a record. Water: 10 days. Mood: 5 check-in days.
+full: September 2026, your month in one image. 13 of 30 days have a record. Water: 10 days. Mood: 5 check-in days.

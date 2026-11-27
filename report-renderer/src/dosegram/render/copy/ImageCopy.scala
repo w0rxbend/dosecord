@@ -11,6 +11,7 @@ import dosegram.render.card.MilestoneData
 import dosegram.render.card.MonthDaysData
 import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
+import dosegram.render.card.MonthPosterData
 import dosegram.render.card.MoodCalendarData
 import dosegram.render.card.MoodTimelineData
 import dosegram.render.card.MoodWeekdayData
@@ -252,6 +253,17 @@ trait ImageCopy:
   def trendsPeriod(from: LocalDate, to: LocalDate, byWeek: Boolean): String
   def trendsScaleNote: String
   def trendsDiscreet: String
+
+  // Image round 4 (2026-11-27): a week of IMG-20 or IMG-21 with nothing logged.
+  def waterWeekNone: String
+  def sleepWeekNone: String
+
+  // The month in one image (IMG-24).
+  def posterSubtitle: String
+  def posterOrderNote: String
+  def posterFact(days: Int, total: Int): String
+  def posterText(data: MonthPosterData): String
+  def posterDiscreet: String
 
 /** The figures of page 1 of the monthly report; an absent domain is not shown. `sleep` is the mean and the nights. */
 final case class MonthSummary(

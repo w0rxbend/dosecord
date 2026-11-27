@@ -25,9 +25,11 @@ import dosegram.render.card.MonthDaysData
 import dosegram.render.card.MonthFoodDay
 import dosegram.render.card.MonthMeals
 import dosegram.render.card.MonthNightsData
+import dosegram.render.card.MonthPosterData
 import dosegram.render.card.MonthWaterDay
 import dosegram.render.card.MonthWeek
 import dosegram.render.card.MoodCalendarData
+import dosegram.render.card.PosterDay
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepNightBar
 import dosegram.render.card.SleepRegularityData
@@ -35,6 +37,7 @@ import dosegram.render.card.WaterProgress
 import dosegram.render.card.WeekData
 import dosegram.render.chart.DoseStatus
 import dosegram.render.copy.GoalDays
+import dosegram.render.tokens.Domain
 
 import java.time.DayOfWeek
 
@@ -119,6 +122,28 @@ object ReportCards:
       MoodCalendarData(month, WeekStart, dates.toVector.map(date => figures.moodDays.get(date).map(dayMood)))
     }
     MonthDaysData(month, calendar, mood)
+
+  /** IMG-24: each day of the month with its recorded areas among water, food and sleep (VISUALS section 7.1) and its
+    * mood, for the areas the account shows (a domain without its consent is `None` in the figures). Medication is never
+    * on it (VISUALS section 7.3). `None` when none of the four is shown.
+    */
+  def monthPoster(figures: MonthFigures): Option[MonthPosterData] =
+    val tracked = Set(
+      Option.when(figures.hydration.isDefined)(Domain.Water),
+      Option.when(figures.food.isDefined)(Domain.Food),
+      Option.when(figures.sleep.isDefined)(Domain.Sleep),
+      Option.when(figures.mood.isDefined)(Domain.Mood)
+    ).flatten
+    Option.when(tracked.nonEmpty):
+      val days = MonthStats.window(figures.month).dates.toVector.map { date =>
+        val recorded = Set(
+          Option.when(figures.hydrationDays.get(date).exists(_.entries > 0))(Domain.Water),
+          Option.when(figures.mealDays.get(date).exists(_.meals > 0))(Domain.Food),
+          Option.when(figures.sleepDays.contains(date))(Domain.Sleep)
+        ).flatten
+        PosterDay(recorded.filter(tracked), figures.moodDays.get(date).filter(_ => tracked(Domain.Mood)).map(dayMood))
+      }
+      MonthPosterData(figures.month, WeekStart, tracked, days)
 
   /** Page 3: the month's nights, its water and its meals, each only for a domain that met its gate. */
   def monthNights(figures: MonthFigures, view: MonthCardView): MonthNightsData =

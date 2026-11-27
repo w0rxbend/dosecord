@@ -202,7 +202,10 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
         val lines = ReportCopy.monthlyTitle :: monthText
         val images =
           if !imagesAllowed(tx, accountId) then Nil
-          else drawn(cards.month(views.month(tx, accountId, view.figures, planDate), views.look(tx, accountId)))
+          else
+            val month = views.month(tx, accountId, view.figures, planDate)
+            val look = views.look(tx, accountId)
+            drawn(cards.month(month, look) ++ cards.monthPoster(month, look).toList)
         ReportOutcome.Send(compose(PromptKind.MonthlyReport, accountId, lines, images, key, silent))
 
   /** The day counts of the week, the round counts it passed, and a one-year line when that day falls in the week
@@ -285,7 +288,7 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       case List(single) =>
         List(
           OutboundMessage(
-            body = List(Node.Paragraph(List(Inline.Text(single.altText)))),
+            body = List(Node.Paragraph(List(Inline.Text(single.albumCaption)))),
             attachment = Some(single),
             silent = silent,
             dedupeKey = ReportComposer.imageKey(key, 0),

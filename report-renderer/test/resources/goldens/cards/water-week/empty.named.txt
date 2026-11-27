@@ -1,5 +1,5 @@
 file: dosegram-water-week.png
 spoiler: false
-caption: Water, 2 to 8 Nov. 0 days logged. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
-alt: Water, 2 to 8 Nov. 0 days logged. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
-full: Water, 2 to 8 Nov. 0 days logged. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
+caption: Water, 2 to 8 Nov. No water logged in these 7 days. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
+alt: Water, 2 to 8 Nov. No water logged in these 7 days. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.
+full: Water, 2 to 8 Nov. No water logged in these 7 days. Mon no record, Tue no record, Wed no record, Thu no record, Fri no record, Sat no record, Sun no record. The goal is the one you set.

@@ -90,6 +90,7 @@ object PgReportQueue:
             "file" -> page.card.fileName,
             "spoiler" -> page.card.hasSpoiler,
             "shared" -> page.card.sharedKey.fold[ujson.Value](ujson.Null)(ujson.Str(_)),
+            "discreet" -> page.card.discreetCaption.fold[ujson.Value](ujson.Null)(ujson.Str(_)),
             "message" -> ujson.read(OutboundMessage.toJson(page.message))
           ))
       )
@@ -104,7 +105,9 @@ object PgReportQueue:
         altText = page("alt").str,
         fileName = page("file").str,
         hasSpoiler = page("spoiler").bool,
-        sharedKey = page("shared").strOpt
+        sharedKey = page("shared").strOpt,
+        // A request queued before the line existed has none.
+        discreetCaption = page.obj.get("discreet").flatMap(_.strOpt)
       )
       ReportPage(card, OutboundMessage.fromJson(ujson.write(page("message"))))
     (upickle.default.read[ChatRef](json("chat")), pages)

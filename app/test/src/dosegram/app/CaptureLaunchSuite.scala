@@ -437,7 +437,7 @@ class CaptureLaunchSuite extends PgSuite:
 
       val List(sleep) = bot.tap(stats, "Sleep, 7 nights", expected = 1): @unchecked
       assertEquals(sleep.method, "sendPhoto")
-      assert(bot.body(sleep).contains("0 nights logged."), bot.body(sleep))
+      assert(bot.body(sleep).contains("No night logged in these 7 nights."), bot.body(sleep))
       assert(bot.rasteriser.shows(bot.rasteriser.count, "Sleep, 7 nights"))
 
       val List(mood) = bot.tap(stats, "Mood by weekday", expected = 1): @unchecked
@@ -460,7 +460,8 @@ class CaptureLaunchSuite extends PgSuite:
       assert(bot.buttons(stats).map(_._1).contains("Вода за 7 днів"))
       val List(photo) = bot.tap(stats, "Вода за 7 днів", expected = 1): @unchecked
       assertEquals(photo.method, "sendPhoto")
-      assert(bot.body(photo).contains("Ціль — та, яку задали ви."), bot.body(photo))
+      // Behind the spoiler the caption is the card's generic line, not its figures (VISUALS VA-PV-03).
+      assertEquals(bot.body(photo), "Вода за останні дні.")
       assertEquals(photo.request.params.obj.get("has_spoiler"), Some(ujson.True))
       assert(bot.rasteriser.shows(bot.rasteriser.count, "Вода за 7 днів"))
 

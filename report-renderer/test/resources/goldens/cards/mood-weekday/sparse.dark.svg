@@ -32,8 +32,7 @@
 </g>
 <text x="1016" y="502" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4" text-anchor="end">3.0</text>
 <text x="64" y="590" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Thu</text>
-<text x="176" y="590" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">0 days</text>
-<text x="352" y="590" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>
+<text x="352" y="590" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">No check-in</text>
 <text x="64" y="678" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Fri</text>
 <text x="176" y="678" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">2 days</text>
 <text x="352" y="678" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#8b9ba3">Fewer than 3 days</text>

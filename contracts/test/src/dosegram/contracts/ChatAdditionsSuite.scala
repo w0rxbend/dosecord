@@ -43,6 +43,19 @@ class ChatAdditionsSuite extends munit.FunSuite:
     intercept[IllegalArgumentException](photo.copy(assetKey = ""))
     intercept[IllegalArgumentException](photo.copy(mimeType = ""))
 
+  test("an album photo shows its caption, else its text equivalent; a payload written before the caption reads back"):
+    val photo = AttachmentRef(MediaKind.Photo, "asset-1", "image/png", "Week of 9 November: 12 of 14 doses taken.")
+    assertEquals(photo.albumCaption, photo.altText)
+    val discreet = photo.copy(hasSpoiler = true, caption = Some("Your week."))
+    assertEquals(discreet.albumCaption, "Your week.")
+    intercept[IllegalArgumentException](photo.copy(caption = Some("")))
+    intercept[IllegalArgumentException](photo.copy(caption = Some("x" * 1025)))
+    val message = OutboundMessage(body = Nil, album = List(discreet, photo), dedupeKey = "k", correlationId = "c")
+    assertEquals(OutboundMessage.fromJson(OutboundMessage.toJson(message)), message)
+    val earlier = OutboundMessage.toJson(message.copy(album = List(photo, photo)))
+    assert(!earlier.contains("caption"), earlier)
+    assertEquals(OutboundMessage.fromJson(earlier).album.map(_.caption), List(None, None))
+
   test("a rendered message may have no text only when it carries an attachment"):
     val photo = AttachmentRef(MediaKind.Photo, "asset-1", "image/png", "A chart.")
     assertEquals(RenderedMessage(chunks = Nil, attachment = Some(photo)).chunks, Nil)

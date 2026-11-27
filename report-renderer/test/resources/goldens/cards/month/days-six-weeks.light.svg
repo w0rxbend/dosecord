@@ -51,7 +51,8 @@
   <rect x="378" y="296" width="44" height="44" rx="12.32" fill="#004937"/>
 </g>
 <g>
-  <rect x="90" y="344" width="44" height="44" rx="12.32" fill="#007c60"/>
+  <rect x="92" y="346" width="40" height="40" rx="12.32" fill="none" stroke="#cdd6db" stroke-width="4"/>
+  <path d="M90.07 355 L133.93 355 A12.32 12.32 0 0 1 134 356.32 L134 375.68 A12.32 12.32 0 0 1 121.68 388 L102.32 388 A12.32 12.32 0 0 1 90 375.68 L90 356.32 A12.32 12.32 0 0 1 90.07 355 Z" fill="#007c60"/>
 </g>
 <g>
   <rect x="138" y="344" width="44" height="44" rx="12.32" fill="#004937"/>
@@ -63,7 +64,8 @@
   <rect x="234" y="344" width="44" height="44" rx="12.32" fill="#004937"/>
 </g>
 <g>
-  <rect x="282" y="344" width="44" height="44" rx="12.32" fill="#32b08d"/>
+  <rect x="284" y="346" width="40" height="40" rx="12.32" fill="none" stroke="#cdd6db" stroke-width="4"/>
+  <path d="M282 366 L326 366 L326 375.68 A12.32 12.32 0 0 1 313.68 388 L294.32 388 A12.32 12.32 0 0 1 282 375.68 Z" fill="#32b08d"/>
 </g>
 <g>
   <rect x="330" y="344" width="44" height="44" rx="12.32" fill="#004937"/>
@@ -104,7 +106,8 @@
   <rect x="186" y="440" width="44" height="44" rx="12.32" fill="#004937"/>
 </g>
 <g>
-  <rect x="234" y="440" width="44" height="44" rx="12.32" fill="#78c3a9"/>
+  <rect x="236" y="442" width="40" height="40" rx="12.32" fill="none" stroke="#cdd6db" stroke-width="4"/>
+  <path d="M234.07 473 L277.93 473 A12.32 12.32 0 0 1 265.68 484 L246.32 484 A12.32 12.32 0 0 1 234.07 473 Z" fill="#78c3a9"/>
 </g>
 <g>
   <rect x="282" y="440" width="44" height="44" rx="12.32" fill="#004937"/>
@@ -149,15 +152,18 @@
 </g>
 <text x="144" y="636" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">All taken</text>
 <g>
-  <rect x="334.6" y="600" width="44" height="44" rx="12.32" fill="#007c60"/>
+  <rect x="336.6" y="602" width="40" height="40" rx="12.32" fill="none" stroke="#cdd6db" stroke-width="4"/>
+  <path d="M334.67 611 L378.53 611 A12.32 12.32 0 0 1 378.6 612.32 L378.6 631.68 A12.32 12.32 0 0 1 366.28 644 L346.92 644 A12.32 12.32 0 0 1 334.6 631.68 L334.6 612.32 A12.32 12.32 0 0 1 334.67 611 Z" fill="#007c60"/>
 </g>
 <text x="390.6" y="636" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">75 to 99%</text>
 <g>
-  <rect x="608.52" y="600" width="44" height="44" rx="12.32" fill="#32b08d"/>
+  <rect x="610.52" y="602" width="40" height="40" rx="12.32" fill="none" stroke="#cdd6db" stroke-width="4"/>
+  <path d="M608.52 622 L652.52 622 L652.52 631.68 A12.32 12.32 0 0 1 640.2 644 L620.84 644 A12.32 12.32 0 0 1 608.52 631.68 Z" fill="#32b08d"/>
 </g>
 <text x="664.52" y="636" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">50 to 74%</text>
 <g>
-  <rect x="88" y="656" width="44" height="44" rx="12.32" fill="#78c3a9"/>
+  <rect x="90" y="658" width="40" height="40" rx="12.32" fill="none" stroke="#cdd6db" stroke-width="4"/>
+  <path d="M88.07 689 L131.93 689 A12.32 12.32 0 0 1 119.68 700 L100.32 700 A12.32 12.32 0 0 1 88.07 689 Z" fill="#78c3a9"/>
 </g>
 <text x="144" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Under 50%</text>
 <g>

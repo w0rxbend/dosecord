@@ -2,8 +2,8 @@
 <rect width="1080" height="1080" fill="#0f222b"/>
 <text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Water, 7 days</text>
 <text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">2 to 8 Nov</text>
-<text x="64" y="300" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4">0</text>
-<text x="64" y="364" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8">days logged</text>
+<text x="64" y="300" font-family="Geologica" font-weight="600" font-size="160" fill="#e8f0f4">No data</text>
+<text x="64" y="364" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#b1c0c8">No water logged in these 7 days.</text>
 <g>
   <rect x="98" y="750" width="68" height="68" rx="16" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>

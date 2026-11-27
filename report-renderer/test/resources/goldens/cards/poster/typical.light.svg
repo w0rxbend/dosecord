@@ -1,0 +1,570 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="560.94" cy="296.12" r="25.88"><stop offset="0" stop-color="#e6e9b9"/><stop offset="1" stop-color="#bdc080"/></radialGradient>
+  <radialGradient id="g2" gradientUnits="userSpaceOnUse" cx="688.94" cy="296.12" r="25.88"><stop offset="0" stop-color="#a2b6b8"/><stop offset="1" stop-color="#758f92"/></radialGradient>
+  <radialGradient id="g3" gradientUnits="userSpaceOnUse" cx="816.94" cy="296.12" r="25.88"><stop offset="0" stop-color="#637cb5"/><stop offset="1" stop-color="#37539d"/></radialGradient>
+  <radialGradient id="g4" gradientUnits="userSpaceOnUse" cx="944.94" cy="296.12" r="25.88"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fed25d"/></radialGradient>
+  <radialGradient id="g5" gradientUnits="userSpaceOnUse" cx="176.94" cy="424.12" r="25.88"><stop offset="0" stop-color="#bfd0bb"/><stop offset="1" stop-color="#93a98e"/></radialGradient>
+  <radialGradient id="g6" gradientUnits="userSpaceOnUse" cx="304.94" cy="424.12" r="25.88"><stop offset="0" stop-color="#7e99b1"/><stop offset="1" stop-color="#4f7391"/></radialGradient>
+  <radialGradient id="g7" gradientUnits="userSpaceOnUse" cx="560.94" cy="424.12" r="25.88"><stop offset="0" stop-color="#e7eaa4"/><stop offset="1" stop-color="#bfc161"/></radialGradient>
+  <radialGradient id="g8" gradientUnits="userSpaceOnUse" cx="688.94" cy="424.12" r="25.88"><stop offset="0" stop-color="#9cb7ba"/><stop offset="1" stop-color="#6d9195"/></radialGradient>
+  <radialGradient id="g9" gradientUnits="userSpaceOnUse" cx="816.94" cy="424.12" r="25.88"><stop offset="0" stop-color="#707d9a"/><stop offset="1" stop-color="#48577b"/></radialGradient>
+  <radialGradient id="g10" gradientUnits="userSpaceOnUse" cx="944.94" cy="424.12" r="25.88"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f1d48e"/></radialGradient>
+  <radialGradient id="g11" gradientUnits="userSpaceOnUse" cx="176.94" cy="552.12" r="25.88"><stop offset="0" stop-color="#b7d5b1"/><stop offset="1" stop-color="#88ae80"/></radialGradient>
+  <radialGradient id="g12" gradientUnits="userSpaceOnUse" cx="560.94" cy="552.12" r="25.88"><stop offset="0" stop-color="#e5e7c6"/><stop offset="1" stop-color="#bcbe92"/></radialGradient>
+  <radialGradient id="g13" gradientUnits="userSpaceOnUse" cx="688.94" cy="552.12" r="25.88"><stop offset="0" stop-color="#a5b5b6"/><stop offset="1" stop-color="#798e90"/></radialGradient>
+  <radialGradient id="g14" gradientUnits="userSpaceOnUse" cx="816.94" cy="552.12" r="25.88"><stop offset="0" stop-color="#677cad"/><stop offset="1" stop-color="#3c5593"/></radialGradient>
+  <radialGradient id="g15" gradientUnits="userSpaceOnUse" cx="944.94" cy="552.12" r="25.88"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fdd265"/></radialGradient>
+  <radialGradient id="g16" gradientUnits="userSpaceOnUse" cx="176.94" cy="680.12" r="25.88"><stop offset="0" stop-color="#b0d8a8"/><stop offset="1" stop-color="#7eb273"/></radialGradient>
+  <radialGradient id="g17" gradientUnits="userSpaceOnUse" cx="560.94" cy="680.12" r="25.88"><stop offset="0" stop-color="#e7eaae"/><stop offset="1" stop-color="#bec171"/></radialGradient>
+  <radialGradient id="g18" gradientUnits="userSpaceOnUse" cx="688.94" cy="680.12" r="25.88"><stop offset="0" stop-color="#9fb7b9"/><stop offset="1" stop-color="#719093"/></radialGradient>
+  <radialGradient id="g19" gradientUnits="userSpaceOnUse" cx="816.94" cy="680.12" r="25.88"><stop offset="0" stop-color="#5f7bbd"/><stop offset="1" stop-color="#3251a7"/></radialGradient>
+  <radialGradient id="g20" gradientUnits="userSpaceOnUse" cx="944.94" cy="680.12" r="25.88"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ead6a5"/></radialGradient>
+  <radialGradient id="g21" gradientUnits="userSpaceOnUse" cx="176.94" cy="808.12" r="25.88"><stop offset="0" stop-color="#bbd3b5"/><stop offset="1" stop-color="#8dac86"/></radialGradient>
+  <radialGradient id="g22" gradientUnits="userSpaceOnUse" cx="560.94" cy="808.12" r="25.88"><stop offset="0" stop-color="#e8eb99"/><stop offset="1" stop-color="#c0c24e"/></radialGradient>
+  <radialGradient id="g23" gradientUnits="userSpaceOnUse" cx="638.27" cy="963.95" r="21.9"><stop offset="0" stop-color="#b7d5b1"/><stop offset="1" stop-color="#88ae80"/></radialGradient>
+</defs>
+<rect width="1080" height="1350" fill="#eef5f8"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#13242e">October 2026</text>
+<text x="64" y="176" font-family="IBM Plex Sans" font-weight="400" font-size="44" fill="#435561">Your month in one image</text>
+<rect x="64" y="200" width="952" height="728" rx="40" fill="#ffffff"/>
+<text x="156" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">Mo</text>
+<text x="284" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">Tu</text>
+<text x="412" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">We</text>
+<text x="540" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">Th</text>
+<text x="668" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">Fr</text>
+<text x="796" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">Sa</text>
+<text x="924" y="252" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78" text-anchor="middle">Su</text>
+<rect x="480" y="272" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="488" y="308" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">1</text>
+<g>
+  <ellipse cx="568" cy="333.29" rx="16.47" ry="2" fill="#cdd6db"/>
+  <path d="M592.16 305.53 C592.41 310.85 589.68 318.39 585.65 321.99 C581.62 325.6 573.77 327.26 568 327.16 C562.23 327.05 555.05 324.98 551.03 321.38 C547.01 317.78 543.85 310.86 543.88 305.53 C543.91 300.2 547.18 293.12 551.2 289.4 C555.22 285.68 562.51 283.09 568 283.2 C573.49 283.31 580.1 286.33 584.13 290.05 C588.15 293.77 591.9 300.21 592.16 305.53 Z" fill="url(#g1)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="561.65" cy="303.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="574.35" cy="303.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M563.24 311.18 Q568 313.53 572.76 311.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="508" cy="360" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="540" cy="360" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="572" cy="360" r="10" fill="#8a66d9"/>
+</g>
+<rect x="608" y="272" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="616" y="308" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">2</text>
+<g>
+  <ellipse cx="696" cy="333.29" rx="15.29" ry="2" fill="#cdd6db"/>
+  <path d="M720.39 305.53 C720.35 310.12 717.74 315.65 714.84 319.22 C711.93 322.79 707.3 325.55 702.96 326.95 C698.63 328.35 693.31 328.76 688.83 327.61 C684.34 326.45 678.93 323.7 676.05 320.02 C673.17 316.34 671.18 310.1 671.55 305.53 C671.91 300.96 675.37 296.34 678.23 292.62 C681.1 288.9 684.56 284.81 688.74 283.2 C692.93 281.59 698.95 281.53 703.34 282.94 C707.73 284.35 712.23 287.91 715.07 291.67 C717.91 295.44 720.43 300.94 720.39 305.53 Z" fill="url(#g2)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="689.65" cy="303.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="702.35" cy="303.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M690.82 311.18 Q696 311.18 701.18 311.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="636" cy="360" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="668" cy="360" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="700" cy="360" r="10" fill="#8a66d9"/>
+</g>
+<rect x="736" y="272" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="744" y="308" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">3</text>
+<g>
+  <ellipse cx="824" cy="333.29" rx="13.53" ry="2" fill="#cdd6db"/>
+  <path d="M847.8 305.53 C848.05 307.71 846.49 316.32 845.39 318.25 C844.29 320.18 837.74 325.53 835.78 326.55 C833.82 327.57 826.2 329.31 824 329.37 C821.8 329.44 813.66 328.34 811.82 327.25 C809.98 326.16 804.76 319.47 803.91 317.48 C803.05 315.49 802.58 307.78 802.47 305.53 C802.37 303.28 801.92 294.91 802.77 292.9 C803.61 290.89 809.77 284.72 811.71 283.61 C813.66 282.5 821.8 280.66 824 280.76 C826.2 280.86 833.97 283.44 835.68 284.69 C837.39 285.95 841.55 292.52 842.66 294.43 C843.78 296.34 847.55 303.35 847.8 305.53 Z" fill="url(#g3)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="817.65" cy="303.18" rx="3" ry="1.62" fill="#e8f0f4"/>
+  <ellipse cx="830.35" cy="303.18" rx="3" ry="1.62" fill="#e8f0f4"/>
+  <path d="M818.41 311.18 Q824 309.06 829.59 311.18" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="815.82" y1="298.96" x2="819.47" y2="299.87" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="832.18" y1="298.96" x2="828.53" y2="299.87" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="764" cy="360" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="796" cy="360" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="828" cy="360" r="10" fill="#8a66d9"/>
+</g>
+<rect x="864" y="272" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="872" y="308" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">4</text>
+<g>
+  <ellipse cx="952" cy="333.29" rx="11.76" ry="2" fill="#cdd6db"/>
+  <path d="M976.16 305.53 C976.27 309.58 974.29 314.37 972.18 317.88 C970.06 321.38 966.82 324.56 963.46 326.57 C960.1 328.58 956 329.61 952 329.94 C948 330.28 942.81 330.6 939.44 328.6 C936.06 326.59 933.66 321.76 931.76 317.92 C929.86 314.07 927.89 309.57 928.03 305.53 C928.16 301.48 930.39 296.95 932.58 293.65 C934.78 290.34 937.97 288.43 941.21 285.72 C944.45 283.01 948.25 277.66 952 277.38 C955.75 277.1 960.46 281.33 963.71 284.04 C966.95 286.74 969.41 290.02 971.49 293.6 C973.56 297.18 976.04 301.48 976.16 305.53 Z" fill="url(#g4)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="945.65" cy="303.18" rx="3" ry="1.76" fill="#13242e"/>
+  <ellipse cx="958.35" cy="303.18" rx="3" ry="1.76" fill="#13242e"/>
+  <path d="M946.05 311.18 Q952 314.71 957.95 311.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="892" cy="360" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="924" cy="360" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="956" cy="360" r="10" fill="#8a66d9"/>
+</g>
+<rect x="96" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="104" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">5</text>
+<g>
+  <ellipse cx="184" cy="461.29" rx="17.65" ry="2" fill="#cdd6db"/>
+  <path d="M207.19 433.53 C207.28 438.59 205.12 444.85 201.25 448.57 C197.39 452.29 189.82 455.8 184 455.85 C178.18 455.91 170.16 452.62 166.34 448.9 C162.52 445.18 160.89 438.63 161.07 433.53 C161.25 428.43 163.6 421.97 167.42 418.28 C171.24 414.59 178.46 411.41 184 411.4 C189.54 411.38 196.82 414.49 200.69 418.18 C204.55 421.87 207.09 428.46 207.19 433.53 Z" fill="url(#g5)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="177.65" cy="431.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="190.35" cy="431.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M179.6 439.18 Q184 440.35 188.4 439.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="124" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="156" cy="488" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="188" cy="488" r="10" fill="#8a66d9"/>
+</g>
+<rect x="224" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="232" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">6</text>
+<g>
+  <ellipse cx="312" cy="461.29" rx="16.47" ry="2" fill="#cdd6db"/>
+  <path d="M335.06 433.53 C334.97 438.8 332.54 445.33 328.7 449.13 C324.86 452.94 317.69 456.25 312 456.36 C306.31 456.48 298.49 453.63 294.54 449.82 C290.59 446.02 288.03 438.7 288.3 433.53 C288.57 428.36 292.2 422.5 296.15 418.79 C300.1 415.08 306.49 411.45 312 411.24 C317.51 411.03 325.37 413.81 329.21 417.52 C333.05 421.24 335.14 428.26 335.06 433.53 Z" fill="url(#g6)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="305.65" cy="431.18" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <ellipse cx="318.35" cy="431.18" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <path d="M307.24 439.18 Q312 438.12 316.76 439.18" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="303.82" y1="427.87" x2="307.47" y2="426.96" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="320.18" y1="427.87" x2="316.53" y2="426.96" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="252" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="284" cy="488" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="316" cy="488" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<rect x="352" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="360" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">7</text>
+<g>
+  <circle cx="380" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="412" cy="488" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="444" cy="488" r="10" fill="#8a66d9"/>
+</g>
+<rect x="480" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="488" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">8</text>
+<g>
+  <ellipse cx="568" cy="461.29" rx="13.53" ry="2" fill="#cdd6db"/>
+  <path d="M589.52 433.53 C589.43 437.58 589.72 441.92 588.14 445.5 C586.56 449.09 583.41 453 580.05 455.03 C576.7 457.06 572.06 457.63 568 457.7 C563.94 457.78 559 457.56 555.68 455.5 C552.37 453.44 549.98 449.02 548.11 445.36 C546.24 441.7 544.55 437.53 544.47 433.53 C544.38 429.53 545.48 424.64 547.57 421.38 C549.67 418.12 553.64 416.07 557.04 413.98 C560.44 411.88 564.05 409.32 568 408.79 C571.95 408.27 577.29 408.74 580.73 410.81 C584.18 412.89 587.22 417.44 588.68 421.23 C590.15 425.02 589.61 429.48 589.52 433.53 Z" fill="url(#g7)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="561.65" cy="431.18" rx="3" ry="1.62" fill="#13242e"/>
+  <ellipse cx="574.35" cy="431.18" rx="3" ry="1.62" fill="#13242e"/>
+  <path d="M562.41 439.18 Q568 441.53 573.59 439.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="508" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="540" cy="488" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="572" cy="488" r="10" fill="#8a66d9"/>
+</g>
+<rect x="608" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="616" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">9</text>
+<g>
+  <ellipse cx="696" cy="461.29" rx="11.76" ry="2" fill="#cdd6db"/>
+  <path d="M720.77 433.53 C720.48 437.73 717.87 441.97 715.72 445.6 C713.58 449.24 711.17 453.52 707.88 455.34 C704.59 457.16 699.98 456.5 696 456.53 C692.02 456.57 687.64 457.15 684.02 455.53 C680.4 453.91 676.29 450.49 674.28 446.82 C672.28 443.15 671.57 437.69 672.02 433.53 C672.46 429.37 674.91 425.46 676.95 421.87 C679 418.29 681.11 414.46 684.28 412.01 C687.46 409.56 692.27 406.84 696 407.17 C699.73 407.51 703.06 411.8 706.63 414.01 C710.21 416.21 715.09 417.15 717.45 420.4 C719.8 423.66 721.05 429.33 720.77 433.53 Z" fill="url(#g8)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="689.65" cy="431.18" rx="3" ry="1.76" fill="#13242e"/>
+  <ellipse cx="702.35" cy="431.18" rx="3" ry="1.76" fill="#13242e"/>
+  <path d="M690.05 439.18 Q696 439.18 701.95 439.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="636" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="668" cy="488" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="700" cy="488" r="10" fill="#8a66d9"/>
+</g>
+<rect x="736" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="744" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">10</text>
+<g>
+  <ellipse cx="824" cy="461.29" rx="17.65" ry="2" fill="#cdd6db"/>
+  <path d="M847.98 433.53 C848.24 438.45 845.82 445.46 841.82 449.04 C837.83 452.61 829.84 455.06 824 454.98 C818.16 454.89 810.74 452.11 806.79 448.53 C802.83 444.96 800.25 438.48 800.27 433.53 C800.29 428.58 802.96 422.14 806.91 418.83 C810.87 415.52 818.44 413.55 824 413.66 C829.56 413.78 836.29 416.21 840.29 419.52 C844.29 422.83 847.73 428.61 847.98 433.53 Z" fill="url(#g9)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="817.65" cy="431.18" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <ellipse cx="830.35" cy="431.18" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <path d="M819.6 439.18 Q824 437.06 828.4 439.18" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="815.82" y1="427.87" x2="819.47" y2="426.96" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="832.18" y1="427.87" x2="828.53" y2="426.96" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="764" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="796" cy="488" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="828" cy="488" r="10" fill="#8a66d9"/>
+</g>
+<rect x="864" y="400" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="872" y="436" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">11</text>
+<g>
+  <ellipse cx="952" cy="461.29" rx="16.47" ry="2" fill="#cdd6db"/>
+  <path d="M976.23 433.53 C976.49 438.82 973.59 446.25 969.56 449.91 C965.52 453.56 957.71 455.6 952 455.47 C946.29 455.34 939.37 452.78 935.31 449.12 C931.25 445.46 927.65 438.8 927.65 433.53 C927.65 428.26 931.25 421.26 935.31 417.5 C939.37 413.75 946.55 410.88 952 410.99 C957.45 411.11 963.96 414.42 967.99 418.17 C972.03 421.93 975.97 428.24 976.23 433.53 Z" fill="url(#g10)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="945.65" cy="431.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="958.35" cy="431.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M947.24 439.18 Q952 442.71 956.76 439.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="892" cy="488" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="924" cy="488" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="956" cy="488" r="10" fill="#8a66d9"/>
+</g>
+<rect x="96" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="104" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">12</text>
+<g>
+  <ellipse cx="184" cy="589.29" rx="15.29" ry="2" fill="#cdd6db"/>
+  <path d="M208.62 561.53 C208.93 566.13 206.84 572.41 203.9 575.99 C200.96 579.57 195.46 581.86 190.98 583.02 C186.51 584.19 181.42 584.21 177.03 582.97 C172.65 581.72 167.57 579.14 164.67 575.57 C161.78 572 159.64 566.19 159.66 561.53 C159.68 556.86 161.92 551.21 164.8 547.58 C167.68 543.95 172.5 541.18 176.92 539.74 C181.34 538.31 187.14 537.53 191.33 538.97 C195.52 540.41 199.19 544.64 202.08 548.4 C204.96 552.16 208.32 556.93 208.62 561.53 Z" fill="url(#g11)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="177.65" cy="559.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="190.35" cy="559.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M178.82 567.18 Q184 568.35 189.18 567.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="124" cy="616" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="156" cy="616" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="188" cy="616" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<rect x="224" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="232" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">13</text>
+<g>
+  <circle cx="252" cy="616" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="284" cy="616" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="316" cy="616" r="10" fill="#8a66d9"/>
+</g>
+<rect x="352" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="360" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">14</text>
+<g>
+  <circle cx="380" cy="616" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="412" cy="616" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="444" cy="616" r="10" fill="#8a66d9"/>
+</g>
+<rect x="480" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="488" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">15</text>
+<g>
+  <ellipse cx="568" cy="589.29" rx="17.65" ry="2" fill="#cdd6db"/>
+  <path d="M591.84 561.53 C592.1 566.65 589.92 573.59 585.94 577.14 C581.97 580.68 573.85 582.89 568 582.79 C562.15 582.68 554.85 580.05 550.82 576.51 C546.79 572.96 543.76 566.6 543.83 561.53 C543.89 556.46 547.19 549.63 551.22 546.09 C555.24 542.54 562.46 540.19 568 540.25 C573.54 540.3 580.45 542.87 584.43 546.42 C588.4 549.96 591.59 556.41 591.84 561.53 Z" fill="url(#g12)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="561.65" cy="559.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="574.35" cy="559.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M563.6 567.18 Q568 569.53 572.4 567.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="508" cy="616" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="540" cy="616" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="572" cy="616" r="10" fill="#8a66d9"/>
+</g>
+<rect x="608" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="616" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">16</text>
+<g>
+  <ellipse cx="696" cy="589.29" rx="16.47" ry="2" fill="#cdd6db"/>
+  <path d="M719.87 561.53 C720.17 566.84 717.76 574.45 713.78 578.11 C709.8 581.78 701.78 583.64 696 583.51 C690.22 583.38 682.97 581 679.08 577.33 C675.18 573.67 672.66 566.92 672.61 561.53 C672.56 556.14 674.87 548.74 678.77 544.99 C682.67 541.23 690.47 538.8 696 539 C701.53 539.21 707.96 542.47 711.94 546.23 C715.92 549.98 719.56 556.22 719.87 561.53 Z" fill="url(#g13)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="689.65" cy="559.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="702.35" cy="559.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M691.24 567.18 Q696 567.18 700.76 567.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="636" cy="616" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="668" cy="616" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="700" cy="616" r="10" fill="#8a66d9"/>
+</g>
+<rect x="736" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="744" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">17</text>
+<g>
+  <ellipse cx="824" cy="589.29" rx="15.29" ry="2" fill="#cdd6db"/>
+  <path d="M848.17 561.53 C848.38 566.03 846.59 572.19 843.77 575.89 C840.94 579.59 835.68 582.53 831.22 583.74 C826.75 584.96 821.37 584.56 816.96 583.18 C812.56 581.81 807.43 579.09 804.79 575.48 C802.16 571.87 801.28 566.12 801.17 561.53 C801.06 556.94 801.59 551.61 804.14 547.97 C806.69 544.32 812 540.73 816.45 539.68 C820.9 538.64 826.51 540.17 830.85 541.71 C835.19 543.25 839.6 545.6 842.48 548.91 C845.37 552.21 847.95 557.03 848.17 561.53 Z" fill="url(#g14)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="817.65" cy="559.18" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <ellipse cx="830.35" cy="559.18" rx="3" ry="1.5" fill="#e8f0f4"/>
+  <path d="M818.82 567.18 Q824 565.06 829.18 567.18" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="815.82" y1="555.87" x2="819.47" y2="554.96" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="832.18" y1="555.87" x2="828.53" y2="554.96" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="764" cy="616" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="796" cy="616" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="828" cy="616" r="10" fill="#8a66d9"/>
+</g>
+<rect x="864" y="528" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="872" y="564" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">18</text>
+<g>
+  <ellipse cx="952" cy="589.29" rx="13.53" ry="2" fill="#cdd6db"/>
+  <path d="M974.23 561.53 C973.89 565.56 972.94 569.31 971.31 573.01 C969.67 576.71 967.65 581.69 964.43 583.71 C961.21 585.73 956.03 585.34 952 585.13 C947.97 584.92 943.86 584.26 940.27 582.45 C936.68 580.65 932.49 577.81 930.48 574.32 C928.48 570.84 927.83 565.56 928.22 561.53 C928.62 557.5 930.76 553.49 932.84 550.14 C934.93 546.79 937.54 543.71 940.73 541.43 C943.92 539.14 948.1 536.68 952 536.42 C955.9 536.16 960.6 537.77 964.16 539.84 C967.71 541.91 971.65 545.23 973.33 548.85 C975 552.46 974.56 557.5 974.23 561.53 Z" fill="url(#g15)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="945.65" cy="559.18" rx="3" ry="1.62" fill="#13242e"/>
+  <ellipse cx="958.35" cy="559.18" rx="3" ry="1.62" fill="#13242e"/>
+  <path d="M946.41 567.18 Q952 570.71 957.59 567.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="892" cy="616" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="924" cy="616" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="956" cy="616" r="10" fill="#8a66d9"/>
+</g>
+<rect x="96" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="104" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">19</text>
+<g>
+  <ellipse cx="184" cy="717.29" rx="11.76" ry="2" fill="#cdd6db"/>
+  <path d="M206.71 689.53 C206.18 693.64 204.31 697.15 202.56 700.89 C200.81 704.63 199.32 709.48 196.22 711.97 C193.13 714.47 187.99 716.01 184 715.87 C180.01 715.72 175.48 713.5 172.26 711.08 C169.04 708.67 166.91 704.94 164.69 701.35 C162.47 697.76 158.95 693.48 158.94 689.53 C158.92 685.58 162.28 681.08 164.59 677.65 C166.89 674.21 169.54 671.37 172.78 668.93 C176.01 666.48 180.21 663.04 184 662.95 C187.79 662.86 191.89 666.18 195.52 668.39 C199.14 670.6 203.88 672.7 205.75 676.22 C207.61 679.74 207.24 685.42 206.71 689.53 Z" fill="url(#g16)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="177.65" cy="687.18" rx="3" ry="1.76" fill="#13242e"/>
+  <ellipse cx="190.35" cy="687.18" rx="3" ry="1.76" fill="#13242e"/>
+  <path d="M178.05 695.18 Q184 696.35 189.95 695.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="124" cy="744" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="156" cy="744" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="188" cy="744" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<rect x="224" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="232" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">20</text>
+<g>
+  <circle cx="252" cy="744" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="284" cy="744" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="316" cy="744" r="10" fill="#8a66d9"/>
+</g>
+<rect x="352" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="360" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">21</text>
+<g>
+  <circle cx="380" cy="744" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="412" cy="744" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="444" cy="744" r="10" fill="#8a66d9"/>
+</g>
+<rect x="480" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="488" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">22</text>
+<g>
+  <ellipse cx="568" cy="717.29" rx="15.29" ry="2" fill="#cdd6db"/>
+  <path d="M591.51 689.53 C591.51 694.17 589.82 699.53 587.18 703.47 C584.54 707.4 580.01 711.91 575.67 713.12 C571.32 714.34 565.43 712.47 561.1 710.75 C556.77 709.04 552.55 706.37 549.69 702.84 C546.82 699.3 544.17 694.16 543.9 689.53 C543.64 684.9 545.28 678.78 548.09 675.06 C550.9 671.35 556.28 668.39 560.76 667.24 C565.23 666.09 570.55 666.75 574.95 668.15 C579.35 669.54 584.4 672.04 587.16 675.61 C589.92 679.17 591.5 684.89 591.51 689.53 Z" fill="url(#g17)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="561.65" cy="687.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="574.35" cy="687.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M562.82 695.18 Q568 697.53 573.18 695.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="508" cy="744" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="540" cy="744" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="572" cy="744" r="10" fill="#8a66d9"/>
+</g>
+<rect x="608" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="616" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">23</text>
+<g>
+  <ellipse cx="696" cy="717.29" rx="13.53" ry="2" fill="#cdd6db"/>
+  <path d="M720.95 689.53 C720.76 693.56 718.15 698.1 715.78 701.29 C713.42 704.49 710.05 706.63 706.75 708.71 C703.45 710.79 699.92 713.18 696 713.79 C692.08 714.4 686.55 714.4 683.21 712.35 C679.87 710.29 677.72 705.26 675.94 701.46 C674.15 697.66 672.55 693.53 672.5 689.53 C672.46 685.53 673.62 680.78 675.66 677.43 C677.7 674.08 681.34 671.53 684.73 669.43 C688.12 667.33 692.2 664.92 696 664.83 C699.8 664.74 704.08 666.86 707.56 668.91 C711.05 670.95 714.68 673.66 716.91 677.09 C719.14 680.53 721.13 685.5 720.95 689.53 Z" fill="url(#g18)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="689.65" cy="687.18" rx="3" ry="1.62" fill="#13242e"/>
+  <ellipse cx="702.35" cy="687.18" rx="3" ry="1.62" fill="#13242e"/>
+  <path d="M690.41 695.18 Q696 695.18 701.59 695.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="636" cy="744" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="668" cy="744" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="700" cy="744" r="10" fill="#8a66d9"/>
+</g>
+<rect x="736" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="744" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">24</text>
+<g>
+  <ellipse cx="824" cy="717.29" rx="11.76" ry="2" fill="#cdd6db"/>
+  <path d="M848.37 689.53 C848.57 691.82 846.65 700.69 845.51 702.69 C844.37 704.7 837.88 710.51 835.9 711.38 C833.93 712.26 826.23 712.15 824 712.24 C821.77 712.34 813.39 713.36 811.54 712.41 C809.68 711.47 804.58 704.03 803.74 701.93 C802.89 699.83 802.5 691.91 802.32 689.53 C802.14 687.15 800.88 677.92 801.78 675.93 C802.69 673.94 810.15 668.89 812.19 667.84 C814.23 666.8 821.87 664.42 824 664.5 C826.13 664.57 833.62 667.41 835.39 668.62 C837.15 669.83 842.08 675.82 843.27 677.74 C844.46 679.66 848.16 687.24 848.37 689.53 Z" fill="url(#g19)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="817.65" cy="687.18" rx="3" ry="1.76" fill="#e8f0f4"/>
+  <ellipse cx="830.35" cy="687.18" rx="3" ry="1.76" fill="#e8f0f4"/>
+  <path d="M818.05 695.18 Q824 693.06 829.95 695.18" fill="none" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="815.82" y1="682.96" x2="819.47" y2="683.87" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="832.18" y1="682.96" x2="828.53" y2="683.87" stroke="#e8f0f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="764" cy="744" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="796" cy="744" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="828" cy="744" r="10" fill="#8a66d9"/>
+</g>
+<rect x="864" y="656" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="872" y="692" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">25</text>
+<g>
+  <ellipse cx="952" cy="717.29" rx="17.65" ry="2" fill="#cdd6db"/>
+  <path d="M976.03 689.53 C976.29 694.63 973.91 701.6 969.91 705.11 C965.9 708.61 957.9 710.61 952 710.55 C946.1 710.5 938.46 708.29 934.49 704.78 C930.52 701.28 928.09 694.67 928.19 689.53 C928.28 684.39 931.11 677.51 935.08 673.96 C939.05 670.42 946.46 668.19 952 668.28 C957.54 668.37 964.34 670.95 968.35 674.49 C972.35 678.03 975.77 684.43 976.03 689.53 Z" fill="url(#g20)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="945.65" cy="687.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="958.35" cy="687.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M947.6 695.18 Q952 698.71 956.4 695.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="892" cy="744" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="924" cy="744" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="956" cy="744" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<rect x="96" y="784" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="104" y="820" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">26</text>
+<g>
+  <ellipse cx="184" cy="845.29" rx="16.47" ry="2" fill="#cdd6db"/>
+  <path d="M207.11 817.53 C207.21 822.78 204.81 829.48 200.96 833.36 C197.1 837.25 189.69 840.79 184 840.83 C178.31 840.87 170.6 837.47 166.79 833.59 C162.99 829.71 161.05 822.83 161.18 817.53 C161.32 812.23 163.8 805.75 167.6 801.79 C171.41 797.83 178.54 793.76 184 793.77 C189.46 793.77 196.49 797.88 200.34 801.84 C204.19 805.8 207.01 812.28 207.11 817.53 Z" fill="url(#g21)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="177.65" cy="815.18" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="190.35" cy="815.18" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M179.24 823.18 Q184 824.35 188.76 823.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="124" cy="872" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="156" cy="872" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="188" cy="872" r="10" fill="#8a66d9"/>
+</g>
+<rect x="224" y="784" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="232" y="820" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">27</text>
+<g>
+  <circle cx="252" cy="872" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="284" cy="872" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="316" cy="872" r="10" fill="#8a66d9"/>
+</g>
+<rect x="352" y="784" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="360" y="820" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">28</text>
+<g>
+  <circle cx="380" cy="872" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="412" cy="872" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="444" cy="872" r="10" fill="#8a66d9"/>
+</g>
+<rect x="480" y="784" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="488" y="820" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">29</text>
+<g>
+  <ellipse cx="568" cy="845.29" rx="11.76" ry="2" fill="#cdd6db"/>
+  <path d="M591.05 817.53 C591.43 821.77 591.76 827.23 589.96 830.97 C588.15 834.7 583.87 838.48 580.21 839.95 C576.55 841.42 572.04 839.83 568 839.77 C563.96 839.71 559.31 841.28 555.97 839.61 C552.64 837.94 550.03 833.45 547.99 829.77 C545.96 826.09 544.06 821.79 543.77 817.53 C543.48 813.27 544.03 807.53 546.27 804.23 C548.51 800.93 553.59 799.74 557.21 797.72 C560.83 795.7 564.21 792.47 568 792.12 C571.79 791.78 576.65 793.41 579.92 795.64 C583.2 797.87 585.79 801.86 587.64 805.51 C589.5 809.16 590.66 813.29 591.05 817.53 Z" fill="url(#g22)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="561.65" cy="815.18" rx="3" ry="1.76" fill="#13242e"/>
+  <ellipse cx="574.35" cy="815.18" rx="3" ry="1.76" fill="#13242e"/>
+  <path d="M562.05 823.18 Q568 825.53 573.95 823.18" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="508" cy="872" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g>
+  <circle cx="540" cy="872" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="572" cy="872" r="10" fill="#8a66d9"/>
+</g>
+<rect x="608" y="784" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="616" y="820" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">30</text>
+<g>
+  <circle cx="636" cy="872" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="668" cy="872" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="700" cy="872" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<rect x="736" y="784" width="120" height="120" rx="24" fill="#eef5f8"/>
+<text x="744" y="820" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">31</text>
+<g>
+  <circle cx="764" cy="872" r="10" fill="#02558f"/>
+</g>
+<g>
+  <circle cx="796" cy="872" r="10" fill="#955907"/>
+</g>
+<g>
+  <circle cx="828" cy="872" r="10" fill="#8a66d9"/>
+</g>
+<g>
+  <circle cx="86" cy="974" r="10" fill="#02558f"/>
+</g>
+<text x="120" y="988" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Water</text>
+<g>
+  <circle cx="281.16" cy="974" r="10" fill="#955907"/>
+</g>
+<text x="315.16" y="988" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Food</text>
+<g>
+  <circle cx="456.76" cy="974" r="10" fill="#8a66d9"/>
+</g>
+<text x="490.76" y="988" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Sleep</text>
+<g>
+  <ellipse cx="644.24" cy="995.4" rx="12.94" ry="2" fill="#cdd6db"/>
+  <path d="M665.07 971.91 C665.33 975.8 663.57 981.11 661.08 984.14 C658.59 987.17 653.94 989.11 650.15 990.1 C646.36 991.08 642.06 991.1 638.35 990.05 C634.64 989 630.34 986.81 627.89 983.79 C625.44 980.77 623.63 975.86 623.64 971.91 C623.66 967.96 625.56 963.18 627.99 960.11 C630.43 957.03 634.51 954.69 638.25 953.47 C641.99 952.26 646.9 951.6 650.44 952.82 C653.99 954.04 657.1 957.62 659.53 960.8 C661.97 963.98 664.82 968.02 665.07 971.91 Z" fill="url(#g23)" stroke="#435561" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="638.86" cy="969.92" rx="3" ry="1.5" fill="#13242e"/>
+  <ellipse cx="649.62" cy="969.92" rx="3" ry="1.5" fill="#13242e"/>
+  <path d="M639.86 976.69 Q644.24 977.68 648.62 976.69" fill="none" stroke="#13242e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="678.24" y="988" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Mood</text>
+<g>
+  <circle cx="86" cy="1030" r="8" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="120" y="1044" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">No record</text>
+<text x="64" y="1100" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Each day: one dot per area, in this order</text>
+<text x="64" y="1172" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#13242e">31 of 31 days with records</text>
+<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#5e6e78">Recorded entries only. Not medical advice.</text>
+</svg>

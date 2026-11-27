@@ -140,7 +140,9 @@ object CardLook:
   * SVG document of profile 1, its text equivalent, a neutral file name and the spoiler flag. It holds no image bytes
   * (DEP-02): the report worker rasterises it after the event's transaction (ROADMAP G4.3, RND-05). `sharedKey` names a
   * picture that is the same for every account, a mood state (VISUALS VA-BL-11), which is drawn and uploaded once under
-  * that key; a personal card has none and is keyed by its bytes.
+  * that key; a personal card has none and is keyed by its bytes. `discreetCaption` is the card's own generic line when
+  * it was laid out in discreet mode (VISUALS VA-PV-03): a message that carries the card shows it in place of its own
+  * text, so a spoilered photo does not say under it what it shows.
   */
 final case class CardPage(
     templateId: String,
@@ -148,7 +150,8 @@ final case class CardPage(
     altText: String,
     fileName: String,
     hasSpoiler: Boolean,
-    sharedKey: Option[String] = None
+    sharedKey: Option[String] = None,
+    discreetCaption: Option[String] = None
 )
 
 /** The status images of VISUALS_AND_ANALYTICS as the chat flows ask for them, laid out in the account's [[CardLook]]
@@ -164,6 +167,9 @@ trait StatusCards:
 
   /** IMG-05: the pages of a month in order; empty when no page can be laid out. */
   def month(view: MonthCardView, look: CardLook): List[CardPage] = Nil
+
+  /** IMG-24, the month in one image, sent after the pages of IMG-05; `None` when no area it draws is shown. */
+  def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] = None
 
   /** IMG-13: one comparison the insight engine passed; `None` for a rule the card cannot draw. */
   def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] = None

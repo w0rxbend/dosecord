@@ -546,7 +546,8 @@ object Samples:
   val sleepWeeks: Vector[Fixture] = Vector(
     Fixture("sleep-week/sparse", context => Vector(SleepWeekCard.render(sparseWeek.from, sparseWeek.sleep.get, context))),
     Fixture("sleep-week/typical", context => Vector(SleepWeekCard.render(typicalWeek.from, typicalWeek.sleep.get, context))),
-    Fixture("sleep-week/dense", context => Vector(SleepWeekCard.render(denseWeek.from, denseWeek.sleep.get, context)))
+    Fixture("sleep-week/dense", context => Vector(SleepWeekCard.render(denseWeek.from, denseWeek.sleep.get, context))),
+    Fixture("sleep-week/empty", context => Vector(SleepWeekCard.render(typicalWeek.from, Vector.fill(7)(SleepEvidence.NoRecord), context)))
   )
 
   private def weekdayRows(means: Vector[(Option[Double], Int)]): Vector[MoodWeekdayRow] =
@@ -660,10 +661,51 @@ object Samples:
     Fixture("trends/quarter", context => Vector(TrendsCard.render(trendsQuarter(context.copy), context)))
   )
 
+  // The month poster of image round 4 (IMG-24): a typical October of four areas, a sparse September of two, and a
+  // month of six weeks with every area on most days.
+  private val PosterAreas: Set[Domain] = Set(Domain.Water, Domain.Food, Domain.Sleep, Domain.Mood)
+
+  private def posterDays(month: YearMonth)(recorded: Int => Set[Domain], mood: Int => Option[MoodState]): Vector[PosterDay] =
+    Vector.tabulate(month.lengthOfMonth)(index => PosterDay(recorded(index + 1), mood(index + 1)))
+
+  private val octoberPoster: MonthPosterData =
+    val days = posterDays(OctoberMonth)(
+      day =>
+        Set(Domain.Water).filter(_ => octoberWater(day - 1).isDefined) ++
+          Set(Domain.Food).filter(_ => octoberFood(day - 1).isDefined) ++
+          Set(Domain.Sleep).filterNot(_ => Set(6, 12, 19, 25, 30)(day)),
+      day => octoberMoods(day - 1)
+    )
+    MonthPosterData(OctoberMonth, DayOfWeek.MONDAY, PosterAreas, days)
+
+  val posters: Vector[Fixture] = Vector(
+    Fixture("poster/typical", context => Vector(MonthPosterCard.render(octoberPoster, context))),
+    Fixture(
+      "poster/sparse",
+      context =>
+        val september = YearMonth.of(2026, 9)
+        val days = posterDays(september)(
+          day => Set(Domain.Water).filter(_ => day % 3 == 0),
+          day => Option.when(day % 7 == 2)(MoodState(2 + day % 5, 3))
+        )
+        Vector(MonthPosterCard.render(MonthPosterData(september, DayOfWeek.MONDAY, Set(Domain.Water, Domain.Mood), days), context))
+    ),
+    Fixture(
+      "poster/six-weeks",
+      context =>
+        val august = YearMonth.of(2026, 8)
+        val days = posterDays(august)(
+          day => Set(Domain.Water, Domain.Sleep) ++ Set(Domain.Food).filter(_ => day % 4 != 0),
+          day => Option.unless(day % 9 == 0)(MoodState(1 + day % 7, 1 + day % 5))
+        )
+        Vector(MonthPosterCard.render(MonthPosterData(august, DayOfWeek.MONDAY, PosterAreas, days), context))
+    )
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
       moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
-      refills ++ trends
+      refills ++ trends ++ posters
 
   /** Every card the contact sheet and the golden suite show. */
   val review: Vector[Fixture] = all

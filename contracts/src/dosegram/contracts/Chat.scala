@@ -289,7 +289,9 @@ enum Block derives ReadWriter:
 /** Bytes the core never holds, sent with a message (ADR-015). `assetKey` is opaque: the adapter resolves it through the
   * asset store and keys its upload cache by it. `altText` is the text equivalent that every image has; a profile
   * without media shows it in place of the image. `hasSpoiler` asks a profile that can blur an image until it is tapped
-  * to do so (discreet mode, BOT_UX BUX-IMG-05); it is a preview control, not protection.
+  * to do so (discreet mode, BOT_UX BUX-IMG-05); it is a preview control, not protection. `caption` is what an album
+  * shows under this photo when it is not the alt text: the generic line of a card laid out in discreet mode (VISUALS
+  * VA-PV-03), which says nothing the spoiler hides.
   */
 final case class AttachmentRef(
     kind: MediaKind,
@@ -297,7 +299,8 @@ final case class AttachmentRef(
     mimeType: String,
     altText: String,
     fileName: Option[String] = None,
-    hasSpoiler: Boolean = false
+    hasSpoiler: Boolean = false,
+    caption: Option[String] = None
 ) derives ReadWriter:
   require(assetKey.nonEmpty, "assetKey must not be empty")
   require(mimeType.nonEmpty, "mimeType must not be empty")
@@ -305,6 +308,13 @@ final case class AttachmentRef(
     altText.nonEmpty && altText.length <= AttachmentRef.MaxAltTextChars,
     s"altText must be 1-${AttachmentRef.MaxAltTextChars} chars"
   )
+  require(
+    caption.forall(line => line.nonEmpty && line.length <= AttachmentRef.MaxAltTextChars),
+    s"caption must be 1-${AttachmentRef.MaxAltTextChars} chars"
+  )
+
+  /** The words under the photo in an album. */
+  def albumCaption: String = caption.getOrElse(altText)
 
 object AttachmentRef:
   val MaxAltTextChars = 1024

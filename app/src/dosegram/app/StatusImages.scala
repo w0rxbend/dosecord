@@ -52,6 +52,7 @@ import dosegram.render.card.MedicationRow
 import dosegram.render.card.MedicationStripCard
 import dosegram.render.card.MonthCard
 import dosegram.render.card.MonthPages
+import dosegram.render.card.MonthPosterCard
 import dosegram.render.card.MoodCard
 import dosegram.render.card.MoodWeekdayCard
 import dosegram.render.card.MoodWeekdayData
@@ -179,10 +180,10 @@ final class RenderedStatusCards extends StatusCards:
     val drawing = contextOf(look)
     val key =
       s"mood.${BlobFigure.Revision}.${state.id}.${if reading.isEnergyGiven then "energy" else "plain"}.${keyOf(drawing)}"
-    Some(page(MoodCard.render(Some(reading), drawing), Some(key)))
+    Some(page(look)(MoodCard.render(Some(reading), drawing), Some(key)))
 
   override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
-    Some(page(WaterCard.render(waterData(view), contextOf(look))))
+    Some(page(look)(WaterCard.render(waterData(view), contextOf(look))))
 
   override def day(view: DayCardView, look: CardLook): Option[CardPage] =
     val data = DayData(
@@ -196,10 +197,10 @@ final class RenderedStatusCards extends StatusCards:
         sleep.minutes.fold(SleepEvidence.NoRecord)(SleepEvidence.Recorded(_, sleep.goalMinutes))
       )
     )
-    Some(page(DayCard.render(data, contextOf(look))))
+    Some(page(look)(DayCard.render(data, contextOf(look))))
 
   override def sleep(view: SleepRegularityFigures, look: CardLook): Option[CardPage] =
-    Some(page(SleepRegularityCard.render(ReportCards.regularity(view), contextOf(look))))
+    Some(page(look)(SleepRegularityCard.render(ReportCards.regularity(view), contextOf(look))))
 
   /** IMG-05: page 1, then pages 2 and 3 when they have a panel. */
   override def month(view: MonthCardView, look: CardLook): List[CardPage] =
@@ -211,13 +212,17 @@ final class RenderedStatusCards extends StatusCards:
       Some(MonthCard.render(ReportCards.monthPage(figures), context)),
       Option.unless(days.isEmpty)(MonthPages.days(days, context)),
       Option.unless(nights.isEmpty)(MonthPages.nights(nights, context))
-    ).flatten.map(page(_))
+    ).flatten.map(page(look)(_))
+
+  /** IMG-24: the month in one image, when the account shows water, food, sleep or mood. */
+  override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
+    ReportCards.monthPoster(view.figures).map(data => page(look)(MonthPosterCard.render(data, contextOf(look))))
 
   override def insight(view: Comparison.Shown, look: CardLook): Option[CardPage] =
-    ReportCards.insight(view).map(data => page(InsightCard.render(data, contextOf(look))))
+    ReportCards.insight(view).map(data => page(look)(InsightCard.render(data, contextOf(look))))
 
   override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
-    Some(page(WeekCard.render(ReportCards.week(view), contextOf(look))))
+    Some(page(look)(WeekCard.render(ReportCards.week(view), contextOf(look))))
 
   override def share(view: ShareCardView, look: CardLook): Option[CardPage] =
     val fact = view match
@@ -225,12 +230,14 @@ final class RenderedStatusCards extends StatusCards:
       case ShareCardView.SleepLogged(days)      => ShareFact.DayCount(Domain.Sleep, days.toVector)
       case ShareCardView.MoodLogged(days)       => ShareFact.DayCount(Domain.Mood, days.toVector)
       case ShareCardView.WeekMood(mean, energy) => ShareFact.WeekMood(ReportCards.moodState(mean, energy))
-    Some(page(ShareCard.render(ShareData(fact), contextOf(look))))
+    // The user confirmed the share a second time in discreet mode, and the card is its sentence: the caption stays that
+    // sentence (VISUALS section 6.18), while the photo still goes behind the spoiler.
+    Some(page(look.copy(isDiscreet = false))(ShareCard.render(ShareData(fact), contextOf(look))))
 
   override def food(view: FoodCardView, look: CardLook): Option[CardPage] =
     val mains = view.mains.collect { case (mealType, at) if mealType.isMain => mainMealOf(mealType) -> at }
     val data = FoodDayData(view.date, mains, view.snacks, MealProgress(view.line.logged, view.line.planned))
-    Some(page(FoodDayCard.render(data, contextOf(look))))
+    Some(page(look)(FoodDayCard.render(data, contextOf(look))))
 
   /** IMG-15 (ROADMAP G9.10): the unit word is the user's countable dose unit, or "units", in the account's language. */
   override def refill(view: RefillCardView, look: CardLook): Option[CardPage] =
@@ -243,16 +250,16 @@ final class RenderedStatusCards extends StatusCards:
       view.coversUntil,
       view.text
     )
-    Some(page(RefillCard.render(data, contextOf(look))))
+    Some(page(look)(RefillCard.render(data, contextOf(look))))
 
   override def weekGlance(view: WeekCardView, look: CardLook): Option[CardPage] =
-    Some(page(WeekGlanceCard.render(ReportCards.week(view), contextOf(look))))
+    Some(page(look)(WeekGlanceCard.render(ReportCards.week(view), contextOf(look))))
 
   override def waterWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
-    ReportCards.week(view).water.map(days => page(WaterWeekCard.render(view.from, days, contextOf(look))))
+    ReportCards.week(view).water.map(days => page(look)(WaterWeekCard.render(view.from, days, contextOf(look))))
 
   override def sleepWeek(view: WeekCardView, look: CardLook): Option[CardPage] =
-    ReportCards.week(view).sleep.map(nights => page(SleepWeekCard.render(view.from, nights, contextOf(look))))
+    ReportCards.week(view).sleep.map(nights => page(look)(SleepWeekCard.render(view.from, nights, contextOf(look))))
 
   /** IMG-23 (ROADMAP G9.4, G9.5): mood is drawn on its 1 to 5 scale, every other domain as bars from zero. */
   override def trends(view: TrendsCardView, look: CardLook): Option[CardPage] =
@@ -266,7 +273,7 @@ final class RenderedStatusCards extends StatusCards:
           case TrendDomain.Nutrition  => Domain.Food -> TrendScale.FromZero
         TrendRow(domain, row.figure, row.buckets.toVector, scale)
       val data = TrendsData(view.window.start, view.window.end, view.byWeek, rows, view.text)
-      page(TrendsCard.render(data, contextOf(look)))
+      page(look)(TrendsCard.render(data, contextOf(look)))
 
   /** IMG-07 (supervisor decision, 2026-11-27): the chat draws no name (L1), so the rows are "Item 1" onward in registry
     * order; each day holds its scheduled doses, then one as-needed glyph per log.
@@ -278,12 +285,12 @@ final class RenderedStatusCards extends StatusCards:
         .toVector
         .map((marks, logs) => marks.toVector.map(statusOf) ++ Vector.fill(logs)(DoseStatus.AsNeeded))
       MedicationRow(row.name, row.asNeeded, days)
-    MedicationStripCard.render(StripData(view.from, view.dayCount, rows), contextOf(look)).toList.map(page(_))
+    MedicationStripCard.render(StripData(view.from, view.dayCount, rows), contextOf(look)).toList.map(page(look)(_))
 
   override def moodWeekday(window: DateRange, weekdays: List[WeekdayMood], look: CardLook): Option[CardPage] =
     val rows = weekdays.toVector.map(weekday => MoodWeekdayRow(weekday.day, weekday.mean.shown, weekday.days))
     Option.when(rows.size == 7 && rows.exists(_.checkInDays > 0))(
-      page(MoodWeekdayCard.render(MoodWeekdayData(window.start, window.end, rows), contextOf(look)))
+      page(look)(MoodWeekdayCard.render(MoodWeekdayData(window.start, window.end, rows), contextOf(look)))
     )
 
 /** Stage 5 of the pipeline for the report worker (ROADMAP G4.3): lints and rasterises a page, keeps the PNG in the
@@ -335,18 +342,27 @@ object RenderedStatusCards:
     Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory())
 
   /** Stage 4: the scene as SVG of profile 1, with the card's text equivalent, file name and spoiler flag. */
-  private def page(card: CardOutput, sharedKey: Option[String] = None): CardPage =
+  private def page(look: CardLook)(card: CardOutput, sharedKey: Option[String] = None): CardPage =
     CardPage(
       card.scene.templateId,
       SvgEmitter.emit(card.scene),
       card.text.altText,
       card.fileName,
       card.hasSpoiler,
-      sharedKey
+      sharedKey,
+      Option.when(look.isDiscreet)(card.text.caption)
     )
 
   private[app] def reference(key: String, page: CardPage): AttachmentRef =
-    AttachmentRef(MediaKind.Photo, key, "image/png", page.altText, Some(page.fileName), page.hasSpoiler)
+    AttachmentRef(
+      MediaKind.Photo,
+      key,
+      "image/png",
+      page.altText,
+      Some(page.fileName),
+      page.hasSpoiler,
+      page.discreetCaption
+    )
 
   private val fitter = TextFitter(TableTextMeasurer)
 

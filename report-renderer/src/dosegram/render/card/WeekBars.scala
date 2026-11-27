@@ -164,8 +164,8 @@ object WeekBars:
     )
 
 /** IMG-20, `card.water.week.v1`: the water of the last seven days as bars against the user's own goal. The hero is the
-  * average a day from three recorded days, the count of days logged below that. Nothing suggests an amount to drink
-  * (VA-IMG-08a).
+  * average a day from three recorded days, the count of days logged below that, and "No data" for a week without one
+  * (VA-PR-03, VA-PR-04): a large 0 would read as an amount. Nothing suggests an amount to drink (VA-IMG-08a).
   */
 object WaterWeekCard:
   val TemplateId = "card.water.week.v1"
@@ -177,6 +177,7 @@ object WaterWeekCard:
     val hero =
       if recorded.size >= MinimumDaysForAverage then
         BarsHero(copy.litresAmount(recorded.map(_.volumeMl).sum / recorded.size), copy.averageADay(recorded.size))
+      else if recorded.isEmpty then BarsHero(copy.noData, copy.waterWeekNone)
       else BarsHero(recorded.size.toString, copy.daysLogged(recorded.size))
     val fact = Option.when(recorded.nonEmpty)(
       copy.goalReachedDays(dosegram.render.copy.GoalDays(recorded.count(_.isGoalReached), recorded.size))
@@ -206,6 +207,7 @@ object SleepWeekCard:
     val hero =
       if recorded.size >= MinimumNightsForAverage then
         BarsHero(copy.duration(recorded.sum / recorded.size), copy.averageOverNights(recorded.size))
+      else if recorded.isEmpty then BarsHero(copy.noData, copy.sleepWeekNone)
       else BarsHero(recorded.size.toString, copy.nightsLogged(recorded.size))
     val goal = nights.collectFirst { case SleepEvidence.Recorded(_, goal) if goal > 0 => goal }
     val bars = nights.map {

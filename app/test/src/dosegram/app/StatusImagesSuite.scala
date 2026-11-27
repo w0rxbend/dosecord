@@ -25,6 +25,8 @@ import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.FoodCardView
 import dosegram.core.ports.FoodLineView
+import dosegram.core.ports.MedicationStripRow
+import dosegram.core.ports.MedicationStripView
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.SleepCardView
@@ -300,6 +302,23 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals(rig.images.drawn.water(water, discreet).map(_.hasSpoiler), Some(true))
     val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water), None)
     assertEquals(rig.images.drawn.day(day, discreet).map(_.hasSpoiler), Some(true))
+
+  test("a card laid out in discreet mode carries its generic caption to the photo; a named one carries none (VA-PV-03)"):
+    val rig = Rig(CountingRasteriser())
+    val discreet = light.copy(isDiscreet = true)
+    val day = DayCardView(today, None, Some(List(DoseMark.Open)), Some(water), None)
+    val shown = rig.images.cards.day(day, discreet).get
+    assertEquals(shown.discreetCaption, Some("Your day so far."))
+    assertEquals(rig.images.drawing.draw(shown, None).toOption.flatMap(_.caption), Some("Your day so far."))
+    assert(shown.altText.contains("Water: 1.25 of 2.0 l."), shown.altText)
+    assertEquals(rig.images.cards.water(water, discreet).flatMap(_.discreetCaption), Some("Water today."))
+    val mood = rig.images.cards.mood(MoodCardView(pleasant, None), discreet)
+    assertEquals(mood.flatMap(_.discreetCaption), Some("Mood logged."))
+    val strip = MedicationStripView(today, 7, List(MedicationStripRow("Item 1", false, List.fill(7)(Nil), List.fill(7)(0))))
+    assertEquals(rig.images.cards.medicationStrip(strip, discreet).map(_.discreetCaption), List(Some("By medication.")))
+    val named = rig.images.cards.day(day, light).get
+    assertEquals(named.discreetCaption, None)
+    assertEquals(rig.images.drawing.draw(named, None).toOption.flatMap(_.caption), None)
 
   test("a card that cannot be drawn gives no image, and the log names the template and the failure only"):
     val failing: Rasteriser = (_, _) => Left(RasterFailure.TimedOut)

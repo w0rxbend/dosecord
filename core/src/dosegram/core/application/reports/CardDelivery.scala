@@ -26,7 +26,8 @@ final class CardDelivery(clock: Clock, ids: IdSource):
   import CardDelivery.*
 
   /** The messages to send at once: none when the pages were queued. */
-  def answer(tx: Tx, accountId: UUID, chat: ChatRef, pages: List[ReportPage]): List[OutboundMessage] =
+  def answer(tx: Tx, accountId: UUID, chat: ChatRef, laidOut: List[ReportPage]): List[OutboundMessage] =
+    val pages = laidOut.map(captioned)
     if pages.isEmpty then Nil
     else
       val now = clock.now()
@@ -59,6 +60,10 @@ object CardDelivery:
   val Window: Duration = Duration.ofHours(24)
 
   private val Clock24 = DateTimeFormatter.ofPattern("HH:mm")
+
+  /** A card laid out in discreet mode is captioned with its own generic line, not with its text (VISUALS VA-PV-03). */
+  def captioned(page: ReportPage): ReportPage =
+    page.card.discreetCaption.fold(page)(line => page.copy(message = page.message.copy(body = List(paragraph(line)))))
 
   /** The message of `page` with its image's text equivalent in place of the image, and `note` after its own lines. */
   def textEquivalent(page: ReportPage, note: Option[String]): OutboundMessage =

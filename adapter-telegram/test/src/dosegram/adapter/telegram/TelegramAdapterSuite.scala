@@ -356,6 +356,16 @@ class TelegramAdapterSuite extends munit.FunSuite:
     assertEquals(again.request.files, Nil)
     assertEquals((text.method, text.text("text")), ("sendMessage", Some("Details below.")))
 
+  test("an album page laid out in discreet mode shows its generic line under the photo, not its text (VA-PV-03)"):
+    val rig = TelegramRig().started()
+    rig.storeAsset("asset-month-1", Array[Byte](1))
+    rig.storeAsset("asset-month-2", Array[Byte](2))
+    val discreet = pages.map(_.copy(hasSpoiler = true, caption = Some("Your month.")))
+    rig.adapter.send(chat, RenderedMessage(chunks = Nil, album = discreet), "k1")
+    val media = rig.messageCalls.last.request.params("media").arr.toList
+    assertEquals(media.map(_("caption").str), List("Your month.", "Your month."))
+    assertEquals(media.map(_("has_spoiler").bool), List(true, true))
+
   test("an album whose cached ids are rejected is sent once more from its bytes"):
     val rig = TelegramRig().started()
     rig.storeAsset("asset-month-1", Array[Byte](1))
