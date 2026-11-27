@@ -413,6 +413,8 @@ stateDiagram-v2
 | BUX-ONB-06 | Every step has a way back except W, and `/cancel` ends onboarding at any step with `onb.cancelled`. |
 | BUX-ONB-07 | If the session expires, the next `/start` begins at W. A tap on the expired card yields `toast.wizard.expired` and renders W. |
 
+Supervisor decision, 2026-11-27 (new-user review, finding 7 of [the walk-through](verification/new-user-review-2026-11-27.md)): step R as built for an onboarding that chose medication is the closing message "You're all set — your account is ready. Add your first medication now?" with "Add medication" and "Today", the same screens as the menu's buttons; it replaced "Try /menu or /help", which left the first medication two commands away. An onboarding that chose another domain keeps the closing line without buttons.
+
 ### 5.4 Language
 
 | ID | Requirement |
@@ -421,6 +423,8 @@ stateDiagram-v2
 | BUX-LANG-02 | The Welcome card always offers "Language". The language can be changed later with `/language` and in `/settings`. The choice is stored and wins over `language_code` from then on. |
 | BUX-LANG-03 | First shipped locales are English and Ukrainian (research 04 open question Q10). Every key of the copy deck exists in every shipped locale; a build check fails on a missing key. |
 | BUX-LANG-04 | Command descriptions, the bot name, description and short description are registered per shipped language (section 6). |
+
+Supervisor decision, 2026-11-27 (new-user review, finding 3 of [the walk-through](verification/new-user-review-2026-11-27.md)): every wizard step reads its button labels, form title and form fields when it renders, in the reader's language. Steps built once with the flow had shown a Ukrainian reader English buttons in onboarding (domain, "I agree", "Confirm", "Yes", "Change") and in the add-medication wizard (the days and the form). The form heading shows its progress as "Додати ліки (1/2)", with no word of a language, because the first question is rendered after the handler returns, outside the reader's language; a pre-filled answer shows in brackets after the field.
 
 Supervisor decision, 2026-11-14, owner asleep (ROADMAP G2.22): (1) The language onboarding runs in is stored as the account's locale when the account is created, so prompts and reminders sent without an inbound event keep it; from then on only `/language` or the settings change it. (2) Of the client's `language_code` only the shipped locale it names is kept in the inbound inbox, never the raw tag. (3) The Ukrainian copy avoids first-person past forms, which are gendered in Ukrainian: the bot speaks impersonally ("дозу позначено як пропущену") or in the present ("Перевіряю"), and buttons are gender-neutral ("Уже прийнято" for "I took it", "Встаю" for "I'm up"). (4) Owner alerts (`ops.*`) stay English: they go to the operator, not to a user. (5) Quick capture accepts the Ukrainian words of the same grammars: "250 мл", "вода 0,5 л", "2 склянки", "настрій 4", "сон 23:30 7:10", "спала 7 год", "дрімав 20 хв", days "пн ср пт", "будні", "щодня", snooze "10 хв", "1 год", "пів години". Examples in the Ukrainian copy use only these forms. (6) A Ukrainian button label stays within 24 characters; a test checks every label of the catalogue.
 
@@ -646,6 +650,8 @@ Sleep: 7 h 10 min (your check-ins)
 | BUX-TODAY-08 | Pinning can be turned off in settings ("Pin the Today card"). |
 | BUX-TODAY-09 | Pinning must not add lasting clutter. If a pin by the bot leaves a service message in the chat that the bot cannot delete (spike SP-10), the pin setting defaults to off and the card is reached by `/today` and the menu. |
 
+Supervisor decision, 2026-11-27 (new-user review, finding 6 of [the walk-through](verification/new-user-review-2026-11-27.md)): `/today` as built is the dose list of the day. It lists every dose of the day in time order, answered and open together, and the two buttons of an open dose carry its local time ("20:00 · Taken", "20:00 · Skip"), with the medication name added when two open doses share a time. Before, the open doses came first and three open doses showed three identical "Taken" and "Skip" rows.
+
 ### 8.4 Navigation card
 
 ```
@@ -807,6 +813,8 @@ stateDiagram-v2
 | BUX-FSM-05 | The copy for "taken late" states the recorded time and the scheduled time and contains no word that judges ("late", "overdue", "failed", "forgot"). |
 | BUX-FSM-06 | A callback that is processed more than 2 minutes after the update was received, or whose receipt time falls in a recorded service outage, does not record "now" as the intake time. The card shows the correction prompt `rem.correct.prompt.delayed` so the user states the time. A callback carries no press time (research 05 section 3.1, verified), so the server time is the only clock. |
 
+Supervisor decisions, 2026-11-27 (new-user review, findings 4, 5 and 9 of [the walk-through](verification/new-user-review-2026-11-27.md)), as built: (1) Row 3: after a snooze the card is edited to the reminder text with `rem.snoozed` ("Snoozed until 13:11.") and no keyboard; the toast alone left the card unchanged with its buttons gone. The Taken and Skip of a snoozed dose stay on `/today`, so BUX-FSM-03 holds for every handle the finalize edits. (2) Rows 2 and 4: the earlier card is edited to the reminder text with `rem.superseded` ("Reminded again below.") instead of being deleted. A deleted card would leave a recorded handle that every later finalize of the occurrence edits and fails on; deleting it, and forgetting its handle, is left for a later change. (3) The repeat card carries line 3 (`rem.repeat`, "Scheduled 13:00 · reminder 2 of 3"), the card back from a snooze `rem.snooze_wake` ("Scheduled 13:00 · back after your snooze"), a first reminder sent more than 5 minutes late line 3 with its count, and the final repeat `rem.last` (BUX-REM-03, BUX-REM-06). (4) The missed notice is still its own message (the recorded M1.4a decision), but it is always silent, since the response window often ends at the start of quiet hours (BUX-FSM-04), and it carries `safety.missed` (BUX-COR-05).
+
 ### 9.6 Correction after the fact
 
 ```
@@ -941,6 +949,8 @@ When the user entered a remaining count and a threshold in the Mini App, the bot
 
 Supervisor decision, 2026-11-14, owner asleep (ROADMAP G9.10). As built, `refill.low` reads "About 6 tablets of <name> left by your count. At your current schedule that covers until about Sun 15 Nov.", adds `refill.count_off` when a deduction stopped at zero, and has "Refilled +N" (the last refill quantity, shown only once a refill was recorded), "Show card" (IMG-15 with its text equivalent as the caption, VISUALS section 10.1) and "Stop for this pack". "Remind me in 3 days" is not a button: the notice repeats every 3 days by itself (PRODUCT_SPEC R-REG-14). A first count, a new count and a refill of another quantity are entered in the Mini App. The medication list adds "Pause for..." beside "Pause" with 3, 7, 14 and 30 days (`med.pause_for`, `med.paused_until`); the schedule resumes at local midnight of the date with the silent `med.resumed_on`.
 
+Supervisor decision, 2026-11-27 (new-user review, finding 10 of [the walk-through](verification/new-user-review-2026-11-27.md)): when the medication list as built has two or more rows, each row's "Pause" or "Resume" button carries its medication's name ("Pause · Vitamin D"), cut to the label limit; "Pause for..." and "Archive" follow on the same row and open a card that names the medication. Two rows of "[Pause] [Pause for...] [Archive]" had not said which medication each answered. A list of one medication keeps the plain "Pause".
+
 ## 11. Quick capture
 
 ### 11.1 Inbound router
@@ -1013,6 +1023,8 @@ number    = digits [ ( "." / "," ) digits ]
 | BUX-WATER-06 | "Show as image" on the water card sends the hydration vessel card (IMG-08; section 13). Hydration is drawn as a vessel, not a ring, on every surface (ROADMAP conflict X-12). |
 | BUX-WATER-07 | Presets, entry bounds and goal bounds are those of PRODUCT_SPEC R-HYD-1 to R-HYD-3: up to four presets, defaults 200, 300 and 500 ml (or 8, 12 and 16 fl oz), entries of 1 to 5000 ml, a goal of 100 to 10,000 ml. The cards in this document that show "+ 250 ml" and "+ 500 ml" illustrate presets a user has edited. |
 | BUX-WATER-08 | A water nudge (ADR-023) reads "Water reminder. Water today: ..." and carries the quick-add amounts, "Snooze 1 h" and "Pause for today". A tap records, closes the nudge and edits it to "Logged 250 ml. Water today: ..." with no buttons. A new nudge deletes the previous unanswered one. The water consent is followed by the offer of the water presets, each opening a preview of its next times, and "Not now". |
+
+Supervisor decision, 2026-11-27 (new-user review, findings 1 and 8 of [the walk-through](verification/new-user-review-2026-11-27.md)): (1) A plan name is a button label, so every plan name stays within 24 characters in every shipped locale, checked by `UkrainianCatalogueSuite` with the rest of the catalogue; the Ukrainian "М’яко: 4 рази на день під час їжі" (33 characters) had made the confirming tap of the water consent fail, and the update was quarantined with no answer. The shortened Ukrainian names are "Робочий час, кожні 30 хв", "Щогодини, 08:00–21:00", "М’яко: 4 рази з їжею", "Коли відстаю від цілі" and, for meals, "Якщо їжу не записано"; the English buttons read "Every hour, 08:00–21:00", "Gentle: 4 at meal times", "3 times, 10:00–20:00" and "If a meal is not logged". The plans themselves are those of ADR-023; only their labels are shorter. (2) When an amount was typed before the water consent, the goal card `water.goal.ask` adds `water.goal.pending` ("Your 250 ml is saved as soon as you pick one."), because the amount waits for that choice and the plan offer arrives beside it.
 
 ### 11.3 Meals
 
@@ -1513,6 +1525,8 @@ Consents:
 [ Privacy notice ]  [ Open privacy in app ]
 [ Back ]            [ Menu ]
 ```
+
+Supervisor decision, 2026-11-27 (new-user review, finding 2 of [the walk-through](verification/new-user-review-2026-11-27.md)): a "Withdraw" button names its domain in one word ("Withdraw: images", "Відкликати: зображення"; medication, water, mood, sleep, meals, comparisons, images, imports), and the consent line above it keeps the full name. "Withdraw: comparisons across domains" (36 characters) and "Відкликати: зображення в цьому чаті" (35) were longer than a label may be, so `/privacy` failed with no answer for every account holding that consent.
 
 ### 20.2 Export
 

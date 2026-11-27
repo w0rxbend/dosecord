@@ -71,7 +71,8 @@ private[capture] final class WaterChat(
   def askGoal(turn: Turn, pendingMl: Int): Reply =
     val examples = GoalExamplesMl.map(goal => goalButton(turn, WaterCopy.goalChoice(goal), goal, pendingMl))
     val none = goalButton(turn, WaterCopy.NoGoal, NoGoalValue, pendingMl)
-    turn.show(turn.message("water.goal", List(WaterCopy.goalAsk), List(examples, List(none))))
+    val pending = Option.when(pendingMl > 0)(WaterCopy.goalPending(pendingMl)).toList
+    turn.show(turn.message("water.goal", WaterCopy.goalAsk :: pending, List(examples, List(none))))
 
   /** A tap on the goal card: the goal is set from today on, then the pending amount is recorded or the card shown. */
   def setGoal(turn: Turn, value: Long): Reply =

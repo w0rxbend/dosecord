@@ -158,7 +158,16 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
           "wizard.change_days" -> WizardCopy.changeDays,
           "wizard.change_timezone" -> WizardCopy.changeTimezoneLabel
         ) ++ MenuCopy.topLevel.map("menu.main" -> _) ++
+        // The withdraw buttons of /privacy and the plans of the water offer and /reminders (walk-through of
+        // 2026-11-27: a withdraw label was 35 and a plan 33, and each failed its card).
+        dosegram.core.ports.ConsentPurpose.values.toList.map(p => s"privacy.${p.id}.withdraw" -> ConsentCopy.withdrawLabel(p)) ++
+        dosegram.core.domain.reminders.PromptPresets.all.map(p => s"prompt.preset.${p.id}" -> PromptCopy.presetName(p.id)) ++
         dosegram.core.domain.nutrition.MealType.values.toList.map(meal => "food.button" -> FoodCopy.label(meal))
     val tooLong = labels.collect { case (id, label) if label.length > 24 => s"$id: '$label' (${label.length})" }
     assertEquals(tooLong, Nil)
+  test("the withdraw buttons and the plan names fit 24 characters in English too"):
+    val labels = Lang.within(Lang.En):
+      dosegram.core.ports.ConsentPurpose.values.toList.map(ConsentCopy.withdrawLabel) ++
+        dosegram.core.domain.reminders.PromptPresets.all.map(p => PromptCopy.presetName(p.id))
+    assertEquals(labels.filter(_.length > 24), Nil)
 end UkrainianCatalogueSuite

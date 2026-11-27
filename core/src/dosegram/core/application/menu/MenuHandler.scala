@@ -340,16 +340,20 @@ final class MenuHandler(
        else rows.map((medication, schedule) => paragraph(medicationLine(tx, medication, schedule))))
     val toggles = rows.map: (medication, schedule) =>
       val paused = schedule.status == ScheduleStatus.Paused
+      // With two or more rows the toggle names its medication, so the rows are not identical (walk-through of
+      // 2026-11-27); a single row needs no name.
+      def named(label: String): String =
+        if rows.sizeIs > 1 then ControlLimits.fitLabel(MenuCopy.forMedication(label, medication.name)) else label
       val toggle =
         if paused then
           Choice.callback(
-            MenuCopy.medicationsResume,
+            named(MenuCopy.medicationsResume),
             mint(chat, accountId, MenuOpenAction, KeyResumePrefix + medication.id, tx).wire,
             ChoiceStyle.Primary
           )
         else
           Choice.callback(
-            MenuCopy.medicationsPause,
+            named(MenuCopy.medicationsPause),
             mint(chat, accountId, MenuOpenAction, KeyPausePrefix + medication.id, tx).wire
           )
       // R-REG-5: a pause that ends on its own, offered next to the open-ended one (ROADMAP G9.12).
@@ -434,17 +438,23 @@ final class MenuHandler(
     val body = List(paragraph(MenuCopy.medicationsTodaysDoses)) ++
       (if doseRows.isEmpty && logRows.isEmpty && resolved.isEmpty then List(paragraph(MenuCopy.todayEmpty))
        else Nil) ++
-      doseRows.map(doseLine) ++
+      // One list in the order of the day: what is answered and what is open read as one timeline.
+      (doseRows ++ resolved).sortBy(_.scheduledFor).map(doseLine) ++
       logRows.map(medication => paragraph(MenuCopy.asNeededRow(medication.name))) ++
-      resolved.sortBy(_.scheduledFor).map(doseLine) ++
       (if hidden > 0 then List(paragraph(MenuCopy.todayMore(hidden))) else Nil)
+    val shared = doseRows.groupBy(timeOf).collect { case (time, occs) if occs.size > 1 => time }.toSet
     val doseBlocks = doseRows.map: occ =>
+      val key = if shared(timeOf(occ)) then s"${timeOf(occ)} ${nameOf(occ)}" else timeOf(occ)
       Block.Choices(
         ChoiceSet(
           id = s"today.dose.${occ.id}",
           choices = List(
-            Choice.callback(Labels.Taken, directToken("dose.taken", occ.id), ChoiceStyle.Success),
-            Choice.callback(Labels.Skip, directToken("dose.skip", occ.id))
+            Choice.callback(
+              ControlLimits.fitLabel(MenuCopy.todayTaken(key)),
+              directToken("dose.taken", occ.id),
+              ChoiceStyle.Success
+            ),
+            Choice.callback(ControlLimits.fitLabel(MenuCopy.todaySkip(key)), directToken("dose.skip", occ.id))
           )
         )
       )
@@ -483,8 +493,13 @@ final class MenuHandler(
     val title = snapshot
       .map(s => doseTitle(s.medicationName, s.doseAmount, s.doseUnit))
       .getOrElse(MenuCopy.yourDose)
-    val time = occ.localTime.map(t => f"${t.getHour}%02d:${t.getMinute}%02d").getOrElse("")
-    paragraph(s"$time $title — ${statusText(occ)}")
+    paragraph(s"${timeOf(occ)} $title — ${statusText(occ)}")
+
+  private def timeOf(occ: StoredOccurrence): String =
+    occ.localTime.map(t => f"${t.getHour}%02d:${t.getMinute}%02d").getOrElse("")
+
+  private def nameOf(occ: StoredOccurrence): String =
+    occ.doseSnapshot.map(_.medicationName).getOrElse(MenuCopy.yourDose)
 
   private def statusText(occ: StoredOccurrence): String =
     val tz = occ.tz

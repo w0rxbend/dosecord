@@ -153,14 +153,14 @@ class MenuSuite extends munit.FunSuite:
       assert(today.exists(_.contains("Vitamin C — as needed")), s"the as-needed row: $today")
 
       // The dose row's buttons are direct tokens on the occurrence, handled by the M1.10 intake handler.
-      val takenWire = rig.lastChoiceMap("Today's doses").find(_.label == "Taken").map(_.callback).get
+      val takenWire = rig.lastChoiceMap("Today's doses").find(_.label == "09:00 · Taken").map(_.callback).get
       val payload = MedicationWizardRig.codec.decode(takenWire).toOption.get
       assertEquals(payload.action.name, "dose.taken")
       assertEquals(payload.mode, CallbackMode.Direct)
       val occurrenceId = rig.uow.occurrences.all.head.id
       assertEquals(payload.subject, occurrenceId)
       val skipPayload = MedicationWizardRig.codec
-        .decode(rig.lastChoiceMap("Today's doses").find(_.label == "Skip").map(_.callback).get).toOption.get
+        .decode(rig.lastChoiceMap("Today's doses").find(_.label == "09:00 · Skip").map(_.callback).get).toOption.get
       assertEquals(skipPayload.action.name, "dose.skip")
 
       // The tap records: taken, exactly one intake_taken.v1, one action row carrying the inbound event's
@@ -189,6 +189,22 @@ class MenuSuite extends munit.FunSuite:
       val manual = rig.uow.occurrences.all.filter(_.origin == OccurrenceOrigin.Manual)
       assertEquals(manual.map(_.status), List(OccurrenceStatus.Taken))
       assertEquals(manual.map(_.medicationId), List(rig.uow.medications.all.find(_.name == "Vitamin C").get.id))
+
+  test("/today lists the day in time order and names each open dose's buttons by its time"):
+    // Walk-through of 2026-11-27: the open 20:00 dose came before the answered 09:00 one, under three identical rows.
+    withRig: rig =>
+      val account = rig.seedAccount()
+      rig.seedSchedule(account, "Vitamin D", dailyAt("09:00", "20:00"), kyiv, dose = (Some(BigDecimal(1000)), Some("IU")))
+      rig.line("/today")
+      val takenWire = rig.lastChoiceMap("Today's doses").find(_.label == "09:00 · Taken").map(_.callback).get
+      rig.tapWithHandle(takenWire)
+      val today = rig.line("/today").mkString("\n")
+      val (morning, evening) = (today.indexOf("09:00 Vitamin D"), today.indexOf("20:00 Vitamin D"))
+      assert(morning >= 0 && morning < evening, today)
+      assertEquals(
+        rig.lastChoiceMap("Today's doses").map(_.label).filter(_.contains("·")),
+        List("20:00 · Taken", "20:00 · Skip")
+      )
 
   test("/today caps at 8 rows with a pointer to /history"):
     withRig: rig =>
@@ -280,6 +296,18 @@ class MenuSuite extends munit.FunSuite:
       val labels = rig.lastChoiceMap("Medications").map(_.label)
       assert(labels.contains("Add medication"), labels.toString)
       assert(labels.contains("Pause"), labels.toString)
+
+  test("/meds with two medications names each row's toggle by its medication"):
+    // Walk-through of 2026-11-27: two identical "[Pause] [Pause for...] [Archive]" rows did not say which was which.
+    withRig: rig =>
+      val account = rig.seedAccount()
+      rig.seedSchedule(account, "Vitamin D", dailyAt("09:00"), kyiv)
+      rig.seedSchedule(account, "Magnesium", dailyAt("13:00"), kyiv)
+      rig.line("/meds")
+      val labels = rig.lastChoiceMap("Medications").map(_.label)
+      assert(labels.contains("Pause · Vitamin D"), labels.toString)
+      assert(labels.contains("Pause · Magnesium"), labels.toString)
+      assert(!labels.contains("Pause"), labels.toString)
 
   test("/meds before an account exists asks to create one and shows nothing"):
     withRig: rig =>

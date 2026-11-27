@@ -265,7 +265,8 @@ class CaptureLaunchSuite extends PgSuite:
 
       val List(receipt, goalAsk, offer) = bot.tap(stageTwo, ConsentCopy.Confirm, expected = 3): @unchecked
       assertEquals(bot.body(receipt), ConsentCopy.receipt(ConsentPurpose.Hydration, "21 Sep 2026"))
-      assertEquals(bot.body(goalAsk), WaterCopy.goalAsk)
+      // The typed amount waits for the goal, and the card says so (walk-through of 2026-11-27).
+      assertEquals(bot.body(goalAsk), s"${WaterCopy.goalAsk}\n\n${WaterCopy.goalPending(250)}")
       assertEquals(bot.body(offer), PromptCopy.offerWater, "the water prompts are offered after the consent (ADR-023)")
       assertEquals(strings("SELECT purpose || ':' || action FROM consent_events"), List("hydration:granted"))
       assertEquals(strings("SELECT octet_length(notice_hash)::text FROM consent_events"), List("32"))

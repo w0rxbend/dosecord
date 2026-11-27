@@ -42,7 +42,9 @@ It is 03:00 in Europe/Kyiv now. Correct?
 3) Back 4) Cancel
 > 1
 Consent recorded on 21 Sep 2026: medication records. Privacy notice version 2. Withdraw at any time with /privacy.
-You're all set — your account is ready. Try /menu or /help.
+You're all set — your account is ready. Add your first medication now?
+
+1) Add medication 2) Today
 > /menu
 What would you like to do?
 
@@ -60,11 +62,11 @@ Let's add a medication.
 
 Reply Back to go back or Cancel to stop.
 
-Add medication — question 1 of 2:
+Add medication (1/2)
 
 Name (e.g. Vitamin D)
 > Vitamin D
-Add medication — question 2 of 2:
+Add medication (2/2)
 
 Dose (e.g. 1000 IU)
 > 1000 IU

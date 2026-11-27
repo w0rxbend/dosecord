@@ -135,7 +135,7 @@ class RendererSuite extends munit.FunSuite:
       assertEquals(report.rungs("medication.add"), Renderer.Rung.FormRunner, name)
       val message = sends(ops).head.message
       assertEquals(message.form.map(_.fields.map(_.key)), Some(List("name", "dose")), name)
-      assert(message.chunks.head.contains("Add medication — question 1 of 2:"), message.chunks.head)
+      assert(message.chunks.head.contains("Add medication (1/2)"), message.chunks.head)
     }
 
   test("finalize ladder: edit in place, else replace and delete, else replace only"):

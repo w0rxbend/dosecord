@@ -11,6 +11,7 @@ import dosegram.core.application.identity.AccountCreateFlow
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
 import dosegram.core.application.medication.MedicationDepthChat
+import dosegram.core.application.menu.MenuButtons
 import dosegram.core.application.menu.MenuHandler
 import dosegram.core.application.privacy.DeletionRequests
 import dosegram.core.application.privacy.Deletions
@@ -42,9 +43,11 @@ import java.util.UUID
   */
 object Application:
 
-  def flows(clock: Clock, lifecycle: ScheduleLifecycle): Map[String, Flow] =
+  def flows(clock: Clock, lifecycle: ScheduleLifecycle, codec: CallbackCodec): Map[String, Flow] =
+    val menu = MenuButtons(codec)
     Map(
-      AccountCreateFlow.Id -> AccountCreateFlow.flow(clock),
+      AccountCreateFlow.Id -> AccountCreateFlow
+        .flow(clock, (tx, chat, account) => List(menu.firstMedication(tx, chat, account))),
       AddMedicationFlow.Id -> AddMedicationFlow.flow(clock, lifecycle),
       AccountTimezoneFlow.Id -> AccountTimezoneFlow.flow(clock, lifecycle)
     )
@@ -74,7 +77,7 @@ object Application:
     // the user's own limit, ahead of the dose handler that records the log.
     val depth = MedicationDepthChat(codec, clock, lifecycle, capture, inner = dose)
     val engine = WizardEngine(
-      flows = flows(clock, lifecycle),
+      flows = flows(clock, lifecycle, codec),
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,

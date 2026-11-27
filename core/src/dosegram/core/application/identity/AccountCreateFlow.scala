@@ -18,9 +18,11 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentNotice
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ConsentTaps
+import dosegram.core.ports.Tx
 
 import java.time.Instant
 import java.time.ZoneId
+import java.util.UUID
 
 /** The account-create flow (ROADMAP M0.12d and the consent part of G2.8; BOT_UX section 5.3): `ConversationStarted` /
   * `/start` run it. The notice card names what is stored and offers the domains; the two consent stages follow for the
@@ -93,11 +95,14 @@ object AccountCreateFlow:
 
   private def paragraph(text: String): Node = Node.Paragraph(List(Inline.Text(text)))
 
-  def flow(clock: Clock): Flow = Flow(
+  /** The buttons under the closing line of an onboarding with medication (BOT_UX step R), in the new account's chat. */
+  type ReadyControls = (Tx, ChatRef, UUID) => List[Block]
+
+  def flow(clock: Clock, readyControls: ReadyControls = (_, _, _) => Nil): Flow = Flow(
     id = Id,
     firstStep = "notice",
     steps = consentSteps(clock) ++ timezonePickerSteps(clock, intro = Nil),
-    onComplete = (data, ctx) => complete(data, ctx)
+    onComplete = (data, ctx) => complete(data, ctx, readyControls)
   )
 
   private def purposeOf(data: Map[String, String]): ConsentPurpose =
@@ -191,7 +196,7 @@ object AccountCreateFlow:
     )
   )
 
-  private def complete(data: Map[String, String], ctx: FlowContext): Reply =
+  private def complete(data: Map[String, String], ctx: FlowContext, readyControls: ReadyControls): Reply =
     ctx.principal.accountId match
       // Defensive: the identity gate refuses a second create before a session starts.
       case Some(_) =>
@@ -210,10 +215,16 @@ object AccountCreateFlow:
         ctx.tx.accounts.saveSettings(accountId.uuid, settings, taps.confirmedAt)
         ctx.tx.consents.grant(accountId.uuid, purpose, notice, taps)
         val date = ConsentCopy.dateOf(taps.confirmedAt, ZoneId.of(data(TimezoneKey)))
+        val done = outbound(IdentityCopy.accountCreated, s"account.create:done:${ctx.event.eventId.uuid}", ctx)
+        val controls =
+          if purpose == ConsentPurpose.Medication then readyControls(ctx.tx, ctx.event.chat, accountId.uuid) else Nil
+        val ready =
+          if controls.isEmpty then done
+          else done.copy(body = List(paragraph(IdentityCopy.accountReadyMedication)), blocks = controls)
         Reply(
           followUps = List(
             outbound(ConsentCopy.receipt(purpose, date), s"account.create:receipt:${ctx.event.eventId.uuid}", ctx),
-            outbound(IdentityCopy.accountCreated, s"account.create:done:${ctx.event.eventId.uuid}", ctx)
+            ready
           ),
           domainEvents = List(Event.AccountCreated(accountId, ctx.principal.identityId, ctx.event.vendor))
         )

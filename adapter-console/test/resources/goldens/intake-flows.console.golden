@@ -32,11 +32,15 @@ with breakfast
 1) Undo 2) Correct
 [#11] I did not get a response for Vitamin D at 08:30, so I marked it missed.
 
+If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions.
+
 1) I took it 2) Skip 3) Keep missed
 > #11 2
 [#12] Marked skipped.
 [#13] Marked skipped.
 [#14] I did not get a response for Vitamin D at 08:45, so I marked it missed.
+
+If you are unsure whether to take a late or missed dose, follow your clinician/pharmacist instructions.
 
 1) I took it 2) Skip 3) Keep missed
 > #14 3
@@ -46,6 +50,8 @@ with breakfast
 
 with breakfast
 
+Scheduled 08:50 · reminder 1 of 3
+
 1) Taken 2) Snooze 10m 3) Skip
 
 4) Snooze 30m 5) Snooze 1h
@@ -54,6 +60,8 @@ with breakfast
 [#19] Time for Vitamin D, 1000 IU.
 
 with breakfast
+
+Snoozed until 09:35.
 > /log vitamin d
 [#20] Recorded at 09:25.
 > /history

@@ -6,11 +6,11 @@ report:
   warnings: -
 op 1: SEND chat=telegram:dm:owner sendKey=form:1 replyTo=-
   flags silent=false suppressPreview=false deleteAfter=-
-  chunk 1 (81 chars):
+  chunk 1 (68 chars):
   ---
   Let's add a medication.
 
-  Add medication — question 1 of 2:
+  Add medication (1/2)
 
   Name (e.g. Vitamin D)
   ---
