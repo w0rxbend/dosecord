@@ -25,6 +25,7 @@ import dosegram.core.domain.hydration.HydrationBounds
 import dosegram.core.domain.hydration.WaterAmount
 import dosegram.core.domain.hydration.WaterText
 import dosegram.core.domain.hydration.WaterTextParser
+import dosegram.core.domain.insights.CompareSelection
 import dosegram.core.domain.insights.StatsPeriod
 import dosegram.core.domain.insights.TrendPeriod
 import dosegram.core.domain.mood.Valence
@@ -63,6 +64,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
   private val sleep = SleepChat(parts.sleep, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val months = MonthAndInsightsChat(parts, clock, tokens)
   private val years = YearChat(parts, clock, tokens)
+  private val compares = CompareChat(parts, clock, tokens)
   private val food = FoodChat(parts.nutrition, parts.cards, parts.delivery, clock, tokens, parts.appOpens)
   private val imports = ImportChat(tokens)
   private val meds = MedsChat(parts, clock, tokens)
@@ -113,6 +115,8 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(months.month(turn, months.currentIndex(turn)))
     else if argument == YearChat.Argument then
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(years.year(turn, years.currentYear(turn)))
+    else if CompareChat.Arguments(argument) then
+      consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(compares.compare(turn, CompareSelection.Weeks))
     else if argument == StatsChat.TrendsArgument then
       consent.guarded(turn, ConsentPurpose.Medication, Pending.Stats)(stats.trends(turn, TrendPeriod.Month))
     else if argument == MedsChat.Argument then
@@ -250,6 +254,14 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsYear      => years.year(turn, value.toInt)
       case CaptureActions.StatsYearImage =>
         imageOf(turn, Pending.YearImage(value.toInt))(years.yearImage(turn, value.toInt))
+      case CaptureActions.StatsCompare      => compares.show(turn, value)
+      case CaptureActions.StatsComparePick  => compares.pick(turn, value)
+      case CaptureActions.StatsCompareImage =>
+        CompareSelection
+          .of(value)
+          .fold(stale(turn))(selection =>
+            imageOf(turn, Pending.CompareImage(selection.code))(compares.image(turn, selection))
+          )
       case CaptureActions.PrivacyOpen     => consent.privacy(turn)
       case CaptureActions.InsightsShow    => months.insights(turn)
       case CaptureActions.InsightsImage   => imageOf(turn, Pending.Insights(image = true))(months.insightImage(turn))
@@ -303,16 +315,18 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.MoodHistoryImage      => moodShown(fresh)(mood.historyImage(fresh))
       case Pending.MoodStickers          => mood.stickers(fresh)
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
-      case Pending.WaterImage            => water.image(fresh)
-      case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
-      case Pending.WeekImage             => stats.weekImage(fresh)
-      case Pending.WaterWeekImage        => stats.waterWeekImage(fresh)
-      case Pending.SleepWeekImage        => stats.sleepWeekImage(fresh)
-      case Pending.MoodWeekdayImage      => stats.moodWeekdayImage(fresh)
-      case Pending.TrendsImage(days)     => trendsImage(fresh, days.toLong)
-      case Pending.Medication(screen)    => openMedication(fresh, screen)
-      case Pending.SleepCard             => sleep.card(fresh)
-      case Pending.SleepTyped            =>
+      case Pending.CompareImage(code)    =>
+        CompareSelection.of(code.toLong).fold(stale(turn))(compares.image(fresh, _))
+      case Pending.WaterImage         => water.image(fresh)
+      case Pending.DayImage           => stats.dayImage(fresh, dosesToday(fresh))
+      case Pending.WeekImage          => stats.weekImage(fresh)
+      case Pending.WaterWeekImage     => stats.waterWeekImage(fresh)
+      case Pending.SleepWeekImage     => stats.sleepWeekImage(fresh)
+      case Pending.MoodWeekdayImage   => stats.moodWeekdayImage(fresh)
+      case Pending.TrendsImage(days)  => trendsImage(fresh, days.toLong)
+      case Pending.Medication(screen) => openMedication(fresh, screen)
+      case Pending.SleepCard          => sleep.card(fresh)
+      case Pending.SleepTyped         =>
         turn.tx.tracking.sleep
           .takeHeld(turn.accountId, clock.now())
           .fold(sleep.card(fresh))(sleep.recordTyped(fresh, _))

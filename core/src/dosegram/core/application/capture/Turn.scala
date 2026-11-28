@@ -130,6 +130,9 @@ private[capture] object CaptureActions:
   val MoodHistoryImage: ActionEntry = named("mood.history_image")
   val StatsYear: ActionEntry = named("stats.year")
   val StatsYearImage: ActionEntry = named("stats.year_image")
+  val StatsCompare: ActionEntry = named("stats.compare")
+  val StatsCompareImage: ActionEntry = named("stats.compare_image")
+  val StatsComparePick: ActionEntry = named("stats.compare_pick")
   // "Privacy" on the settings card of /settings opens the /privacy card in its place (BOT_UX section 17).
   val PrivacyOpen: ActionEntry = named("settings.privacy")
 
@@ -179,6 +182,9 @@ private[capture] object CaptureActions:
     MoodHistoryImage,
     StatsYear,
     StatsYearImage,
+    StatsCompare,
+    StatsCompareImage,
+    StatsComparePick,
     PrivacyOpen
   )
 

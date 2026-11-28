@@ -183,6 +183,18 @@ object Endpoints:
       .name("getInsightYear")
       .description("One calendar year as /stats year shows it: one area per domain whose consent is active, by month.")
 
+  val insightCompare =
+    secured.get
+      .in("insights" / "compare")
+      .in(query[Option[String]]("period").description("weeks (the default), months, or pair with first and second"))
+      .in(query[Option[String]]("first").description("YYYY-MM, one month of a pair"))
+      .in(query[Option[String]]("second").description("YYYY-MM, the other month of a pair"))
+      .out(jsonBody[InsightCompare])
+      .name("getInsightCompare")
+      .description(
+        "Two periods side by side as /stats compare shows them: one area per domain whose consent is active."
+      )
+
   val insightCorrelations =
     secured.get
       .in("insights" / "correlations")
@@ -542,6 +554,7 @@ object Endpoints:
     insightMonth,
     insightCorrelations,
     insightYear,
+    insightCompare,
     getReminders,
     listReminderPresets,
     createReminderPlan,

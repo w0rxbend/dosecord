@@ -13,6 +13,7 @@ import dosegram.core.domain.OccurrenceStatus
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
+import dosegram.core.domain.copy.CompareCopy
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ExportCopy
@@ -25,6 +26,7 @@ import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.SleepCopy
 import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.StatsCardCopy
+import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.nutrition.MealType
@@ -51,6 +53,8 @@ import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.YearCopy
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardDrawing
+import dosegram.core.ports.CompareCardCell
+import dosegram.core.ports.CompareCardView
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
@@ -138,6 +142,11 @@ class CaptureFlowsSuite extends munit.FunSuite:
       if poster then image("month-poster") else None
 
     val years: mutable.ListBuffer[YearFigures] = mutable.ListBuffer.empty
+    val compares: mutable.ListBuffer[CompareCardView] = mutable.ListBuffer.empty
+
+    override def compare(view: CompareCardView, look: CardLook): Option[CardPage] =
+      compares += view
+      Some(CardPage("compare", "<svg id='compare'/>", view.text.take(1024), "compare.png", hasSpoiler = false))
 
     override def year(view: YearFigures, look: CardLook): Option[CardPage] =
       years += view
@@ -1048,6 +1057,86 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(photos.flatMap(_.chunks), List("alt of year"))
       assertEquals(cards.years.map(view => (view.year, view.recorded.keySet)).toList, List(2026 -> Set(TrendDomain.Medication, TrendDomain.Hydration)))
 
+  // ---------- Two periods compared (supervisor decision, 2026-11-28) ----------
+
+  test("/stats compare puts last week beside this week, with the gate and the difference in words"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      // 21 September 2026, the rig's day, is a Monday: last week is 14 to 20 September, this week the one day.
+      waterOn(chat, 1 to 7, _ => 1500)
+      val compared = chat.rig.line("/stats compare").head.split("\n\n").toList
+      assertEquals(
+        compared,
+        List(
+          "Compare two periods · Europe/Kyiv",
+          "Last week, 14 Sep to 20 Sep: days with records 7 of 7",
+          "This week, 21 Sep: days with records 0 of 1",
+          CompareCopy.gateNote(dosegram.core.domain.insights.MinimumSample.WeeklyMeanDays),
+          CompareCopy.differenceNote,
+          "Doses taken of those answered: Last week — · This week —",
+          "Water, a day with records: Last week 1.5 l (7 days) · This week —",
+          StatsCopy.NotACause
+        )
+      )
+      assertEquals(
+        chat.rig.lastChoiceMap("Compare two periods").map(_.label),
+        List("This week", "This month", "Pick two months", "Show as image")
+      )
+
+  test("This month compares the month so far with the whole month before; the picker compares two months"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      // August has 14 days of water from the 1st, so its month passes the gate; July has 20 days.
+      waterOn(chat, 37 to 51, _ => 2000)
+      waterOn(chat, 60 to 79, _ => 1500)
+      chat.rig.line("/stats compare")
+      val months = texts(chat.rig.tapOn("Compare two periods", "This month")).head.split("\n\n").toList
+      assert(months.contains("Last month, 1 Aug to 31 Aug: days with records 15 of 31"), months)
+      assert(months.contains("Water, a day with records: Last month 2.0 l (15 days) · This month —"), months)
+      val first = chat.rig.tapOn("Compare two periods", "Pick two months")
+      assertEquals(texts(first), List(CompareCopy.pickFirst))
+      assertEquals(labels(first).take(4), List("Sep 2026", "Aug 2026", "Jul 2026", "Jun 2026"))
+      val second = chat.rig.tapOn(CompareCopy.pickFirst, "Jul 2026")
+      assertEquals(texts(second), List("First month: Jul 2026. Pick the second month."))
+      assert(!labels(second).contains("Jul 2026"), labels(second))
+      val pair = texts(chat.rig.tapOn("First month: Jul 2026", "Aug 2026")).head.split("\n\n").toList
+      assert(pair.contains("Jul 2026, 1 Jul to 31 Jul: days with records 20 of 31"), pair)
+      assert(
+        pair.contains("Water, a day with records: Jul 2026 1.5 l (20 days) · Aug 2026 2.0 l (15 days) · 0.5 l higher"),
+        pair
+      )
+
+  test("Show as image on the comparison asks the images consent, then sends IMG-27 captioned with its text"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      waterOn(chat, 1 to 7, _ => 1500)
+      chat.rig.line("/stats compare")
+      assertEquals(
+        texts(chat.rig.tapOn("Compare two periods", "Show as image")),
+        List(ConsentCopy.statement(ConsentPurpose.ImagesInChat))
+      )
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      val photos = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("compare")))
+      val view = cards.compares.head
+      assertEquals((view.earlier.label, view.later.label), ("Last week", "This week"))
+      assertEquals(view.rows.map(_.domain), List(TrendDomain.Medication, TrendDomain.Hydration))
+      assertEquals(view.rows(1).earlier, CompareCardCell(Some("1.5 l"), Some(1500.0), "7 days"))
+      assertEquals(view.rows(1).later, CompareCardCell(None, None, "0 days"))
+      assertEquals(photos.flatMap(_.chunks), List(view.text))
+
+  test("/stats compare with nothing recorded says so and offers no image"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      val compared = chat.rig.line("/stats compare").head.split("\n\n").toList
+      assertEquals(compared.last, CompareCopy.none)
+      assertEquals(
+        chat.rig.lastChoiceMap("Compare two periods").map(_.label),
+        List("This week", "This month", "Pick two months")
+      )
+
   test("/insights without the cross-domain consent runs no comparison and offers it; the consent turns it on"):
     val cards = RecordingCards()
     withChat(Profile.Telegram, cards): chat =>
@@ -1088,7 +1177,10 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.grant(ConsentPurpose.Medication)
       assertEquals(
         chat.rig.line("/stats decade"),
-        List("Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year or /stats meds.")
+        List(
+          "Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare or " +
+            "/stats meds."
+        )
       )
 
   // ---------- Ownership, help, console ----------
@@ -1354,7 +1446,7 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assert(!month.contains("Medication:"), "a domain without a record in the period is left out")
       assertEquals(
         chat.rig.lastChoiceMap("Trends · last 30 days").map(_.label),
-        List("30 days", "90 days", StatsCardCopy.ShowAsImage, "Month", "Patterns", StatsCardCopy.ByMedication)
+        List("30 days", "90 days", StatsCardCopy.ShowAsImage, CompareCopy.ComparePeriods, "Month", "Patterns", StatsCardCopy.ByMedication)
       )
 
       val quarter = texts(chat.rig.tapOn("Trends · last 30 days", "90 days")).mkString("\n")

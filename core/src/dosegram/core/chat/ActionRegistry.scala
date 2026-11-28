@@ -166,7 +166,13 @@ object ActionRegistry:
     // The morning summary's time on the /settings card (images track, 564 to 583; supervisor decision, 2026-11-28):
     // `settings.summary_set` carries the minute of the day, or 1440 to turn the summary off.
     ActionEntry(564, "settings.summary_pick", requiresSession = false),
-    ActionEntry(565, "settings.summary_set", requiresSession = false)
+    ActionEntry(565, "settings.summary_set", requiresSession = false),
+    // Two periods compared (compare track, 576 to 595; supervisor decision, 2026-11-28): /stats compare, direct mode on
+    // the account, the value the selection's code (1 this week, 2 this month, from 1024 two months); its card (VISUALS
+    // IMG-27) with the same value; the month picker, value 0 for the first month, else the first month's index.
+    ActionEntry(576, "stats.compare", requiresSession = false),
+    ActionEntry(577, "stats.compare_image", requiresSession = false),
+    ActionEntry(578, "stats.compare_pick", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

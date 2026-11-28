@@ -332,7 +332,11 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         532 -> "settings.timezone",
         533 -> "settings.privacy",
         564 -> "settings.summary_pick",
-        565 -> "settings.summary_set"
+        565 -> "settings.summary_set",
+        // Two periods compared (supervisor decision, 2026-11-28).
+        576 -> "stats.compare",
+        577 -> "stats.compare_image",
+        578 -> "stats.compare_pick"
       )
     )
 

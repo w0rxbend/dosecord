@@ -42,6 +42,10 @@ test('no serious accessibility finding on any screen, in the light and the dark 
       await page.getByRole('group', { name: 'Period' }).getByLabel('Year').check();
       await expect(page.getByRole('region', { name: 'Year' })).toBeVisible();
       found.push(...(await findings(page, `${scheme} ${name}-year`)));
+      // The Compare tab (supervisor decision, 2026-11-28): the same, one more read.
+      await page.getByRole('group', { name: 'Period' }).getByLabel('Compare').check();
+      await expect(page.getByRole('region', { name: 'Compare' })).toBeVisible();
+      found.push(...(await findings(page, `${scheme} ${name}-compare`)));
     }
   }
   expect(found).toEqual([]);

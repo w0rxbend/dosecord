@@ -139,6 +139,14 @@ test('log water from the deep link: the amount is recorded, shown, and counted i
     'aria-valuetext',
     /: [1-7] of [1-7] days with a record$/,
   );
+  // The Compare tab (supervisor decision, 2026-11-28): last week and this week of /stats compare from the real
+  // backend, as a table per area; this week holds the water just added.
+  const compare = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/compare'));
+  await page.getByRole('group', { name: 'Period' }).getByLabel('Compare').check();
+  expect((await compare).status()).toBe(200);
+  const both = page.getByRole('table', { name: 'Both periods by area' });
+  await expect(both.getByRole('rowheader', { name: 'Water, a day with records' })).toBeVisible();
+  await expect(both.getByRole('columnheader', { name: 'This week' })).toBeVisible();
   const week = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/overview?range=7'));
   await page.getByLabel('7 days').check();
   expect((await week).status()).toBe(200);

@@ -48,5 +48,6 @@ object Copy:
       ShareCopy.entries ++
       YearCopy.entries ++
       WhatsNewCopy.entries ++
-      StickerCopy.entries
+      StickerCopy.entries ++
+      CompareCopy.entries
 end Copy

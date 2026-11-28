@@ -1,0 +1,25 @@
+file: dosegram-compare.png
+spoiler: true
+caption: Two periods compared.
+alt: Compare two periods · Europe/Kyiv
+Sep 2026, 1 Sep to 30 Sep: days with records 30 of 30
+Oct 2026, 1 Oct to 31 Oct: days with records 29 of 31
+A month shows its figure once it has records on 14 days; fewer show those days.
+Each difference is the second period against the first.
+Doses taken of those answered: Sep 2026 88% (30 days) · Oct 2026 94% (29 days) · 6 percentage points higher
+Water, a day with records: Sep 2026 1.9 l (26 days) · Oct 2026 1.6 l (24 days) · 0.3 l lower
+Mood, average of the days with a check-in: Sep 2026 3.2 (neutral) (18 days) · Oct 2026 3.6 (pleasant) (22 days) · 0.4 levels higher
+Sleep, a night with records: Sep 2026 7 h 20 min (27 nights) · Oct 2026 6 h 55 min (25 nights) · 25 min shorter
+Main meals logged, a day with a meal: Sep 2026 records on 9 days · Oct 2026 2.1 (16 days)
+This compares your own days. It does not show a cause.
+full: Compare two periods · Europe/Kyiv
+Sep 2026, 1 Sep to 30 Sep: days with records 30 of 30
+Oct 2026, 1 Oct to 31 Oct: days with records 29 of 31
+A month shows its figure once it has records on 14 days; fewer show those days.
+Each difference is the second period against the first.
+Doses taken of those answered: Sep 2026 88% (30 days) · Oct 2026 94% (29 days) · 6 percentage points higher
+Water, a day with records: Sep 2026 1.9 l (26 days) · Oct 2026 1.6 l (24 days) · 0.3 l lower
+Mood, average of the days with a check-in: Sep 2026 3.2 (neutral) (18 days) · Oct 2026 3.6 (pleasant) (22 days) · 0.4 levels higher
+Sleep, a night with records: Sep 2026 7 h 20 min (27 nights) · Oct 2026 6 h 55 min (25 nights) · 25 min shorter
+Main meals logged, a day with a meal: Sep 2026 records on 9 days · Oct 2026 2.1 (16 days)
+This compares your own days. It does not show a cause.

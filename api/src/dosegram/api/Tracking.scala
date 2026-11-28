@@ -52,6 +52,7 @@ object Refusals:
   def of(refusal: StatsRefusal): ApiFailure = refusal match
     case StatsRefusal.ConsentMissing(purpose) => ApiFailure.consentRequired(purpose)
     case StatsRefusal.UnknownAccount          => ApiFailure.notFound()
+    case StatsRefusal.PeriodAhead             => ApiFailure.invalid("second", "in_future")
 
 /** `?from=&to=` on local dates (ARCHITECTURE section 9.4): both or neither, at most 366 days. */
 object Ranges:

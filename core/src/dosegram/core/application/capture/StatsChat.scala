@@ -7,9 +7,11 @@ import dosegram.core.application.insights.ReportViews
 import dosegram.core.application.insights.TrendsView
 import dosegram.core.application.nutrition.FoodViews
 import dosegram.core.domain.EntryDay
+import dosegram.core.domain.copy.CompareCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.StatsCardCopy
+import dosegram.core.domain.insights.CompareSelection
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.StatsPeriod
@@ -135,7 +137,12 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
         tokens.direct(CaptureActions.StatsImage, turn.accountId, view.frame.period.days.toLong)
       )
     )
-    List(periods) ++ image.map(List(_)).toList
+    // Two periods side by side (supervisor decision, 2026-11-28): the weeks first, the months and the picker from it.
+    val compare = Choice.callback(
+      CompareCopy.ComparePeriods,
+      tokens.direct(CaptureActions.StatsCompare, turn.accountId, CompareSelection.Weeks.code.toLong)
+    )
+    List(periods) ++ image.map(List(_)).toList :+ List(compare)
 
   /** The seven-day view, then `draw`. No card means the same toast as "Show as image". */
   private def withWeek(turn: Turn)(draw: (PeriodSummary, WeekCardView) => Option[CardPage]): Reply =

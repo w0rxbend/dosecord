@@ -6,6 +6,9 @@ import dosegram.core.domain.copy.GamificationCopy
 import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.insights.BaselineStatements
+import dosegram.core.domain.insights.CompareFigures
+import dosegram.core.domain.insights.CompareFrame
+import dosegram.core.domain.insights.CompareSelection
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.Comparisons
 import dosegram.core.domain.insights.Consistency
@@ -29,6 +32,7 @@ import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.MoodPeriod
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.NightFacts
+import dosegram.core.domain.insights.PeriodComparisons
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.SleepNight
@@ -62,6 +66,9 @@ enum StatsRefusal:
   /** No active consent for the purpose: the data of that domain is not shown (PRODUCT_SPEC R-IDC-9). */
   case ConsentMissing(purpose: ConsentPurpose)
 
+  /** A period that starts after the account's current local day: a month to compare that has not begun. */
+  case PeriodAhead
+
 /** The hydration view of a period: the figures and the recorded days behind them (a day without an entry is absent). */
 final case class HydrationPeriodView(zone: ZoneId, period: HydrationPeriod, days: Map[LocalDate, HydrationDay])
 
@@ -88,6 +95,11 @@ final case class MonthView(zone: ZoneId, figures: MonthFigures)
 
 /** A calendar year as `/stats year` and the one-year card read it: the figures and the zone they were computed in. */
 final case class YearView(zone: ZoneId, today: LocalDate, figures: YearFigures)
+
+/** Two periods side by side (supervisor decision, 2026-11-28): the figures and the zone they were computed in, and the
+  * account's current local day, the last month the picker offers.
+  */
+final case class CompareView(zone: ZoneId, today: LocalDate, figures: CompareFigures)
 
 /** The current insights of an account and whether cross-domain comparisons are on (VISUALS VA-IN-01). */
 final case class InsightsView(zone: ZoneId, list: InsightList, crossDomain: Boolean)
@@ -332,6 +344,29 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
         food = Option.when(granted(ConsentPurpose.Nutrition))(mealDays(tx, accountId, read))
       )
       YearView(zone, today, YearStats.of(shown, today, sources))
+
+  /** Two periods side by side (supervisor decision, 2026-11-28): the one source of `/stats compare`, its card and
+    * `GET /insights/compare`. One row per area whose consent is active, read over each period's own days; a month after
+    * the current one is refused.
+    */
+  def compare(tx: Tx, accountId: UUID, selection: CompareSelection): Either[StatsRefusal, CompareView] =
+    zoneOf(tx, accountId).flatMap: zone =>
+      val today = LocalDays.dateOf(clock.now(), zone)
+      CompareFrame
+        .of(selection, today)
+        .toRight(StatsRefusal.PeriodAhead)
+        .map: frame =>
+          def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+          def over[A](purpose: ConsentPurpose)(read: DateRange => Map[LocalDate, A]): Option[Map[LocalDate, A]] =
+            Option.when(granted(purpose))(read(frame.earlier.window) ++ read(frame.later.window))
+          val sources = YearSources(
+            medication = over(ConsentPurpose.Medication)(medicationDays(tx, accountId, _)),
+            hydration = over(ConsentPurpose.Hydration)(hydrationDays(tx, accountId, _)),
+            mood = over(ConsentPurpose.Mood)(moodDays(tx, accountId, _)),
+            sleep = over(ConsentPurpose.Sleep)(sleepDays(tx, accountId, _)),
+            food = over(ConsentPurpose.Nutrition)(mealDays(tx, accountId, _))
+          )
+          CompareView(zone, today, PeriodComparisons.of(frame, sources))
 
   /** The current insights (VISUALS section 8.5): every rule of the registry whose sources have consent, over the last
     * `window` local days; the baseline statements read the last five weeks. Cross-domain rules run only with the

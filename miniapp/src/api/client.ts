@@ -8,6 +8,8 @@ import type {
   InsightCalendar,
   InsightList,
   InsightYear,
+  InsightCompare,
+  CompareChoice,
   InsightMonth,
   InsightRange,
   MoodCheckin,
@@ -211,6 +213,8 @@ export interface ApiClient {
   insightList(): Promise<InsightList>;
   /** One calendar year as /stats year shows it; absent is the current year. */
   insightYear(year?: number): Promise<InsightYear>;
+  /** Two periods side by side as /stats compare shows them; absent is last week and this week. */
+  insightCompare(choice?: CompareChoice): Promise<InsightCompare>;
 
   // exports (MINI_APP S-14): a request is confirmed in the chat before anything is made (MA-STEP-1).
   exports(): Promise<readonly ExportItem[]>;

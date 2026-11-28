@@ -789,6 +789,7 @@ Conventions for every entry:
 | IMG-24 | The month in one image (section 6.23) | `card.month.poster.v1` | portrait | personal | L1 | scheduled (last photo of IMG-05), on demand (`/stats month`) |
 | IMG-25 | Week highlights (section 6.24) | `card.week.highlights.v1` | square, portrait with an observation | personal | L1 | scheduled (second photo of IMG-04) |
 | IMG-26 | Mood gallery (section 6.25) | `card.mood.gallery.v1` | square | personal | L1 | on demand (`/mood history`) |
+| IMG-27 | Two periods side by side (section 6.27) | `card.compare.v1` | square up to three rows, portrait above | personal | L1 | on demand (`/stats compare`) |
 | IMG-30 | The year, week by week (section 6.30) | `card.year.v1` | square up to two areas, portrait above | personal | L1 | on demand (`/stats year`) |
 | DOC-01 | Record summary (PDF) | `doc.summary.v1` | a4 | personal | L3 | on demand only |
 
@@ -1556,6 +1557,16 @@ Text equivalent: "Your latest 14 mood check-ins, 9 to 14 Nov, oldest first. Mon 
 |---|---|---|---|
 | IMG-26 | The latest check-ins as blobs in recording order on a track, seven a row, each with its day and time | The count and period, then every check-in's day, time and words | "Show as image" on `/mood history` |
 
+### 6.27 Two periods side by side (IMG-27)
+
+Supervisor decision, 2026-11-28 (compare track; PRODUCT_SPEC R-INS-14). IMG-27, `card.compare.v1`, is the card of `/stats compare` (BOT_UX section 12.5): under the title "Two periods side by side", two columns, the earlier period on the left, each headed by its name in the chat's words ("Last week", "Oct 2026") and its days. One row per area whose consent is active, in the order medication, water, mood, sleep, food: the domain icon and name, the difference in the chat's words at the line's end when both periods show a figure, then in each column the period's figure and its recorded days ("1.8 l", "4 days"; main meals as "2.3 a day") over a track the width of the column. The track holds a bar from zero on the row's own scale (the larger of the two figures fills it), so the two lengths compare without the colour (VA-PR-06); mood is a dot on its 1 to 5 track, because a bar from zero would read as an amount. A period below its gate (3 recorded days for a week, 14 for a month) has no figure and a dotted track, never a bar of zero (VA-PR-03); its recorded days stay. The legend names the dotted track ("No figure: too few recorded days"), that each row has its own scale, and with a mood row the mood dot. Up to three rows fit the square; four or five take the portrait, and the rows close up when a longer legend would reach the footer. The Ukrainian heads abbreviate the months of a period across two months ("26 жовт. – 1 листоп."), so they fit half the card. Nothing ranks an area, colours a change or names a cause; the words of the difference are those of section 7.1, read from the two printed figures.
+
+Text equivalent: the chat's lines with the counts kept, whatever the counts switch says, since the card draws every recorded-day count: "Compare two periods · Europe/Kyiv. Last week, 26 Oct to 1 Nov: days with records 7 of 7. This week, ... Water, a day with records: Last week 1.6 l (7 days) · This week 1.8 l (4 days) · 0.2 l higher. ... This compares your own days. It does not show a cause." Discreet mode keeps the rows (L1), captions "Two periods compared." and sends the photo behind a spoiler. Goldens: `compare/weeks` (three rows, one below the gate, square) and `compare/months` (five rows with mood, one below the gate, portrait), light, dark and discreet, English and Ukrainian text equivalents, pixel hashes; the greyscale check of G4.7 covers both.
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-27 | Two periods per shown area: each figure and its recorded days over a bar from zero on the row's scale (mood a dot on 1 to 5), a dotted track below the gate, the difference in words | The chat's lines of `/stats compare` with the counts | "Show as image" on `/stats compare` |
+
 ### 7.1 Common definitions
 
 | Term | Definition |
@@ -1579,7 +1590,7 @@ Display thresholds and rounding (PROPOSED):
 | Durations | To 5 minutes in images and captions; to the minute in the PDF tables and the Mini App detail view. |
 | Volumes | To 0.1 l (or 1 US fluid ounce) in images; to 10 ml in detail views. |
 | Mood averages | One decimal on the 1 to 5 scale of the stored valence ("3.5"; PRODUCT_SPEC R-MOO-5, AC-MOO-4), always with the level name of its quantised level (section 4.2, with `v = (m - 3) / 2`). No surface shows a mood value "of 7". |
-| Baseline wording | "about the same" when the absolute difference is under 2 percentage points, 10 minutes, 0.2 mood levels or 100 ml; otherwise "higher" or "lower", "longer" or "shorter", "earlier" or "later". The words "better" and "worse" are never used. |
+| Baseline wording | "about the same" when the absolute difference is under 2 percentage points, 10 minutes, 0.2 mood levels or 100 ml; otherwise "higher" or "lower", "longer" or "shorter", "earlier" or "later". The words "better" and "worse" are never used. Supervisor decision, 2026-11-28 (compare track): the comparison of two periods (IMG-27) uses the same limits, and 0.2 for the main meals logged a day ("more" or "fewer"), each read from the two printed figures. |
 
 | ID | Requirement |
 |---|---|

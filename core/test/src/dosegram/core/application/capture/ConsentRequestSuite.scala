@@ -2,6 +2,7 @@ package dosegram.core.application.capture
 
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.domain.hydration.HydrationBounds
+import dosegram.core.domain.insights.CompareSelection
 import dosegram.core.ports.ConsentPurpose
 import org.scalacheck.Gen
 import org.scalacheck.Prop.forAll
@@ -28,6 +29,19 @@ class ConsentRequestSuite extends munit.ScalaCheckSuite:
     Gen.oneOf(true, false).map(Pending.Insights(_)),
     Gen.choose(2000 * 12, 2100 * 12).map(Pending.MonthImage(_)),
     Gen.choose(2000, 2100).map(Pending.YearImage(_)),
+    // Two periods compared (supervisor decision, 2026-11-28): the fixed pairs and every pair of months.
+    Gen.oneOf(
+      Gen.oneOf(CompareSelection.Weeks, CompareSelection.Months),
+      for
+        first <- Gen.choose(0, 249)
+        second <- Gen.choose(0, 249).suchThat(_ != first)
+      yield CompareSelection
+        .twoMonths(
+          CompareSelection.FirstMonth.plusMonths(first.toLong),
+          CompareSelection.FirstMonth.plusMonths(second.toLong)
+        )
+        .get
+    ).map(selection => Pending.CompareImage(selection.code)),
     Gen.const(Pending.FoodCard),
     Gen.const(Pending.FoodImage),
     Gen.choose(0, 3).map(Pending.FoodLog(_))

@@ -121,6 +121,33 @@ final case class TrendCardRow(domain: TrendDomain, figure: String, buckets: List
   */
 final case class TrendsCardView(window: DateRange, byWeek: Boolean, rows: List[TrendCardRow], text: String)
 
+/** One period of an area on IMG-27: the figure as the card prints it and its value on the row's own scale, both absent
+  * below the period's gate, and the recorded days.
+  */
+final case class CompareCardCell(figure: Option[String], value: Option[Double], days: String):
+  require(figure.isDefined == value.isDefined, "a figure has a value and a value has a figure")
+
+/** One area of IMG-27: its cell in each period and the difference in words when both show a figure. */
+final case class CompareCardRow(
+    domain: TrendDomain,
+    earlier: CompareCardCell,
+    later: CompareCardCell,
+    difference: Option[String]
+)
+
+/** A period's head on IMG-27: its name in the account's language and its days, which the card writes. */
+final case class CompareCardColumn(label: String, window: DateRange)
+
+/** IMG-27 (supervisor decision, 2026-11-28): two periods side by side, the earlier on the left, one row per area;
+  * `text` is the card's text equivalent, written by the caller from the same values.
+  */
+final case class CompareCardView(
+    earlier: CompareCardColumn,
+    later: CompareCardColumn,
+    rows: List[CompareCardRow],
+    text: String
+)
+
 /** One medication of IMG-07 (VISUALS section 6.8): its name, whether it is taken as needed, and for each day of the
   * strip the marks of its scheduled doses in schedule order and the number of as-needed logs.
   */
@@ -243,6 +270,9 @@ trait StatusCards:
 
   /** IMG-23, the trends of a period, one row per domain on its own scale. */
   def trends(view: TrendsCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-27, two periods side by side; `None` when there is nothing to draw. */
+  def compare(view: CompareCardView, look: CardLook): Option[CardPage] = None
 
   /** IMG-07, the per-medication strip: one page per six medications at most; empty when none can be laid out. */
   def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] = Nil
