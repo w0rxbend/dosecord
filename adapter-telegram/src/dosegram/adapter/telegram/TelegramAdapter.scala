@@ -188,18 +188,25 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   /** An update from the inbox, processed to its end: settled once its effect is durable (TG-08). */
   private def deliverStored(pending: PendingInboxEntry): Settlement =
     InboxCodec.update(pending.entry) match
-      case Some(update) => handOver(update, pending.receivedAt)(_.pushAndWait(_))
+      case Some(update) => handOver(update, pending.receivedAt, settledByInbox = true)(_.pushAndWait(_))
       case None         =>
         // It will never decode: offering it again cannot help.
         runtime.log(s"telegram inbox entry undecodable: ${pending.entry.vendorEventId}")
         Settlement.Done
 
-  private def handOver(update: Update, receivedAt: Instant)(
+  /** `settledByInbox`: `hand` returns once the mediator has processed the event, and the tap's answer is settled then.
+    */
+  private def handOver(update: Update, receivedAt: Instant, settledByInbox: Boolean = false)(
       hand: (InboundSink, InboundEvent) => Settlement
   ): Settlement =
     sink.get() match
       case None         => Settlement.Failed(NotStarted)
-      case Some(target) => screened(update)(draft => hand(target, event(update, draft, receivedAt)))
+      case Some(target) =>
+        screened(update): draft =>
+          val answer = draft.callback.map: source =>
+            CallbackAnswer(source.queryId, source.source, config.ack, answers, receivedAt, settledByInbox)
+          try hand(target, event(update, draft, receivedAt, answer))
+          finally if settledByInbox then answer.foreach(_.settle())
 
   /** Maps one update. A draft from an allowed sender goes to `accept`; anything else is settled here: a stranger gets
     * the fixed reply, a callback that cannot become an event is answered, the rest is logged and dropped.
@@ -217,7 +224,12 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
         runtime.log(s"telegram update ignored: reason=$reason update_id=${update.updateId}")
         Settlement.Done
 
-  private def event(update: Update, draft: UpdateMapper.Draft, receivedAt: Instant): InboundEvent =
+  private def event(
+      update: Update,
+      draft: UpdateMapper.Draft,
+      receivedAt: Instant,
+      answer: Option[CallbackAnswer]
+  ): InboundEvent =
     InboundEvent(
       eventId = EventId(runtime.newEventId()),
       vendor = vendor,
@@ -230,8 +242,7 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
       cursor = Some(update.updateId.toString),
       localeHint = draft.localeHint,
       body = draft.body,
-      interaction =
-        draft.callback.map(source => CallbackAnswer(source.queryId, source.source, config.ack, answers, receivedAt))
+      interaction = answer
     )
 
   /** A sender outside the allowlist gets the one fixed reply; nothing is stored and no event is produced. */

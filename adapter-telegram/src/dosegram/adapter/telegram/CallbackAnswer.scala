@@ -12,7 +12,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 final case class AckTiming(
     /** If nothing answered by then, the watchdog sends the neutral answer. */
     watchdog: Duration,
-    /** How long a neutral answer is held back so that a toast that follows can take its place. */
+    /** How long a neutral answer is held back so that a toast that follows can take its place, when no inbox settles
+      * the tap (an update from the inbox holds it until the mediator has processed it).
+      */
     neutralGrace: Duration,
     /** A query received longer ago than this is not answered at all: the API would reject the answer. */
     maxAge: Duration
@@ -42,6 +44,10 @@ private[telegram] trait AnswerPort:
   * that time is sent in its place, otherwise the neutral answer goes out. `acked` therefore reports whether the answer
   * is spent on the wire. The watchdog started at receipt sends the neutral answer at [[AckTiming.watchdog]] whatever
   * happened (TG-12); the first wire answer wins.
+  *
+  * A tap from the inbox (`settledByInbox`) holds the neutral answer until [[settle]], called once the mediator has
+  * processed the tap, in place of the grace time: a toast that a slow handler gives still rides the answer, bounded by
+  * the watchdog (ADR-019 addendum of 2026-11-28).
   */
 private[telegram] final class CallbackAnswer(
     queryId: String,
@@ -49,7 +55,8 @@ private[telegram] final class CallbackAnswer(
     timing: AckTiming,
     port: AnswerPort,
     /** When the update arrived: the inbox's receipt time for an update processed from the inbox (TG-11). */
-    receivedAt: Instant
+    receivedAt: Instant,
+    settledByInbox: Boolean = false
 ) extends InteractionHandle:
 
   private val spent = AtomicBoolean(false)
@@ -61,12 +68,15 @@ private[telegram] final class CallbackAnswer(
     toast match
       case Some(_) => sendOnce(toast)
       case None    =>
-        if !spent.get() && neutralRequested.compareAndSet(false, true) then
+        if !settledByInbox && !spent.get() && neutralRequested.compareAndSet(false, true) then
           port.schedule(timing.neutralGrace)(() => sendOnce(None))
 
   override def editSource(rendered: RenderedMessage): Unit = source.foreach(port.editMessage(_, rendered))
 
   override def acked: Boolean = spent.get()
+
+  /** The mediator has processed the tap: the answer goes now, with no toast, unless one is already spent. */
+  def settle(): Unit = sendOnce(None)
 
   /** Claims the single answer and sends it. A query older than `maxAge` is claimed and not sent (TG-11). */
   private def sendOnce(toast: Option[String]): Unit =

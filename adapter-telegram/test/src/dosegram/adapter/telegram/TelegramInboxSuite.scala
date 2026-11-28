@@ -1,5 +1,8 @@
 package dosegram.adapter.telegram
 
+import dosegram.contracts.InboundEvent
+import dosegram.contracts.InboundSink
+import dosegram.contracts.Settlement
 import dosegram.core.domain.copy.AdapterCopy
 import dosegram.core.ports.InboxEntry
 import dosegram.core.ports.InboundInbox
@@ -98,6 +101,59 @@ class TelegramInboxSuite extends munit.FunSuite:
     assert(receive(rig, "group-message"))
     assert(receive(rig, "unknown-kind"))
     assertEquals(inbox.rows.size, 0)
+
+  /** The adapter started with a sink that stands for the mediator: `process` runs while the inbox waits for the tap. */
+  private def startedWith(rig: TelegramRig)(process: InboundEvent => Unit): TelegramRig =
+    rig.adapter.start(
+      new InboundSink:
+        override def push(event: InboundEvent): Boolean = true
+        override def pushAndWait(event: InboundEvent): Settlement =
+          process(event)
+          Settlement.Done
+      ,
+      None
+    )
+    rig
+
+  // The verification of 2026-11-28: under load the handler's toast came after the 300 ms the neutral answer was held
+  // for, so the tap was answered with nothing and the toast became a message.
+  test("a toast that comes long after the early neutral answer is the one answer while the inbox processes the tap"):
+    val (rig, _) = withInbox()
+    startedWith(rig): event =>
+      event.interaction.foreach(_.answer(None))
+      rig.timer.advance(Duration.ofMillis(800))
+      event.interaction.foreach(_.answer(Some("Already recorded at 09:03.")))
+    assert(receive(rig, "callback-query"))
+    pass(rig)
+    rig.timer.advance(Duration.ofSeconds(5))
+    assertEquals(rig.answers.map(_.text("text")), List(Some("Already recorded at 09:03.")))
+
+  test("without a toast the held neutral answer goes out as soon as the inbox has processed the tap"):
+    val (rig, _) = withInbox()
+    startedWith(rig)(event => event.interaction.foreach(_.answer(None)))
+    assert(receive(rig, "callback-query"))
+    pass(rig)
+    assertEquals(rig.answers.map(_.text("text")), List(None), "no wait for a grace time")
+    rig.timer.advance(Duration.ofSeconds(5))
+    assertEquals(rig.answers.size, 1)
+
+  test("a tap the mediator never answers is answered with no toast once the inbox has processed it"):
+    val (rig, _) = withInbox()
+    startedWith(rig)(_ => ())
+    assert(receive(rig, "callback-query"))
+    pass(rig)
+    assertEquals(rig.answers.map(_.text("text")), List(None))
+
+  test("the watchdog still answers a tap whose processing takes longer than 1.5 seconds (TG-12)"):
+    val (rig, _) = withInbox()
+    startedWith(rig): event =>
+      event.interaction.foreach(_.answer(None))
+      rig.timer.advance(Duration.ofMillis(1500))
+      assertEquals(rig.answers.map(_.text("text")), List(None))
+      event.interaction.foreach(_.answer(Some("too late for a toast")))
+    assert(receive(rig, "callback-query"))
+    pass(rig)
+    assertEquals(rig.answers.size, 1)
 
   test("the stored entry is processed with its receipt time, so a late callback is not answered (TG-11)"):
     val (rig, _) = withInbox()
