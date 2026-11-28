@@ -25,7 +25,6 @@ import sttp.tapir.server.ServerEndpoint
 import sttp.tapir.server.interceptor.RequestInterceptor
 import sttp.tapir.server.interceptor.RequestInterceptor.RequestResultTransform
 import sttp.tapir.server.interceptor.RequestResult
-import sttp.tapir.server.netty.NettyConfig
 import sttp.tapir.server.netty.sync.NettySyncServer
 import sttp.tapir.server.netty.sync.NettySyncServerBinding
 import sttp.tapir.server.netty.sync.NettySyncServerOptions
@@ -117,7 +116,7 @@ object MiniAppEdge:
       .exceptionHandler(api.exceptionHandler)
       .serverLog(None)
       .options
-    NettySyncServer(options, NettyConfig.default.copy(serverHeader = None))
+    NettySyncServer(options, Listeners.Default.copy(serverHeader = None))
       .host(settings.httpAddress)
       .port(settings.httpPort)
       .addEndpoints(extra ++ api.endpoints :+ static.endpoint :+ elsewhere)

@@ -10,7 +10,6 @@ import sttp.shared.Identity
 import sttp.tapir.*
 import sttp.tapir.server.ServerEndpoint
 import sttp.tapir.server.model.EndpointExtensions.*
-import sttp.tapir.server.netty.NettyConfig
 import sttp.tapir.server.netty.sync.NettySyncServer
 import sttp.tapir.server.netty.sync.NettySyncServerBinding
 import sttp.tapir.server.netty.sync.NettySyncServerOptions
@@ -45,7 +44,7 @@ object WebhookEdge:
   /** The listener when the Mini App is off: the webhook alone; any other path is 404. */
   def start(address: String, port: Int, endpoint: ServerEndpoint[Any, Identity])(using Ox): NettySyncServerBinding =
     val options = NettySyncServerOptions.customiseInterceptors.serverLog(None).options
-    NettySyncServer(options, NettyConfig.default.copy(serverHeader = None))
+    NettySyncServer(options, Listeners.Default.copy(serverHeader = None))
       .host(address)
       .port(port)
       .addEndpoint(endpoint)

@@ -60,3 +60,22 @@ class HealthSuite extends munit.FunSuite:
       try assertEquals(binding.localSocket.getAddress.getHostAddress, "127.0.0.1")
       finally binding.stop()
     }
+
+  // Verification of 2026-11-28, third round: a scraper holding a keep-alive connection when the process stops leaves
+  // the listener's port in TIME_WAIT for a minute, and the next start failed to bind it ("Address already in use") and
+  // exited, so a stop and start of a deploy could fail.
+  test("a restart binds the port at once although the stopped listener closed a kept-alive connection"):
+    supervised {
+      val port  = freePort()
+      val first = Health.start("127.0.0.1", port, ready)
+      val client = java.net.Socket("127.0.0.1", port)
+      try
+        client.getOutputStream.write(s"GET /healthz HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".getBytes("US-ASCII"))
+        val answer = new Array[Byte](12)
+        assertEquals(String(answer, 0, client.getInputStream.read(answer), "US-ASCII"), "HTTP/1.1 200")
+        first.stop() // the server closes the open connection first, so its side of it waits in TIME_WAIT
+        val second = Health.start("127.0.0.1", port, ready)
+        try assertEquals(get(port, "/healthz")._1, 200)
+        finally second.stop()
+      finally client.close()
+    }

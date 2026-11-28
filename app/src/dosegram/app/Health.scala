@@ -29,7 +29,7 @@ object Health:
     .out(stringBody)
 
   def start(address: String, port: Int, readiness: () => Readiness.Report)(using Ox): NettySyncServerBinding =
-    NettySyncServer()
+    NettySyncServer(Listeners.Default)
       .host(address)
       .port(port)
       .addEndpoint(healthz.handleSuccess(_ => "ok"))
