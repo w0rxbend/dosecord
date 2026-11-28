@@ -124,6 +124,21 @@ class YearStatsSuite extends munit.FunSuite:
     assertEquals(row(figures, TrendDomain.Nutrition).year.recordedDays, 0)
     assertEquals(figures.daysWithRecords, 0)
 
+  test("a day whose only doses have no record (a service outage) is no day with records, and is counted apart"):
+    // The verification of 2026-11-28: `/stats year` counted days whose only doses were "no record (service outage)";
+    // those are not the user's records.
+    val outage = MedicationDay(Map(medication -> DoseBuckets.zero.copy(unknown = 2)))
+    val taken = MedicationDay(Map(medication -> DoseBuckets.ofResolved(AdherenceCounts(1, 0, 0, 0))))
+    val medicationDays = days(YearMonth.of(2026, 1), 3)(_ => outage) ++ days(YearMonth.of(2026, 2), 2)(_ => taken) ++
+      Map(LocalDate.parse("2026-03-01") -> outage)
+    // 1 March also has water, so it is a day with records all the same.
+    val hydration = Map(LocalDate.parse("2026-03-01") -> HydrationDay(500, 1, None))
+    val figures = YearStats.of(2026, today, sources(medication = Some(medicationDays), hydration = Some(hydration)))
+    assertEquals(figures.daysWithRecords, 3)
+    assertEquals(figures.outageOnlyDays, 3)
+    assertEquals(row(figures, TrendDomain.Medication).year.recordedDays, 2)
+    assertEquals(figures.recorded(TrendDomain.Medication), Set(LocalDate.parse("2026-02-01"), LocalDate.parse("2026-02-02")))
+
   test("a year after today has no window"):
     intercept[IllegalArgumentException](YearStats.window(2027, today))
 end YearStatsSuite

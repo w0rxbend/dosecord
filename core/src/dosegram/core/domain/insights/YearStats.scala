@@ -30,13 +30,16 @@ final case class YearRow(domain: TrendDomain, months: List[(YearMonth, YearCell)
 
 /** The year of `/stats year` and of the one-year card: a row per area whose consent is active, in the order medication,
   * water, mood, sleep, food; `recorded` holds each shown area's recorded days of the year, the cells of the card.
+  * `outageOnlyDays` are the days of the year with no record but doses with no record (a service outage), which are not
+  * the user's records and are left out of `daysWithRecords` (verification of 2026-11-28).
   */
 final case class YearFigures(
     year: Int,
     window: DateRange,
     daysWithRecords: Int,
     rows: List[YearRow],
-    recorded: Map[TrendDomain, Set[LocalDate]]
+    recorded: Map[TrendDomain, Set[LocalDate]],
+    outageOnlyDays: Int
 ):
   def hasRecords: Boolean = daysWithRecords > 0
   def previousHasRecords: Boolean = rows.exists(_.previous.recordedDays > 0)
@@ -72,7 +75,7 @@ object YearStats:
     val range = window(year, today)
     val before = DateRange.between(LocalDate.of(year - 1, 1, 1), LocalDate.of(year - 1, 12, 31))
     val areas = List(
-      sources.medication.map(days => Area(TrendDomain.Medication, recorded(days)(!_.total.isEmpty), medication)),
+      sources.medication.map(days => Area(TrendDomain.Medication, recorded(days)(isUsersRecord), medication)),
       sources.hydration.map(days => Area(TrendDomain.Hydration, recorded(days)(_.entries > 0), water)),
       sources.mood.map(days => Area(TrendDomain.Mood, recorded(days)(_.n > 0), mood)),
       sources.sleep.map(days => Area(TrendDomain.Sleep, days, sleep)),
@@ -80,7 +83,16 @@ object YearStats:
     ).flatten
     val rows = areas.map(_.row(range, before))
     val recordedDays = areas.map(area => area.domain -> area.days.keySet.filter(range.contains)).toMap
-    YearFigures(year, range, recordedDays.values.flatten.toSet.size, rows, recordedDays)
+    val withRecords = recordedDays.values.flatten.toSet
+    val outageOnly = sources.medication.fold(Set.empty[LocalDate])(days =>
+      days.collect { case (date, day) if range.contains(date) && !day.total.isEmpty => date }.toSet
+    ) -- withRecords
+    YearFigures(year, range, withRecords.size, rows, recordedDays, outageOnly.size)
+
+  /** A medication day is the user's record when it has a dose other than one with no record: an unknown dose is the
+    * service's gap (an outage), not something the user did or left undone.
+    */
+  private def isUsersRecord(day: MedicationDay): Boolean = !day.total.copy(unknown = 0).isEmpty
 
   /** The months of a window from January: the last one is cut at the window's end. */
   private def months(range: DateRange): List[DateRange] =

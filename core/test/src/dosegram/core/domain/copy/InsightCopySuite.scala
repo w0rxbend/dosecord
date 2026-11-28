@@ -1,5 +1,11 @@
 package dosegram.core.domain.copy
 
+import dosegram.core.domain.insights.DoseBuckets
+import dosegram.core.domain.insights.MedicationDay
+import dosegram.core.domain.insights.YearFigures
+import dosegram.core.domain.insights.YearSources
+import dosegram.core.domain.insights.YearStats
+
 /** VISUALS_AND_ANALYTICS section 8.6 (VA-IN-10, VA-IN-11) and BOT_UX section 12.5 for the insight and month templates:
   * every sentence ends with its fixed closing sentence, states both counts, and the month text shows the gate with its
   * progress instead of a figure when a domain is short of days (R-INS-11).
@@ -70,5 +76,20 @@ class InsightCopySuite extends munit.FunSuite:
         "2026: 7 h 10 min (200 nights)"
       )
     )
+
+  test("the year says that days with only doses with no record are not counted, and only when there are such days"):
+    val medication = java.util.UUID.fromString("00000000-0000-7000-8000-000000000001")
+    val outage = MedicationDay(Map(medication -> DoseBuckets.zero.copy(unknown = 1)))
+    val today = java.time.LocalDate.parse("2026-03-20")
+    def year(days: Int): YearFigures =
+      val outages = (1 to days).map(day => java.time.LocalDate.of(2026, 1, day) -> outage).toMap
+      YearStats.of(2026, today, YearSources(Some(outages), None, None, None, None))
+    val zone = java.time.ZoneId.of("Europe/Kyiv")
+    val english = Lang.within(Lang.En)(YearCopy.lines(year(3), zone))
+    assertEquals(english.take(3), List("2026 · Europe/Kyiv", "Days with records: 0 of 79",
+      "Not counted: 3 days whose only doses have no record (a service outage)"))
+    assertEquals(Lang.within(Lang.Uk)(YearCopy.lines(year(1), zone))(2),
+      "Не враховано: 1 день, коли всі дози без запису (перебій сервісу)")
+    assert(!Lang.within(Lang.En)(YearCopy.lines(year(0), zone)).exists(_.startsWith("Not counted")))
 
 end InsightCopySuite
