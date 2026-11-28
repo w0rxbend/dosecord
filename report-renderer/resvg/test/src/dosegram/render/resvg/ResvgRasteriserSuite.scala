@@ -131,6 +131,9 @@ class ResvgRasteriserSuite extends munit.FunSuite:
   test("a render that waits for a busy slot ends within its own deadline, waiting included (VISUALS VA-FB-01)"):
     // The first render holds the only slot once its process has started, which the fake marks with a file: a fixed
     // pause let the second caller take the slot first on a loaded host, and then it waited for a render of its own.
+    // Both callers share one timeout, so the first's deadline always ends before the second's wait does: when killing
+    // the first is quicker than starting it was, the second takes the freed slot and times out on its own deadline.
+    // Either typed failure inside that deadline is the contract; which one depends on the host's timing.
     val started = Files.createTempFile("fake-resvg", ".started")
     Files.delete(started)
     val busy = ResvgRasteriser(
@@ -144,7 +147,10 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     val startedAt = System.nanoTime()
     val second = busy.rasterise(waterSvg(Theme.Dark), 1)
     val elapsedMillis = (System.nanoTime() - startedAt) / 1000000
-    assertEquals(second.left.toOption, Some(RasterFailure.QueueFull), "the second caller is refused the busy slot")
+    assert(
+      second.left.exists(Set[RasterFailure](RasterFailure.QueueFull, RasterFailure.TimedOut).contains),
+      s"the second caller ends with a typed deadline failure, got $second"
+    )
     assert(elapsedMillis < 900, s"the second caller waited $elapsedMillis ms against a 600 ms deadline")
     assertEquals(holding.get().left.toOption, Some(RasterFailure.TimedOut))
     first.shutdown()
