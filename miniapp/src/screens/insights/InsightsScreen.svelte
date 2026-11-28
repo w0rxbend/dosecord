@@ -23,10 +23,27 @@
   const EAGER_BLOCKS = 2;
   const NEAR_VIEWPORT_PX = 200;
 
+  /** The last period or Year tab, kept per device as an interface preference (MA-INS-1, MINI_APP 6.6). */
+  const RANGE_KEY = 'ui_v1_insights_range';
+  const DEFAULT_RANGE: InsightRange = 30;
+
+  type Shown = InsightRange | typeof YEAR;
+
+  function shownOf(stored: string | undefined): Shown | undefined {
+    if (stored === YEAR) return YEAR;
+    const days = Number(stored);
+    return days === 7 || days === 30 || days === 90 ? days : undefined;
+  }
+
   const { api, tg } = useApp();
-  let range = $state<InsightRange | typeof YEAR>(30);
+  let range = $state<Shown>(DEFAULT_RANGE);
   let revealed = $state<string[]>([]);
-  const overview = new Resource<InsightsOverview>(() => api.insightsOverview(30));
+  // The first read waits for the stored choice (at most 500 ms, MA-STORE-2), so it asks for that period only.
+  const overview = new Resource<InsightsOverview>(async () => {
+    const restored = shownOf(await tg.preferences.get(RANGE_KEY));
+    if (restored !== undefined) range = restored;
+    return api.insightsOverview(restored === undefined || restored === YEAR ? DEFAULT_RANGE : restored);
+  });
   const ranges = $derived(overview.data?.ranges ?? FIRST_RANGES);
   const deferLowerBlocks = typeof IntersectionObserver !== 'undefined';
   const pendingIds = new Map<Element, string>();
@@ -66,6 +83,7 @@
   function changeRange(): void {
     tg.haptic('selection');
     const chosen = range;
+    tg.preferences.set(RANGE_KEY, String(chosen));
     if (chosen === YEAR) return;
     void overview.load(() => api.insightsOverview(chosen));
   }
