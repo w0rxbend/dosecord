@@ -39,21 +39,22 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-27 (`6f7fa3d` and the docs after it), after
-eleven rounds of parallel tracks were merged and wired together (the
+State of `main` on 2026-11-28 (`d870c74` and the docs after it), after
+twelve rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
 migration; the tenth: chat analytics, V23, and image round 4; the
 eleventh: image round 5 and the Mini App go-live rehearsal, no
-migration), plus the fixes of the verifications of 2026-11-14 (V13),
+migration; the twelfth: analytics round 6, V26, and the animated mood
+blob, V25), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
 parameters), and V24 (the order of an answer's messages, 2026-11-28).
-The migrations are V1 to V19 and V22 to V24, 22 files
-(`scripts/check-frozen-migrations.sh` prints `22 migrations unchanged
-(V1 to V19, V22 to V24)`); V20 and V21 must never be added, and the
-next is V25. The live database is at V23 (`3d9e9c3`):
-`docs/OPERATIONS.md` section 19 is the owner's deploy of the head, with
-V24 (section 18 deploys `b1c73da`; sections 8 to 17 explain the earlier
-parts). The Mini App
+The migrations are V1 to V19 and V22 to V26, 24 files
+(`scripts/check-frozen-migrations.sh` prints `24 migrations unchanged
+(V1 to V19, V22 to V26)`); V20 and V21 must never be added, and the
+next is V27. The live database is at V23 (`b1c73da`):
+`docs/OPERATIONS.md` section 21 is the owner's deploy of the head, with
+V24, V25 and V26 in one start (sections 19 and 20 explain V24 and V26;
+sections 8 to 18 the earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
@@ -80,7 +81,10 @@ Appendix B and its status notes are the record; this is the short form.
   revision `dg-blob-2`. "Show as image" on the seven-day `/stats` sends the
   week at a glance (IMG-19), on `/today` the daily summary. The seven-day
   `/stats` also sends IMG-20 to IMG-22 (Water, 7 days; Sleep, 7 nights; Mood
-  by weekday).
+  by weekday). With "Animated mood" on (Mini App settings, V25, off by
+  default) a mood check-in is answered with the blob moving for 3 s, H.264
+  in MP4 encoded in the JVM (`report-renderer.motion`, JCodec), sent with
+  `sendAnimation`, the still card as its fallback.
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep
   (episodes, check-ins, goals; no rollup, read from the episodes), daily
   rollups with a worker that drains their queue, the `Stat` type, text
@@ -96,7 +100,9 @@ Appendix B and its status notes are the record; this is the short form.
   14-day gate, food included; insight rules IR-01, IR-02, IR-06 behind the
   cross-domain consent, IR-07 and IR-11; month pages, mood calendar and
   timeline; weekly and monthly reports sent by the prompt loop, the weekly
-  card with a food row.
+  card with a food row. `/stats year` per area and month with the one-year
+  card (IMG-30), IR-05 (mood on days every planned meal was logged), and
+  the "What's new" note after a release (`/whatsnew`, V26).
 - Export (G3.10, G10.4, V6 `export_jobs`, `export_download_tickets`): one ZIP
   of every account-owned table (`ExportCoverage` decides each table), download
   tickets, the file into the chat after two taps, and the record summary PDF
@@ -275,6 +281,15 @@ Useful next, in this order:
     404, DEPLOY_MINIAPP.md); live sends of the weekly album with
     highlights and the mood gallery; their contact-sheet review by another
     reviewer; the Mini App palette, which R5 did not change.
+13. What the twelfth round left open: live sends of `/stats year`, the
+    one-year card (IMG-30), the "What's new" note and the animated mood
+    (`sendAnimation` playback on every client); a chat switch for
+    "Animated mood" (BOT_UX section 17); the TGS sticker (spike S5); the
+    year in the Mini App; an IR-05 pattern card; contact-sheet reviews of
+    IMG-30 and the motion by another reviewer; the load flakes of
+    `NewUserWalkSuite`, `TelegramLaunchSuite`, `freePort()` and
+    `SessionApiSuite`, and the e2e walk that fails before 07:00 UTC
+    (ROADMAP Appendix B, integration of 2026-11-28).
 
 ## Agent workflow
 

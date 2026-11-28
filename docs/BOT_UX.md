@@ -597,6 +597,8 @@ Supervisor decision, 2026-11-28 (analytics round 6). After a release that adds s
 | BUX-NEW-03 | An account created after the notes began (V26 leaves `users.whats_new_seen` empty for it) records the current release at its first command and gets no note: a new user has nothing to catch up on. Every account that existed when V26 ran starts at release 0. |
 | BUX-NEW-04 | With the notes off nothing is sent; the release is still recorded, so turning them on later does not send an old note unasked. The state is written on the event's transaction, so a redelivered update sends nothing twice. |
 
+Release 1 (supervisor decision, 2026-11-28, at the integration of analytics round 6 and the animated mood): the note lists `/stats year` and the IR-05 comparison only. "Animated mood" is not on it: it is a Mini App setting (MINI_APP MA-SET-12), the Mini App is off on live, and the chat has no switch for it yet (section 17). It joins the note of the release that gives the chat or the live Mini App a way to turn it on.
+
 Rejected alternatives: a broadcast to every account at start-up, which is an unprompted message for each deploy and needs its own pacing, budget and quiet-hours handling; a line inside `/help`, which nobody who does not ask for help sees.
 
 ## 7. Reply keyboard

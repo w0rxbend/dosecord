@@ -900,6 +900,8 @@ DEFAULT true`. Both are catalogue-only changes in PostgreSQL 11 and later: no ro
 No environment variable is added. After the deploy, the owner's account gets the note once, after
 the answer to its next command (BOT_UX section 6.5); "Don't show these" turns it off.
 
+Section 21 is the deploy of the head with V24, V25 and V26 together.
+
 Ordering: the image track of the same round was assigned V25. Deploy V26 only together with V25
 when that track added one, or with no V25 at all: Flyway refuses a V25 found later as older than
 the applied V26 (`Detected resolved migration not applied to database`), and repairing that is
@@ -912,3 +914,62 @@ after it sends nothing twice, because the account's `whats_new_seen` is already 
 
 Not rehearsed: written from the code and `WhatsNewPgSuite`; no copy of the live database was
 upgraded, and nothing was sent to a real client.
+
+## 21. Deploying `main` after the integration of 2026-11-28 over the live V23 database (V24, V25 and V26 in one start)
+
+This section replaces sections 19 and 20 as the owner's deploy: the head of `main` carries V24
+(section 19), V25 (the animated mood setting, merge of `feat/animated-blob`) and V26 (the
+"What's new" note, merge of `feat/analytics-6`), and one start applies the three in order. The
+live database is at V23, so no applied version is newer than V25 and Flyway applies V25 before
+V26 as usual. Do not deploy a release that carries V26 without V25 (section 20).
+
+What the three migrations do, each a catalogue-only change that rewrites no row:
+
+| Migration | Change |
+|---|---|
+| `V24__outbox_reply_order.sql` | `outbox_messages.follows uuid`, nullable |
+| `V25__animated_mood_setting.sql` | `users.animated_mood boolean NOT NULL DEFAULT false` |
+| `V26__whats_new_notice.sql` | `users.whats_new_seen integer` (0 for every existing row, then no default) and `users.whats_new_enabled boolean NOT NULL DEFAULT true` |
+
+No environment variable is added or made required, and the live host needs no new binary: the
+video encoder of the animated mood (JCodec 0.2.5, pure Java) is inside the assembly jar, and the
+frames are drawn by the rasteriser the host already uses for the still cards (`RESVG_PATH`, or
+`RENDER_WORKER_PATH` when set). A host without resvg can fetch the pinned 0.49.0 with
+`scripts/fetch-resvg.sh out/resvg` (it checks the release checksum and also builds
+`dosegram-raster` with cargo) and point `RESVG_PATH` at `out/resvg/resvg`. The Dockerfile is
+unchanged.
+
+Every step is the owner's; `<sha>` is the head of `main` at or after the commit that adds this
+section, and `<pg>` is `dosegram-live-pg`:
+
+1. Steps 1 to 3 of section 18 (backup, purge-list mode and quarantined count, the worktree and
+   `./mill app.assembly` of `<sha>`); the backup file is the V23 restore point.
+2. Stop the running bot and start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows the
+   `sealing:` lines with `sealed 0`, then `migrate: 3 migration(s) applied, schema 26, 0 value(s)
+   sealed, 0 key(s) rewrapped`, `purge: replayed 0 deletion(s) of the purge list` and the health
+   listener on `127.0.0.1:18081`.
+3. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   - `SELECT string_agg(version, ',' ORDER BY installed_rank) FROM flyway_schema_history WHERE success AND version::int > 23;`
+     returns `24,25,26`;
+   - `SELECT count(*) FROM users WHERE whats_new_seen IS NULL;` returns 0;
+   - `SELECT count(*) FROM users WHERE animated_mood;` returns 0;
+   - the quarantined count is that of step 1, and `curl -fsS http://127.0.0.1:18081/readyz`
+     answers 200.
+4. In the chat: the answer to the next command (not `/start`) is followed once by the "What's
+   new" note with "Don't show these" (BOT_UX section 6.5); `/stats year` lists the year per area;
+   its "Show as image" sends the one-year card (IMG-30) after the images consent; `/stats meds`
+   with "Show as image" sends the strip pages in order (V24); a mood check-in is still answered
+   with the still mood card, because "Animated mood" is off for every account and can be turned
+   on only from the Mini App settings, which are off on live.
+5. Delete the old worktree only after a day of normal use.
+
+Rollback without a restore: stop the bot and start the previous release. It ignores the three
+columns: Flyway accepts applied migrations that an older release does not have, and the older
+code neither writes `follows`, `animated_mood` or the two note columns nor reads them. A restart
+of the head after a rollback sends the note no second time, because `whats_new_seen` is already
+the release. Restore the backup of step 1 only if V23 itself must come back.
+
+Not rehearsed: written from the code and the tests (`SealingBackfillPgSuite` and `RlsSuite`
+upgrade to schema 26 through V24 to V26, `WhatsNewPgSuite`, `AccountSettingsPgSuite`,
+`CaptureLaunchSuite`); no throwaway copy of a V23 database was upgraded and rolled back, and
+nothing ran on a real client or the Telegram transport.
