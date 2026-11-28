@@ -159,6 +159,12 @@ test('log water from the deep link: the amount is recorded, shown, and counted i
   const both = page.getByRole('table', { name: 'Both periods by area' });
   await expect(both.getByRole('rowheader', { name: 'Water, a day with records' })).toBeVisible();
   await expect(both.getByRole('columnheader', { name: 'This week' })).toBeVisible();
+  // The Rhythm tab (supervisor decision, 2026-11-28): /stats rhythm from the real backend; the water just added is
+  // below the 14-day gate, so the area shows its recorded days.
+  const rhythm = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/rhythm'));
+  await page.getByRole('group', { name: 'Period' }).getByLabel('Rhythm').check();
+  expect((await rhythm).status()).toBe(200);
+  await expect(page.getByRole('region', { name: 'Rhythm' }).getByText(/^Water: records on \d+ days?$/)).toBeVisible();
   const week = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/overview?range=7'));
   await page.getByLabel('7 days').check();
   expect((await week).status()).toBe(200);

@@ -71,6 +71,7 @@ object EnglishImageCopy extends ImageCopy:
   def detailsBelow: String = "Details below."
   def year: YearImageCopy = EnglishYearImageCopy
   def compare: CompareImageCopy = EnglishCompareImageCopy
+  def rhythm: RhythmImageCopy = EnglishRhythmImageCopy
 
   def domainName(domain: Domain): String =
     domain match

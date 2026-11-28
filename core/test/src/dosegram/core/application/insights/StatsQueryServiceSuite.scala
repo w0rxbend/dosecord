@@ -469,6 +469,23 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     val ahead = CompareSelection.twoMonths(java.time.YearMonth.of(2026, 6), java.time.YearMonth.of(2026, 7)).get
     assertEquals(rig.stats.compare(rig.tx, account, ahead), Left(StatsRefusal.PeriodAhead))
 
+  test("the rhythm answers one row per consented area over the last 30 days, from the area's own records"):
+    val consent = FakeConsent.all(account)
+    val rig = Rig(consent)
+    consent.withdraw(account, ConsentPurpose.Mood)
+    (0 until 14).foreach(daysAgo => rig.on(daysAgo)(rig.drink(250, s"r$daysAgo")))
+    rig.on(31)(rig.drink(250, "outside"))
+    val view = rig.stats.rhythm(rig.tx, account).toOption.get
+    assertEquals(
+      view.figures.rows.map(_.domain),
+      List(TrendDomain.Medication, TrendDomain.Hydration, TrendDomain.Sleep, TrendDomain.Nutrition)
+    )
+    assertEquals(view.figures.window.days, 30)
+    val water = view.figures.rows(1)
+    assertEquals(water.recordedDays, 14)
+    assertEquals(water.pattern.shown.map(_.band.total), Some(14), "the day 31 days ago is outside the window")
+    assertEquals(view.figures.records.withRecords, 14)
+
   test("the weekly card counts each day's logged main meals and its snacks, and has no food row without the consent"):
     val consent = FakeConsent.all(account)
     // The dose marks read the occurrences, which this double does not hold.

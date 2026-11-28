@@ -49,5 +49,6 @@ object Copy:
       YearCopy.entries ++
       WhatsNewCopy.entries ++
       StickerCopy.entries ++
-      CompareCopy.entries
+      CompareCopy.entries ++
+      RhythmCopy.entries
 end Copy

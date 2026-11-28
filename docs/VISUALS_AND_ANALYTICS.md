@@ -790,6 +790,7 @@ Conventions for every entry:
 | IMG-25 | Week highlights (section 6.24) | `card.week.highlights.v1` | square, portrait with an observation | personal | L1 | scheduled (second photo of IMG-04) |
 | IMG-26 | Mood gallery (section 6.25) | `card.mood.gallery.v1` | square | personal | L1 | on demand (`/mood history`) |
 | IMG-27 | Two periods side by side (section 6.27) | `card.compare.v1` | square up to three rows, portrait above | personal | L1 | on demand (`/stats compare`) |
+| IMG-28 | The rhythm of the day (section 6.28) | `card.rhythm.v1` | square up to three rows, portrait above | personal | L1 | on demand (`/stats rhythm`) |
 | IMG-30 | The year, week by week (section 6.30) | `card.year.v1` | square up to two areas, portrait above | personal | L1 | on demand (`/stats year`) |
 | DOC-01 | Record summary (PDF) | `doc.summary.v1` | a4 | personal | L3 | on demand only |
 
@@ -1566,6 +1567,18 @@ Text equivalent: the chat's lines with the counts kept, whatever the counts swit
 | ID | What it draws | Text equivalent | Where it is offered |
 |---|---|---|---|
 | IMG-27 | Two periods per shown area: each figure and its recorded days over a bar from zero on the row's scale (mood a dot on 1 to 5), a dotted track below the gate, the difference in words | The chat's lines of `/stats compare` with the counts | "Show as image" on `/stats compare` |
+
+### 6.28 The rhythm of the day (IMG-28)
+
+Supervisor decision, 2026-11-28 (rhythm track; PRODUCT_SPEC R-INS-15). IMG-28, `card.rhythm.v1`, is the card of `/stats rhythm` (BOT_UX section 12.5): under the title "Rhythm of the day" and the window ("28 Oct to 26 Nov"), one row per area whose consent is active, in the order medication, water, mood, sleep, food: the domain icon and name, the recorded days at the line's end ("24 days", "22 nights"), a band of 24 hours from 00:00 on the left to 24:00 on the right, and under it the area's short line in the chat's words ("most often 13:00 to 14:00"; sleep "usually: bedtime 23:35, wake 06:50"). Each hour with a record is a bar from the band's floor whose height is the hour's records on the row's own scale (the busiest hour fills it), so the hours compare without the colour (VA-PR-06); an hour without a record has no bar. Water counts its entries, mood its check-ins (never their values), medication the doses recorded as taken by the hour they were recorded, food its meals and snacks, and sleep the main nights asleep for at least half of the hour. An area below its gate (14 days with records of the 30) has a dotted track and its recorded days, never an empty band (VA-PR-03). One axis under the last row names 00:00, 06:00, 12:00, 18:00 and 24:00. The legend names the dotted track ("No pattern: fewer than 14 days with records"), that each row has its own scale, and with a sleep band what it counts. Up to three rows fit the square; four or five take the portrait, and the rows close up when a longer legend would reach the footer. Nothing marks an hour as a target, ranks an area or scores the timing of doses (R-GAM-2).
+
+Supervisor decision, 2026-11-28 (rhythm track): the rhythm's typical bedtime and wake time and how much each varied are the circular median and standard deviation of section 7.7 over the main nights of the 30 days, shown from 14 nights (the rhythm's gate) rather than from the 20 of 28 nights of the regularity figures, because the rhythm states when the nights fell, not how regular they were; the words are those of IMG-12 ("usual bedtime", "varied by about"). The timing of doses is the delay statistic of section 7.2 (median of `effective_at - scheduled_for` over taken doses, corrections excluded, from 5 samples), with the nearest-rank 90th percentile of its size worded "9 in 10 within 40 min of it", now shown in the chat as well as in the Mini App and the PDF: it is a description of when the user recorded doses, with no target, no on-time share and no judgement.
+
+Text equivalent: the chat's lines with the counts kept, whatever the counts switch says, since the card draws every recorded-day count: "Rhythm of the day · last 30 days · Europe/Kyiv. 28 Oct to 26 Nov: days with records 29 of 30. ... Water (24 days): 93 entries, most often 13:00 to 14:00 · morning 31, afternoon 45, evening 17, night 0. ... These are the times of your own records. They set no target and show no cause." Discreet mode keeps the rows (L1), captions "The rhythm of your days." and sends the photo behind a spoiler. Goldens: `rhythm/typical` (five rows, food below the gate, portrait) and `rhythm/sparse` (water, mood below the gate, square), light, dark and discreet, English and Ukrainian text equivalents, pixel hashes; the greyscale check of G4.7 covers both (`RhythmCardSuite`).
+
+| ID | What it draws | Text equivalent | Where it is offered |
+|---|---|---|---|
+| IMG-28 | Per shown area a 24-hour band with a bar per hour on the row's scale, its recorded days and short line; a dotted track below the gate | The chat's lines of `/stats rhythm` with the counts | "Show as image" on `/stats rhythm` |
 
 ### 7.1 Common definitions
 

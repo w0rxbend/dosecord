@@ -9,6 +9,7 @@ import type {
   InsightList,
   InsightYear,
   InsightCompare,
+  InsightRhythm,
   CompareChoice,
   InsightMonth,
   InsightRange,
@@ -215,6 +216,8 @@ export interface ApiClient {
   insightYear(year?: number): Promise<InsightYear>;
   /** Two periods side by side as /stats compare shows them; absent is last week and this week. */
   insightCompare(choice?: CompareChoice): Promise<InsightCompare>;
+  /** The rhythm of the day as /stats rhythm shows it: records by hour over the last 30 days. */
+  insightRhythm(): Promise<InsightRhythm>;
 
   // exports (MINI_APP S-14): a request is confirmed in the chat before anything is made (MA-STEP-1).
   exports(): Promise<readonly ExportItem[]>;

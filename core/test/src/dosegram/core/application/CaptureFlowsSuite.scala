@@ -14,6 +14,7 @@ import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.CompareCopy
+import dosegram.core.domain.copy.RhythmCopy
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ExportCopy
@@ -55,6 +56,7 @@ import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CompareCardCell
 import dosegram.core.ports.CompareCardView
+import dosegram.core.ports.RhythmCardView
 import dosegram.core.ports.CardLook
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
@@ -143,6 +145,11 @@ class CaptureFlowsSuite extends munit.FunSuite:
 
     val years: mutable.ListBuffer[YearFigures] = mutable.ListBuffer.empty
     val compares: mutable.ListBuffer[CompareCardView] = mutable.ListBuffer.empty
+    val rhythms: mutable.ListBuffer[RhythmCardView] = mutable.ListBuffer.empty
+
+    override def rhythm(view: RhythmCardView, look: CardLook): Option[CardPage] =
+      rhythms += view
+      Some(CardPage("rhythm", "<svg id='rhythm'/>", view.text.take(1024), "rhythm.png", hasSpoiler = false))
 
     override def compare(view: CompareCardView, look: CardLook): Option[CardPage] =
       compares += view
@@ -1137,6 +1144,71 @@ class CaptureFlowsSuite extends munit.FunSuite:
         List("This week", "This month", "Pick two months")
       )
 
+  // ---------- The rhythm of the day (supervisor decision, 2026-11-28) ----------
+
+  test("/stats rhythm shows when in the day each area's records fall, behind the 14-day gate"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      // Water at noon in Kyiv on the 14 days before the rig's day, 21 September 2026: the window is 23 Aug to 21 Sep.
+      waterOn(chat, 1 to 14, _ => 500)
+      val rhythm = chat.rig.line("/stats rhythm").head.split("\n\n").toList
+      assertEquals(
+        rhythm,
+        List(
+          "Rhythm of the day · last 30 days · Europe/Kyiv",
+          "23 Aug to 21 Sep: days with records 14 of 30",
+          RhythmCopy.gateNote,
+          RhythmCopy.clockNote,
+          "Doses: —",
+          "Water (14 days): 14 entries, most often 12:00 to 13:00 · morning 0, afternoon 14, evening 0, night 0",
+          RhythmCopy.closing
+        )
+      )
+      assertEquals(chat.rig.lastChoiceMap("Rhythm of the day").map(_.label), List(StatsCardCopy.ShowAsImage))
+
+  test("an area below the gate shows its recorded days, and nothing to draw offers no image"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      waterOn(chat, 1 to 9, _ => 500)
+      val rhythm = chat.rig.line("/stats rhythm").head.split("\n\n").toList
+      assert(rhythm.contains("Water: records on 9 days"), rhythm)
+      assertEquals(chat.rig.lastChoiceMap("Rhythm of the day").map(_.label), Nil)
+
+  test("Rhythm of the day on the 30-day /stats opens the rhythm; Show as image asks the images consent, then IMG-28"):
+    val cards = RecordingCards()
+    withChat(Profile.Telegram, cards): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      waterOn(chat, 1 to 14, _ => 500)
+      chat.rig.line("/stats 30")
+      val opened = texts(chat.rig.tapOn("Last 30 days", RhythmCopy.Rhythm))
+      assert(opened.head.startsWith("Rhythm of the day · last 30 days"), opened)
+      assertEquals(
+        texts(chat.rig.tapOn("Rhythm of the day", StatsCardCopy.ShowAsImage)),
+        List(ConsentCopy.statement(ConsentPurpose.ImagesInChat))
+      )
+      assertEquals(cards.rhythms.toList, Nil, "the card is not drawn before the images consent")
+      chat.rig.tapOn("I agree that", ConsentCopy.Agree)
+      val sent = chat.rig.tapOn("Please confirm", ConsentCopy.Confirm)
+      val photos = sent.collect { case VendorOp.Send(_, message, _, _) if message.attachment.isDefined => message }
+      assertEquals(photos.map(_.attachment.map(_.assetKey)), List(Some("rhythm")))
+      val view = cards.rhythms.head
+      assertEquals(view.rows.map(_.domain), List(TrendDomain.Medication, TrendDomain.Hydration))
+      assertEquals(view.rows.head.hours, None)
+      assertEquals(view.rows(1).hours.map(_(12)), Some(14))
+      assertEquals(view.rows(1).summary, "most often 12:00 to 13:00")
+      assertEquals(view.rows(1).days, "14 days")
+      assertEquals(photos.flatMap(_.chunks), List(view.text))
+
+  test("/stats rhythm with nothing recorded says so; with counts off it leaves out the gate and the days (R-GAM-5)"):
+    withChat(Profile.Telegram): chat =>
+      chat.grant(ConsentPurpose.Medication, ConsentPurpose.Hydration)
+      assertEquals(chat.rig.line("/stats rhythm").head.split("\n\n").toList.last, RhythmCopy.none)
+      waterOn(chat, 1 to 14, _ => 500)
+      chat.rig.uow.accounts.setGamification(chat.account, false, chat.rig.clock.now())
+      val rhythm = chat.rig.line("/stats rhythm").head.split("\n\n").toList
+      assert(!rhythm.contains(RhythmCopy.gateNote), rhythm)
+      assert(rhythm.exists(_.startsWith("Water: 14 entries, most often 12:00 to 13:00")), rhythm)
+
   test("/insights without the cross-domain consent runs no comparison and offers it; the consent turns it on"):
     val cards = RecordingCards()
     withChat(Profile.Telegram, cards): chat =>
@@ -1178,8 +1250,8 @@ class CaptureFlowsSuite extends munit.FunSuite:
       assertEquals(
         chat.rig.line("/stats decade"),
         List(
-          "Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare or " +
-            "/stats meds."
+          "Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare, " +
+            "/stats rhythm or /stats meds."
         )
       )
 
@@ -1404,7 +1476,16 @@ class CaptureFlowsSuite extends munit.FunSuite:
       chat.rig.line("/stats 30")
       assertEquals(
         chat.rig.lastChoiceMap("Last 30 days").map(_.label),
-        List("Today", "7 days", "30 days", StatsCardCopy.Trends, "Month", "Patterns", StatsCardCopy.ByMedication)
+        List(
+          "Today",
+          "7 days",
+          "30 days",
+          StatsCardCopy.Trends,
+          RhythmCopy.Rhythm,
+          "Month",
+          "Patterns",
+          StatsCardCopy.ByMedication
+        )
       )
 
       val asked = chat.rig.tapOn("Last 7 days", StatsCardCopy.WaterWeek)

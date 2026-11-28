@@ -23,10 +23,10 @@ object StatsCardCopy:
   def Trends = tr("Trends", "Динаміка")
 
   def usage = tr(
-    "Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare or " +
-      "/stats meds.",
-    "Надішліть /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare " +
-      "або /stats meds."
+    "Send /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare, " +
+      "/stats rhythm or /stats meds.",
+    "Надішліть /stats, /stats today, /stats 7, /stats 30, /stats trends, /stats month, /stats year, /stats compare, " +
+      "/stats rhythm або /stats meds."
   )
   def imageUnavailable = tr(
     "The image is not available right now. The figures above are complete.",

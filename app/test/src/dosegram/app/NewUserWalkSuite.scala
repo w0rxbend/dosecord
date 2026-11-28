@@ -5,9 +5,11 @@ import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.CompareCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ExportCopy
+import dosegram.core.domain.copy.RhythmCopy
 import dosegram.core.domain.copy.YearCopy
 import dosegram.core.domain.insights.ComparedPeriod
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.DayRhythm
 import dosegram.core.domain.insights.PeriodName
 import dosegram.core.domain.insights.RecordedDays
 import dosegram.core.domain.insights.Stat
@@ -352,6 +354,26 @@ class NewUserWalkSuite extends PgSuite:
       case photo :: rest if photo.contains("[image], caption:") => rest.takeWhile(_.startsWith("      | ")).exists(matches)
       case _                                                    => false
 
+  /** "Rhythm of the day" on the 30-day `/stats` (supervisor decision, 2026-11-28): the walk's first day is one day with
+    * records, below the 14-day gate of every area, so each area shows its recorded days and no card is offered.
+    */
+  private def assertRhythm(lang: Lang, lines: List[String], zone: ZoneId): Unit =
+    def l(text: => String): String = Lang.within(lang)(text)
+    val at = lines.indexWhere(_.endsWith("you: /stats 30"))
+    assert(at > 0, "the walk sends /stats 30")
+    val after = lines.drop(at)
+    val header = after.indexWhere(_.endsWith(l(RhythmCopy.header(zone))))
+    assert(header > 0, s"the rhythm opens from the 30 days: ${after.take(24)}")
+    val rhythm = after.drop(header).takeWhile(line => !line.contains(" you: ") && !line.contains(" you tap: "))
+    val period = l(RhythmCopy.periodLine(DayRhythm.window(day), RecordedDays(1, 0)))
+    assert(rhythm.exists(_.endsWith(period)), s"one day with records of 30: $period in $rhythm")
+    List(TrendDomain.Medication, TrendDomain.Hydration, TrendDomain.Mood, TrendDomain.Sleep, TrendDomain.Nutrition)
+      .foreach: domain =>
+        val line = l(s"${RhythmCopy.areaName(domain)}: ${RhythmCopy.belowGate(domain, 1)}")
+        assert(rhythm.exists(_.endsWith(line)), s"$domain is below the gate: '$line' in $rhythm")
+    assert(rhythm.exists(_.endsWith(l(RhythmCopy.closing))), s"the closing sentence: $rhythm")
+    assert(!rhythm.exists(_.contains(l(StatsCardCopy.ShowAsImage))), s"nothing to draw: $rhythm")
+
   /** `/settings` (supervisor decision, 2026-11-28; BOT_UX section 17): one card in the whole walk, and every tap on it
     * an edit of that card that names the old and the new value; the walk leaves discreet reminders as it found them.
     */
@@ -499,6 +521,9 @@ class NewUserWalkSuite extends PgSuite:
     chat.note("/stats compare: last week beside this week, then its card (supervisor decision, 2026-11-28)")
     chat.say("/stats compare")
     tap(StatsCardCopy.ShowAsImage)
+    chat.note("The 30 days, then the rhythm of the day from them (supervisor decision, 2026-11-28)")
+    chat.say("/stats 30")
+    tap(RhythmCopy.Rhythm)
     chat.note("/privacy")
     chat.say("/privacy")
     // Finding 19: /privacy offers the export.
@@ -525,6 +550,7 @@ class NewUserWalkSuite extends PgSuite:
     assertAnalytics(Lang.Uk, lines, drawn)
     assertMoodHistory(Lang.Uk, lines, drawn)
     assertCompare(Lang.Uk, lines, drawn, zone)
+    assertRhythm(Lang.Uk, lines, zone)
     assertSettings(Lang.Uk, lines)
     assert(lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezoneSuggested))), "Kyiv suggested by the language")
     assert(!lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezonePrompt))), "no picker before the suggestion")
@@ -546,5 +572,6 @@ class NewUserWalkSuite extends PgSuite:
     assertAnalytics(Lang.En, lines, drawn)
     assertMoodHistory(Lang.En, lines, drawn)
     assertCompare(Lang.En, lines, drawn, zone)
+    assertRhythm(Lang.En, lines, zone)
     assertSettings(Lang.En, lines)
 end NewUserWalkSuite

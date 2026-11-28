@@ -195,6 +195,15 @@ object Endpoints:
         "Two periods side by side as /stats compare shows them: one area per domain whose consent is active."
       )
 
+  val insightRhythm =
+    secured.get
+      .in("insights" / "rhythm")
+      .out(jsonBody[InsightRhythm])
+      .name("getInsightRhythm")
+      .description(
+        "The rhythm of the day as /stats rhythm shows it: per area whose consent is active, records by hour over 30 days."
+      )
+
   val insightCorrelations =
     secured.get
       .in("insights" / "correlations")
@@ -555,6 +564,7 @@ object Endpoints:
     insightCorrelations,
     insightYear,
     insightCompare,
+    insightRhythm,
     getReminders,
     listReminderPresets,
     createReminderPlan,

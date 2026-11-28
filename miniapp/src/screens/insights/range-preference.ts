@@ -2,6 +2,10 @@ import type { InsightRange } from '../../api/types';
 
 /** The Year tab beside the periods (supervisor decision, 2026-11-28): the year of /stats year. */
 export const YEAR = 'year';
+/** The Compare tab (supervisor decision, 2026-11-28): two periods of /stats compare side by side. */
+export const COMPARE = 'compare';
+/** The Rhythm tab (supervisor decision, 2026-11-28): the rhythm of the day of /stats rhythm. */
+export const RHYTHM = 'rhythm';
 /** The last period or Year tab, kept per device as an interface preference (MA-INS-1, MINI_APP 6.6). */
 export const RANGE_KEY = 'ui_v1_insights_range';
 export const DEFAULT_RANGE: InsightRange = 30;

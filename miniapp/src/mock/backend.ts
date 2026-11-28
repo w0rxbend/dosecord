@@ -28,6 +28,7 @@ import { buildInsightList, buildMonth, buildOverview, doseHistory } from './insi
 import { buildPreview } from './preview';
 import { buildYear } from './year';
 import { buildCompare } from './compare';
+import { buildRhythm } from './rhythm';
 import { MockReminders } from './reminders';
 import { MockTracking } from './tracking';
 
@@ -484,6 +485,9 @@ export class MockBackend implements ApiClient {
 
   insightCompare: ApiClient['insightCompare'] = (choice) =>
     this.respond('insights/compare', () => buildCompare(choice, this.localToday(), this.tracking));
+
+  insightRhythm: ApiClient['insightRhythm'] = () =>
+    this.respond('insights/rhythm', () => buildRhythm(this.localToday(), this.tracking));
 
   private preview(medicationId: string, draft: ScheduleDraft) {
     const { doseUnit } = this.find(medicationId).medication;

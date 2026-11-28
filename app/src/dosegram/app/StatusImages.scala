@@ -11,6 +11,7 @@ import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HighlightDomain
 import dosegram.core.domain.insights.SleepRegularityFigures
+import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.insights.YearFigures
 import dosegram.core.domain.mood.Valence
@@ -32,6 +33,7 @@ import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.MoodGalleryView
 import dosegram.core.ports.RefillCardView
+import dosegram.core.ports.RhythmCardView
 import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
 import dosegram.core.ports.StickerImage
@@ -84,6 +86,9 @@ import dosegram.render.card.MoodWeekdayRow
 import dosegram.render.card.Privacy
 import dosegram.render.card.RefillCard
 import dosegram.render.card.RefillData
+import dosegram.render.card.RhythmCard
+import dosegram.render.card.RhythmData
+import dosegram.render.card.RhythmRow
 import dosegram.render.card.ShareCard
 import dosegram.render.card.ShareData
 import dosegram.render.card.ShareFact
@@ -338,6 +343,14 @@ final class RenderedStatusCards extends StatusCards:
         CompareRow(domain, cell(row.earlier), cell(row.later), row.difference, scale)
       val data = CompareData(column(view.earlier), column(view.later), rows, view.text)
       page(look)(CompareCard.render(data, contextOf(look)))
+
+  /** IMG-28 (supervisor decision, 2026-11-28): one 24-hour band per area; sleep's band counts the nights asleep. */
+  override def rhythm(view: RhythmCardView, look: CardLook): Option[CardPage] =
+    Option.when(view.rows.nonEmpty):
+      val rows = view.rows.toVector.map: row =>
+        val (domain, _) = ReportCards.trendDomain(row.domain)
+        RhythmRow(domain, row.hours.map(_.toVector), row.summary, row.days, asleep = row.domain == TrendDomain.Sleep)
+      page(look)(RhythmCard.render(RhythmData(view.window.start, view.window.end, rows, view.text), contextOf(look)))
 
   /** IMG-07 (supervisor decision, 2026-11-27): the chat draws no name (L1), so the rows are "Item 1" onward in registry
     * order; each day holds its scheduled doses, then one as-needed glyph per log.

@@ -11,6 +11,7 @@ import {
   toInsightList,
   toInsightYear,
   toInsightCompare,
+  toInsightRhythm,
   toInsightMonth,
   toInsightsOverview,
   toMeal,
@@ -417,6 +418,7 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
             : `?first=${id(choice.first)}&second=${id(choice.second)}`;
       return toInsightCompare(await request<Wire['InsightCompare']>(`insights/compare${query}`));
     },
+    insightRhythm: async () => toInsightRhythm(await request<Wire['InsightRhythm']>('insights/rhythm')),
     reportCards: async () => {
       const read = await request<Wire['ReportCards']>('report-cards');
       return {

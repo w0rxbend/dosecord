@@ -1,0 +1,23 @@
+file: dosegram-rhythm.png
+spoiler: true
+caption: The rhythm of your days.
+alt: Rhythm of the day · last 30 days · Europe/Kyiv
+28 Oct to 26 Nov: days with records 29 of 30
+An area shows its rhythm once it has records on 14 of the 30 days; fewer show those days.
+Times are the local clock times of your records.
+Doses (20 days): 26 taken, most often 08:00 to 09:00 · morning 20, afternoon 0, evening 6, night 0 · a median of 12 min after the scheduled time, 9 in 10 within 40 min of it
+Water (24 days): 93 entries, most often 13:00 to 14:00 · morning 31, afternoon 45, evening 17, night 0
+Mood check-ins (18 days): 24 check-ins, most often 21:00 to 22:00 · morning 10, afternoon 0, evening 14, night 0
+Sleep (22 nights): usual bedtime 23:35, varied by about 25 min · usual wake time 06:50, varied by about 20 min
+Meals: records on 9 days
+These are the times of your own records. They set no target and show no cause.
+full: Rhythm of the day · last 30 days · Europe/Kyiv
+28 Oct to 26 Nov: days with records 29 of 30
+An area shows its rhythm once it has records on 14 of the 30 days; fewer show those days.
+Times are the local clock times of your records.
+Doses (20 days): 26 taken, most often 08:00 to 09:00 · morning 20, afternoon 0, evening 6, night 0 · a median of 12 min after the scheduled time, 9 in 10 within 40 min of it
+Water (24 days): 93 entries, most often 13:00 to 14:00 · morning 31, afternoon 45, evening 17, night 0
+Mood check-ins (18 days): 24 check-ins, most often 21:00 to 22:00 · morning 10, afternoon 0, evening 14, night 0
+Sleep (22 nights): usual bedtime 23:35, varied by about 25 min · usual wake time 06:50, varied by about 20 min
+Meals: records on 9 days
+These are the times of your own records. They set no target and show no cause.

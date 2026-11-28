@@ -53,6 +53,9 @@ trait ImageCopy:
 
   /** The comparison of two periods (IMG-27), one block per language. */
   def compare: CompareImageCopy
+
+  /** The rhythm of the day (IMG-28), one block per language. */
+  def rhythm: RhythmImageCopy
   def domainName(domain: Domain): String
   def itemLabel(position: Int): String
   def dayDate(date: LocalDate): String

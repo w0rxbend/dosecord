@@ -21,6 +21,7 @@ import type {
   InsightRange,
   InsightYear,
   InsightCompare,
+  InsightRhythm,
   InsightsOverview,
   Meal,
   MealRecorded,
@@ -426,6 +427,18 @@ export function toInsightCompare(wire: Wire['InsightCompare']): InsightCompare {
       difference: area.difference,
     })),
     months: (wire.months ?? []).map((month) => ({ ...month })),
+    lines: wire.lines ?? [],
+    notice: wire.notice,
+  };
+}
+
+/** The rhythm in the server's words: per area its line and, from its gate, its 24 hours. */
+export function toInsightRhythm(wire: Wire['InsightRhythm']): InsightRhythm {
+  return {
+    summary: wire.summary,
+    gateNote: wire.gateNote,
+    clockNote: wire.clockNote,
+    areas: (wire.areas ?? []).map((area) => ({ ...area })),
     lines: wire.lines ?? [],
     notice: wire.notice,
   };

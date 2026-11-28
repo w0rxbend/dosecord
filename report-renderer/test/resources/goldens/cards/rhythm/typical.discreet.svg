@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<rect width="1080" height="1350" fill="#0f222b"/>
+<text x="64" y="120" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="64" fill="#e8f0f4">Rhythm of the day</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end">28 Oct to 26 Nov</text>
+<g>
+  <rect x="73.33" y="193.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="212" x2="101.33" y2="212" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Medication</text>
+<text x="1016" y="220" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">20 days</text>
+<g>
+  <rect x="140" y="236" width="876" height="60" rx="8" fill="#2f434d"/>
+  <rect x="434" y="236" width="32.5" height="60" rx="4" fill="#2cab88"/>
+  <rect x="470.5" y="288" width="32.5" height="8" rx="4" fill="#2cab88"/>
+  <rect x="908.5" y="276" width="32.5" height="20" rx="4" fill="#2cab88"/>
+</g>
+<text x="140" y="332" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">most often 08:00 to 09:00</text>
+<g>
+  <path d="M92 350 C85.93 358.4 76.83 368.67 76.83 376.83 A15.17 15.17 0 0 0 107.17 376.83 C107.17 368.67 98.07 358.4 92 350 Z" fill="none" stroke="#0072be" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="379" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Water</text>
+<text x="1016" y="379" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">24 days</text>
+<g>
+  <rect x="140" y="395" width="876" height="60" rx="8" fill="#2f434d"/>
+  <rect x="397.5" y="445" width="32.5" height="10" rx="4" fill="#0072be"/>
+  <rect x="434" y="405" width="32.5" height="50" rx="4" fill="#0072be"/>
+  <rect x="470.5" y="425" width="32.5" height="30" rx="4" fill="#0072be"/>
+  <rect x="507" y="415" width="32.5" height="40" rx="4" fill="#0072be"/>
+  <rect x="543.5" y="430" width="32.5" height="25" rx="4" fill="#0072be"/>
+  <rect x="580" y="410" width="32.5" height="45" rx="4" fill="#0072be"/>
+  <rect x="616.5" y="395" width="32.5" height="60" rx="4" fill="#0072be"/>
+  <rect x="653" y="425" width="32.5" height="30" rx="4" fill="#0072be"/>
+  <rect x="689.5" y="420" width="32.5" height="35" rx="4" fill="#0072be"/>
+  <rect x="726" y="430" width="32.5" height="25" rx="4" fill="#0072be"/>
+  <rect x="762.5" y="425" width="32.5" height="30" rx="4" fill="#0072be"/>
+  <rect x="799" y="415" width="32.5" height="40" rx="4" fill="#0072be"/>
+  <rect x="835.5" y="435" width="32.5" height="20" rx="4" fill="#0072be"/>
+  <rect x="872" y="440" width="32.5" height="15" rx="4" fill="#0072be"/>
+  <rect x="908.5" y="445" width="32.5" height="10" rx="4" fill="#0072be"/>
+</g>
+<text x="140" y="491" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">most often 13:00 to 14:00</text>
+<g>
+  <path d="M92 509.93 C96.45 509.93 102.24 518.33 105.34 523.7 C108.44 529.07 112.81 538.28 110.59 542.13 C108.37 545.98 98.2 546.8 92 546.8 C85.8 546.8 75.63 545.98 73.41 542.13 C71.19 538.28 75.56 529.07 78.66 523.7 C81.76 518.33 87.55 509.93 92 509.93 Z" fill="none" stroke="#b45689" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="538" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Mood</text>
+<text x="1016" y="538" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">18 days</text>
+<g>
+  <rect x="140" y="554" width="876" height="60" rx="8" fill="#2f434d"/>
+  <rect x="470.5" y="574" width="32.5" height="40" rx="4" fill="#b45689"/>
+  <rect x="507" y="587.33" width="32.5" height="26.67" rx="4" fill="#b45689"/>
+  <rect x="908.5" y="554" width="32.5" height="60" rx="4" fill="#b45689"/>
+  <rect x="945" y="580.67" width="32.5" height="33.33" rx="4" fill="#b45689"/>
+</g>
+<text x="140" y="650" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">most often 21:00 to 22:00</text>
+<g>
+  <path d="M109.5 694.13 A19.13 19.13 0 1 1 86.87 671.5 A15.4 15.4 0 0 0 109.5 694.13 Z" fill="none" stroke="#9d7aef" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="697" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Sleep</text>
+<text x="1016" y="697" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">22 nights</text>
+<g>
+  <rect x="140" y="713" width="876" height="60" rx="8" fill="#2f434d"/>
+  <rect x="142" y="713" width="32.5" height="60" rx="4" fill="#9d7aef"/>
+  <rect x="178.5" y="713" width="32.5" height="60" rx="4" fill="#9d7aef"/>
+  <rect x="215" y="713" width="32.5" height="60" rx="4" fill="#9d7aef"/>
+  <rect x="251.5" y="713" width="32.5" height="60" rx="4" fill="#9d7aef"/>
+  <rect x="288" y="713" width="32.5" height="60" rx="4" fill="#9d7aef"/>
+  <rect x="324.5" y="713" width="32.5" height="60" rx="4" fill="#9d7aef"/>
+  <rect x="361" y="718.45" width="32.5" height="54.55" rx="4" fill="#9d7aef"/>
+  <rect x="397.5" y="762.09" width="32.5" height="10.91" rx="4" fill="#9d7aef"/>
+  <rect x="981.5" y="756.64" width="32.5" height="16.36" rx="4" fill="#9d7aef"/>
+</g>
+<text x="140" y="809" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">usually: bedtime 23:35, wake 06:50</text>
+<g>
+  <circle cx="92" cy="848" r="21" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 837.5 A10.5 10.5 0 0 1 102.5 848" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="856" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Food</text>
+<text x="1016" y="856" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">9 days</text>
+<g>
+  <rect x="142" y="874" width="872" height="56" rx="4" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="140" y="968" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4">records on 9 days</text>
+<text x="140" y="1023" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">00:00</text>
+<text x="359" y="1023" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="middle">06:00</text>
+<text x="578" y="1023" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="middle">12:00</text>
+<text x="797" y="1023" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="middle">18:00</text>
+<text x="1016" y="1023" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">24:00</text>
+<g>
+  <rect x="74" y="1061" width="24" height="24" rx="4" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="120" y="1087" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">No pattern: fewer than 14 days with records</text>
+<text x="64" y="1143" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Height: records in each hour, on the row&apos;s scale</text>
+<text x="64" y="1199" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Sleep: nights asleep in each hour</text>
+<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>

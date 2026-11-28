@@ -897,10 +897,100 @@ object Samples:
     Fixture("compare/months", context => Vector(CompareCard.render(compareMonths(context.copy), context)))
   )
 
+  // The rhythm of the day (IMG-28, supervisor decision, 2026-11-28): five areas over 30 days with food below the gate
+  // (portrait), and water with mood below the gate (square). The words are the core's, as the chat prints them.
+  private def hours(counts: (Int, Int)*): Vector[Int] =
+    val byHour = counts.toMap
+    Vector.tabulate(RhythmCard.Hours)(hour => byHour.getOrElse(hour, 0))
+
+  private val rhythmHead = Vector(
+    "Rhythm of the day · last 30 days · Europe/Kyiv" -> "Ритм дня · останні 30 днів · Europe/Kyiv",
+    "An area shows its rhythm once it has records on 14 of the 30 days; fewer show those days." ->
+      "Сфера показує ритм, коли записи є щонайменше за 14 з 30 днів; якщо менше, показано дні із записами.",
+    "Times are the local clock times of your records." -> "Час — місцевий час ваших записів."
+  )
+  private val rhythmClosing =
+    "These are the times of your own records. They set no target and show no cause." ->
+      "Це час ваших власних записів. Він не задає цілі й не показує причину."
+
+  private def rhythmText(uk: Boolean, period: (String, String), rows: Vector[(String, String)]): String =
+    def pick(words: (String, String)): String = if uk then words._2 else words._1
+    (Vector(rhythmHead(0), period, rhythmHead(1), rhythmHead(2)) ++ rows :+ rhythmClosing).map(pick).mkString("\n")
+
+  private def rhythmTypical(copy: ImageCopy): RhythmData =
+    val uk = copy == UkrainianImageCopy
+    def words(en: String, ukrainian: String): String = if uk then ukrainian else en
+    val text = rhythmText(
+      uk,
+      "28 Oct to 26 Nov: days with records 29 of 30" -> "28 жовтня – 26 листопада: днів із записами 29 з 30",
+      Vector(
+        "Doses (20 days): 26 taken, most often 08:00 to 09:00 · morning 20, afternoon 0, evening 6, night 0 · " +
+          "a median of 12 min after the scheduled time, 9 in 10 within 40 min of it" ->
+          ("Дози (20 днів): прийнято 26, найчастіше 08:00–09:00 · ранок 20, день 0, вечір 6, ніч 0 · " +
+            "медіана — через 12 хв після запланованого часу, 9 з 10 — у межах 40 хв від нього"),
+        "Water (24 days): 93 entries, most often 13:00 to 14:00 · morning 31, afternoon 45, evening 17, night 0" ->
+          "Вода (24 дні): 93 записи, найчастіше 13:00–14:00 · ранок 31, день 45, вечір 17, ніч 0",
+        "Mood check-ins (18 days): 24 check-ins, most often 21:00 to 22:00 · morning 10, afternoon 0, evening 14, " +
+          "night 0" -> "Позначки настрою (18 днів): 24 позначки, найчастіше 21:00–22:00 · ранок 10, день 0, вечір 14, ніч 0",
+        "Sleep (22 nights): usual bedtime 23:35, varied by about 25 min · usual wake time 06:50, varied by about " +
+          "20 min" -> ("Сон (22 ночі): звичний відхід до сну 23:35, різнився приблизно на 25 хв · звичний підйом 06:50, " +
+            "різнився приблизно на 20 хв"),
+        "Meals: records on 9 days" -> "Прийоми їжі: записи за 9 днів"
+      )
+    )
+    val sleep = hours((23, 6) +: ((0 to 5).map(_ -> 22) ++ Vector(6 -> 20, 7 -> 4))*)
+    RhythmData(
+      LocalDate.of(2026, 10, 28),
+      LocalDate.of(2026, 11, 26),
+      Vector(
+        RhythmRow(Domain.Medication, Some(hours(8 -> 18, 9 -> 2, 21 -> 6)), words("most often 08:00 to 09:00",
+          "найчастіше 08:00–09:00"), words("20 days", "20 днів"), asleep = false),
+        RhythmRow(Domain.Water, Some(hours(7 -> 2, 8 -> 10, 9 -> 6, 10 -> 8, 11 -> 5, 12 -> 9, 13 -> 12, 14 -> 6,
+          15 -> 7, 16 -> 5, 17 -> 6, 18 -> 8, 19 -> 4, 20 -> 3, 21 -> 2)), words("most often 13:00 to 14:00",
+          "найчастіше 13:00–14:00"), words("24 days", "24 дні"), asleep = false),
+        RhythmRow(Domain.Mood, Some(hours(9 -> 6, 10 -> 4, 21 -> 9, 22 -> 5)), words("most often 21:00 to 22:00",
+          "найчастіше 21:00–22:00"), words("18 days", "18 днів"), asleep = false),
+        RhythmRow(Domain.Sleep, Some(sleep), words("usually: bedtime 23:35, wake 06:50",
+          "звично: сон 23:35, підйом 06:50"), words("22 nights", "22 ночі"), asleep = true),
+        RhythmRow(Domain.Food, None, words("records on 9 days", "записи за 9 днів"), words("9 days", "9 днів"),
+          asleep = false)
+      ),
+      text
+    )
+
+  private def rhythmSparse(copy: ImageCopy): RhythmData =
+    val uk = copy == UkrainianImageCopy
+    def words(en: String, ukrainian: String): String = if uk then ukrainian else en
+    val text = rhythmText(
+      uk,
+      "28 Oct to 26 Nov: days with records 16 of 30" -> "28 жовтня – 26 листопада: днів із записами 16 з 30",
+      Vector(
+        "Water (15 days): 15 entries, most often 08:00 to 09:00 · morning 6, afternoon 5, evening 4, night 0" ->
+          "Вода (15 днів): 15 записів, найчастіше 08:00–09:00 · ранок 6, день 5, вечір 4, ніч 0",
+        "Mood check-ins: records on 5 days" -> "Позначки настрою: записи за 5 днів"
+      )
+    )
+    RhythmData(
+      LocalDate.of(2026, 10, 28),
+      LocalDate.of(2026, 11, 26),
+      Vector(
+        RhythmRow(Domain.Water, Some(hours(8 -> 6, 12 -> 5, 18 -> 4)), words("most often 08:00 to 09:00",
+          "найчастіше 08:00–09:00"), words("15 days", "15 днів"), asleep = false),
+        RhythmRow(Domain.Mood, None, words("records on 5 days", "записи за 5 днів"), words("5 days", "5 днів"),
+          asleep = false)
+      ),
+      text
+    )
+
+  val rhythms: Vector[Fixture] = Vector(
+    Fixture("rhythm/typical", context => Vector(RhythmCard.render(rhythmTypical(context.copy), context))),
+    Fixture("rhythm/sparse", context => Vector(RhythmCard.render(rhythmSparse(context.copy), context)))
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
       moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
-      refills ++ trends ++ posters ++ galleries ++ highlights ++ years ++ compares
+      refills ++ trends ++ posters ++ galleries ++ highlights ++ years ++ compares ++ rhythms
 
   /** Every card the contact sheet and the golden suite show. */
   val review: Vector[Fixture] = all
