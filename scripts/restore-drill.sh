@@ -79,8 +79,15 @@ in_drill() { docker exec -i "$container" "$@"; }
 # Without -i: a query inside a read loop must not swallow the loop's input.
 drill_sql() { docker exec "$container" psql -X -q -At -F '|' -v ON_ERROR_STOP=1 -U "$db" -d "$db" -c "$1"; }
 
-# The roles V1 creates are cluster objects that a database dump does not carry.
-drill_sql "CREATE ROLE dosegram_app NOLOGIN; CREATE ROLE dosegram_erasure NOLOGIN;"
+# Roles are cluster objects that a database dump does not carry, but its
+# grants and policies name them: the roles the migrations create (V1, V14)
+# and the role that ran the migrations (the schema_owner policies of V14).
+roles="$(decrypt | in_drill pg_restore --schema-only -f - |
+  sed -n -E 's/^(CREATE POLICY|GRANT) .* TO ([a-z_][a-z0-9_]*)( USING| WITH|;).*/\2/p' | sort -u)"
+for role in $roles; do
+  [ -n "$(drill_sql "SELECT 1 FROM pg_roles WHERE rolname = '$role'")" ] ||
+    drill_sql "CREATE ROLE $role NOLOGIN"
+done
 decrypt | in_drill pg_restore -U "$db" -d "$db" --no-owner --exit-on-error
 echo "restore-drill: restored into a throwaway database"
 

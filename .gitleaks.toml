@@ -54,7 +54,7 @@ description = "An age secret key or an armoured PGP private key block"
 regex = '''AGE-SECRET-KEY-1[0-9A-Z]{58}|-----BEGIN PGP PRIVATE KEY BLOCK-----'''
 keywords = ["age-secret-key-1", "begin pgp private key block"]
 
-[allowlist]
+[[allowlists]]
 description = "Generated and third-party files that carry no secret"
 paths = [
   '''(^|/)pnpm-lock\.yaml$''',
@@ -62,3 +62,11 @@ paths = [
   '''(^|/)out/''',
   '''(^|/)miniapp/dist/''',
 ]
+
+[[allowlists]]
+description = "Public constants that the upstream generic-api-key rule takes for keys"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+# The domain-separation context of the mood sticker set name (MoodStickers.KeyContext,
+# printed in the code it hashes) and the example set name of TelegramStickerSetsSuite.
+regexes = ['''^dosegram\.mood-stickers\.v1$''', '''^mood_0123456789abcdef$''']
