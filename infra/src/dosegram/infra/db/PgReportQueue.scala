@@ -4,11 +4,13 @@ import dosegram.contracts.ChatRef
 import dosegram.contracts.OutboundMessage
 import dosegram.core.ports.CardMotion
 import dosegram.core.ports.CardPage
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.NewReportRequest
 import dosegram.core.ports.ReportPage
 import dosegram.core.ports.ReportQueue
 import dosegram.core.ports.ReportRequest
 import dosegram.core.ports.ReportStatus
+import dosegram.infra.db.SealedColumns.CardPages
 
 import java.sql.Connection
 import java.time.Duration
@@ -16,17 +18,20 @@ import java.time.Instant
 import java.util.UUID
 import scala.language.implicitConversions
 
-/** `report_requests` (ROADMAP G4.3, migration V7) on the connection of the surrounding transaction. `params` holds the
-  * chat and the pages until the request is finished, then `{}`; nothing in it is read by SQL.
+/** `report_requests` (ROADMAP G4.3, migration V7) on the connection of the surrounding transaction. `params_enc` holds
+  * the chat and the pages, sealed with the account's key (V27: a card can name a medication), until the request is
+  * finished, then nothing; nothing in it is read by SQL.
   */
-final class PgReportQueue(conn: Connection) extends ReportQueue:
+final class PgReportQueue(conn: Connection, keys: KeyService) extends ReportQueue:
   private given Connection = conn
 
   private given RowMapper[ReportRequest] = rs =>
-    val (chat, pages) = PgReportQueue.decode(rs.getString("params"))
+    val (id, accountId) = (rs.uuid("id"), rs.uuid("account_id"))
+    val (chat, pages) =
+      PgReportQueue.decode(keys.openText(CardPages.forAccount(accountId, id), rs.getBytes("params_enc")))
     ReportRequest(
-      id = rs.uuid("id"),
-      accountId = rs.uuid("account_id"),
+      id = id,
+      accountId = accountId,
       chat = chat,
       pages = pages,
       createdAt = rs.instant("created_at"),
@@ -35,8 +40,11 @@ final class PgReportQueue(conn: Connection) extends ReportQueue:
     )
 
   override def enqueue(request: NewReportRequest): Unit =
-    val params = Jsonb(PgReportQueue.encode(request.chat, request.pages))
-    sql"""INSERT INTO report_requests (id, account_id, card_kind, params, status, deadline_at, created_at)
+    val params = keys.sealText(
+      CardPages.forAccount(request.accountId, request.id),
+      PgReportQueue.encode(request.chat, request.pages)
+    )
+    sql"""INSERT INTO report_requests (id, account_id, card_kind, params_enc, status, deadline_at, created_at)
           VALUES (${request.id}, ${request.accountId}, ${request.pages.head.card.templateId}, $params, 'queued',
                   ${request.deadlineAt}, ${request.createdAt})""".execute()
     ()
@@ -57,7 +65,7 @@ final class PgReportQueue(conn: Connection) extends ReportQueue:
           WHERE id = (SELECT id FROM report_requests
                       WHERE status = 'queued' OR (status = 'rendering' AND lease_until <= $now)
                       ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED)
-          RETURNING id, account_id, params, created_at, deadline_at, attempts""".queryOne[ReportRequest]()
+          RETURNING id, account_id, params_enc, created_at, deadline_at, attempts""".queryOne[ReportRequest]()
 
   override def finish(
       id: UUID,
@@ -68,7 +76,8 @@ final class PgReportQueue(conn: Connection) extends ReportQueue:
   ): Unit =
     val millis = renderMillis.map(value => math.min(value, Int.MaxValue.toLong).toInt)
     sql"""UPDATE report_requests SET status = ${status.db}, lease_until = NULL, error_class = $errorClass,
-                 render_ms = $millis, finished_at = $now, params = '{}'::jsonb
+                 render_ms = $millis, finished_at = $now,
+                 params = NULL, params_enc = NULL
           WHERE id = $id AND status = 'rendering'""".execute()
     ()
 

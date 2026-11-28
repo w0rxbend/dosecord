@@ -84,7 +84,7 @@ class SealedStoresPgSuite extends PgSuite:
 
   test("every text, JSON or byte column of a sealed table is sealed, a lookup hash, or named as not Class A"):
     val sealedColumns = SealedColumns.all ++ SealedColumns.emptiedOnSeal ++ SealedColumns.chatState ++
-      SealedColumns.handles
+      SealedColumns.handles ++ SealedColumns.labels
     val sealedTables = sealedColumns.map(_.table).toSet
     val columns = withConnection: conn =>
       given Connection = conn
@@ -127,5 +127,9 @@ object SealedStoresPgSuite:
     "form_runs" -> Set("form_id"),
     "callback_slots" -> Set("chat"),
     "domain_events" -> Set("type", "source", "subject", "correlation_id", "causation_id", "traceparent"),
-    "reminders" -> Set("repeat", "status")
+    "reminders" -> Set("repeat", "status"),
+    // V27: the message's handle, the kind of message and the type of the record it is about.
+    "rendered_messages" -> Set("vendor", "chat_id", "message_id", "kind", "subject_type"),
+    // V27: the template of the card, the delivery, the status and the class of a rendering error.
+    "report_requests" -> Set("card_kind", "delivery", "status", "error_class")
   )

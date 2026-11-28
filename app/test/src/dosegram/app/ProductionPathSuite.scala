@@ -507,6 +507,7 @@ class ProductionPathSuite extends PgSuite:
     val medicationName = "CanaryPillName"
     val instructions = "canary-instructions-words"
     val draftName = "CanaryDraftName"
+    val secondName = "CanarySecondPill"
     val mealWords = "canary-meal-words"
     val clock = SteppedClock(start)
     launched(clock): chat =>
@@ -520,6 +521,17 @@ class ProductionPathSuite extends PgSuite:
       chat.tapLabel(WizardCopy.everyDay, Labels.Create)
       chat.tapLabel(Labels.Create, "")
       eventually("the schedule exists")(strings("SELECT status FROM medication_schedules") == List("active"))
+      // A second medication: with two rows the `/meds` toggles name each medication ("Pause · <name>"), and those
+      // labels are kept with the message so a typed label still resolves (verification of 2026-11-28).
+      chat.say("/meds", "Add medication")
+      chat.tapLabel("Add medication", WizardCopy.fieldName)
+      chat.say(secondName, WizardCopy.fieldDose)
+      chat.say("1 tablet", WizardCopy.timesPrompt)
+      chat.say("21:00", WizardCopy.instructionsPrompt)
+      chat.tapLabel(WizardCopy.noInstructions, WizardCopy.daysPrompt)
+      chat.tapLabel(WizardCopy.everyDay, Labels.Create)
+      chat.tapLabel(Labels.Create, "")
+      eventually("both schedules exist")(strings("SELECT status FROM medication_schedules").size == 2)
       chat.say(s"lunch: $mealWords", ConsentCopy.statement(ConsentPurpose.Nutrition))
       chat.tapLabel(ConsentCopy.Agree, ConsentCopy.confirmation(ConsentPurpose.Nutrition))
       chat.tapLabel(ConsentCopy.Confirm, "")
@@ -530,13 +542,15 @@ class ProductionPathSuite extends PgSuite:
       chat.say(draftName, WizardCopy.fieldDose)
       eventually("every update is settled")(strings("SELECT 1 FROM inbound_inbox WHERE status = 'pending'").isEmpty)
     assert(strings("SELECT id::text FROM conversation_sessions").nonEmpty, "the abandoned draft is kept")
-    val canaries = List(medicationName, instructions, draftName, mealWords, OwnerName)
+    val canaries = List(medicationName, secondName, instructions, draftName, mealWords, OwnerName)
     assertEquals(withConnection(CanaryScan.columns(_, canaries)), Nil, "a column holds a canary")
     val dump = pg.container.execInContainer("pg_dump", "-U", pg.username, "-d", pg.databaseName, "--no-owner")
     assertEquals(dump.getExitCode, 0, dump.getStderr)
     canaries.foreach(canary => assert(!dump.getStdout.contains(canary), s"the dump holds '$canary'"))
     assertEquals(withConnection(conn => WalScan.between(conn, walStart, WalScan.flushed(conn), canaries)), Nil,
       "the WAL holds a canary")
+    assert(strings("SELECT id::text FROM rendered_messages WHERE choice_map_enc IS NOT NULL").nonEmpty,
+      "the /meds toggles are kept, sealed")
 
   // ---------- Operations on the launched process ----------
 

@@ -2,15 +2,20 @@ package dosegram.infra.db
 
 import dosegram.contracts.ChoiceMapEntry
 import dosegram.contracts.MessageHandle
+import dosegram.core.ports.KeyService
 import dosegram.core.ports.RenderedChoiceMap
 import dosegram.core.ports.RenderedMessageRepository
+import dosegram.infra.db.SealedColumns.ChoiceMap
 
 import java.sql.Connection
 import java.time.Instant
 import java.util.UUID
 import scala.language.implicitConversions
 
-final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessageRepository:
+/** The handles of sent messages with their controls. The controls are sealed (V27): a label can name a medication, so
+  * `choice_map_enc` holds them under the row's account key, or the transport key before the account existed.
+  */
+final class PgRenderedMessageRepository(conn: Connection, keys: KeyService) extends RenderedMessageRepository:
   private given Connection = conn
 
   override def record(
@@ -23,43 +28,47 @@ final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessag
       choiceMap: List[ChoiceMapEntry],
       now: Instant
   ): Boolean =
-    val choiceMapJson = if choiceMap.isEmpty then None else Some(Jsonb(upickle.default.write(choiceMap)))
+    val id = UUID.randomUUID()
+    val sealedChoiceMap = Option.when(choiceMap.nonEmpty)(sealChoiceMap(accountId, id, choiceMap))
     sql"""INSERT INTO rendered_messages
-            (id, account_id, vendor, chat_id, message_id, kind, subject_type, subject_id, epoch, choice_map, sent_at)
-          VALUES (${UUID.randomUUID()}, $accountId, ${handle.vendor}, ${handle.chatId}, ${handle.messageId},
-                  $kind, $subjectType, $subjectId, $epoch, $choiceMapJson, $now)
+            (id, account_id, vendor, chat_id, message_id, kind, subject_type, subject_id, epoch, choice_map_enc, sent_at)
+          VALUES ($id, $accountId, ${handle.vendor}, ${handle.chatId}, ${handle.messageId},
+                  $kind, $subjectType, $subjectId, $epoch, $sealedChoiceMap, $now)
           ON CONFLICT (vendor, chat_id, message_id) DO NOTHING""".execute() == 1
 
   override def recordEdit(handle: MessageHandle, choiceMap: List[ChoiceMapEntry], now: Instant): Unit =
     if choiceMap.nonEmpty then
-      val choiceMapJson = Jsonb(upickle.default.write(choiceMap))
-      sql"""UPDATE rendered_messages
-            SET choice_map = $choiceMapJson, revision = revision + 1, last_edited_at = $now
+      sql"""SELECT id, account_id FROM rendered_messages
             WHERE vendor = ${handle.vendor} AND chat_id = ${handle.chatId} AND message_id = ${handle.messageId}"""
-        .execute()
-      ()
+        .queryOne[(UUID, Option[UUID])]()
+        .foreach: (id, accountId) =>
+          sql"""UPDATE rendered_messages
+                SET choice_map = NULL, choice_map_enc = ${sealChoiceMap(accountId, id, choiceMap)},
+                    revision = revision + 1, last_edited_at = $now
+                WHERE id = $id""".execute()
+          ()
 
   override def choiceMapFor(handle: MessageHandle): Option[RenderedChoiceMap] =
-    sql"""SELECT revision, choice_map, controls_removed_at
+    sql"""SELECT id, account_id, revision, choice_map_enc, controls_removed_at
           FROM rendered_messages
           WHERE vendor = ${handle.vendor} AND chat_id = ${handle.chatId} AND message_id = ${handle.messageId}"""
-      .queryOne[(Int, Option[String], Option[Instant])]()
-      .map: (revision, choiceMapJson, controlsRemovedAt) =>
-        RenderedChoiceMap(handle, revision, readChoiceMap(choiceMapJson), controlsRemovedAt.isDefined)
+      .queryOne[StoredChoiceMap]()
+      .map: row =>
+        RenderedChoiceMap(handle, row.revision, openChoiceMap(row), row.controlsRemoved)
 
   override def latestPendingPrompt(vendor: String, chatId: String): Option[RenderedChoiceMap] =
-    sql"""SELECT message_id, revision, choice_map
+    sql"""SELECT message_id, id, account_id, revision, choice_map_enc, controls_removed_at
           FROM rendered_messages
           WHERE vendor = $vendor AND chat_id = $chatId
-            AND choice_map IS NOT NULL AND controls_removed_at IS NULL
+            AND choice_map_enc IS NOT NULL AND controls_removed_at IS NULL
           ORDER BY sent_at DESC, message_id DESC
           LIMIT 1"""
-      .queryOne[(String, Int, String)]()
-      .map: (messageId, revision, choiceMapJson) =>
+      .queryOne[(String, StoredChoiceMap)]()
+      .map: (messageId, row) =>
         RenderedChoiceMap(
-          MessageHandle(vendor, chatId, messageId, revision),
-          revision,
-          readChoiceMap(Some(choiceMapJson)),
+          MessageHandle(vendor, chatId, messageId, row.revision),
+          row.revision,
+          openChoiceMap(row),
           controlsRemoved = false
         )
 
@@ -78,13 +87,35 @@ final class PgRenderedMessageRepository(conn: Connection) extends RenderedMessag
   private given RowMapper[MessageHandle] = rs =>
     MessageHandle(rs.getString("vendor"), rs.getString("chat_id"), rs.getString("message_id"), rs.getInt("revision"))
 
-  private given RowMapper[(Int, Option[String], Option[Instant])] = rs =>
-    (rs.getInt("revision"), rs.optString("choice_map"), rs.optInstant("controls_removed_at"))
+  /** A row's controls as stored: sealed, bound to the row's id and owned by its account (or the transport key). */
+  private final case class StoredChoiceMap(
+      id: UUID,
+      accountId: Option[UUID],
+      revision: Int,
+      sealedValue: Option[Array[Byte]],
+      controlsRemoved: Boolean
+  )
 
-  private given RowMapper[(String, Int, String)] = rs =>
-    (rs.getString("message_id"), rs.getInt("revision"), rs.getString("choice_map"))
+  private def storedChoiceMap(rs: java.sql.ResultSet): StoredChoiceMap =
+    StoredChoiceMap(
+      rs.uuid("id"),
+      rs.optUuid("account_id"),
+      rs.getInt("revision"),
+      Option(rs.getBytes("choice_map_enc")),
+      rs.optInstant("controls_removed_at").isDefined
+    )
 
-  private def readChoiceMap(json: Option[String]): List[ChoiceMapEntry] =
-    json match
-      case Some(document) => upickle.default.read[List[ChoiceMapEntry]](document)
-      case None           => Nil
+  private given RowMapper[StoredChoiceMap] = rs => storedChoiceMap(rs)
+
+  private given RowMapper[(String, StoredChoiceMap)] = rs => (rs.getString("message_id"), storedChoiceMap(rs))
+
+  private given RowMapper[(UUID, Option[UUID])] = rs => (rs.uuid("id"), rs.optUuid("account_id"))
+
+  private def sealChoiceMap(accountId: Option[UUID], id: UUID, choiceMap: List[ChoiceMapEntry]): Array[Byte] =
+    keys.sealText(ChoiceMap.forRow(accountId, id), upickle.default.write(choiceMap))
+
+  private def openChoiceMap(row: StoredChoiceMap): List[ChoiceMapEntry] =
+    row.sealedValue match
+      case Some(value) =>
+        upickle.default.read[List[ChoiceMapEntry]](keys.openText(ChoiceMap.forRow(row.accountId, row.id), value))
+      case None => Nil

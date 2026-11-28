@@ -165,7 +165,7 @@ class OutboxDispatcherSuite extends PgSuite:
 
   private def renderedRowsFor(handle: MessageHandle): List[(String, Option[String])] = withConnection { conn =>
     given Connection = conn
-    sql"""SELECT message_id, choice_map IS NOT NULL AND choice_map <> 'null'::jsonb AS has_map
+    sql"""SELECT message_id, choice_map_enc IS NOT NULL AS has_map
           FROM rendered_messages WHERE vendor = ${handle.vendor} AND chat_id = ${handle.chatId}"""
       .query[(String, Option[String])]()
   }

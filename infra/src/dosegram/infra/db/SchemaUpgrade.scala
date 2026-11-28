@@ -21,13 +21,14 @@ final case class UpgradeResult(migrationsExecuted: Int, schemaVersion: String, v
   * plaintext column, then V11 (emptying the plaintext columns) and V12 (`audit_log`) in one transaction, then V13 (the
   * sealed transport columns) and its backfill, which empties each plaintext value it seals, then V19 (the sealed chat
   * state and event log) and its backfill, which does the same, then V22 (the sealed file ids and export parameters) and
-  * its backfill, which does the same, then the rest of the migrations, and last the rewrap of every data key a retired
-  * key-encryption key still wraps (SEC-07). V11 refuses to run while a value is left unsealed, so a backfill that stops
-  * part-way leaves the schema at V10 and the next start resumes it. The V10 backfill writes one
-  * `key.backfill.completed` audit row, on the transaction of the rewrap, once the schema has `audit_log`: when it
-  * sealed a value, or found sealed values next to their plaintext, which is the case after a start whose V11 or V12
-  * failed. A run that sealed a value then vacuums the tables it sealed, so their dead row versions, which hold the
-  * plaintext, are freed for reuse (OPERATIONS section 9).
+  * its backfill, which does the same, then V27 (the sealed button labels of the sent messages) and its backfill, which
+  * does the same, then the rest of the migrations, and last the rewrap of every data key a retired key-encryption key
+  * still wraps (SEC-07). V11 refuses to run while a value is left unsealed, so a backfill that stops part-way leaves
+  * the schema at V10 and the next start resumes it. The V10 backfill writes one `key.backfill.completed` audit row, on
+  * the transaction of the rewrap, once the schema has `audit_log`: when it sealed a value, or found sealed values next
+  * to their plaintext, which is the case after a start whose V11 or V12 failed. A run that sealed a value then vacuums
+  * the tables it sealed, so their dead row versions, which hold the plaintext, are freed for reuse (OPERATIONS section
+  * 9).
   */
 object SchemaUpgrade:
 
@@ -56,6 +57,9 @@ object SchemaUpgrade:
       val handlesExpanded =
         flyway.target(MigrationVersion.fromVersion(SealingStage.Handles.expand)).load().migrate().migrationsExecuted
       val handlesCounts = backfill.run(SealingStage.Handles, log)
+      val labelsExpanded =
+        flyway.target(MigrationVersion.fromVersion(SealingStage.Labels.expand)).load().migrate().migrationsExecuted
+      val labelsCounts = backfill.run(SealingStage.Labels, log)
       val rest = flyway.load().migrate().migrationsExecuted
       requireServingRoles(locked)
       alignSequences(locked, log)
@@ -63,10 +67,11 @@ object SchemaUpgrade:
       val rewrapped = rewrap(dataSource, keys, backfilled)
       if rewrapped > 0 then
         log(s"keys: rewrapped $rewrapped data key(s) with key-encryption key '${keys.ring.active.id}'")
-      val sealedCounts = (expandCounts ++ transportCounts ++ chatStateCounts ++ handlesCounts).filter(_.sealedNow > 0)
+      val sealedCounts =
+        (expandCounts ++ transportCounts ++ chatStateCounts ++ handlesCounts ++ labelsCounts).filter(_.sealedNow > 0)
       vacuum(dataSource, sealedCounts.map(_.column.table).distinct, log)
       UpgradeResult(
-        expanded + contracted + transportExpanded + chatStateExpanded + handlesExpanded + rest,
+        expanded + contracted + transportExpanded + chatStateExpanded + handlesExpanded + labelsExpanded + rest,
         Option(flyway.load().info().current()).fold("empty")(_.getVersion.getVersion),
         sealedCounts.map(_.sealedNow).sum,
         rewrapped

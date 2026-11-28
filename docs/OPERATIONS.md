@@ -1035,3 +1035,37 @@ Not rehearsed: a real client, the Telegram transport, the animated mood in a cha
 clock makes the report worker claim the request after its deadline, so it sent the text; the
 loops themselves were encoded by `MotionRenderer` with the pinned worker and decoded by ffmpeg as
 H.264, 512 by 512, 60 frames, 3 seconds), and the weekly album over live data.
+
+## 22. Deploying V27 (sealed button labels and card pages) over the live V26 database
+
+V27 (`V27__sealed_labels_and_card_pages.sql`) closes the finding of section 21: the button labels
+kept with each sent message (`rendered_messages.choice_map`, among them the `/meds` toggles
+"Pause · <name>") and the pages of an image waiting to be drawn (`report_requests.params`: its
+SVG, its text equivalent and its caption, which can name a medication) were plain JSON. V27 adds
+`choice_map_enc` and `params_enc` next to them; the start applies V27 and right after it seals each
+value the previous release left, emptying its plaintext in the same statement
+(`SealingStage.Labels`), then vacuums the two tables. A finished request keeps no pages: V27 empties
+the `{}` that finished requests kept, and the release empties both columns when it finishes one.
+No new environment variable, no new binary. Supervisor decision, 2026-11-28: the labels are sealed
+with the row's account key (or the `transport` key for an onboarding message sent before the
+account existed), rather than rebuilt at render, so a typed label of an older message still
+resolves. Every step is the owner's; `<pg>` is `dosegram-live-pg`:
+
+1. Back up as in step 1 of section 21 (`dosegram-v26-$(date -u +%F).dump`, mode 600). It is the
+   V26 restore point.
+2. Build and start the head as in steps 3 and 4 of section 21. Its log shows 25 `sealing:` lines;
+   those of `rendered_messages.choice_map` and `report_requests.params` say how many values were
+   sealed, then `sealing: vacuumed rendered_messages` (with `report_requests` when a request was
+   waiting) and `migrate: 1 migration(s) applied, schema 27`.
+3. Check, read-only: `SELECT count(*) FROM rendered_messages WHERE choice_map IS NOT NULL;` and
+   `SELECT count(*) FROM report_requests WHERE params IS NOT NULL;` return 0, and `/readyz`
+   answers 200. In the chat, `/meds` lists the medications with their named toggles.
+4. Clear the older WAL as in section 14 ("The WAL after sealing"): the WAL written before this
+   start and the sealing's full-page images still hold the labels.
+
+Rollback without a restore: wait until
+`SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering');` returns 0 (the
+previous release cannot read a sealed request), stop the bot and start the previous release. It
+logs `migrate: 0 migration(s) applied, schema 27` and writes plaintext labels again, which the
+next start of the head seals; until then a typed number or label on a message the head sent does
+not resolve. Restore the backup of step 1 only if V26 itself must come back.

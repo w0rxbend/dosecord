@@ -1,7 +1,13 @@
 package dosegram.infra.db
 
 import com.zaxxer.hikari.HikariDataSource
+import dosegram.contracts.ChatRef
+import dosegram.contracts.ChoiceMapEntry
 import dosegram.contracts.HhMm
+import dosegram.contracts.Inline
+import dosegram.contracts.MessageHandle
+import dosegram.contracts.Node
+import dosegram.contracts.OutboundMessage
 import dosegram.contracts.PlatformIdentity
 import dosegram.core.domain.DoseSnapshot
 import dosegram.core.domain.ReminderPolicy
@@ -10,7 +16,9 @@ import dosegram.core.domain.SlotGroup
 import dosegram.contracts.Weekday
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.nutrition.MealType
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.NewSchedule
+import dosegram.core.ports.ReportPage
 import dosegram.core.ports.SealBroken
 import dosegram.infra.LogFormat
 import dosegram.infra.Telemetry
@@ -29,6 +37,7 @@ import upickle.default.write
 import java.nio.charset.StandardCharsets.UTF_8
 import java.sql.Connection
 import java.sql.SQLException
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -202,8 +211,8 @@ class SealingBackfillPgSuite extends PgSuite:
     try
       val seed = seedAtV9(ds)
       val (result, lines) = logged(SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
-      assertEquals(result.schemaVersion, "26")
-      assertEquals(result.migrationsExecuted, 15)
+      assertEquals(result.schemaVersion, "27")
+      assertEquals(result.migrationsExecuted, 16)
       assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer, the dose unit, the export's parameters")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
@@ -255,7 +264,7 @@ class SealingBackfillPgSuite extends PgSuite:
       try again.createStatement().execute("DROP TABLE audit_log")
       finally again.close()
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals((result.schemaVersion, result.valuesSealed), ("26", 2),
+      assertEquals((result.schemaVersion, result.valuesSealed), ("27", 2),
         "the first start sealed every V10 value; the dose unit and the export's parameters wait for V19 and V22, which only this start reaches")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"))
     finally ds.close()
@@ -294,7 +303,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("26", 12, 4))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("27", 13, 4))
       assert(lines.result().contains("sealing: vacuumed outbox_messages, inbound_events"), lines.result().toString)
 
       val check = ds.getConnection
@@ -395,7 +404,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, keys, line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted), ("26", 6))
+      assertEquals((result.schemaVersion, result.migrationsExecuted), ("27", 7))
       assertEquals(result.valuesSealed, 1 + 2 + 1 + 2 + 4 + 1 + 1, "inbox, session, form, slots, events, reminder, unit")
       assert(lines.result().exists(_.startsWith("sealing: vacuumed ")), lines.result().toString)
 
@@ -427,7 +436,7 @@ class SealingBackfillPgSuite extends PgSuite:
       val dumped = dump(database)
       scanned.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
       val again = SchemaUpgrade.run(ds, keys, _ => ())
-      assertEquals(again, UpgradeResult(0, "26", 0, 0), "a second start finds nothing to seal")
+      assertEquals(again, UpgradeResult(0, "27", 0, 0), "a second start finds nothing to seal")
     finally ds.close()
 
   test("the upgrade from V19 seals the file ids and the export parameters, and the release reads both back"):
@@ -461,7 +470,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, keys, line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("26", 5, 3))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("27", 6, 3))
       assert(lines.result().contains("sealing: vacuumed telegram_file_cache, export_jobs"), lines.result().toString)
 
       val cache = PgTelegramFileCache(ds, 7000000004L, keys)
@@ -489,7 +498,76 @@ class SealingBackfillPgSuite extends PgSuite:
       intercept[SealBroken](cache.get(s"export.$summary", "document", t0))
       val dumped = dump(database)
       scanned.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
-      assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "26", 0, 0), "a second start seals nothing")
+      assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "27", 0, 0), "a second start seals nothing")
+    finally ds.close()
+
+  test("the upgrade from V26 seals the kept button labels and the cards waiting to be drawn, and the release reads both"):
+    val (database, ds) = databaseAt("26")
+    try
+      val keys = DataKeys(kek, MutableClock(t0))
+      val uow = PgUnitOfWork(ds, MutableClock(t0), keys)
+      val account = uow.transaction: tx =>
+        val principal = tx.identities.resolve(PlatformIdentity("telegram", "7005", None), t0)
+        tx.accounts.createAccount(principal.identityId, zone.getId, t0).uuid
+      val label = "Pause · CanaryLabelPill"
+      val toggles = List(ChoiceMapEntry("menu.medications.toggle", 1, label, None, "cb:pause"))
+      val onboarding = List(ChoiceMapEntry("consent", 1, "Agree", None, "cb:agree"))
+      val (meds, welcome) = (MessageHandle("telegram", "7005", "41"), MessageHandle("telegram", "7005", "40"))
+      val (chat, waiting) = (ChatRef("telegram", "7005"), UUID.randomUUID())
+      val refill = ReportPage(
+        CardPage("card.refill.v1", "<svg><text>CanaryCardPill</text></svg>", "CanaryCardPill: 4 left", "refill.png",
+          hasSpoiler = false, None, None),
+        OutboundMessage(body = List(Node.Paragraph(List(Inline.Text("CanaryCardPill")))), dedupeKey = "image:r",
+          correlationId = "c")
+      )
+      val conn = ds.getConnection
+      try
+        given Connection = conn
+        // PgRenderedMessageRepository.record of the V26 release: the account's /meds and an onboarding prompt.
+        List((meds, Some(account), toggles), (welcome, None, onboarding)).foreach: (handle, owner, entries) =>
+          sql"""INSERT INTO rendered_messages
+                  (id, account_id, vendor, chat_id, message_id, kind, choice_map, sent_at)
+                VALUES (${UUID.randomUUID()}, $owner, ${handle.vendor}, ${handle.chatId}, ${handle.messageId},
+                        'reply', ${Jsonb(write(entries))}, $t0)""".execute()
+        // PgReportQueue.enqueue and finish of the V26 release: a refill card waiting to be drawn, and a sent one.
+        List((waiting, "queued", PgReportQueue.encode(chat, List(refill))), (UUID.randomUUID(), "sent", "{}")).foreach:
+          (id, status, params) =>
+            sql"""INSERT INTO report_requests (id, account_id, card_kind, params, status, deadline_at, created_at,
+                                               finished_at)
+                  VALUES ($id, $account, 'card.refill.v1', ${Jsonb(params)}, $status, ${t0.plusSeconds(60)}, $t0,
+                          ${Option.when(status == "sent")(t0)})""".execute()
+      finally conn.close()
+      val scanned = List("CanaryLabelPill", "CanaryCardPill")
+      assertEquals(withConnectionOf(ds)(CanaryScan.columns(_, scanned)).map(hit => s"${hit.table}.${hit.column}"),
+        List("rendered_messages.choice_map", "report_requests.params"), "the scan finds the words the V26 release kept")
+
+      val lines = List.newBuilder[String]
+      val result = SchemaUpgrade.run(ds, keys, line => lines += line)
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("27", 1, 3))
+      assert(lines.result().contains("sealing: vacuumed rendered_messages, report_requests"), lines.result().toString)
+      assert(!lines.result().exists(line => scanned.exists(line.contains)), "a log line carries a label")
+
+      uow.transaction: tx =>
+        assertEquals(tx.renderedMessages.choiceMapFor(meds).map(_.choiceMap), Some(toggles))
+        assertEquals(tx.renderedMessages.choiceMapFor(welcome).map(_.choiceMap), Some(onboarding))
+      uow.transactionAs(account)(tx => assertEquals(tx.renderedMessages.choiceMapFor(meds).map(_.choiceMap), Some(toggles)))
+      assertEquals(uow.transaction(_.reports.claim(t0, Duration.ofSeconds(30))).map(_.pages), Some(List(refill)))
+      withConnectionOf(ds): check =>
+        given Connection = check
+        assertEquals(
+          sql"SELECT count(*) FROM rendered_messages WHERE choice_map IS NOT NULL OR choice_map_enc IS NULL"
+            .queryOne[Int](),
+          Some(0)
+        )
+        assertEquals(
+          sql"SELECT count(*) FROM report_requests WHERE params IS NOT NULL OR (params_enc IS NULL) <> (status = 'sent')"
+            .queryOne[Int](),
+          Some(0)
+        )
+        assertEquals(CanaryScan.columns(check, scanned), Nil, "a column holds a canary")
+      val dumped = dump(database)
+      scanned.foreach(canary => assert(!dumped.contains(canary), s"the dump holds '$canary'"))
+      assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "27", 0, 0), "a second start seals nothing")
     finally ds.close()
 
   test("a second start finds nothing to seal and applies nothing"):
@@ -498,7 +576,7 @@ class SealingBackfillPgSuite extends PgSuite:
       seedAtV9(ds)
       SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
       val again = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(again, UpgradeResult(0, "26", 0, 0))
+      assertEquals(again, UpgradeResult(0, "27", 0, 0))
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "a run that seals nothing is not audited")
     finally ds.close()
 
@@ -516,7 +594,7 @@ class SealingBackfillPgSuite extends PgSuite:
       val version = Flyway.configure().dataSource(ds).load().info().current().getVersion.getVersion
       assertEquals(version, "10")
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ())
-      assertEquals(result.schemaVersion, "26")
+      assertEquals(result.schemaVersion, "27")
       assertEquals(result.valuesSealed, 1 + 1 + 1 + 1 + 1, "only the export, the image, the stored answer, the dose unit (V19) and the export's parameters (V22) were left")
       val meals = PgUnitOfWork(ds, MutableClock(t0), DataKeys(kek, MutableClock(t0)))
         .transaction(_.tracking.meals.listLive(seed.account, DateRange.single(day)))

@@ -69,6 +69,23 @@ class ReportQueuePgSuite extends PgSuite:
     assertEquals(claimed.deadlineAt, t0.plusSeconds(5))
     assertEquals(claimed.attempts, 1)
 
+  test("a waiting request keeps its pages sealed: no column holds the drawing, the text equivalent or the caption"):
+    // Verification of 2026-11-28: a card can name a medication, and the request held its SVG, its alt text and its
+    // message as plain JSON until it was finished (V27 seals them with the account's key).
+    val account = fixtures.account()
+    val words = ReportPage(
+      CardPage("refill", "<svg><text>CanaryCardPill</text></svg>", "CanaryAltPill: 4 left", "refill.png",
+        hasSpoiler = false, None, None),
+      OutboundMessage(body = List(Node.Paragraph(List(Inline.Text("CanaryCaptionPill")))), dedupeKey = "image:r",
+        correlationId = "c")
+    )
+    val queued = request(account, t0, words)
+    uow.transaction(_.reports.enqueue(queued))
+    val canaries = List("CanaryCardPill", "CanaryAltPill", "CanaryCaptionPill")
+    assertEquals(withConnection(CanaryScan.columns(_, canaries)), Nil, "a column holds a card's words")
+    assertEquals(uow.transaction(_.reports.claim(t0, lease)).map(_.pages), Some(queued.pages))
+    assertEquals(uow.transactionAs(account)(_.reports.isBusy(account)), true)
+
   test("a claim holds until its lease ends; then the next worker takes it, and a finished request is not claimed"):
     val account = fixtures.account()
     uow.transaction(_.reports.enqueue(request(account, t0, page(1))))
@@ -133,9 +150,9 @@ class ReportQueuePgSuite extends PgSuite:
     val claimed = uow.transaction(_.reports.claim(t0, lease)).getOrElse(fail("nothing claimed"))
     uow.transaction(_.reports.finish(claimed.id, ReportStatus.Sent, None, Some(80L), t0.plusSeconds(1)))
     withConnection: conn =>
-      val rs = conn.createStatement().executeQuery("SELECT params::text FROM report_requests")
+      val rs = conn.createStatement().executeQuery("SELECT params IS NULL AND params_enc IS NULL FROM report_requests")
       rs.next()
-      assertEquals(rs.getString(1), "{}", "the SVG and the captions go when the request is finished")
+      assert(rs.getBoolean(1), "the SVG and the captions go when the request is finished")
     assertEquals(uow.transaction(_.reports.purge(t0, t0.plusSeconds(60))), 0, "a finished request outlives the hour")
     assertEquals(uow.transaction(_.reports.requestedSince(account, t0)), List(t0))
     assertEquals(uow.transaction(_.reports.purge(t0.plusSeconds(1), t0.plusSeconds(60))), 1)

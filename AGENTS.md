@@ -48,13 +48,13 @@ migration; the twelfth: analytics round 6, V26, and the animated mood
 blob, V25), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
 parameters), and V24 (the order of an answer's messages, 2026-11-28).
-The migrations are V1 to V19 and V22 to V26, 24 files
-(`scripts/check-frozen-migrations.sh` prints `24 migrations unchanged
-(V1 to V19, V22 to V26)`); V20 and V21 must never be added, and the
-next is V27. The live database is at V23 (`b1c73da`):
-`docs/OPERATIONS.md` section 21 is the owner's deploy of the head, with
-V24, V25 and V26 in one start (sections 19 and 20 explain V24 and V26;
-sections 8 to 18 the earlier parts). The Mini App
+The migrations are V1 to V19 and V22 to V27, 25 files
+(`scripts/check-frozen-migrations.sh` prints `25 migrations unchanged
+(V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 is the
+settings track's and V29 the stickers track's. The live database is at
+V26 (`4a9b03a`): `docs/OPERATIONS.md` section 22 is the owner's deploy
+of V27 (sealed button labels and card pages; sections 8 to 21 the
+earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
@@ -127,8 +127,9 @@ Appendix B and its status notes are the record; this is the short form.
   the `transport` service key before the account exists) and the start seals
   and empties the old ones, then vacuums. V19 does the same for the inbox,
   sessions, form runs, callback slots, domain events, reminder titles and
-  dose units, and keeps display names empty. Still plaintext: file ids
-  and step-up parameters.
+  dose units, and keeps display names empty. V22 seals file ids and export
+  parameters; V27 the button labels kept with sent messages and the pages
+  of a card waiting to be drawn.
 - Audit and deletion (G2.16, G2.17, G5.7, V12): `audit_log` is append-only,
   codes only, written on the transaction of each consent, export, step-up,
   session, settings, deletion and key event. `/privacy` deletes one domain
@@ -289,9 +290,10 @@ Useful next, in this order:
     IMG-30 and the motion by another reviewer; the load flakes of
     `NewUserWalkSuite`, `TelegramLaunchSuite`, `freePort()` and
     `SessionApiSuite` (ROADMAP Appendix B, integration of 2026-11-28),
-    and from the verification of 2026-11-28: the medication names in
-    plaintext in `rendered_messages.choice_map` (the `/meds` button
-    labels; G2.4b, OPERATIONS section 21), the morning summary's text
+    and from the verification of 2026-11-28: the deploy of V27, which
+    seals the `/meds` button labels and the waiting card pages that held
+    medication names in plaintext (G2.4b, OPERATIONS section 22, owner's
+    step), the morning summary's text
     counting a late-missed dose on the day it was marked, and the load
     flakes of `WorkerLoopCancelPgSuite` and `ResvgRasteriserSuite`.
 

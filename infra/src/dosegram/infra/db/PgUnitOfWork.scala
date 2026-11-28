@@ -87,7 +87,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
     private val reads = TransactionReads()
     override lazy val sessions: SessionRepository = PgSessionRepository(conn, clock, keyService)
     override lazy val outbox: OutboxRepository = PgOutboxRepository(conn, keyService)
-    override lazy val renderedMessages: RenderedMessageRepository = PgRenderedMessageRepository(conn)
+    override lazy val renderedMessages: RenderedMessageRepository = PgRenderedMessageRepository(conn, keyService)
     override lazy val inboundEvents: InboundEventRepository = PgInboundEventRepository(conn, keyService)
     override lazy val domainEvents: DomainEventRepository = PgDomainEventRepository(conn, keyService)
     override lazy val identities: IdentityRepository = PgIdentityRepository(conn)
@@ -123,7 +123,7 @@ final class PgUnitOfWork(dataSource: DataSource, clock: Clock, keys: DataKeys) e
       override lazy val meals: MealRepository = PgMealRepository(conn, keyService)
     override lazy val reminders: ReminderRepositories = PgReminderRepositories(conn)
     override lazy val exports: ExportRepository = PgExportRepository(conn, consentEventIds, auditLog, keyService)
-    override lazy val reports: ReportQueue = PgReportQueue(conn)
+    override lazy val reports: ReportQueue = PgReportQueue(conn, keyService)
     override lazy val medicationDepth: MedicationDepthRepositories = PgMedicationDepthRepositories(conn)
     override lazy val imports: ImportRepository = PgImportRepository(conn, keyService)
 

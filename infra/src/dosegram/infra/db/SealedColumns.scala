@@ -159,6 +159,21 @@ object SealedColumns:
   val ExportParams: SealedColumn =
     SealedColumn("export_jobs", "params", "params_enc", "id", SealOwner.AccountOf("t.account_id"))
 
+  /** The controls kept with a sent message (V27), so a tap or a typed label still resolves: a label can name a
+    * medication ("Pause · <name>"). A message sent before the account existed is sealed with the service key.
+    */
+  val ChoiceMap: SealedColumn = SealedColumn(
+    "rendered_messages",
+    "choice_map",
+    "choice_map_enc",
+    "id",
+    SealOwner.AccountOr("t.account_id", TransportPurpose)
+  )
+
+  /** An image waiting to be drawn (V27): its SVG, its text equivalent and its caption, which can name a medication. */
+  val CardPages: SealedColumn =
+    SealedColumn("report_requests", "params", "params_enc", "id", SealOwner.AccountOf("t.account_id"))
+
   /** A staged record of an open import (V15): the whole normalised record, sealed. It has no plaintext column, so it is
     * in neither list below: the backfill has nothing to seal and the archive does not export the staging.
     */
@@ -199,6 +214,9 @@ object SealedColumns:
 
   /** The sealed columns of V22, which the backfill right after V22 seals and empties like those of V13. */
   val handles: List[SealedColumn] = List(FileId, ExportParams)
+
+  /** The sealed columns of V27, which the backfill right after V27 seals and empties like those of V13. */
+  val labels: List[SealedColumn] = List(ChoiceMap, CardPages)
 
 /** Text over a [[KeyService]]: UTF-8 in, UTF-8 out. */
 extension (keys: KeyService)
