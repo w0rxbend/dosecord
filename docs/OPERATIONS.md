@@ -1226,3 +1226,42 @@ section 23 apply as written, except that the start logs `migrate: 0 migration(s)
   `emptied <n> finished`; ARCHITECTURE section 7.5). It does not make `4a9b03a` itself safe: rolled back to it,
   a `sticker_set_removal` row still goes `dead` after eight attempts and raises the alert, so the rollback of
   section 23 stays as written.
+
+## 25. Deploying `main` after the integration of 2026-11-28, third round, over the live V27 database
+
+This section replaces section 24 as the owner's deploy: the head of `main` carries the leftovers of the
+verification of 2026-11-28 (section 24), the year and patterns in the Mini App (merge of `feat/miniapp-year`)
+and images on time and checked (merge of `feat/images-on-time`). Neither track added a migration (V28, V29 and V30
+stay unused), an environment variable, a binary or a Dockerfile change. The steps of section 23 apply as written
+with `<sha>` the head of `main` at or after the commit that adds this section, except that the start logs
+`migrate: 0 migration(s) applied, schema 27` and no `sealing:` line counts a value unless the bot was rolled back
+in between. What changes for the owner (supervisor decisions, 2026-11-28):
+
+- Everything of section 24 (one rule for "days with records", the late note of an image answer, the rollback
+  safety of later outbox rows).
+- A new worker fork, the report pre-render, runs at the reminder poll: for each enabled report plan due within 30
+  minutes it draws the pages of the morning summary, the weekly album with its highlights and the monthly pages
+  with the poster into `render_assets` (kept one hour), with the existing `RESVG_PATH` or `RENDER_WORKER_PATH`. At
+  the send time nothing is drawn: a report sends its images only when every page was drawn ahead, else it goes as
+  its text and each missing page counts in `dosegram_image_text_fallback_total{template}`. A report decided late
+  after downtime is not drawn ahead and goes as text. Check after the next scheduled report:
+  `curl -fsS http://127.0.0.1:18081/metrics | grep dosegram_image_text_fallback_total` (codes and counts only).
+- The morning summary at any time: `/reminders summary 07:45` (read as leniently as every typed time) and a
+  "Morning summary" button on the `/settings` card with eight times from 06:30 to 10:00 and "Turn off"; a time in
+  the quiet hours is refused. A whole hour keeps the preset id `report.daily.HH`, another time is stored as
+  `report.daily.HHMM`. Action ids 564 and 565 are new; buttons of the previous release still answer.
+- Image changes from the greyscale check (VISUALS section 6.7): the late dose glyph has a spruce outline, a partial
+  calendar cell an `ink3` outline, and the month's typical sleep times and water goal tick are drawn behind the
+  bars.
+- The Mini App (off on live) gains the Year tab, the IR-05 pattern card, the R5 domain colours and the "Counts in
+  reports" and "What's new" switches; its settings version now covers both, so a session holding an old version
+  gets one `412 version_conflict` and re-reads. Nothing of it is visible until `docs/DEPLOY_MINIAPP.md` is done.
+- CI gains the job `image-review` (actions pinned by commit); its first run, on `aa3c6c0`, was green.
+
+In the chat, besides step 6 of section 23: `/settings` shows "Morning summary"; picking 07:30 edits the card into
+"Saved. Morning summary: 07:30 (was off)." (or the previous time), and `/reminders` lists the summary at that time.
+
+Rollback without a restore: as in section 23, to `LIVE_WT="$PWD/.live/wt-cd8f39a" .live/run.sh`. That release shows
+a stored `report.daily.HHMM` plan by its raw preset id in `/reminders`, but sends it at the stored time (the plan
+is kept as its times, not as its id); it draws report cards at the send time again; the pre-render's rows in
+`render_assets` are purged within the hour.

@@ -39,24 +39,25 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-28 (`e9ca532` and the docs after it), after
-thirteen rounds of parallel tracks were merged and wired together (the
+State of `main` on 2026-11-28 (`aa3c6c0` and the docs after it), after
+fourteen rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
 migration; the tenth: chat analytics, V23, and image round 4; the
 eleventh: image round 5 and the Mini App go-live rehearsal, no
 migration; the twelfth: analytics round 6, V26, and the animated mood
 blob, V25; the thirteenth: the settings hub in chat and the mood
-stickers, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
+stickers, no migration; the fourteenth: the year in the Mini App and
+images drawn ahead of their send time, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
 parameters), and V24 (the order of an answer's messages, 2026-11-28),
 and the leftovers of the verification of 2026-11-28 (no migration).
 The migrations are V1 to V19 and V22 to V27, 25 files
 (`scripts/check-frozen-migrations.sh` prints `25 migrations unchanged
-(V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 and V29
-were assigned to the thirteenth round's tracks and stay unused, so the
-next migration is V28. The live database is at V27 (`cd8f39a`, the
-deploy of `docs/OPERATIONS.md` section 23); section 24 is the owner's
-deploy of the head, with no migration (sections 8 to 23 the earlier
+(V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 to V30
+were assigned to the fourteenth round's tracks and stay unused, so the
+next migration is V28; the highest action id in use is 565. The live database is at V27 (`cd8f39a`, the
+deploy of `docs/OPERATIONS.md` section 23); section 25 is the owner's
+deploy of the head, with no migration (sections 8 to 24 the earlier
 parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
@@ -87,7 +88,13 @@ Appendix B and its status notes are the record; this is the short form.
   by weekday). With "Animated mood" on (Mini App settings, V25, off by
   default) a mood check-in is answered with the blob moving for 3 s, H.264
   in MP4 encoded in the JVM (`report-renderer.motion`, JCodec), sent with
-  `sendAnimation`, the still card as its fallback.
+  `sendAnimation`, the still card as its fallback. The scheduled reports
+  (morning summary, weekly album, monthly pages) are drawn in the 30
+  minutes before their send time by `ReportPrerender` (VA-PS-08); a
+  report with a page not drawn ahead goes as its text.
+  `GreyscaleContrastSuite` keeps every mark of every review card at 3:1
+  in greyscale, and the CI job `image-review` attaches the contact and
+  vision sheets (G4.7; first green on the runner with `aa3c6c0`).
 - Tracking and statistics (`core`, `infra`, ADR-024): hydration, mood, sleep
   (episodes, check-ins, goals; no rollup, read from the episodes), daily
   rollups with a worker that drains their queue, the `Stat` type, text
@@ -218,8 +225,11 @@ Appendix B and its status notes are the record; this is the short form.
   Sessions and idempotency records are rows of `miniapp_sessions` and
   `idempotency_keys`. Screens: Today, medications, Log, water, mood, sleep,
   food, Insights (a 7, 30 and 90-day dashboard with the previous period in
-  words, month and patterns), reports and export, history and day detail,
-  settings with the day profile page, and set-up (S-19). The app records and withdraws
+  words, month, the year from `GET /insights/year` with week heat charts,
+  and patterns with the IR-05 card), reports and export, history and day detail,
+  settings with the day profile page and the chat's "Counts in reports" and
+  "What's new" switches, and set-up (S-19); the domain colours are the R5
+  image hues. The app records and withdraws
   no consent. Today answers a dose (`POST /occurrences/{id}/actions`, the
   chat's `DoseCommands`, vendor `miniapp`) and Insights shares a card
   through the report queue (`/report-cards`). The container image
@@ -286,19 +296,16 @@ Useful next, in this order:
     button on `/privacy`, repeat cards not replacing the old one); the old
     plan names in `miniapp/src/mock/reminders.ts`.
 11. What the tenth round left open: live sends of the morning summary,
-    `/stats meds`, the poster and a discreet caption; a typed time for the
-    summary and pre-rendering (VA-PS-08); CI attaching the vision sheets
-    (G4.7).
+    `/stats meds`, the poster and a discreet caption.
 12. What the eleventh round left open: the owner's go-live of the Mini
     App (public host, certificate, BotFather, OA-8) and live check LS-6;
     the share builder offered without `RESVG_PATH` (its preview answers
     404, DEPLOY_MINIAPP.md); live sends of the weekly album with
     highlights and the mood gallery; their contact-sheet review by another
-    reviewer; the Mini App palette, which R5 did not change.
+    reviewer.
 13. What the twelfth round left open: live sends of `/stats year`, the
     one-year card (IMG-30), the "What's new" note and the animated mood
-    (`sendAnimation` playback on every client); the TGS sticker (spike S5); the
-    year in the Mini App; an IR-05 pattern card; contact-sheet reviews of
+    (`sendAnimation` playback on every client); the TGS sticker (spike S5); contact-sheet reviews of
     IMG-30 and the motion by another reviewer; the load flakes of
     `NewUserWalkSuite`, `TelegramLaunchSuite`, `freePort()` and
     `SessionApiSuite` (ROADMAP Appendix B, integration of 2026-11-28),
@@ -327,6 +334,21 @@ Useful next, in this order:
     the claim; a row that follows an unknown-kind row waits with it; the
     month card's text equivalent does not name the outage days; live
     sends of the late note.
+16. What the fourteenth round left open (ROADMAP Appendix B,
+    integration of 2026-11-28, third round): the deploy of the head
+    (OPERATIONS section 25); the CI jobs `secret-scan` (gitleaks: 2
+    leaks found) and `ops-scripts` (restore drill: role `dosegram_worker`
+    missing), failing since `97fd96b` or before; of G4.7
+    the pixel goldens inside the production image, the seeded one-pixel
+    change and the contact-sheet review by another reviewer; of VA-PS-08
+    the 0 to 600 second per-account offset and pre-rendering a report
+    decided late after downtime (it goes as text); IMG-12's typical times
+    over the nights; no Ukrainian alias for `summary`; the Mini App's
+    summary picker in whole hours only; pattern cards in the Mini App for
+    IR-01, IR-02, IR-04 and IR-06, and no IR-05 card in the chat's IMG-13;
+    "Animated mood" shown in the Mini App without the mood consent; the
+    Year tab, pattern card and new switches unchecked live (OA-8, LS-6);
+    the native-speaker review of the new Ukrainian copy.
 
 ## Agent workflow
 
