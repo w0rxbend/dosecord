@@ -1395,3 +1395,43 @@ of section 26 apply as written with `<sha>` that head. What changes for the owne
 
 In the chat, besides step 7 of section 26: `/stats month` and the monthly report of a month with outage-only days
 show the "Not counted" line, and its card the bracketed note. Rollback without a restore: as in section 26.
+
+## 28. Deploying `main` after the integration of 2026-11-28, fourth round, over the live V27 database
+
+This section replaces section 27 as the owner's deploy. The live bot runs `26b3f4a` (the deploy of section 26). The
+head of `main` at or after the commit that adds this section carries everything of section 27 and two merged tracks:
+two periods compared (`1a32faf`) and the native Mini App (`096b74f`). There is no migration (V28, V29 and V30 stay
+unused), no new table, no environment variable, no setting, no binary and no Dockerfile change. Every step is the
+owner's; `<sha>` is that head and `<pg>` is `dosegram-live-pg`.
+
+1. Back up as in step 1 of section 26 (the V27 restore point), and note the quarantined count as in its step 2.
+2. Build the release next to the running one as in step 3 of section 26:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`. The
+   container image, if used instead, also carries the new Mini App bundle.
+3. Stop `26b3f4a` as in step 5 of section 26 and start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Step 4 of
+   section 26 is not needed: `26b3f4a` already binds its ports with SO_REUSEADDR. The log shows what step 5 of
+   section 26 lists: 25 `sealing:` lines with 0 values, `migrate: 0 migration(s) applied, schema 27, 0 value(s)
+   sealed, 0 key(s) rewrapped`, `purge: replayed 0 deletion(s) of the purge list`, no `rollups:` line, and the
+   health listener on `127.0.0.1:18081`.
+4. Check, read-only, as in step 6 of section 26: no version above 27 in `flyway_schema_history`, the quarantined
+   count unchanged, `/readyz` 200.
+5. In the chat, besides steps 7 and 8 of section 26 and the changes listed in section 27:
+   - `/stats compare` answers "Compare two periods" with last week and this week, one line per consented area, and
+     ends with the sentence that it does not show a cause; "This month" sets this month beside the month before;
+     "Pick two months" offers the current month and the eleven before it;
+   - "Show as image" on it sends the card IMG-27 (with the images consent; without it the consent card, and after
+     the consent the compare card), its text equivalent when resvg or the font pack is missing;
+   - the 30-day `/stats` "Trends" card has a "Compare periods" button;
+   - buttons sent by `26b3f4a` still answer (as in step 7 of section 26).
+6. Nothing changes on the Mini App while it is off (`MINIAPP_ENABLED` unset): `GET /api/v1/insights/compare` and
+   the new Mini App screens are reached only after `docs/DEPLOY_MINIAPP.md`.
+7. Delete the old worktree only after a day of normal use.
+
+Rollback without a restore: wait until
+`SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering');` returns 0, stop the bot and start
+`LIVE_WT="$PWD/.live/wt-26b3f4a" .live/run.sh`. It logs `migrate: 0 migration(s) applied, schema 27` and answers
+`/readyz` with 200. The compare buttons (action ids 576 to 578) sent by the head carry ids `26b3f4a` does not know
+and are answered as any unknown button; how `26b3f4a` resumes an images consent card sent for the compare card
+(`Pending(5, code)` with a nonzero code) was not checked.
+Restore the backup of step 1 only if the database itself must go back. Not rehearsed: this deploy as a whole; the
+steps are those of section 26, rehearsed on 2026-11-28, with no schema or start-up change since.

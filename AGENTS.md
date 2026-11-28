@@ -39,26 +39,28 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-28 (`aa3c6c0` and the docs after it), after
-fourteen rounds of parallel tracks were merged and wired together (the
+State of `main` on 2026-11-28 (`096b74f` and the docs after it), after
+fifteen rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
 migration; the tenth: chat analytics, V23, and image round 4; the
 eleventh: image round 5 and the Mini App go-live rehearsal, no
 migration; the twelfth: analytics round 6, V26, and the animated mood
 blob, V25; the thirteenth: the settings hub in chat and the mood
 stickers, no migration; the fourteenth: the year in the Mini App and
-images drawn ahead of their send time, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
+images drawn ahead of their send time, no migration; the fifteenth: two
+periods compared and the native Mini App, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
 parameters), and V24 (the order of an answer's messages, 2026-11-28),
 and the leftovers of the verification of 2026-11-28 (no migration).
 The migrations are V1 to V19 and V22 to V27, 25 files
 (`scripts/check-frozen-migrations.sh` prints `25 migrations unchanged
 (V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 to V30
-were assigned to the fourteenth round's tracks and stay unused, so the
-next migration is V28; the highest action id in use is 565. The live database is at V27 (`cd8f39a`, the
-deploy of `docs/OPERATIONS.md` section 23); section 26 is the owner's
-deploy of the head, with no migration, rehearsed by the verification of
-2026-11-28, third round (sections 8 to 25 the earlier parts). The Mini App
+were assigned to the fifteenth round's tracks and stay unused, so the
+next migration is V28; the highest action id in use is 578. The live
+database is at V27 and runs `26b3f4a` (the deploy of
+`docs/OPERATIONS.md` section 26); section 28 is the owner's deploy of
+the head, with no migration (it replaces section 27; sections 8 to 26
+the earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
@@ -204,6 +206,17 @@ Appendix B and its status notes are the record; this is the short form.
   account; an animated mood answer has its own 9 s deadline
   (`CardDelivery.MotionDeadline`) and a late answer whose picture is stored
   is still sent as the image.
+- Two periods and the native Mini App (2026-11-28): `/stats compare`
+  (also "Compare periods" on the trends card; action ids 576 to 578)
+  sets last week beside this week, last month beside this month, or two
+  picked months of the last twelve, per area behind the period's gate,
+  the difference in the comparison rule's words, the card IMG-27 and
+  `GET /insights/compare` from one source (`StatsQueryService.compare`),
+  the Compare tab of Insights. The Mini App paints Telegram's header,
+  background and bottom bar, follows fullscreen insets, keeps the
+  Insights period or Year tab in CloudStorage, saves the meal sheet on
+  MainButton, confirms leaving changed forms, and offers quick actions on
+  Today (the dose due now, the default vessel, a mood check-in).
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -333,11 +346,11 @@ Useful next, in this order:
     (ROADMAP Appendix B): a rollback to `4a9b03a` still kills its
     `sticker_set_removal` rows; a row that follows an unknown-kind (or
     unknown-op) row waits with it; live sends of the late note. Fixed on
-    2026-11-28 (fourth round, OPERATIONS section 27): the claim leaves a
+    2026-11-28 (fourth round, OPERATIONS sections 27 and 28): the claim leaves a
     newer op's rows queued, and the month card names the outage days.
 16. What the fourteenth round left open (ROADMAP Appendix B,
     integration of 2026-11-28, third round): the deploy of the head
-    (OPERATIONS section 27, which replaces section 26; CI is green again
+    (OPERATIONS section 28, which replaces section 27; CI is green again
     since `88aedce`); of G4.7
     the pixel goldens inside the production image, the seeded one-pixel
     change and the contact-sheet review by another reviewer; of VA-PS-08
@@ -349,6 +362,18 @@ Useful next, in this order:
     "Animated mood" shown in the Mini App without the mood consent; the
     Year tab, pattern card and new switches unchecked live (OA-8, LS-6);
     the native-speaker review of the new Ukrainian copy.
+17. What the fifteenth round left open (ROADMAP Appendix B,
+    integration of 2026-11-28, fourth round): live sends of
+    `/stats compare`, its picker and IMG-27; IMG-27's contact-sheet review
+    by another reviewer; a PERFORMANCE.md probe for
+    `GET /insights/compare`; no Back on the month picker; pairs only from
+    January 2025 to October 2045 (the 16-bit code of a consent card);
+    `/stats compare` absent from the "What's new" note; of the native Mini
+    App the live check on real clients (frame colours, insets, haptics,
+    CloudStorage, quick actions; OA-8, LS-6), the "Vibration" and "Reduce
+    motion" switches, SecondaryButton and MainButton on Sleep, Water,
+    Reports and the day profile; initial JavaScript at 69.79 of the
+    70 KB budget; the native-speaker review of the new Ukrainian copy.
 
 ## Agent workflow
 
