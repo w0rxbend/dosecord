@@ -21,9 +21,23 @@ export function toEpisodeInput(draft: NightDraft): SleepEpisodeInput {
   };
 }
 
-/** A night that ended this morning: from 23:00 the evening before to 07:00. */
-export function lastNightDraft(today: LocalDate): NightDraft {
+const pad = (value: number): string => String(value).padStart(2, '0');
+
+/** The device's own date of `now`, and its time to the 5 minutes before, as the form's fields hold them. */
+function deviceWallClock(now: Date): { date: LocalDate; time: string } {
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const minutes = now.getMinutes();
+  return { date, time: `${pad(now.getHours())}:${pad(minutes - (minutes % 5))}` };
+}
+
+/**
+ * A night that ended this morning: from 23:00 the evening before to 07:00. Before 07:00 on `today` it ends now (to the
+ * 5 minutes before), so the night the form starts from is never in the future (supervisor decision, 2026-11-28).
+ */
+export function lastNightDraft(today: LocalDate, now: Date = new Date()): NightDraft {
   const evening = new Date(`${today}T12:00:00Z`);
   evening.setUTCDate(evening.getUTCDate() - 1);
-  return { kind: 'night', onsetDate: evening.toISOString().slice(0, 10), onsetTime: '23:00', wakeDate: today, wakeTime: '07:00' };
+  const device = deviceWallClock(now);
+  const wakeTime = device.date === today && device.time < '07:00' ? device.time : '07:00';
+  return { kind: 'night', onsetDate: evening.toISOString().slice(0, 10), onsetTime: '23:00', wakeDate: today, wakeTime };
 }

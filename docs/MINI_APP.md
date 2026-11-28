@@ -1444,6 +1444,8 @@ MA-SLEEP-5. Metrics are gated by data, and a gated metric shows what is needed i
 
 MA-SLEEP-6. The night sheet validates: wake time after sleep time (`wake_before_sleep` "The wake time is before the sleep time"); duration at most 24 hours (`too_long`); no overlap with another episode (`overlap` "This overlaps a night you already logged. Edit that one instead."). A duration over 14 hours asks for confirmation once. The duration line is the difference of instants, so on a clock-change night it differs from the clock arithmetic, and a note says "Clocks changed this night". [U][M]
 
+MA-SLEEP-6a. The night sheet starts from last night, 23:00 the evening before to 07:00; before 07:00 on that day it ends at the device's current time, to the 5 minutes before, so the night it starts from is never refused as `in_future`. [U] Supervisor decision, 2026-11-28 (verification of 2026-11-28: the e2e walk failed between 00:00 and 07:00 UTC because the default night ended in the future).
+
 MA-SLEEP-7. With activity-based estimates turned on, and only then, the application reports its foreground periods to `sleep/activity-signals`: one signal on `activated`, one on `deactivated`, and while active at most one heartbeat per 5 minutes, sent only if the user produced input in that interval (R05 section 7.9, "Mini App left open on a desktop"). With the option off, a test records zero requests to this resource. [M]
 
 MA-SLEEP-8. A past night can be edited from S-10 or from S-13. An edit never changes an imported device episode; it creates the user's own correction next to it (R05 section 9). [M]
