@@ -331,15 +331,14 @@ Useful next, in this order:
     second round).
 15. What the leftovers of the verification of 2026-11-28 left open
     (ROADMAP Appendix B): a rollback to `4a9b03a` still kills its
-    `sticker_set_removal` rows; a newer outbox op value would still break
-    the claim; a row that follows an unknown-kind row waits with it; the
-    month card's text equivalent does not name the outage days; live
-    sends of the late note.
+    `sticker_set_removal` rows; a row that follows an unknown-kind (or
+    unknown-op) row waits with it; live sends of the late note. Fixed on
+    2026-11-28 (fourth round, OPERATIONS section 27): the claim leaves a
+    newer op's rows queued, and the month card names the outage days.
 16. What the fourteenth round left open (ROADMAP Appendix B,
     integration of 2026-11-28, third round): the deploy of the head
-    (OPERATIONS section 26, which replaces section 25); the CI jobs `secret-scan` (gitleaks: 2
-    leaks found) and `ops-scripts` (restore drill: role `dosegram_worker`
-    missing), failing since `97fd96b` or before; of G4.7
+    (OPERATIONS section 27, which replaces section 26; CI is green again
+    since `88aedce`); of G4.7
     the pixel goldens inside the production image, the seeded one-pixel
     change and the contact-sheet review by another reviewer; of VA-PS-08
     the 0 to 600 second per-account offset and pre-rendering a report

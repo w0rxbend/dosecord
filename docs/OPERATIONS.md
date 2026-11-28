@@ -1364,3 +1364,34 @@ exited whenever a client had kept a connection to it open (the harness's own `/m
 stopped and started at once, it bound the port and answered `/readyz` with 200; started at once after `cd8f39a` was
 stopped with a kept-alive client, it failed with "Address already in use" (step 4), and after `cd8f39a` was stopped
 with only `curl` requests, it bound at once. Not rehearsed: a real client, the Telegram transport, the WAL step.
+
+## 27. Deploying `main` after the fourth round of 2026-11-28 over the live V27 database
+
+This section replaces section 26 as the owner's deploy. The head of `main` at or after the commit that adds this
+section carries everything of section 26 and the fixes of the fourth round (supervisor decisions, 2026-11-28). There
+is no migration (V28, V29 and V30 stay unused), no environment variable, no binary and no Dockerfile change: the steps
+of section 26 apply as written with `<sha>` that head. What changes for the owner:
+
+- `scripts/restore-drill.sh` creates, in its throwaway database, every role the dump's grants and policies name
+  (`dosegram_app`, `dosegram_erasure`, `dosegram_worker` and the role that ran the migrations) before it restores;
+  before, it stopped at `role "dosegram_worker" does not exist` on any backup taken at V14 or later, the live ones
+  included. Nothing else of the drill changed.
+- The pre-render draws nothing for a report that will go as its text: on a day with the weekly or monthly report,
+  sent or due, the morning summary's card is no longer drawn (step 8 of section 26 then counts fewer
+  `render_assets` rows before the summary). A weekly report after the day's monthly one is not drawn either.
+- The pages drawn ahead are keyed `report.<16 hex>.<64 hex>`, the first part a digest of the account alone, and an
+  account deletion deletes the account's pages drawn and not yet sent, and their upload handles, in its own
+  transaction instead of leaving them to the hourly purge. A page the previous release drew in the 30 minutes before
+  the restart has the old key and is not found: a report due within those 30 minutes goes once as its text, counted
+  in `dosegram_image_text_fallback_total{template}`; the old rows are purged within the hour. The query of step 8,
+  `asset_key LIKE 'report.%'`, still counts the new keys.
+- The outbox claim takes only the ops this release knows, so after a rollback a newer release's row with a new op
+  stays `queued` (no attempt, no `dead` row, no alert) instead of making every claim fail (ARCHITECTURE section 7.5).
+- The month card's first page names the days whose only doses have no record, as the month text does:
+  "(not counted: N outage days)" beside the days hero, and the full sentence in its text equivalent (VISUALS section
+  6.6). A month without such days looks as before.
+- A queued report picture whose bytes were purged while the bot was down is still sent as its text equivalent in
+  its place, before the report's text (checked on the fake wire; no change in behaviour).
+
+In the chat, besides step 7 of section 26: `/stats month` and the monthly report of a month with outage-only days
+show the "Not counted" line, and its card the bracketed note. Rollback without a restore: as in section 26.
