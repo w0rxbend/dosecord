@@ -44,8 +44,10 @@ final class ResvgRasteriser(config: ResvgConfig) extends Rasteriser:
     if !permits.tryAcquire(config.timeoutMillis, TimeUnit.MILLISECONDS) then Left(RasterFailure.QueueFull)
     else
       try
-        val remainingMillis = StrictMath.max(1L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()))
-        start(zoom).flatMap(process => collect(process, svg, remainingMillis))
+        // The time to start the process is part of the deadline too: on a loaded host a fork and exec can take
+        // hundreds of milliseconds, and a caller is answered within the timeout, never after it.
+        start(zoom).flatMap: process =>
+          collect(process, svg, StrictMath.max(1L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())))
       finally permits.release()
 
   private def start(zoom: Int): Either[RasterFailure, Process] =

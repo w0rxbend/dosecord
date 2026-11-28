@@ -14,6 +14,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicReference
 
 /** The stability review of 2026-11-14: a worker kept alive across a failed pass must still end when its scope is
   * cancelled, wherever the interrupt lands: in the database work of a pass, or in the wait for a wake.
@@ -23,29 +24,31 @@ class WorkerLoopCancelPgSuite extends PgSuite:
   private val Rounds = 200
 
   test("cancelling the scope ends the reminder loop wherever the interrupt lands in its pass"):
+    // One wake and one unit of work for every round: an interrupt that lands in the wake's read breaks its connection,
+    // and the next round's first wait opens a new one, as in production. A fresh wake per round cost a connection and
+    // its password exchange each time, and under the gate's load the 200 rounds outran the suite's time limit.
     val clock = Clock.system
     val log = ConcurrentLinkedQueue[String]()
     val passes = WorkerLoop.standard(line => log.add(line): Unit)
-    (1 to Rounds).foreach: round =>
-      val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
-      val loop = ReminderLoop(
-        PgUnitOfWork(dataSource, clock, DataKeys.development),
-        Materialiser(PgUnitOfWork(dataSource, clock, DataKeys.development), clock),
-        wake,
-        clock,
-        instance = "cancel-pg",
-        pollInterval = Duration.ofMillis(2)
-      )
-      val scope = Thread
-        .ofVirtual()
-        .start: () =>
-          supervised:
-            val _ = fork(passes.repeat("reminder loop")(() => { loop.step(); true }))
-            Thread.sleep(ThreadLocalRandom.current().nextLong(1, 40))
-      try
+    val wake = PgNotifyWake(pg.jdbcUrl, pg.username, pg.password)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val loop = ReminderLoop(uow, Materialiser(uow, clock), wake, clock, instance = "cancel-pg", pollInterval = Duration.ofMillis(2))
+    try
+      (1 to Rounds).foreach: round =>
+        val worker = AtomicReference[Thread]()
+        val scope = Thread
+          .ofVirtual()
+          .start: () =>
+            supervised:
+              val _ = fork:
+                worker.set(Thread.currentThread())
+                passes.repeat("reminder loop")(() => { loop.step(); true })
+              Thread.sleep(ThreadLocalRandom.current().nextLong(1, 40))
         scope.join(10000)
-        assert(!scope.isAlive, s"round $round: the scope ended after its body; worker log: ${log.toArray.toList}")
-      finally wake.close()
+        // Where the worker is when it outlives its scope, so a failure names the call that kept it.
+        def where: String = Option(worker.get()).fold("not started")(_.getStackTrace.take(40).mkString("\n  at "))
+        assert(!scope.isAlive, s"round $round: the scope ended after its body; worker log: ${log.toArray.toList}; worker: $where")
+    finally wake.close()
 
   test("cancelling the scope ends a wait for a wake that the interrupt never reached"):
     // The hang of 2026-11-14: a scope joined the reminder loop for more than ten minutes while the loop's fork sat in

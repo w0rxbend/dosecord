@@ -294,8 +294,10 @@ Useful next, in this order:
     seals the `/meds` button labels and the waiting card pages that held
     medication names in plaintext (G2.4b, OPERATIONS section 22, owner's
     step; the same start rebuilds the daily rollups now that every dose
-    counts on its scheduled day, ADR-012 addendum), and the load
-    flakes of `WorkerLoopCancelPgSuite` and `ResvgRasteriserSuite`.
+    counts on its scheduled day, ADR-012 addendum), the month's "days
+    with records" still counting days whose only doses have no record,
+    and the unreproduced hang of `WorkerLoopCancelPgSuite` (ROADMAP
+    Appendix B, fixes of the verification of 2026-11-28).
 
 ## Agent workflow
 

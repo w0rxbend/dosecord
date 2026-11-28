@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 
 import scala.concurrent.duration.Duration
@@ -128,14 +129,22 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     assert(elapsedMillis < 5000, s"the caller waited $elapsedMillis ms")
 
   test("a render that waits for a busy slot ends within its own deadline, waiting included (VISUALS VA-FB-01)"):
-    val busy = ResvgRasteriser(ResvgConfig(fakeBinary("sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 600, 1024, 1))
+    // The first render holds the only slot once its process has started, which the fake marks with a file: a fixed
+    // pause let the second caller take the slot first on a loaded host, and then it waited for a render of its own.
+    val started = Files.createTempFile("fake-resvg", ".started")
+    Files.delete(started)
+    val busy = ResvgRasteriser(
+      ResvgConfig(fakeBinary(s"touch '$started'; sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 600, 1024, 1)
+    )
     val first = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()
     val holding = first.submit(() => busy.rasterise(waterSvg(Theme.Dark), 1))
-    Thread.sleep(200)
-    val started = System.nanoTime()
+    val waitUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+    while !Files.exists(started) && System.nanoTime() < waitUntil do Thread.sleep(5)
+    assert(Files.exists(started), "the first render's process never started")
+    val startedAt = System.nanoTime()
     val second = busy.rasterise(waterSvg(Theme.Dark), 1)
-    val elapsedMillis = (System.nanoTime() - started) / 1000000
-    assert(second.isLeft, s"$second")
+    val elapsedMillis = (System.nanoTime() - startedAt) / 1000000
+    assertEquals(second.left.toOption, Some(RasterFailure.QueueFull), "the second caller is refused the busy slot")
     assert(elapsedMillis < 900, s"the second caller waited $elapsedMillis ms against a 600 ms deadline")
     assertEquals(holding.get().left.toOption, Some(RasterFailure.TimedOut))
     first.shutdown()
