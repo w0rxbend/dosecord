@@ -374,6 +374,12 @@ Useful next, in this order:
     motion" switches, SecondaryButton and MainButton on Sleep, Water,
     Reports and the day profile; initial JavaScript at 69.79 of the
     70 KB budget; the native-speaker review of the new Ukrainian copy.
+    From the verification of `9ac3b88` (OPERATIONS section 28, rehearsed):
+    in one of three full test runs, the first after a clean build, the
+    tampered-button tests of `TelegramLaunchSuite` and
+    `ProductionPathSuite` got the neutral answer in place of the
+    stale-button toast (cause not found; no change since `26b3f4a` on
+    that path).
 
 ## Agent workflow
 

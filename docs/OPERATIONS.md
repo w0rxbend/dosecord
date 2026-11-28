@@ -1431,7 +1431,50 @@ Rollback without a restore: wait until
 `SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering');` returns 0, stop the bot and start
 `LIVE_WT="$PWD/.live/wt-26b3f4a" .live/run.sh`. It logs `migrate: 0 migration(s) applied, schema 27` and answers
 `/readyz` with 200. The compare buttons (action ids 576 to 578) sent by the head carry ids `26b3f4a` does not know
-and are answered as any unknown button; how `26b3f4a` resumes an images consent card sent for the compare card
-(`Pending(5, code)` with a nonzero code) was not checked.
-Restore the backup of step 1 only if the database itself must go back. Not rehearsed: this deploy as a whole; the
-steps are those of section 26, rehearsed on 2026-11-28, with no schema or start-up change since.
+and are answered with the toast "This button no longer works. Open /today." (rehearsed). An images consent card
+sent by the head for the compare card carries `Pending(5, code)` with a nonzero code; `26b3f4a` reads every kind 5
+as the seven-day `/stats` card (`Pending.of`, by reading its code; not exercised), so its "Confirm" shows that card in
+place of IMG-27. Restore the backup of step 1 only if the database itself must go back.
+
+Rehearsed on 2026-11-28 (verification of the fourth-round integration, head `9ac3b88`) against a throwaway
+`postgres:18-alpine` container on a free port, with a key file (`KEK_FILE`, mode 600) in a directory of mode 700, a
+purge-list path there and `ENVIRONMENT=production`. `26b3f4a`, assembled as `Main` assembles it with the Telegram
+adapter on the fake wire, a stepped clock and resvg 0.49.0 drawing, built a V27 database through the chat
+(`migrate: 25 migration(s) applied, schema 27`): one account in English (Europe/London) with onboarding, two
+medications with a name, a dose and instructions, water with a plan, mood, a night, a meal with words, a dose taken,
+one snoozed then skipped, the images consent with cards, the mood gallery, `/stats meds` with its strip, an export,
+the morning summary at 08:00 and the weekly report (Monday 09:00) on, an add-medication form left after its first
+answer; one in Ukrainian (Europe/Kyiv) with water and mood. On Sunday and Monday morning `26b3f4a` drew the weekly
+report's two pages ahead and sent the 08:00 summary as text; then, with its outbox held, it put the weekly report
+(the album of 2 images and its text) and the 09:00 dose reminder in the queue at 09:00 and stopped with all three
+queued. The steps above were then followed, with `java -jar out/app/assembly.dest/out.jar run` on the console adapter
+in place of `.live/run.sh`:
+
+1. `26b3f4a` answered `/readyz` with 200; the step-1 backup was written with mode 600 while it ran (a `pg_restore` of
+   it into a scratch database gave schema 27, 2 users and the 3 queued rows); no purge list existed; nothing was
+   quarantined; SIGTERM ended it with `shutdown: pool closed`.
+2. The head logged 25 `sealing:` lines with 0 values, `migrate: 0 migration(s) applied, schema 27, 0 value(s) sealed,
+   0 key(s) rewrapped`, `purge: replayed 0 deletion(s) of the purge list`, no `rollups:` line, and answered `/readyz`
+   with 200; `flyway_schema_history` held no version above 27; a second start did the same and stopped cleanly.
+3. On the fake wire from Monday 09:01: the queued weekly report arrived as an album of 2 images (`sendMediaGroup`,
+   both uploaded) followed by its text, and the queued reminder; no onboarding question; `/meds` with both names;
+   four buttons sent by `26b3f4a` answered (Taken, "7 days" and "Show as image" of `/stats meds`, "Pause for today"
+   on a closed water reminder with "This reminder is already closed."); `/stats compare` as step 5 describes it, with
+   "This month", "Pick two months" (Nov 2026 to Dec 2025, then the second month), the card IMG-27 as a photo
+   captioned with its text, and "Compare periods" on the 30-day trends card. Tuesday: the summary's card was drawn
+   before 08:00 and arrived with the summary (`sendPhoto`). No image went as its text, no outbox row died, nothing
+   was quarantined.
+4. Every sealed label set (76) opened through the head's own repository and key service, 3 of them naming a
+   medication. A scan of every column (600) and a `pg_dump`, as text and as hex, found no medication name,
+   instruction, unfinished form answer, meal words or first name; the zone name (the positive control) was found.
+   45 tables have forced row-level security, and `dosegram_app` without a claim saw no row of `users`,
+   `medications`, `mood_checkins`, `rendered_messages`, `report_requests`, `hydration_entries`, `sleep_episodes` or
+   the account rows of `outbox_messages`.
+5. Rollback: with no report request queued or rendering, `26b3f4a` over the upgraded database logged
+   `migrate: 0 migration(s) applied, schema 27`, answered `/readyz` with 200, answered the three compare buttons the
+   head had sent with the stale-button toast, then `/meds`, a mood check-in with its card, `/reminders`, `/stats`, a
+   water entry and `/today`, and sent the next morning's 08:00 summary with its card.
+6. The head again over that database: `/meds` with both names and `/stats compare`; a clean restart answered
+   `/readyz` with 200; the final scan of every column and the `pg_dump` again found no canary.
+
+Not rehearsed: a real client, the Telegram transport, the step-1 backup taken off the host.
