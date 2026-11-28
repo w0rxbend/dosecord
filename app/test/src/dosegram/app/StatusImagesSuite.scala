@@ -505,7 +505,9 @@ class StatusImagesSuite extends munit.FunSuite:
     // A minute for the loop, as the pixel tests give their rasteriser: the budget itself is held by MotionSuite.
     val images = StatusImages.from(Some(settings), StatusImages.Stores.inMemory, log += _, motionBudgetMillis = 60000)
     val look = light.copy(isAnimated = true)
-    images.drawn.mood(MoodCardView(Valence.of(1).get, Energy.of(1)), look) // warms the worker and the encoder
+    // The still card warms the worker. One loop only: two (one to warm the encoder) took over the 30 s of a test on a
+    // loaded machine (a full test run of 2026-11-28 with every core busy); MotionSuite measures the warm loop.
+    images.drawn.mood(MoodCardView(Valence.of(1).get, Energy.of(1)), light)
     val started = System.nanoTime()
     val answer = images.drawn.mood(MoodCardView(pleasant, Energy.of(5)), look).get
     val millis = (System.nanoTime() - started) / 1_000_000
@@ -513,7 +515,7 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals((answer.kind, answer.mimeType, answer.fileName), (MediaKind.Animation, "video/mp4", Some("dosegram-mood.mp4")))
     val video = images.store.load(answer.assetKey).get
     assertEquals(String(video.slice(4, 8), UTF_8), "ftyp")
-    println(s"animated mood answer: ${video.length} bytes in $millis ms (PERFORMANCE.md section 4.7)")
+    println(s"animated mood answer, the first loop of this JVM: ${video.length} bytes in $millis ms (PERFORMANCE.md 4.7)")
     assert(video.length < 1024 * 1024, s"${video.length} bytes")
     val still = answer.still.get
     assertEquals(images.store.load(still.assetKey).get.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))

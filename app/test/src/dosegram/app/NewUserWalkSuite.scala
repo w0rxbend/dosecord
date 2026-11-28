@@ -317,7 +317,7 @@ class NewUserWalkSuite extends PgSuite:
     val reading = dosegram.render.blob.MoodReading(dosegram.render.blob.MoodState.captured(4, None), isEnergyGiven = false)
     val after = lines.drop(at)
     assert(after.exists(_.endsWith(s": ${copy.moodLabel(reading)}")), s"the gallery's text equivalent: ${after.take(12)}")
-    val sentAsPhoto = after.exists(_.contains("[image], caption:"))
+    val sentAsPhoto = photoCaptioned(after, _.endsWith(s": ${copy.moodLabel(reading)}"))
     assert(!sentAsPhoto || drawn.exists(_.contains(s">${SvgEmitter.escape(copy.galleryTitle)}<")), "the gallery was drawn")
 
   /** `/stats compare` (supervisor decision, 2026-11-28): the walk's Monday is the whole of this week, with a record in
@@ -340,8 +340,17 @@ class NewUserWalkSuite extends PgSuite:
     val cell = l(s"${CompareCopy.label(PeriodName.ThisWeek)} ${CompareCopy.cell(TrendDomain.Hydration, oneDay, keepGates = true)}")
     val row = after.find(_.contains(water)).getOrElse(fail(s"the water row: ${after.take(16)}"))
     assert(row.contains(cell), s"one recorded day is below the week's gate: '$cell' in '$row'")
-    val sentAsPhoto = after.exists(_.contains("[image], caption:"))
+    val sentAsPhoto = photoCaptioned(after, _.endsWith(header))
     assert(!sentAsPhoto || drawn.exists(_.contains(s">${SvgEmitter.escape(copy.compare.title)}<")), "the card was drawn")
+
+  /** Whether a photo in `lines` carries a caption line that `matches`. Any photo of the rest of the walk is not enough:
+    * on a loaded machine the card can go as its text while a later report goes as a photo (a full test run of
+    * 2026-11-28).
+    */
+  private def photoCaptioned(lines: List[String], matches: String => Boolean): Boolean =
+    lines.tails.exists:
+      case photo :: rest if photo.contains("[image], caption:") => rest.takeWhile(_.startsWith("      | ")).exists(matches)
+      case _                                                    => false
 
   /** `/settings` (supervisor decision, 2026-11-28; BOT_UX section 17): one card in the whole walk, and every tap on it
     * an edit of that card that names the old and the new value; the walk leaves discreet reminders as it found them.

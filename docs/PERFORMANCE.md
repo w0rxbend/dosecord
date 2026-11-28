@@ -196,7 +196,7 @@ pinned sources, after a warm-up loop (VISUALS section 4.6). One loop is 60 frame
 | Probe | Result |
 |---|---|
 | Layout of the 60 frames as SVG on the check-in's transaction | 7.7 ms p50, 14.5 ms p95 over 30 runs; 96 KB of SVG |
-| Draw, read back and encode one loop (`MotionSuite`, `StatusImagesSuite`) | 1.87 to 2.06 s; of it about 1.4 s is the H.264 encoding in the JVM |
+| Draw, read back and encode one loop (`MotionSuite`; `StatusImagesSuite` prints the first loop of its JVM since 2026-11-28) | 1.87 to 2.06 s; of it about 1.4 s is the H.264 encoding in the JVM |
 | Size of one loop | 378 to 476 KB for six states and both themes; quantisers 20/26 to 30/34 change it by under 15 percent |
 | Luma PSNR against the frames | 38 dB or more in every frame at the chosen quantisers 24/28 |
 

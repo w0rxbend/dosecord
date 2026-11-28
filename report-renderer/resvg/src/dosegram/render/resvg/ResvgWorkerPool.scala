@@ -69,8 +69,12 @@ final class ResvgWorkerPool private[resvg] (config: ResvgConfig, launch: Process
 
     def processId: Option[Long] = started.map(_.processId)
 
+    /** Ends the slot's worker off the caller's thread: the kill walks the host's process table for the worker's
+      * children, and on a loaded host no caller's deadline may pay for that (a full test run of 2026-11-28 returned a
+      * render 514 ms after its deadline under a load average of 73).
+      */
     def discard(): Unit =
-      current.foreach(_.thenAccept(_.foreach(_.kill())))
+      current.foreach(_.thenAcceptAsync(_.foreach(_.kill()), Deadlines.starts))
       current = None
 
     private def started: Option[Worker] =
@@ -122,7 +126,7 @@ private object Deadlines:
     Thread.ofPlatform().daemon().name("dosegram-raster-deadline").unstarted(task)
   )
 
-  /** Daemon threads that start worker processes, so a caller waits for a start no longer than its deadline. */
+  /** Daemon threads that start and end worker processes, so a caller waits for neither longer than its deadline. */
   val starts: ExecutorService =
     Executors.newCachedThreadPool(task => Thread.ofPlatform().daemon().name("dosegram-raster-start").unstarted(task))
 
