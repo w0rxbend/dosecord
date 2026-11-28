@@ -1072,3 +1072,51 @@ previous release cannot read a sealed request), stop the bot and start the previ
 logs `migrate: 0 migration(s) applied, schema 27` and writes plaintext labels again, which the
 next start of the head seals; until then a typed number or label on a message the head sent does
 not resolve. Restore the backup of step 1 only if V26 itself must come back.
+
+## 23. Deploying `main` after the integration of 2026-11-28 over the live V26 database (V27, the settings hub and mood stickers)
+
+This section replaces section 22 as the owner's deploy: the head of `main` carries V27 (section
+22), the chat settings hub (merge of `feat/chat-settings-hub`) and the mood stickers with the
+deadline of an animated answer (merge of `feat/mood-stickers`). Neither track added a migration,
+so V27 is the only one; V28 and V29 stay unused. No environment variable is added or made
+required, no binary is added and the Dockerfile is unchanged. Every step is the owner's;
+`<sha>` is the head of `main` at or after the commit that adds this section, and `<pg>` is
+`dosegram-live-pg`:
+
+1. Back up as in step 1 of section 21, named `dosegram-v26-$(date -u +%F).dump` (mode 600). It is
+   the V26 restore point. Check the purge list and note the quarantined count as in step 2 of
+   section 21.
+2. Build and start the head as in steps 3 and 4 of section 21. Its log shows what step 2 of
+   section 22 lists: 25 `sealing:` lines, the vacuum, `migrate: 1 migration(s) applied, schema 27`
+   and, on the first start only, `rollups: queued N day(s) stored by an earlier version`.
+3. Check, read-only, as in step 3 of section 22: both sealed-column counts return 0, the
+   quarantined count is that of step 1, and `/readyz` answers 200.
+4. In the chat:
+   - the answer to the next command (not `/start`) is followed once by the "What's new" note of
+     release 2, which names `/settings` (BOT_UX section 6.5); the command menu lists `/settings`
+     (registered with `setMyCommands` at start-up);
+   - `/settings` sends one card with the language, time zone, day, images and reports sections;
+     a tap edits that card in place and its first line reads "Saved. X: new (was old)."; with the
+     mood consent the card shows "Animated mood", the first chat switch for it (BOT_UX section
+     17.1);
+   - with "Animated mood" on and discreet mode off, a mood check-in is answered with the moving
+     blob (`sendAnimation`), and a late answer is still the image when its still or loop is stored
+     (ARCHITECTURE section 12.1);
+   - `/mood stickers` after the images consent answers "Your mood stickers are ready" with the
+     "Add the stickers" button, the link to the account's own set of five blob stickers,
+     `mood_<16 hex>_by_<bot username>`; a second request updates the same set. Without the
+     rasteriser it answers "Mood stickers are not available here." The name carries the bot's username, so a renamed bot cannot find or delete the sets
+     made under the old name.
+5. Clear the older WAL as in step 4 of section 22.
+
+Audit behaviour changes with the settings hub: re-picking the same language or time zone, or
+saving unchanged Mini App settings, writes no audit row, and changes to "Counts in reports" and the
+"What's new" switch write rows with the codes `counts` and `whats_new`, which the existing
+`changed_fields` check accepts.
+
+Rollback without a restore: as in section 22 (wait until no report request is `queued` or
+`rendering`, stop the bot, start `LIVE_WT="$PWD/.live/wt-4a9b03a" .live/run.sh`). A report
+request queued by the head may carry a `stickers` field in its sealed parameters; the previous
+release cannot read a sealed request at all, which is why the wait comes first. A sticker set
+already made stays on Telegram until the account is deleted from a release that has the
+stickers. Restore the backup of step 1 only if V26 itself must come back.

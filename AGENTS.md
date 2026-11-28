@@ -39,22 +39,24 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-28 (`d870c74` and the docs after it), after
-twelve rounds of parallel tracks were merged and wired together (the
+State of `main` on 2026-11-28 (`9a668be` and the docs after it), after
+thirteen rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
 migration; the tenth: chat analytics, V23, and image round 4; the
 eleventh: image round 5 and the Mini App go-live rehearsal, no
 migration; the twelfth: analytics round 6, V26, and the animated mood
-blob, V25), plus the fixes of the verifications of 2026-11-14 (V13),
+blob, V25; the thirteenth: the settings hub in chat and the mood
+stickers, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
 parameters), and V24 (the order of an answer's messages, 2026-11-28).
 The migrations are V1 to V19 and V22 to V27, 25 files
 (`scripts/check-frozen-migrations.sh` prints `25 migrations unchanged
-(V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 is the
-settings track's and V29 the stickers track's. The live database is at
-V26 (`4a9b03a`): `docs/OPERATIONS.md` section 22 is the owner's deploy
-of V27 (sealed button labels and card pages; sections 8 to 21 the
-earlier parts). The Mini App
+(V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 and V29
+were assigned to the thirteenth round's tracks and stay unused, so the
+next migration is V28. The live database is at V26 (`4a9b03a`):
+`docs/OPERATIONS.md` section 23 is the owner's deploy of the head (V27,
+sealed button labels and card pages, with the settings hub and the mood
+stickers; sections 8 to 22 the earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
@@ -184,6 +186,16 @@ Appendix B and its status notes are the record; this is the short form.
   `scripts/miniapp-env.sh`, `miniapp-preflight.sh` and
   `miniapp-rehearsal.sh`, the Caddy and nginx files in `docker/proxy/`,
   and `pnpm --dir miniapp run e2e:https`, the browser suite over TLS.
+- Settings hub and mood stickers (2026-11-28): `/settings` (listed, and
+  "Settings" in the `/menu` account menu) is one card with every setting
+  the account has, each tap edited in place (BOT_UX section 17.1, action
+  ids 518 to 533), the chat's only switch for "Animated mood"; one writer,
+  `AccountSettingsEdits`, for the chat and the Mini App, audited with field
+  codes only. `/mood stickers` makes the account's own set of five blob
+  stickers through the vendor-neutral `StickerSets` port, deleted with the
+  account; an animated mood answer has its own 9 s deadline
+  (`CardDelivery.MotionDeadline`) and a late answer whose picture is stored
+  is still sent as the image.
 - Consent: `/start` asks the two-stage consent for the one domain the user
   chose before the account exists. Without the `medication` consent no
   medication command, button or API route records or shows anything, and
@@ -284,20 +296,31 @@ Useful next, in this order:
     reviewer; the Mini App palette, which R5 did not change.
 13. What the twelfth round left open: live sends of `/stats year`, the
     one-year card (IMG-30), the "What's new" note and the animated mood
-    (`sendAnimation` playback on every client); a chat switch for
-    "Animated mood" (BOT_UX section 17); the TGS sticker (spike S5); the
+    (`sendAnimation` playback on every client); the TGS sticker (spike S5); the
     year in the Mini App; an IR-05 pattern card; contact-sheet reviews of
     IMG-30 and the motion by another reviewer; the load flakes of
     `NewUserWalkSuite`, `TelegramLaunchSuite`, `freePort()` and
     `SessionApiSuite` (ROADMAP Appendix B, integration of 2026-11-28),
     and from the verification of 2026-11-28: the deploy of V27, which
     seals the `/meds` button labels and the waiting card pages that held
-    medication names in plaintext (G2.4b, OPERATIONS section 22, owner's
+    medication names in plaintext (G2.4b, OPERATIONS section 23, owner's
     step; the same start rebuilds the daily rollups now that every dose
     counts on its scheduled day, ADR-012 addendum), the month's "days
     with records" still counting days whose only doses have no record,
     and the unreproduced hang of `WorkerLoopCancelPgSuite` (ROADMAP
     Appendix B, fixes of the verification of 2026-11-28).
+14. What the thirteenth round left open: live sends of `/settings` and
+    its edits, of the sticker set and of the animated answer on real
+    clients; the settings BOT_UX section 17.1 lists as not built (time
+    zone by shared location is refused by PRODUCT_SPEC R-IDC-12), quiet
+    hours off only by `/reminders quiet off`, no audit of anchors and work
+    hours; the acceptance criteria of G2.14 itself (deferral modes, the
+    discreet canary scan, silent snooze); for the stickers: no removal row
+    in a purge-list replay, the set kept when the images consent is
+    withdrawn, sticker calls outside the flood gate, `/mood stickers` named
+    nowhere but itself, video and TGS stickers; the child-kill race of
+    `ResvgWorkerPoolSuite` (ROADMAP Appendix B, integration of 2026-11-28,
+    second round).
 
 ## Agent workflow
 
