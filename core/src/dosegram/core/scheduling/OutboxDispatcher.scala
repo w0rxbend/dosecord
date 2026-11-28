@@ -18,6 +18,7 @@ import dosegram.core.ports.StickerSetFailure
 import dosegram.core.ports.StickerSets
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
+import ox.discard
 
 import java.time.Duration
 import java.time.Instant
@@ -59,9 +60,9 @@ object OutboxDispatcher:
 
   private val MaxBackoff: Duration = Duration.ofMinutes(30)
 
-  /** How long a row of a kind this release cannot dispatch waits before it is looked at again (rollback safety,
+  /** How long a row of a kind or op this release cannot dispatch waits before it is looked at again (rollback safety,
     * supervisor decision of 2026-11-28): it stays queued with no attempt spent, so a later start of the release that
-    * wrote it sends it.
+    * wrote it sends it. The rows that follow it wait with it for one recheck, then go without it.
     */
   val UnknownKindRecheck: Duration = Duration.ofMinutes(30)
 
@@ -142,7 +143,7 @@ final class OutboxDispatcher(
     rows.size
 
   private def dispatchRow(row: OutboxMessage, now: Instant): Unit =
-    if !isDispatchable(row) then uow.transaction(_.outbox.leaveQueued(row.id, now.plus(UnknownKindRecheck)))
+    if !isDispatchable(row) then leaveForNewerRelease(row, now)
     // Epoch fencing (DESIGN.md sections 7.3/7.6): a row the occurrence has passed is cancelled without a vendor call.
     else if row.occurrenceId.isDefined && row.epoch.exists(epochIsStale(row, _)) then
       uow.transaction(_.outbox.cancel(row.id))
@@ -152,6 +153,14 @@ final class OutboxDispatcher(
       if row.op == OutboxOp.Send && Duration.between(row.nextAttemptAt, now).compareTo(FallbackAfter) > 0 then
         fallback(row, now)
       dispatchOwned(row, now)
+
+  /** Parks a row of a kind this release does not render, and lets go the rows behind it that have waited one recheck:
+    * at the first look none has, at the next look, a recheck later, the rows that fell due with it have.
+    */
+  private def leaveForNewerRelease(row: OutboxMessage, now: Instant): Unit =
+    uow.transaction: tx =>
+      tx.outbox.leaveQueued(row.id, now.plus(UnknownKindRecheck))
+      tx.outbox.releaseFollowers(row.id, now.minus(UnknownKindRecheck)).discard
 
   /** A delete needs no rendering and a sticker set removal is dispatched here; any other row needs its kind rendered by
     * this release.

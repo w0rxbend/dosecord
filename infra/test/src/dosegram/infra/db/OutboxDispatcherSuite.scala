@@ -673,6 +673,65 @@ class OutboxDispatcherSuite extends PgSuite:
               CHECK (op IN ('send','edit','finalize','delete'))""".execute()
       }
 
+  // The verification of 2026-11-28: a row that follows a row of a newer release waited with it for ever.
+  test("the rows behind a row of a kind this release does not render go once it has waited its recheck once"):
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val adapter = newAdapter()
+    val newerKind = "kind_of_a_newer_release"
+    val older = new OutboxRenderer:
+      override def renders(kind: String): Boolean = kind != newerKind
+      override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
+        renderer(withControls = false).render(row, capabilities)
+    val answer = List(newSend("newer:image", t0).copy(kind = newerKind), newSend("newer:text", t0), newSend("newer:more", t0))
+    assertEquals(uow.transaction(_.outbox.enqueueInOrder(answer)), List(true, true, true))
+    val dispatch = OutboxDispatcher(uow, Map("fake" -> adapter), older, clock)
+    def drain(): Unit = while dispatch.dispatchOnce() > 0 do ()
+    drain()
+    assertEquals(sendsOf(adapter), Nil, "while a newer release may come back, the answer waits to go in its order")
+    clock.at = t0.plus(OutboxDispatcher.UnknownKindRecheck).minusSeconds(1)
+    drain()
+    assertEquals(sendsOf(adapter), Nil)
+    clock.at = t0.plus(OutboxDispatcher.UnknownKindRecheck)
+    drain()
+    assertEquals(sendsOf(adapter).map(_.sendKey), List("newer:text", "newer:more"), "the rest goes, still in order")
+    val parked = rowBySendKey("newer:image")
+    assertEquals((parked.status, parked.attempts), (OutboxStatus.Queued, 0), "the newer row still waits for its release")
+
+  test("the rows behind a row of an op this release does not know go once they have waited one recheck"):
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val adapter = newAdapter()
+    uow.transaction(_.outbox.enqueueInOrder(List(newSend("pin:first", t0), newSend("pin:second", t0))))
+    withConnection { conn =>
+      given Connection = conn
+      sql"ALTER TABLE outbox_messages DROP CONSTRAINT outbox_messages_op_check".execute()
+      sql"UPDATE outbox_messages SET op = 'pin' WHERE send_key = 'pin:first'".execute()
+    }
+    try
+      def drain(): Unit = while dispatcher(uow, adapter, clock).dispatchOnce() > 0 do ()
+      drain()
+      assertEquals(sendsOf(adapter), Nil, "the row behind it waits")
+      clock.at = t0.plus(OutboxDispatcher.UnknownKindRecheck).minusSeconds(1)
+      drain()
+      assertEquals(sendsOf(adapter), Nil)
+      clock.at = t0.plus(OutboxDispatcher.UnknownKindRecheck)
+      drain()
+      assertEquals(sendsOf(adapter).map(_.sendKey), List("pin:second"))
+      val first = withConnection { conn =>
+        given Connection = conn
+        given RowMapper[(String, String, Int)] = rs => (rs.getString(1), rs.getString(2), rs.getInt(3))
+        sql"SELECT op, status, attempts FROM outbox_messages WHERE send_key = 'pin:first'".queryOne[(String, String, Int)]()
+      }
+      assertEquals(first, Some(("pin", "queued", 0)), "untouched, for the release that knows its op")
+    finally
+      withConnection { conn =>
+        given Connection = conn
+        sql"DELETE FROM outbox_messages WHERE send_key = 'pin:first'".execute()
+        sql"""ALTER TABLE outbox_messages ADD CONSTRAINT outbox_messages_op_check
+              CHECK (op IN ('send','edit','finalize','delete'))""".execute()
+      }
+
   // The live row of 2026-11-14: a catch-up digest to a channel whose identity has no direct chat recorded.
   test("a digest to a channel without a chat is retried with a fixed reason and no vendor call"):
     val clock = new MutableClock(t0)

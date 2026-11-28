@@ -152,6 +152,12 @@ trait OutboxRepository:
     */
   def leaveQueued(id: UUID, at: Instant): Unit
 
+  /** Lets the rows that follow `id` go when they fell due at `dueBy` or earlier: `id` is a row this release cannot
+    * dispatch, left queued for a newer release, which must not hold the rest of its answer for ever (verification of
+    * 2026-11-28). Returns how many rows were let go.
+    */
+  def releaseFollowers(id: UUID, dueBy: Instant): Int
+
   /** Attempt budget spent or the channel is fatal (ADR-009): terminal `dead` status, the `dosegram_outbox_dead_total`
     * alert source (DESIGN.md section 10).
     */

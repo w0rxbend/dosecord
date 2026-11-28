@@ -6,6 +6,7 @@ import dosegram.core.ports.OutboxMessage
 import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.OutboxRepository
 import dosegram.core.ports.OutboxStatus
+import dosegram.core.scheduling.OutboxDispatcher
 
 import java.sql.Connection
 import java.time.Duration
@@ -76,8 +77,10 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
     val leaseUntil = now.plus(lease)
     val vendorArray = vendors.toArray
     // A row whose op a newer release wrote stays queued, unclaimed, for that release (rollback safety, supervisor
-    // decision of 2026-11-28), as a row of a kind this release does not render does.
+    // decision of 2026-11-28), as a row of a kind this release does not render does. A row that follows it waits with
+    // it for one recheck, then goes without it.
     val knownOps = OutboxOp.values.map(_.db)
+    val recheckedBy = now.minus(OutboxDispatcher.UnknownKindRecheck)
     sql"""WITH due AS (
             SELECT id, attempted_at AS prev_attempted_at
             FROM outbox_messages m
@@ -86,7 +89,8 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
               AND next_attempt_at <= $now
               AND (status IN ('queued', 'failed_retry') OR (status = 'sending' AND lease_until < $now))
               AND NOT EXISTS (SELECT 1 FROM outbox_messages earlier
-                              WHERE earlier.id = m.follows AND earlier.status IN ('queued', 'failed_retry', 'sending'))
+                              WHERE earlier.id = m.follows AND earlier.status IN ('queued', 'failed_retry', 'sending')
+                                AND NOT (earlier.op <> ALL($knownOps) AND m.next_attempt_at <= $recheckedBy))
             ORDER BY next_attempt_at
             LIMIT $limit
             FOR UPDATE SKIP LOCKED
@@ -134,6 +138,10 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
                 attempted_at = CASE WHEN attempts <= 1 THEN NULL ELSE attempted_at END
             WHERE id = $id AND status = 'sending'""".execute()
     require(updated == 1, s"outbox row $id vanished before it was left queued")
+
+  override def releaseFollowers(id: java.util.UUID, dueBy: Instant): Int =
+    sql"""UPDATE outbox_messages SET follows = NULL
+          WHERE follows = $id AND status IN ('queued', 'failed_retry') AND next_attempt_at <= $dueBy""".execute()
 
   override def forgetHandle(id: java.util.UUID): Unit =
     sql"""UPDATE outbox_messages SET platform_message_id = NULL, target = NULL

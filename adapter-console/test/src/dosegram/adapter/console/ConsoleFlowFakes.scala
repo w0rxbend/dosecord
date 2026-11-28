@@ -205,6 +205,8 @@ private object ConsoleFlowFakes:
           possibleDuplicate = possibleDuplicate)
     override def leaveQueued(id: UUID, at: Instant): Unit = this.synchronized:
       states(id) = states(id).copy(status = OutboxStatus.Queued, nextAttemptAt = Some(at))
+    // These rows keep no order among them, so none follows another.
+    override def releaseFollowers(id: UUID, dueBy: Instant): Int = 0
     override def dead(id: UUID, error: String): Unit = this.synchronized:
       states(id) = states(id).copy(status = OutboxStatus.Dead)
     override def failPermanently(id: UUID, error: String): Unit = this.synchronized:
