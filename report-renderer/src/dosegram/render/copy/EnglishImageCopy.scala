@@ -351,6 +351,8 @@ object EnglishImageCopy extends ImageCopy:
 
   def monthHeroDays(days: Int): Vector[String] = Vector(if days == 1 then "day with records" else "days with records")
 
+  def monthHeroOutageDays(days: Int): String = s"(not counted: ${plural(days, "outage day")})"
+
   def monthPrevious(month: YearMonth, percent: Int): String =
     s"${MonthNames(month.getMonthValue - 1)}: ${this.percent(percent)} of scheduled doses taken."
 
@@ -366,12 +368,16 @@ object EnglishImageCopy extends ImageCopy:
       s"Sleep: ${duration(minutes)} on average over ${plural(nights, "night")} from your records."
     }
     val days = s"${plural(month.daysWithRecords, "day")} with records."
+    // The words of the month's text (StatsCopy.outageDaysNotCounted).
+    val outage = Option.when(month.outageOnlyDays > 0)(
+      s"Not counted: ${plural(month.outageOnlyDays, "day")} whose only doses have no record (a service outage)."
+    )
     val previous = month.previousAdherence
       .filter(_ => month.doses.exists(_.counted >= MinimumDosesForPercent))
       .map(percent => monthPrevious(month.month.minusMonths(1), percent))
     val food = month.meals.map(meals => s"Food: ${monthFood(meals)}.")
-    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ food ++ Vector(days) ++ previous)
-      .mkString(" ")
+    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ food ++ Vector(days) ++ outage ++
+      previous).mkString(" ")
 
   def monthDiscreet: String = "Your month."
 

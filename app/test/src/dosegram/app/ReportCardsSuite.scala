@@ -1,6 +1,7 @@
 package dosegram.app
 
 import dosegram.core.domain.AdherenceCounts
+import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.Comparisons
 import dosegram.core.domain.insights.DateRange
@@ -78,6 +79,30 @@ class ReportCardsSuite extends munit.FunSuite:
     val pages = cards.month(view(waterOnly), look)
     assertEquals(pages.size, 2)
     assert(pages.last.altText.startsWith("October 2026, nights and water. Water: Goal reached on 0 of 20"), pages.last.altText)
+
+  // Supervisor decision, 2026-11-28: the card names the days its "days with records" leaves out, as the month text does.
+  test("page 1 names the outage-only days in its hero and its text equivalent, in English and Ukrainian"):
+    val outage = days(25 to 27)(_ => MedicationDay(Map(medication -> DoseBuckets.zero.copy(unknown = 2))))
+    val month = figures(medicationDays = Some(outage), water = Some(days(1 to 20)(_ => HydrationDay(1800, 3, Some(2000)))))
+    assertEquals((month.daysWithRecords, month.outageOnlyDays), (20, 3))
+    assertEquals(ReportCards.monthPage(month).outageOnlyDays, 3)
+    val english = cards.month(view(month), look).head
+    assert(english.svg.contains("(not counted: 3 outage days)"), english.svg)
+    assert(
+      english.altText.contains(
+        "20 days with records. Not counted: 3 days whose only doses have no record (a service outage)."
+      ),
+      english.altText
+    )
+    val ukrainian = Lang.within(Lang.Uk)(cards.month(view(month), look).head)
+    assert(ukrainian.svg.contains("(не враховано: 3 дні перебою)"), ukrainian.svg)
+    assert(
+      ukrainian.altText.contains("Днів із записами: 20. Не враховано: 3 дні, коли всі дози без запису (перебій сервісу)."),
+      ukrainian.altText
+    )
+    val none = figures(water = Some(days(1 to 20)(_ => HydrationDay(1800, 3, Some(2000)))))
+    val plain = cards.month(view(none), look).head
+    assert(!plain.svg.contains("not counted") && !plain.altText.contains("Not counted"), plain.altText)
 
   test("page 1 has a row only for a domain at its gate, and the previous month only behind its own gate"):
     val month = figures(

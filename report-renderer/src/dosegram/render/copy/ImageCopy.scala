@@ -173,6 +173,9 @@ trait ImageCopy:
   def weekNumber(week: Int): String
   def monthHeroDoses(counts: DoseCounts): Vector[String]
   def monthHeroDays(days: Int): Vector[String]
+
+  /** The days left out of the hero's days with records because their only doses have no record (a service outage). */
+  def monthHeroOutageDays(days: Int): String
   def monthPrevious(month: YearMonth, percent: Int): String
   def monthText(month: MonthSummary): String
   def monthDiscreet: String
@@ -302,7 +305,8 @@ final case class MonthSummary(
     moodCheckInDays: Option[Int],
     sleep: Option[(Int, Int)],
     previousAdherence: Option[Int],
-    meals: Option[MonthMeals] = None
+    meals: Option[MonthMeals] = None,
+    outageOnlyDays: Int = 0
 )
 
 /** The counts behind the calendar's text equivalent. */

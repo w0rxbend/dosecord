@@ -103,7 +103,8 @@ object ReportCards:
           domain.figures.averageMinutes.shown.map(mean => (Math.round(mean).toInt, domain.figures.nights))
         ),
       previousAdherence = figures.previousAdherence.shown.map(_.percent),
-      meals = figures.food.filter(_.meetsGate).map(domain => MonthMeals(domain.figures.meals, domain.figures.snacks))
+      meals = figures.food.filter(_.meetsGate).map(domain => MonthMeals(domain.figures.meals, domain.figures.snacks)),
+      outageOnlyDays = figures.outageOnlyDays
     )
 
   /** The meals logged of a week of the month (VISUALS 7.5); `None` for a week without a meal, drawn as a dotted slot.

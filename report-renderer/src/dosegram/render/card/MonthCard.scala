@@ -6,6 +6,7 @@ import dosegram.render.blob.MoodState
 import dosegram.render.chart.Bars
 import dosegram.render.chart.Icons
 import dosegram.render.copy.GoalDays
+import dosegram.render.copy.ImageCopy
 import dosegram.render.copy.MonthSummary
 import dosegram.render.scene.Align
 import dosegram.render.scene.Box
@@ -39,7 +40,8 @@ final case class MonthMeals(logged: Int, snacks: Int)
 
 /** IMG-05 page 1, `card.month.v1`: a domain that is `None` is not tracked, or did not meet the gate of PRODUCT_SPEC
   * R-IR-11 (records on 14 days of the month), and has no row. `previousAdherence` is the user's own previous month, the
-  * only comparison (VA-PR-07).
+  * only comparison (VA-PR-07). `outageOnlyDays` are the days left out of `daysWithRecords` because their only doses
+  * have no record, named as the month's text names them (supervisor decision, 2026-11-28).
   */
 final case class MonthData(
     month: YearMonth,
@@ -50,7 +52,8 @@ final case class MonthData(
     moodCheckInDays: Option[Int],
     sleep: Option[(Int, Int)],
     previousAdherence: Option[Int],
-    meals: Option[MonthMeals] = None
+    meals: Option[MonthMeals] = None,
+    outageOnlyDays: Int = 0
 ):
   require(weeks.nonEmpty && weeks.size <= 6, s"a month has 1 to 6 weeks, got ${weeks.size}")
 
@@ -99,7 +102,8 @@ object MonthCard:
       month.moodCheckInDays,
       month.sleep,
       month.previousAdherence,
-      month.meals
+      month.meals,
+      month.outageOnlyDays
     )
     val rows = Vector(
       medication(month, context),
@@ -132,7 +136,7 @@ object MonthCard:
     val copy = context.copy
     val (figure, notes) = adherence(month)
       .flatMap(counts => counts.takenPercent.map(percent => (copy.percent(percent), copy.monthHeroDoses(counts))))
-      .getOrElse((month.daysWithRecords.toString, copy.monthHeroDays(month.daysWithRecords)))
+      .getOrElse((month.daysWithRecords.toString, daysNotes(month, copy)))
     val heroLook = TextLook(TextStyle.Hero, frame.tokens.ink, Align.Start, TextKind.Value)
     // The notes end on the hero's baseline; the count in brackets, when there is one, is the quieter last line.
     val firstNote = HeroBaseline - (notes.size - 1) * NoteLinePx
@@ -145,6 +149,12 @@ object MonthCard:
           else TextLook(TextStyle.BodyMedium, frame.tokens.ink, Align.Start, TextKind.Value)
         frame.text(note, Point(noteLeft, firstNote + index * NoteLinePx), look, frame.right - noteLeft)
       }
+
+  /** The days with records, then the outage days they leave out as the quieter count in brackets, when there are any.
+    */
+  private def daysNotes(month: MonthData, copy: ImageCopy): Vector[String] =
+    copy.monthHeroDays(month.daysWithRecords) ++
+      Option.when(month.outageOnlyDays > 0)(copy.monthHeroOutageDays(month.outageOnlyDays)).toVector
 
   private def slotWidth(month: MonthData, frame: CardFrame): Double = (frame.right - TextLeft) / month.weeks.size
 

@@ -380,6 +380,9 @@ object UkrainianImageCopy extends ImageCopy:
     form(days, "день із записами", "дні із записами", "днів із записами")
   )
 
+  def monthHeroOutageDays(days: Int): String =
+    s"(не враховано: ${counted(days, "день перебою", "дні перебою", "днів перебою")})"
+
   def monthPrevious(month: YearMonth, percent: Int): String =
     s"${MonthNames(month.getMonthValue - 1)}: прийнято ${this.percent(percent)} запланованих доз."
 
@@ -395,12 +398,16 @@ object UkrainianImageCopy extends ImageCopy:
       s"Сон: у середньому ${duration(minutes)} за ${counted(nights, "ніч", "ночі", "ночей")} з ваших записів."
     }
     val days = s"Днів із записами: ${month.daysWithRecords}."
+    // The words of the month's text (StatsCopy.outageDaysNotCounted).
+    val outage = Option.when(month.outageOnlyDays > 0)(
+      s"Не враховано: ${counted(month.outageOnlyDays, "день", "дні", "днів")}, коли всі дози без запису (перебій сервісу)."
+    )
     val previous = month.previousAdherence
       .filter(_ => month.doses.exists(_.counted >= MinimumDosesForPercent))
       .map(percent => monthPrevious(month.month.minusMonths(1), percent))
     val food = month.meals.map(meals => s"Їжа: ${monthFood(meals)}.")
-    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ food ++ Vector(days) ++ previous)
-      .mkString(" ")
+    (Vector(s"${monthYear(month.month)}.") ++ medication ++ water ++ mood ++ sleep ++ food ++ Vector(days) ++ outage ++
+      previous).mkString(" ")
 
   def monthDiscreet: String = "Ваш місяць."
 
