@@ -81,7 +81,7 @@ class CaptureLaunchSuite extends PgSuite:
             "consent_state, dose_actions, dose_occurrences, schedule_revisions, medication_schedules, " +
             "medications, inbound_events, domain_events, auth_audit_log, rendered_messages, outbox_messages, " +
             "conversation_sessions, form_runs, callback_slots, delivery_channels, platform_identities, " +
-            "worker_heartbeat CASCADE"
+            "prompt_occurrences, prompt_schedules, worker_heartbeat CASCADE"
         )
         // consent_events is append-only for the application role; the suite owns the database.
         st.execute("ALTER TABLE consent_events DISABLE TRIGGER consent_events_append_only")
@@ -936,4 +936,51 @@ class CaptureLaunchSuite extends PgSuite:
       val text = bot.messages.find(call => bot.body(call).startsWith("Your week")).getOrElse(fail("no weekly text"))
       assert(text.at.isAfter(album.at) || text.at == album.at, "the text follows the album")
       assertEquals(bot.buttons(text).map(_._1), List("Stop these"))
+
+  // Verification of 2026-11-28, third round: a report queued before a stop, whose pictures' bytes were purged by the
+  // time the app is back, still arrives in its order: the pictures' text equivalents in their place, then its text.
+  test("a weekly album queued before downtime whose bytes were purged goes as its text equivalents, then the text"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+    List("2026-09-14T09:00:00Z" -> 500, "2026-09-16T12:00:00Z" -> 900, "2026-09-18T18:00:00Z" -> 1200).foreach: (at, ml) =>
+      val clock = SteppedClock(Instant.parse(at))
+      val water = dosegram.core.application.hydration.HydrationService(clock, dosegram.core.ports.IdSource.uuidV7(java.security.SecureRandom()))
+      val amount = dosegram.core.domain.hydration.WaterAmount.ofMillilitres(ml).toOption.get
+      val command = dosegram.core.application.hydration.LogWater(
+        accountId, amount, dosegram.core.domain.EntryDay.Today, dosegram.core.domain.EntrySource.Bot, s"down-$at"
+      )
+      PgUnitOfWork(dataSource, clock, DataKeys.development).transaction(tx => assert(water.log(tx, command).isRight))
+    val nineAm = Instant.parse("2026-09-21T09:00:00Z")
+    launchedFrom(firstUpdate = 500L, at = Instant.parse("2026-09-20T20:00:00Z")): bot =>
+      val weekly = dosegram.core.domain.reminders.PromptKind.WeeklyReport
+      val List(hub) = bot.say("/reminders", expected = 1): @unchecked
+      val List(choose) = bot.tap(hub, PromptCopy.kindButton(weekly), expected = 1): @unchecked
+      val List(preview) = bot.tap(choose, PromptCopy.presetName("report.weekly"), expected = 1): @unchecked
+      bot.tap(preview, PromptCopy.TurnOn, expected = 1): Unit
+      bot.clock.advance(Duration.between(bot.clock.now(), nineAm.minusSeconds(35 * 60)))
+      while bot.clock.now().isBefore(nineAm.minusSeconds(30)) do
+        bot.clock.advance(Duration.ofSeconds(30))
+        Thread.sleep(150)
+      eventually("the week card and its highlights are drawn ahead")(bot.rasteriser.count == 2)
+      // Telegram is down at 09:00; the dispatcher keeps the album for a retry, and the process stops before it.
+      bot.wire.replyNext("sendMediaGroup", 502, ujson.Obj("ok" -> false, "error_code" -> 502, "description" -> "Bad Gateway"))
+      bot.clock.advance(Duration.between(bot.clock.now(), nineAm.plusSeconds(5)))
+      eventually("the album was tried")(bot.wire.calls("sendMediaGroup").nonEmpty)
+      Thread.sleep(300)
+      assertEquals(bot.messages.filter(call => bot.body(call).startsWith("Your week")), Nil, "the text waits for the album")
+    // Back after the pictures' hour: their bytes are gone.
+    launchedFrom(firstUpdate = 900L, lastMessageId = 100L, at = nineAm.plus(Duration.ofMinutes(95))): bot =>
+      val deadline = System.nanoTime() + 60.seconds.toNanos
+      while !bot.messages.exists(call => bot.body(call).startsWith("Your week")) && System.nanoTime() < deadline do
+        bot.clock.advance(Duration.ofSeconds(1))
+        Thread.sleep(50)
+      val bodies = bot.messages.map(bot.body)
+      val equivalents = bodies.indexWhere(_.startsWith("[image: "))
+      val text = bodies.indexWhere(_.startsWith("Your week"))
+      assert(equivalents >= 0 && text >= 0, bodies)
+      assert(equivalents < text, s"the pictures' place comes first: $bodies")
+      assertEquals(bodies(equivalents).split("\\[image: ").length - 1, 2, "both pictures, as their text: " + bodies(equivalents))
+      assertEquals(bot.wire.calls("sendMediaGroup"), Nil, "nothing is uploaded without its bytes")
+      assertEquals(bodies.count(_.startsWith("Your week")), 1)
+      assertEquals(bot.rasteriser.count, 0, "nothing is drawn again after the restart")
 end CaptureLaunchSuite
