@@ -97,7 +97,7 @@
   <rect x="880" y="388" width="56" height="56" rx="15.68" fill="#0d9675"/>
 </g>
 <g>
-  <path d="M963.68 324 L987.2 324 L1004 340.8 L1004 364.32 A15.68 15.68 0 0 1 988.32 380 L963.68 380 A15.68 15.68 0 0 1 948 364.32 L948 339.68 A15.68 15.68 0 0 1 963.68 324 Z" fill="#78c3a9"/>
+  <path d="M963.68 327 L986 327 L1001 342 L1001 364.32 A12.68 12.68 0 0 1 988.32 377 L963.68 377 A12.68 12.68 0 0 1 951 364.32 L951 339.68 A12.68 12.68 0 0 1 963.68 327 Z" fill="#78c3a9" stroke="#0d9675" stroke-width="6"/>
 </g>
 <g>
   <rect x="950" y="390" width="52" height="52" rx="13.68" fill="none" stroke="#5e6e78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
@@ -141,7 +141,7 @@
 </g>
 <text x="120" y="840" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Taken</text>
 <g>
-  <path d="M272.68 804 L291.16 804 L304.36 817.2 L304.36 835.68 A12.32 12.32 0 0 1 292.04 848 L272.68 848 A12.32 12.32 0 0 1 260.36 835.68 L260.36 816.32 A12.32 12.32 0 0 1 272.68 804 Z" fill="#78c3a9"/>
+  <path d="M272.68 807 L289.96 807 L301.36 818.4 L301.36 835.68 A9.32 9.32 0 0 1 292.04 845 L272.68 845 A9.32 9.32 0 0 1 263.36 835.68 L263.36 816.32 A9.32 9.32 0 0 1 272.68 807 Z" fill="#78c3a9" stroke="#0d9675" stroke-width="6"/>
 </g>
 <text x="316.36" y="840" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#435561">Taken late</text>
 <g>

@@ -46,11 +46,15 @@ object ContactSheet:
     Vector(("light", Theme.Light, Privacy.Named), ("dark", Theme.Dark, Privacy.Named), ("discreet", Theme.Dark, Privacy.Discreet))
 
   /** Every fixture page in every variant, in fixture order; with the Ukrainian catalogue each name ends in `-uk`. */
-  def entries(fixtures: Vector[Fixture], copy: ImageCopy = EnglishImageCopy): Vector[SheetEntry] =
+  def entries(
+      fixtures: Vector[Fixture],
+      copy: ImageCopy = EnglishImageCopy,
+      variants: Vector[(String, Theme, Privacy)] = Variants
+  ): Vector[SheetEntry] =
     val suffix = if copy == EnglishImageCopy then "" else "-uk"
     for
       fixture <- fixtures
-      (variant, theme, privacy) <- Variants
+      (variant, theme, privacy) <- variants
       (card, page) <- fixture.render(Samples.context(theme, privacy, copy)).zipWithIndex
     yield SheetEntry(s"${fixture.name.replace('/', '-')}-$variant${if page == 0 then "" else s"-p${page + 1}"}$suffix", card)
 

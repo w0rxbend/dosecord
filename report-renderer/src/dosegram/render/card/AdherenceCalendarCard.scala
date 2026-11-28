@@ -132,8 +132,9 @@ object AdherenceCalendarCard:
     * its class: whole, three quarters, half, a quarter (VA-PR-06; supervisor decision of 2026-11-27).
     */
   private[card] def cell(dayClass: DayClass, box: Box, tokens: Tokens): Node =
-    // The rest of a cell that is not whole is its outline in `grid`, not a filled track: in the dark theme the lowest
-    // step and a `grid` track are too close in lightness to tell the fill from the track.
+    // The rest of a cell that is not whole is its outline, not a filled track: in the dark theme the lowest step and a
+    // `grid` track are too close in lightness to tell the fill from the track. The outline is `ink3`, because the two
+    // lowest steps keep under 3:1 on the panel in greyscale (the greyscale check of ROADMAP G4.7, 2026-11-28).
     def heat(step: Int, level: Double): Node =
       val radius = box.width * CornerShare
       val colour = tokens.spruceHeat(step)
@@ -141,7 +142,7 @@ object AdherenceCalendarCard:
         if level >= 1 then Vector(Node.filledRect(box, radius, colour))
         else
           Vector(
-            Node.outlinedRect(box.inset(2), radius, Stroke.butt(tokens.grid, 4)),
+            Node.outlinedRect(box.inset(2), radius, Stroke.butt(tokens.ink3, 4)),
             Node.filledPath(Vessel.levelPath(box, radius, level), colour)
           )
       Node.Mark(MarkMeta(s"calendar.$dayClass", Set(Channel.Colour, Channel.Position, Channel.Label)), nodes)

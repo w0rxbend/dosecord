@@ -16,6 +16,12 @@
 <line x1="184" y1="560" x2="992" y2="560" stroke="#2f434d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="88" y="574" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">15</text>
 <g>
+  <line x1="184" y1="301.04" x2="992" y2="301.04" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
+  <line x1="184" y1="427.7" x2="992" y2="427.7" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<g>
   <rect x="188.69" y="291.75" width="16.68" height="128.64" rx="8.34" fill="#9d7aef"/>
 </g>
 <g>
@@ -95,12 +101,6 @@
 </g>
 <g>
   <rect x="636.92" y="545.11" width="6.43" height="8" rx="5.21" fill="none" stroke="#9d7aef" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<g>
-  <line x1="184" y1="301.04" x2="992" y2="301.04" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
-</g>
-<g>
-  <line x1="184" y1="427.7" x2="992" y2="427.7" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
 </g>
 <g>
   <rect x="102" y="580" width="16" height="44" rx="8" fill="#9d7aef"/>

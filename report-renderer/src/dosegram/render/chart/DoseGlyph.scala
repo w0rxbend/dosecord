@@ -4,6 +4,7 @@ import dosegram.render.scene.Box
 import dosegram.render.scene.Channel
 import dosegram.render.scene.MarkMeta
 import dosegram.render.scene.Node
+import dosegram.render.scene.Paint
 import dosegram.render.scene.PathData
 import dosegram.render.scene.Point
 import dosegram.render.scene.Stroke
@@ -32,8 +33,16 @@ object DoseGlyph:
     val (channels, nodes) = status match
       case DoseStatus.TakenOnTime =>
         Set(Channel.Colour, Channel.Shape) -> Vector(Node.filledRect(box, radius, tokens.spruce))
+      // The light late tone keeps under 2:1 on the surface in greyscale, so the cut square is outlined in the taken
+      // hue, inside its box (the greyscale check of ROADMAP G4.7, 2026-11-28).
       case DoseStatus.TakenLate =>
-        Set(Channel.Colour, Channel.Shape) -> Vector(Node.filledPath(chamfered(box, radius), tokens.spruceLate))
+        val outline = box.inset(OutlinePx / 2)
+        val late = Node.Path(
+          chamfered(outline, radius - OutlinePx / 2),
+          Some(Paint.Solid(tokens.spruceLate)),
+          Some(Stroke.butt(tokens.spruce, OutlinePx))
+        )
+        Set(Channel.Colour, Channel.Shape) -> Vector(late)
       case DoseStatus.Skipped =>
         Set(Channel.Fill, Channel.Shape) -> Vector(hollow(box, radius, tokens))
       case DoseStatus.Missed =>

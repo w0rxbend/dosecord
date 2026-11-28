@@ -161,6 +161,12 @@ object `report-renderer` extends DosegramModule:
       def contactSheet() = Task.Command {
         runMain("dosegram.render.resvg.renderContactSheet", "out/report-renderer/preview")()
       }
+      // The image review of ROADMAP G4.7: the contact sheets in light, dark and discreet, each also in greyscale and the
+      // two red-green colour-vision simulations, one vision sheet per card and the 3:1 greyscale check, written to
+      // out/image-review (scripts/image-review.sh, the CI artefact). Needs resvg on the PATH or DOSEGRAM_RESVG.
+      def imageReview() = Task.Command {
+        runMain("dosegram.render.resvg.renderImageReview", "out/image-review")()
+      }
   // The animated mood blob (VISUALS section 4.6): frames drawn through the Rasteriser port, read back to pixels and
   // encoded to H.264 in MP4 inside the JVM by JCodec (BSD), so no video binary is installed (research brief 04 section
   // 10, supervisor decision of 2026-11-28).

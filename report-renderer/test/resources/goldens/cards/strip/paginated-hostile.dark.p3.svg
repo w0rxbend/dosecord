@@ -61,7 +61,7 @@
 </g>
 <text x="120" y="900" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken</text>
 <g>
-  <path d="M272.68 864 L291.16 864 L304.36 877.2 L304.36 895.68 A12.32 12.32 0 0 1 292.04 908 L272.68 908 A12.32 12.32 0 0 1 260.36 895.68 L260.36 876.32 A12.32 12.32 0 0 1 272.68 864 Z" fill="#038265"/>
+  <path d="M272.68 867 L289.96 867 L301.36 878.4 L301.36 895.68 A9.32 9.32 0 0 1 292.04 905 L272.68 905 A9.32 9.32 0 0 1 263.36 895.68 L263.36 876.32 A9.32 9.32 0 0 1 272.68 867 Z" fill="#038265" stroke="#2cab88" stroke-width="6"/>
 </g>
 <text x="316.36" y="900" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Taken late</text>
 <g>

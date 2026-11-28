@@ -35,9 +35,15 @@ object VisionSheet:
     graphics.dispose()
     sheet
 
-  private def seen(vision: Vision, image: BufferedImage): BufferedImage =
-    val out = BufferedImage(image.getWidth, image.getHeight, BufferedImage.TYPE_INT_RGB)
-    for y <- 0 until image.getHeight; x <- 0 until image.getWidth do out.setRGB(x, y, vision.see(image.getRGB(x, y) & 0xffffff))
+  /** `image` as a reader with `vision` sees it, pixel by pixel. */
+  def seen(vision: Vision, image: BufferedImage): BufferedImage =
+    val (width, height) = (image.getWidth, image.getHeight)
+    val pixels = image.getRGB(0, 0, width, height, null, 0, width)
+    // A card has few distinct colours, so each is converted once.
+    val seenColours = scala.collection.mutable.HashMap.empty[Int, Int]
+    val out = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+    val converted = pixels.map(pixel => seenColours.getOrElseUpdate(pixel & 0xffffff, vision.see(pixel & 0xffffff)))
+    out.setRGB(0, 0, width, height, converted, 0, width)
     out
 
 /** Writes one vision sheet per fixture page into the directory given as the first argument:
