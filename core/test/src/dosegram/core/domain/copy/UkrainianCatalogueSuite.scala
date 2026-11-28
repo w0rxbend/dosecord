@@ -29,7 +29,8 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
   /** Entries whose example dose takes its unit word from the dose unit catalogue, so the Ukrainian example reads
     * "1000 МО" where the English reads "1000 IU" (verification of 2026-11-28). Their numbers still match.
     */
-  private val UnitsFromCatalogue = Set("wizard.add.placeholder.dose")
+  private val UnitsFromCatalogue =
+    Set("wizard.add.placeholder.dose", "wizard.confirm.card", "wizard.confirm.card.as_needed")
 
   private val Cyrillic = "\\p{IsCyrillic}".r
 
@@ -120,6 +121,14 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
     val (amount, unit) = dosegram.core.domain.input.DoseText.parse(example.stripPrefix("напр. "))
     assertEquals((amount, unit.flatMap(DoseUnits.of).map(_.code)), (Some(BigDecimal(1000)), Some("IU")))
     assertEquals(Lang.within(Lang.Uk)(DoseUnits.doseText(amount, unit)), Some("1000 МО"))
+
+  test("the Ukrainian confirm card samples show the example dose through the unit catalogue"):
+    val uk = ukrainian.map(e => e.id -> e.text).toMap
+    val en = english.map(e => e.id -> e.text).toMap
+    List("wizard.confirm.card", "wizard.confirm.card.as_needed").foreach: id =>
+      assert(uk(id).contains("Vitamin D 1000 МО"), s"$id: ${uk(id)}")
+      assert(!uk(id).contains("IU"), s"$id: ${uk(id)}")
+      assert(en(id).contains("Vitamin D 1000 IU"), s"$id: ${en(id)}")
 
   test("no Ukrainian entry contains a forbidden phrase, and a seeded one is caught (R-LOC-8)"):
     val violations = ukrainian.flatMap(e => ForbiddenPhrases.violations(e.text).map(p => s"${e.id}: '$p'"))

@@ -167,11 +167,11 @@ object WizardCopy:
     CopyEntry("wizard.as_needed.note", asNeededNote),
     CopyEntry(
       "wizard.confirm.card",
-      confirmCard("Vitamin D", Some("1000 IU"), tr("every day", "щодня"), "09:00", "Europe/Kyiv").mkString("\n")
+      confirmCard("Vitamin D", Some(exampleDose), tr("every day", "щодня"), "09:00", "Europe/Kyiv").mkString("\n")
     ),
     CopyEntry(
       "wizard.confirm.card.as_needed",
-      confirmCardAsNeeded("Vitamin D", Some("1000 IU"), "Europe/Kyiv").mkString("\n")
+      confirmCardAsNeeded("Vitamin D", Some(exampleDose), "Europe/Kyiv").mkString("\n")
     ),
     CopyEntry("wizard.confirm.cadence.every_day", cadenceEveryDay),
     CopyEntry("wizard.confirm.cadence.weekdays", cadenceWeekdays),
