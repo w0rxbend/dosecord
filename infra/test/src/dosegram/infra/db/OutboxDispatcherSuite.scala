@@ -627,6 +627,52 @@ class OutboxDispatcherSuite extends PgSuite:
     assertEquals(rowBySendKey("future-1").status, OutboxStatus.Sent)
     assertEquals(rowBySendKey("future-1").attempts, 1)
 
+  // Rollback safety (supervisor decision, 2026-11-28): an op value a newer release added made the claim throw while
+  // reading its rows, so this release sent nothing at all.
+  test("a row of an op this release does not know stays queued and unclaimed, and the rows beside it are sent"):
+    val clock = new MutableClock(t0)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val adapter = newAdapter()
+    def row(sendKey: String) = NewOutboxMessage(
+      id = UUID.randomUUID(),
+      sendKey = sendKey,
+      op = OutboxOp.Send,
+      kind = "interaction_reply",
+      vendor = "fake",
+      payload = OutboundMessage.toJson(
+        OutboundMessage(List(Node.Paragraph(List(Inline.Text("Saved.")))), dedupeKey = sendKey, correlationId = "c")
+      ),
+      importance = "interaction_reply",
+      nextAttemptAt = t0.minusMillis(1)
+    )
+    uow.transaction(tx => List("future-op", "known-op").foreach(key => tx.outbox.enqueue(row(key))))
+    // The newer release's migration widens the op check and its code writes the new op.
+    withConnection { conn =>
+      given Connection = conn
+      sql"ALTER TABLE outbox_messages DROP CONSTRAINT outbox_messages_op_check".execute()
+      sql"UPDATE outbox_messages SET op = 'pin' WHERE send_key = 'future-op'".execute()
+    }
+    try
+      assertEquals(dispatcher(uow, adapter, clock).dispatchOnce(), 1, "only the known op is claimed")
+      assertEquals(rowBySendKey("known-op").status, OutboxStatus.Sent)
+      val parked = withConnection { conn =>
+        given Connection = conn
+        given RowMapper[(String, String, Int)] = rs => (rs.getString(1), rs.getString(2), rs.getInt(3))
+        sql"SELECT op, status, attempts FROM outbox_messages WHERE send_key = 'future-op'"
+          .queryOne[(String, String, Int)]()
+      }
+      assertEquals(parked, Some(("pin", "queued", 0)), "untouched: no attempt, no error, never dead")
+      clock.at = t0.plus(Duration.ofDays(1))
+      assertEquals(dispatcher(uow, adapter, clock).dispatchOnce(), 0, "still never claimed")
+      assertEquals(sendsOf(adapter).size, 1)
+    finally
+      withConnection { conn =>
+        given Connection = conn
+        sql"DELETE FROM outbox_messages WHERE send_key = 'future-op'".execute()
+        sql"""ALTER TABLE outbox_messages ADD CONSTRAINT outbox_messages_op_check
+              CHECK (op IN ('send','edit','finalize','delete'))""".execute()
+      }
+
   // The live row of 2026-11-14: a catch-up digest to a channel whose identity has no direct chat recorded.
   test("a digest to a channel without a chat is retried with a fixed reason and no vendor call"):
     val clock = new MutableClock(t0)

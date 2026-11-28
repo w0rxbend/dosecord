@@ -75,10 +75,14 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
   override def claim(now: Instant, vendors: Seq[String], limit: Int, lease: Duration): List[OutboxMessage] =
     val leaseUntil = now.plus(lease)
     val vendorArray = vendors.toArray
+    // A row whose op a newer release wrote stays queued, unclaimed, for that release (rollback safety, supervisor
+    // decision of 2026-11-28), as a row of a kind this release does not render does.
+    val knownOps = OutboxOp.values.map(_.db)
     sql"""WITH due AS (
             SELECT id, attempted_at AS prev_attempted_at
             FROM outbox_messages m
             WHERE vendor = ANY($vendorArray)
+              AND op = ANY($knownOps)
               AND next_attempt_at <= $now
               AND (status IN ('queued', 'failed_retry') OR (status = 'sending' AND lease_until < $now))
               AND NOT EXISTS (SELECT 1 FROM outbox_messages earlier
