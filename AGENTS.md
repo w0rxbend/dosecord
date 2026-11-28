@@ -288,8 +288,12 @@ Useful next, in this order:
     year in the Mini App; an IR-05 pattern card; contact-sheet reviews of
     IMG-30 and the motion by another reviewer; the load flakes of
     `NewUserWalkSuite`, `TelegramLaunchSuite`, `freePort()` and
-    `SessionApiSuite`, and the e2e walk that fails before 07:00 UTC
-    (ROADMAP Appendix B, integration of 2026-11-28).
+    `SessionApiSuite` (ROADMAP Appendix B, integration of 2026-11-28),
+    and from the verification of 2026-11-28: the medication names in
+    plaintext in `rendered_messages.choice_map` (the `/meds` button
+    labels; G2.4b, OPERATIONS section 21), the morning summary's text
+    counting a late-missed dose on the day it was marked, and the load
+    flakes of `WorkerLoopCancelPgSuite` and `ResvgRasteriserSuite`.
 
 ## Agent workflow
 

@@ -939,37 +939,99 @@ frames are drawn by the rasteriser the host already uses for the still cards (`R
 `dosegram-raster` with cargo) and point `RESVG_PATH` at `out/resvg/resvg`. The Dockerfile is
 unchanged.
 
-Every step is the owner's; `<sha>` is the head of `main` at or after the commit that adds this
-section, and `<pg>` is `dosegram-live-pg`:
+Every step is the owner's; `<sha>` is the head of `main` at or after the commit that adds the
+rehearsal record below, and `<pg>` is `dosegram-live-pg`. These are the steps the rehearsal of
+2026-11-28 followed, in this order:
 
-1. Steps 1 to 3 of section 18 (backup, purge-list mode and quarantined count, the worktree and
-   `./mill app.assembly` of `<sha>`); the backup file is the V23 restore point.
-2. Stop the running bot and start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows the
-   `sealing:` lines with `sealed 0`, then `migrate: 3 migration(s) applied, schema 26, 0 value(s)
-   sealed, 0 key(s) rewrapped`, `purge: replayed 0 deletion(s) of the purge list` and the health
-   listener on `127.0.0.1:18081`.
-3. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v23-$(date -u +%F).dump`.
+   The file has mode 600; it is the V23 restore point.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist. Note the number of
+   quarantined updates:
+   `docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c "SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined';"`.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
+   `shutdown: pool closed`), then start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log
+   shows the 23 `sealing:` lines with `sealed 0 value(s)`, then
+   `migrate: 3 migration(s) applied, schema 26, 0 value(s) sealed, 0 key(s) rewrapped`,
+   `purge: replayed 0 deletion(s) of the purge list` and the health listener on
+   `127.0.0.1:18081`.
+5. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
    - `SELECT string_agg(version, ',' ORDER BY installed_rank) FROM flyway_schema_history WHERE success AND version::int > 23;`
      returns `24,25,26`;
    - `SELECT count(*) FROM users WHERE whats_new_seen IS NULL;` returns 0;
    - `SELECT count(*) FROM users WHERE animated_mood;` returns 0;
-   - the quarantined count is that of step 1, and `curl -fsS http://127.0.0.1:18081/readyz`
+   - the quarantined count is that of step 2, and `curl -fsS http://127.0.0.1:18081/readyz`
      answers 200.
-4. In the chat: the answer to the next command (not `/start`) is followed once by the "What's
-   new" note with "Don't show these" (BOT_UX section 6.5); `/stats year` lists the year per area;
-   its "Show as image" sends the one-year card (IMG-30) after the images consent; `/stats meds`
-   with "Show as image" sends the strip pages in order (V24); a mood check-in is still answered
-   with the still mood card, because "Animated mood" is off for every account and can be turned
-   on only from the Mini App settings, which are off on live.
-5. Delete the old worktree only after a day of normal use.
+6. In the chat: the answer to the next command (not `/start`) is followed once by the "What's
+   new" note with "Don't show these" (BOT_UX section 6.5), and the command after it by no note;
+   `/stats year` lists the year per area; its "Show as image" sends the one-year card (IMG-30)
+   after the images consent; `/stats meds` with "Show as image" sends the strip pages in order
+   (V24); a mood check-in is still answered with the still mood card, because "Animated mood" is
+   off for every account and can be turned on only from the Mini App settings, which are off on
+   live.
+7. Delete the old worktree only after a day of normal use.
 
-Rollback without a restore: stop the bot and start the previous release. It ignores the three
-columns: Flyway accepts applied migrations that an older release does not have, and the older
-code neither writes `follows`, `animated_mood` or the two note columns nor reads them. A restart
-of the head after a rollback sends the note no second time, because `whats_new_seen` is already
-the release. Restore the backup of step 1 only if V23 itself must come back.
+Rollback without a restore: stop the bot and start the previous release,
+`LIVE_WT="$PWD/.live/wt-b1c73da" .live/run.sh`. It logs
+`migrate: 0 migration(s) applied, schema 26` (Flyway reports the applied schema, and accepts
+migrations newer than the release), and it ignores the three columns: the older code neither
+writes `follows`, `animated_mood` or the two note columns nor reads them. A restart of the head
+after a rollback sends the note no second time, because `whats_new_seen` is already the release.
+Restore the backup of step 1 only if V23 itself must come back.
 
-Not rehearsed: written from the code and the tests (`SealingBackfillPgSuite` and `RlsSuite`
-upgrade to schema 26 through V24 to V26, `WhatsNewPgSuite`, `AccountSettingsPgSuite`,
-`CaptureLaunchSuite`); no throwaway copy of a V23 database was upgraded and rolled back, and
-nothing ran on a real client or the Telegram transport.
+Rehearsed on 2026-11-28 against a throwaway `postgres:18-alpine` container on a free port, with a
+key file (`KEK_FILE`, mode 600) and a purge-list path in a directory of mode 700, and
+`ENVIRONMENT=production`. `b1c73da`, assembled as `Main` assembles it (settings from the
+environment, `SchemaUpgrade` with the key, the purge-list replay, `Launch.start`) with the
+Telegram adapter on the fake wire, a stepped clock and resvg 0.49.0 drawing, built a V23 database
+through the chat; its first start logged `migrate: 21 migration(s) applied, schema 23`. Two
+accounts: one in English (Europe/London) with onboarding, two medications with a name, a dose and
+instructions at 09:00, 13:00 and 20:00, water with the work-hours plan, mood, a night, a meal with
+words, the 09:00 reminder tapped Taken, the 13:00 one snoozed and then skipped, the images consent
+with the week image, "Water, 7 days", the `/mood history` gallery, the morning summary turned on,
+`/stats meds` and its strip, an export, the 20:00 dose left open and an add-medication form left
+after its first answer; one in Ukrainian (Europe/Kyiv) with water and mood. Then steps 1 to 5 as
+written, with the assemblies started by `java -jar out/app/assembly.dest/out.jar run` on the
+console adapter in place of `.live/run.sh` and the token: `b1c73da` started (`/readyz` 200); the
+backup was written with mode 600 while it ran; no purge list existed and no update was
+quarantined; SIGTERM ended it with `shutdown: pool closed`. The head logged the 23 `sealing:`
+lines with `sealed 0 value(s)`, `migrate: 3 migration(s) applied, schema 26, 0 value(s) sealed,
+0 key(s) rewrapped` and `purge: replayed 0 deletion(s) of the purge list`, answered `/readyz`
+with 200, and the five checks of step 5 returned `24,25,26`, 0, 0, 0 and 200; it stopped cleanly
+and a second start logged `migrate: 0 migration(s) applied, schema 26`. Step 6, on the fake wire:
+the head found the English account with no onboarding question, sent the catch-up digest of the
+doses that passed while no release ran, listed both sealed medication names in `/meds` and
+followed that answer once with the "What's new" note; `/today` and every later command had no
+note, and `/whatsnew` showed it again. `/stats year` answered with the year and its card as a
+photo captioned with its text equivalent, `/stats meds` with its strip, a mood check-in with the
+still card, and the next morning's summary came at 08:03, its card before its text. Buttons sent
+by `b1c73da` were answered: Taken on the open 20:00 dose ("When did you take it?"), "+ 200 ml" on
+a closed water reminder (a toast), "7 days" and "14 days" (edits), "Show as image" of the strip
+and "Water, 7 days" (images), the expired export file ("This file has expired") and Undo past its
+window. Nothing was quarantined and no outbox row died. 45 tables have forced row-level security,
+and `dosegram_app` without a claim saw no row of `users`, `medications`, `mood_checkins` or
+`rendered_messages`. Rollback: `b1c73da` over the upgraded database logged
+`migrate: 0 migration(s) applied, schema 26`, answered `/readyz` with 200, answered `/meds`, a
+mood check-in (with its card), `/reminders`, `/stats`, a water entry and `/today` on the fake wire
+with nothing quarantined or dead, and stopped cleanly; the head then started again with the same
+lines, answered `/meds`, `/stats year` and `/today`, and sent no second note. The rehearsal ran
+on `53714c1`; the commits after it change only the Mini App's default night (MINI_APP
+MA-SLEEP-6a) and these documents, so the assembly the owner builds starts the same way.
+
+Found by the rehearsal, not caused by this head (supervisor decision, 2026-11-28: recorded, not
+fixed in this deploy): a scan of every column (598), a `pg_dump` and the data directory with its
+WAL found the medication names in plaintext in `rendered_messages.choice_map`, the stored button
+labels of `/meds` ("Pause · <name>"), written by `b1c73da` as much as by the head; the live
+database holds the owner's medication names there today. The instructions, the meal words, the
+unfinished form's answer, the first names and the file ids were found nowhere, and the zone name
+(the positive control) was found. Sealing or dropping those labels is a G2.4b follow-up with its
+own migration and backfill. Also seen, also older than this head: the morning summary's text
+put a dose of Monday 20:00 that a late catch-up marked missed on Saturday into Saturday's doses
+("0 of 2 taken · not confirmed 2"), while its card counted Saturday's one scheduled dose.
+
+Not rehearsed: a real client, the Telegram transport, the animated mood in a chat (a stepped
+clock makes the report worker claim the request after its deadline, so it sent the text; the
+loops themselves were encoded by `MotionRenderer` with the pinned worker and decoded by ffmpeg as
+H.264, 512 by 512, 60 frames, 3 seconds), and the weekly album over live data.
