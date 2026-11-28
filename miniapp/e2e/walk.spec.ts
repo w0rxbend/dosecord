@@ -6,6 +6,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixture';
 import { routeTo } from './support/navigation';
+import { chrome, pressMainButton } from './support/telegram';
 
 const post = (path: RegExp) => (r: { url(): string; request(): { method(): string } }) =>
   path.test(new URL(r.url()).pathname) && r.request().method() === 'POST';
@@ -27,8 +28,10 @@ async function addMealWithWords(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Add lunch' }).click();
   const form = page.getByRole('form', { name: 'Add a meal' });
   await form.getByLabel('What did you have? (optional)').fill('Lentil soup and bread');
+  // The meal sheet saves on Telegram's bottom button (MINI_APP 6.1).
+  await expect.poll(async () => (await chrome(page)).main).toMatchObject({ text: 'Save meal', visible: true, enabled: true });
   const saved = page.waitForResponse(post(/\/api\/v1\/meals$/));
-  await form.getByRole('button', { name: 'Save meal' }).click();
+  await pressMainButton(page);
   expect((await saved).status()).toBe(201);
   const lunch = page.getByRole('region', { name: 'Lunch' });
   await expect(lunch.getByText(/Lentil soup and bread/)).toBeVisible();

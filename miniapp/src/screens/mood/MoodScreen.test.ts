@@ -114,6 +114,25 @@ describe('Mood check-in', () => {
     expect(harness.tg.mainButton.state.enabled).toBe(false);
   });
 
+  it('asks with the native popup before a moved slider is left unsaved, and not after the save', async () => {
+    const harness = createHarness();
+    await harness.router.navigate('/log/mood/new');
+    const user = openCheckIn(harness);
+    await user.click(await screen.findByRole('button', { name: 'More pleasant' }));
+    expect(harness.tg.closingConfirmation).toBe(true);
+    harness.tg.popupAnswer = 'stay';
+
+    await harness.router.back();
+    expect(harness.tg.popups).toHaveLength(1);
+    expect(harness.router.route).toEqual({ screen: 'mood-new' });
+
+    harness.tg.mainButton.press();
+    expect(await screen.findByText('Check-in saved')).toBeTruthy();
+    expect(harness.tg.closingConfirmation).toBe(false);
+    await harness.router.back();
+    expect(harness.tg.popups).toHaveLength(1);
+  });
+
   it('keeps the form and says so when the save fails', async () => {
     const harness = createHarness();
     const user = openCheckIn(harness);

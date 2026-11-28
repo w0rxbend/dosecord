@@ -3,6 +3,7 @@
   import type { FieldError } from '../../api/client';
   import type { MealKind } from '../../api/types';
   import { useApp } from '../../app/context';
+  import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
   import { t as en, fieldErrorText } from '../../i18n/index.svelte';
   import Field from '../../ui/Field.svelte';
   import { MEAL_KINDS, type MealDraft } from './meal';
@@ -16,7 +17,7 @@
   }
 
   let { draft, busy, errors, onSave, onCancel }: Props = $props();
-  const { api } = useApp();
+  const { api, tg, router } = useApp();
 
   // The sheet starts from the draft it was opened with and is the person's from then on.
   const initial = untrack(() => draft);
@@ -41,10 +42,22 @@
     return found && fieldErrorText(found.code);
   };
 
-  function submit(event: SubmitEvent): void {
-    event.preventDefault();
+  const dirty = $derived(mealType !== initial.mealType || time !== initial.time || description !== initial.description);
+
+  function save(): void {
+    if (busy) return;
     onSave({ ...initial, mealType, time, description, atNow: initial.atNow && time === initial.time });
   }
+
+  function submit(event: SubmitEvent): void {
+    event.preventDefault();
+    save();
+  }
+
+  // The meal sheet is an entry sheet: the bottom button saves it (MINI_APP 6.1). A type and a time are
+  // enough, so the button is always active; a changed sheet asks before it is left (MA-NATIVE-9).
+  useMainButton(tg, { text: en.food.save, enabled: () => true, busy: () => busy, onPress: save });
+  useLeaveGuard(tg, (guard) => router.setGuard(guard), () => dirty, en.common.leave);
 </script>
 
 <!-- The meal sheet of MINI_APP 7.8 as an in-page form: a type and a time are enough (MA-FOOD-3). -->
@@ -72,7 +85,6 @@
     </div>
   {/if}
   <div class="buttons">
-    <button type="submit" class="btn btn-filled" disabled={busy}>{en.food.save}</button>
     <button type="button" class="btn" onclick={onCancel}>{en.food.cancel}</button>
   </div>
 </form>

@@ -2,7 +2,7 @@
   import { newIdempotencyKey, toApiError } from '../../api/client';
   import type { BlobAsset, MoodRecorded, MoodScale } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { useMainButton } from '../../app/main-button.svelte';
+  import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
   import { NO_ENTRY, stateIdOf } from '../../charts/blob';
   import MoodBlob from '../../charts/MoodBlob.svelte';
   import { t as en, errorText } from '../../i18n/index.svelte';
@@ -14,7 +14,7 @@
   }
 
   let { asset, scale, onSaved }: Props = $props();
-  const { api, tg } = useApp();
+  const { api, tg, router } = useApp();
 
   const first = $derived(scale.valence[0]?.step ?? 1);
   const last = $derived(scale.valence.at(-1)?.step ?? 5);
@@ -44,6 +44,9 @@
     busy: () => saving,
     onPress: () => void save(),
   });
+
+  // A moved slider is an unsaved check-in; the saved view replaces the form, which ends the guard.
+  useLeaveGuard(tg, (guard) => router.setGuard(guard), () => valence !== null, en.common.leave);
 
   async function save(): Promise<void> {
     if (valence === null || saving) return;

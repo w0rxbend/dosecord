@@ -156,7 +156,45 @@ describe('Time zone', () => {
   });
 });
 
+describe('Time zone leaving', () => {
+  it('confirms closing while a chosen zone is unsaved, and not after the save', async () => {
+    const harness = createHarness();
+    await harness.router.navigate('/settings/tz');
+    const user = open(TimeZoneScreen, harness);
+    await screen.findByText('Dosegram uses Europe/Kyiv.');
+    expect(harness.tg.closingConfirmation).toBe(false);
+
+    await user.type(screen.getByRole('searchbox', { name: 'Search time zones' }), 'lisbon');
+    await user.click(screen.getByRole('radio', { name: /Europe\/Lisbon/ }));
+    await screen.findByText('3 schedules follow your time zone and keep their clock times.');
+    expect(harness.tg.closingConfirmation).toBe(true);
+
+    harness.tg.mainButton.press();
+    await vi.waitFor(() => expect(harness.toasts.current?.message).toBe('Time zone changed'));
+    expect(harness.tg.popups).toEqual([]);
+    expect(harness.tg.closingConfirmation).toBe(false);
+  });
+});
+
 describe('Quiet hours', () => {
+  it('asks with the native popup before changed quiet hours are left, and not after the save', async () => {
+    const harness = createHarness();
+    await harness.router.navigate('/settings/notif');
+    const user = open(QuietHoursScreen, harness);
+    await user.click(await screen.findByRole('switch', { name: 'Use quiet hours' }));
+    expect(harness.tg.closingConfirmation).toBe(true);
+    harness.tg.popupAnswer = 'stay';
+
+    await harness.router.back();
+    expect(harness.tg.popups).toHaveLength(1);
+    expect(harness.router.route).toEqual({ screen: 'settings-notif' });
+
+    harness.tg.mainButton.press();
+    await vi.waitFor(() => expect(harness.toasts.current?.message).toBe('Quiet hours saved'));
+    expect(harness.tg.popups).toHaveLength(1);
+    expect(harness.tg.closingConfirmation).toBe(false);
+  });
+
   it('accepts a range across midnight and refuses equal ends', async () => {
     const harness = createHarness();
     const user = open(QuietHoursScreen, harness);

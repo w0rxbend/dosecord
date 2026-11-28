@@ -3,7 +3,7 @@
   import { toApiError } from '../../api/client';
   import type { NotificationSettings } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { useMainButton } from '../../app/main-button.svelte';
+  import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
   import { t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
@@ -16,12 +16,16 @@
   let end = $state('07:00');
   let saving = $state(false);
   let failure = $state('');
+  /** The values as last read or saved; the form is dirty while it differs (MA-NATIVE-9). */
+  let stored = $state('');
+  const current = (): string => JSON.stringify({ enabled, start, end });
 
   const loaded = new Resource<NotificationSettings>(async () => {
     const settings = await api.notificationSettings();
     enabled = settings.quietHours !== undefined;
     start = settings.quietHours?.start ?? start;
     end = settings.quietHours?.end ?? end;
+    stored = current();
     return settings;
   });
 
@@ -35,6 +39,7 @@
     busy: () => saving,
     onPress: () => void save(),
   });
+  useLeaveGuard(tg, (guard) => router.setGuard(guard), () => loaded.data !== undefined && current() !== stored, en.common.leave);
 
   async function save(): Promise<void> {
     const settings = loaded.data;
@@ -43,6 +48,7 @@
     failure = '';
     try {
       await api.saveNotificationSettings({ discreet: settings.discreet, quietHours: enabled ? { start, end } : undefined }, settings.version);
+      stored = current();
       tg.haptic('success');
       toasts.show(en.quietHours.saved);
       await tick();

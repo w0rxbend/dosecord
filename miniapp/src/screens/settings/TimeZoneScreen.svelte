@@ -3,7 +3,7 @@
   import { toApiError } from '../../api/client';
   import type { AccountSettings, TimeZoneChoice, TimeZonePreview } from '../../api/types';
   import { useApp } from '../../app/context';
-  import { useMainButton } from '../../app/main-button.svelte';
+  import { useLeaveGuard, useMainButton } from '../../app/main-button.svelte';
   import { t as en, errorText } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
@@ -27,6 +27,7 @@
   let chosen = $state<string | null>(null);
   let preview = $state<TimeZonePreview | null>(null);
   let saving = $state(false);
+  let saved = $state(false);
   let failure = $state('');
 
   const matches = $derived(
@@ -52,6 +53,13 @@
     busy: () => saving,
     onPress: () => void save(),
   });
+  // A chosen zone that is not saved yet is an unsaved change (MA-NATIVE-9).
+  useLeaveGuard(
+    tg,
+    (guard) => router.setGuard(guard),
+    () => !saved && chosen !== null && chosen !== loaded.data?.account.timeZone,
+    en.common.leave,
+  );
 
   async function save(): Promise<void> {
     const account = loaded.data?.account;
@@ -60,6 +68,7 @@
     try {
       const { language, imageTheme, animatedMood, version } = account;
       await api.saveSettings({ language, imageTheme, animatedMood, timeZone: preview.timeZone }, version);
+      saved = true;
       tg.haptic('success');
       toasts.show(en.timeZone.saved);
       await tick();
