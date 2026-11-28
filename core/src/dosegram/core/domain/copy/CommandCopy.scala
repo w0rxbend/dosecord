@@ -30,7 +30,8 @@ object CommandCopy:
     "export" -> "Експортувати записи або створити зведення.",
     "import" -> "Перенести записи з файлу.",
     "language" -> "Змінити мову.",
-    "whatsnew" -> "Показати, що додало останнє оновлення."
+    "whatsnew" -> "Показати, що додало останнє оновлення.",
+    "settings" -> "Мова, часовий пояс, ваш день, зображення й звіти."
   )
 
   /** The description of the command `name`; `english` is the registry's text. */

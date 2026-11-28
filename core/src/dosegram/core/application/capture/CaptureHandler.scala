@@ -249,6 +249,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case CaptureActions.StatsYear      => years.year(turn, value.toInt)
       case CaptureActions.StatsYearImage =>
         imageOf(turn, Pending.YearImage(value.toInt))(years.yearImage(turn, value.toInt))
+      case CaptureActions.PrivacyOpen     => consent.privacy(turn)
       case CaptureActions.InsightsShow    => months.insights(turn)
       case CaptureActions.InsightsImage   => imageOf(turn, Pending.Insights(image = true))(months.insightImage(turn))
       case CaptureActions.InsightsCompare =>

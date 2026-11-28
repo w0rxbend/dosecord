@@ -48,7 +48,7 @@ class LanguageChatSuite extends munit.FunSuite:
       assertEquals(edited(back), List(LanguageCopy.changed(Lang.En)))
       assertEquals(rig.uow.accounts.settingsOf(account).flatMap(_.locale), Some("en"))
 
-  test("the account menu offers Language next to Timezone"):
+  test("the account menu offers Settings, then Language next to Timezone"):
     withRig: rig =>
       rig.seedAccount()
       rig.command("menu")
@@ -57,7 +57,7 @@ class LanguageChatSuite extends munit.FunSuite:
       val labels = account.flatMap:
         case VendorOp.Edit(_, message) => message.choiceMap.map(_.label)
         case _                         => Nil
-      assertEquals(labels, List(Labels.Timezone, Labels.Language, Labels.Back))
+      assertEquals(labels, List(Labels.Settings, Labels.Timezone, Labels.Language, Labels.Back))
       assertEquals(edited(rig.tapOn(MenuCopy.accountPrompt, Labels.Language)), List(LanguageCopy.prompt))
 
   test("every command of the product has a Ukrainian description within Telegram's limit (R-LOC-10)"):

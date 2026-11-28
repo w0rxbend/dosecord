@@ -11,6 +11,7 @@ import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
+import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -19,6 +20,7 @@ import dosegram.core.chat.ChatHandler
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.WhatsNewCopy
+import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.Clock
 import dosegram.core.ports.Tx
 
@@ -34,6 +36,8 @@ import java.util.UUID
 final class WhatsNewChat(codec: CallbackCodec, clock: Clock, inner: ChatHandler) extends ChatHandler:
 
   import WhatsNewChat.*
+
+  private val edits = AccountSettingsEdits(clock)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val account = principal.accountId.map(_.uuid)
@@ -61,7 +65,7 @@ final class WhatsNewChat(codec: CallbackCodec, clock: Clock, inner: ChatHandler)
     show(source, note(event, account, tx.accounts.whatsNewOf(account).enabled))
 
   private def switch(event: InboundEvent, account: UUID, enabled: Boolean, source: Option[MessageHandle], tx: Tx) =
-    tx.accounts.setWhatsNewEnabled(account, enabled, clock.now())
+    edits.setWhatsNew(tx, account, AuditChannel.Bot, enabled): Unit
     show(source, message(event, List(if enabled then WhatsNewCopy.on else WhatsNewCopy.off), button(account, enabled)))
 
   private def note(event: InboundEvent, account: UUID, enabled: Boolean): OutboundMessage =

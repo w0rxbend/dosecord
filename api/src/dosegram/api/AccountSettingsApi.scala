@@ -1,6 +1,7 @@
 package dosegram.api
 
 import dosegram.contracts.HhMm
+import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.domain.QuietHours
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.tr
@@ -10,7 +11,6 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ImageTheme
 import dosegram.core.ports.ScheduleStatus
-import dosegram.core.ports.SettingsAudit
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 import dosegram.core.scheduling.ScheduleLifecycle
@@ -33,11 +33,13 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
   import AccountSettingsApi.*
 
   private val lifecycle = ScheduleLifecycle(uow, clock)
+  private val edits = AccountSettingsEdits(clock)
 
   def settings(accountId: UUID): Either[ApiFailure, SettingsView] =
     uow.transactionAs(accountId)(stored(_, accountId).map(settingsView))
 
-  /** Replaces the editable set. A new time zone moves the schedules that follow the account, in the same transaction.
+  /** Replaces the editable set through the writer the chat's `/settings` shares (BOT_UX section 17). A new time zone
+    * moves the schedules that follow the account, in the same transaction.
     */
   def saveSettings(accountId: UUID, version: Long, input: SettingsInput): Either[ApiFailure, SettingsView] =
     uow.transactionAs(accountId): tx =>
@@ -46,27 +48,13 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
         _ <- Either.cond(settingsView(current).version == version, (), ApiFailure.versionConflict())
         zone <- validated(input, current.zone)
       yield
-        val now = clock.now()
-        tx.accounts.saveSettings(
-          accountId,
-          current.settings.copy(
+        val saved = edits.saveInZone(tx, accountId, AuditChannel.MiniApp, zone, lifecycle): settings =>
+          settings.copy(
             locale = Some(input.language),
             imageTheme = themeOf(input.imageTheme),
-            animatedMood = input.animatedMood.getOrElse(current.settings.animatedMood)
-          ),
-          now
-        )
-        if zone.getId != current.zone then
-          tx.accounts.setTimezone(accountId, zone.getId, now)
-          lifecycle.rezoneFollowingSchedulesInTx(tx, accountId, zone, now)
-        val changed = List(
-          Option.when(current.settings.locale != Some(input.language))("locale"),
-          Option.when(current.settings.imageTheme != themeOf(input.imageTheme))("image_theme"),
-          Option.when(input.animatedMood.exists(_ != current.settings.animatedMood))("animated_mood"),
-          Option.when(zone.getId != current.zone)("timezone")
-        ).flatten
-        if changed.nonEmpty then tx.auditLog.record(SettingsAudit.changed(accountId, AuditChannel.MiniApp, changed))
-        settingsView(Stored(zone.getId, tx.accounts.settingsOf(accountId).get))
+            animatedMood = input.animatedMood.getOrElse(settings.animatedMood)
+          )
+        settingsView(Stored(zone.getId, saved.fold(current.settings)(_.after)))
 
   def notifications(accountId: UUID): Either[ApiFailure, NotificationSettingsView] =
     uow.transactionAs(accountId)(stored(_, accountId).map(notificationView))
@@ -82,14 +70,10 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
         _ <- Either.cond(notificationView(current).version == version, (), ApiFailure.versionConflict())
         quietHours <- input.quietHours.fold(Right(None))(quietHoursOf(_).map(Some(_)))
       yield
-        val settings = current.settings.copy(quietHours = quietHours, isDiscreet = input.discreet)
-        tx.accounts.saveSettings(accountId, settings, clock.now())
-        val changed = List(
-          Option.when(current.settings.quietHours != quietHours)("quiet_hours"),
-          Option.when(current.settings.isDiscreet != input.discreet)("discreet")
-        ).flatten
-        if changed.nonEmpty then tx.auditLog.record(SettingsAudit.changed(accountId, AuditChannel.MiniApp, changed))
-        notificationView(current.copy(settings = settings))
+        val saved = edits.save(tx, accountId, AuditChannel.MiniApp)(
+          _.copy(quietHours = quietHours, isDiscreet = input.discreet)
+        )
+        notificationView(current.copy(settings = saved.fold(current.settings)(_.after)))
 
   /** Every region zone of the platform's database with its offset from UTC now, by name. */
   def timeZones: TimeZoneList =

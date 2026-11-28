@@ -19,6 +19,7 @@ import dosegram.core.application.hydration.HydrationRefusal
 import dosegram.core.application.hydration.LogWater
 import dosegram.core.application.nutrition.LogMeal
 import dosegram.core.application.nutrition.MealInput
+import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.application.sleep.SleepInput
 import dosegram.core.application.sleep.WokeUp
 import dosegram.core.chat.ActionEntry
@@ -46,6 +47,7 @@ import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPreset
 import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.reminders.PromptStatus
+import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.Clock
 import dosegram.core.ports.PromptOccurrence
 import dosegram.core.ports.Tx
@@ -70,6 +72,8 @@ final class RemindersHandler(
 ) extends ChatHandler:
 
   import RemindersHandler.*
+
+  private val edits = AccountSettingsEdits(clock)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = event.body match
@@ -223,7 +227,7 @@ final class RemindersHandler(
 
   /** The gamification switch (R-GAM-5): the hub again, headed by what the reports now show. */
   private def counts(ctx: Ctx, on: Boolean): Reply =
-    ctx.tx.accounts.setGamification(ctx.accountId, on, clock.now())
+    edits.setCounts(ctx.tx, ctx.accountId, AuditChannel.Bot, on): Unit
     hub(ctx, Some(if on then GamificationCopy.countsTurnedOn else GamificationCopy.countsTurnedOff))
 
   private def reportOf(value: Long): Option[PromptPreset] =

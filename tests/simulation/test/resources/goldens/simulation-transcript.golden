@@ -774,9 +774,9 @@
 2026-10-13T12:30:00Z p1 send/reply menu:account:console:console:msg:sim:p1:35
   Account
   
-  1) Timezone 2) Language 3) Back
-  choices: 1) Timezone -> menu.open(-,0); 2) Language -> language.open(p1,0); 3) Back -> menu.open(-,0)
-2026-10-13T12:30:00Z >> p1 #74 1 (Timezone)
+  1) Settings 2) Timezone 3) Language 4) Back
+  choices: 1) Settings -> settings.open(p1,0); 2) Timezone -> menu.open(-,0); 3) Language -> language.open(p1,0); 4) Back -> menu.open(-,0)
+2026-10-13T12:30:00Z >> p1 #74 2 (Timezone)
 2026-10-13T12:30:00Z p1 send/reply wizard:session-1:0
   Pick your timezone:
   
@@ -1576,9 +1576,9 @@
 2026-10-25T12:30:00Z p1 send/reply menu:account:console:console:msg:sim:p1:93
   Account
   
-  1) Timezone 2) Language 3) Back
-  choices: 1) Timezone -> menu.open(-,0); 2) Language -> language.open(p1,0); 3) Back -> menu.open(-,0)
-2026-10-25T12:30:00Z >> p1 #137 1 (Timezone)
+  1) Settings 2) Timezone 3) Language 4) Back
+  choices: 1) Settings -> settings.open(p1,0); 2) Timezone -> menu.open(-,0); 3) Language -> language.open(p1,0); 4) Back -> menu.open(-,0)
+2026-10-25T12:30:00Z >> p1 #137 2 (Timezone)
 2026-10-25T12:30:00Z p1 send/reply wizard:session-2:0
   Pick your timezone:
   

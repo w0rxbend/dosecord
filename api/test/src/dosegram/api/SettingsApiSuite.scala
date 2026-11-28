@@ -4,7 +4,10 @@ import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.application.settings.AccountSettingsEdits
+import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ImageTheme
 
 import java.time.ZoneId
 
@@ -197,4 +200,33 @@ final class SettingsApiSuite extends ApiSuite:
   test("every settings route needs a session"):
     List("/api/v1/settings", "/api/v1/notification-settings", "/api/v1/time-zones", "/api/v1/consents").foreach: path =>
       assertProblem(get(path), 401, "unauthenticated")
+
+  test("a setting changed in the chat's /settings is the value the app reads, and the app's edit the chat's (BOT_UX 17)"):
+    val account = accountWithoutConsent("Europe/Kyiv")
+    val token = login(account)
+    val read = get("/api/v1/settings", token)
+    val chat = AccountSettingsEdits(clock)
+    uow.transactionAs(account.accountId)(tx =>
+      chat.save(tx, account.accountId, AuditChannel.Bot)(_.copy(imageTheme = ImageTheme.Dark, isDiscreet = true))
+    )
+    val after = get("/api/v1/settings", token)
+    assertEquals(after.json("imageTheme").str, "dark")
+    assertNotEquals(after.header("ETag"), read.header("ETag"), "an edit from the chat moves the version")
+    assert(get("/api/v1/notification-settings", token).json("discreet").bool)
+    patch("/api/v1/settings", settingsBody("Europe/Kyiv", "light"), token, ifMatch(after))
+    val stored = uow.transactionAs(account.accountId)(_.accounts.settingsOf(account.accountId))
+    assertEquals(stored.map(_.imageTheme), Some(ImageTheme.Light))
+    val audited = withConnection: conn =>
+      val st = conn.prepareStatement(
+        """SELECT channel || ':' || array_to_string(changed_fields, ',') FROM audit_log
+          |WHERE subject_ref = ? AND object_type = 'settings' ORDER BY occurred_at, id""".stripMargin
+      )
+      try
+        st.setObject(1, account.accountId)
+        val rows = st.executeQuery()
+        Iterator.continually(rows).takeWhile(_.next()).map(_.getString(1)).toList
+      finally st.close()
+    // Both rows carry the same instant of the test clock: their order is not the point. The app's first save also
+    // stores the language it sent, which the account had not chosen before.
+    assertEquals(audited.sorted, List("bot:image_theme,discreet", "miniapp:locale,image_theme"))
 end SettingsApiSuite

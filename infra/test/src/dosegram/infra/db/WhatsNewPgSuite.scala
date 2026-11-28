@@ -47,7 +47,7 @@ class WhatsNewPgSuite extends PgSuite:
       val answer = rig.line("/water")
       assert(noted(answer), answer.toString)
       assert(!noted(answer.take(answer.size - 1)), s"the note comes after the answer: $answer")
-      assert(answer.last.contains("/stats year"), answer.last)
+      assert(answer.last.contains("/settings"), answer.last)
       assertEquals(state(rig, account).seen, Some(WhatsNewCopy.Release))
       assert(!noted(rig.line("/water")), "once per release")
 

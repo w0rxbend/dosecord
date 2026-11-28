@@ -9,6 +9,7 @@ import dosegram.core.application.exports.RecordSummaries
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.medication.AddMedicationFlow
 import dosegram.core.application.medication.MedicationDepthChat
+import dosegram.core.application.settings.SettingsChat
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -302,11 +303,15 @@ final class MenuHandler(
             Block.Choices(
               ChoiceSet(
                 id = "menu.account",
-                choices = List(
-                  Choice.callback(Labels.Timezone, mint(chat, accountId, MenuOpenAction, KeyTimezone, tx).wire)
-                ) ++ accountId.map(id => Choice.callback(Labels.Language, LanguageChat.openToken(codec, id))) ++ List(
-                  Choice.callback(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire)
-                )
+                choices =
+                  accountId.map(id => Choice.callback(Labels.Settings, SettingsChat.openToken(codec, id))).toList ++
+                    List(
+                      Choice.callback(Labels.Timezone, mint(chat, accountId, MenuOpenAction, KeyTimezone, tx).wire)
+                    ) ++ accountId.map(id =>
+                      Choice.callback(Labels.Language, LanguageChat.openToken(codec, id))
+                    ) ++ List(
+                      Choice.callback(Labels.Back, mint(chat, accountId, MenuOpenAction, KeyRoot, tx).wire)
+                    )
               )
             )
           ),

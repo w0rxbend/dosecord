@@ -26,6 +26,7 @@ object Labels:
   def Archive = tr("Archive", "В архів")
   def Timezone = tr("Timezone", "Часовий пояс")
   def Language = tr("Language", "Мова")
+  def Settings = tr("Settings", "Налаштування")
 
   /** Snooze option labels: `Snooze 10m`, `Snooze 1h`. */
   def snooze(minutes: Int): String =
@@ -60,6 +61,7 @@ object Labels:
     CopyEntry("label.archive", Archive),
     CopyEntry("label.timezone", Timezone),
     CopyEntry("label.language", Language),
+    CopyEntry("label.settings", Settings),
     CopyEntry("label.snooze.10", snooze(10)),
     CopyEntry("label.snooze.30", snooze(30)),
     CopyEntry("label.snooze.60", snooze(60))

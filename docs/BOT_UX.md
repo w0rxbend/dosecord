@@ -599,6 +599,8 @@ Supervisor decision, 2026-11-28 (analytics round 6). After a release that adds s
 
 Release 1 (supervisor decision, 2026-11-28, at the integration of analytics round 6 and the animated mood): the note lists `/stats year` and the IR-05 comparison only. "Animated mood" is not on it: it is a Mini App setting (MINI_APP MA-SET-12), the Mini App is off on live, and the chat has no switch for it yet (section 17). It joins the note of the release that gives the chat or the live Mini App a way to turn it on.
 
+Release 2 (supervisor decision, 2026-11-28, settings track): the note lists `/settings` only, the settings hub of section 17, which also gives the chat its "Animated mood" switch. An account that missed release 1 gets the note of release 2 only (BUX-NEW-02).
+
 Rejected alternatives: a broadcast to every account at start-up, which is an unprompted message for each deploy and needs its own pacing, budget and quiet-hours handling; a line inside `/help`, which nobody who does not ask for help sees.
 
 ## 7. Reply keyboard
@@ -1509,6 +1511,71 @@ Images in chat: on
 | BUX-SET-04 | Turning a domain off stops its prompts and hides its lines and buttons. It does not delete data and does not withdraw consent; the card says so and links to `/privacy` for both. |
 | BUX-SET-05 | "Open all settings" opens the Mini App settings. No setting in the "Editable in chat" column requires it. |
 
+### 17.1 As built: the settings hub (supervisor decision, 2026-11-28)
+
+The owner uses the chat only (the Mini App is off on live), so every setting the account has must be reachable from `/settings`. Built on the settings track (`SettingsChat`, ROADMAP G2.14* in part); no migration, since every value already has its column.
+
+`/settings` (listed; also "Settings" in the account menu of `/menu`) sends one card, `settings.title`, with four sections, every value beside its full name:
+
+```
+Settings
+
+Language and region
+Language: English
+Time zone: Europe/Kyiv, now 21:14
+
+Your day
+Wake 07:00 · Breakfast 08:00 · Lunch 13:00 · Dinner 19:00 · Bedtime 23:00
+Work: Mon to Fri 09:00–18:00
+Quiet hours: 22:00–07:00
+
+Images and messages
+Image theme: Auto
+Discreet reminders: off
+Animated mood: off
+Counts in reports: on
+Notes after updates: on
+
+Reports
+Morning summary: off · Weekly summary: on · Monthly summary: off
+
+Reminders and reports are set in /reminders, consents and your data in /privacy.
+
+[ Українська ]
+[ Time zone ]       [ Day and hours ]
+[ Theme: Auto ]     [ Discreet: off ]
+[ Animated mood: off ] [ Counts: on ]
+[ Update notes: on ]
+[ Reminders and reports ] [ Privacy ]
+```
+
+| Control | What a tap does |
+|---|---|
+| The other language, named in itself | Stores the locale and edits the card into that language at once |
+| Time zone | Starts the time zone flow of section 5.7 (`/timezone`, BUX-TZ-05) |
+| Day and hours | Edits the card into the day: one button per anchor with its time, "Work hours", "Quiet hours" and Back. An anchor offers nine times 30 minutes apart (bedtime 21:00 to 01:00); work hours six choices (Monday to Friday 08:00–16:00, 08:00–17:00, 09:00–17:00, 09:00–18:00, 10:00–19:00, Monday to Saturday 09:00–18:00); quiet hours six (21:00–06:00 to 00:00–08:00). Each question names the typed form of `/reminders` for any other value (BUX-SET-03) |
+| Theme | Auto, then Light, then Dark, then Auto (the image theme of VISUALS section 3.3.3) |
+| Discreet, Animated mood, Counts, Update notes | A switch: the label shows the state, a tap sets the other one |
+| Reminders and reports | Edits the card into the `/reminders` hub, which owns the morning summary and the weekly and monthly reports |
+| Privacy | Edits the card into the `/privacy` card, which owns the consents, the export and deletion |
+
+| ID | Requirement |
+|---|---|
+| BUX-SET-06 | Every tap answers by editing the card it came from; the hub sends one message per `/settings`. After a change the card's first line is `settings.changed` with the new and the old value (BUX-SET-02). |
+| BUX-SET-07 | A switch's callback carries the state it sets, not "toggle": a repeated or redelivered tap of an old button changes nothing, writes nothing and has no `settings.changed` line. |
+| BUX-SET-08 | One writer for the chat and the Mini App (`AccountSettingsEdits`): `/settings`, `/language`, the time zone flow, the counts switch of `/reminders`, the "What's new" switch and `PATCH /settings` and `/notification-settings` store the same columns. A save that changed something writes one `audit_log` row `record.updated` on `settings` with the codes of what changed (`locale`, `image_theme`, `animated_mood`, `quiet_hours`, `discreet`, `timezone`, `counts`, `whats_new`), never a value. The anchors and work hours are the day profile of `/reminders` and the Mini App's `/settings/day`, written by the same use case and, as there, not audited. |
+| BUX-SET-09 | The card records and shows no health entry and needs no consent of its own; it never grants or withdraws one. "Animated mood" is shown and accepted only while the mood consent is given; a tap without it answers the stale-button toast. While discreet reminders are on, its line says the blob stays still (MINI_APP MA-SET-12). |
+| BUX-SET-10 | The language line names the language the user reads: the stored choice, else the client's language (PRODUCT_SPEC R-LOC-1). |
+
+Callbacks: direct mode on the account, actions 518 to 533 of the range 518 to 547 (`settings.open`, `.language`, `.theme`, `.discreet`, `.animated`, `.counts`, `.whatsnew`, `.day`, `.anchor_pick`, `.anchor_set`, `.work_pick`, `.work_set`, `.quiet_pick`, `.quiet_set`, `.timezone`, `.privacy`); "Reminders and reports" is the `reminders.hub` action of `/reminders`.
+
+Decisions (supervisor decision, 2026-11-28):
+
+- No location sharing for the time zone, although the settings track asked for "share location". BUX-TZ-03, PRODUCT_SPEC R-IDC-12 and R-IDC-22 forbid `request_location` and the collection of location, and PRODUCT_SPEC wins on product behaviour (ROADMAP section 0.1). The time zone stays the flow of section 5.7: the suggestion by language, the typed city search and the time grid.
+- The Undo of BUX-SET-02 is the switch itself: the old value is on the button that replaced it, for as long as the card stays. No separate Undo button and no 15-minute window.
+- Quiet hours are offered as six fixed ranges and the typed `/reminders quiet`; "off" stays the typed `/reminders quiet off`. With none stored, the card shows the default 22:00–07:00 that the prompts use (section 14.3).
+- Not built from the table above: sound per kind, the daily budget, "Pause everything until", units, the 12- or 24-hour clock, the first day of the week, turning a domain off (BUX-SET-04), protect images, the Today pin and "Open all settings" while the Mini App is off on live.
+
 ## 18. Undo and correction
 
 ### 18.1 Rules
@@ -2276,6 +2343,11 @@ Placeholders are in braces. "Fixed" length excludes placeholder content.
 | `privacy.deleted` | Your account and records are deleted. Dosegram will not message you again. Send /start if you want to begin again. | Last message |
 | `privacy.cleared` | {n} bot messages were removed. Older messages can only be removed by you: use "Clear history" in Telegram. | |
 | `cg.alert` | A scheduled {time} dose was not confirmed. | Later stage; no names by default |
+| `settings.title` | Settings | Then the sections `settings.section.region`, `.day`, `.images`, `.reports` (section 17) |
+| `settings.changed` | Saved. {setting}: {new} (was {old}). | First line of the edited card after a change; absent when the tap changed nothing |
+| `settings.links` | Reminders and reports are set in /reminders, consents and your data in /privacy. | Last line of the card |
+| `settings.day_help` | The reminders set in /reminders follow these times. Pick one to change it, or type, for example, /reminders wake 06:30. | |
+| `settings.anchor_ask` | {anchor}: {time}. Pick a new time, or type /reminders {anchor id} 06:30. | Also `settings.work_ask`, `settings.quiet_ask` |
 
 ### 22.3 Button labels
 

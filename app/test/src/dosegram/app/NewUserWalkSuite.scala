@@ -11,6 +11,7 @@ import dosegram.core.domain.copy.MenuCopy
 import dosegram.core.domain.copy.PromptCopy
 import dosegram.core.domain.copy.ReportCopy
 import dosegram.core.domain.copy.ReminderCopy
+import dosegram.core.domain.copy.SettingsCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.copy.WaterCopy
 import dosegram.core.domain.copy.WizardCopy
@@ -18,6 +19,7 @@ import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.ports.ConsentPurpose
+import dosegram.core.ports.ImageTheme
 import dosegram.infra.Adapter
 import dosegram.infra.Environment
 import dosegram.infra.LogFormat
@@ -309,6 +311,23 @@ class NewUserWalkSuite extends PgSuite:
     val sentAsPhoto = after.exists(_.contains("[image], caption:"))
     assert(!sentAsPhoto || drawn.exists(_.contains(s">${SvgEmitter.escape(copy.galleryTitle)}<")), "the gallery was drawn")
 
+  /** `/settings` (supervisor decision, 2026-11-28; BOT_UX section 17): one card in the whole walk, and every tap on it
+    * an edit of that card that names the old and the new value; the walk leaves discreet reminders as it found them.
+    */
+  private def assertSettings(lang: Lang, lines: List[String]): Unit =
+    def l(text: => String): String = Lang.within(lang)(text)
+    val cards = messagesWith(lines, " bot #", l(SettingsCopy.regionSection))
+    assertEquals(cards.size, 1, "one settings card")
+    val card = cards.head
+    val from = lines.indexWhere(_.endsWith("you: /settings"))
+    val after = lines.drop(from + 1).takeWhile(line => !line.contains("-- The rest of the day"))
+    val theme = l(SettingsCopy.changed(SettingsCopy.themeName, SettingsCopy.themeValue(ImageTheme.Auto), SettingsCopy.themeValue(ImageTheme.Light)))
+    val on = l(SettingsCopy.changed(SettingsCopy.discreetName, SettingsCopy.off, SettingsCopy.on))
+    val off = l(SettingsCopy.changed(SettingsCopy.discreetName, SettingsCopy.on, SettingsCopy.off))
+    List(theme, on, off, l(SettingsCopy.dayHelp)).foreach: text =>
+      assertEquals(messagesWith(after, " bot edits #", text), List(card), s"'$text' edits the settings card")
+    assertEquals(messagesWith(after, " bot edits #", l(SettingsCopy.regionSection)).last, card, "Back shows the card again")
+
   /** The numbers of the messages that `marker` introduces (" bot #" for a send, " bot edits #" for an edit) and whose
     * text contains `text`.
     */
@@ -336,7 +355,12 @@ class NewUserWalkSuite extends PgSuite:
       english(WizardCopy.weekdays),
       english(WizardCopy.chooseDays),
       english(WizardCopy.noInstructions),
-      english(WizardCopy.addMedicationTitle)
+      english(WizardCopy.addMedicationTitle),
+      english(SettingsCopy.DayButton),
+      english(SettingsCopy.ZoneButton),
+      english(SettingsCopy.RemindersButton),
+      english(SettingsCopy.ThemeButton(ImageTheme.Auto)),
+      english(SettingsCopy.DiscreetButton(false))
     ).flatten.toSet
 
   /** The walk of the review: one script for both languages, the labels from the catalogue in the user's language. */
@@ -435,6 +459,13 @@ class NewUserWalkSuite extends PgSuite:
     chat.say("/privacy")
     // Finding 19: /privacy offers the export.
     tap(ExportCopy.ExportMyData)
+    chat.note("/settings: the hub, whose switches edit it in place")
+    chat.say("/settings")
+    tap(SettingsCopy.ThemeButton(ImageTheme.Auto))
+    tap(SettingsCopy.DiscreetButton(false))
+    tap(SettingsCopy.DiscreetButton(true))
+    tap(SettingsCopy.DayButton)
+    tap(Labels.Back)
     chat.note("The rest of the day: what the bot sends on its own until 22:00")
     chat.passUntil(at("22:00"))
     chat.note("The next morning: the summary of the first day at 08:00")
@@ -449,6 +480,7 @@ class NewUserWalkSuite extends PgSuite:
     assertReviewed(Lang.Uk, lines, shown)
     assertAnalytics(Lang.Uk, lines, drawn)
     assertMoodHistory(Lang.Uk, lines, drawn)
+    assertSettings(Lang.Uk, lines)
     assert(lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezoneSuggested))), "Kyiv suggested by the language")
     assert(!lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezonePrompt))), "no picker before the suggestion")
     // Walk-through of 2026-11-27: the onboarding and wizard buttons were English for a Ukrainian reader.
@@ -468,4 +500,5 @@ class NewUserWalkSuite extends PgSuite:
     assertReviewed(Lang.En, lines, shown)
     assertAnalytics(Lang.En, lines, drawn)
     assertMoodHistory(Lang.En, lines, drawn)
+    assertSettings(Lang.En, lines)
 end NewUserWalkSuite
