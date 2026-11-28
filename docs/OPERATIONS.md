@@ -1202,3 +1202,27 @@ before the day's first answer counted today, whose only dose was still open, as 
 records ("Days with records: 2 of 332" beside the card's "1 of 332"); a day whose only doses are
 open no longer counts. That commit changes only that count, so the assembly the owner builds
 starts the same way.
+
+## 24. Deploying `main` with the leftovers of the verification of 2026-11-28 over the live V27 database
+
+No migration (V28 stays unused), no environment variable, no binary and no Dockerfile change: the steps of
+section 23 apply as written, except that the start logs `migrate: 0 migration(s) applied, schema 27` and no
+`sealing:` line counts a value unless the bot was rolled back in between. What changes for the owner
+(supervisor decisions, 2026-11-28):
+
+- "Days with records" counts by one rule everywhere: `/stats month`, the monthly report and card, the Mini App
+  month, the medication block's 14-day gate and the week's hit days leave out a day whose only doses have no
+  record (an outage) or are still open, as `/stats year` already did; the month says "Not counted: N days whose
+  only doses have no record (a service outage)" when it has such days (BOT_UX section 12). A month can therefore
+  show fewer days with records, and a medication block that met its gate on outage days no longer does.
+- An image answer the bot was down for is no longer deleted unsent an hour after it was asked: on the same local
+  day it is sent at the next start as its text with "Sent late: you asked for this at HH:MM."; from an earlier
+  day it is not sent and is counted in `dosegram_report_requests_dropped_total{template}`, its row finished
+  `text_fallback` with `error_class` `Stale` (ARCHITECTURE section 12.1). Check after a start:
+  `SELECT status, error_class, count(*) FROM report_requests GROUP BY 1, 2;` (codes only).
+- Rollback safety from this release on: a later release's outbox rows of a kind this one cannot send stay
+  `queued` with no attempt spent, no `dead` row and no owner alert, and a start after a rollback empties the
+  `'{}'` the release before V27 leaves in finished requests instead of sealing it (its log line then ends with
+  `emptied <n> finished`; ARCHITECTURE section 7.5). It does not make `4a9b03a` itself safe: rolled back to it,
+  a `sticker_set_removal` row still goes `dead` after eight attempts and raises the alert, so the rollback of
+  section 23 stays as written.

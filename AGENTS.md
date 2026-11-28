@@ -39,7 +39,7 @@ engine, and they govern nothing.
 
 ## Current entry point
 
-State of `main` on 2026-11-28 (`9a668be` and the docs after it), after
+State of `main` on 2026-11-28 (`e9ca532` and the docs after it), after
 thirteen rounds of parallel tracks were merged and wired together (the
 ninth: the new-user review and trends with the share builder, no
 migration; the tenth: chat analytics, V23, and image round 4; the
@@ -48,15 +48,16 @@ migration; the twelfth: analytics round 6, V26, and the animated mood
 blob, V25; the thirteenth: the settings hub in chat and the mood
 stickers, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
-parameters), and V24 (the order of an answer's messages, 2026-11-28).
+parameters), and V24 (the order of an answer's messages, 2026-11-28),
+and the leftovers of the verification of 2026-11-28 (no migration).
 The migrations are V1 to V19 and V22 to V27, 25 files
 (`scripts/check-frozen-migrations.sh` prints `25 migrations unchanged
 (V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 and V29
 were assigned to the thirteenth round's tracks and stay unused, so the
-next migration is V28. The live database is at V26 (`4a9b03a`):
-`docs/OPERATIONS.md` section 23 is the owner's deploy of the head (V27,
-sealed button labels and card pages, with the settings hub and the mood
-stickers; sections 8 to 22 the earlier parts). The Mini App
+next migration is V28. The live database is at V27 (`cd8f39a`, the
+deploy of `docs/OPERATIONS.md` section 23); section 24 is the owner's
+deploy of the head, with no migration (sections 8 to 23 the earlier
+parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
@@ -305,9 +306,8 @@ Useful next, in this order:
     seals the `/meds` button labels and the waiting card pages that held
     medication names in plaintext (G2.4b, OPERATIONS section 23, owner's
     step; the same start rebuilds the daily rollups now that every dose
-    counts on its scheduled day, ADR-012 addendum), the month's "days
-    with records" still counting days whose only doses have no record,
-    and the unreproduced hang of `WorkerLoopCancelPgSuite` (ROADMAP
+    counts on its scheduled day, ADR-012 addendum; done), and the
+    unreproduced hang of `WorkerLoopCancelPgSuite` (ROADMAP
     Appendix B, fixes of the verification of 2026-11-28).
 14. What the thirteenth round left open: live sends of `/settings` and
     its edits, of the sticker set and of the animated answer on real
@@ -321,6 +321,12 @@ Useful next, in this order:
     nowhere but itself, video and TGS stickers; the child-kill race of
     `ResvgWorkerPoolSuite` (ROADMAP Appendix B, integration of 2026-11-28,
     second round).
+15. What the leftovers of the verification of 2026-11-28 left open
+    (ROADMAP Appendix B): a rollback to `4a9b03a` still kills its
+    `sticker_set_removal` rows; a newer outbox op value would still break
+    the claim; a row that follows an unknown-kind row waits with it; the
+    month card's text equivalent does not name the outage days; live
+    sends of the late note.
 
 ## Agent workflow
 
