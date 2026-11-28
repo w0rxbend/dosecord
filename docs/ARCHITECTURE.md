@@ -413,6 +413,8 @@ Telegram offers no server-side idempotency key for `sendMessage` `A` (recorded i
 
 "Exactly once" is defined precisely in section 8.7.
 
+Rollback safety (supervisor decision, 2026-11-28). A release can meet outbox rows of a kind only a newer release writes, after a rollback (the release before the mood stickers met `sticker_set_removal` rows, which went `dead` after eight attempts and raised the owner alert). The dispatcher dispatches a row only when it is a `delete`, a sticker set removal or of a kind its renderer renders (`OutboxRenderer.renders`); any other row is handed back as if it had not been claimed (`OutboxRepository.leaveQueued`: `queued`, its attempt undone, no error, due again after `OutboxDispatcher.UnknownKindRecheck`, 30 minutes), so it spends no attempt, never goes `dead`, counts in no metric and raises no alert, and the next start of the release that wrote it sends it. A row that `follows` such a row waits with it (V24). A newer op value is not covered: the `op` column's check constraint admits the four ops of V1 only. The same rule keeps the sealing backfill from sealing what a previous release left without content: the V27 column `report_requests.params` of a finished request (`'{}'`, written by the release before V27) is emptied, not sealed (`SealedColumn.holdsNothingWhen`); the start logs `emptied <n> finished` after that column's count.
+
 ### 7.6 Flood-control sender
 
 Limits: about 30 messages per second across all chats and about 1 per second in one chat, then HTTP 429 `V[S5]`, with `parameters.retry_after` in seconds `V[S3]`. Limits for edits, `answerCallbackQuery`, `sendChatAction` and `getFile` are undocumented `A`. The test environment may be stricter `V[S4]`. All numbers below are configuration.

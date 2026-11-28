@@ -22,7 +22,8 @@ enum SealOwner:
 /** One Class A column and its sealed form (ARCHITECTURE SEC-01, SEC-04; V10, V11). `plain` is the column V11 emptied;
   * `encrypted` is the column the value lives in, bound to the row by `rowKey`. The repositories, the backfill, the
   * archive and the schema test all take the places from here, so the associated data cannot drift between writer and
-  * reader.
+  * reader. `holdsNothingWhen` is an SQL condition over alias `t` for rows whose value is kept by no reader: the
+  * backfill empties both columns of such a row instead of sealing its plaintext.
   */
 final case class SealedColumn(
     table: String,
@@ -30,7 +31,8 @@ final case class SealedColumn(
     encrypted: String,
     rowKey: String,
     owner: SealOwner,
-    lookup: Option[LookupColumn] = None
+    lookup: Option[LookupColumn] = None,
+    holdsNothingWhen: Option[String] = None
 ):
   def field(owner: KeyOwner, row: Any): SealedField = SealedField(owner, table, encrypted, row.toString)
 
@@ -170,9 +172,18 @@ object SealedColumns:
     SealOwner.AccountOr("t.account_id", TransportPurpose)
   )
 
-  /** An image waiting to be drawn (V27): its SVG, its text equivalent and its caption, which can name a medication. */
-  val CardPages: SealedColumn =
-    SealedColumn("report_requests", "params", "params_enc", "id", SealOwner.AccountOf("t.account_id"))
+  /** An image waiting to be drawn (V27): its SVG, its text equivalent and its caption, which can name a medication. A
+    * finished request keeps no pages; the release before V27 wrote '{}' when it finished one, which a rollback can
+    * leave behind, so a finished row is emptied, not sealed (supervisor decision, 2026-11-28).
+    */
+  val CardPages: SealedColumn = SealedColumn(
+    "report_requests",
+    "params",
+    "params_enc",
+    "id",
+    SealOwner.AccountOf("t.account_id"),
+    holdsNothingWhen = Some("t.status IN ('sent', 'text_fallback')")
+  )
 
   /** A staged record of an open import (V15): the whole normalised record, sealed. It has no plaintext column, so it is
     * in neither list below: the backfill has nothing to seal and the archive does not export the staging.

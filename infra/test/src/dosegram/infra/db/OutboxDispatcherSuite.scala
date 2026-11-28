@@ -559,6 +559,74 @@ class OutboxDispatcherSuite extends PgSuite:
     assert(metrics.outcomes.contains("sent:reminder"), "the healthy row is counted as sent")
     assertEquals(sendsOf(adapter).size, 1, "only the healthy row reached the vendor")
 
+  // Rollback safety (supervisor decision, 2026-11-28): the release before the stickers could not send the
+  // `sticker_set_removal` rows a newer release wrote; they went dead and raised an owner alert.
+  test("a row of a kind this release does not render stays queued, unattempted and alert-free, for a newer release"):
+    val clock = new MutableClock(t0)
+    val fixtures = Fixtures(dataSource)
+    val accountId = fixtures.account()
+    fixtures.deliveryChannel(accountId, "fake", "dm:owner", t0)
+    val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
+    val adapter = newAdapter()
+    val metrics = RecordingMetrics()
+    val future = NewOutboxMessage(
+      id = UUID.randomUUID(),
+      sendKey = "future-1",
+      op = OutboxOp.Send,
+      kind = "kind_of_a_newer_release",
+      vendor = "fake",
+      payload = """{"anything":"a newer release wrote"}""",
+      importance = "bulk",
+      nextAttemptAt = t0.minusMillis(1)
+    )
+    uow.transaction(_.outbox.enqueue(future))
+    uow.transaction(
+      _.outbox.enqueue(
+        NewOutboxMessage(
+          id = UUID.randomUUID(),
+          sendKey = "known-1",
+          op = OutboxOp.Send,
+          kind = "interaction_reply",
+          vendor = "fake",
+          accountId = Some(accountId),
+          payload = OutboundMessage.toJson(
+            OutboundMessage(List(Node.Paragraph(List(Inline.Text("Saved.")))), dedupeKey = "known-1", correlationId = "c")
+          ),
+          importance = "interaction_reply",
+          nextAttemptAt = t0
+        )
+      )
+    )
+    val production = dosegram.core.scheduling.PromptOutboxRenderer(
+      uow,
+      CatalogueOutboxRenderer(uow, codec, clock),
+      Set(dosegram.core.scheduling.PromptLoop.OutboxKind, "export")
+    )
+    val older = OutboxDispatcher(uow, Map("fake" -> adapter), production, clock, metrics = metrics)
+
+    assertEquals(older.dispatchOnce(), 2)
+    assertEquals(rowBySendKey("known-1").status, OutboxStatus.Sent, "the row behind it is sent")
+    val parked = rowBySendKey("future-1")
+    assertEquals(parked.status, OutboxStatus.Queued)
+    assertEquals(parked.attempts, 0, "the claim is undone: no attempt is spent")
+    assertEquals(parked.leaseUntil, None)
+    assertEquals(parked.lastError, None)
+    assertEquals(parked.nextAttemptAt, t0.plus(OutboxDispatcher.UnknownKindRecheck))
+    (1 to OutboxDispatcher.MaxAttempts + 2).foreach { _ =>
+      clock.at = rowBySendKey("future-1").nextAttemptAt
+      assertEquals(older.dispatchOnce(), 1)
+    }
+    assertEquals(rowBySendKey("future-1").status, OutboxStatus.Queued, "never dead, however often it is looked at")
+    assertEquals(rowBySendKey("future-1").attempts, 0)
+    assertEquals(metrics.outcomes, List("sent:interaction_reply"), "no retry, dead or failed metric: no alert")
+    assertEquals(sendsOf(adapter).size, 1)
+
+    // The newer release starts again and renders the kind.
+    clock.at = rowBySendKey("future-1").nextAttemptAt
+    assertEquals(dispatcher(uow, adapter, clock).dispatchOnce(), 1)
+    assertEquals(rowBySendKey("future-1").status, OutboxStatus.Sent)
+    assertEquals(rowBySendKey("future-1").attempts, 1)
+
   // The live row of 2026-11-14: a catch-up digest to a channel whose identity has no direct chat recorded.
   test("a digest to a channel without a chat is retried with a fixed reason and no vendor call"):
     val clock = new MutableClock(t0)

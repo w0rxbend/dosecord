@@ -31,12 +31,24 @@ final class SealingBackfill(dataSource: DataSource, keys: DataKeys):
 
   def run(stage: SealingStage, log: String => Unit): List[SealingCount] =
     stage.columns.map: column =>
+      val emptied = column.holdsNothingWhen.fold(0)(emptyUnkept(column, _))
       val sealedNow = Iterator.continually(sealBatch(stage, column)).takeWhile(_ > 0).sum
       val (verified, resealed) = verify(stage, column)
+      val emptiedNote = if emptied > 0 then s", emptied $emptied finished" else ""
       log(
-        s"sealing: ${column.table}.${column.plain} sealed ${sealedNow + resealed} value(s), verified $verified"
+        s"sealing: ${column.table}.${column.plain} sealed ${sealedNow + resealed} value(s), verified $verified$emptiedNote"
       )
       SealingCount(column, sealedNow + resealed, verified)
+
+  /** Empties both columns of the rows whose value no reader keeps (`holdsNothing`), before any is sealed. */
+  private def emptyUnkept(column: SealedColumn, holdsNothing: String): Int =
+    transaction: conn =>
+      given Connection = conn
+      SqlQuery(
+        s"UPDATE ${column.table} t SET ${column.plain} = NULL, ${column.encrypted} = NULL " +
+          s"WHERE t.${column.plain} IS NOT NULL AND $holdsNothing",
+        Vector.empty
+      ).execute()
 
   private def sealBatch(stage: SealingStage, column: SealedColumn): Int =
     transaction: conn =>

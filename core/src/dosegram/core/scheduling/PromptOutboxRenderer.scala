@@ -18,6 +18,8 @@ final class PromptOutboxRenderer(uow: UnitOfWork, next: OutboxRenderer, kinds: S
 
   def this(uow: UnitOfWork, next: OutboxRenderer) = this(uow, next, Set(PromptLoop.OutboxKind))
 
+  override def renders(kind: String): Boolean = kinds(kind) || next.renders(kind)
+
   override def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     if !kinds(row.kind) then next.render(row, capabilities)
     else

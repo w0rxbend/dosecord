@@ -55,6 +55,7 @@ final class InMemoryUnitOfWork extends UnitOfWork:
     override def failPermanently(id: UUID, error: String): Unit = ()
     override def cancel(id: UUID): Unit = ()
     override def forgetHandle(id: UUID): Unit = ()
+    override def leaveQueued(id: UUID, at: Instant): Unit = ()
     override def dead(id: UUID, error: String): Unit = ()
     override def deliveredFor(occurrenceId: UUID): Boolean = false
     override def cancelOlderQueued(occurrenceId: UUID, epoch: Int): Int = 0

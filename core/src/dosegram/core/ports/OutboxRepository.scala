@@ -146,6 +146,12 @@ trait OutboxRepository:
     */
   def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit
 
+  /** Hands a claimed row back as if it had not been claimed: `queued` again, due at `at`, the claim's attempt undone
+    * and no error recorded. For a row this release cannot dispatch (a kind written by a newer release), which must
+    * neither spend its attempt budget nor go `dead` (rollback safety, supervisor decision of 2026-11-28).
+    */
+  def leaveQueued(id: UUID, at: Instant): Unit
+
   /** Attempt budget spent or the channel is fatal (ADR-009): terminal `dead` status, the `dosegram_outbox_dead_total`
     * alert source (DESIGN.md section 10).
     */

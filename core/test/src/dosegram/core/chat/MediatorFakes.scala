@@ -261,6 +261,8 @@ object MediatorFakes:
       this.synchronized:
         states(id) = states(id).copy(status = OutboxStatus.FailedRetry, nextAttemptAt = Some(at),
           possibleDuplicate = possibleDuplicate)
+    override def leaveQueued(id: UUID, at: Instant): Unit = this.synchronized:
+      states(id) = states(id).copy(status = OutboxStatus.Queued, nextAttemptAt = Some(at))
     override def dead(id: UUID, error: String): Unit = this.synchronized:
       states(id) = states(id).copy(status = OutboxStatus.Dead)
     override def failPermanently(id: UUID, error: String): Unit = this.synchronized:

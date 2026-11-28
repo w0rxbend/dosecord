@@ -570,6 +570,54 @@ class SealingBackfillPgSuite extends PgSuite:
       assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "27", 0, 0), "a second start seals nothing")
     finally ds.close()
 
+  test("a start after a rollback empties the finished requests the previous release left as '{}', sealing nothing"):
+    // The rollback of the rehearsal of 2026-11-28: the V26 release finishes a request by writing '{}' into `params`,
+    // and the next start of the head sealed those empty objects as if they were pages.
+    val (_, ds) = databaseAt("27")
+    try
+      val keys = DataKeys(kek, MutableClock(t0))
+      val uow = PgUnitOfWork(ds, MutableClock(t0), keys)
+      val account = uow.transaction: tx =>
+        val principal = tx.identities.resolve(PlatformIdentity("telegram", "7006", None), t0)
+        tx.accounts.createAccount(principal.identityId, zone.getId, t0).uuid
+      val chat = ChatRef("telegram", "7006")
+      val water = ReportPage(
+        CardPage("card.water.v1", "<svg/>", "Water today: 1.0 l", "water.png", hasSpoiler = false, None, None),
+        OutboundMessage(body = List(Node.Paragraph(List(Inline.Text("Water")))), dedupeKey = "image:w", correlationId = "c")
+      )
+      val waiting = UUID.randomUUID()
+      withConnectionOf(ds): conn =>
+        given Connection = conn
+        // PgReportQueue of the V26 release over the V27 schema: one waiting request, two finished ones.
+        List(
+          (waiting, "queued", PgReportQueue.encode(chat, List(water))),
+          (UUID.randomUUID(), "sent", "{}"),
+          (UUID.randomUUID(), "text_fallback", "{}")
+        ).foreach: (id, status, params) =>
+          sql"""INSERT INTO report_requests (id, account_id, card_kind, params, status, deadline_at, created_at,
+                                             finished_at)
+                VALUES ($id, $account, 'card.water.v1', ${Jsonb(params)}, $status, ${t0.plusSeconds(60)}, $t0,
+                        ${Option.when(status != "queued")(t0)})""".execute()
+      val lines = List.newBuilder[String]
+      val result = SchemaUpgrade.run(ds, keys, line => lines += line)
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("27", 0, 1))
+      assert(
+        lines.result().contains("sealing: report_requests.params sealed 1 value(s), verified 0, emptied 2 finished"),
+        lines.result().toString
+      )
+      withConnectionOf(ds): check =>
+        given Connection = check
+        assertEquals(
+          sql"""SELECT count(*) FROM report_requests
+                WHERE status <> 'queued' AND (params IS NOT NULL OR params_enc IS NOT NULL)""".queryOne[Int](),
+          Some(0),
+          "a finished request keeps no pages, sealed or not"
+        )
+      assertEquals(uow.transaction(_.reports.claim(t0, Duration.ofSeconds(30))).map(r => (r.id, r.pages)),
+        Some((waiting, List(water))))
+      assertEquals(SchemaUpgrade.run(ds, keys, _ => ()), UpgradeResult(0, "27", 0, 0), "a second start seals nothing")
+    finally ds.close()
+
   test("a second start finds nothing to seal and applies nothing"):
     val (_, ds) = databaseAt("9")
     try

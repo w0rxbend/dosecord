@@ -53,6 +53,8 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
     val lang = row.accountId.fold(Lang.En)(id => uow.transaction(_.accounts.languageOf(id)))
     Lang.within(lang)(renderIn(row, capabilities))
 
+  override def renders(kind: String): Boolean = CatalogueOutboxRenderer.Kinds(kind)
+
   private def renderIn(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage) =
     row.kind match
       case "reminder"          => renderReminder(row, capabilities)
@@ -401,3 +403,8 @@ final class CatalogueOutboxRenderer(uow: UnitOfWork, codec: CallbackCodec, clock
           throw new IllegalArgumentException(
             s"outbox row ${row.id}: $kind kind with ${other.getClass.getSimpleName} payload"
           )
+
+object CatalogueOutboxRenderer:
+
+  /** The kinds [[CatalogueOutboxRenderer.render]] handles. */
+  val Kinds: Set[String] = Set("reminder", "missed_notice", "reminder_finalize", "digest", "interaction_reply")

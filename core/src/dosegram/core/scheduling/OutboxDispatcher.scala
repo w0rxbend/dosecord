@@ -31,6 +31,11 @@ import scala.util.control.NonFatal
 trait OutboxRenderer:
   def render(row: OutboxMessage, capabilities: CapabilityProfile): (ChatRef, RenderedMessage)
 
+  /** Whether this release renders rows of `kind`. A row of another kind was written by a newer release and left behind
+    * by a rollback: the dispatcher leaves it queued for that release (supervisor decision, 2026-11-28).
+    */
+  def renders(kind: String): Boolean = true
+
 /** Thrown by the digest renderer when every item resolved or went stale before the send (DESIGN.md section 7.5: the
   * dispatcher re-reads the items and skips the send). The dispatcher catches it and cancels the row without a vendor
   * call (ROADMAP M1.8).
@@ -53,6 +58,12 @@ object OutboxDispatcher:
   val FallbackAfter: Duration = Duration.ofMinutes(5)
 
   private val MaxBackoff: Duration = Duration.ofMinutes(30)
+
+  /** How long a row of a kind this release cannot dispatch waits before it is looked at again (rollback safety,
+    * supervisor decision of 2026-11-28): it stays queued with no attempt spent, so a later start of the release that
+    * wrote it sends it.
+    */
+  val UnknownKindRecheck: Duration = Duration.ofMinutes(30)
 
   /** `ops_done` bit 0: the primary send is recorded with its handle. */
   def sendRecorded(opsDone: Int): Boolean = (opsDone & 1) != 0
@@ -131,8 +142,9 @@ final class OutboxDispatcher(
     rows.size
 
   private def dispatchRow(row: OutboxMessage, now: Instant): Unit =
+    if !isDispatchable(row) then uow.transaction(_.outbox.leaveQueued(row.id, now.plus(UnknownKindRecheck)))
     // Epoch fencing (DESIGN.md sections 7.3/7.6): a row the occurrence has passed is cancelled without a vendor call.
-    if row.occurrenceId.isDefined && row.epoch.exists(epochIsStale(row, _)) then
+    else if row.occurrenceId.isDefined && row.epoch.exists(epochIsStale(row, _)) then
       uow.transaction(_.outbox.cancel(row.id))
     else
       // `fallback_after` (DESIGN.md section 7.6): a send still unsent past the early backoff rungs also reaches the
@@ -140,6 +152,12 @@ final class OutboxDispatcher(
       if row.op == OutboxOp.Send && Duration.between(row.nextAttemptAt, now).compareTo(FallbackAfter) > 0 then
         fallback(row, now)
       dispatchOwned(row, now)
+
+  /** A delete needs no rendering and a sticker set removal is dispatched here; any other row needs its kind rendered by
+    * this release.
+    */
+  private def isDispatchable(row: OutboxMessage): Boolean =
+    row.op == OutboxOp.Delete || row.kind == StickerSetRemoval.Kind || renderer.renders(row.kind)
 
   private def epochIsStale(row: OutboxMessage, epoch: Int): Boolean =
     uow.transaction(_.occurrences.epochIsStale(row.occurrenceId.get, epoch))

@@ -122,6 +122,15 @@ final class PgOutboxRepository(conn: Connection, keys: KeyService) extends Outbo
             WHERE id = $id""".execute()
     require(updated == 1, s"outbox row $id vanished before retry")
 
+  override def leaveQueued(id: java.util.UUID, at: Instant): Unit =
+    val updated =
+      sql"""UPDATE outbox_messages
+            SET status = 'queued', next_attempt_at = $at, lease_until = NULL,
+                attempts = GREATEST(attempts - 1, 0),
+                attempted_at = CASE WHEN attempts <= 1 THEN NULL ELSE attempted_at END
+            WHERE id = $id AND status = 'sending'""".execute()
+    require(updated == 1, s"outbox row $id vanished before it was left queued")
+
   override def forgetHandle(id: java.util.UUID): Unit =
     sql"""UPDATE outbox_messages SET platform_message_id = NULL, target = NULL
           WHERE id = $id AND account_id IS NULL AND chat_key IS NULL AND status = 'sent'""".execute()

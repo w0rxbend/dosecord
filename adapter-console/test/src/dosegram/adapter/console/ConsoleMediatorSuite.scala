@@ -225,6 +225,7 @@ private object ConsoleMediatorFakes:
     override def recordHandle(id: UUID, encodedHandle: String): Unit = ()
     override def markSent(id: UUID, encodedHandle: String, now: Instant, possibleDuplicate: Boolean): Unit = ()
     override def retry(id: UUID, at: Instant, possibleDuplicate: Boolean, error: String): Unit = ()
+    override def leaveQueued(id: UUID, at: Instant): Unit = ()
     override def dead(id: UUID, error: String): Unit = ()
     override def failPermanently(id: UUID, error: String): Unit = ()
     override def cancel(id: UUID): Unit = ()
