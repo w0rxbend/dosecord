@@ -363,6 +363,17 @@ export const en = {
     eachMedication: 'Each medication in this period',
     openDay: 'Open this day',
     period: 'This period',
+    // The Year tab (MINI_APP 7.11; supervisor decision, 2026-11-28).
+    yearTab: 'Year',
+    loadingYear: 'Loading the year',
+    previousYear: 'Previous year',
+    nextYear: 'Next year',
+    yearMonths: 'By month',
+    yearMonth: 'Month',
+    yearDays: 'Days with a record',
+    yearFigure: 'Figure',
+    yearText: 'Text of the year',
+    patternCard: 'Pattern card',
     empty: 'Insights appear after a few days of entries. Nothing is missing; there is just not enough yet.',
     start: {
       medication: 'Open medications',
@@ -598,6 +609,12 @@ export const en = {
     exportHint: 'One file with all your records, confirmed in the chat',
     deleteData: 'Delete data',
     deleteHint: 'One area or your whole account, confirmed in the chat',
+    // The two switches of the chat's /settings kept apart from the account row (BOT_UX 17).
+    reportsAndNotes: 'Reports and notes',
+    counts: 'Counts in reports',
+    countsHelp: 'Days with records, logging milestones and how many more days a figure needs, in reports and statistics.',
+    whatsNew: 'Notes after updates',
+    whatsNewHelp: 'One note in the chat after an update that adds something you can use.',
     about: 'Dosegram records what you log and reminds you of what you set. It gives no medical advice.',
   },
 

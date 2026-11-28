@@ -175,6 +175,14 @@ object Endpoints:
       .name("getInsightMonth")
       .description("One calendar month: one block per domain whose consent is active, and each medication's counts.")
 
+  val insightYear =
+    secured.get
+      .in("insights" / "year")
+      .in(query[Option[Int]]("year").description("A year from 1970 to the current one; absent is the current year"))
+      .out(jsonBody[InsightYear])
+      .name("getInsightYear")
+      .description("One calendar year as /stats year shows it: one area per domain whose consent is active, by month.")
+
   val insightCorrelations =
     secured.get
       .in("insights" / "correlations")
@@ -533,6 +541,7 @@ object Endpoints:
     insightsOverview,
     insightMonth,
     insightCorrelations,
+    insightYear,
     getReminders,
     listReminderPresets,
     createReminderPlan,

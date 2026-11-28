@@ -626,6 +626,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/insights/year": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One calendar year as /stats year shows it: one area per domain whose consent is active, by month. */
+        get: operations["getInsightYear"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reminders": {
         parameters: {
             query?: never;
@@ -1575,6 +1592,7 @@ export interface components {
             id: string;
             text: string;
             howWorkedOut?: string[];
+            chart?: components["schemas"]["Chart"];
         };
         /** InsightList */
         InsightList: {
@@ -1633,6 +1651,47 @@ export interface components {
             /** Format: int32 */
             goalMl: number;
             label: string;
+        };
+        /** InsightYear */
+        InsightYear: {
+            /** Format: int32 */
+            year: number;
+            yearLabel: string;
+            /** Format: int32 */
+            previousYear?: number;
+            /** Format: int32 */
+            nextYear?: number;
+            timeZone: string;
+            start: string;
+            end: string;
+            /** Format: int32 */
+            days: number;
+            /** Format: int32 */
+            daysWithRecords: number;
+            summary: string;
+            outageNote?: string;
+            gateNote?: string;
+            areas?: components["schemas"]["InsightYearArea"][];
+            lines?: string[];
+            notice?: string;
+        };
+        /** InsightYearArea */
+        InsightYearArea: {
+            id: components["schemas"]["InsightDomain"];
+            title: string;
+            /** Format: int32 */
+            recordedDays: number;
+            months?: components["schemas"]["InsightYearMonth"][];
+            total?: string;
+            heat?: components["schemas"]["Chart"];
+        };
+        /** InsightYearMonth */
+        InsightYearMonth: {
+            month: string;
+            label: string;
+            /** Format: int32 */
+            recordedDays: number;
+            text: string;
         };
         /** InsightsOverview */
         InsightsOverview: {
@@ -2299,6 +2358,8 @@ export interface components {
             timeZone: string;
             imageTheme: components["schemas"]["ImageThemeChoice"];
             animatedMood?: boolean;
+            countsInReports?: boolean;
+            whatsNew?: boolean;
         };
         /** SettingsView */
         SettingsView: {
@@ -2307,6 +2368,8 @@ export interface components {
             timeZone: string;
             imageTheme: components["schemas"]["ImageThemeChoice"];
             animatedMood: boolean;
+            countsInReports: boolean;
+            whatsNew: boolean;
             /** Format: int64 */
             version: number;
         };
@@ -4013,6 +4076,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightList"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInsightYear: {
+        parameters: {
+            query?: {
+                /** @description A year from 1970 to the current one; absent is the current year */
+                year?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightYear"];
                 };
             };
             default: {

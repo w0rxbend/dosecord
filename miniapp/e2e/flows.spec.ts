@@ -128,6 +128,17 @@ test('log water from the deep link: the amount is recorded, shown, and counted i
   expect((await quarter).status()).toBe(200);
   await expect(water.getByText('Water per week', { exact: true })).toBeVisible();
   await expect(water.getByText(/^Previous 90 days: /)).toBeVisible();
+  // The Year tab (supervisor decision, 2026-11-28): the year of /stats year from the real backend, a table of months
+  // per area and the weeks of water, the current week holding the water just added.
+  const year = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/year'));
+  await page.getByRole('group', { name: 'Period' }).getByLabel('Year').check();
+  expect((await year).status()).toBe(200);
+  const waterYear = page.getByRole('region', { name: 'Water, a day with records' });
+  await expect(waterYear.getByRole('table', { name: 'Water, a day with records: By month' })).toBeVisible();
+  await expect(waterYear.getByRole('slider', { name: 'Days with a record, week by week: values' })).toHaveAttribute(
+    'aria-valuetext',
+    /: [1-7] of [1-7] days with a record$/,
+  );
   const week = page.waitForResponse((r) => r.url().endsWith('/api/v1/insights/overview?range=7'));
   await page.getByLabel('7 days').check();
   expect((await week).status()).toBe(200);
@@ -240,6 +251,16 @@ test('reminders: a preset is turned on, then off again; the language is switched
   await page.getByRole('combobox', { name: 'Мова' }).selectOption('en');
   expect((await toEnglish).status()).toBe(200);
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+
+  // The switches of the chat's /settings that live apart from the account row (BOT_UX 17): off, then on again,
+  // because every test of the suite shares the account.
+  const reports = page.getByRole('region', { name: 'Reports and notes' });
+  for (const checked of [false, true]) {
+    const notes = page.waitForResponse((r) => r.url().endsWith('/api/v1/settings') && r.request().method() === 'PATCH');
+    await reports.getByRole('switch', { name: /Notes after updates/ }).setChecked(checked);
+    expect((await notes).status()).toBe(200);
+    await expect(reports.getByRole('switch', { name: /Notes after updates/ })).toBeChecked({ checked });
+  }
 
   // Deletion (MA-SET-7, ROADMAP G2.17): a danger button, a native confirmation, then the confirmation in the chat
   // (MA-STEP-1). The suite shares one account, so only the request of one area is made, and it deletes nothing

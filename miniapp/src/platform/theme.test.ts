@@ -85,12 +85,13 @@ describe('deriveTokens', () => {
   });
 
   it('keeps data colours at 3:1 by swapping to the other scheme, then to text', () => {
-    // A light scheme whose surface is dark: the light data colours fail, the dark ones pass.
+    // A light scheme whose surface is dark: the light water colour fails, the dark one passes.
     const swapped = deriveTokens({ section_bg_color: '#1f2226', text_color: '#f2f4f7' }, 'light');
     // A mid-grey surface on which neither variant of the sleep colour reaches 3:1.
     const grey = deriveTokens({ section_bg_color: '#8f79d8' }, 'light');
 
-    expect(swapped['domain-medication']).toBe(FALLBACK.dark['domain-medication']);
+    expect(contrast(FALLBACK.light['domain-hydration'], '#1f2226')).toBeLessThan(3);
+    expect(swapped['domain-hydration']).toBe(FALLBACK.dark['domain-hydration']);
     expect(grey['domain-sleep']).toBe(grey.text);
     expect(contrast(grey['domain-sleep'], grey.surface)).toBeGreaterThanOrEqual(3);
   });

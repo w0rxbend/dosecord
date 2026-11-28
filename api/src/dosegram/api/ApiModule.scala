@@ -73,6 +73,7 @@ final class ApiModule(
     ReportCardsApi(uow, clock, tracking.stats, cards, CardDelivery(clock, IdSource.uuidV7(SecureRandom())), pictures)
   private val insights = Insights(uow, tracking)
   private val insightReports = InsightReports(uow, tracking, clock)
+  private val insightYears = InsightYears(uow, tracking, clock)
   private val history = History(uow, tracking, clock)
   private val hydration = Hydration(uow, tracking)
   private val mood = Mood(uow, tracking, blobStates)
@@ -264,7 +265,10 @@ final class ApiModule(
       .handle(session => month => guarded(insightReports.month(session.accountId, month))),
     Endpoints.insightCorrelations
       .handleSecurity(authenticate)
-      .handle(session => _ => guarded(insightReports.correlations(session.accountId)))
+      .handle(session => _ => guarded(insightReports.correlations(session.accountId))),
+    Endpoints.insightYear
+      .handleSecurity(authenticate)
+      .handle(session => year => guarded(insightYears.year(session.accountId, year)))
   )
 
   private def languageOf(session: Session): Lang =

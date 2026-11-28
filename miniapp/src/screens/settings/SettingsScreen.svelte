@@ -31,8 +31,8 @@
   async function saveAccount(change: Partial<AccountSettingsInput>): Promise<void> {
     const before = loaded.data;
     if (!before) return;
-    const { language, timeZone, imageTheme, animatedMood, version } = before.account;
-    const input = { language, timeZone, imageTheme, animatedMood, ...change };
+    const { language, timeZone, imageTheme, animatedMood, countsInReports, whatsNew, version } = before.account;
+    const input = { language, timeZone, imageTheme, animatedMood, countsInReports, whatsNew, ...change };
     loaded.set({ ...before, account: { ...before.account, ...input } });
     // MA-SET-2: the new language shows at once; a failed save brings the previous one back.
     if (change.language !== undefined) setLocale(change.language);
@@ -139,6 +139,22 @@
           />
         </label>
       </fieldset>
+
+      <!-- The two switches of the chat's /settings kept in their own columns (BOT_UX 17): the same
+           stored values, written through the same writer. -->
+      <section class="section" aria-labelledby="set-reports">
+        <h2 class="section-title" id="set-reports">{en.settings.reportsAndNotes}</h2>
+        <div class="section-body">
+          <label class="toggle">
+            <span class="text"><span>{en.settings.counts}</span><span class="muted">{en.settings.countsHelp}</span></span>
+            <input type="checkbox" role="switch" checked={data.account.countsInReports} onchange={(event) => saveAccount({ countsInReports: event.currentTarget.checked })} />
+          </label>
+          <label class="toggle">
+            <span class="text"><span>{en.settings.whatsNew}</span><span class="muted">{en.settings.whatsNewHelp}</span></span>
+            <input type="checkbox" role="switch" checked={data.account.whatsNew} onchange={(event) => saveAccount({ whatsNew: event.currentTarget.checked })} />
+          </label>
+        </div>
+      </section>
 
       <section class="section" aria-labelledby="set-data">
         <h2 class="section-title" id="set-data">{en.settings.data}</h2>

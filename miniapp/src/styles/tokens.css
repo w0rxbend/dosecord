@@ -20,11 +20,11 @@
   --dg-focus: #1f6fd0;
   --dg-bottom-bar: #f0f2f5;
 
-  --dg-domain-medication: #2456c8;
-  --dg-domain-hydration: #0b7f8c;
-  --dg-domain-nutrition: #a85a00;
-  --dg-domain-mood: #b0307a;
-  --dg-domain-sleep: #6a42c2;
+  --dg-domain-medication: #0d9675;
+  --dg-domain-hydration: #02558f;
+  --dg-domain-nutrition: #955907;
+  --dg-domain-mood: #940f52;
+  --dg-domain-sleep: #8a66d9;
   --dg-recorded: #1f7a4d;
   --dg-neutral-strong: var(--dg-text);
   --dg-neutral-weak: var(--dg-separator);
@@ -89,11 +89,11 @@
   --dg-focus: #6cb0ff;
   --dg-bottom-bar: #0f1113;
 
-  --dg-domain-medication: #7fa6ff;
-  --dg-domain-hydration: #4cc4d2;
-  --dg-domain-nutrition: #f0a04b;
-  --dg-domain-mood: #f07ab8;
-  --dg-domain-sleep: #b49cff;
+  --dg-domain-medication: #2cab88;
+  --dg-domain-hydration: #1e85d4;
+  --dg-domain-nutrition: #a86614;
+  --dg-domain-mood: #b45689;
+  --dg-domain-sleep: #9d7aef;
   --dg-recorded: #5fcf94;
 }
 

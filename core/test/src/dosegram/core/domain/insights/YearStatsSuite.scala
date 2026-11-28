@@ -39,6 +39,17 @@ class YearStatsSuite extends munit.FunSuite:
       DateRange.between(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-12-31"))
     )
 
+  test("the weeks of a year start on the week start and are cut at the year's first day and at today"):
+    val weeks = YearStats.weeks(YearStats.window(2026, today), java.time.DayOfWeek.MONDAY)
+    // 1 January 2026 is a Thursday; 20 March 2026 is a Friday.
+    assertEquals(weeks.head, DateRange.between(LocalDate.parse("2026-01-01"), LocalDate.parse("2026-01-04")))
+    assertEquals(weeks(1), DateRange.between(LocalDate.parse("2026-01-05"), LocalDate.parse("2026-01-11")))
+    assertEquals(weeks.last, DateRange.between(LocalDate.parse("2026-03-16"), LocalDate.parse("2026-03-20")))
+    assertEquals(weeks.map(_.days).sum, YearStats.window(2026, today).days, "every day in exactly one week")
+    val full = YearStats.weeks(YearStats.window(2025, today), java.time.DayOfWeek.MONDAY)
+    assertEquals(full.size, 53)
+    assertEquals(full.last.end, LocalDate.parse("2025-12-31"))
+
   test("a month shows its figure from 14 recorded days; below that only its recorded days"):
     val hydration = water(YearMonth.of(2026, 1), 14, 2000) ++ water(YearMonth.of(2026, 2), 9, 1000)
     val figures = YearStats.of(2026, today, sources(hydration = Some(hydration)))

@@ -9,6 +9,7 @@ import dosegram.core.domain.copy.tr
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DayPoint
 import dosegram.core.domain.insights.DoseBuckets
+import dosegram.core.domain.insights.GroupMean
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.MealDay
 import dosegram.core.domain.insights.MedicationDay
@@ -28,7 +29,7 @@ import java.util.Locale
   * on the server; the client only paints them (ARCHITECTURE section 9.5.1).
   */
 object Charts:
-  private val Width = 320
+  private[api] val Width = 320
   private val PlotHeight = 96
   private val LabelRoom = 20
   private val AxisWidth = 44
@@ -39,8 +40,8 @@ object Charts:
   private val MoodLabelWidth = 96
   private val MoodPlotTop = 16.0
 
-  private final case class Point(x: Double, y: Double)
-  private final case class Box(x: Double, y: Double, width: Double, height: Double)
+  private[api] final case class Point(x: Double, y: Double)
+  private[api] final case class Box(x: Double, y: Double, width: Double, height: Double)
 
   /** The day columns of a plot: equal widths from `left` to the right edge of the scene. */
   private final case class Columns(left: Double, count: Int):
@@ -339,7 +340,7 @@ object Charts:
     if label.endsWith(".") then label else s"$label."
 
   /** After "з" ("за 3 з 7 днів"): the genitive of the count (ROADMAP G2.22). */
-  private val UkDaysOf = UkForms("дня", "днів", "днів")
+  private[api] val UkDaysOf = UkForms("дня", "днів", "днів")
   private val UkScheduledDosesOf = UkForms("запланованої дози", "запланованих доз", "запланованих доз")
 
   /** After "з": "з 1 дози", "з 5 доз". */
@@ -700,6 +701,53 @@ object Charts:
       marks = weekdays.map(row => s"${name(row)}: ${text(row)}")
     )
 
+  /** A pattern card of the Mini App's patterns (supervisor decision, 2026-11-28; VISUALS IR-05): the daily mood mean of
+    * each group of a comparison as a dot on the 1-to-5 scale, one row per group with its name and its days. Two
+    * descriptive values side by side: no line joins them and nothing marks one as better. `sentence` is the core's text
+    * of the pattern, the chart's accessible name.
+    */
+  def patternGroups(
+      rule: String,
+      names: (String, String),
+      groups: (GroupMean, GroupMean),
+      sentence: String
+  ): Chart =
+    val rows = List(names._1 -> groups._1, names._2 -> groups._2)
+    val top = 8.0
+    val rowHeight = 36.0
+    val gutter = 120.0
+    def xOf(mean: Double): Double = gutter + (mean - 1) / (MoodSteps - 1) * (Width - gutter)
+    def centre(index: Int): Double = top + rowHeight * index + rowHeight / 2
+    val drawn = rows.zipWithIndex.flatMap { case ((name, group), index) =>
+      List(
+        label(Point(0, centre(index) + 4), name, SceneAnchor.Start),
+        line(Point(gutter, centre(index)), Point(Width, centre(index)), SceneTone.Separator),
+        SceneNode(SceneShape.Circle, rounded(xOf(group.mean)), rounded(centre(index)), SceneTone.Mood)
+          .copy(radius = Some(5.0), mark = Some(index)),
+        rect(Box(gutter, top + rowHeight * index, Width - gutter, rowHeight), SceneTone.Separator)
+          .copy(shape = SceneShape.Hit, mark = Some(index))
+      )
+    }
+    val bottom = top + rowHeight * rows.size
+    val scale = tr(("Very unpleasant", "Very pleasant"), ("Дуже неприємно", "Дуже приємно"))
+    val ends = List(
+      label(Point(gutter, bottom + 14), scale._1, SceneAnchor.Start),
+      label(Point(Width, bottom + 14), scale._2, SceneAnchor.End)
+    )
+    def mean(group: GroupMean): String = TrendCopy.moodMean(group.mean)
+    Chart(
+      id = s"pattern-${rule.toLowerCase(Locale.ROOT)}",
+      title = tr("Average mood by group of days", "Середній настрій за групами днів"),
+      summary = sentence,
+      scene = Scene(Width, (bottom + LabelRoom).toInt, drawn ++ ends),
+      table = ChartTable(
+        tr("Average mood by group of days", "Середній настрій за групами днів"),
+        tr(List("Days", "Number of days", "Average mood"), List("Дні", "Кількість днів", "Середній настрій")),
+        rows.map((name, group) => List(name, group.days.toString, mean(group)))
+      ),
+      marks = rows.map((name, group) => s"$name: ${withCheckIn(s"${mean(group)}, ", group.days)}")
+    )
+
   /** When each night began and ended (VISUALS IMG-12 as a scene): one bar per sleep episode on a clock from evening to
     * morning, naps outlined. `None` without an episode. Every time is the user's own check-in.
     */
@@ -774,7 +822,7 @@ object Charts:
       points.lastOption.map(point => label(Point(Width, baseline), ApiCopy.dayMonth(point.date), SceneAnchor.End))
     first.toList ++ last.toList
 
-  private def rect(box: Box, tone: SceneTone): SceneNode =
+  private[api] def rect(box: Box, tone: SceneTone): SceneNode =
     SceneNode(
       SceneShape.Rect,
       rounded(box.x),
@@ -784,7 +832,7 @@ object Charts:
       Some(rounded(box.height))
     )
 
-  private def line(from: Point, to: Point, tone: SceneTone): SceneNode =
+  private[api] def line(from: Point, to: Point, tone: SceneTone): SceneNode =
     SceneNode(
       SceneShape.Line,
       rounded(from.x),
@@ -794,7 +842,7 @@ object Charts:
       y2 = Some(rounded(to.y))
     )
 
-  private def label(at: Point, content: String, anchor: SceneAnchor): SceneNode =
+  private[api] def label(at: Point, content: String, anchor: SceneAnchor): SceneNode =
     SceneNode(
       SceneShape.Text,
       rounded(at.x),

@@ -67,6 +67,72 @@ final class SettingsApiSuite extends ApiSuite:
       "validation_failed"
     )
 
+  test("Counts in reports and the notes after updates are switched with the settings, as the chat's /settings does"):
+    val account = telegramAccount("Europe/Kyiv")
+    val token = login(account)
+    val read = get("/api/v1/settings", token)
+    assertEquals((read.json("countsInReports").bool, read.json("whatsNew").bool), (true, true), "both on by default")
+    val body = settingsBody("Europe/Kyiv")
+    body("countsInReports") = false
+    body("whatsNew") = false
+    val off = patch("/api/v1/settings", body, token, ifMatch(read))
+    assertEquals(off.status, 200, off.body)
+    assertEquals((off.json("countsInReports").bool, off.json("whatsNew").bool), (false, false))
+    assertNotEquals(off.json("version").num, read.json("version").num, "both are part of the version")
+    val stored = uow.transactionAs(account.accountId)(tx =>
+      (tx.accounts.gamificationOf(account.accountId), tx.accounts.whatsNewOf(account.accountId).enabled)
+    )
+    assertEquals(stored, (false, false), "the columns the chat's switches write")
+    val kept = patch("/api/v1/settings", settingsBody("Europe/Kyiv", "dark"), token, ifMatch(off))
+    assertEquals((kept.json("countsInReports").bool, kept.json("whatsNew").bool), (false, false), kept.body)
+    // The chat's switch moves the value the app reads and its version.
+    uow.transactionAs(account.accountId)(tx =>
+      AccountSettingsEdits(clock).setCounts(tx, account.accountId, AuditChannel.Bot, on = true)
+    )
+    val after = get("/api/v1/settings", token)
+    assertEquals(after.json("countsInReports").bool, true)
+    assertNotEquals(after.header("ETag"), kept.header("ETag"))
+
+  test("every value the chat's /settings sets is a member the app's settings read (BOT_UX 17, supervisor 2026-11-28)"):
+    // A new switch of the hub fails here until the app reads its value: an entry either sets a value, read from the
+    // document and member named, or only opens a page of the hub.
+    val opensAPage = Set(
+      "settings.open",
+      "settings.day",
+      "settings.anchor_pick",
+      "settings.work_pick",
+      "settings.quiet_pick",
+      "settings.privacy"
+    )
+    val readFrom = Map(
+      "settings.language" -> ("/api/v1/settings", "language"),
+      "settings.timezone" -> ("/api/v1/settings", "timeZone"),
+      "settings.theme" -> ("/api/v1/settings", "imageTheme"),
+      "settings.animated" -> ("/api/v1/settings", "animatedMood"),
+      "settings.counts" -> ("/api/v1/settings", "countsInReports"),
+      "settings.whatsnew" -> ("/api/v1/settings", "whatsNew"),
+      "settings.discreet" -> ("/api/v1/notification-settings", "discreet"),
+      "settings.quiet_set" -> ("/api/v1/reminders/day", "quietStart"),
+      "settings.anchor_set" -> ("/api/v1/reminders/day", "wake"),
+      "settings.work_set" -> ("/api/v1/reminders/day", "workDays")
+    )
+    val hub = dosegram.core.chat.ActionRegistry.entries.map(_.name).filter(_.startsWith("settings.")).toSet
+    assertEquals(hub -- opensAPage -- readFrom.keySet, Set.empty[String], "a switch of the hub the app does not read")
+    val token = login(telegramAccount("Europe/Kyiv"))
+    readFrom.values.toList.distinct.foreach: (path, member) =>
+      val read = get(path, token)
+      assertEquals(read.status, 200, s"$path: ${read.body}")
+      assert(read.json.obj.contains(member), s"$path has no $member: ${read.body}")
+
+  test("the languages offered are the chat's languages, each named as the chat's /settings names it"):
+    val read = get("/api/v1/settings", login(accountWithoutConsent()))
+    assertEquals(
+      read.json("languages").arr.map(choice => choice("code").str -> choice("label").str).toList,
+      dosegram.core.domain.copy.Lang.values.toList.map(lang =>
+        lang.code -> dosegram.core.domain.copy.LanguageCopy.name(lang)
+      )
+    )
+
   test("Ukrainian is offered in its own name; once chosen, the bootstrap and the server's sentences follow (G2.22)"):
     val account = telegramAccount("Europe/Kyiv")
     val token = login(account)

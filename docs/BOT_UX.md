@@ -1577,6 +1577,7 @@ Decisions (supervisor decision, 2026-11-28):
 - The Undo of BUX-SET-02 is the switch itself: the old value is on the button that replaced it, for as long as the card stays. No separate Undo button and no 15-minute window.
 - Quiet hours are offered as six fixed ranges and the typed `/reminders quiet`; "off" stays the typed `/reminders quiet off`. With none stored, the card shows the default 22:00–07:00 that the prompts use (section 14.3).
 - Not built from the table above: sound per kind, the daily budget, "Pause everything until", units, the 12- or 24-hour clock, the first day of the week, turning a domain off (BUX-SET-04), protect images, the Today pin and "Open all settings" while the Mini App is off on live.
+- Parity with the Mini App (supervisor decision, 2026-11-28, Mini App year track): every value this card sets is a value of the Mini App settings (MINI_APP MA-SET-13), counts in reports and notes after updates included (`countsInReports`, `whatsNew` of `GET` and `PATCH /settings`), and the Mini App offers the languages this card offers, named as it names them. `SettingsApiSuite` fails when an action of this card that sets a value has no member the app reads.
 
 ## 18. Undo and correction
 

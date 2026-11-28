@@ -26,6 +26,7 @@ import { MockDay, otherDay } from './day';
 import { MockImports } from './imports';
 import { buildInsightList, buildMonth, buildOverview, doseHistory } from './insights';
 import { buildPreview } from './preview';
+import { buildYear } from './year';
 import { MockReminders } from './reminders';
 import { MockTracking } from './tracking';
 
@@ -471,6 +472,14 @@ export class MockBackend implements ApiClient {
 
   insightList: ApiClient['insightList'] = () =>
     this.respond('insights/correlations', () => buildInsightList(this.tracking, this.scenario !== 'empty'));
+
+  insightYear: ApiClient['insightYear'] = (year) =>
+    this.respond('insights/year', () => {
+      if (year !== undefined && year > Number(this.localToday().slice(0, 4))) {
+        throw new ApiError('validation', 'MOCK-0422', [{ field: 'year', code: 'in_future' }]);
+      }
+      return buildYear(year, this.localToday(), this.tracking);
+    });
 
   private preview(medicationId: string, draft: ScheduleDraft) {
     const { doseUnit } = this.find(medicationId).medication;

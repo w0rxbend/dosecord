@@ -2,6 +2,8 @@
 // descriptive sentences, laid-out scenes. Counts and durations only: no score, no rating word,
 // no comparison with other people (MA-INS-2).
 import type {
+  Chart,
+  InsightItem,
   Scene,
   SceneNode,
   InsightBlock,
@@ -268,6 +270,40 @@ export function buildMonth(
     medications: rows.filter((row) => row.resolved > 0),
     notice: reportable ? undefined : 'A monthly summary needs one area with records on at least 14 days.',
   };
+}
+
+/** IR-05 with its pattern card, as the server lays it out (supervisor decision, 2026-11-28). */
+export function plannedMealsPattern(how: readonly string[]): InsightItem {
+  const text =
+    'On the 10 days you logged every meal you planned, your average mood was 3.8 (pleasant). On the 9 other days with a meal logged it was 3.3 (neutral). This compares your own days. It does not show a cause.';
+  const rows = [
+    ['Every planned meal logged', 10, 3.8, '3.8 (pleasant)'],
+    ['Other days with a meal logged', 9, 3.3, '3.3 (neutral)'],
+  ] as const;
+  const gutter = 120;
+  const xOf = (mean: number): number => gutter + ((mean - 1) / 4) * (320 - gutter);
+  const nodes = rows.flatMap(([name, , mean], index): SceneNode[] => {
+    const y = 8 + 36 * index + 18;
+    return [
+      { kind: 'text', x: 0, y: y + 4, text: name, fill: 'text-muted', anchor: 'start' },
+      { kind: 'line', x1: gutter, y1: y, x2: 320, y2: y, stroke: 'separator' },
+      { kind: 'circle', x: xOf(mean), y, r: 5, fill: 'domain-mood', mark: index },
+      { kind: 'hit', x: gutter, y: y - 18, width: 320 - gutter, height: 36, mark: index },
+    ];
+  });
+  const chart: Chart = {
+    id: 'pattern-ir-05',
+    title: 'Average mood by group of days',
+    summary: text,
+    scene: { width: 320, height: 98, nodes },
+    table: {
+      caption: 'Average mood by group of days',
+      columns: ['Days', 'Number of days', 'Average mood'],
+      rows: rows.map(([name, days, , mean]) => [name, String(days), mean]),
+    },
+    marks: rows.map(([name, days, , mean]) => `${name}: ${mean}, ${days} days with a check-in`),
+  };
+  return { id: 'IR-05.DailyMoodMean', text, howWorkedOut: how, chart };
 }
 
 export function buildInsightList(tracking: MockTracking, hasHistory: boolean): InsightList {

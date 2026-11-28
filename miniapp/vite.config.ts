@@ -11,7 +11,11 @@ export default defineConfig(({ mode }) => {
   return {
     base: '/app/',
     plugins: [svelte(), svelteTesting()],
-    server: apiProxy ? { proxy: { '/api': apiProxy } } : undefined,
+    server: {
+      ...(apiProxy ? { proxy: { '/api': apiProxy } } : {}),
+      // The renderer's generated stylesheet is the source of the data palette; a test reads it (palette.test.ts).
+      fs: { allow: ['.', '../report-renderer/test/resources/goldens'] },
+    },
     build: {
       target: ['chrome100', 'safari15.4'],
       sourcemap: 'hidden',
@@ -21,6 +25,8 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       include: ['src/**/*.test.ts'],
       restoreMocks: true,
+      // The token stylesheets are read as text by palette.test.ts; every other stylesheet stays empty in tests.
+      css: { include: [/tokens\.css/] },
     },
   };
 });

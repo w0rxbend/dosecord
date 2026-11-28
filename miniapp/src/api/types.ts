@@ -368,6 +368,42 @@ export interface InsightItem {
   readonly id: string;
   readonly text: string;
   readonly howWorkedOut: readonly string[];
+  /** Its pattern card: each group's mood mean with its days (IR-05; supervisor decision, 2026-11-28). */
+  readonly chart?: Chart;
+}
+
+/** One month of an area of the year: `text` is the cell as `/stats year` prints it. */
+export interface InsightYearMonth {
+  readonly month: string;
+  readonly label: string;
+  readonly recordedDays: number;
+  readonly text: string;
+}
+
+/** One area of the year: its months, the year in words, and the weeks as a chart (never for medication). */
+export interface InsightYearArea {
+  readonly id: Domain;
+  readonly title: string;
+  readonly recordedDays: number;
+  readonly months: readonly InsightYearMonth[];
+  readonly total?: string;
+  readonly heat?: Chart;
+}
+
+/** The calendar year of `/stats year` (MINI_APP 7.11, the Year tab); `lines` are the chat's text word for word. */
+export interface InsightYear {
+  readonly year: number;
+  readonly yearLabel: string;
+  readonly previousYear?: number;
+  readonly nextYear?: number;
+  readonly days: number;
+  readonly daysWithRecords: number;
+  readonly summary: string;
+  readonly outageNote?: string;
+  readonly gateNote?: string;
+  readonly areas: readonly InsightYearArea[];
+  readonly lines: readonly string[];
+  readonly notice?: string;
 }
 
 export interface InsightList {
@@ -704,6 +740,10 @@ export interface AccountSettings {
   readonly imageTheme: ImageTheme;
   /** "Animated mood": the answer to a mood check-in in the chat moves (VISUALS section 4.6). */
   readonly animatedMood: boolean;
+  /** "Counts in reports" (PRODUCT_SPEC R-GAM-5), the switch of the chat's /settings. */
+  readonly countsInReports: boolean;
+  /** "Notes after updates" (BOT_UX section 6.5), the switch of the chat's /settings. */
+  readonly whatsNew: boolean;
   readonly version: number;
 }
 
@@ -712,6 +752,9 @@ export interface AccountSettingsInput {
   readonly timeZone: string;
   readonly imageTheme: ImageTheme;
   readonly animatedMood: boolean;
+  /** Absent keeps the stored choice, as the server does for a client written before it. */
+  readonly countsInReports?: boolean;
+  readonly whatsNew?: boolean;
 }
 
 export interface QuietHours {
