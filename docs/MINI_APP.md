@@ -642,6 +642,8 @@ MA-NATIVE-3. A destructive action (delete an entry, archive a medication, withdr
 
 MA-NATIVE-4. On a client where `SecondaryButton` is unavailable, the secondary action is an in-page text button directly above the bottom edge. With the minimum level of section 3.3 this branch is exercised only in the fake (section 14.1). [U]
 
+Bottom buttons as built (supervisor decision, 2026-11-28). `MainButton` saves the screens whose page is one form: the medication editor, the schedule builder, the water goal and amounts, the mood check-in, the time zone, the quiet hours, and the meal sheet of S-08, which draws no second save button in the page (the sheet's Cancel stays in the page). Every one of these asks with the native popup before it is left changed and keeps `enableClosingConfirmation()` on while it is changed (MA-NAV-5, MA-NATIVE-9): the meal sheet once its type, time or words differ from how it opened, the check-in once the slider has moved, the time zone once a zone other than the account's is chosen, the quiet hours while they differ from the values read or last saved. Screens with more than one writing control keep their buttons in the page: Sleep (its one-tap check-ins and the night form), Water (the amounts and "Other amount"), Reports (the summary and the export) and the day profile, whose form is shared with Reminders. `SecondaryButton` is not used.
+
 ### 6.2 BackButton and SettingsButton
 
 Rules MA-NAV-2 and MA-NAV-3. The application never draws its own back arrow in the page header, because the native one is always present on non-root screens; two back controls would compete.
@@ -658,6 +660,8 @@ Rules MA-NAV-2 and MA-NAV-3. The application never draws its own back arrow in t
 
 MA-NATIVE-5. Haptics accompany a visible change and never replace one. They are skipped under "Reduce motion" (MA-DS-5) and can be turned off in S-15. No haptic fires without a direct user action. [M]
 
+Haptics as built (supervisor decision, 2026-11-28): a dose marked taken, a check-in saved (on Today and on S-09), water added (success when it first reaches the goal, else light) and every refused or failed save fire the calls of the table. The adapter skips them while the system asks for reduced motion (`prefers-reduced-motion: reduce`); the "Vibration" switch of S-15 (`ui_v1_haptics`) is not built.
+
 ### 6.4 Popups
 
 `showConfirm` and `showPopup` are used for: discarding a dirty form, deleting an entry, archiving a medication, ending a schedule, and the first confirmation of account deletion. `showAlert` is not used for errors; errors are shown in the page so that a screen reader user can re-read them.
@@ -673,6 +677,8 @@ MA-NATIVE-8. The application never calls `requestFullscreen()` or `lockOrientati
 MA-NATIVE-9. `enableClosingConfirmation()` is active while a form is dirty or while the unsent-writes queue of section 8.4 is not empty, and inactive otherwise. [M]
 
 MA-NATIVE-10. On `deactivated` the application stops polling, flushes the unsent-writes queue if online, saves a dirty form's draft, and, when the privacy curtain setting is on, covers the content (section 11). On `activated` it refreshes the visible screen if its data is older than 30 seconds. [M]
+
+Theme and frame as built (supervisor decision, 2026-11-28). The theme adapter maps `themeParams` onto the tokens of section 5.2 with the R5 data palette of section 5.4 and applies them again on `themeChanged`; the same pass sets Telegram's header and WebView background to `--dg-bg` and its bottom bar to `--dg-bottom-bar` (`setHeaderColor`, `setBackgroundColor`, `setBottomBarColor`, each skipped on a client without it), so the native frame follows a theme change with the page. The insets are applied again on `viewportChanged`, `safeAreaChanged`, `contentSafeAreaChanged` and `fullscreenChanged`, so a client that starts or switches to fullscreen keeps the header below its floating controls (MA-NATIVE-8).
 
 ### 6.6 Storage
 
@@ -691,7 +697,7 @@ Decision: no health data and no credential in any client-side store.
 | Key | Values | Purpose |
 |---|---|---|
 | `ui_v1_last_tab` | `today`, `meds`, `log`, `insights` | Not used for launch (launch always follows the route); used to restore the tab after gate screen G-5's reload |
-| `ui_v1_insights_range` | `7`, `30`, `90` | Default range on S-11 |
+| `ui_v1_insights_range` | `7`, `30`, `90`, `year` | The period or Year tab S-11 opens on (supervisor decision, 2026-11-28: one key for the one control) |
 | `ui_v1_calendar_mode` | `month`, `year` | Default mode on S-12 |
 | `ui_v1_hints_seen` | Comma-separated hint ids | One-time hints (home-screen shortcut, day line legend) |
 | `ui_v1_haptics` | `on`, `off` | Haptics preference |
@@ -703,6 +709,8 @@ Rejected alternative: a `DeviceStorage` draft and offline queue, as R02 section 
 MA-STORE-1. A test writes canary strings into every user-editable field, exercises every screen, and then asserts that no canary appears in `CloudStorage`, `DeviceStorage`, `SecureStorage`, `localStorage`, `sessionStorage`, IndexedDB, the Cache API or cookies. [M][O]
 
 MA-STORE-2. `CloudStorage` access is asynchronous and may fail. Every read has a default and a 500 ms timeout; a failure never blocks a screen. [U]
+
+As built (supervisor decision, 2026-11-28): `TelegramPort.preferences` reads and writes `CloudStorage` with the 500 ms timeout; a client without `CloudStorage`, an error or a stalled read gives the default, and nothing is kept anywhere else. Only `ui_v1_insights_range` is used: S-11 waits for it before its first read, so it asks for the remembered period only, and writes it on every change of period or tab. The other keys of the table are not used yet.
 
 ### 6.7 Biometric app lock (later wave)
 
@@ -816,6 +824,8 @@ MA-TODAY-9. Viewing another date uses the same screen with `today?date=`. Future
 States: skeleton with three card placeholders and the water row; empty state "Nothing scheduled today" with the actions "Add a medication" and "Log an as-needed dose"; a day with only trackers shows the trackers without the medication groups.
 
 Today's daily actions (supervisor decision, 2026-11-15; ROADMAP G3.7). The doses of today are answered here: `POST /occurrences/{id}/actions` (I) takes `taken`, `skipped`, `snoozed` with one of the occurrence's `snoozeChoicesMinutes`, or `undo`, and runs the chat's own use case (`DoseCommands`, shared with `DoseIntakeHandler`): the same decide table, the same `dose_actions` row with the request's key as its correlation id and `miniapp` as its surface, the same finalize of the reminder message in the chat through the outbox and the same `intake_taken` event. The route is behind the medication consent, bound to the session's account (another account's dose is not found) and answers with the state the server holds: `recorded`, `already_resolved` with `resolvedIn` `chat` or `app` (MA-TODAY-3), or `refused` with the rule's name (an undo past its window); only `recorded` changes anything. Snooze is offered only while the policy allows one. Another day is read-only. The water presets carry Undo, which voids the entry. A Food section offers one chip per main meal not yet logged and one for a snack: one tap records the meal at the current time with no words (S-08 behaviour 1), with Undo; "Open the food diary" leads to S-08. Each tracker section ends with one plain link to its screen ("Open water", "Open sleep"). The corrections of the occurrence sheet (behaviour 3) and the as-needed sheet are not built.
+
+Quick actions (supervisor decision, 2026-11-28). Today opens with a section "Quick actions" of up to three controls, each one tap: "Taken: {medication}, {time}" for the earliest dose due now, through the same `POST /occurrences/{id}/actions` with a key made at the tap, the same optimistic state, toast and Undo as its card, inactive until the server has answered so a second tap of the same press answers nothing else; "+{amount} ml water" for the default vessel, which is the first of the person's own quick-add amounts (R-HYD-3; no setting of its own), with the same Undo as the water row; and "Mood check-in", which opens the check-in of S-09. A dose still to come has no quick action, so one tap never records a dose hours ahead; its row and sheet still answer it. The section appears only on today, each control only when its domain's consent is given, and the dose control only on a day that is not read-only.
 
 ### 7.2 S-02 Medication list
 
@@ -1786,7 +1796,7 @@ MA-SET-9. A link to the privacy policy is reachable from S-15 in two taps and fr
 
 MA-SET-10. Reminders (ADR-023, route `/settings/reminders`, start parameter `reminders`), reached from S-15. One block per prompt kind that can be turned on (water, mood, bedtime, morning) with its preset and next time; the presets of the kind as a choice with nothing preselected, whose preview of the next five times shows before anything is saved, and "Turn on" and "Turn off". "Pause 1 h" and "Pause 3 h", or "Resume", with the sentence that medication reminders are not affected. Tomorrow's reminders across every domain as a timeline, medication reminders without a name. The medication schedule count links to S-02. The day profile (wake, breakfast, lunch, dinner, bedtime, work days, work start and end, quiet hours) saves on the version read; work that ends before it starts is refused before the request. Routes: `GET /reminders`, `GET /reminders/presets` (with the medication presets as schedule drafts), `POST /reminders/plans`, `DELETE /reminders/plans/{kind}`, `POST /reminders/pause`, `GET` and `PATCH /reminders/day`, `GET /reminders/timeline`. [M]
 
-MA-SET-11. Settings complete (supervisor decision, 2026-11-14, owner asleep). The day profile also has its own page, `/settings/day` (start parameter `set_day`), reached from the Reminders section, with the same form, the same version rule and the same refusal of work that ends before it starts as MA-SET-10. A section "Your data" holds "Export everything" (S-14) and "Set up Dosegram" (S-19). The language choice lists the locales the server offers in `settings.languages`; English is the default and the only locale until the localisation track adds another. "Reduce motion" and "Vibration" are not built: without a `CloudStorage` member in `TelegramPort` they could not outlive the session. [M]
+MA-SET-11. Settings complete (supervisor decision, 2026-11-14, owner asleep). The day profile also has its own page, `/settings/day` (start parameter `set_day`), reached from the Reminders section, with the same form, the same version rule and the same refusal of work that ends before it starts as MA-SET-10. A section "Your data" holds "Export everything" (S-14) and "Set up Dosegram" (S-19). The language choice lists the locales the server offers in `settings.languages`; English is the default and the only locale until the localisation track adds another. "Reduce motion" and "Vibration" are not built: without a `CloudStorage` member in `TelegramPort` they could not outlive the session. Since 2026-11-28 `TelegramPort.preferences` exists (section 6.6); the two switches are still not built. [M]
 
 MA-SET-12. "Animated mood" (supervisor decision, 2026-11-28; VISUALS section 4.6). A switch under "Images in chat", off by default, saved with the account settings (`animatedMood` of `GET` and `PATCH /settings`; a body without it keeps the stored choice). On, the answer to a mood check-in in the chat is the blob moving for 3 seconds in a loop, with the same caption and buttons; it has no effect while discreet reminders are on, and the help line says so. Under reduced motion (MA-DS-5) the switch can be turned off but not on, and the help line reads "Off while reduced motion is on for this device." [M]
 
