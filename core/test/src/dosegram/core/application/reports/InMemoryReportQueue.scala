@@ -53,7 +53,7 @@ final class InMemoryReportQueue extends ReportQueue:
         val claimed = row.copy(status = ReportStatus.Rendering, attempts = row.attempts + 1, leaseUntil = Some(now.plus(lease)))
         rows.put(row.request.id, claimed)
         val r = row.request
-        ReportRequest(r.id, r.accountId, r.chat, r.pages, r.createdAt, r.deadlineAt, claimed.attempts)
+        ReportRequest(r.id, r.accountId, r.chat, r.pages, r.createdAt, r.deadlineAt, claimed.attempts, r.stickers)
 
   override def finish(
       id: UUID,

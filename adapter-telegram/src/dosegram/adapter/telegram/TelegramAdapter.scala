@@ -10,6 +10,7 @@ import dosegram.core.domain.copy.Lang
 import dosegram.core.ports.Clock
 import dosegram.core.ports.InboundInbox
 import dosegram.core.ports.PendingInboxEntry
+import dosegram.core.ports.StickerSets
 import ox.discard
 
 import java.sql.SQLException
@@ -92,6 +93,9 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
   private val sink = AtomicReference(Option.empty[InboundSink])
   private val reader = AtomicReference(Option.empty[LongPollReader])
   private val botUsername = AtomicReference(Option.empty[String])
+
+  /** The personal sticker sets of this bot ("My mood stickers"), named by the username `getMe` gave at start. */
+  val stickerSets: StickerSets = TelegramStickerSets(api, runtime.media, () => botUsername.get(), runtime.log)
 
   // ---------- Lifecycle ----------
 

@@ -253,6 +253,11 @@ trait StatusCards:
   /** IMG-25, the week highlights, the second photo of the weekly report. */
   def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] = None
 
+  /** The sticker of one valence step for "My mood stickers" (supervisor decision of 2026-11-28): the blob alone on a
+    * transparent 512 px square, the same picture for everyone, with no theme and no words; `None` without a renderer.
+    */
+  def moodSticker(valence: Valence): Option[CardPage] = None
+
 object StatusCards:
 
   /** No renderer is wired: every flow answers with its text. */

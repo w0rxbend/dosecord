@@ -133,7 +133,8 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       Workers.outboxRenderer(uow, codec, clock),
       clock,
       metrics = MicrometerOutboxMetrics(),
-      buckets = Some(TokenBuckets(clock, TokenBuckets.defaults))
+      buckets = Some(TokenBuckets(clock, TokenBuckets.defaults)),
+      stickers = parts.images.stickers
     )
     fork:
       // Ownership before the first claim (ADR-009): a second process that hosts this vendor waits here.
@@ -271,7 +272,8 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       clock,
       IdSource.uuidV7(java.security.SecureRandom()),
       log,
-      MicrometerImageMetrics.textFallback
+      MicrometerImageMetrics.textFallback,
+      parts.images.stickers
     )
     (1 to Workers.ReportWorkers).foreach: n =>
       fork:

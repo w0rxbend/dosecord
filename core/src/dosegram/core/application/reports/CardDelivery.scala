@@ -9,6 +9,7 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewReportRequest
 import dosegram.core.ports.ReportPage
+import dosegram.core.ports.StickerSetJob
 import dosegram.core.ports.Tx
 
 import java.time.Duration
@@ -37,6 +38,25 @@ final class CardDelivery(clock: Clock, ids: IdSource):
           tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(deadline)))
           Nil
         case Some(note) => pages.map(page => textEquivalent(page, note))
+
+  /** The pages of a personal sticker set ("My mood stickers"): queued like an image, so the report worker draws them
+    * and publishes the set; when they cannot be queued, `busy` is the one answer, because a sticker has no text to send
+    * in its place.
+    */
+  def stickers(
+      tx: Tx,
+      accountId: UUID,
+      chat: ChatRef,
+      pages: List[ReportPage],
+      job: StickerSetJob,
+      busy: OutboundMessage
+  ): List[OutboundMessage] =
+    val now = clock.now()
+    refusal(tx, accountId, now) match
+      case None =>
+        tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(Deadline), Some(job)))
+        Nil
+      case Some(_) => List(busy)
 
   /** Why the pages cannot be queued, with the line to add to their text; `None` when they can. */
   private def refusal(tx: Tx, accountId: UUID, now: Instant): Option[Option[String]] =

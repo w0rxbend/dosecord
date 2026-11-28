@@ -24,6 +24,16 @@
       "document": { "file_id": "BQACuploaded-doc", "file_unique_id": "d1", "file_name": "export.csv", "mime_type": "text/csv" } }
   },
   "true": { "ok": true, "result": true },
+  "get-sticker-set": {
+    "ok": true,
+    "result": { "name": "mood_0123456789abcdef_by_dosegram_dev_bot", "title": "Mood blobs", "sticker_type": "regular",
+      "stickers": [
+        { "file_id": "CAACAgIAAxkBAAEsticker-1", "file_unique_id": "AgADs1", "type": "regular", "width": 512, "height": 512,
+          "is_animated": false, "is_video": false, "emoji": "\ud83d\ude1e", "set_name": "mood_0123456789abcdef_by_dosegram_dev_bot", "file_size": 41230 },
+        { "file_id": "CAACAgIAAxkBAAEsticker-2", "file_unique_id": "AgADs2", "type": "regular", "width": 512, "height": 512,
+          "is_animated": false, "is_video": false, "emoji": "\ud83d\ude42", "set_name": "mood_0123456789abcdef_by_dosegram_dev_bot", "file_size": 40877 }
+      ] }
+  },
   "get-my-commands": {
     "ok": true,
     "result": [

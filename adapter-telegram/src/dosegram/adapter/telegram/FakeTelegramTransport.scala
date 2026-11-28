@@ -33,6 +33,8 @@ final class FakeTelegramTransport(
   private var messageSeq = lastMessageId
   private var floodLimits = Option.empty[FloodLimits]
   private val chatBuckets = mutable.Map.empty[Long, (Double, Instant)]
+  private val stickerSets = mutable.LinkedHashMap.empty[String, StickerSetState]
+  private var stickerSeq = 0L
 
   def calls: List[RecordedCall] = lock.synchronized(recorded.toList)
 
@@ -60,6 +62,11 @@ final class FakeTelegramTransport(
 
   /** Whether an update queued for `getUpdates` is not yet confirmed: the bot has not taken it into its inbox. */
   def hasPendingUpdates: Boolean = lock.synchronized(pendingUpdates.nonEmpty)
+
+  /** The sticker sets the bot created and has not deleted, by name: the owner, the title and the `file_id` of each
+    * sticker in order.
+    */
+  def stickerSet(name: String): Option[StickerSetState] = lock.synchronized(stickerSets.get(name))
 
   /** Makes the fake refuse message calls beyond `limits` with a 429, as the real API does (section 7.6). */
   def enforce(limits: FloodLimits): Unit = lock.synchronized { floodLimits = Some(limits) }
@@ -98,8 +105,79 @@ final class FakeTelegramTransport(
       case "getMyCommands" => ok(commands.getOrElse(languageOf(request), ujson.Arr()))
       case "answerCallbackQuery" | "setChatMenuButton" | "deleteWebhook" | "sendChatAction" => ok(ujson.True)
       case "setWebhook"                                                                     => ok(ujson.True)
+      case method if StickerMethods(method)                                                 => stickerAnswer(request)
       case _                                                                                =>
         WireReply.Http(404, ujson.write(ujson.Obj("ok" -> false, "error_code" -> 404, "description" -> "Not Found")))
+
+  /** The sticker set methods as the reference describes them (research brief 04 section 3.2): a set is created once per
+    * name, `getStickerSet` lists its stickers in order, and a method that names no set answers 400
+    * `STICKERSET_INVALID`.
+    */
+  private def stickerAnswer(request: WireRequest): WireReply =
+    val params = request.params.obj
+    def name = params.get("name").flatMap(_.strOpt).getOrElse("")
+    def fresh(): String =
+      stickerSeq += 1
+      s"fake-sticker-$stickerSeq"
+    def count(stickers: ujson.Value): Int = stickers.arrOpt.map(_.size).getOrElse(0)
+    request.method match
+      case "getStickerSet" =>
+        stickerSets.get(name).fold(stickerSetInvalid)(set => ok(stickerSetJson(name, set)))
+      case "createNewStickerSet" =>
+        if stickerSets.contains(name) then badRequest("Bad Request: sticker set name is already occupied")
+        else
+          val owner = params.get("user_id").flatMap(_.numOpt).map(_.toLong).getOrElse(0L)
+          val title = params.get("title").flatMap(_.strOpt).getOrElse("")
+          val files = List.fill(count(params.getOrElse("stickers", ujson.Arr())))(fresh())
+          stickerSets(name) = StickerSetState(owner, title, files)
+          ok(ujson.True)
+      case "addStickerToSet" =>
+        stickerSets
+          .get(name)
+          .fold(stickerSetInvalid): set =>
+            stickerSets(name) = set.copy(stickers = set.stickers :+ fresh())
+            ok(ujson.True)
+      case "replaceStickerInSet" =>
+        val old = params.get("old_sticker").flatMap(_.strOpt).getOrElse("")
+        stickerSets
+          .get(name)
+          .filter(_.stickers.contains(old))
+          .fold(stickerSetInvalid): set =>
+            stickerSets(name) = set.copy(stickers = set.stickers.map(id => if id == old then fresh() else id))
+            ok(ujson.True)
+      case "deleteStickerFromSet" =>
+        val sticker = params.get("sticker").flatMap(_.strOpt).getOrElse("")
+        stickerSets
+          .find(_._2.stickers.contains(sticker))
+          .fold(badRequest("Bad Request: STICKER_INVALID")): (setName, set) =>
+            stickerSets(setName) = set.copy(stickers = set.stickers.filterNot(_ == sticker))
+            ok(ujson.True)
+      case "setStickerSetTitle" =>
+        stickerSets
+          .get(name)
+          .fold(stickerSetInvalid): set =>
+            stickerSets(name) = set.copy(title = params.get("title").flatMap(_.strOpt).getOrElse(set.title))
+            ok(ujson.True)
+      case _ => // deleteStickerSet
+        stickerSets.remove(name).fold(stickerSetInvalid)(_ => ok(ujson.True))
+
+  private def stickerSetJson(name: String, set: StickerSetState): ujson.Obj =
+    ujson.Obj(
+      "name" -> name,
+      "title" -> set.title,
+      "sticker_type" -> "regular",
+      "stickers" -> ujson.Arr.from(set.stickers.map: fileId =>
+        ujson.Obj(
+          "file_id" -> fileId,
+          "file_unique_id" -> s"u-$fileId",
+          "type" -> "regular",
+          "width" -> 512,
+          "height" -> 512,
+          "is_animated" -> false,
+          "is_video" -> false,
+          "set_name" -> name
+        ))
+    )
 
   private def identityJson: ujson.Obj =
     val json = ujson.Obj("id" -> bot.id.toDouble, "is_bot" -> true)
@@ -164,6 +242,24 @@ final class FakeTelegramTransport(
 object FakeTelegramTransport:
 
   val Bot: BotIdentity = BotIdentity(555000111L, Some("dosegram_dev_bot"))
+
+  /** One sticker set of the fake: its owner, its title and the `file_id` of each sticker in order. */
+  final case class StickerSetState(owner: Long, title: String, stickers: List[String])
+
+  private val StickerMethods = Set(
+    "getStickerSet",
+    "createNewStickerSet",
+    "addStickerToSet",
+    "replaceStickerInSet",
+    "deleteStickerFromSet",
+    "setStickerSetTitle",
+    "deleteStickerSet"
+  )
+
+  private def badRequest(description: String): WireReply =
+    WireReply.Http(400, ujson.write(ujson.Obj("ok" -> false, "error_code" -> 400, "description" -> description)))
+
+  private def stickerSetInvalid: WireReply = badRequest("Bad Request: STICKERSET_INVALID")
 
   final case class RecordedCall(at: Instant, request: WireRequest, reply: WireReply):
     def method: String = request.method

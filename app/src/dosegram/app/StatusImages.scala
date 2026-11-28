@@ -14,6 +14,7 @@ import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.insights.YearFigures
+import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
@@ -31,6 +32,9 @@ import dosegram.core.ports.MoodGalleryView
 import dosegram.core.ports.RefillCardView
 import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.StickerImage
+import dosegram.core.ports.StickerSetFailure
+import dosegram.core.ports.StickerSets
 import dosegram.core.ports.TrendsCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
@@ -66,6 +70,7 @@ import dosegram.render.card.MoodCard
 import dosegram.render.card.MoodGalleryCard
 import dosegram.render.card.MoodGalleryData
 import dosegram.render.card.MoodMotionCard
+import dosegram.render.card.MoodStickerCard
 import dosegram.render.card.MoodWeekdayCard
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.MoodWeekdayRow
@@ -217,6 +222,15 @@ final class RenderedStatusCards extends StatusCards:
 
   override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
     Some(page(look)(WaterCard.render(waterData(view), contextOf(look))))
+
+  /** A sticker of "My mood stickers": the same picture for everyone in the step, so its key names the drawing revisions
+    * and the state, and it is drawn once. Its alt text is in the account's language; the picture has no words.
+    */
+  override def moodSticker(valence: Valence): Option[CardPage] =
+    val state = MoodState.captured(valence.step, None)
+    val look = CardLook(ImageTheme.Dark, isDiscreet = false)
+    val key = s"mood.sticker.${BlobFigure.Revision}.${MoodStickerCard.Revision}.${state.id}"
+    Some(page(look)(MoodStickerCard.render(state, contextOf(look)), Some(key)))
 
   override def day(view: DayCardView, look: CardLook): Option[CardPage] =
     val data = DayData(
@@ -535,8 +549,31 @@ final class StatusImages(
     val fileIds: FileIdCache,
     val cards: StatusCards,
     val notices: DrawingNotices = DrawingNotices(_ => ()),
-    val drawing: CardDrawing = CardDrawing.unavailable
+    val drawing: CardDrawing = CardDrawing.unavailable,
+    val stickers: StickerSetsByVendor = StickerSetsByVendor()
 )
+
+/** The personal sticker sets of each vendor that has them ("My mood stickers"), attached by the adapter of that vendor
+  * once it is built, because the adapter is built over the image stores. A vendor without one has no sets.
+  */
+final class StickerSetsByVendor extends StickerSets:
+  private val byVendor = ConcurrentHashMap[String, StickerSets]()
+
+  def attach(vendor: String, sets: StickerSets): Unit =
+    byVendor.put(vendor, sets)
+    ()
+
+  override def publish(
+      chat: ChatRef,
+      setKey: String,
+      title: String,
+      stickers: List[StickerImage]
+  ): Either[StickerSetFailure, String] = of(chat.vendor).publish(chat, setKey, title, stickers)
+
+  override def remove(vendor: String, setKey: String): Either[StickerSetFailure, Unit] =
+    of(vendor).remove(vendor, setKey)
+
+  private def of(vendor: String): StickerSets = Option(byVendor.get(vendor)).getOrElse(StickerSets.unavailable)
 
 object StatusImages:
 

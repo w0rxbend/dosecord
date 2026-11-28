@@ -65,6 +65,9 @@ final case class BotIdentity(id: Long, username: Option[String])
 /** What a send returned: the message id and, for media, the `file_id` to reuse (TG-35). */
 final case class SentMessage(messageId: Long, fileId: Option[String])
 
+/** A sticker set as `getStickerSet` answers it: its title and the `file_id` of each sticker, in order. */
+final case class StickerSetInfo(name: String, title: String, stickers: List[String])
+
 final case class BotCommand(command: String, description: String)
 
 object TelegramModels:
@@ -150,6 +153,12 @@ object TelegramModels:
     long(json, "id").map(BotIdentity(_, str(json, "username")))
 
   /** The `file_id` to reuse is the largest photo size, or the document's. */
+  def decodeStickerSet(json: ujson.Value): Option[StickerSetInfo] =
+    for
+      name <- str(json, "name")
+      title <- str(json, "title")
+    yield StickerSetInfo(name, title, list(json, "stickers").flatMap(str(_, "file_id")))
+
   def decodeSent(json: ujson.Value): Option[SentMessage] =
     long(json, "message_id").map: messageId =>
       val photo = list(json, "photo").flatMap(decodePhotoSize).maxByOption(_.longSide).map(_.fileId)

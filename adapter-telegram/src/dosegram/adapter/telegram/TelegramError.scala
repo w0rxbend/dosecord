@@ -19,7 +19,7 @@ enum TelegramError:
   /** An edit that changes nothing. It is a success (TG-22). */
   case NotModified
 
-  /** The message to edit or delete is gone, or is not editable. */
+  /** The message to edit or delete is gone, or is not editable; or the sticker set a method names does not exist. */
   case MissingTarget
 
   /** A delete outside the 48 hour window. */
@@ -51,7 +51,14 @@ object TelegramErrorMapper:
   private val unreachable = List("chat not found")
   private val notModified = List("message is not modified")
   private val missingTarget =
-    List("message to edit not found", "message can't be edited", "message to delete not found", "message_id_invalid")
+    List(
+      "message to edit not found",
+      "message can't be edited",
+      "message to delete not found",
+      "message_id_invalid",
+      // A sticker set that does not exist (or was deleted): the target of a sticker set method is gone.
+      "stickerset_invalid"
+    )
   private val notDeletable = List("message can't be deleted")
   private val badMedia = List("wrong file identifier", "wrong remote file identifier", "file reference expired")
   private val callbackExpired = List("query is too old", "query id is invalid")

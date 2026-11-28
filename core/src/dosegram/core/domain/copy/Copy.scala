@@ -47,5 +47,6 @@ object Copy:
       GamificationCopy.entries ++
       ShareCopy.entries ++
       YearCopy.entries ++
-      WhatsNewCopy.entries
+      WhatsNewCopy.entries ++
+      StickerCopy.entries
 end Copy

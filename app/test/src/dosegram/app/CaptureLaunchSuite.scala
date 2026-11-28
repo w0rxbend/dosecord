@@ -4,6 +4,10 @@ import dosegram.infra.crypto.DataKeys
 import dosegram.adapter.telegram.FakeTelegramTransport
 import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
+import dosegram.core.application.mood.MoodStickers
+import dosegram.core.domain.copy.PrivacyCopy
+import dosegram.core.domain.copy.StickerCopy
+import dosegram.core.scheduling.StickerSetRemoval
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.CheckInCopy
@@ -461,6 +465,66 @@ class CaptureLaunchSuite extends PgSuite:
         assertEquals(answer.method, "sendMessage")
         assertEquals(drawing.frames.get, 0)
         eventually("the request is finished")(strings("SELECT status FROM report_requests") == List("text_fallback"))
+
+  /** The set of the account as Telegram names it for the fake bot. */
+  private def stickerSetOf(accountId: UUID): String =
+    s"${MoodStickers.setKey(accountId)}_by_${FakeTelegramTransport.Bot.username.get}"
+
+  private def stickerCalls(bot: Bot): List[String] =
+    bot.wire.calls.map(_.method).filter(method => method.contains("Sticker"))
+
+  test("/mood stickers asks for the images consent, then makes the account's set and answers with its link"):
+    val accountId = seedOwner()
+    launched: bot =>
+      val List(ask) = bot.say("/mood stickers", expected = 1): @unchecked
+      assertEquals(bot.body(ask), ConsentCopy.statement(ConsentPurpose.ImagesInChat))
+      assertEquals(stickerCalls(bot), Nil, "nothing is made before the consent")
+      val List(confirm) = bot.tap(ask, ConsentCopy.Agree, expected = 1): @unchecked
+      val List(_, answer) = bot.tap(confirm, ConsentCopy.Confirm, expected = 2): @unchecked
+      val name = stickerSetOf(accountId)
+      val link = s"https://t.me/addstickers/$name"
+      assertEquals(answer.method, "sendMessage")
+      assert(bot.body(answer).startsWith(StickerCopy.ready), bot.body(answer))
+      assert(bot.body(answer).contains(link), bot.body(answer))
+      val url = answer.request.params("reply_markup")("inline_keyboard").arr.head.arr.head
+      assertEquals((url("text").str, url("url").str), (StickerCopy.Add, link))
+      assertEquals(stickerCalls(bot), List("getStickerSet", "createNewStickerSet"))
+      val create = bot.wire.calls("createNewStickerSet").head
+      assertEquals(create.request.params("user_id").num.toLong, owner)
+      assertEquals(create.request.params("title").str, StickerCopy.title)
+      assertEquals(create.request.files.size, 5, "one sticker for each of the five steps")
+      assertEquals(
+        create.request.params("stickers").arr.toList.map(_("emoji_list").arr.head.str),
+        MoodStickers.Emojis
+      )
+      assertEquals(bot.rasteriser.count, 5, "the five stickers were drawn by the report worker")
+      assertEquals(bot.wire.stickerSet(name).map(_.stickers.size), Some(5))
+
+      // A second request updates the one set: no second set, the stickers replaced in place, nothing drawn again.
+      val List(again) = bot.say("/mood stickers", expected = 1): @unchecked
+      assert(bot.body(again).contains(link), bot.body(again))
+      assertEquals(stickerCalls(bot).count(_ == "createNewStickerSet"), 1)
+      assertEquals(stickerCalls(bot).count(_ == "replaceStickerInSet"), 5)
+      assertEquals(bot.rasteriser.count, 5, "the stickers are shared pictures, drawn once")
+      eventually("the requests are finished")(strings("SELECT DISTINCT status FROM report_requests") == List("sent"))
+
+  test("deleting the account deletes the account's sticker set"):
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.ImagesInChat)
+    launched: bot =>
+      bot.say("/mood stickers", expected = 1)
+      val name = stickerSetOf(accountId)
+      assert(bot.wire.stickerSet(name).isDefined)
+      val List(card) = bot.say("/privacy", expected = 1): @unchecked
+      val List(menu) = bot.tap(card, PrivacyCopy.DeleteData, expected = 1): @unchecked
+      val List(confirm) = bot.tap(menu, PrivacyCopy.DeleteMyAccount, expected = 1): @unchecked
+      val List(last) = bot.tap(confirm, PrivacyCopy.Continue, expected = 1): @unchecked
+      bot.tap(last, PrivacyCopy.DeleteMyAccount, expected = 1)
+      eventually("the set is deleted")(bot.wire.stickerSet(name).isEmpty)
+      assertEquals(bot.wire.calls("deleteStickerSet").map(_.request.params("name").str), List(name))
+      eventually("the removal row is sent and names no account or chat"):
+        strings(s"SELECT status FROM outbox_messages WHERE kind = '${StickerSetRemoval.Kind}' AND account_id IS NULL") ==
+          List("sent")
 
   test("with Animated mood on but a video that cannot be made, the still card is the answer"):
     val accountId = seedOwner()

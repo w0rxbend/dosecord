@@ -3,6 +3,7 @@ package dosegram.core.application.reports
 import dosegram.contracts.OutboundMessage
 import dosegram.core.chat.InteractionReplyPayload
 import dosegram.core.domain.copy.Lang
+import dosegram.core.domain.copy.StickerCopy
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
@@ -10,6 +11,9 @@ import dosegram.core.ports.NewOutboxMessage
 import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.ReportRequest
 import dosegram.core.ports.ReportStatus
+import dosegram.core.ports.StickerImage
+import dosegram.core.ports.StickerSetJob
+import dosegram.core.ports.StickerSets
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
@@ -31,7 +35,8 @@ final class ReportWorker(
     clock: Clock,
     ids: IdSource,
     log: String => Unit,
-    textFallback: String => Unit
+    textFallback: String => Unit,
+    stickers: StickerSets = StickerSets.unavailable
 ):
   import ReportWorker.*
 
@@ -47,8 +52,42 @@ final class ReportWorker(
   def purge(): Int = uow.transaction(ReportWorker.purge(_, clock.now()))
 
   private def deliver(request: ReportRequest): Unit =
+    request.stickers match
+      case Some(job) => publishStickers(request, job)
+      case None      => deliverPages(request)
+
+  private def isDrawable(request: ReportRequest): Boolean =
+    request.attempts == 1 && clock.now().isBefore(request.deadlineAt)
+
+  /** "My mood stickers": the pages are drawn and become the stickers of the account's set, in page order; the answer is
+    * the first page's message with the link that adds the set, or with the line that says it could not be made. A late
+    * or retried request publishes nothing: the user asks again. The log names the request and the kind of failure only.
+    */
+  private def publishStickers(request: ReportRequest, job: StickerSetJob): Unit =
     val started = System.nanoTime()
-    val drawable = request.attempts == 1 && clock.now().isBefore(request.deadlineAt)
+    val drawable = isDrawable(request)
+    val outcome =
+      if !drawable then Left("Late")
+      else
+        try
+          for
+            drawn <- request.pages.traverse(page => drawing.draw(page.card, Some(request.chat)))
+            images = drawn.zip(job.emojis).map((image, emoji) => StickerImage(image.assetKey, emoji))
+            link <- stickers.publish(request.chat, job.setKey, StickerCopy.title, images).left.map(_.productPrefix)
+          yield link
+        catch case NonFatal(error) => Left(error.getClass.getSimpleName)
+    val answer = request.pages.head.message
+    val message = outcome match
+      case Right(link)  => StickerAnswer.ready(answer, link)
+      case Left(reason) =>
+        log(s"report ${request.id}: sticker set not published: $reason")
+        StickerAnswer.failed(answer)
+    val renderMillis = Option.when(drawable)(Duration.ofNanos(System.nanoTime() - started).toMillis)
+    publish(request, List(message), outcome.left.toOption, renderMillis)
+
+  private def deliverPages(request: ReportRequest): Unit =
+    val started = System.nanoTime()
+    val drawable = isDrawable(request)
     val drawn = request.pages.map: page =>
       try
         if drawable then drawing.draw(page.card, Some(request.chat))
@@ -92,6 +131,15 @@ final class ReportWorker(
       tx.reports.finish(request.id, status, failure, renderMillis, now)
 
 object ReportWorker:
+
+  extension [A](items: List[A])
+    /** The first `Left`, or every `Right` in order. */
+    private def traverse[B](each: A => Either[String, B]): Either[String, List[B]] =
+      items
+        .foldLeft[Either[String, List[B]]](Right(Nil))((done, item) =>
+          done.flatMap(heads => each(item).map(_ :: heads))
+        )
+        .map(_.reverse)
 
   /** How long a claim holds before another worker may take the request: well past the 5-second raster deadline. */
   val Lease: Duration = Duration.ofSeconds(30)

@@ -368,6 +368,7 @@ Captions follow PRODUCT_SPEC R-MOO-1: the valence label, then the energy label w
 | No entry | 1 | Global asset | `blob.none`: outline only, no face, neutral fill |
 | Static PNG variants | 36 states by 2 themes by shipped locales (the level label is drawn in) | Global | A label-free variant per theme (72 files) is also produced for reuse inside cards and for locales not yet shipped |
 | Sticker variants | 35 animated stickers, transparent, no label | Global | Later, after spike S5 of research brief 04 |
+| Mood stickers (supervisor decision, 2026-11-28) | 5 static stickers, one per captured valence step at the middle energy (V1, V2, V4, V6, V7 at E3), transparent 512 px PNG, no label: `card.mood.sticker.v1` (`MoodStickerCard`), the blob of radius 200 centred at (256, 250) with the doubled outline of the row "Sticker (transparent)" above (the halo under the inner stroke) and no ground mark; key `mood.sticker.<blob revision>.dg-sticker-1.<state>`; the alt text is the level name | Global | Built: `/mood stickers` (BOT_UX section 11.4) puts them in the user's own set. Static only: the video sticker needs VP9 in WEBM, which the JVM encoder of section 4.6 does not write, and spike S5 of the TGS form is open |
 
 Rejected alternative: continuous parameters or a per-user seed. Either would make every blob a personal asset with no cache and no exhaustive golden test.
 

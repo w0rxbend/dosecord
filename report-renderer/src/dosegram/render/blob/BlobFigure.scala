@@ -166,6 +166,35 @@ object BlobFigure:
     val faces = faceNodes(face(state, pose.eyeOpenness), posed)
     Node.Mark(Mark, Vector(ground(GroundWidth(state.energy - 1), frame, tokens), body) ++ faces)
 
+  /** The blob of a sticker (VISUALS section 3.3, transparent stickers): no ground mark, and the outline doubled so it
+    * holds 3:1 on a light and a dark chat alike: an outer stroke of [[StickerHalo]] under an inner one of
+    * [[StickerInk]], 4 px and 6 px at the 512 px canvas, scaled with the radius.
+    */
+  def sticker(state: MoodState, frame: BlobFrame): Node =
+    val placed = BlobGeometry.outline(state, 0.0).placed(frame.center, frame.radius)
+    val scale = frame.radius / StickerRadius
+    val inner = StickerInnerStroke * scale
+    val halo = Node.Path(placed, None, Some(Stroke.solid(StickerHalo, inner + 2 * StickerOuterStroke * scale)))
+    val gradient = Paint.Radial(
+      Point(frame.center.x - 0.3 * frame.radius, frame.center.y - 0.4 * frame.radius),
+      1.1 * frame.radius,
+      BlobPalette.highlight(state),
+      BlobPalette.fill(state)
+    )
+    val body = Node.Path(placed, Some(gradient), Some(Stroke.solid(StickerInk, inner)))
+    Node.Mark(Mark, Vector(halo, body) ++ faceNodes(face(state), frame))
+
+  /** The inner outline of a sticker: 4.2:1 on white and 4.3:1 on a dark chat background (VISUALS, COMPUTED). */
+  val StickerInk: Rgb = Rgb.hex("#6a7e8a")
+
+  /** The outer outline of a sticker, which keeps the edge visible on a dark chat. */
+  val StickerHalo: Rgb = Rgb.hex("#f3f6f8")
+
+  /** The radius the sticker strokes of VISUALS are given at: the blob of a 512 px sticker. */
+  val StickerRadius: Double = 200.0
+  private val StickerInnerStroke = 6.0
+  private val StickerOuterStroke = 4.0
+
   /** The "no entry" blob: flat neutral fill, dotted outline, no face (VA-BL-02). */
   def noEntry(frame: BlobFrame, tokens: Tokens): Node =
     val body = Node.Path(

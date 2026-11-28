@@ -14,6 +14,8 @@ import dosegram.core.ports.OutboxMessage
 import dosegram.core.ports.OutboxMetrics
 import dosegram.core.ports.OutboxOp
 import dosegram.core.ports.OutboxReason
+import dosegram.core.ports.StickerSetFailure
+import dosegram.core.ports.StickerSets
 import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
@@ -116,7 +118,8 @@ final class OutboxDispatcher(
     lease: Duration = Duration.ofSeconds(60),
     metrics: OutboxMetrics = OutboxMetrics.noop,
     random: () => Double = () => scala.math.random(),
-    buckets: Option[TokenBuckets] = None
+    buckets: Option[TokenBuckets] = None,
+    stickers: StickerSets = StickerSets.unavailable
 ):
   import OutboxDispatcher.*
 
@@ -145,8 +148,9 @@ final class OutboxDispatcher(
     val adapter = adapters(row.vendor)
     try
       row.op match
-        case OutboxOp.Send                     => dispatchSend(row, adapter, now)
-        case OutboxOp.Edit | OutboxOp.Finalize =>
+        case OutboxOp.Send if row.kind == StickerSetRemoval.Kind => dispatchStickerRemoval(row, now)
+        case OutboxOp.Send                                       => dispatchSend(row, adapter, now)
+        case OutboxOp.Edit | OutboxOp.Finalize                   =>
           dispatchEdit(row, adapter, now)
         case OutboxOp.Delete if row.kind == FinalizeDispatch.Kind => dispatchSupersede(row, adapter, now)
         case OutboxOp.Delete                                      => dispatchDelete(row, adapter, now)
@@ -172,6 +176,19 @@ final class OutboxDispatcher(
         // Permanent(channelFatal = false): no channel action (DESIGN.md section 7.6).
         uow.transaction(_.outbox.failPermanently(row.id, e.getMessage))
         metrics.failed(row.vendor, row.kind, OutboxReason.Permanent)
+
+  /** Deletes the personal sticker set a row names ([[StickerSetRemoval]]); a vendor without sticker sets has none to
+    * delete. A failure goes the way of a failed send: retried while it may pass, failed for good when refused.
+    */
+  private def dispatchStickerRemoval(row: OutboxMessage, now: Instant): Unit =
+    val setKey = StickerSetRemoval.setKeyOf(row.payload).getOrElse(throw UnrenderableRow("sticker set removal: no set"))
+    stickers.remove(row.vendor, setKey) match
+      case Right(()) | Left(StickerSetFailure.Unsupported) =>
+        uow.transaction(_.outbox.markSent(row.id, StickerSetRemoval.Target, now, possibleDuplicate = false))
+        metrics.sent(row.vendor, row.kind)
+      case Left(StickerSetFailure.Retryable) => throw ChatError.Retryable("sticker set removal: vendor unavailable")
+      case Left(StickerSetFailure.Refused)   =>
+        throw ChatError.Permanent("sticker set removal: refused", channelFatal = false)
 
   private def dispatchDelete(row: OutboxMessage, adapter: ChatAdapter, now: Instant): Unit =
     val target = decodeHandle(row.vendor, requiredTarget(row))

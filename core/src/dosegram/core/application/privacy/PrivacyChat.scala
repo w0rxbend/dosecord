@@ -94,6 +94,7 @@ final class PrivacyChat(
     if confirmation.domain.isDefined then stale
     else
       deletions.account(turn.tx, turn.accountId, AuditChannel.Bot)
+      deletions.stickerSet(turn.tx, turn.accountId, turn.event.vendor)
       turn.show(messages.text("privacy.deleted", turn.key, PrivacyCopy.deleted))
 
   private def stepUpConfirmed(accountId: UUID, confirmation: Confirmation): AuditEvent =

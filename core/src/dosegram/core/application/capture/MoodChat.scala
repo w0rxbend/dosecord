@@ -7,6 +7,7 @@ import dosegram.core.application.mood.CheckIn
 import dosegram.core.application.mood.MoodRecorded
 import dosegram.core.application.mood.MoodRefusal
 import dosegram.core.application.mood.MoodService
+import dosegram.core.application.mood.MoodStickers
 import dosegram.core.application.mood.SetEnergy
 import dosegram.core.application.reports.CardDelivery
 import dosegram.core.domain.EntryDay
@@ -15,6 +16,7 @@ import dosegram.core.domain.copy.CheckInCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.StatsCardCopy
+import dosegram.core.domain.copy.StickerCopy
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.mood.Energy
 import dosegram.core.domain.mood.MoodCheckin
@@ -27,7 +29,9 @@ import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.MoodCardView
 import dosegram.core.ports.MoodGalleryEntry
 import dosegram.core.ports.MoodGalleryView
+import dosegram.core.ports.ReportPage
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.StickerSetJob
 import dosegram.core.scheduling.OutboxDispatcher
 
 import java.time.LocalDateTime
@@ -76,6 +80,22 @@ private[capture] final class MoodChat(
         val caption = turn.message(s"mood.history.${page.templateId}", List(page.altText), Nil)
         Reply(followUps = turn.images(delivery, List(page -> caption)))
       case None => turn.toast(StatsCardCopy.imageUnavailable)
+
+  /** `/mood stickers` ("My mood stickers", supervisor decision of 2026-11-28): the blob of each of the five steps,
+    * queued for the report worker, which draws them and makes or updates the account's own sticker set. The stickers
+    * show no record of the user's, so only the images consent stands before them.
+    */
+  def stickers(turn: Turn): Reply =
+    val pages = Valence.steps.flatMap(cards.moodSticker)
+    if pages.size != Valence.steps.size then
+      turn.show(turn.message("mood.stickers", List(StickerCopy.unavailable), Nil))
+    else
+      val answer = turn.message("mood.stickers", List(StickerCopy.ready), Nil)
+      val job = StickerSetJob(MoodStickers.setKey(turn.accountId), MoodStickers.Emojis)
+      val busy = turn.message("mood.stickers", List(StickerCopy.busy), Nil)
+      Reply(followUps =
+        delivery.stickers(turn.tx, turn.accountId, turn.event.chat, pages.map(ReportPage(_, answer)), job, busy)
+      )
 
   /** The live check-ins of the last year, the latest [[MoodChat.HistorySize]], oldest first. */
   private def recent(turn: Turn): List[MoodCheckin] =

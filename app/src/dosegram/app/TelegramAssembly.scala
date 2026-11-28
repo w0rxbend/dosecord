@@ -45,7 +45,7 @@ object TelegramAssembly:
       images: StatusImages,
       inbox: Option[InboundInbox]
   )(using Ox): TelegramAdapter =
-    TelegramAdapter(
+    val adapter = TelegramAdapter(
       BotApi(transport),
       config(settings, telegram),
       TelegramAdapter.Runtime(
@@ -59,6 +59,9 @@ object TelegramAssembly:
         inbox = inbox
       )
     )
+    // The report worker publishes "My mood stickers" and the dispatcher deletes them through this bot.
+    images.stickers.attach(TelegramAdapter.Vendor, adapter.stickerSets)
+    adapter
 
   /** The adapter configuration the settings stand for. */
   def config(settings: Settings, telegram: TelegramSettings): TelegramConfig =

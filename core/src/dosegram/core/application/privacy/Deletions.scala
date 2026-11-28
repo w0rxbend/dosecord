@@ -2,6 +2,7 @@ package dosegram.core.application.privacy
 
 import dosegram.contracts.OutboundMessage
 import dosegram.core.application.exports.ExportRequests
+import dosegram.core.application.mood.MoodStickers
 import dosegram.core.ports.AuditActor
 import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.AuditEvent
@@ -13,6 +14,8 @@ import dosegram.core.ports.ErasureReceipt
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.PurgeList
 import dosegram.core.ports.Tx
+import dosegram.core.scheduling.StickerSetRemoval
+import ox.discard
 
 import java.util.UUID
 
@@ -29,6 +32,14 @@ final class Deletions(clock: Clock, ids: IdSource, purgeList: PurgeList):
   def account(tx: Tx, accountId: UUID, channel: AuditChannel): ErasureReceipt =
     purgeList.append(accountId, clock.now())
     erase(tx, accountId, channel)
+
+  /** The personal sticker set of the account, deleted on the vendor's side after this transaction ("My mood stickers"):
+    * the removal row names only the set, so it outlives the account it was made for. A vendor without the set answers
+    * that it is gone.
+    */
+  def stickerSet(tx: Tx, accountId: UUID, vendor: String): Unit =
+    val now = clock.now()
+    tx.outbox.enqueue(StickerSetRemoval.row(ids.next(now), vendor, MoodStickers.setKey(accountId), now)).discard
 
   /** The account deletion once more, for an account the purge list holds and a restored database still has: the same
     * erasure, receipt and audit rows, without listing the account again.

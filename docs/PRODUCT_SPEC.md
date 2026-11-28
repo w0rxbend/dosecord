@@ -936,6 +936,7 @@ The pipeline, card catalogue, canvas rules and test strategy are specified in VI
 | Weekly summary card; adherence heatmap; trend charts; sleep timeline | Must | V1 |
 | Mood calendar (month and year); correlation cards; record summary document (PDF) | Should | V2 |
 | Animated mood blob as a sticker | Could | V2, only after its spike passes (R04 spike S5) |
+| "My mood stickers": a personal set of the static blob of each step (supervisor decision, 2026-11-28) | Could | Built: `/mood stickers`, behind the images consent; deleting the account deletes the set (BOT_UX section 11.4, VISUALS section 4.3) |
 | In-message widgets as an enhancement with an image fallback | Could | Later (PC-15) |
 | Photographic or model-generated imagery | Will not | n/a |
 
