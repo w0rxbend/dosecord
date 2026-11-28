@@ -71,6 +71,19 @@ final class PgRollupRepository(conn: Connection) extends RollupRepository:
             AND local_date >= ${range.start} AND local_date <= ${range.end}
             AND rollup_version = ${RollupMetricsJson.Version}""".query[(LocalDate, RollupMetrics)]().toMap
 
+  // The scheduled days are queued as the occurrence trigger queues them (V1): the UTC date and its two neighbours, which
+  // covers every zone offset without resolving the account's zone.
+  override def markStale(): Int =
+    sql"""WITH stale AS (SELECT account_id, local_date, domain FROM daily_rollups
+                         WHERE rollup_version <> ${RollupMetricsJson.Version})
+          INSERT INTO rollup_dirty (account_id, local_date, domain)
+          SELECT account_id, local_date, domain FROM stale
+          UNION
+          SELECT o.account_id, (o.scheduled_for AT TIME ZONE 'UTC')::date + shift, 'medication'
+          FROM dose_occurrences o CROSS JOIN generate_series(-1, 1) AS shift
+          WHERE o.account_id IN (SELECT account_id FROM stale WHERE domain = 'medication')
+          ON CONFLICT (account_id, local_date, domain) DO UPDATE SET marked_at = EXCLUDED.marked_at""".execute()
+
   override def markDirty(accountId: UUID, domain: RollupDomain, range: DateRange, now: Instant): Unit =
     sql"""INSERT INTO rollup_dirty (account_id, local_date, domain, marked_at)
           SELECT $accountId, day::date, ${domain.dbValue}, $now

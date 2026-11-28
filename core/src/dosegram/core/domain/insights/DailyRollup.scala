@@ -34,12 +34,15 @@ enum RollupMetrics:
       case _: Nutrition  => RollupDomain.Nutrition
 
 /** The JSON form of [[RollupMetrics]] in `daily_rollups.metrics`. The shape is written out field by field so that a
-  * change of a case class cannot silently change what is stored; [[Version]] moves with every change of a shape.
+  * change of a case class cannot silently change what is stored; [[Version]] moves with every change of a shape and of
+  * a definition.
   */
 object RollupMetricsJson:
 
-  /** `daily_rollups.rollup_version`. A row of another version is ignored by readers and rebuilt. */
-  val Version: Int = 1
+  /** `daily_rollups.rollup_version`. A row of another version is ignored by readers, and the start queues it to be
+    * rebuilt (`RollupRepository.markStale`). 2: every dose counts on its scheduled day (ADR-012 addendum, 2026-11-28).
+    */
+  val Version: Int = 2
 
   def encode(metrics: RollupMetrics): String =
     val json = metrics match

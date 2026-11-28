@@ -82,7 +82,7 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     startReminderLoop(materialiser, wake, loopMetrics, passes)
     parts.adapters.foreach((vendor, adapter) => startDispatcher(vendor, adapter, gate, passes))
     startSessionSweeper(gate, passes)
-    startRollupWorker(passes)
+    startRollupWorker(log, passes)
     startImagePurge(passes)
     startPromptLoop(log, passes)
     startMedicationDepthLoop(log, passes)
@@ -153,9 +153,12 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
 
   /** Drains the rollup queue (ARCHITECTURE section 11.1, INS-01): a day a write made dirty is recomputed here, so a
     * read finds it ready. A read still refreshes the days of its own range, so it never shows a stale one either way.
+    * Before the first pass the start queues every rollup an earlier release stored under another definition.
     */
-  private def startRollupWorker(passes: WorkerLoop)(using Ox): Unit =
+  private def startRollupWorker(log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
     val rollups = RollupService(uow, clock)
+    val stale = rollups.queueStale()
+    if stale > 0 then log(s"rollups: queued $stale day(s) stored by an earlier version")
     fork:
       passes.repeat("rollup worker"): () =>
         if rollups.drain(Workers.RollupBatch) == 0 then Thread.sleep(parts.cadence.rollupIdlePoll.toMillis)

@@ -34,3 +34,9 @@ trait RollupRepository:
 
   /** Queues every day of the range for recomputation: the rebuild of INS-04. */
   def markDirty(accountId: UUID, domain: RollupDomain, range: DateRange, now: Instant): Unit
+
+  /** Queues every day whose stored rollup is of another version than this release's, and for such a medication rollup
+    * every scheduled day of that account's doses, so a change of the definition rebuilds every figure it touches
+    * (ADR-012 addendum of 2026-11-28). Returns the number of keys queued; 0 once every row is of this version.
+    */
+  def markStale(): Int

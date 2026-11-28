@@ -32,6 +32,9 @@ final class RollupService(uow: UnitOfWork, clock: Clock):
         .foreach { case ((accountId, domain), own) => recompute(tx, accountId, domain, own.map(_.localDate)) }
       keys.size
 
+  /** Queues the rollups an earlier release stored under another definition; the drain and the reads rebuild them. */
+  def queueStale(): Int = uow.transaction(_.tracking.rollups.markStale())
+
   /** Recomputes the dirty days of a range inside the caller's transaction, so a read never shows a stale day. */
   def refresh(tx: Tx, accountId: UUID, domain: RollupDomain, range: DateRange): Unit =
     recompute(tx, accountId, domain, tx.tracking.rollups.claimDirtyIn(accountId, domain, range))

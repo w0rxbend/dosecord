@@ -119,20 +119,15 @@ object Adherence:
   def onTimeRate(entries: Iterable[AdherenceInput]): Option[Double] =
     onTimeRate(counts(entries))
 
-  /** The local day an entry counts toward (ADR-012: adherence uses `effective_at`): the effective day for a taken dose,
-    * the resolution day for a skip or a miss; `None` for excluded entries.
+  /** The local day an entry counts toward: its scheduled local day, however late it was taken, skipped or marked missed
+    * (ADR-012 addendum, supervisor decision of 2026-11-28: a dose a late catch-up marked missed belongs to the day it
+    * was due, as on the day card); `None` for excluded entries.
     */
   def dayOf(input: AdherenceInput, zone: ZoneId): Option[LocalDate] =
-    classify(input).map { _ =>
-      val anchor =
-        input.status match
-          case OccurrenceStatus.Taken => input.effectiveAt.getOrElse(input.scheduledFor)
-          case _                      => input.resolvedAt.getOrElse(input.scheduledFor)
-      LocalDate.ofInstant(anchor, zone)
-    }
+    classify(input).map(_ => LocalDate.ofInstant(input.scheduledFor, zone))
 
-  /** Per-day adherence in the account's zone: resolved entries on their `dayOf`, open entries on their scheduled day
-    * (they are the day's remaining work); manual entries are excluded everywhere.
+  /** Per-day adherence in the account's zone: every entry on its scheduled day, resolved or open; manual entries are
+    * excluded everywhere.
     */
   def byDay(entries: Iterable[AdherenceInput], zone: ZoneId): Map[LocalDate, DayAdherence] =
     entries.foldLeft(Map.empty[LocalDate, DayAdherence]) { (acc, entry) =>
@@ -146,9 +141,7 @@ object Adherence:
         case None => acc
     }
 
-  /** Today's counts in the account's zone: the resolved buckets assigned to the local day of `now` plus the doses still
-    * open that were scheduled for today.
-    */
+  /** Today's counts in the account's zone: the doses scheduled for the local day of `now`, resolved or still open. */
   def today(entries: Iterable[AdherenceInput], now: Instant, zone: ZoneId): DayAdherence =
     byDay(entries, zone).getOrElse(LocalDate.ofInstant(now, zone), DayAdherence.zero)
 

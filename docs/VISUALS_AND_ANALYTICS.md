@@ -1611,7 +1611,7 @@ Supervisor decision, 2026-11-28 (leftover 4 of the verification of 2026-11-28): 
 
 Supervisor decision, 2026-11-28 (the rest of finding 17): the source of sleep figures from the user's own taps and typed nights is "your records" ("ваші записи"), "from your records" in a caption ("з ваших записів") and "From your records" in the Mini App, in one change across the chat, the API, the Mini App and the image captions; "your check-ins" read as the taps alone and was wrong for a typed night. VA-IMG-12c and the example captions read accordingly. The words of the images' Ukrainian dose sentence also changed so that no verb agrees with a count: "прийнято 26 з 28 запланованих доз (93%)", which had read "1 з 1 запланованої дози записано як прийняті" for one dose.
 
-Attribution to a day (inherited): a taken dose counts on the local day of `effective_at`; a skipped or missed dose on the local day of its resolution; an open dose on its scheduled local day.
+Attribution to a day (supervisor decision, 2026-11-28; ADR-012 addendum): every dose of a schedule, taken, skipped, missed, unknown or open, counts on the local day of its `scheduled_for`; an as-needed log on the local day of its `effective_at`. Lateness still uses `effective_at`. Inherited until 2026-11-28: a taken dose counted on the local day of `effective_at` and a skipped or missed dose on the local day of its resolution, which put a dose a late catch-up marked missed into the day of the catch-up while the day card showed it on its own day.
 
 Aggregation: totals over several medications pool the bucket counts. They are never the mean of per-medication percentages.
 
@@ -1620,14 +1620,15 @@ Edge cases:
 | Case | Rule |
 |---|---|
 | Taken before the scheduled time | On time; the delay sample is negative. |
-| Answered after `due_window_end` but inside the late-log window | Taken late. If the occurrence had already become missed, the late log moves it from `M` to `Tlate` and its day attribution moves to the day of `effective_at`. |
+| Answered after `due_window_end` but inside the late-log window | Taken late. If the occurrence had already become missed, the late log moves it from `M` to `Tlate`; it stays on its scheduled day. |
 | The user corrects the "taken at" time | Classification uses the corrected `effective_at`. The entry is excluded from delay statistics. |
 | Snooze | The due window shifts; lateness is judged against the shifted end. |
 | Quiet-hours deferral | The window shifts; it never produces unknown. |
 | Skipped | Lowers adherence and counts as an answer in the recorded rate. It is drawn hollow and never in a warning colour. |
 | Unknown | Excluded from every rate; the count is displayed. |
 | Schedule edited, paused or medication archived | Cancelled occurrences are excluded and not displayed. Resolved occurrences before the change stay in the period; an archived medication is marked "(archived)" at L2. |
-| A dose scheduled late in the evening and taken after midnight | It counts on the next local day. A day can therefore show more resolved doses than it had scheduled; the heatmap uses the fraction, which stays within 0 to 1. |
+| A dose scheduled late in the evening and taken after midnight | It counts on its scheduled day, taken late (supervisor decision, 2026-11-28). A day never shows more resolved doses than it had scheduled. |
+| A dose marked missed days later by a catch-up | It counts on its scheduled day, the same day the day card shows it on (supervisor decision, 2026-11-28). |
 | Daylight-saving gap or fold | The occurrence exists once, as ADR-011 materialises it. |
 | Several units in one dose | One occurrence is one dose regardless of quantity. |
 | Chain or interval schedules not started on a day | Counted as missed with the domain's reason, as the inherited design specifies. |

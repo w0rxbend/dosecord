@@ -83,7 +83,7 @@ class AdherenceSuite extends munit.FunSuite:
     assertEquals(stats10.p90, Duration.ofMinutes(9))
     assertEquals(Adherence.delayStats(Nil), None)
 
-  test("adherence day assignment uses effective_at, not scheduled_for"):
+  test("adherence day assignment uses the scheduled local day, not effective_at (supervisor decision, 2026-11-28)"):
     val zone = utc
     val late23 = Instant.parse("2026-03-01T23:30:00Z")
     val takenAfterMidnight = Instant.parse("2026-03-02T00:45:00Z")
@@ -96,18 +96,18 @@ class AdherenceSuite extends munit.FunSuite:
       manual = false,
       corrected = false
     )
-    assertEquals(Adherence.dayOf(dose, zone), Some(LocalDate.of(2026, 3, 2)))
+    assertEquals(Adherence.dayOf(dose, zone), Some(LocalDate.of(2026, 3, 1)))
     val day1 = Adherence.today(List(dose), Instant.parse("2026-03-01T23:45:00Z"), zone)
-    assertEquals(day1.counts, AdherenceCounts.zero)
+    assertEquals(day1.counts, AdherenceCounts(0, 1, 0, 0))
     val day2 = Adherence.today(List(dose), Instant.parse("2026-03-02T10:00:00Z"), zone)
-    assertEquals(day2.counts, AdherenceCounts(0, 1, 0, 0))
+    assertEquals(day2.counts, AdherenceCounts.zero)
 
-  test("skipped and missed days are assigned by their resolution instant"):
+  test("skipped and missed days are assigned by their scheduled instant, not their resolution"):
     val skipped = entry(
       OccurrenceStatus.Skipped,
       resolvedAt = Some(scheduledFor.plusSeconds(26L * 3600L))
     )
-    assertEquals(Adherence.dayOf(skipped, utc), Some(LocalDate.of(2026, 3, 2)))
+    assertEquals(Adherence.dayOf(skipped, utc), Some(LocalDate.ofInstant(scheduledFor, utc)))
 
   test("open doses count toward their scheduled day in today counts"):
     val open = entry(OccurrenceStatus.Due)

@@ -203,6 +203,9 @@ final class InMemoryTracking(zones: Map[UUID, ZoneId]) extends TrackingRepositor
     override def markDirty(accountId: UUID, domain: RollupDomain, range: DateRange, now: Instant): Unit =
       range.dates.foreach(date => dirty += RollupKey(accountId, date, domain))
 
+    // The fake stores this release's version only, so nothing is ever stale.
+    override def markStale(): Int = 0
+
   override val doseHistory: DoseHistoryRepository = (accountId, from, until) =>
     def inside(instant: Instant): Boolean = !instant.isBefore(from) && instant.isBefore(until)
     doses.collect {

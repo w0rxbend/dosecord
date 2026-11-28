@@ -1056,7 +1056,10 @@ resolves. Every step is the owner's; `<pg>` is `dosegram-live-pg`:
 2. Build and start the head as in steps 3 and 4 of section 21. Its log shows 25 `sealing:` lines;
    those of `rendered_messages.choice_map` and `report_requests.params` say how many values were
    sealed, then `sealing: vacuumed rendered_messages` (with `report_requests` when a request was
-   waiting) and `migrate: 1 migration(s) applied, schema 27`.
+   waiting) and `migrate: 1 migration(s) applied, schema 27`. The head also counts every dose on
+   its scheduled day (ADR-012 addendum of 2026-11-28): its first start logs
+   `rollups: queued N day(s) stored by an earlier version` and rebuilds the stored daily figures;
+   a later start logs no such line.
 3. Check, read-only: `SELECT count(*) FROM rendered_messages WHERE choice_map IS NOT NULL;` and
    `SELECT count(*) FROM report_requests WHERE params IS NOT NULL;` return 0, and `/readyz`
    answers 200. In the chat, `/meds` lists the medications with their named toggles.

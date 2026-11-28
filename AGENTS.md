@@ -293,8 +293,8 @@ Useful next, in this order:
     and from the verification of 2026-11-28: the deploy of V27, which
     seals the `/meds` button labels and the waiting card pages that held
     medication names in plaintext (G2.4b, OPERATIONS section 22, owner's
-    step), the morning summary's text
-    counting a late-missed dose on the day it was marked, and the load
+    step; the same start rebuilds the daily rollups now that every dose
+    counts on its scheduled day, ADR-012 addendum), and the load
     flakes of `WorkerLoopCancelPgSuite` and `ResvgRasteriserSuite`.
 
 ## Agent workflow

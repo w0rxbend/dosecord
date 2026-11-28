@@ -101,14 +101,14 @@ object MedicationStats:
     else if status.isOpen then DoseBuckets.zero.copy(open = 1)
     else DoseBuckets.zero
 
-  /** The local day an occurrence counts toward: the inherited rule for resolved doses (effective day for taken,
-    * resolution day for skipped and missed), the effective day for an as-needed log, the scheduled day for an open or
-    * unknown dose. `None` for an occurrence that is in no bucket.
+  /** The local day an occurrence counts toward: its scheduled day, whether it is resolved, open or unknown (ADR-012
+    * addendum, supervisor decision of 2026-11-28), and the effective day for an as-needed log, which has no schedule.
+    * `None` for an occurrence that is in no bucket.
     */
   def dayOf(input: AdherenceInput, zone: ZoneId): Option[LocalDate] =
     if bucket(input).isEmpty then None
     else if input.manual then Some(LocalDays.dateOf(input.effectiveAt.getOrElse(input.scheduledFor), zone))
-    else Adherence.dayOf(input, zone).orElse(Some(LocalDays.dateOf(input.scheduledFor, zone)))
+    else Some(LocalDays.dateOf(input.scheduledFor, zone))
 
   def byDay(records: Iterable[DoseRecord], zone: ZoneId): Map[LocalDate, MedicationDay] =
     records

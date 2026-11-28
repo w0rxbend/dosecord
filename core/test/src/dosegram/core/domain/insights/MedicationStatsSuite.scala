@@ -57,10 +57,22 @@ class MedicationStatsSuite extends munit.FunSuite:
     val early = input(OccurrenceStatus.Taken, effectiveAt = Some(scheduledFor.minusSeconds(1800)))
     assertEquals(MedicationStats.bucket(early), DoseBuckets.zero.copy(takenOnTime = 1))
 
-  test("a dose taken after the due window is late, and counts on the day it was taken"):
+  test("a dose taken after the due window is late, and counts on its scheduled day (supervisor decision, 2026-11-28)"):
     val late = input(OccurrenceStatus.Taken, effectiveAt = Some(Instant.parse("2026-03-10T22:30:00Z")))
     assertEquals(MedicationStats.bucket(late), DoseBuckets.zero.copy(takenLate = 1))
-    assertEquals(MedicationStats.dayOf(late, kyiv), Some(day.plusDays(1)))
+    assertEquals(MedicationStats.dayOf(late, kyiv), Some(day))
+
+  test("a skipped or missed dose counts on its scheduled day, however late it was resolved, across a DST change"):
+    // Kyiv enters summer time at 03:00 on Sunday 29 March 2026. A Monday dose a catch-up marked missed on Saturday
+    // stays on Monday; 00:30 on the Sunday is 22:30 UTC on Saturday and stays on Sunday.
+    val monday = AdherenceInput(Instant.parse("2026-03-23T18:00:00Z"), OccurrenceStatus.Missed, None,
+      Some(Instant.parse("2026-03-28T19:00:00Z")), Instant.parse("2026-03-23T19:00:00Z"), false, corrected = false)
+    val sundayNight = AdherenceInput(Instant.parse("2026-03-28T22:30:00Z"), OccurrenceStatus.Skipped, None,
+      Some(Instant.parse("2026-03-30T06:00:00Z")), Instant.parse("2026-03-28T23:30:00Z"), false, corrected = false)
+    assertEquals(MedicationStats.dayOf(monday, kyiv), Some(LocalDate.parse("2026-03-23")))
+    assertEquals(MedicationStats.dayOf(sundayNight, kyiv), Some(LocalDate.parse("2026-03-29")))
+    val days = MedicationStats.byDay(List(DoseRecord(medication, monday), DoseRecord(medication, sundayNight)), kyiv)
+    assertEquals(days.keySet, Set(LocalDate.parse("2026-03-23"), LocalDate.parse("2026-03-29")))
 
   test("unknown and open doses are counted beside the rates, on their scheduled day"):
     val unknown = input(OccurrenceStatus.Unknown)

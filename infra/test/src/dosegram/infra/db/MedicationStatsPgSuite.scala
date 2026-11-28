@@ -190,6 +190,74 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
     assertEquals(view.total.buckets.resolved.taken, 6)
     assertEquals(view.delay.shown.map(_.samples), Some(5))
 
+  test("every dose counts on its own local scheduled day, a late-missed one and one across the DST change included"):
+    // The verification of 2026-11-28: a late catch-up marked a Monday 20:00 dose missed on Saturday, and the morning
+    // summary's text put it into Saturday ("0 of 2 taken · not confirmed 2") while the card counted Saturday's one dose.
+    // Kyiv leaves summer time at 04:00 on Sunday 25 October 2026 (+03 to +02).
+    val rig = Rig()
+    fixtures.uow.transaction(
+      _.occurrences.cancel(rig.occurrences.filter(_.status.isOpen).map(_.id), CancelReason.Paused, rig.clock.now())
+    )
+    def doseAt(local: String, slot: String): StoredOccurrence =
+      val id = fixtures.occurrenceAt(rig.schedule.scheduleId, java.time.LocalDateTime.parse(local).atZone(kyiv).toInstant,
+        slot, OccurrenceStatus.Due)
+      rig.occurrences.find(_.id == id).get
+    def resolveAt(occ: StoredOccurrence, status: OccurrenceStatus, local: String): Unit =
+      val at = java.time.LocalDateTime.parse(local).atZone(kyiv).toInstant
+      rig.resolve(occ, status, Duration.between(occ.scheduledFor, at).getSeconds)
+    val monday = doseAt("2026-10-19T20:00", "mon-20")
+    val saturday = doseAt("2026-10-24T09:00", "sat-09")
+    // 00:30 on Sunday is 21:30 UTC on Saturday, still in summer time.
+    val sundayNight = doseAt("2026-10-25T00:30", "sun-0030")
+    // 23:30 on Sunday is in winter time; it is taken after midnight, on Monday.
+    val sundayLate = doseAt("2026-10-25T23:30", "sun-2330")
+    resolveAt(saturday, OccurrenceStatus.Taken, "2026-10-24T09:05")
+    resolveAt(monday, OccurrenceStatus.Missed, "2026-10-24T21:00")
+    resolveAt(sundayNight, OccurrenceStatus.Missed, "2026-10-26T08:00")
+    resolveAt(sundayLate, OccurrenceStatus.Taken, "2026-10-26T00:40")
+
+    val days = rig.settled()
+    def counts(date: String) = days.get(LocalDate.parse(date)).map(_.total)
+    assertEquals(counts("2026-10-19").map(_.missed), Some(1), "Monday keeps its missed dose")
+    assertEquals(counts("2026-10-24").map(b => (b.takenOnTime, b.missed)), Some((1, 0)), "Saturday has its one dose")
+    assertEquals(counts("2026-10-25").map(b => (b.missed, b.takenLate)), Some((1, 1)), "Sunday has both of its doses")
+    assertEquals(counts("2026-10-26"), None, "Monday 26 had no dose scheduled")
+    assertEquals(days, MedicationStats.byDay(rig.rows, kyiv), "the stored rollups equal the pure attribution")
+
+    // The morning summary's medication line reads the same days as its card (DoseMarks, by scheduled day).
+    def line(date: String): String =
+      rig.uow.transaction(tx => rig.tracking.statsService.dayLines(tx, rig.account, LocalDate.parse(date))).head
+    assert(!line("2026-10-24").contains("not confirmed"), line("2026-10-24"))
+    assert(line("2026-10-24").contains("1 of 1 taken"), line("2026-10-24"))
+    assert(line("2026-10-19").contains("not confirmed 1"), line("2026-10-19"))
+    assert(line("2026-10-25").contains("1 of 2 taken"), line("2026-10-25"))
+
+  test("a rollup stored by an earlier version is queued again at start and rebuilt under today's attribution"):
+    // The live rollups were written when a late-missed dose counted on the day it was marked: a start queues every day
+    // of a row of another version, and every scheduled day of that account's doses, so no stale figure survives.
+    val rig = Rig()
+    fixtures.uow.transaction(
+      _.occurrences.cancel(rig.occurrences.filter(_.status.isOpen).map(_.id), CancelReason.Paused, rig.clock.now())
+    )
+    val id = fixtures.occurrenceAt(rig.schedule.scheduleId, Instant.parse("2026-10-19T17:00:00Z"), "mon-20",
+      OccurrenceStatus.Due)
+    rig.resolve(rig.occurrences.find(_.id == id).get, OccurrenceStatus.Missed, 5L * 86400L)
+    rig.settled()
+    withConnection { conn =>
+      given Connection = conn
+      // What the earlier release stored: the dose on Saturday, the day it was marked, and nothing on Monday.
+      sql"DELETE FROM daily_rollups WHERE account_id = ${rig.account}".execute()
+      sql"""INSERT INTO daily_rollups (account_id, local_date, domain, metrics, rollup_version, computed_at)
+            VALUES (${rig.account}, ${LocalDate.parse("2026-10-24")}, 'medication',
+                    ${Jsonb(s"""{"perMedication":[{"medicationId":"${rig.schedule.medicationId}","takenOnTime":0,"takenLate":0,"skipped":0,"missed":1,"unknown":0,"open":0,"asNeeded":0}]}""")},
+                    1, ${start})""".execute()
+    }
+    assert(rig.uow.transaction(_.tracking.rollups.markStale()) > 0, "the stale row queues days")
+    val days = rig.settled()
+    assertEquals(days.keySet, Set(LocalDate.parse("2026-10-19")), "the dose is back on its own Monday")
+    assertEquals(days.values.head.total.missed, 1)
+    assertEquals(rig.uow.transaction(_.tracking.rollups.markStale()), 0, "a rebuilt account has nothing stale")
+
   test("reminder bookkeeping queues no rollup day; a resolution does"):
     val rig = Rig()
     rig.settled()
