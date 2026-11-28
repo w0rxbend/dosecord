@@ -133,11 +133,13 @@ class ResvgRasteriserSuite extends munit.FunSuite:
     // pause let the second caller take the slot first on a loaded host, and then it waited for a render of its own.
     // Both callers share one timeout, so the first's deadline always ends before the second's wait does: when killing
     // the first is quicker than starting it was, the second takes the freed slot and times out on its own deadline.
-    // Either typed failure inside that deadline is the contract; which one depends on the host's timing.
+    // Either typed failure inside that deadline is the contract; which one depends on the host's timing. The fake
+    // execs its sleep: the second render is killed a millisecond after its start, before a shell would have forked a
+    // `sleep` child, which then escaped the kill, held the output pipe and kept the caller 30 s (CI, 2026-11-28).
     val started = Files.createTempFile("fake-resvg", ".started")
     Files.delete(started)
     val busy = ResvgRasteriser(
-      ResvgConfig(fakeBinary(s"touch '$started'; sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 600, 1024, 1)
+      ResvgConfig(fakeBinary(s"touch '$started'; exec sleep 30"), PinnedFonts.dir, PinnedFonts.dir, 600, 1024, 1)
     )
     val first = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()
     val holding = first.submit(() => busy.rasterise(waterSvg(Theme.Dark), 1))

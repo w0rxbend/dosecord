@@ -145,16 +145,23 @@ object FsmGens:
 
   /** An instant inside active quiet hours: a random local date in the zone plus a wall minute inside the interval.
     */
+  /** An instant inside the quiet hours. A local time in a spring-forward gap does not exist and resolves to a later
+    * instant, which may be past the quiet hours' end (seed `X2mNvyFTAo3...`, 03:52 on 2026-03-29), so such a draw
+    * is discarded.
+    */
   def genNowInsideQuiet(zone: ZoneId, quiet: QuietHours): Gen[Instant] =
     val from = quiet.start.hour * 60 + quiet.start.minute
     val to = quiet.end.hour * 60 + quiet.end.minute
     val length = if from < to then to - from else 24 * 60 - from + to
-    for
-      date <- Gen.choose(0L, 400L).map(java.time.LocalDate.of(2026, 1, 1).plusDays)
-      offset <- Gen.choose(0, length - 1)
-    yield
-      val minute = (from + offset) % (24 * 60)
-      Dst.resolveLocal(date, java.time.LocalTime.of(minute / 60, minute % 60), zone)._1
+    val context = QuietHoursContext(Some(quiet), zone)
+    val draws =
+      for
+        date <- Gen.choose(0L, 400L).map(java.time.LocalDate.of(2026, 1, 1).plusDays)
+        offset <- Gen.choose(0, length - 1)
+      yield
+        val minute = (from + offset) % (24 * 60)
+        Dst.resolveLocal(date, java.time.LocalTime.of(minute / 60, minute % 60), zone)._1
+    draws.suchThat(context.contains)
 
   def quietZone(start: String, end: String, zone: ZoneId = utc): QuietHoursContext =
     QuietHoursContext(Some(QuietHours(HhMm.unsafe(start), HhMm.unsafe(end))), zone)
