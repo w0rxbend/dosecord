@@ -12,6 +12,7 @@ import dosegram.contracts.Node
 import dosegram.contracts.OutboundMessage
 import dosegram.contracts.Principal
 import dosegram.contracts.Reply
+import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -21,10 +22,8 @@ import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Lang
 import dosegram.core.domain.copy.LanguageCopy
 import dosegram.core.domain.copy.ReminderCopy
-import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.Clock
-import dosegram.core.ports.SettingsAudit
 import dosegram.core.ports.Tx
 
 import java.util.UUID
@@ -36,6 +35,8 @@ import java.util.UUID
 final class LanguageChat(codec: CallbackCodec, clock: Clock, inner: ChatHandler) extends ChatHandler:
 
   import LanguageChat.*
+
+  private val edits = AccountSettingsEdits(clock)
 
   override def handle(event: InboundEvent, principal: Principal, tx: Tx): Reply =
     val answer = event.body match
@@ -58,9 +59,7 @@ final class LanguageChat(codec: CallbackCodec, clock: Clock, inner: ChatHandler)
         case None       => stale
 
   private def choose(event: InboundEvent, account: UUID, lang: Lang, source: Option[MessageHandle], tx: Tx): Reply =
-    val settings = tx.accounts.settingsOf(account).getOrElse(AccountSettings.Default)
-    tx.accounts.saveSettings(account, settings.copy(locale = Some(lang.code)), clock.now())
-    tx.auditLog.record(SettingsAudit.changed(account, AuditChannel.Bot, List("locale")))
+    edits.save(tx, account, AuditChannel.Bot)(_.copy(locale = Some(lang.code))): Unit
     show(source, message(event, "language.changed", List(LanguageCopy.changed(lang)), Nil))
 
   private def picker(event: InboundEvent, account: UUID, source: Option[MessageHandle]): Reply =

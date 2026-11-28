@@ -19,6 +19,7 @@ import dosegram.core.application.privacy.PrivacyChat
 import dosegram.core.application.privacy.PrivacyMessages
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
+import dosegram.core.application.settings.SettingsChat
 import dosegram.core.chat.CallbackCodec
 import dosegram.core.chat.ChatHandler
 import dosegram.core.chat.Flow
@@ -76,16 +77,19 @@ object Application:
     // Medication depth (ROADMAP G9.10, G9.12): refill and pause taps, and the question before an as-needed log above
     // the user's own limit, ahead of the dose handler that records the log.
     val depth = MedicationDepthChat(codec, clock, lifecycle, capture, inner = dose)
+    // The settings hub (supervisor decision, 2026-11-28; BOT_UX section 17), inside the engine for its time zone flow.
+    val settings = SettingsChat(codec, clock, Application.reminderSettings(clock), inner = depth)
     val engine = WizardEngine(
       flows = flows(clock, lifecycle, codec),
       flowCommands = Map.empty,
       codec = codec,
       clock = clock,
-      inner = LanguageChat(codec, clock, inner = depth),
+      inner = LanguageChat(codec, clock, inner = settings),
       uow = uow,
       adapters = adapters
     )
     menu.wireEngine(engine)
+    settings.wireEngine(engine)
     // The note after a release sits outside the gate and inside the language (supervisor decision, 2026-11-28).
     LocalisedHandler(WhatsNewChat(codec, clock, FirstFlows.identityGate(engine)))
 

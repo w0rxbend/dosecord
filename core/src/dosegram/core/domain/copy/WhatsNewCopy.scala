@@ -6,20 +6,18 @@ package dosegram.core.domain.copy
   */
 object WhatsNewCopy:
 
-  /** The release the items below describe. Raise it only with new items. */
-  val Release: Int = 1
+  /** The release the items below describe. Raise it only with new items. Release 2 (supervisor decision, 2026-11-28):
+    * the settings hub of `/settings`, which also gives the chat its "Animated mood" switch (BOT_UX section 6.5).
+    */
+  val Release: Int = 2
 
   def title: String = tr("What's new", "Що нового")
 
   /** One line per command the release added or changed, the command first. */
   def items: List[String] = List(
     tr(
-      "/stats year: your year month by month, the year before beside it, and a one-year card.",
-      "/stats year: ваш рік за місяцями, поруч — попередній рік, і картка року."
-    ),
-    tr(
-      "/insights: one more comparison, your mood on the days you logged every meal you planned.",
-      "/insights: ще одне порівняння — ваш настрій у дні, коли ви записали всі заплановані прийоми їжі."
+      "/settings: every setting in one card, switched in place: language, time zone, your day, image theme, discreet reminders, animated mood and the notes after updates.",
+      "/settings: усі налаштування в одній картці, що змінюються на місці: мова, часовий пояс, ваш день, тема зображень, стримані нагадування, анімований настрій і примітки після оновлень."
     )
   )
 

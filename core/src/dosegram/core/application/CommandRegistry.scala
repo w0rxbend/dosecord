@@ -141,6 +141,14 @@ object CommandRegistry:
     description = "Show and withdraw your consents."
   )
 
+  /** `/settings` (BOT_UX section 17; supervisor decision, 2026-11-28): listed after `/privacy` in the composition with
+    * capture, because the chat is the one surface on which every setting must be reachable.
+    */
+  val Settings: CommandSpec = CommandSpec(
+    name = "settings",
+    description = "Language, time zone, your day, images and reports."
+  )
+
   /** Display order is the registration order. A domain has no command here before it has a consent purpose and its
     * capture slice has shipped (BOT_UX BUX-CMD-08).
     */
@@ -154,9 +162,9 @@ object CommandRegistry:
     */
   val capture: List[CommandSpec] = List(Water, Mood, Sleep, Food, Stats, Privacy)
 
-  /** The command list of the composition with capture, with the capture commands ahead of `/menu`. */
+  /** The command list of the composition with capture, with the capture commands and `/settings` ahead of `/menu`. */
   val withCapture: List[CommandSpec] =
-    all.flatMap(spec => if spec == Menu then capture :+ spec else List(spec))
+    all.flatMap(spec => if spec == Menu then capture :+ Settings :+ spec else List(spec))
 
   /** `/reminders` (ADR-023): hidden, so the listed set stays at its limit (BOT_UX BUX-CMD-06); it is still declared, so
     * the mediator acknowledges it before work.

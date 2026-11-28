@@ -1,13 +1,13 @@
 package dosegram.core.application.identity
 
 import dosegram.contracts.*
+import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.chat.Flow
 import dosegram.core.chat.FlowContext
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.WizardCopy
 import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.Clock
-import dosegram.core.ports.SettingsAudit
 import dosegram.core.scheduling.ScheduleLifecycle
 
 import java.time.ZoneId
@@ -35,12 +35,9 @@ object AccountTimezoneFlow:
           List(outbound(IdentityCopy.createFirst, s"account.timezone:unlinked:${ctx.event.eventId.uuid}", ctx))
         )
       case Some(account) =>
-        val zoneId = data(AccountCreateFlow.TimezoneKey)
-        val now = clock.now()
-        ctx.tx.accounts.setTimezone(account.uuid, zoneId, now)
-        ctx.tx.auditLog.record(SettingsAudit.changed(account.uuid, AuditChannel.Bot, List("timezone")))
-        lifecycle.rezoneFollowingSchedulesInTx(ctx.tx, account.uuid, ZoneId.of(zoneId), now)
-        val local = now.atZone(ZoneId.of(zoneId))
+        val zone = ZoneId.of(data(AccountCreateFlow.TimezoneKey))
+        AccountSettingsEdits(clock).saveInZone(ctx.tx, account.uuid, AuditChannel.Bot, zone, lifecycle)(identity): Unit
+        val local = clock.now().atZone(zone)
         Reply(
           followUps = List(
             outbound(

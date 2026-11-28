@@ -142,7 +142,27 @@ object ActionRegistry:
     // stops these messages, value 1 turns them back on.
     ActionEntry(505, "stats.year", requiresSession = false),
     ActionEntry(506, "stats.year_image", requiresSession = false),
-    ActionEntry(507, "whatsnew.switch", requiresSession = false)
+    ActionEntry(507, "whatsnew.switch", requiresSession = false),
+    // The settings hub of /settings (518 to 547; supervisor decision, 2026-11-28; BOT_UX section 17): direct mode on
+    // the account. A switch carries the state it sets (0 off, 1 on; the language's or the theme's ordinal), so a repeated
+    // tap changes nothing. `settings.anchor_set` carries the anchor's ordinal times 10000 plus the minute of the day,
+    // `settings.work_set` and `settings.quiet_set` the index of their choice.
+    ActionEntry(518, "settings.open", requiresSession = false),
+    ActionEntry(519, "settings.language", requiresSession = false),
+    ActionEntry(520, "settings.theme", requiresSession = false),
+    ActionEntry(521, "settings.discreet", requiresSession = false),
+    ActionEntry(522, "settings.animated", requiresSession = false),
+    ActionEntry(523, "settings.counts", requiresSession = false),
+    ActionEntry(524, "settings.whatsnew", requiresSession = false),
+    ActionEntry(525, "settings.day", requiresSession = false),
+    ActionEntry(526, "settings.anchor_pick", requiresSession = false),
+    ActionEntry(527, "settings.anchor_set", requiresSession = false),
+    ActionEntry(528, "settings.work_pick", requiresSession = false),
+    ActionEntry(529, "settings.work_set", requiresSession = false),
+    ActionEntry(530, "settings.quiet_pick", requiresSession = false),
+    ActionEntry(531, "settings.quiet_set", requiresSession = false),
+    ActionEntry(532, "settings.timezone", requiresSession = false),
+    ActionEntry(533, "settings.privacy", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

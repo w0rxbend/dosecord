@@ -314,7 +314,23 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         // Analytics round 6 (supervisor decision, 2026-11-28).
         505 -> "stats.year",
         506 -> "stats.year_image",
-        507 -> "whatsnew.switch"
+        507 -> "whatsnew.switch",
+        518 -> "settings.open",
+        519 -> "settings.language",
+        520 -> "settings.theme",
+        521 -> "settings.discreet",
+        522 -> "settings.animated",
+        523 -> "settings.counts",
+        524 -> "settings.whatsnew",
+        525 -> "settings.day",
+        526 -> "settings.anchor_pick",
+        527 -> "settings.anchor_set",
+        528 -> "settings.work_pick",
+        529 -> "settings.work_set",
+        530 -> "settings.quiet_pick",
+        531 -> "settings.quiet_set",
+        532 -> "settings.timezone",
+        533 -> "settings.privacy"
       )
     )
 

@@ -130,6 +130,8 @@ private[capture] object CaptureActions:
   val MoodHistoryImage: ActionEntry = named("mood.history_image")
   val StatsYear: ActionEntry = named("stats.year")
   val StatsYearImage: ActionEntry = named("stats.year_image")
+  // "Privacy" on the settings card of /settings opens the /privacy card in its place (BOT_UX section 17).
+  val PrivacyOpen: ActionEntry = named("settings.privacy")
 
   val all: Set[ActionEntry] = Set(
     ConsentStep,
@@ -176,7 +178,8 @@ private[capture] object CaptureActions:
     StatsMedsImage,
     MoodHistoryImage,
     StatsYear,
-    StatsYearImage
+    StatsYearImage,
+    PrivacyOpen
   )
 
   private def named(name: String): ActionEntry =

@@ -140,6 +140,10 @@ class AuditPgSuite extends PgSuite:
       rig.tap("Account", "Timezone")
       rig.tap("Pick your timezone", "Europe/Kyiv")
       rig.tap("Correct?", "Yes")
+      // The language and the zone above are picked again as they were, which changes and audits nothing (BOT_UX
+      // BUX-SET-07); a switch of /settings changes a setting.
+      rig.line("/settings")
+      rig.tap("Images and messages", "Discreet: off")
 
       val written = withConnection: conn =>
         given Connection = conn
