@@ -61,6 +61,9 @@ trait PromptRepository:
   /** The ids of every plan that is on, for the prompt loop. */
   def enabledIds(): List[UUID]
 
+  /** Every plan of one of `kinds` that is on, unlocked: what the report pre-render reads (VISUALS VA-PS-08). */
+  def enabledOf(kinds: Set[PromptKind]): List[PromptSchedule]
+
   /** The plan, locked for this transaction (`FOR UPDATE SKIP LOCKED`); none when it is off or another loop holds it.
     */
   def lockEnabled(scheduleId: UUID): Option[PromptSchedule]

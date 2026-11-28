@@ -686,6 +686,7 @@ object MediatorFakes:
       override def setEnabled(accountId: UUID, kind: PromptKind, enabled: Boolean, now: Instant): Boolean = false
       override def pause(scheduleId: UUID, until: Option[Instant], now: Instant): Unit = unsupported("pause")
       override def enabledIds(): List[UUID] = Nil
+      override def enabledOf(kinds: Set[PromptKind]): List[PromptSchedule] = Nil
       override def lockEnabled(scheduleId: UUID): Option[PromptSchedule] = None
       override def decided(scheduleId: UUID, dates: List[LocalDate]): List[PromptOccurrence] = Nil
       override def decidedOn(accountId: UUID, date: LocalDate): List[PromptOccurrence] = Nil

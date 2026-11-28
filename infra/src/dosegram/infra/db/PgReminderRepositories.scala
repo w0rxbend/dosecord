@@ -95,6 +95,11 @@ final class PgPromptRepository(conn: Connection) extends PromptRepository:
   override def enabledIds(): List[UUID] =
     sql"SELECT id FROM prompt_schedules WHERE enabled ORDER BY id".query[UUID]()
 
+  override def enabledOf(kinds: Set[PromptKind]): List[PromptSchedule] =
+    val kindIds = kinds.toArray.map(_.id)
+    sql"""SELECT id, account_id, kind, preset, plan, own_cap, enabled, sound, paused_until, active_from
+          FROM prompt_schedules WHERE enabled AND kind = ANY($kindIds) ORDER BY id""".query[PromptSchedule]()
+
   override def lockEnabled(scheduleId: UUID): Option[PromptSchedule] =
     sql"""SELECT id, account_id, kind, preset, plan, own_cap, enabled, sound, paused_until, active_from
           FROM prompt_schedules WHERE id = $scheduleId AND enabled

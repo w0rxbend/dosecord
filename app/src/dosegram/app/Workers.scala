@@ -28,6 +28,7 @@ import dosegram.core.scheduling.OutboxRenderer
 import dosegram.core.scheduling.PromptLoop
 import dosegram.core.scheduling.PromptOutboxRenderer
 import dosegram.core.scheduling.ReminderLoop
+import dosegram.core.scheduling.ReportPrerender
 import dosegram.core.scheduling.ScheduleLifecycle
 import dosegram.core.scheduling.TokenBuckets
 import dosegram.infra.Metrics
@@ -199,6 +200,13 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
     * fails is logged by id and error class only, and the others go on.
     */
   private def startPromptLoop(log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
+    val reports = ReportComposer(
+      StatsQueryService(RollupService(uow, clock), clock),
+      parts.images.cards,
+      parts.images.drawing,
+      codec,
+      MicrometerImageMetrics.textFallback
+    )
     val loop = PromptLoop(
       uow,
       clock,
@@ -206,18 +214,32 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       PromptMessages(codec),
       HydrationService(clock, IdSource.uuidV7(java.security.SecureRandom())),
       Application.reminderSettings(clock),
-      ReportComposer(
-        StatsQueryService(RollupService(uow, clock), clock),
-        parts.images.cards,
-        parts.images.drawing,
-        codec
-      ),
+      reports,
       (plan, error) => log(s"prompt plan $plan failed: ${error.getClass.getSimpleName}")
     )
     fork:
       passes.repeat("prompt loop"): () =>
         loop.tick()
         loop.offerReports()
+        Thread.sleep(parts.cadence.reminderPoll.toMillis)
+        true
+    startReportPrerender(reports, log, passes)
+
+  /** The pre-render of the scheduled reports (VISUALS VA-PS-08), apart from the prompt loop so that a drawing never
+    * delays a prompt. It writes the asset store only, so cancelling it with the scope loses nothing.
+    */
+  private def startReportPrerender(reports: ReportComposer, log: String => Unit, passes: WorkerLoop)(using Ox): Unit =
+    val prerender = ReportPrerender(
+      uow,
+      clock,
+      Application.reminderSettings(clock),
+      reports,
+      parts.images.drawing,
+      (plan, error) => log(s"report pre-render of plan $plan failed: ${error.getClass.getSimpleName}")
+    )
+    fork:
+      passes.repeat("report pre-render"): () =>
+        prerender.tick()
         Thread.sleep(parts.cadence.reminderPoll.toMillis)
         true
     ()
