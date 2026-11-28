@@ -56,9 +56,9 @@ The migrations are V1 to V19 and V22 to V27, 25 files
 (V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 to V30
 were assigned to the fourteenth round's tracks and stay unused, so the
 next migration is V28; the highest action id in use is 565. The live database is at V27 (`cd8f39a`, the
-deploy of `docs/OPERATIONS.md` section 23); section 25 is the owner's
-deploy of the head, with no migration (sections 8 to 24 the earlier
-parts). The Mini App
+deploy of `docs/OPERATIONS.md` section 23); section 26 is the owner's
+deploy of the head, with no migration, rehearsed by the verification of
+2026-11-28, third round (sections 8 to 25 the earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
 Appendix B and its status notes are the record; this is the short form.
@@ -307,8 +307,9 @@ Useful next, in this order:
     one-year card (IMG-30), the "What's new" note and the animated mood
     (`sendAnimation` playback on every client); the TGS sticker (spike S5); contact-sheet reviews of
     IMG-30 and the motion by another reviewer; the load flakes of
-    `NewUserWalkSuite`, `TelegramLaunchSuite`, `freePort()` and
-    `SessionApiSuite` (ROADMAP Appendix B, integration of 2026-11-28),
+    `NewUserWalkSuite`, `TelegramLaunchSuite` and `SessionApiSuite`
+    (ROADMAP Appendix B, integration of 2026-11-28; the `freePort()`
+    collision between test JVMs is fixed, `cc8058d`),
     and from the verification of 2026-11-28: the deploy of V27, which
     seals the `/meds` button labels and the waiting card pages that held
     medication names in plaintext (G2.4b, OPERATIONS section 23, owner's
@@ -336,7 +337,7 @@ Useful next, in this order:
     sends of the late note.
 16. What the fourteenth round left open (ROADMAP Appendix B,
     integration of 2026-11-28, third round): the deploy of the head
-    (OPERATIONS section 25); the CI jobs `secret-scan` (gitleaks: 2
+    (OPERATIONS section 26, which replaces section 25); the CI jobs `secret-scan` (gitleaks: 2
     leaks found) and `ops-scripts` (restore drill: role `dosegram_worker`
     missing), failing since `97fd96b` or before; of G4.7
     the pixel goldens inside the production image, the seeded one-pixel

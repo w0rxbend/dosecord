@@ -1265,3 +1265,102 @@ Rollback without a restore: as in section 23, to `LIVE_WT="$PWD/.live/wt-cd8f39a
 a stored `report.daily.HHMM` plan by its raw preset id in `/reminders`, but sends it at the stored time (the plan
 is kept as its times, not as its id); it draws report cards at the send time again; the pre-render's rows in
 `render_assets` are purged within the hour.
+
+## 26. Deploying `main` after the verification of 2026-11-28, third round, over the live V27 database
+
+This section replaces section 25 as the owner's deploy. The head of `main` at or after the commit that adds this
+section carries everything of section 25 and two fixes of this verification: the health, webhook and Mini App
+listeners give their connections SO_REUSEADDR, so a restart binds its port at once although the stopped process
+closed kept-alive connections (`d749207`), and a test helper (`cc8058d`, no production change). There is no
+migration (V28, V29 and V30 stay unused), no environment variable, no binary and no Dockerfile change. Every step is
+the owner's; `<sha>` is that head and `<pg>` is `dosegram-live-pg`. These are the steps the rehearsal below followed,
+in this order:
+
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v27-$(date -u +%F).dump`.
+   The file has mode 600; it is the V27 restore point.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist. Note the number of quarantined updates:
+   `docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c "SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined';"`.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. `ss -tn state established '( sport = :18081 )'` lists no connection. The running release (`cd8f39a`) does not
+   have the fix: if a client keeps a connection to its health port open when it stops, the new start fails within
+   the next minute with `bind(..) failed with error(-98): Address already in use` and exits. Requests made with
+   `curl` close their own connection and leave nothing behind. If the start fails that way, wait 60 seconds and start
+   again; nothing was changed by the failed start.
+5. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with `shutdown: pool closed`), then
+   start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log shows 25 `sealing:` lines, each `sealed 0 value(s)`,
+   `migrate: 0 migration(s) applied, schema 27, 0 value(s) sealed, 0 key(s) rewrapped`,
+   `purge: replayed 0 deletion(s) of the purge list`, no `rollups:` line, and
+   `/healthz, /readyz and /metrics listening on 127.0.0.1:18081`.
+6. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   - `SELECT string_agg(version, ',' ORDER BY installed_rank) FROM flyway_schema_history WHERE success AND version::int > 26;`
+     returns `27`;
+   - the quarantined count is that of step 2, and `curl -fsS http://127.0.0.1:18081/readyz` answers 200;
+   - `SELECT status, error_class, count(*) FROM report_requests GROUP BY 1, 2;` (codes only). An image request that
+     waited while the bot was down is answered at the start as its text (`text_fallback`, `Late`), or dropped from an
+     earlier day (`Stale`, section 24).
+7. In the chat:
+   - `/meds` lists the medications by name; no onboarding question;
+   - `/settings` shows "Morning summary: HH:MM"; the button opens eight times from 06:30 to 10:00 and "Turn off";
+     07:30 edits the card into "Saved. Morning summary: 07:30 (was HH:MM)."; 06:30 is refused with "06:30 is in
+     your quiet hours (22:00–07:00), ...";
+   - `/reminders summary 07:45` answers "Every day at 07:45 is on." and the hub lists "Morning summary: Every day at
+     07:45"; `/reminders summary 23:30` is refused the same way;
+   - buttons sent by the previous release still answer ("Pause · <name>" on an old `/meds` list, Taken on an old
+     dose, "7 days" and "Show as image" on an old `/stats meds`).
+8. In the 30 minutes before the next scheduled report,
+   `SELECT count(*) FROM render_assets WHERE asset_key LIKE 'report.%';` rises above 0 (the pre-render). After it,
+   `curl -fsS http://127.0.0.1:18081/metrics | grep dosegram_image_text_fallback_total` (codes and counts only)
+   shows no new count for the report's templates when its images arrived. On a day with the weekly or monthly
+   report the morning summary is sent without its card (VISUALS VA-PS-03), and that is not counted.
+9. Clear the older WAL as in section 14 only if the bot was rolled back to `4a9b03a` since the deploy of V27.
+10. Delete the old worktree only after a day of normal use.
+
+Rollback without a restore: wait until
+`SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering');` returns 0, check step 4 again, stop
+the bot and start `LIVE_WT="$PWD/.live/wt-cd8f39a" .live/run.sh`. It logs
+`migrate: 0 migration(s) applied, schema 27` and answers `/readyz` with 200. `/reminders` shows a summary stored at
+a time that is not a whole hour by its raw preset id ("Morning summary: report.daily.0745"), and still sends it at
+that time, with its card drawn at the send time. Restore the backup of step 1 only if the database itself must go
+back.
+
+Rehearsed on 2026-11-28 (third round) against a throwaway `postgres:18-alpine` container on a free port, with a key
+file (`KEK_FILE`, mode 600), a purge-list path in a directory of mode 700 and `ENVIRONMENT=production`. `cd8f39a`,
+assembled as `Main` assembles it with the Telegram adapter on the fake wire, a stepped clock and resvg 0.49.0
+drawing, built a V27 database through the chat (`migrate: 25 migration(s) applied, schema 27`): two accounts, one in
+English (Europe/London) with onboarding, two medications with a name, a dose and instructions, water with a plan,
+mood, a night, a meal with words, a dose taken, one snoozed then skipped, the images consent with cards, the mood
+gallery, `/stats meds` with its strip, an export, the morning summary at 08:00 and the weekly report (Monday 09:00)
+on, a dose left open and an add-medication form left after its first answer; one in Ukrainian (Europe/Kyiv) with
+water and mood. Then, with the assemblies started by `java -jar out/app/assembly.dest/out.jar run` on the console
+adapter in place of `.live/run.sh`: `cd8f39a` answered `/readyz` with 200, the backup of step 1 was written with mode
+600 while it ran (a `pg_restore` of it into a scratch database gave schema 27, 2 users and 42 sealed label sets), no
+purge list existed, nothing was quarantined, and SIGTERM ended it with `shutdown: pool closed`. One "Show as image"
+request was left `rendering` by halting `cd8f39a` right after the tap. The head (`36e64a4`) logged
+`migrate: 0 migration(s) applied, schema 27, 0 value(s) sealed, 0 key(s) rewrapped`, 25 `sealing:` lines with 0
+values, no `rollups:` line, answered `/readyz` with 200, and answered the waiting request as its text
+(`text_fallback`, `Late`); a second start did the same and stopped cleanly. On the fake wire, from Sunday 18:00 to
+the next Tuesday: no onboarding question, both names in `/meds`, the catch-up digest, step 7 as written (the card
+edit "Saved. Morning summary: 07:30 (was 08:00).", both refusals, "Every day at 07:45 is on."), a mood check-in with
+its card, a water entry, and the four old buttons answered. Monday: the pre-render drew the summary's card before
+07:45 and the summary went without it (the weekly report was due that day); before 09:00 it drew the week card and
+the highlights, and the weekly report arrived at 09:00 as an album of 2 images (`sendMediaGroup`, both uploaded) with
+its text. Tuesday: the card drawn before 07:45 arrived with the summary (`sendPhoto`). Every sealed label set (75)
+opened through the release's own repository and key service, 3 of them naming a medication; nothing was
+quarantined and no outbox row died. A scan of every column (600) and a `pg_dump`, as text and as hex, found no
+medication name, instruction, unfinished form answer, meal words or first name; the zone name (the positive
+control) was found. 45 tables have forced row-level security, and `dosegram_app` without a claim saw no row of
+`users`, `medications`, `mood_checkins`, `rendered_messages`, `report_requests`, `hydration_entries` or
+`sleep_episodes`. Rollback: `cd8f39a` over the upgraded database logged `migrate: 0 migration(s) applied, schema 27`,
+answered `/readyz` with 200, then on the fake wire `/meds`, a mood check-in with its card, `/reminders` (the raw
+`report.daily.0745`), `/stats`, a water entry and `/today`, and the next morning sent the 07:45 summary with its
+card. The head again over that database: no sealed value, no second note, `/meds` with both names; a clean restart
+answered `/readyz` with 200; the final scan of every column and the `pg_dump` again found no canary.
+
+Found by the rehearsal and fixed in `d749207`: a start within a minute of a stop failed to bind the health port and
+exited whenever a client had kept a connection to it open (the harness's own `/metrics` read did). The final head
+(`d749207`), assembled the same way over the rehearsal database: with a kept-alive client on its health port,
+stopped and started at once, it bound the port and answered `/readyz` with 200; started at once after `cd8f39a` was
+stopped with a kept-alive client, it failed with "Address already in use" (step 4), and after `cd8f39a` was stopped
+with only `curl` requests, it bound at once. Not rehearsed: a real client, the Telegram transport, the WAL step.
