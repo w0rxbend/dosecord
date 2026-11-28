@@ -861,4 +861,79 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(bot.messages.filter(call => bot.body(call).startsWith("[image:")), Nil, "yesterday's figures are not sent")
       val after = Metrics.registry.find("dosegram_report_requests_dropped_total").counters().asScala.map(_.count()).sum
       assertEquals(after - before, 1.0)
+
+  /** The pinned resvg of this machine, counting what it draws; absent only where the pixel tests may skip. */
+  private final class CountingResvg(binary: java.nio.file.Path) extends Rasteriser:
+    private val resvg = dosegram.render.resvg.ResvgRasteriser(
+      dosegram.render.resvg.ResvgConfig
+        .standard(binary, java.nio.file.Path.of(sys.env("DOSEGRAM_FONTS_DIR")), java.nio.file.Files.createTempDirectory("resvg-empty"))
+        // A minute, as the pixel tests give their rasteriser on a loaded build host; nothing here waits on it.
+        .copy(timeoutMillis = 60000)
+    )
+    val drawn = java.util.concurrent.atomic.AtomicInteger()
+
+    override def rasterise(svg: String, zoom: Int): Either[RasterFailure, PngImage] =
+      drawn.incrementAndGet()
+      resvg.rasterise(svg, zoom)
+
+  private def resvgOfThisMachine(): java.nio.file.Path =
+    val binary = sys.env
+      .get("DOSEGRAM_RESVG")
+      .map(java.nio.file.Path.of(_))
+      .orElse(sys.env.getOrElse("PATH", "").split(':').iterator.filter(_.nonEmpty).map(java.nio.file.Path.of(_, "resvg")).find(java.nio.file.Files.isExecutable(_)))
+    if sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true") then assert(binary.isDefined, "no resvg on the PATH")
+    else assume(binary.isDefined, "no resvg on the PATH")
+    binary.get
+
+  // VISUALS VA-PS-08: the weekly album is drawn in the 30 minutes before Monday 09:00, so at 09:00 it is sent as its
+  // pictures at once, with nothing drawn at the send and nothing sent as text for lateness.
+  test("a scheduled weekly album is drawn ahead and arrives as its pictures at 09:00 on the stepped clock"):
+    val resvg = CountingResvg(resvgOfThisMachine())
+    val accountId = seedOwner()
+    grant(accountId, ConsentPurpose.Hydration, ConsentPurpose.ImagesInChat)
+    val sunday = Instant.parse("2026-09-20T20:00:00Z")
+    // Water on three days of the week before Monday 21 September, through the use case the chat calls.
+    List("2026-09-14T09:00:00Z" -> 500, "2026-09-16T12:00:00Z" -> 900, "2026-09-18T18:00:00Z" -> 1200).foreach: (at, ml) =>
+      val clock = SteppedClock(Instant.parse(at))
+      val water = dosegram.core.application.hydration.HydrationService(clock, dosegram.core.ports.IdSource.uuidV7(java.security.SecureRandom()))
+      val amount = dosegram.core.domain.hydration.WaterAmount.ofMillilitres(ml).toOption.get
+      val command = dosegram.core.application.hydration.LogWater(
+        accountId, amount, dosegram.core.domain.EntryDay.Today, dosegram.core.domain.EntrySource.Bot, s"week-$at"
+      )
+      PgUnitOfWork(dataSource, clock, DataKeys.development).transaction(tx => assert(water.log(tx, command).isRight))
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(resvg), at = sunday): bot =>
+      val weekly = dosegram.core.domain.reminders.PromptKind.WeeklyReport
+      val List(hub) = bot.say("/reminders", expected = 1): @unchecked
+      val List(choose) = bot.tap(hub, PromptCopy.kindButton(weekly), expected = 1): @unchecked
+      val List(preview) = bot.tap(choose, PromptCopy.presetName("report.weekly"), expected = 1): @unchecked
+      bot.tap(preview, PromptCopy.TurnOn, expected = 1): Unit
+      val nineAm = Instant.parse("2026-09-21T09:00:00Z")
+      def albums = bot.wire.calls("sendMediaGroup")
+      // Time passes as in production: to 08:25 at once, then in 30-second steps while the workers run.
+      bot.clock.advance(Duration.between(bot.clock.now(), nineAm.minusSeconds(35 * 60)))
+      while bot.clock.now().isBefore(nineAm.minusSeconds(30)) do
+        bot.clock.advance(Duration.ofSeconds(30))
+        Thread.sleep(150)
+      val deadline = System.nanoTime() + 60.seconds.toNanos
+      while resvg.drawn.get() < 2 && System.nanoTime() < deadline do Thread.sleep(50)
+      assertEquals(resvg.drawn.get(), 2, "the week card and its highlights are drawn before 09:00")
+      assertEquals(albums, Nil, "nothing is sent before its time")
+      bot.clock.advance(Duration.between(bot.clock.now(), nineAm.plusSeconds(5)))
+      while albums.isEmpty && System.nanoTime() < deadline + 60.seconds.toNanos do Thread.sleep(50)
+      val List(album) = albums: @unchecked
+      assert(!album.at.isBefore(nineAm) && album.at.isBefore(nineAm.plusSeconds(60)), s"the album is sent at its time: ${album.at}")
+      val media = album.request.params("media").arr.toList
+      assertEquals(media.map(_("type").str), List("photo", "photo"))
+      media.foreach(item => assert(item("caption").str.nonEmpty, "each picture is captioned with its text equivalent"))
+      val uploads = album.request.files
+      assertEquals(uploads.size, 2, "both pictures are uploaded as drawn")
+      uploads.foreach(file => assertEquals(file.bytes.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte)))
+      assertEquals(resvg.drawn.get(), 2, "nothing is drawn at the send")
+      val textDeadline = System.nanoTime() + 60.seconds.toNanos
+      while !bot.messages.exists(call => bot.body(call).startsWith("Your week")) && System.nanoTime() < textDeadline do
+        bot.clock.advance(Duration.ofSeconds(1))
+        Thread.sleep(50)
+      val text = bot.messages.find(call => bot.body(call).startsWith("Your week")).getOrElse(fail("no weekly text"))
+      assert(text.at.isAfter(album.at) || text.at == album.at, "the text follows the album")
+      assertEquals(bot.buttons(text).map(_._1), List("Stop these"))
 end CaptureLaunchSuite

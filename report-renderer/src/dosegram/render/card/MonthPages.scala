@@ -282,7 +282,9 @@ object MonthPages:
           Vector(Node.Line(Point(left, at), Point(box.right, at), Stroke.dotted(tokens.ink2)))
         )
       }
-      axis ++ bars ++ typical ++ legend.nodes(Point(box.x, plotTop + plotPx + LegendGapPx), frame, context.fitter)
+      // The dotted typical times run behind the nights, seen between them: `ink2` over `dusk` keeps under 2:1 in
+      // greyscale (the greyscale check of ROADMAP G4.7, 2026-11-28).
+      axis ++ typical ++ bars ++ legend.nodes(Point(box.x, plotTop + plotPx + LegendGapPx), frame, context.fitter)
     val average = sleep.averageMinutes.map(copy.sleepAverageOf(_, sleep.nights))
     val spread = for
       bedtime <- sleep.bedtimeSpreadMinutes
@@ -368,7 +370,9 @@ object MonthPages:
               Vector(Node.Line(Point(slotLeft + 2, at), Point(slotLeft + slot - 2, at), Stroke.butt(tokens.ink, 4)))
             )
           }
-          bar +: goal.toVector
+          // The goal tick runs behind the bar and shows beside it: `ink` over `tide` keeps under 3:1 in greyscale (the
+          // greyscale check of ROADMAP G4.7, 2026-11-28).
+          goal.toVector :+ bar
         }
       }
       ticks ++ bars ++ legend.nodes(Point(box.x, baseline + LegendGapPx), frame, context.fitter)

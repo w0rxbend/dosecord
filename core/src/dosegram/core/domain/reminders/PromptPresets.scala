@@ -135,13 +135,27 @@ object PromptPresets:
   /** The morning summary of yesterday at a time the user picks (supervisor decision, 2026-11-27): one message with the
     * daily card, inside the shared budget and quiet hours like every report.
     */
-  def morningSummary(hour: Int): PromptPreset =
+  def morningSummary(hour: Int): PromptPreset = morningSummaryAt(LocalTime.of(hour, 0))
+
+  /** The morning summary at a time the user typed or picked (supervisor decision, 2026-11-28). A whole hour keeps the
+    * id of its preset (`report.daily.08`); any other time names its minutes (`report.daily.0745`).
+    */
+  def morningSummaryAt(time: LocalTime): PromptPreset =
+    val id =
+      if time.getMinute == 0 then f"report.daily.${time.getHour}%02d"
+      else f"report.daily.${time.getHour}%02d${time.getMinute}%02d"
     PromptPreset(
-      f"report.daily.$hour%02d",
+      id,
       PromptKind.DailyReport,
-      NudgePlan.AtTimes(List(at(hour)), DaySet.Every),
+      NudgePlan.AtTimes(List(at(time.getHour, time.getMinute)), DaySet.Every),
       ownCap = false
     )
+
+  /** The time of a morning summary's plan, if the plan is one. */
+  def morningSummaryTime(plan: NudgePlan): Option[LocalTime] =
+    plan match
+      case NudgePlan.AtTimes(List(TimeRef.At(time)), DaySet.Every) => Some(time)
+      case _                                                       => None
 
   /** The times the morning summary can be sent at. */
   val MorningSummaryHours: List[Int] = List(7, 8, 9, 10)

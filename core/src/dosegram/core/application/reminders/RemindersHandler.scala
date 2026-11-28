@@ -29,6 +29,7 @@ import dosegram.core.chat.CallbackMode
 import dosegram.core.chat.ChatHandler
 import dosegram.core.domain.EntryDay
 import dosegram.core.domain.EntrySource
+import dosegram.core.domain.QuietHours
 import dosegram.core.domain.copy.FoodCopy
 import dosegram.core.domain.copy.Formats
 import dosegram.core.domain.copy.GamificationCopy
@@ -54,6 +55,7 @@ import dosegram.core.ports.Tx
 
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -96,6 +98,7 @@ final class RemindersHandler(
       case Some(ReminderCommand.Resume)                  => pauseAll(ctx, None)
       case Some(ReminderCommand.PauseAll(hours))         => pauseAll(ctx, Some(hours))
       case Some(ReminderCommand.WaterCustom(plan))       => applyPreset(ctx, PromptPresets.waterCustom(plan))
+      case Some(ReminderCommand.MorningSummary(time))    => morningSummary(ctx, time)
       case Some(ReminderCommand.SetAnchor(anchor, time)) =>
         profileSaved(ctx, settings.setAnchor(ctx.tx, ctx.accountId, anchor, time))
       case Some(ReminderCommand.SetWork(days, start, end)) =>
@@ -194,6 +197,13 @@ final class RemindersHandler(
       case Left(ReminderRefusal.ConsentMissing) => toast(PromptCopy.needsConsent)
       case Left(ReminderRefusal.NotWired)       => toast(PromptCopy.notWired)
       case Left(_)                              => stale
+
+  /** `/reminders summary 07:45`: the morning summary at the typed time, then the hub headed by it. */
+  private def morningSummary(ctx: Ctx, time: LocalTime): Reply =
+    settings.applyMorningSummary(ctx.tx, ctx.accountId, time) match
+      case Right(plan) => hub(ctx, Some(PromptCopy.applied(PromptCopy.presetName(plan.presetId))))
+      case Left(ReminderRefusal.InQuietHours(quiet)) => toast(RemindersHandler.summaryInQuiet(time, quiet))
+      case Left(_)                                   => stale
 
   private def turnOff(ctx: Ctx, kind: PromptKind): Reply =
     settings.turnOff(ctx.tx, ctx.accountId, kind)
@@ -393,6 +403,13 @@ object RemindersHandler:
   def kindOf(value: Long): Option[PromptKind] = PromptKind.values.lift(value.toInt).filter(PromptPresets.wired)
 
   def presetOf(value: Long): Option[PromptPreset] = PromptPresets.all.lift(value.toInt)
+
+  /** The refusal of a morning summary time inside the quiet hours, with both times as the card shows them. */
+  def summaryInQuiet(time: LocalTime, quiet: QuietHours): String =
+    PromptCopy.summaryInQuiet(
+      PromptCopy.clock(time),
+      s"${PromptCopy.clock(ReminderCommand.toLocal(quiet.start))}–${PromptCopy.clock(ReminderCommand.toLocal(quiet.end))}"
+    )
 
   /** One inbound event of a linked account: the message a tap came from, and the transaction of the event. */
   private final case class Ctx(event: InboundEvent, accountId: UUID, source: Option[MessageHandle], tx: Tx):

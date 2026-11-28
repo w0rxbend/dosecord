@@ -164,7 +164,11 @@ checksummed release source in a build stage and copies the font pack to
 draw inside the image. CI installs the same resvg release and sets
 `DOSEGRAM_REQUIRE_RESVG=true`, so the pixel tests fail there instead of
 skipping. `./mill report-renderer.resvg.test.contactSheet` writes every card as
-a PNG to `out/report-renderer/preview`.
+a PNG to `out/report-renderer/preview`. `scripts/image-review.sh` writes the
+review of ROADMAP G4.7 to `out/image-review`: the contact sheets in light, dark
+and discreet, each in greyscale and with deuteranopia and protanopia, one vision
+sheet per card and the 3:1 greyscale check; CI attaches it as the
+`image-review` artefact.
 
 The long-lived worker `dosegram-raster` (ADR-022 addendum of 2026-11-15) draws
 the same pixels about four times faster. `scripts/build-raster-worker.sh` builds

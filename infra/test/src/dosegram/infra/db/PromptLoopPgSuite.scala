@@ -50,6 +50,7 @@ import dosegram.core.scheduling.CatalogueOutboxRenderer
 import dosegram.core.scheduling.OutboxDispatcher
 import dosegram.core.scheduling.PromptLoop
 import dosegram.core.scheduling.PromptOutboxRenderer
+import dosegram.core.scheduling.ReportPrerender
 
 import java.security.SecureRandom
 import java.sql.Connection
@@ -100,9 +101,20 @@ class PromptLoopPgSuite extends PgSuite:
     val adapter = FakeAdapter(CapabilityProfiles.Telegram)
     val errors = scala.collection.mutable.ListBuffer.empty[Throwable]
 
+    val notReady = scala.collection.mutable.ListBuffer.empty[String]
+
+    private def reports: ReportComposer =
+      ReportComposer(StatsQueryService(RollupService(uow, clock), clock), cards, drawing, codec, notReady += _)
+
     def loop(): PromptLoop =
-      val reports = ReportComposer(StatsQueryService(RollupService(uow, clock), clock), cards, drawing, codec)
       PromptLoop(uow, clock, ids, PromptMessages(codec), hydration, settings, reports, (_, e) => errors += e)
+
+    /** One pass of the report pre-render at `at` (VISUALS VA-PS-08); the number of pages it drew. */
+    def prerender(at: Instant): Int =
+      clock.at = at
+      val drawn = ReportPrerender(uow, clock, settings, reports, drawing, (_, e) => errors += e).tick()
+      assertEquals(errors.toList, Nil)
+      drawn
 
     val dispatcher = OutboxDispatcher(
       uow,
@@ -145,9 +157,9 @@ class PromptLoopPgSuite extends PgSuite:
         uow.transaction(tx => dates.flatMap(tx.reminders.prompts.decidedOn(account, _)))
           .find(p => !p.decidedAt.isBefore(tick) && p.status == PromptStatus.Sent)
 
-    def drink(ml: Int, key: String): Unit =
+    def drink(ml: Int, key: String, day: EntryDay = EntryDay.Today): Unit =
       val amount = WaterAmount.ofMillilitres(ml).toOption.get
-      uow.transaction(tx => assert(hydration.log(tx, LogWater(account, amount, EntryDay.Today, EntrySource.Bot, key)).isRight))
+      uow.transaction(tx => assert(hydration.log(tx, LogWater(account, amount, day, EntrySource.Bot, key)).isRight))
 
     def open: List[(MessageHandle, RenderedMessage)] = adapter.sent
 
@@ -340,6 +352,23 @@ class PromptLoopPgSuite extends PgSuite:
   // The weekly report is due on the Monday after the week, at 09:00 (PRODUCT_SPEC R-INS-4).
   private def mondayAt(hhmm: String, date: String = "2026-11-23"): Instant = Instant.parse(s"${date}T$hhmm:00+02:00")
 
+  /** Draws every page as `asset-<template>` and keeps it under its key, as the asset store does, so `ready` finds what
+    * was drawn before. The pages drawn are listed by template, in order.
+    */
+  private final class KeptDrawing extends CardDrawing:
+    val drawn = java.util.concurrent.ConcurrentLinkedQueue[String]()
+    private val kept = java.util.concurrent.ConcurrentHashMap[String, AttachmentRef]()
+
+    override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
+      drawn.add(page.templateId)
+      val image = AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText)
+      page.sharedKey.foreach(kept.put(_, image))
+      Right(image)
+
+    override def ready(page: CardPage): Option[AttachmentRef] = page.sharedKey.flatMap(key => Option(kept.get(key)))
+
+    def drawnTemplates: List[String] = drawn.toArray(Array.empty[String]).toList
+
   /** The messages the fake wire holds in the chat of the rig's own account. */
   private def chatOf(rig: Rig): List[(MessageHandle, RenderedMessage)] =
     rig.open.filter(_._1.chatId == s"chat-${rig.account}")
@@ -511,8 +540,7 @@ class PromptLoopPgSuite extends PgSuite:
       export pages.{mood, water, day, sleep, food}
       override def month(view: MonthCardView, look: CardLook): List[CardPage] =
         (1 to 3).toList.map(page => CardPage(s"card.month.p$page", "<svg/>", s"Page $page of the month.", "month.png", false))
-    val drawing: CardDrawing = (page, _) =>
-      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val drawing = KeptDrawing()
     val first = Instant.parse("2026-12-01T09:00:00+02:00")
     val rig = Rig(start = first, preset = PromptPresets.MonthlyReport, cards = threePages, drawing = drawing)
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
@@ -520,6 +548,7 @@ class PromptLoopPgSuite extends PgSuite:
       rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
       rig.drink(500, s"album-$day")
     }
+    assertEquals(rig.prerender(Instant.parse("2026-12-01T09:45:00+02:00")), 3)
     rig.clock.at = Instant.parse("2026-12-01T10:00:05+02:00")
     rig.tickAndSend()
     val List((_, album), (_, text)) = chatOf(rig): @unchecked
@@ -536,14 +565,14 @@ class PromptLoopPgSuite extends PgSuite:
         (1 to 2).toList.map(page => CardPage(s"card.month.p$page", "<svg/>", s"Page $page of the month.", "month.png", false))
       override def monthPoster(view: MonthCardView, look: CardLook): Option[CardPage] =
         Some(CardPage("card.month.poster.v1", "<svg/>", "November 2026, your month in one image.", "poster.png", false))
-    val drawing: CardDrawing = (page, _) =>
-      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val drawing = KeptDrawing()
     val rig = Rig(start = Instant.parse("2026-12-01T09:00:00+02:00"), preset = PromptPresets.MonthlyReport, cards = withPoster, drawing = drawing)
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
     (1 to 14).foreach { day =>
       rig.clock.at = Instant.parse(f"2026-11-$day%02dT12:00:00+02:00")
       rig.drink(500, s"poster-$day")
     }
+    assertEquals(rig.prerender(Instant.parse("2026-12-01T09:45:00+02:00")), 3)
     rig.clock.at = Instant.parse("2026-12-01T10:00:05+02:00")
     rig.tickAndSend()
     val List((_, album), (_, text)) = chatOf(rig): @unchecked
@@ -577,12 +606,12 @@ class PromptLoopPgSuite extends PgSuite:
       export pages.{mood, water, sleep, food}
       override def day(view: DayCardView, look: CardLook): Option[CardPage] =
         Some(CardPage("card.day.v1", "<svg/>", s"Day card of ${view.date}.", "day.png", false))
-    val drawing: CardDrawing = (page, _) =>
-      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val drawing = KeptDrawing()
     val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = dayCard, drawing = drawing)
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
     rig.clock.at = sundayAt("10:00")
     rig.drink(700, "order-sunday")
+    assertEquals(rig.prerender(mondayAt("07:40")), 1)
     rig.clock.at = mondayAt("08:00").plusSeconds(5)
     rig.loop().tick()
     val due = withConnection: conn =>
@@ -601,14 +630,14 @@ class PromptLoopPgSuite extends PgSuite:
       export pages.{mood, water, sleep, food}
       override def day(view: DayCardView, look: CardLook): Option[CardPage] =
         Some(CardPage("card.day.v1", "<svg/>", s"Day card of ${view.date}.", "day.png", false))
-    val drawing: CardDrawing = (page, _) =>
-      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val drawing = KeptDrawing()
     val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = dayCard, drawing = drawing)
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
     rig.clock.at = sundayAt("10:00")
     rig.drink(700, "d-sunday")
     rig.clock.at = mondayAt("07:30")
     rig.drink(300, "d-monday")
+    assertEquals(rig.prerender(mondayAt("07:40")), 1)
     rig.clock.at = mondayAt("08:00").plusSeconds(5)
     rig.tickAndSend()
     val List((_, photo), (_, text)) = chatOf(rig): @unchecked
@@ -632,18 +661,20 @@ class PromptLoopPgSuite extends PgSuite:
         Some(CardPage("card.day.v1", "<svg/>", "Day card.", "day.png", false))
       override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
         Some(CardPage("card.week.v1", "<svg/>", "Week card.", "week.png", false))
-    val drawing: CardDrawing = (page, _) =>
-      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val drawing = KeptDrawing()
     val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = cards, drawing = drawing)
     rig.uow.transaction(tx => assert(rig.settings.apply(tx, rig.account, PromptPresets.WeeklyReport).isRight))
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
     rig.clock.at = sundayAt("10:00")
     rig.drink(700, "i-sunday")
+    // The day card is drawn ahead of the summary as well: VA-PS-03 is decided at the send time.
+    assertEquals(rig.prerender(mondayAt("07:40")), 1)
     rig.clock.at = mondayAt("08:00").plusSeconds(5)
     rig.tickAndSend()
     val List((_, summary)) = chatOf(rig): @unchecked
     assertEquals(summary.attachment, None)
     assert(summary.toString.contains("Yesterday, Sun 22 Nov"), summary)
+    assertEquals(rig.prerender(mondayAt("08:40")), 1)
     rig.clock.at = mondayAt("09:00").plusSeconds(5)
     rig.tickAndSend()
     assertEquals(chatOf(rig).flatMap(_._2.attachment).map(_.altText), List("Week card."))
@@ -659,23 +690,94 @@ class PromptLoopPgSuite extends PgSuite:
       override def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] =
         views += view
         Some(CardPage("card.week.highlights.v1", "<svg/>", "Highlights card.", "highlights.png", false))
-    val drawing: CardDrawing = (page, _) =>
-      Right(AttachmentRef(MediaKind.Photo, s"asset-${page.templateId}", "image/png", page.altText))
+    val drawing = KeptDrawing()
     val rig = Rig(start = Instant.parse("2026-11-16T08:00:00+02:00"), preset = PromptPresets.WeeklyReport, cards = cards, drawing = drawing)
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
     List("2026-11-16" -> 500, "2026-11-18" -> 900, "2026-11-18" -> 800, "2026-11-20" -> 1200).zipWithIndex.foreach:
       case ((date, ml), index) =>
         rig.clock.at = Instant.parse(s"${date}T12:0${index}:00+02:00")
         rig.drink(ml, s"highlight-$index")
+    assertEquals(rig.prerender(mondayAt("08:45")), 2)
     rig.clock.at = mondayAt("09:00").plusSeconds(5)
     rig.tickAndSend()
     val List((_, album), (_, text)) = chatOf(rig): @unchecked
     assertEquals(album.album.map(_.altText), List("Week card.", "Highlights card."))
     assert(text.toString.contains("Your week: the last 7 days"), text)
-    val List(view) = views.toList: @unchecked
+    // Laid out once ahead of the send and once at it, from the same records.
+    val List(view) = views.toList.distinct: @unchecked
+    assertEquals(views.size, 2)
     assertEquals(view.from, LocalDate.parse("2026-11-16"))
     // Wednesday's two glasses make the highest day; medication is never a row.
     assertEquals(view.rows, List(DayHighlight(HighlightDomain.Water, List(0, 2, 4), Some(List(2) -> 1700.0))))
+
+  // VISUALS VA-PS-08: the pages of a scheduled report are drawn in the 30 minutes before its send time.
+  private def weekWithHighlights: StatusCards =
+    val pages = StatusCards.textOnly
+    new StatusCards:
+      export pages.{mood, water, day, sleep, food}
+      override def week(view: WeekCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.week.v1", s"<svg>${view.water}</svg>", "Week card.", "week.png", false))
+      override def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.week.highlights.v1", s"<svg>${view.rows}</svg>", "Highlights card.", "highlights.png", false))
+
+  private def weeklyWithImages(drawing: KeptDrawing): Rig =
+    val rig = Rig(start = Instant.parse("2026-11-16T08:00:00+02:00"), preset = PromptPresets.WeeklyReport, cards = weekWithHighlights, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    List("2026-11-16" -> 500, "2026-11-18" -> 900, "2026-11-20" -> 1200).zipWithIndex.foreach:
+      case ((date, ml), index) =>
+        rig.clock.at = Instant.parse(s"${date}T12:0${index}:00+02:00")
+        rig.drink(ml, s"ahead-$index")
+    rig
+
+  test("a scheduled album is drawn in the 30 minutes before its time and sent at its time with nothing drawn then"):
+    val drawing = KeptDrawing()
+    val rig = weeklyWithImages(drawing)
+    assertEquals(rig.prerender(mondayAt("08:29")), 0, "more than 30 minutes ahead")
+    assertEquals(rig.prerender(mondayAt("08:31")), 2)
+    assertEquals(rig.prerender(mondayAt("08:59")), 0, "a page drawn before is not drawn again")
+    val drawnAhead = drawing.drawnTemplates
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    val List((_, album), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(album.album.map(_.assetKey), List("asset-card.week.v1", "asset-card.week.highlights.v1"))
+    assert(text.toString.contains("Your week: the last 7 days"), text)
+    assertEquals(drawing.drawnTemplates, drawnAhead, "the send draws nothing")
+    assertEquals(drawnAhead, List("card.week.v1", "card.week.highlights.v1"))
+    assertEquals(rig.notReady.toList, Nil)
+
+  test("a report whose pages were not drawn by its send time goes as its text, and each page is counted (VA-PS-08)"):
+    val drawing = KeptDrawing()
+    val rig = weeklyWithImages(drawing)
+    rig.clock.at = mondayAt("09:00").plusSeconds(5)
+    rig.tickAndSend()
+    val List((_, text)) = chatOf(rig): @unchecked
+    assertEquals(text.attachment, None)
+    assert(text.toString.contains("Your week: the last 7 days"), text)
+    assertEquals(drawing.drawnTemplates, Nil, "nothing is drawn at the send")
+    assertEquals(rig.notReady.toList, List("card.week.v1", "card.week.highlights.v1"))
+
+  test("a record that changes a card after it was drawn has it drawn again before the send, never at it"):
+    val pages = StatusCards.textOnly
+    val dayCard = new StatusCards:
+      export pages.{mood, water, sleep, food}
+      override def day(view: DayCardView, look: CardLook): Option[CardPage] =
+        Some(CardPage("card.day.v1", s"<svg>${view.water.map(_.totalMl)}</svg>", "Day card.", "day.png", false))
+    val drawing = KeptDrawing()
+    val rig = Rig(start = sundayAt("09:00"), preset = PromptPresets.morningSummary(8), cards = dayCard, drawing = drawing)
+    fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
+    rig.uow.transaction(tx => assert(rig.hydration.setGoal(tx, rig.account, Some(2000)).isRight))
+    rig.clock.at = sundayAt("10:00")
+    rig.drink(700, "late-sunday")
+    assertEquals(rig.prerender(mondayAt("07:35")), 1)
+    rig.clock.at = mondayAt("07:40")
+    rig.drink(300, "late-yesterday", EntryDay.Yesterday)
+    assertEquals(rig.prerender(mondayAt("07:45")), 1, "yesterday's new figure is a new picture")
+    rig.clock.at = mondayAt("08:00").plusSeconds(5)
+    rig.tickAndSend()
+    val List((_, photo), (_, text)) = chatOf(rig): @unchecked
+    assertEquals(photo.attachment.map(_.altText), Some("Day card."))
+    assert(text.toString.contains("Water: 1.0 of 2.0 l"), text)
+    assertEquals(drawing.drawnTemplates, List("card.day.v1", "card.day.v1"))
 
   // Analytics round 6 (supervisor decision, 2026-11-28): IR-05 reaches the weekly report as its one pattern.
   test("the weekly report carries IR-05: mood on days with every planned meal logged, both counts, not a cause"):

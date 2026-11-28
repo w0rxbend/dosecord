@@ -4,11 +4,13 @@ import dosegram.contracts.HhMm
 import dosegram.contracts.Weekday
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
+import dosegram.core.application.Application
 import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.ports.AuditChannel
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.ImageTheme
 
+import java.time.LocalTime
 import java.time.ZoneId
 
 /** The settings and consent routes of ARCHITECTURE section 9.5 (identity-and-consent, schedule-and-reminders) over
@@ -102,6 +104,7 @@ final class SettingsApiSuite extends ApiSuite:
       "settings.anchor_pick",
       "settings.work_pick",
       "settings.quiet_pick",
+      "settings.summary_pick",
       "settings.privacy"
     )
     val readFrom = Map(
@@ -114,7 +117,8 @@ final class SettingsApiSuite extends ApiSuite:
       "settings.discreet" -> ("/api/v1/notification-settings", "discreet"),
       "settings.quiet_set" -> ("/api/v1/reminders/day", "quietStart"),
       "settings.anchor_set" -> ("/api/v1/reminders/day", "wake"),
-      "settings.work_set" -> ("/api/v1/reminders/day", "workDays")
+      "settings.work_set" -> ("/api/v1/reminders/day", "workDays"),
+      "settings.summary_set" -> ("/api/v1/reminders", "kinds")
     )
     val hub = dosegram.core.chat.ActionRegistry.entries.map(_.name).filter(_.startsWith("settings.")).toSet
     assertEquals(hub -- opensAPage -- readFrom.keySet, Set.empty[String], "a switch of the hub the app does not read")
@@ -123,6 +127,17 @@ final class SettingsApiSuite extends ApiSuite:
       val read = get(path, token)
       assertEquals(read.status, 200, s"$path: ${read.body}")
       assert(read.json.obj.contains(member), s"$path has no $member: ${read.body}")
+
+  test("a morning summary the chat sets at any minute is the time the app's reminders read (BOT_UX 17.1)"):
+    val account = telegramAccount("Europe/Kyiv")
+    val stored = uow.transactionAs(account.accountId)(tx =>
+      Application.reminderSettings(clock).applyMorningSummary(tx, account.accountId, LocalTime.of(7, 45))
+    )
+    assert(stored.isRight, stored.toString)
+    val read = get("/api/v1/reminders", login(account))
+    assertEquals(read.status, 200, read.body)
+    val daily = read.json("kinds").arr.find(_("kind").str == "report_daily").getOrElse(fail(read.body))
+    assertEquals((daily("presetId").str, daily("presetName").str), ("report.daily.0745", "Every day at 07:45"))
 
   test("the languages offered are the chat's languages, each named as the chat's /settings names it"):
     val read = get("/api/v1/settings", login(accountWithoutConsent()))

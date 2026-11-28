@@ -34,6 +34,10 @@ enum ReminderRefusal:
   case UnknownAccount
   case InvalidProfile(reason: String)
 
+  /** A morning summary time inside the quiet hours, when the summary is never sent (supervisor decision, 2026-11-28).
+    */
+  case InQuietHours(quiet: QuietHours)
+
 /** One prompt kind as the hub lists it: its plan, if any, and the next time it falls due. */
 final case class HubLine(kind: PromptKind, plan: Option[PromptSchedule], next: Option[Instant])
 
@@ -103,6 +107,15 @@ final class ReminderSettings(clock: Clock, ids: IdSource):
         activeFrom = now
       )
       Right(tx.reminders.prompts.save(schedule, now))
+
+  /** Turns the morning summary on at `time`, typed in `/reminders` or picked in `/settings`. A time inside the quiet
+    * hours is refused, because a summary that falls in them is skipped that day (VISUALS section 10.2), so it would
+    * never come.
+    */
+  def applyMorningSummary(tx: Tx, accountId: UUID, time: LocalTime): Either[ReminderRefusal, PromptSchedule] =
+    val quiet = profile(tx, accountId).quiet
+    if quiet.contains(time) then Left(ReminderRefusal.InQuietHours(quiet))
+    else apply(tx, accountId, PromptPresets.morningSummaryAt(time))
 
   /** Records that a report was offered (ROADMAP conflict X-19): its plan exists, off, so it is never offered again and
     * stays off until the user turns it on.

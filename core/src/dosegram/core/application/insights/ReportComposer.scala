@@ -50,8 +50,12 @@ import dosegram.core.ports.WeekDayWater
 import dosegram.core.ports.WeekHighlightsView
 import dosegram.core.ports.WeekObservation
 
+import java.nio.charset.StandardCharsets.UTF_8
+import java.security.MessageDigest
+import java.time.Duration
 import java.time.LocalDate
 import java.time.YearMonth
+import java.util.HexFormat
 import java.util.UUID
 
 /** The views of the report cards, read through [[StatsQueryService]] on the caller's transaction: each domain behind
@@ -152,10 +156,17 @@ enum ReportOutcome:
   * it is due, and the monthly report of the previous calendar month, each in text with at most one pattern sentence,
   * and with its cards when the account allows images in chat (VA-PS-07). Every figure comes from [[StatsQueryService]],
   * so a report says what `/stats` says over the same days. Nothing here sends: the prompt loop puts the messages in the
-  * outbox. The cards are still drawn here, on the prompt loop's transaction: rendering them ahead of their send time in
-  * the report class is VISUALS VA-PS-08, not yet built.
+  * outbox. Nothing here draws either: [[ReportPrerender]] draws the pages of [[scheduled]] in the 30 minutes before the
+  * send time, and a report takes its pages only when every one of them is ready by then, else it goes as its text
+  * (VISUALS VA-PS-08). `notReady` counts each page that was not, by its template id.
   */
-final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing: CardDrawing, codec: CallbackCodec):
+final class ReportComposer(
+    stats: StatsQueryService,
+    cards: StatusCards,
+    drawing: CardDrawing,
+    codec: CallbackCodec,
+    notReady: String => Unit = _ => ()
+):
 
   private val views = ReportViews(stats)
 
@@ -172,28 +183,11 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       silent: Boolean,
       withImages: Boolean
   ): ReportOutcome =
-    val week = DateRange.endingOn(planDate.minusDays(1), 7)
-    stats.summary(tx, accountId, StatsPeriod.Last7Days, Some(week.end)) match
-      case Left(_)                                                       => ReportOutcome.NoRecords
-      case Right(summary) if summary.lines.tail == List(StatsCopy.Empty) => ReportOutcome.NoRecords
-      case Right(summary)                                                =>
-        // At most one pattern, the first in rank order (VISUALS section 8.5, "Selection for the weekly report").
-        val pattern = stats
-          .insights(tx, accountId, ComparisonWindow.Days28)
-          .toOption
-          .flatMap(view => InsightEngine.forReport(view.list))
-          .map(InsightCopy.text)
-        val lines = ReportCopy.weeklyTitle :: summary.lines.tail ++ pattern.toList ++ counts(tx, accountId, week)
-        // The week card, then its highlights with the same pattern sentence (VISUALS IMG-25), as one album.
-        val images =
-          if !withImages || !imagesAllowed(tx, accountId) then Nil
-          else
-            val view = views.week(tx, accountId, week)
-            val look = views.look(tx, accountId)
-            val observation = pattern.map(WeekObservation(ComparisonWindow.Days28.days, _))
-            val highlights = views.highlights(view, observation).flatMap(cards.weekHighlights(_, look))
-            drawn(cards.week(view, look).toList ++ highlights.toList)
-        ReportOutcome.Send(compose(PromptKind.WeeklyReport, accountId, lines, images, key, silent))
+    weekDraft(tx, accountId, planDate, withImages) match
+      case None        => ReportOutcome.NoRecords
+      case Some(draft) =>
+        val lines = draft.lines ++ counts(tx, accountId, ReportComposer.weekOf(planDate))
+        ReportOutcome.Send(compose(PromptKind.WeeklyReport, accountId, lines, prepared(accountId, draft), key, silent))
 
   /** The morning summary (supervisor decision, 2026-11-27): the day before `planDate` in one message, one line per
     * domain, with the daily card (IMG-03) first when the account allows images in chat. A day without a record in any
@@ -207,33 +201,83 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       silent: Boolean,
       withImages: Boolean
   ): ReportOutcome =
-    val yesterday = planDate.minusDays(1)
-    stats.dayLines(tx, accountId, yesterday) match
-      case Nil   => ReportOutcome.NoRecords
-      case lines =>
-        val images =
-          if !withImages || !imagesAllowed(tx, accountId) then Nil
-          else drawn(cards.day(views.day(tx, accountId, yesterday), views.look(tx, accountId)).toList)
-        val text = ReportCopy.dailyTitle(yesterday) :: lines
-        ReportOutcome.Send(compose(PromptKind.DailyReport, accountId, text, images, key, silent))
+    dayDraft(tx, accountId, planDate, withImages) match
+      case None        => ReportOutcome.NoRecords
+      case Some(draft) =>
+        val images = prepared(accountId, draft)
+        ReportOutcome.Send(compose(PromptKind.DailyReport, accountId, draft.lines, images, key, silent))
 
   /** The calendar month before `planDate`; produced only when a domain meets the gate of R-INS-11. */
   def monthly(tx: Tx, accountId: UUID, planDate: LocalDate, key: String, silent: Boolean): ReportOutcome =
+    monthDraft(tx, accountId, planDate) match
+      case None        => ReportOutcome.NoRecords
+      case Some(draft) =>
+        val images = prepared(accountId, draft)
+        ReportOutcome.Send(compose(PromptKind.MonthlyReport, accountId, draft.lines, images, key, silent))
+
+  /** The pages a report of `kind` due on `planDate` would carry now, each under its [[ReportComposer.preparedKey]]:
+    * what [[ReportPrerender]] draws ahead of the send time (VISUALS VA-PS-08). Empty for a period without records or
+    * without the images consent. The precedence of VA-PS-03 is decided at the send time, so the pages of a report that
+    * may then go as text are drawn too.
+    */
+  def scheduled(tx: Tx, kind: PromptKind, accountId: UUID, planDate: LocalDate): List[CardPage] =
+    val draft = kind match
+      case PromptKind.WeeklyReport  => weekDraft(tx, accountId, planDate, withImages = true)
+      case PromptKind.MonthlyReport => monthDraft(tx, accountId, planDate)
+      case PromptKind.DailyReport   => dayDraft(tx, accountId, planDate, withImages = true)
+      case _                        => None
+    draft.fold(Nil)(_.pages.map(ReportComposer.keyed(accountId, _)))
+
+  /** The weekly text before its counts, and the week card then its highlights with the same pattern sentence (VISUALS
+    * IMG-25), as one album. `None` for a week without records (VA-PS-05).
+    */
+  private def weekDraft(tx: Tx, accountId: UUID, planDate: LocalDate, withImages: Boolean): Option[Draft] =
+    val week = ReportComposer.weekOf(planDate)
+    stats.summary(tx, accountId, StatsPeriod.Last7Days, Some(week.end)) match
+      case Left(_)                                                       => None
+      case Right(summary) if summary.lines.tail == List(StatsCopy.Empty) => None
+      case Right(summary)                                                =>
+        // At most one pattern, the first in rank order (VISUALS section 8.5, "Selection for the weekly report").
+        val pattern = stats
+          .insights(tx, accountId, ComparisonWindow.Days28)
+          .toOption
+          .flatMap(view => InsightEngine.forReport(view.list))
+          .map(InsightCopy.text)
+        val pages =
+          if !withImages || !imagesAllowed(tx, accountId) then Nil
+          else
+            val view = views.week(tx, accountId, week)
+            val look = views.look(tx, accountId)
+            val observation = pattern.map(WeekObservation(ComparisonWindow.Days28.days, _))
+            val highlights = views.highlights(view, observation).flatMap(cards.weekHighlights(_, look))
+            cards.week(view, look).toList ++ highlights.toList
+        Some(Draft(ReportCopy.weeklyTitle :: summary.lines.tail ++ pattern.toList, pages))
+
+  private def dayDraft(tx: Tx, accountId: UUID, planDate: LocalDate, withImages: Boolean): Option[Draft] =
+    val yesterday = planDate.minusDays(1)
+    stats.dayLines(tx, accountId, yesterday) match
+      case Nil   => None
+      case lines =>
+        val pages =
+          if !withImages || !imagesAllowed(tx, accountId) then Nil
+          else cards.day(views.day(tx, accountId, yesterday), views.look(tx, accountId)).toList
+        Some(Draft(ReportCopy.dailyTitle(yesterday) :: lines, pages))
+
+  private def monthDraft(tx: Tx, accountId: UUID, planDate: LocalDate): Option[Draft] =
     stats.month(tx, accountId, YearMonth.from(planDate).minusMonths(1)) match
-      case Left(_)                                   => ReportOutcome.NoRecords
-      case Right(view) if !view.figures.isReportable => ReportOutcome.NoRecords
+      case Left(_)                                   => None
+      case Right(view) if !view.figures.isReportable => None
       case Right(view)                               =>
         val monthText =
           if tx.accounts.gamificationOf(accountId) then MonthCopy.lines(view.figures, view.zone)
           else MonthCopy.linesOmittingGates(view.figures, view.zone)
-        val lines = ReportCopy.monthlyTitle :: monthText
-        val images =
+        val pages =
           if !imagesAllowed(tx, accountId) then Nil
           else
             val month = views.month(tx, accountId, view.figures, planDate)
             val look = views.look(tx, accountId)
-            drawn(cards.month(month, look) ++ cards.monthPoster(month, look).toList)
-        ReportOutcome.Send(compose(PromptKind.MonthlyReport, accountId, lines, images, key, silent))
+            cards.month(month, look) ++ cards.monthPoster(month, look).toList
+        Some(Draft(ReportCopy.monthlyTitle :: monthText, pages))
 
   /** The day counts of the week, the round counts it passed, and a one-year line when that day falls in the week
     * (PRODUCT_SPEC section 8.14). Nothing with the switch off.
@@ -293,9 +337,14 @@ final class ReportComposer(stats: StatsQueryService, cards: StatusCards, drawing
       correlationId = key
     )
 
-  /** The pages that could be drawn, in order; a page that cannot be drawn ends the album there. */
-  private def drawn(pages: List[CardPage]): List[AttachmentRef] =
-    pages.iterator.map(drawing.draw(_, None).toOption).takeWhile(_.isDefined).flatten.toList
+  /** The pages drawn ahead of the send, in order, with nothing drawn now (VA-PS-08). A report with a page that is not
+    * ready goes as its text alone, so a week card never arrives without its highlights; each such page is counted.
+    */
+  private def prepared(accountId: UUID, draft: Draft): List[AttachmentRef] =
+    val found = draft.pages.map(page => page -> drawing.ready(ReportComposer.keyed(accountId, page)))
+    val missing = found.collect { case (page, None) => page.templateId }
+    missing.foreach(notReady)
+    if missing.isEmpty then found.flatMap(_._2) else Nil
 
   private def imagesAllowed(tx: Tx, accountId: UUID): Boolean =
     tx.consents.isGranted(accountId, ConsentPurpose.ImagesInChat)
@@ -374,3 +423,25 @@ object ReportComposer:
 
   /** The send key of a report's image `index` (0-based), next to the key of its text. */
   def imageKey(key: String, index: Int): String = s"$key:image${index + 1}"
+
+  /** How long before its send time a scheduled report's pages are drawn (VISUALS VA-PS-08). */
+  val PrepareAhead: Duration = Duration.ofMinutes(30)
+
+  /** The key a scheduled page is drawn under and found by at its send time: a digest of the account and the picture, so
+    * a page whose figures changed after it was drawn is not found, and the key says nothing about either.
+    */
+  def preparedKey(accountId: UUID, page: CardPage): String =
+    val digest = MessageDigest.getInstance("SHA-256")
+    List(accountId.toString, page.templateId, page.svg).foreach: part =>
+      digest.update(part.getBytes(UTF_8))
+      digest.update(0.toByte)
+    s"report.${HexFormat.of().formatHex(digest.digest())}"
+
+  private def keyed(accountId: UUID, page: CardPage): CardPage =
+    page.copy(sharedKey = Some(preparedKey(accountId, page)))
+
+  /** The seven complete days before the day a weekly report is due (PRODUCT_SPEC R-INS-4). */
+  private def weekOf(planDate: LocalDate): DateRange = DateRange.endingOn(planDate.minusDays(1), 7)
+
+/** A report's text and the pages it carries when they are ready. */
+final private case class Draft(lines: List[String], pages: List[CardPage])
