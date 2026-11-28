@@ -45,6 +45,7 @@ import dosegram.core.ports.UnitOfWork
 
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import scala.util.control.NonFatal
@@ -222,11 +223,7 @@ final class PromptLoop(
       case PromptOutcome.Send(notice) =>
         val target = channel.get // `reachable` held
         if PromptLoop.isReport(plan.kind) then
-          val monthlyToday =
-            accountDay.exists(o => o.kind == PromptKind.MonthlyReport && o.status.wasSent && o.scheduleId != plan.id)
-          val withImages =
-            if plan.kind == PromptKind.DailyReport then !periodReportOn(tx, plan, profile, zone, slot, accountDay)
-            else !monthlyToday
+          val withImages = PromptLoop.imagesAtSend(tx, plan, profile, zone, slot.planDate, accountDay)
           sendReport(tx, plan, slot, previous, target, withImages, now)
         // The previous prompt is being sent and has no handle yet, so it could be neither cancelled nor deleted: the
         // slot stays undecided until a later pass (finding 18 of the review of 2026-11-27).
@@ -450,28 +447,6 @@ final class PromptLoop(
       decidedAt = now
     )
 
-  /** Whether a weekly or monthly report is sent, or due, on the morning summary's day: the summary then goes as text,
-    * so the chat gets at most one unprompted personal image that day (PRODUCT_SPEC section 3.2, BOT_UX BUX-IMG-03), and
-    * the period's report keeps its card (supervisor decision, 2026-11-27).
-    */
-  private def periodReportOn(
-      tx: Tx,
-      plan: PromptSchedule,
-      profile: DayProfile,
-      zone: ZoneId,
-      slot: NudgeSlot,
-      accountDay: List[PromptOccurrence]
-  ): Boolean =
-    def periodic(kind: PromptKind): Boolean = PromptLoop.isReport(kind) && kind != PromptKind.DailyReport
-    val sent = accountDay.exists(o => periodic(o.kind) && o.status.wasSent)
-    val due = tx.reminders.prompts
-      .schedules(plan.accountId)
-      .filter(other => other.enabled && periodic(other.kind))
-      .exists(other =>
-        NudgeSlots.on(other.plan, profile, slot.planDate, zone, ReminderSettings.seedOf(plan.accountId)).nonEmpty
-      )
-    sent || due
-
   /** What the user recorded in the prompt's domain, read at due time (REM-14). Without the consent nothing is read. */
   private def progressOf(tx: Tx, plan: PromptSchedule, zone: ZoneId, now: Instant): DomainProgress =
     if !settings.consented(tx, plan.accountId, plan.kind) then DomainProgress.Empty
@@ -539,6 +514,44 @@ private final case class SlotOf(slot: NudgeSlot, profile: DayProfile)
 object PromptLoop:
 
   def isReport(kind: PromptKind): Boolean = PromptKind.Reports(kind)
+
+  /** Whether a report of `plan` due on `planDate` carries its pages (VA-PS-03), given the prompts decided that day: a
+    * weekly report goes as text after the day's monthly report, and the morning summary goes as text when a weekly or
+    * monthly report is sent, or due, that day, so the chat gets at most one unprompted personal image that day
+    * (PRODUCT_SPEC section 3.2, BOT_UX BUX-IMG-03) and the period's report keeps its card (supervisor decision,
+    * 2026-11-27). The send and [[ReportPrerender]] ask the same, so nothing is drawn that is not sent.
+    */
+  def imagesAtSend(
+      tx: Tx,
+      plan: PromptSchedule,
+      profile: DayProfile,
+      zone: ZoneId,
+      planDate: LocalDate,
+      accountDay: List[PromptOccurrence]
+  ): Boolean =
+    plan.kind match
+      case PromptKind.DailyReport   => !periodReportOn(tx, plan, profile, zone, planDate, accountDay)
+      case PromptKind.MonthlyReport => true
+      case _                        =>
+        !accountDay.exists(o => o.kind == PromptKind.MonthlyReport && o.status.wasSent && o.scheduleId != plan.id)
+
+  private def periodReportOn(
+      tx: Tx,
+      plan: PromptSchedule,
+      profile: DayProfile,
+      zone: ZoneId,
+      planDate: LocalDate,
+      accountDay: List[PromptOccurrence]
+  ): Boolean =
+    def periodic(kind: PromptKind): Boolean = isReport(kind) && kind != PromptKind.DailyReport
+    val sent = accountDay.exists(o => periodic(o.kind) && o.status.wasSent)
+    val due = tx.reminders.prompts
+      .schedules(plan.accountId)
+      .filter(other => other.enabled && periodic(other.kind))
+      .exists(other =>
+        NudgeSlots.on(other.plan, profile, planDate, zone, ReminderSettings.seedOf(plan.accountId)).nonEmpty
+      )
+    sent || due
 
   /** The outbox kind of every prompt row: a send, the delete of a replaced prompt, the edit to the pause notice. */
   val OutboxKind = "prompt"

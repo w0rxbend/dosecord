@@ -6,10 +6,12 @@ import dosegram.core.application.exports.ExportMessages
 import dosegram.core.application.exports.ExportRequests
 import dosegram.core.application.exports.ExportWorker
 import dosegram.core.application.exports.RecordSummaries
+import dosegram.core.application.insights.ReportComposer
 import dosegram.core.application.insights.RollupService
 import dosegram.core.domain.Rule
 import dosegram.core.domain.SlotGroup
 import dosegram.core.domain.copy.PrivacyCopy
+import dosegram.core.ports.CardPage
 import dosegram.core.ports.ConsentPurpose
 import dosegram.core.ports.DataDomain
 import dosegram.core.ports.IdSource
@@ -120,13 +122,19 @@ class DeletionPgSuite extends PgSuite:
     withConnection: conn =>
       given Connection = conn
       val now = rig.clock.now()
-      List(s"card.sent-$account", other).foreach: key =>
+      List(s"card.sent-$account", other, preparedPage(account)).foreach: key =>
         renders.put(key, Array[Byte](1), now)
         sql"""INSERT INTO telegram_file_cache (asset_key, bot_id, media_kind, file_id, created_at, last_used_at)
               VALUES ($key, 1, 'photo', ${s"file-$key"}, $now, $now)""".execute()
       sql"""INSERT INTO miniapp_sessions (token_hash, account_id, initdata_hash, created_at, last_used_at)
             VALUES (${s"token-$account"}, $account, 'initdata', $now, $now)""".execute()
     other
+
+  /** The key of a page drawn ahead of the account's morning summary and not yet sent (VISUALS VA-PS-08): no outbox row
+    * names it yet.
+    */
+  private def preparedPage(account: UUID): String =
+    ReportComposer.preparedKey(account, CardPage("card.day.v1", "<svg/>", "Day card.", "day.png", false))
 
   /** Whether `value` opens with the rig's own key service, the one whose cache the deletion must empty. */
   private def opens(rig: ProductChatRig, field: SealedField, value: Array[Byte]): Boolean =
@@ -177,6 +185,9 @@ class DeletionPgSuite extends PgSuite:
       // The image the bot sent to the account goes; an image of nobody here stays.
       assertEquals(count(s"SELECT count(*) FROM render_assets WHERE asset_key = 'card.sent-$account'"), 0)
       assertEquals(count(s"SELECT count(*) FROM telegram_file_cache WHERE asset_key = 'card.sent-$account'"), 0)
+      // So does a page drawn ahead of a report and not sent: in the same transaction, not at the hourly purge.
+      assertEquals(count(s"SELECT count(*) FROM render_assets WHERE asset_key = '${preparedPage(account)}'"), 0)
+      assertEquals(count(s"SELECT count(*) FROM telegram_file_cache WHERE asset_key = '${preparedPage(account)}'"), 0)
       assertEquals(count(s"SELECT count(*) FROM render_assets WHERE asset_key = '$other'"), 1)
       assertEquals(count(s"SELECT count(*) FROM telegram_file_cache WHERE asset_key = '$other'"), 1)
       assert(FilePurgeList.read(purgeFile).contains(account), "the purge list holds the account")

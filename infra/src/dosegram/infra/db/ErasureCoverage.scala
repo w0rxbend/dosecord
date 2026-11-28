@@ -1,5 +1,6 @@
 package dosegram.infra.db
 
+import dosegram.core.application.insights.ReportComposer
 import dosegram.core.ports.DataDomain
 
 /** How the erasure job treats one table (ROADMAP G2.17, G5.7; ARCHITECTURE SEC-16, SEC-17). A predicate is the WHERE
@@ -44,6 +45,13 @@ object ErasureCoverage:
     """SELECT unnest(asset_keys) FROM outbox_messages WHERE account_id = ?
        UNION SELECT 'export.' || id FROM export_jobs WHERE account_id = ?"""
 
+  /** The pages drawn ahead of the account's scheduled reports (VISUALS VA-PS-08), sent or not: their keys start with
+    * the digest of `ReportComposer.preparedPrefix`, computed here from the account id.
+    */
+  private val PreparedPages =
+    s"""asset_key LIKE 'report.' || encode(substring(sha256(convert_to('${ReportComposer.PreparedContext}:' || ?::text,
+       'UTF8')) FROM 1 FOR ${ReportComposer.PreparedPrefixBytes}), 'hex') || '.%'"""
+
   /** The upload handles of the account's export files. */
   private val ExportKeys = "SELECT 'export.' || id FROM export_jobs WHERE account_id = ?"
 
@@ -71,10 +79,11 @@ object ErasureCoverage:
     // An export file holds every domain it was made with, so a domain deletion deletes the account's exports, their
     // tickets and the upload handle of each file (supervisor decision, 2026-11-14).
     "telegram_file_cache" -> Erasure.Domain(
-      s"asset_key IN ($AssetKeys)",
+      s"(asset_key IN ($AssetKeys) OR $PreparedPages)",
       DataDomain.values.map(_ -> s"asset_key IN ($ExportKeys)").toMap
     ),
-    "render_assets" -> Erasure.AccountWide(s"asset_key IN ($AssetKeys)", "drawn images, at most one hour"),
+    "render_assets" -> Erasure
+      .AccountWide(s"(asset_key IN ($AssetKeys) OR $PreparedPages)", "drawn images, at most one hour"),
     "export_download_tickets" -> everyDomain(Own),
     "export_jobs" -> everyDomain(Own),
     "report_requests" -> Erasure.AccountWide(Own, "images waiting to be drawn"),

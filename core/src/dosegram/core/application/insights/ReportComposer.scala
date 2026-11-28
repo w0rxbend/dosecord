@@ -217,8 +217,8 @@ final class ReportComposer(
 
   /** The pages a report of `kind` due on `planDate` would carry now, each under its [[ReportComposer.preparedKey]]:
     * what [[ReportPrerender]] draws ahead of the send time (VISUALS VA-PS-08). Empty for a period without records or
-    * without the images consent. The precedence of VA-PS-03 is decided at the send time, so the pages of a report that
-    * may then go as text are drawn too.
+    * without the images consent. [[ReportPrerender]] asks the send's precedence of VA-PS-03 first, so a report that
+    * will go as its text has nothing drawn.
     */
   def scheduled(tx: Tx, kind: PromptKind, accountId: UUID, planDate: LocalDate): List[CardPage] =
     val draft = kind match
@@ -427,15 +427,28 @@ object ReportComposer:
   /** How long before its send time a scheduled report's pages are drawn (VISUALS VA-PS-08). */
   val PrepareAhead: Duration = Duration.ofMinutes(30)
 
-  /** The key a scheduled page is drawn under and found by at its send time: a digest of the account and the picture, so
-    * a page whose figures changed after it was drawn is not found, and the key says nothing about either.
+  /** The key a scheduled page is drawn under and found by at its send time: the account's [[preparedPrefix]], then a
+    * digest of the account and the picture, so a page whose figures changed after it was drawn is not found, and the
+    * key says nothing about either.
     */
   def preparedKey(accountId: UUID, page: CardPage): String =
     val digest = MessageDigest.getInstance("SHA-256")
     List(accountId.toString, page.templateId, page.svg).foreach: part =>
       digest.update(part.getBytes(UTF_8))
       digest.update(0.toByte)
-    s"report.${HexFormat.of().formatHex(digest.digest())}"
+    s"${preparedPrefix(accountId)}${HexFormat.of().formatHex(digest.digest())}"
+
+  /** The start of the key of every page drawn ahead for the account: a digest of the account id alone, so the account
+    * deletion finds, in the same transaction, the pages drawn and not yet sent (supervisor decision, 2026-11-28), while
+    * the key still says nothing about the account. The erasure registry computes the same digest in SQL.
+    */
+  def preparedPrefix(accountId: UUID): String =
+    val digest = MessageDigest.getInstance("SHA-256").digest(s"$PreparedContext:$accountId".getBytes(UTF_8))
+    s"report.${HexFormat.of().formatHex(digest, 0, PreparedPrefixBytes)}."
+
+  /** The domain-separation context of [[preparedPrefix]] and the bytes of its digest that the prefix keeps. */
+  val PreparedContext = "dosegram.report-pages.v1"
+  val PreparedPrefixBytes = 8
 
   private def keyed(accountId: UUID, page: CardPage): CardPage =
     page.copy(sharedKey = Some(preparedKey(accountId, page)))

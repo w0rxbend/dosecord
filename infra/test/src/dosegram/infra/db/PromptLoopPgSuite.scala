@@ -667,8 +667,8 @@ class PromptLoopPgSuite extends PgSuite:
     fixtures.grant(rig.account, ConsentPurpose.ImagesInChat)
     rig.clock.at = sundayAt("10:00")
     rig.drink(700, "i-sunday")
-    // The day card is drawn ahead of the summary as well: VA-PS-03 is decided at the send time.
-    assertEquals(rig.prerender(mondayAt("07:40")), 1)
+    // The summary goes as text on the weekly report's day (VA-PS-03), so its day card is not drawn ahead either.
+    assertEquals(rig.prerender(mondayAt("07:40")), 0)
     rig.clock.at = mondayAt("08:00").plusSeconds(5)
     rig.tickAndSend()
     val List((_, summary)) = chatOf(rig): @unchecked
@@ -678,6 +678,7 @@ class PromptLoopPgSuite extends PgSuite:
     rig.clock.at = mondayAt("09:00").plusSeconds(5)
     rig.tickAndSend()
     assertEquals(chatOf(rig).flatMap(_._2.attachment).map(_.altText), List("Week card."))
+    assertEquals(drawing.drawnTemplates, List("card.week.v1"), "only what was sent was drawn")
 
   // Image round 5 (supervisor decision, 2026-11-28): the week highlights (VISUALS IMG-25) after the weekly card.
   test("the weekly report sends its card and the week highlights as one album, the highest day of each domain"):

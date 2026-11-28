@@ -3,14 +3,18 @@ package dosegram.core.scheduling
 import dosegram.core.application.insights.ReportComposer
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.domain.copy.Lang
+import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.NudgeSlots
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
 import dosegram.core.ports.PromptSchedule
+import dosegram.core.ports.Tx
 import dosegram.core.ports.UnitOfWork
 
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 import scala.util.control.NonFatal
 
@@ -53,7 +57,18 @@ final class ReportPrerender(
         NudgeSlots
           .upcoming(plan.plan, profile, zone, ReminderSettings.seedOf(plan.accountId), now, limit = 1, days = 1)
           .find(slot => !slot.at.isAfter(now.plus(ReportComposer.PrepareAhead)))
+          .filter(slot => withImages(tx, plan, profile, zone, slot.planDate))
           .fold(Nil)(slot => reports.scheduled(tx, plan.kind, plan.accountId, slot.planDate))
+
+  /** A report that would go as its text at the send (VA-PS-03, [[PromptLoop.imagesAtSend]]) has nothing drawn. */
+  private def withImages(
+      tx: Tx,
+      plan: PromptSchedule,
+      profile: DayProfile,
+      zone: ZoneId,
+      planDate: LocalDate
+  ): Boolean =
+    PromptLoop.imagesAtSend(tx, plan, profile, zone, planDate, tx.reminders.prompts.decidedOn(plan.accountId, planDate))
 
   private def draw(pages: List[CardPage]): Int =
     pages.count(page => drawing.ready(page).isEmpty && drawing.draw(page, None).isRight)
