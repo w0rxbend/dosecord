@@ -253,6 +253,24 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals(answer.kind, MediaKind.Photo)
     assertEquals(rig.log.toList, List("animation not drawn, still sent: template=card.mood.v1 reason=NotPng"))
 
+  test("a shared picture already stored or uploaded is ready without drawing; a personal card never is"):
+    val rasteriser = CountingRasteriser()
+    val rig = Rig(rasteriser)
+    val animated = light.copy(isAnimated = true)
+    val page = rig.images.cards.mood(MoodCardView(pleasant, None), animated).get
+    assertEquals(rig.images.drawing.ready(page), None, "nothing is drawn yet")
+    rig.images.drawing.draw(page, None)
+    val drawnCount = rasteriser.documents.size
+    assertEquals(rig.images.drawing.ready(page).map(_.kind), Some(MediaKind.Photo), "the still is stored, its video is not")
+    rig.images.fileIds.put(page.motion.get.sharedKey, MediaKind.Animation, "uploaded-animation")
+    val ready = rig.images.drawing.ready(page).getOrElse(fail("not ready"))
+    assertEquals((ready.kind, ready.assetKey), (MediaKind.Animation, page.motion.get.sharedKey))
+    assertEquals(ready.still.map(_.assetKey), page.sharedKey, "the animation carries its still")
+    assertEquals(rasteriser.documents.size, drawnCount, "ready draws nothing")
+    val personal = rig.images.cards.water(water, light).get
+    rig.images.drawing.draw(personal, None)
+    assertEquals(rig.images.drawing.ready(personal), None)
+
   test("a water card is keyed by its bytes and carries the day's figures as its text equivalent"):
     val rig = Rig(CountingRasteriser())
     val card = rig.images.drawn.water(water, light).get

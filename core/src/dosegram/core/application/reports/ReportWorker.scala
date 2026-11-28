@@ -20,9 +20,10 @@ import scala.util.control.NonFatal
 /** The report worker of ROADMAP G4.3 (ARCHITECTURE section 12.1, stages 5 to 7): claims the oldest request in a short
   * transaction, draws its pages outside every transaction, and puts its messages in the outbox in the transaction that
   * finishes it, so a crash either leaves the request to be claimed again or has already sent it once. A page that
-  * cannot be drawn, and every page of a late request, is sent as its text equivalent (VISUALS VA-FB-01) and counted by
-  * its template with `textFallback`. A request that was claimed before and not finished is not drawn again: the drawing
-  * may be what stopped the worker. The log names the request, the template and the kind of failure only.
+  * cannot be drawn, and every page of a late request whose picture is not drawn already ([[CardDrawing.ready]]), is
+  * sent as its text equivalent (VISUALS VA-FB-01) and counted by its template with `textFallback`. A request that was
+  * claimed before and not finished is not drawn again: the drawing may be what stopped the worker. The log names the
+  * request, the template and the kind of failure only.
   */
 final class ReportWorker(
     uow: UnitOfWork,
@@ -49,10 +50,10 @@ final class ReportWorker(
     val started = System.nanoTime()
     val drawable = request.attempts == 1 && clock.now().isBefore(request.deadlineAt)
     val drawn = request.pages.map: page =>
-      if !drawable then Left("Late")
-      else
-        try drawing.draw(page.card, Some(request.chat))
-        catch case NonFatal(error) => Left(error.getClass.getSimpleName)
+      try
+        if drawable then drawing.draw(page.card, Some(request.chat))
+        else drawing.ready(page.card).toRight("Late")
+      catch case NonFatal(error) => Left(error.getClass.getSimpleName)
     val messages = request.pages
       .zip(drawn)
       .map:

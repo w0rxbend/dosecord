@@ -271,6 +271,12 @@ object StatusCards:
 trait CardDrawing:
   def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef]
 
+  /** The image of `page` when it needs no drawing: a shared picture already stored or uploaded, and for a page with an
+    * animated form its video too (or its still alone when only the still is). A late request sends such a page as its
+    * image, because the 5-second deadline of VISUALS VA-FB-01 bounds a render (supervisor decision, 2026-11-28).
+    */
+  def ready(page: CardPage): Option[AttachmentRef] = None
+
 object CardDrawing:
 
   /** No rasteriser is wired: every page is answered with its text equivalent. */

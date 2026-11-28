@@ -33,7 +33,8 @@ final class CardDelivery(clock: Clock, ids: IdSource):
       val now = clock.now()
       refusal(tx, accountId, now) match
         case None =>
-          tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(Deadline)))
+          val deadline = if pages.exists(_.card.motion.isDefined) then MotionDeadline else Deadline
+          tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(deadline)))
           Nil
         case Some(note) => pages.map(page => textEquivalent(page, note))
 
@@ -51,6 +52,12 @@ object CardDelivery:
 
   /** VISUALS VA-FB-01: an image not drawn within 5 seconds of the request is sent as its text. */
   val Deadline: Duration = Duration.ofSeconds(5)
+
+  /** An answer with an animated form (VISUALS section 4.6, supervisor decision of 2026-11-28): the 5 seconds of the
+    * still card and the 4 seconds the video may take after it (`StatusImages.MotionBudgetMillis`). A claim inside this
+    * draws the still and then the video; the rehearsal of 2026-11-28 claimed one past the 5 seconds and sent its text.
+    */
+  val MotionDeadline: Duration = Duration.ofSeconds(9)
 
   /** ARCHITECTURE RND-07: the bounded queue of the report worker. */
   val QueueCapacity = 32
