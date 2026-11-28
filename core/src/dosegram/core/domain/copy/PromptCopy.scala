@@ -86,10 +86,11 @@ object PromptCopy:
     if kind == PromptKind.DailyReport then
       tr(
         "Morning summary: yesterday in one message, with its card when images are on. Pick a time; you see the next " +
-          "days before it starts. It is never sent in quiet hours and counts toward your daily reminder budget.",
+          "days before it starts. For any other time, type it, for example /reminders summary 07:45. It is never " +
+          "sent in quiet hours and counts toward your daily reminder budget.",
         "Ранковий підсумок: учорашній день одним повідомленням, із карткою, якщо зображення ввімкнено. Виберіть час — " +
-          "найближчі дні ви побачите, перш ніж він запрацює. Він не надходить у тихі години й входить у ваш денний " +
-          "ліміт нагадувань."
+          "найближчі дні ви побачите, перш ніж він запрацює. Інший час напишіть, наприклад /reminders summary 07:45. " +
+          "Він не надходить у тихі години й входить у ваш денний ліміт нагадувань."
       )
     else
       tr(
@@ -123,9 +124,17 @@ object PromptCopy:
     )
   def dayUsage =
     tr(
-      "Send for example /reminders wake 06:30, /reminders work mon-fri 09:00-18:00 or /reminders quiet 22:00-07:00.",
-      "Надішліть, наприклад, /reminders wake 06:30, /reminders work mon-fri 09:00-18:00 або /reminders quiet 22:00-07:00."
+      "Send for example /reminders wake 06:30, /reminders work mon-fri 09:00-18:00, /reminders quiet 22:00-07:00 " +
+        "or /reminders summary 07:45.",
+      "Надішліть, наприклад, /reminders wake 06:30, /reminders work mon-fri 09:00-18:00, /reminders quiet 22:00-07:00 " +
+        "або /reminders summary 07:45."
     )
+
+  /** A morning summary time typed or picked inside the quiet hours, when it would never be sent. */
+  def summaryInQuiet(at: String, quiet: String): String = tr(
+    s"$at is in your quiet hours ($quiet), when the morning summary is never sent. Pick a time outside them.",
+    s"$at — це ваші тихі години ($quiet), коли ранковий підсумок не надходить. Виберіть час поза ними."
+  )
   def daySaved = tr(
     "Saved. Reminders that use this time have moved.",
     "Збережено. Нагадування, що залежать від цього часу, зсунулися."
@@ -155,22 +164,24 @@ object PromptCopy:
 
   /** The name of each preset of the catalogue, by id. */
   def presetName(id: String): String = id match
-    case "water.work_hours_30" => tr("Work hours, every 30 min", "Робочий час, кожні 30 хв")
-    case "water.hourly"        => tr("Every hour, 08:00–21:00", "Щогодини, 08:00–21:00")
-    case "water.gentle"        => tr("Gentle: 4 at meal times", "М’яко: 4 рази з їжею")
-    case "water.behind_goal"   => tr("Only when behind my goal", "Коли відстаю від цілі")
-    case "water.custom"        => tr("Custom interval", "Свій інтервал")
-    case "mood.evening"        => tr("Once in the evening", "Раз увечері")
-    case "mood.midday_evening" => tr("Midday and evening", "Удень і ввечері")
-    case "mood.random3"        => tr("3 times, 10:00–20:00", "Тричі, з 10:00 до 20:00")
-    case "sleep.bedtime"       => tr("30 min before bedtime", "За 30 хв до сну")
-    case "sleep.morning"       => tr("At wake time", "У час пробудження")
-    case "meal.anchors"        => tr("If a meal is not logged", "Якщо їжу не записано")
-    case "report.weekly"       => tr("Monday at 09:00", "Понеділок о 09:00")
-    case "report.monthly"      => tr("On the 1st", "Першого числа")
-    case MorningSummaryId(hh)  => tr(s"Every day at $hh:00", s"Щодня о $hh:00")
-    case "med.morning"         => tr("Once in the morning", "Раз уранці")
-    case "med.evening"         => tr("Once in the evening", "Раз увечері")
+    case "water.work_hours_30"    => tr("Work hours, every 30 min", "Робочий час, кожні 30 хв")
+    case "water.hourly"           => tr("Every hour, 08:00–21:00", "Щогодини, 08:00–21:00")
+    case "water.gentle"           => tr("Gentle: 4 at meal times", "М’яко: 4 рази з їжею")
+    case "water.behind_goal"      => tr("Only when behind my goal", "Коли відстаю від цілі")
+    case "water.custom"           => tr("Custom interval", "Свій інтервал")
+    case "mood.evening"           => tr("Once in the evening", "Раз увечері")
+    case "mood.midday_evening"    => tr("Midday and evening", "Удень і ввечері")
+    case "mood.random3"           => tr("3 times, 10:00–20:00", "Тричі, з 10:00 до 20:00")
+    case "sleep.bedtime"          => tr("30 min before bedtime", "За 30 хв до сну")
+    case "sleep.morning"          => tr("At wake time", "У час пробудження")
+    case "meal.anchors"           => tr("If a meal is not logged", "Якщо їжу не записано")
+    case "report.weekly"          => tr("Monday at 09:00", "Понеділок о 09:00")
+    case "report.monthly"         => tr("On the 1st", "Першого числа")
+    case MorningSummaryId(hh, mm) =>
+      val at = s"$hh:${Option(mm).getOrElse("00")}"
+      tr(s"Every day at $at", s"Щодня о $at")
+    case "med.morning"     => tr("Once in the morning", "Раз уранці")
+    case "med.evening"     => tr("Once in the evening", "Раз увечері")
     case "med.twice_daily" => tr("Twice a day, at wake and bedtime", "Двічі на день: після пробудження й перед сном")
     case "med.three_with_meals" => tr("Three times a day, with meals", "Тричі на день, під час їжі")
     case "med.every_8h"         => tr("Every 8 hours from wake", "Кожні 8 годин від пробудження")
@@ -186,8 +197,8 @@ object PromptCopy:
       tr("Weekdays at wake, weekend an hour later", "Будні після пробудження, вихідні на годину пізніше")
     case other => other
 
-  /** A morning summary's preset id names its hour (`report.daily.08`). */
-  private val MorningSummaryId = """report\.daily\.(\d\d)""".r
+  /** A morning summary's preset id names its hour (`report.daily.08`), and its minutes when they are not 00. */
+  private val MorningSummaryId = """report\.daily\.(\d\d)(\d\d)?""".r
 
   def clock(at: LocalTime): String = f"${at.getHour}%02d:${at.getMinute}%02d"
 
@@ -241,5 +252,7 @@ object PromptCopy:
     CopyEntry("reminders.offer_water", offerWater),
     CopyEntry("reminders.kind.daily", kindName(PromptKind.DailyReport)),
     CopyEntry("reminders.preset.daily", presetName("report.daily.08")),
-    CopyEntry("reminders.choose.daily", choosePreset(PromptKind.DailyReport))
+    CopyEntry("reminders.choose.daily", choosePreset(PromptKind.DailyReport)),
+    CopyEntry("reminders.preset.daily_minutes", presetName("report.daily.0745")),
+    CopyEntry("reminders.summary_in_quiet", summaryInQuiet("23:30", "22:00–07:00"))
   )

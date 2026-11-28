@@ -6,6 +6,9 @@ import dosegram.core.application.capture.CaptureParts
 import dosegram.core.application.reminders.ReminderSettings
 import dosegram.core.application.reminders.RemindersHandler
 import dosegram.core.chat.*
+import dosegram.core.application.settings.SettingsChat
+import dosegram.core.domain.copy.PromptCopy
+import dosegram.core.domain.copy.SettingsCopy
 import dosegram.core.domain.reminders.PromptKind
 import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.ports.ConsentPurpose
@@ -35,12 +38,18 @@ class RemindersHubPgSuite extends PgSuite:
     if consents.nonEmpty then fixtures.grant(account, consents*)
     val uow = PgUnitOfWork(dataSource, clock, DataKeys.development)
     val settings = ReminderSettings(clock, ids)
-    val handler = RemindersHandler(
+    // `/settings` in front, as the composition has it: it passes every event that is not its own to `/reminders`.
+    val handler = SettingsChat(
       codec,
       clock,
       settings,
-      CaptureParts.over(uow, clock, ids, StatusCards.textOnly),
-      inner = (_, _, _) => Reply(toast = Some("inner"))
+      RemindersHandler(
+        codec,
+        clock,
+        settings,
+        CaptureParts.over(uow, clock, ids, StatusCards.textOnly),
+        inner = (_, _, _) => Reply(toast = Some("inner"))
+      )
     )
     private val principal = Principal(IdentityId(UUID.randomUUID()), Some(AccountId(account)), linked = true)
     private val source = MessageHandle("fake", "chat", "m1")
@@ -143,6 +152,52 @@ class RemindersHubPgSuite extends PgSuite:
     assert(text(applied).contains("Custom interval is on."), text(applied))
     assert(text(applied).contains("next Mon 09:45"), text(applied))
     assertEquals(rig.command("/reminders water every 10 09:00-17:00").toast.isDefined, true, "below the minimum")
+
+  // A typed time for the morning summary (supervisor decision, 2026-11-28), read as leniently as every typed time.
+  test("a typed time turns the morning summary on at that time; one in quiet hours is refused and nothing is stored"):
+    val rig = Rig()
+    val choose = rig.tap("reminders.kind", PromptKind.DailyReport.ordinal)
+    assert(text(choose).contains("/reminders summary 07:45"), s"the typed form is named: ${text(choose)}")
+    val applied = rig.command("/reminders summary 7.45")
+    assert(text(applied).contains("Every day at 07:45 is on."), text(applied))
+    assert(text(applied).contains("Morning summary: Every day at 07:45, next Tue 07:45"), text(applied))
+    val plan = rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.DailyReport))
+    assertEquals(plan.map(p => (p.enabled, p.plan)), Some(true -> PromptPresets.morningSummaryAt(LocalTime.of(7, 45)).plan))
+    // A whole hour keeps the id of the preset it equals.
+    rig.command("/reminders summary 9")
+    assertEquals(
+      rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.DailyReport)).map(_.presetId),
+      Some(PromptPresets.morningSummary(9).id)
+    )
+    assertEquals(rig.command("/reminders summary 23:30").toast, Some(PromptCopy.summaryInQuiet("23:30", "22:00–07:00")))
+    assertEquals(rig.command("/reminders summary soon").toast, Some(PromptCopy.dayUsage))
+    assertEquals(
+      rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.DailyReport)).map(_.presetId),
+      Some(PromptPresets.morningSummary(9).id),
+      "a refused time changes nothing"
+    )
+
+  test("/settings sets the morning summary by a time chip and turns it off, the card headed by the old and new value"):
+    val rig = Rig()
+    val name = PromptCopy.kindName(PromptKind.DailyReport)
+    assert(labels(rig.command("/settings")).contains(SettingsCopy.SummaryButton(None)))
+    val ask = rig.tap("settings.summary_pick", 0)
+    assert(text(ask).contains(SettingsCopy.summaryAsk("off")), text(ask))
+    assertEquals(labels(ask), SettingsChat.SummaryChips.map(PromptCopy.clock) :+ "Back", "no Turn off while it is off")
+    val on = rig.tap("settings.summary_set", 7 * 60 + 30)
+    assert(text(on).contains(SettingsCopy.changed(name, "off", "07:30")), text(on))
+    assert(labels(on).contains(SettingsCopy.SummaryButton(Some(LocalTime.of(7, 30)))), labels(on))
+    def plan = rig.uow.transaction(_.reminders.prompts.schedule(rig.account, PromptKind.DailyReport))
+    assertEquals(plan.map(p => (p.enabled, p.presetId)), Some(true -> "report.daily.0730"))
+    assert(!text(rig.tap("settings.summary_set", 7 * 60 + 30)).contains("Saved."), "a repeated tap changes nothing")
+    assert(labels(rig.tap("settings.summary_pick", 0)).contains(PromptCopy.TurnOff))
+    val off = rig.tap("settings.summary_set", SettingsChat.SummaryOff)
+    assert(text(off).contains(SettingsCopy.changed(name, "07:30", "off")), text(off))
+    assertEquals(plan.map(_.enabled), Some(false))
+    // A chip inside the quiet hours is refused, and the summary stays off.
+    rig.command("/reminders quiet 00:00-08:00")
+    assertEquals(rig.tap("settings.summary_set", 7 * 60).toast, Some(PromptCopy.summaryInQuiet("07:00", "00:00–08:00")))
+    assertEquals(plan.map(_.enabled), Some(false))
 
   test("another account's hub button is a stale button, and other input goes on"):
     val rig = Rig()

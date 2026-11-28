@@ -1208,6 +1208,8 @@ The morning touchpoint is the Today card (section 8.2), sent silently at the mor
 
 Supervisor decision, 2026-11-27 (chat analytics, migration V23): the morning summary. It is a report of yesterday, not the morning touchpoint of BUX-MORN-01, off by default and turned on from `/reminders` ("Morning summary", `reminders.kind.daily`) at 07:00, 08:00, 09:00 or 10:00 (presets `report.daily.07` to `report.daily.10`, each previewed with its next days before it starts, `reminders.choose.daily`). It is one silent message: `report.daily.title` ("Yesterday, Mon 21 Sep"), then one line per domain with its consent and a record that day: the doses recorded as taken of those answered (the first line of the `/stats` dose block), water against the user's own goal (`report.daily.water`), mood (`report.daily.mood`), the night that ended that day (`report.daily.sleep`) and the meals (the food line of `/stats today`), then "Stop these". With the images consent the daily card of yesterday (VISUALS IMG-03) goes first, captioned with its text equivalent; on a day a weekly or monthly report is sent or due, the summary is text only, so the chat gets at most one unprompted personal image (BUX-IMG-03). A day without a record sends nothing (VA-PS-05). It is a Report of PRODUCT_SPEC section 3.2: it counts toward the daily budget (BUX-NOTIF-01), keeps the 20-minute spacing (BUX-NOTIF-04), is held in bedtime mode (BUX-QUIET-05), and three summaries in a row not followed by any use pause it with one line and Resume (VA-PS-06). Unlike the hold of BUX-QUIET-01, a summary whose time falls inside quiet hours is not sent that day and is recorded as `quiet_hours`: the prompt loop decides every report at its time and never sends one late (REM-16), and the times on offer are outside the default quiet hours.
 
+Supervisor decision, 2026-11-28 (images track): any other time is typed, `/reminders summary 07:45` (named on `reminders.choose.daily` and in `reminders.day_usage`), or picked on the `/settings` card (section 17.1); a typed or picked time inside the quiet hours is refused with `reminders.summary_in_quiet` and stores nothing. The summary's daily card is drawn in the 30 minutes before its time (VISUALS VA-PS-08).
+
 ### 12.2 Midday
 
 There is no fixed midday message. The midday touchpoint is used only by prompts the user turned on: water nudges (BUX-WATER-04) and an optional mood check-in time.
@@ -1548,6 +1550,7 @@ Reminders and reports are set in /reminders, consents and your data in /privacy.
 [ Theme: Auto ]     [ Discreet: off ]
 [ Animated mood: off ] [ Counts: on ]
 [ Update notes: on ]
+[ Morning summary: off ]
 [ Reminders and reports ] [ Privacy ]
 ```
 
@@ -1558,6 +1561,7 @@ Reminders and reports are set in /reminders, consents and your data in /privacy.
 | Day and hours | Edits the card into the day: one button per anchor with its time, "Work hours", "Quiet hours" and Back. An anchor offers nine times 30 minutes apart (bedtime 21:00 to 01:00); work hours six choices (Monday to Friday 08:00–16:00, 08:00–17:00, 09:00–17:00, 09:00–18:00, 10:00–19:00, Monday to Saturday 09:00–18:00); quiet hours six (21:00–06:00 to 00:00–08:00). Each question names the typed form of `/reminders` for any other value (BUX-SET-03) |
 | Theme | Auto, then Light, then Dark, then Auto (the image theme of VISUALS section 3.3.3) |
 | Discreet, Animated mood, Counts, Update notes | A switch: the label shows the state, a tap sets the other one |
+| Morning summary | Edits the card into the summary's time (`settings.summary_ask`): eight times 30 minutes apart, 06:30 to 10:00, "Turn off" while it is on, and Back; the question names the typed form `/reminders summary 07:45` for any other time. A time stores the summary at it and returns to the card with `settings.changed` ("Saved. Morning summary: 07:30 (was off)."); a time inside the quiet hours is refused with `reminders.summary_in_quiet` and changes nothing |
 | Reminders and reports | Edits the card into the `/reminders` hub, which owns the morning summary and the weekly and monthly reports |
 | Privacy | Edits the card into the `/privacy` card, which owns the consents, the export and deletion |
 
@@ -1569,13 +1573,14 @@ Reminders and reports are set in /reminders, consents and your data in /privacy.
 | BUX-SET-09 | The card records and shows no health entry and needs no consent of its own; it never grants or withdraws one. "Animated mood" is shown and accepted only while the mood consent is given; a tap without it answers the stale-button toast. While discreet reminders are on, its line says the blob stays still (MINI_APP MA-SET-12). |
 | BUX-SET-10 | The language line names the language the user reads: the stored choice, else the client's language (PRODUCT_SPEC R-LOC-1). |
 
-Callbacks: direct mode on the account, actions 518 to 533 of the range 518 to 547 (`settings.open`, `.language`, `.theme`, `.discreet`, `.animated`, `.counts`, `.whatsnew`, `.day`, `.anchor_pick`, `.anchor_set`, `.work_pick`, `.work_set`, `.quiet_pick`, `.quiet_set`, `.timezone`, `.privacy`); "Reminders and reports" is the `reminders.hub` action of `/reminders`.
+Callbacks: direct mode on the account, actions 518 to 533 of the range 518 to 547 (`settings.open`, `.language`, `.theme`, `.discreet`, `.animated`, `.counts`, `.whatsnew`, `.day`, `.anchor_pick`, `.anchor_set`, `.work_pick`, `.work_set`, `.quiet_pick`, `.quiet_set`, `.timezone`, `.privacy`), and 564 and 565 of the images track's range 564 to 583 (`settings.summary_pick`, `settings.summary_set`, whose value is the minute of the day or 1440 for off); "Reminders and reports" is the `reminders.hub` action of `/reminders`.
 
 Decisions (supervisor decision, 2026-11-28):
 
 - No location sharing for the time zone, although the settings track asked for "share location". BUX-TZ-03, PRODUCT_SPEC R-IDC-12 and R-IDC-22 forbid `request_location` and the collection of location, and PRODUCT_SPEC wins on product behaviour (ROADMAP section 0.1). The time zone stays the flow of section 5.7: the suggestion by language, the typed city search and the time grid.
 - The Undo of BUX-SET-02 is the switch itself: the old value is on the button that replaced it, for as long as the card stays. No separate Undo button and no 15-minute window.
 - Quiet hours are offered as six fixed ranges and the typed `/reminders quiet`; "off" stays the typed `/reminders quiet off`. With none stored, the card shows the default 22:00–07:00 that the prompts use (section 14.3).
+- The morning summary at any time (supervisor decision, 2026-11-28, images track): `/settings` has its own button with its time, and `/reminders summary <time>` stores any time, read as leniently as every typed time (section 15.6: "7:45", "7.45", "745", "9"). A whole hour keeps the preset id `report.daily.HH`; any other time is `report.daily.HHMM` and is named "Every day at 07:45". A time inside the quiet hours is refused, because a summary that falls in them is skipped that day (section 12.1), so it would never come.
 - Not built from the table above: sound per kind, the daily budget, "Pause everything until", units, the 12- or 24-hour clock, the first day of the week, turning a domain off (BUX-SET-04), protect images, the Today pin and "Open all settings" while the Mini App is off on live.
 
 ## 18. Undo and correction

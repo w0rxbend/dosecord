@@ -14,7 +14,7 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 /** The argument of `/reminders` (ADR-023): empty opens the hub; the rest edits the day profile, sets a custom water
-  * interval or pauses every prompt.
+  * interval or the morning summary's time, or pauses every prompt.
   */
 enum ReminderCommand:
   case Hub
@@ -22,6 +22,9 @@ enum ReminderCommand:
   case SetWork(days: Set[DayOfWeek], start: LocalTime, end: LocalTime)
   case SetQuiet(quiet: QuietHours)
   case WaterCustom(plan: NudgePlan.Interval)
+
+  /** The morning summary at a typed time (supervisor decision, 2026-11-28). */
+  case MorningSummary(time: LocalTime)
   case PauseAll(hours: Int)
   case Resume
 
@@ -39,6 +42,7 @@ object ReminderCommand:
       case List("quiet", range)                           => window(range).map((s, e) => SetQuiet(QuietHours(s, e)))
       case "work" :: rest if rest.nonEmpty                => work(rest)
       case "water" :: "every" :: minutes :: range :: days => waterCustom(minutes, range, days)
+      case List("summary", time)                          => clock(time).map(t => MorningSummary(toLocal(t)))
       case List(name, time) if Anchor.byId(name).exists(editable) =>
         clock(time).map(t => SetAnchor(Anchor.byId(name).get, toLocal(t)))
       case _ => None

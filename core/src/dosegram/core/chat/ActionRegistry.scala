@@ -162,7 +162,11 @@ object ActionRegistry:
     ActionEntry(530, "settings.quiet_pick", requiresSession = false),
     ActionEntry(531, "settings.quiet_set", requiresSession = false),
     ActionEntry(532, "settings.timezone", requiresSession = false),
-    ActionEntry(533, "settings.privacy", requiresSession = false)
+    ActionEntry(533, "settings.privacy", requiresSession = false),
+    // The morning summary's time on the /settings card (images track, 564 to 583; supervisor decision, 2026-11-28):
+    // `settings.summary_set` carries the minute of the day, or 1440 to turn the summary off.
+    ActionEntry(564, "settings.summary_pick", requiresSession = false),
+    ActionEntry(565, "settings.summary_set", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

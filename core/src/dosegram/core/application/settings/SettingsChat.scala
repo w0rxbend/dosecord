@@ -16,7 +16,9 @@ import dosegram.contracts.Reply
 import dosegram.core.application.CommandRegistry
 import dosegram.core.application.identity.AccountTimezoneFlow
 import dosegram.core.application.reminders.ReminderCommand
+import dosegram.core.application.reminders.ReminderRefusal
 import dosegram.core.application.reminders.ReminderSettings
+import dosegram.core.application.reminders.RemindersHandler
 import dosegram.core.chat.ActionEntry
 import dosegram.core.chat.ActionRegistry
 import dosegram.core.chat.CallbackCodec
@@ -34,6 +36,7 @@ import dosegram.core.domain.copy.SettingsCopy
 import dosegram.core.domain.reminders.Anchor
 import dosegram.core.domain.reminders.DayProfile
 import dosegram.core.domain.reminders.PromptKind
+import dosegram.core.domain.reminders.PromptPresets
 import dosegram.core.domain.reminders.WorkHours
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.AuditChannel
@@ -51,9 +54,10 @@ import java.util.UUID
   * its value, in sections, and a switch for each value the chat sets in place. A tap edits the card into the new state,
   * headed by the old and the new value, so nothing piles up in the chat; a switch carries the state it sets, so a
   * repeated tap changes nothing and writes nothing. Every write goes through [[AccountSettingsEdits]], the writer of
-  * the Mini App's settings API, with its audit row. The day profile is edited with the use cases of `/reminders`; the
-  * reports and the consents are links to `/reminders` and `/privacy`, which own them. Nothing here records or shows a
-  * health entry, so the card needs no consent of its own; "Animated mood" is offered with the mood consent only.
+  * the Mini App's settings API, with its audit row. The day profile and the morning summary's time are edited with the
+  * use cases of `/reminders`; the other reports and the consents are links to `/reminders` and `/privacy`. Nothing here
+  * records or shows a health entry, so the card needs no consent of its own; "Animated mood" is offered with the mood
+  * consent only.
   */
 final class SettingsChat(codec: CallbackCodec, clock: Clock, reminders: ReminderSettings, inner: ChatHandler)
     extends ChatHandler:
@@ -95,7 +99,9 @@ final class SettingsChat(codec: CallbackCodec, clock: Clock, reminders: Reminder
       case Some("settings.quiet_set")   => QuietChoices.lift(ref.value.toInt).fold(stale)(setQuiet(turn, _))
       case Some("settings.timezone")    =>
         startTimezone.fold(toast(ReminderCopy.failureToast))(_(turn.event, principal, turn.tx))
-      case _ => stale
+      case Some("settings.summary_pick") => summaryAsk(turn)
+      case Some("settings.summary_set")  => summaryOf(ref.value).fold(stale)(setSummary(turn, _))
+      case _                             => stale
 
   // ---------- the switches ----------
 
@@ -195,6 +201,46 @@ final class SettingsChat(codec: CallbackCodec, clock: Clock, reminders: Reminder
       case None    => stale
       case Some(_) => day(turn, changedTime(SettingsCopy.quietName, before, quietValue(quiet)))
 
+  // ---------- the morning summary ----------
+
+  /** The morning summary's time, chosen from chips or typed in `/reminders` (supervisor decision, 2026-11-28). */
+  private def summaryAsk(turn: Turn): Reply =
+    val current = summaryTime(turn)
+    val chips = SummaryChips.map(at => button(turn, PromptCopy.clock(at), SummarySet, at.toSecondOfDay / 60L))
+    val off = current.map(_ => button(turn, PromptCopy.TurnOff, SummarySet, SummaryOff)).toList
+    show(
+      turn,
+      "settings.summary",
+      List(SettingsCopy.summaryAsk(SettingsCopy.summaryValue(current))),
+      chips.grouped(4).toList ++ List(off :+ button(turn, Labels.Back, Open, 0))
+    )
+
+  /** A time turns the summary on at it, off turns it off; the card comes back headed by the old and the new value. A
+    * time inside the quiet hours changes nothing and says why.
+    */
+  private def setSummary(turn: Turn, at: Option[LocalTime]): Reply =
+    val before = summaryTime(turn)
+    at match
+      case None =>
+        reminders.turnOff(turn.tx, turn.account, PromptKind.DailyReport): Unit
+        summarySaved(turn, before, None)
+      case Some(time) =>
+        reminders.applyMorningSummary(turn.tx, turn.account, time) match
+          case Right(_)                                  => summarySaved(turn, before, at)
+          case Left(ReminderRefusal.InQuietHours(quiet)) => toast(RemindersHandler.summaryInQuiet(time, quiet))
+          case Left(_)                                   => stale
+
+  private def summarySaved(turn: Turn, before: Option[LocalTime], after: Option[LocalTime]): Reply =
+    val (old, now) = (SettingsCopy.summaryValue(before), SettingsCopy.summaryValue(after))
+    hub(turn, Option.when(old != now)(SettingsCopy.changed(PromptCopy.kindName(PromptKind.DailyReport), old, now)))
+
+  /** The time of the morning summary while it is on. */
+  private def summaryTime(turn: Turn): Option[LocalTime] =
+    turn.tx.reminders.prompts
+      .schedule(turn.account, PromptKind.DailyReport)
+      .filter(_.enabled)
+      .flatMap(plan => PromptPresets.morningSummaryTime(plan.plan))
+
   private def changedTime(name: String, before: String, after: String): Option[String] =
     Option.when(before != after)(SettingsCopy.changed(name, before, after))
 
@@ -234,7 +280,8 @@ final class SettingsChat(codec: CallbackCodec, clock: Clock, reminders: Reminder
       notes = turn.tx.accounts.whatsNewOf(turn.account).enabled,
       mood = hasMood(turn),
       reports =
-        ReportKinds.map(kind => kind -> turn.tx.reminders.prompts.schedule(turn.account, kind).exists(_.enabled))
+        ReportKinds.map(kind => kind -> turn.tx.reminders.prompts.schedule(turn.account, kind).exists(_.enabled)),
+      summary = summaryTime(turn)
     )
 
   /** The title, the four sections and the links, each section one paragraph. */
@@ -281,6 +328,7 @@ final class SettingsChat(codec: CallbackCodec, clock: Clock, reminders: Reminder
         Some(toggle(turn, SettingsCopy.CountsButton(state.counts), Counts, state.counts))
       ).flatten,
       List(toggle(turn, SettingsCopy.NotesButton(state.notes), WhatsNew, state.notes)),
+      List(button(turn, SettingsCopy.SummaryButton(state.summary), SummaryPick, 0)),
       List(
         button(turn, SettingsCopy.RemindersButton, RemindersHub, 0),
         button(turn, SettingsCopy.PrivacyButton, Privacy, 0)
@@ -333,6 +381,18 @@ object SettingsChat:
   private val QuietPick = named("settings.quiet_pick")
   private val QuietSet = named("settings.quiet_set")
   private val Timezone = named("settings.timezone")
+  private val SummaryPick = named("settings.summary_pick")
+  private val SummarySet = named("settings.summary_set")
+
+  /** The value of `settings.summary_set` that turns the morning summary off; any other is a minute of the day. */
+  val SummaryOff: Long = 24L * 60
+
+  /** The times offered for the morning summary: 06:30 to 10:00, 30 minutes apart. Any other is typed. */
+  val SummaryChips: List[LocalTime] = List.tabulate(8)(i => LocalTime.of(6, 30).plusMinutes(i * 30L))
+
+  private def summaryOf(value: Long): Option[Option[LocalTime]] =
+    if value == SummaryOff then Some(None)
+    else Option.when(value >= 0 && value < SummaryOff)(Some(LocalTime.ofSecondOfDay(value * 60)))
 
   /** "Privacy" opens the `/privacy` card, which the capture handler owns. */
   val Privacy: ActionEntry = named("settings.privacy")
@@ -429,7 +489,8 @@ object SettingsChat:
       counts: Boolean,
       notes: Boolean,
       mood: Boolean,
-      reports: List[(PromptKind, Boolean)]
+      reports: List[(PromptKind, Boolean)],
+      summary: Option[LocalTime]
   )
 
   /** One inbound event of a linked account: the message a tap came from, and the transaction of the event. */

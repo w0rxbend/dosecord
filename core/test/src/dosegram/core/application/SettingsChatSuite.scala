@@ -87,6 +87,7 @@ class SettingsChatSuite extends munit.FunSuite:
           "Animated mood: off",
           "Counts: on",
           "Update notes: on",
+          "Morning summary: off",
           "Reminders and reports",
           "Privacy"
         )

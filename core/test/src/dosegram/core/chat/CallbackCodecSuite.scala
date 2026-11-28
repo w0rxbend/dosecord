@@ -330,7 +330,9 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         530 -> "settings.quiet_pick",
         531 -> "settings.quiet_set",
         532 -> "settings.timezone",
-        533 -> "settings.privacy"
+        533 -> "settings.privacy",
+        564 -> "settings.summary_pick",
+        565 -> "settings.summary_set"
       )
     )
 

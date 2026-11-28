@@ -100,7 +100,19 @@ object SettingsCopy:
     s"${line(quietName, current)}. Виберіть нові тихі години або напишіть /reminders quiet 22:00-07:00."
   )
 
+  /** The morning summary's time, or "off", as its line and its button show it. */
+  def summaryValue(at: Option[LocalTime]): String = at.fold(off)(PromptCopy.clock)
+
+  def summaryAsk(current: String): String = tr(
+    s"${line(PromptCopy.kindName(PromptKind.DailyReport), current)}. Yesterday in one message each morning. Pick a " +
+      "time, or type any other, for example /reminders summary 07:45. It is never sent in your quiet hours.",
+    s"${line(PromptCopy.kindName(PromptKind.DailyReport), current)}. Учорашній день одним повідомленням щоранку. " +
+      "Виберіть час або напишіть інший, наприклад /reminders summary 07:45. У тихі години він не надходить."
+  )
+
   // Buttons: at most 24 characters in both languages (BUX-KB-01).
+  def SummaryButton(at: Option[LocalTime]): String =
+    tr(s"Morning summary: ${summaryValue(at)}", s"Підсумок: ${summaryValue(at)}")
   def ZoneButton: String = tr("Time zone", "Часовий пояс")
   def DayButton: String = tr("Day and hours", "День і години")
   def ThemeButton(theme: ImageTheme): String = tr(s"Theme: ${themeValue(theme)}", s"Тема: ${themeValue(theme)}")
@@ -118,7 +130,8 @@ object SettingsCopy:
     List(ZoneButton, DayButton, RemindersButton, PrivacyButton, WorkButton, QuietButton) ++
       ImageTheme.values.toList.map(ThemeButton) ++
       List(true, false).flatMap(isOn => List(DiscreetButton(isOn), AnimatedButton(isOn), CountsButton(isOn))) ++
-      List(true, false).map(NotesButton)
+      List(true, false).map(NotesButton) ++
+      List(None, Some(LocalTime.of(10, 30))).map(SummaryButton)
 
   private val sampleAt = LocalTime.of(7, 0)
 
@@ -145,6 +158,8 @@ object SettingsCopy:
       CopyEntry("settings.day_help", dayHelp),
       CopyEntry("settings.anchor_ask", anchorAsk(Anchor.Wake, sampleAt)),
       CopyEntry("settings.work_ask", workAsk("09:00–18:00")),
-      CopyEntry("settings.quiet_ask", quietAsk("22:00–07:00"))
+      CopyEntry("settings.quiet_ask", quietAsk("22:00–07:00")),
+      CopyEntry("settings.summary_ask", summaryAsk(summaryValue(Some(LocalTime.of(7, 45))))),
+      CopyEntry("settings.summary_button", SummaryButton(None))
     ) ++ buttons.zipWithIndex.map((label, i) => CopyEntry(s"settings.button.$i", label))
 end SettingsCopy
