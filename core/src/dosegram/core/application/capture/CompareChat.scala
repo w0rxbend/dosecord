@@ -53,15 +53,15 @@ private[capture] final class CompareChat(parts: CaptureParts, clock: Clock, toke
       )
       turn.show(turn.message("stats.compare.pick", List(CompareCopy.pickFirst), choices.grouped(3).toList))
     else
-      val first = MonthAndInsightsChat.monthOf(value.toInt)
-      if !months.contains(first) then turn.toast(ReminderCopy.staleControlToast)
-      else
-        val choices = months
-          .flatMap(second => CompareSelection.twoMonths(first, second).map(second -> _))
-          .map((second, selection) =>
-            Choice.callback(CompareCopy.monthLabel(second), token(turn, CaptureActions.StatsCompare, selection.code))
-          )
-        turn.show(turn.message("stats.compare.pick", List(CompareCopy.pickSecond(first)), choices.grouped(3).toList))
+      MonthAndInsightsChat.monthOf(value.toInt).filter(months.contains) match
+        case None        => turn.toast(ReminderCopy.staleControlToast)
+        case Some(first) =>
+          val choices = months
+            .flatMap(second => CompareSelection.twoMonths(first, second).map(second -> _))
+            .map((second, selection) =>
+              Choice.callback(CompareCopy.monthLabel(second), token(turn, CaptureActions.StatsCompare, selection.code))
+            )
+          turn.show(turn.message("stats.compare.pick", List(CompareCopy.pickSecond(first)), choices.grouped(3).toList))
 
   /** IMG-27 as a new message, captioned with its text equivalent. */
   def image(turn: Turn, selection: CompareSelection): Reply =

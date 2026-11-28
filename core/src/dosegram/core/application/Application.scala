@@ -91,7 +91,8 @@ object Application:
     menu.wireEngine(engine)
     settings.wireEngine(engine)
     // The note after a release sits outside the gate and inside the language (supervisor decision, 2026-11-28).
-    LocalisedHandler(WhatsNewChat(codec, clock, FirstFlows.identityGate(engine)))
+    // Every tap is answered with words, in the event's language (supervisor decision, 2026-11-28).
+    LocalisedHandler(TapAnswers(WhatsNewChat(codec, clock, FirstFlows.identityGate(engine))))
 
   /** The export requests, as the chat and the Mini App API share them (ROADMAP G3.10). */
   def exportRequests(clock: Clock, codec: CallbackCodec): ExportRequests =

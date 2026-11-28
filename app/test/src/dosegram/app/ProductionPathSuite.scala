@@ -473,6 +473,33 @@ class ProductionPathSuite extends PgSuite:
       assertEquals(strings("SELECT status::text FROM dose_occurrences ORDER BY scheduled_for LIMIT 1"), List("pending"))
       assertEquals(strings("SELECT status FROM inbound_inbox WHERE status = 'quarantined'"), Nil)
 
+  // The rehearsal of 2026-11-28: "7 days" on an unchanged card and "Snooze 10m" on a closed dose stopped the progress
+  // indicator with nothing to read. Every tap of every registered action is answered with words, whatever its state.
+  test("every registered action, tapped stale or in a state it does not change, is answered with a toast"):
+    val clock = SteppedClock(start)
+    launched(clock): chat =>
+      onboard(chat)
+      addDailyMedication(chat)
+      val codec = CallbackCodec(settings.callbackKeys)
+      val account = UUID.fromString(strings("SELECT id::text FROM users").head)
+      /** The tap's settlement and the words of its answer, if it was answered. */
+      def answerTo(data: String): (String, Option[String]) =
+        val status = tapRaw(chat, data)
+        val query = s"query-raw-${chat.lastUpdate}"
+        def answer = chat.wire.calls("answerCallbackQuery").find(_.text("callback_query_id").contains(query))
+        eventually(s"the tap $query is answered")(answer.isDefined)
+        (status, answer.flatMap(_.text("text")).filterNot(_.isBlank))
+      val failures = ActionRegistry.entries.flatMap: action =>
+        val mode = if action.requiresSession then CallbackMode.Slot else CallbackMode.Direct
+        val stale = codec.encode(mode, action, UUID.randomUUID(), 0).wire
+        val own = codec.encode(mode, action, account, 0).wire
+        // The second tap on the account's own button finds the state the first one left: it changes nothing.
+        List("stale" -> stale, "first" -> own, "unchanged" -> own).flatMap: (state, data) =>
+          answerTo(data) match
+            case ("processed", Some(_)) => None
+            case (status, words) => Some(s"${action.id} ${action.name} ($state): $status, ${words.getOrElse("no words")}")
+      assertEquals(failures, Nil, "taps not processed or answered with no words")
+
   test("after an account deletion through the inbox no row names the owner's chat, the goodbye's included"):
     val clock = SteppedClock(start)
     launched(clock): chat =>

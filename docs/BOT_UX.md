@@ -280,6 +280,8 @@ The existing codec (`core/chat/CallbackCodec.scala`) signs a 34-byte token and w
 | Revealing names in discreet mode | Alert (`show_alert`), at most 200 characters `V[02 §7.1]` | Nothing is written to the chat. If the content exceeds 200 characters the alert shows the first items and "Open the app to see all". |
 | Anything the user must be able to find again | Never a toast or alert | It goes into a card. |
 
+Supervisor decision, 2026-11-28 (the rehearsal of `9ac3b88`, where "7 days" on an unchanged card and "Snooze 10m" on a closed dose stopped the progress indicator with nothing to read): every tap is answered with words. A tap whose handler gives no toast gets one from the handler composition (`TapAnswers`), by what its answer does: `tap.sent_below` ("Sent below.") when it sends a new message, `tap.up_to_date` ("Up to date.") when it edits the tapped card, changed or not, and `tap.nothing_changed` ("Nothing to change here.") when it does neither. The first row of the table above therefore reads "a toast of at most 60 characters"; the empty answer remains only for the watchdog (BUX-CB-07). The toast rides the tap's answer only and never becomes a message. A button value outside what its action can show (a month before January 1970) answers `err.control.invalid` instead of failing the update. `ProductionPathSuite` taps every action id of the registry with a stale subject and twice with the account's own subject, and expects words each time.
+
 ### 4.5 Stale buttons
 
 A button is stale when its card no longer shows the subject's current state. The bot cannot remove keyboards from all old messages cheaply, so staleness is resolved at press time.
@@ -2270,6 +2272,9 @@ Placeholders are in braces. "Fixed" length excludes placeholder content.
 | `toast.wizard.stale` | That step was already answered. Here is the current step. | |
 | `toast.wizard.expired` | Set-up timed out. Starting again. | |
 | `toast.today.closed` | That day is closed. Opening today. | |
+| `tap.sent_below` | Sent below. | Supervisor decision, 2026-11-28 (section 4.4) |
+| `tap.up_to_date` | Up to date. | Supervisor decision, 2026-11-28 (section 4.4) |
+| `tap.nothing_changed` | Nothing to change here. | Supervisor decision, 2026-11-28 (section 4.4) |
 | `today.moved` | Today is shown below. | |
 | `err.control.invalid` | This button no longer works. Open /today. | Generic; reveals nothing. Supervisor decision, 2026-11-15: the toast names the next step; it answers a tampered, malformed or foreign token, a token signed with a retired key and a token whose subject is gone, and the update is recorded as processed (catalogue key `reminder.stale_control_toast`) |
 | `med.add.prompt` | Send the name and time in one message, for example: Vitamin D 1000 IU 9:00. Leave out the time for a medication you take only when needed. For other schedules, use the app form. | |

@@ -138,6 +138,15 @@ object ReminderCopy:
   def staleControlToast: String =
     tr("This button no longer works. Open /today.", "Ця кнопка вже не діє. Відкрийте /today.")
 
+  /** The answer to a tap whose answer is a new message (supervisor decision, 2026-11-28: every tap is answered). */
+  def tapSentBelow: String = tr("Sent below.", "Надіслано нижче.")
+
+  /** The answer to a tap that edits its card, whether or not the card changes. */
+  def tapUpToDate: String = tr("Up to date.", "Актуально.")
+
+  /** The answer to a tap that changes nothing the person can see. */
+  def tapNothingChanged: String = tr("Nothing to change here.", "Тут нічого змінювати.")
+
   def entries: List[CopyEntry] = List(
     CopyEntry("reminder.body", reminderBody("Vitamin D", Some("1000 IU"), None).mkString("\n")),
     CopyEntry(
@@ -171,6 +180,9 @@ object ReminderCopy:
     CopyEntry("reminder.refusal.correct_on_open_row", refusal(Refusal.CorrectOnOpenRow)),
     CopyEntry("reminder.refusal.invalid_effective_at", refusal(Refusal.InvalidEffectiveAt)),
     CopyEntry("reminder.refusal.row_cancelled", refusal(Refusal.RowCancelled)),
+    CopyEntry("tap.sent_below", tapSentBelow),
+    CopyEntry("tap.up_to_date", tapUpToDate),
+    CopyEntry("tap.nothing_changed", tapNothingChanged),
     CopyEntry("reminder.nothing_due", nothingDue),
     CopyEntry("reminder.no_open_dose", noOpenDose("Vitamin D")),
     CopyEntry("reminder.unknown_medication", unknownMedication("Vitamin D")),

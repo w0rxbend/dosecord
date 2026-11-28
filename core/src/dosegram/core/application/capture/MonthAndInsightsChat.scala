@@ -28,9 +28,11 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
 
   /** The text of a month; the current month is the month so far. */
   def month(turn: Turn, index: Int): Reply =
-    val month = MonthAndInsightsChat.monthOf(index)
+    MonthAndInsightsChat.monthOf(index).fold(stale(turn))(shown(turn, index, _))
+
+  private def shown(turn: Turn, index: Int, month: YearMonth): Reply =
     parts.stats.month(turn.tx, turn.accountId, month) match
-      case Left(_)     => turn.toast(ReminderCopy.staleControlToast)
+      case Left(_)     => stale(turn)
       case Right(view) =>
         val current = YearMonth.from(today(turn))
         val previous = Choice.callback(ReportCopy.PreviousMonth, monthToken(turn, CaptureActions.StatsMonth, index - 1))
@@ -48,10 +50,10 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
 
   /** The pages of a month as new messages, each with its own caption. */
   def monthImage(turn: Turn, index: Int): Reply =
-    parts.stats.month(turn.tx, turn.accountId, MonthAndInsightsChat.monthOf(index)) match
-      case Left(_)                                   => turn.toast(ReminderCopy.staleControlToast)
-      case Right(view) if !view.figures.isReportable => turn.toast(ReportCopy.imageUnavailable)
-      case Right(view)                               =>
+    MonthAndInsightsChat.monthOf(index).map(parts.stats.month(turn.tx, turn.accountId, _)) match
+      case None | Some(Left(_))                            => stale(turn)
+      case Some(Right(view)) if !view.figures.isReportable => turn.toast(ReportCopy.imageUnavailable)
+      case Some(Right(view))                               =>
         val month = views.month(turn.tx, turn.accountId, view.figures, today(turn))
         // The month in one image closes the pages (VISUALS IMG-24).
         val pages = parts.cards.month(month, turn.look) ++ parts.cards.monthPoster(month, turn.look).toList
@@ -103,6 +105,8 @@ private[capture] final class MonthAndInsightsChat(parts: CaptureParts, clock: Cl
         Reply(followUps = turn.images(parts.delivery, List(page)))
       case None => turn.toast(InsightCopy.imageUnavailable)
 
+  private def stale(turn: Turn): Reply = turn.toast(ReminderCopy.staleControlToast)
+
   private def today(turn: Turn): LocalDate = clock.now().atZone(turn.zone).toLocalDate
 
   /** The current month's button value. */
@@ -119,4 +123,11 @@ private[capture] object MonthAndInsightsChat:
   /** A month as the value of a button: `year * 12 + month - 1`. */
   def indexOf(month: YearMonth): Int = month.getYear * 12 + month.getMonthValue - 1
 
-  def monthOf(index: Int): YearMonth = YearMonth.of(index / 12, index % 12 + 1)
+  /** The month a button's value names, if the records can hold it: January 1970 to December 9999. A forged value names
+    * year 0, which the store refuses (the walk of every action, 2026-11-28).
+    */
+  def monthOf(index: Int): Option[YearMonth] =
+    Option.when(index >= indexOf(Earliest) && index <= indexOf(Latest))(YearMonth.of(index / 12, index % 12 + 1))
+
+  private val Earliest = YearMonth.of(1970, 1)
+  private val Latest = YearMonth.of(9999, 12)
