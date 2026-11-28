@@ -1,7 +1,21 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bindAppearance } from './apply-theme';
 import { FakeTelegramPort } from './fake';
 import { createRealTelegramPort, parsePerformanceClass } from './real';
+
+/** Telegram's CloudStorage over a map; `answer: false` never calls back, as a stalled client would. */
+function cloudStorage(entries: Record<string, string> = {}, answer = true) {
+  const values = new Map(Object.entries(entries));
+  return {
+    values,
+    getItem: vi.fn((key: string, callback: (error: string | null, value?: string) => void) => {
+      if (answer) callback(null, values.get(key) ?? '');
+    }),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value);
+    }),
+  };
+}
 
 /** A stand-in for window.Telegram.WebApp that records what the adapter calls. */
 function nativeApp() {
@@ -40,13 +54,21 @@ function nativeApp() {
     enableClosingConfirmation: vi.fn(),
     disableClosingConfirmation: vi.fn(),
     showPopup: vi.fn((_params: unknown, callback: (id: string | null) => void) => callback('leave')),
+    setHeaderColor: vi.fn(),
+    setBackgroundColor: vi.fn(),
+    setBottomBarColor: vi.fn(),
+    CloudStorage: cloudStorage(),
     listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
     emit: (event: string) => listeners.get(event)?.forEach((callback) => callback()),
   };
 }
 
-function adapt(app: ReturnType<typeof nativeApp>) {
-  const host = { Telegram: { WebApp: app }, navigator: { userAgent: 'Telegram-Android/11.4 (Pixel; Android 14; SDK 34; LOW)' } };
+function adapt(app: ReturnType<typeof nativeApp>, reducedMotion = false) {
+  const host = {
+    Telegram: { WebApp: app },
+    navigator: { userAgent: 'Telegram-Android/11.4 (Pixel; Android 14; SDK 34; LOW)' },
+    matchMedia: (query: string) => ({ matches: reducedMotion && query === '(prefers-reduced-motion: reduce)' }),
+  };
   const port = createRealTelegramPort(host as unknown as Window);
   if (!port) throw new Error('adapter expected');
   return port;
@@ -110,15 +132,41 @@ describe('real Telegram adapter', () => {
     expect(app.HapticFeedback.impactOccurred).toHaveBeenCalledWith('light');
   });
 
-  it('subscribes to every viewport event and unsubscribes from all of them', () => {
+  it('skips haptics while the system asks for reduced motion (MA-NATIVE-5)', () => {
+    const app = nativeApp();
+
+    adapt(app, true).haptic('success');
+
+    expect(app.HapticFeedback.notificationOccurred).not.toHaveBeenCalled();
+  });
+
+  it('subscribes to every viewport event, fullscreen included, and unsubscribes from all of them', () => {
+    const events = ['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged'];
     const app = nativeApp();
     const off = adapt(app).onViewportChanged(() => undefined);
-    expect(['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged'].map(app.listenerCount)).toEqual([1, 1, 1]);
+    expect(events.map(app.listenerCount)).toEqual([1, 1, 1, 1]);
 
     off();
 
-    expect(['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged'].map(app.listenerCount)).toEqual([0, 0, 0]);
+    expect(events.map(app.listenerCount)).toEqual([0, 0, 0, 0]);
   });
+
+  it('paints the native header, background and bottom bar', () => {
+    const app = nativeApp();
+
+    adapt(app).setChromeColors({ header: '#f0f2f5', background: '#f0f2f5', bottomBar: '#ffffff' });
+
+    expect(app.setHeaderColor).toHaveBeenCalledWith('#f0f2f5');
+    expect(app.setBackgroundColor).toHaveBeenCalledWith('#f0f2f5');
+    expect(app.setBottomBarColor).toHaveBeenCalledWith('#ffffff');
+  });
+
+  it('paints nothing on a client without the colour calls', () => {
+    const { setHeaderColor: _h, setBackgroundColor: _b, setBottomBarColor: _c, ...bare } = nativeApp();
+
+    expect(() => adapt(bare as ReturnType<typeof nativeApp>).setChromeColors({ header: '#000000', background: '#000000', bottomBar: '#000000' })).not.toThrow();
+  });
+
 
   it('answers a popup with the pressed button id and marks destructive buttons', async () => {
     const app = nativeApp();
@@ -142,7 +190,60 @@ describe('real Telegram adapter', () => {
   });
 });
 
+describe('interface preferences in CloudStorage (MINI_APP 6.6)', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('reads a stored value and writes a new one', async () => {
+    const app = { ...nativeApp(), CloudStorage: cloudStorage({ ui_v1_insights_range: '90' }) };
+    const port = adapt(app);
+
+    expect(await port.preferences.get('ui_v1_insights_range')).toBe('90');
+    port.preferences.set('ui_v1_insights_range', 'year');
+
+    expect(app.CloudStorage.values.get('ui_v1_insights_range')).toBe('year');
+  });
+
+  it('reads nothing for a key never stored', async () => {
+    expect(await adapt(nativeApp()).preferences.get('ui_v1_insights_range')).toBeUndefined();
+  });
+
+  it('reads and writes nothing on a client without CloudStorage', async () => {
+    const { CloudStorage: _cloud, ...bare } = nativeApp();
+    const port = adapt(bare as ReturnType<typeof nativeApp>);
+
+    expect(await port.preferences.get('ui_v1_insights_range')).toBeUndefined();
+    expect(() => port.preferences.set('ui_v1_insights_range', '7')).not.toThrow();
+  });
+
+  it('gives up on a read after 500 ms (MA-STORE-2)', async () => {
+    vi.useFakeTimers();
+    const port = adapt({ ...nativeApp(), CloudStorage: cloudStorage({ ui_v1_insights_range: '7' }, false) });
+
+    const read = port.preferences.get('ui_v1_insights_range');
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(await read).toBeUndefined();
+  });
+
+  it('reads nothing when the client reports an error', async () => {
+    const app = nativeApp();
+    app.CloudStorage.getItem.mockImplementation((_key, callback) => callback('STORAGE_KEY_CLOUD_ERROR'));
+
+    expect(await adapt(app).preferences.get('ui_v1_insights_range')).toBeUndefined();
+  });
+});
+
 describe('bindAppearance', () => {
+  it('paints the native chrome with the page tokens, again on a theme change (MINI_APP 3.2 step 4)', () => {
+    const tg = new FakeTelegramPort({ scheme: 'light', params: { secondary_bg_color: '#eeeeee', bottom_bar_bg_color: '#dddddd' } });
+
+    bindAppearance(tg, document.createElement('div'));
+    expect(tg.chrome).toEqual({ header: '#eeeeee', background: '#eeeeee', bottomBar: '#dddddd' });
+
+    tg.setTheme('dark', { secondary_bg_color: '#111111' });
+    expect(tg.chrome).toEqual({ header: '#111111', background: '#111111', bottomBar: '#111111' });
+  });
+
   it('applies tokens and insets at once and again on change, without a reload', () => {
     const tg = new FakeTelegramPort({ scheme: 'light', params: { text_color: '#102030' } });
     const root = document.createElement('div');

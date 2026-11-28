@@ -10,7 +10,8 @@
   import Screen from '../../ui/Screen.svelte';
   import DayLine from './DayLine.svelte';
   import DayTrackers from './DayTrackers.svelte';
-  import { optimistic, replaceOccurrence } from './group';
+  import { nextDueDose, optimistic, replaceOccurrence } from './group';
+  import QuickActions from './QuickActions.svelte';
   import SetupCard from './SetupCard.svelte';
   import TodayBody from './TodayBody.svelte';
   import { readTracking, trackingMarks, type DayTracking } from './tracking';
@@ -121,6 +122,11 @@
     void tracking.load();
   }
 
+  const quickDose = (view: TodayView | Off): Occurrence | undefined =>
+    view === OFF || view.readOnly ? undefined : nextDueDose(view.occurrences);
+  const quickVessel = (current: DayTracking | undefined): number | undefined =>
+    current && current.water !== OFF && current.water.day ? current.water.presetsMl[0] : undefined;
+
   const everythingOff = (view: TodayView | Off) =>
     view === OFF && tracking.data !== undefined && tracking.data.water === OFF && tracking.data.mood === OFF;
 </script>
@@ -148,6 +154,15 @@
 
   <AsyncView resource={day} loadingLabel={en.today.loading} skeletonRows={4}>
     {#snippet children(view)}
+      {#if date === undefined}
+        <QuickActions
+          dose={quickDose(view)}
+          vesselMl={quickVessel(tracking.data)}
+          moodOn={tracking.data !== undefined && tracking.data.mood !== OFF}
+          onTake={(occurrence) => act(occurrence, { kind: 'taken' })}
+          onAddWater={addWater}
+        />
+      {/if}
       {#if view !== OFF}
         {#if !view.isToday && title === undefined}
           <p class="section"><button type="button" class="btn btn-tinted" onclick={() => router.replace('/')}>{en.today.backToToday}</button></p>

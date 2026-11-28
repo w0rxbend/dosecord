@@ -118,6 +118,13 @@ export const en = {
     mealLogged: (meal: string) => `${meal} logged`,
   },
 
+  quick: {
+    title: 'Quick actions',
+    taken: (name: string, time: string) => `Taken: ${name}, ${time}`,
+    water: (ml: number) => `+${ml} ml water`,
+    mood: 'Mood check-in',
+  },
+
   todaySheet: {
     scheduled: 'Scheduled',
     state: 'State',

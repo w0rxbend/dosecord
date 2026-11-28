@@ -129,6 +129,13 @@ export const uk: Catalogue = {
     mealLogged: (meal: string) => `${meal}: записано`,
   },
 
+  quick: {
+    title: 'Швидкі дії',
+    taken: (name: string, time: string) => `Прийнято: ${name}, ${time}`,
+    water: (ml: number) => `+${ml} мл води`,
+    mood: 'Позначити настрій',
+  },
+
   todaySheet: {
     scheduled: 'Заплановано',
     state: 'Стан',

@@ -2,11 +2,14 @@
 import {
   ZERO_INSETS,
   type BottomButtonPort,
+  type ChromeColors,
   type ColorScheme,
   type DownloadFileParams,
   type HapticEvent,
   type PerformanceClass,
   type PopupParams,
+  type PreferenceKey,
+  type PreferencesPort,
   type TelegramPort,
   type ThemeParams,
   type Unsubscribe,
@@ -89,6 +92,16 @@ export class FakeBackButton {
   }
 }
 
+/** CloudStorage over a map; `values` is what the app stored, for tests to read and seed. */
+export class FakePreferences implements PreferencesPort {
+  readonly values = new Map<PreferenceKey, string>();
+
+  get = (key: PreferenceKey): Promise<string | undefined> => Promise.resolve(this.values.get(key));
+  set = (key: PreferenceKey, value: string): void => {
+    this.values.set(key, value);
+  };
+}
+
 export interface FakeTelegramOptions {
   initData?: string;
   startParam?: string;
@@ -116,6 +129,7 @@ export class FakeTelegramPort implements TelegramPort {
   verticalSwipesDisabled = false;
   closingConfirmation = false;
   closed = false;
+  chrome: ChromeColors | null = null;
 
   private scheme: ColorScheme;
   private params: ThemeParams;
@@ -127,6 +141,7 @@ export class FakeTelegramPort implements TelegramPort {
 
   readonly mainButton = new FakeBottomButton(() => this.chromeChanged.emit());
   readonly backButton = new FakeBackButton(() => this.chromeChanged.emit());
+  readonly preferences = new FakePreferences();
 
   constructor(options: FakeTelegramOptions = {}) {
     this.initData = options.initData ?? 'fake-init-data';
@@ -151,6 +166,9 @@ export class FakeTelegramPort implements TelegramPort {
   };
   expand = (): void => {
     this.expanded = true;
+  };
+  setChromeColors = (colors: ChromeColors): void => {
+    this.chrome = colors;
   };
   disableVerticalSwipes = (): void => {
     this.verticalSwipesDisabled = true;

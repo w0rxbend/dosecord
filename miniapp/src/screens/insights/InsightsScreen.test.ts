@@ -164,6 +164,65 @@ describe('Insights', () => {
     expect(harness.tg.haptics).toEqual(['selection']);
   });
 
+  it('remembers the chosen period and the Year tab on this device (MINI_APP 6.6)', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await block('Medication');
+
+    await user.click(screen.getByLabelText('7 days'));
+    expect(harness.tg.preferences.values.get('ui_v1_insights_range')).toBe('7');
+
+    await user.click(within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Year'));
+    expect(harness.tg.preferences.values.get('ui_v1_insights_range')).toBe('year');
+  });
+
+  it('keeps the remembered period when the Compare tab is chosen', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await block('Medication');
+
+    await user.click(screen.getByLabelText('7 days'));
+    await user.click(within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Compare'));
+
+    expect(await block('Compare')).toBeTruthy();
+    expect(harness.tg.preferences.values.get('ui_v1_insights_range')).toBe('7');
+  });
+
+  it('opens on the period remembered on this device, with one overview read', async () => {
+    const harness = createHarness();
+    harness.tg.preferences.set('ui_v1_insights_range', '90');
+    const asked: number[] = [];
+    const typical = harness.api.insightsOverview;
+    harness.api.insightsOverview = (rangeDays) => {
+      asked.push(rangeDays);
+      return typical(rangeDays);
+    };
+    open(harness);
+
+    await block('Medication');
+
+    expect((screen.getByLabelText('90 days') as HTMLInputElement).checked).toBe(true);
+    expect(asked).toEqual([90]);
+  });
+
+  it('opens on the Year tab when it was the last one on this device', async () => {
+    const harness = createHarness();
+    harness.tg.preferences.set('ui_v1_insights_range', 'year');
+    open(harness);
+
+    expect(await block('Year')).toBeTruthy();
+    expect((within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Year') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('opens on 30 days when the stored value is not a period it knows', async () => {
+    const harness = createHarness();
+    harness.tg.preferences.set('ui_v1_insights_range', '365');
+    open(harness);
+    await block('Medication');
+
+    expect((screen.getByLabelText('30 days') as HTMLInputElement).checked).toBe(true);
+  });
+
   it('uses no judgement words, score or streak for medication records', async () => {
     open(createHarness());
 

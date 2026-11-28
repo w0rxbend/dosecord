@@ -1,7 +1,6 @@
 // The one seam to Telegram (MINI_APP 14.1, MA-STACK-2). Only platform/ may touch window.Telegram.
-// This scaffold covers the subset the first screens use; the remaining members of the 14.1 sketch
-// (secondaryButton, settingsButton, preferences, downloadFile, homeScreen, biometric) join with
-// the slices that need them.
+// This scaffold covers the subset the screens use; the remaining members of the 14.1 sketch
+// (secondaryButton, settingsButton, homeScreen, biometric) join with the slices that need them.
 
 export type Unsubscribe = () => void;
 export type ColorScheme = 'light' | 'dark';
@@ -49,6 +48,27 @@ export interface BottomButtonPort {
   onClick(listener: () => void): Unsubscribe;
 }
 
+/** The colours of Telegram's own header, WebView background and bottom bar (TGF-10), as #rrggbb. */
+export interface ChromeColors {
+  readonly header: string;
+  readonly background: string;
+  readonly bottomBar: string;
+}
+
+/** The CloudStorage keys of MINI_APP 6.6. Interface preferences only: never health data, never a credential. */
+export type PreferenceKey = 'ui_v1_insights_range';
+
+/**
+ * Interface preferences kept per device by Telegram's CloudStorage (MINI_APP 6.6). Where the client has
+ * no CloudStorage, nothing is kept and every read finds nothing.
+ */
+export interface PreferencesPort {
+  /** The stored value; undefined when absent, unsupported, failed or slower than 500 ms (MA-STORE-2). */
+  get(key: PreferenceKey): Promise<string | undefined>;
+  /** Stores the value without waiting; a failure only means the preference is not kept. */
+  set(key: PreferenceKey, value: string): void;
+}
+
 export interface BackButtonPort {
   show(): void;
   hide(): void;
@@ -70,6 +90,8 @@ export interface TelegramPort {
 
   ready(): void;
   expand(): void;
+  /** Matches Telegram's header, background and bottom bar to the page (MINI_APP 3.2 step 4). */
+  setChromeColors(colors: ChromeColors): void;
   disableVerticalSwipes(): void;
   setClosingConfirmation(enabled: boolean): void;
   /** Closes the Mini App; the one action of a gate screen (MINI_APP 3.5). */
@@ -77,6 +99,7 @@ export interface TelegramPort {
 
   readonly mainButton: BottomButtonPort;
   readonly backButton: BackButtonPort;
+  readonly preferences: PreferencesPort;
 
   haptic(event: HapticEvent): void;
   /** Resolves with the pressed button id, or null when the popup was dismissed. */

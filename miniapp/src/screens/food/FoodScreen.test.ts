@@ -31,13 +31,16 @@ describe('Food screen (S-08)', () => {
     expect(screen.getByText('Breakfast 0, Lunch 0, Dinner 0 of 7 days')).toBeTruthy();
   });
 
-  it('logs a meal in two taps: "Add lunch", then "Save meal", with one request', async () => {
+  it('logs a meal in two taps: "Add lunch", then "Save meal" on the bottom button, with one request', async () => {
     const harness = createHarness('empty');
     const user = open(harness);
 
     await user.click(await screen.findByRole('button', { name: 'Add lunch' }));
     await user.type(screen.getByLabelText('What did you have? (optional)'), 'Soup and bread');
-    await user.click(screen.getByRole('button', { name: 'Save meal' }));
+    expect(harness.tg.mainButton.state).toMatchObject({ text: 'Save meal', visible: true, enabled: true });
+    // The bottom button is the one save control; the sheet draws no second one (MINI_APP 6.1).
+    expect(screen.queryByRole('button', { name: 'Save meal' })).toBeNull();
+    harness.tg.mainButton.press();
 
     expect(await within(group('Lunch')).findByText('08:12 Soup and bread')).toBeTruthy();
     expect(within(group('Lunch')).queryByText('Not logged')).toBeNull();
@@ -49,18 +52,38 @@ describe('Food screen (S-08)', () => {
     const harness = createHarness('empty');
     const user = open(harness);
     await user.click(await screen.findByRole('button', { name: 'Add breakfast' }));
-    await user.click(screen.getByRole('button', { name: 'Save meal' }));
+    harness.tg.mainButton.press();
     await user.click(await screen.findByRole('button', { name: 'Change Breakfast at 08:12' }));
 
     await user.click(screen.getByRole('radio', { name: 'Snack' }));
     await user.type(screen.getByLabelText('What did you have? (optional)'), 'Apple');
-    await user.click(screen.getByRole('button', { name: 'Save meal' }));
+    harness.tg.mainButton.press();
 
     expect(await within(group('Snacks')).findByText('08:12 Apple')).toBeTruthy();
     expect(within(group('Breakfast')).getByText('Not logged')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Remove Snack at 08:12: Apple' }));
     expect(await within(group('Snacks')).findByRole('button', { name: 'Add snack' })).toBeTruthy();
     expect(harness.api.tracking.food.mealsIn('2026-11-12', '2026-11-12')).toEqual([]);
+  });
+
+  it('asks with the native popup before an unsaved meal is left, and hides the bottom button on Cancel', async () => {
+    const harness = createHarness('empty');
+    await harness.router.navigate('/log/food');
+    const user = open(harness);
+    await user.click(await screen.findByRole('button', { name: 'Add lunch' }));
+    expect(harness.tg.closingConfirmation).toBe(false);
+    await user.type(screen.getByLabelText('What did you have? (optional)'), 'Soup');
+    expect(harness.tg.closingConfirmation).toBe(true);
+    harness.tg.popupAnswer = 'stay';
+
+    await harness.router.back();
+    expect(harness.tg.popups).toHaveLength(1);
+    expect(harness.router.route).toEqual({ screen: 'food' });
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(harness.tg.mainButton.state.visible).toBe(false);
+    expect(harness.tg.mainButton.handlerCount).toBe(0);
+    expect(harness.tg.closingConfirmation).toBe(false);
   });
 
   it('offers the descriptions saved before for the chosen meal type', async () => {
@@ -110,7 +133,8 @@ describe('Food screen (S-08)', () => {
     const user = open(harness);
 
     await user.click(await screen.findByRole('button', { name: 'Add lunch' }));
-    await user.click(screen.getByRole('button', { name: 'Save meal' }));
+    harness.tg.mainButton.press();
+    await within(group('Lunch')).findByText(/^08:12/);
     harness.tg.activate();
 
     expect(await within(group('Lunch')).findByText('Imported')).toBeTruthy();

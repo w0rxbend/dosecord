@@ -55,6 +55,18 @@ test('launch: the session exchange answers 201, Today shows the medication, the 
   const voided = page.waitForResponse((r) => /\/api\/v1\/meals\/[^/]+$/.test(r.url()) && r.request().method() === 'DELETE');
   await page.getByRole('button', { name: 'Undo' }).click();
   expect((await voided).ok()).toBe(true);
+
+  // The quick actions at the top of Today: the dose due now, the default vessel and the mood check-in, which opens
+  // with Telegram's back button to return. Nothing is recorded here, so the later counts stay as they are.
+  const quick = page.getByRole('region', { name: 'Quick actions' });
+  // The earliest dose due now: Iron, or Vitamin D's evening dose when the suite runs after 21:00 (UTC).
+  await expect(quick.getByRole('button', { name: /^Taken: (Iron|Vitamin D), \d\d:\d\d$/ })).toBeVisible();
+  await expect(quick.getByRole('button', { name: /^\+\d+ ml water$/ })).toBeVisible();
+  await quick.getByRole('link', { name: 'Mood check-in' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'How are you right now?' })).toBeVisible();
+  await expect.poll(async () => (await chrome(page)).backVisible).toBe(true);
+  await pressBackButton(page);
+  await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
 });
 
 test('launch keeps no token and no launch data in any browser store (MA-LAUNCH-5)', async ({ app }) => {

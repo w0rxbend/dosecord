@@ -2,9 +2,11 @@ import {
   ZERO_INSETS,
   type BackButtonPort,
   type BottomButtonPort,
+  type ChromeColors,
   type HapticEvent,
   type Insets,
   type PerformanceClass,
+  type PreferencesPort,
   type TelegramPort,
   type Unsubscribe,
 } from './port';
@@ -22,6 +24,11 @@ interface NativeButton {
   hideProgress(): void;
   onClick(callback: Callback): void;
   offClick(callback: Callback): void;
+}
+
+interface NativeCloudStorage {
+  getItem(key: string, callback: (error: string | null, value?: string) => void): void;
+  setItem(key: string, value: string): void;
 }
 
 interface NativeWebApp {
@@ -54,6 +61,10 @@ interface NativeWebApp {
     callback: (buttonId: string | null) => void,
   ): void;
   downloadFile?(params: { url: string; file_name: string }, callback: (accepted: boolean) => void): void;
+  setHeaderColor?(color: string): void;
+  setBackgroundColor?(color: string): void;
+  setBottomBarColor?(color: string): void;
+  CloudStorage?: NativeCloudStorage;
 }
 
 declare global {
@@ -62,7 +73,11 @@ declare global {
   }
 }
 
-const VIEWPORT_EVENTS = ['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged'];
+// A fullscreen switch changes the content safe area that the header must clear (MA-NATIVE-8).
+const VIEWPORT_EVENTS = ['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged'];
+/** A CloudStorage read that takes longer is treated as empty (MA-STORE-2). */
+const PREFERENCE_TIMEOUT_MS = 500;
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export function parsePerformanceClass(userAgent: string): PerformanceClass {
   const match = /\b(LOW|AVERAGE|HIGH)\)/.exec(userAgent);
@@ -93,6 +108,28 @@ function bottomButton(native: NativeButton): BottomButtonPort {
     setProgress: (inProgress) => (inProgress ? native.showProgress(false) : native.hideProgress()),
     onClick: clickable(native),
   };
+}
+
+function cloudPreferences(storage: NativeCloudStorage | undefined): PreferencesPort {
+  if (!storage) return { get: () => Promise.resolve(undefined), set: () => undefined };
+  return {
+    get: (key) =>
+      new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(undefined), PREFERENCE_TIMEOUT_MS);
+        // An absent key reads as the empty string.
+        storage.getItem(key, (error, value) => {
+          clearTimeout(timer);
+          resolve(error || !value ? undefined : value);
+        });
+      }),
+    set: (key, value) => storage.setItem(key, value),
+  };
+}
+
+function setChromeColors(app: NativeWebApp, colors: ChromeColors): void {
+  app.setHeaderColor?.(colors.header);
+  app.setBackgroundColor?.(colors.background);
+  app.setBottomBarColor?.(colors.bottomBar);
 }
 
 function fireHaptic(app: NativeWebApp, event: HapticEvent): void {
@@ -136,6 +173,7 @@ export function createRealTelegramPort(host: Window = window): TelegramPort | nu
 
     ready: () => app.ready(),
     expand: () => app.expand(),
+    setChromeColors: (colors) => setChromeColors(app, colors),
     disableVerticalSwipes: () => app.disableVerticalSwipes?.(),
     setClosingConfirmation: (enabled) =>
       enabled ? app.enableClosingConfirmation() : app.disableClosingConfirmation(),
@@ -143,8 +181,12 @@ export function createRealTelegramPort(host: Window = window): TelegramPort | nu
 
     mainButton: bottomButton(app.MainButton),
     backButton,
+    preferences: cloudPreferences(app.CloudStorage),
 
-    haptic: (event) => fireHaptic(app, event),
+    // Haptics are skipped while the system asks for reduced motion (MA-NATIVE-5).
+    haptic: (event) => {
+      if (!host.matchMedia?.(REDUCED_MOTION_QUERY).matches) fireHaptic(app, event);
+    },
     popup: (params) =>
       new Promise((resolve) => {
         const buttons = params.buttons.map((button) => ({

@@ -6,6 +6,8 @@ function applyTheme(tg: TelegramPort, root: HTMLElement): void {
   const tokens = deriveTokens(params, scheme);
   root.dataset.scheme = scheme;
   for (const name of TOKEN_NAMES) root.style.setProperty(`--dg-${name}`, tokens[name]);
+  // Telegram's header and bottom bar take the page's colours, so the frame and the page read as one.
+  tg.setChromeColors({ header: tokens.bg, background: tokens.bg, bottomBar: tokens['bottom-bar'] });
 }
 
 function applyInsets(tg: TelegramPort, root: HTMLElement): void {
@@ -17,7 +19,7 @@ function applyInsets(tg: TelegramPort, root: HTMLElement): void {
 }
 
 /**
- * Applies tokens and insets before the first paint and keeps them current without a reload
+ * Applies tokens, the native chrome colours and insets before the first paint and keeps them current without a reload
  * (MA-THEME-1, MA-LAYOUT-1, MA-LAYOUT-2). Reduced motion follows the performance class (MA-DS-5).
  */
 export function bindAppearance(tg: TelegramPort, root: HTMLElement): Unsubscribe {

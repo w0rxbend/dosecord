@@ -29,6 +29,14 @@ export function groupOccurrences(occurrences: readonly Occurrence[]): DoseGroups
   return { dueNow: pick('dueNow'), later: pick('later'), earlier: pick('earlier') };
 }
 
+/**
+ * The dose a quick Taken answers: the earliest due now. A dose still to come is answered from its
+ * row, so one tap never records a dose hours ahead (supervisor decision, 2026-11-28).
+ */
+export function nextDueDose(occurrences: readonly Occurrence[]): Occurrence | undefined {
+  return groupOccurrences(occurrences).dueNow[0];
+}
+
 const pad = (value: number): string => String(value).padStart(2, '0');
 
 /**
