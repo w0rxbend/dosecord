@@ -341,6 +341,70 @@ describe('Today screen', () => {
     expect(row.textContent).not.toMatch(/at most|between logs/);
   });
 
+  it('offers the quick actions first: the dose due now, the default vessel and the mood check-in', async () => {
+    open(createHarness());
+
+    const quick = await section('Quick actions');
+    expect(within(quick).getByRole('button', { name: 'Taken: Medication A, 08:00' })).toBeTruthy();
+    // The default vessel is the first of the person's own amounts (supervisor decision, 2026-11-28).
+    expect(await within(quick).findByRole('button', { name: '+150 ml water' })).toBeTruthy();
+    expect(await within(quick).findByRole('link', { name: 'Mood check-in' })).toBeTruthy();
+  });
+
+  it('takes the dose due now with one tap and one request, and offers no dose still to come', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    const quick = await section('Quick actions');
+
+    await user.dblClick(within(quick).getByRole('button', { name: 'Taken: Medication A, 08:00' }));
+
+    expect(await screen.findByText('Taken 08:12')).toBeTruthy();
+    expect(actionCalls(harness)).toHaveLength(1);
+    expect(harness.toasts.current?.message).toBe('Marked taken at 08:12');
+    expect(harness.tg.haptics).toEqual(['success']);
+    // Medication B at 13:00 is not due yet: one tap never answers a dose hours ahead (supervisor decision, 2026-11-28).
+    expect(within(quick).queryByRole('button', { name: /^Taken/ })).toBeNull();
+  });
+
+  it('adds the default vessel with one tap', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await screen.findByText('1.2 of 2.0 l (60%)');
+
+    await user.click(await within(await section('Quick actions')).findByRole('button', { name: '+150 ml water' }));
+
+    expect(await screen.findByText('1.35 of 2.0 l (67%)')).toBeTruthy();
+    expect(harness.toasts.current?.message).toBe('Added 150 ml');
+    expect(harness.api.calls.filter((call) => call === 'hydration/entries:create')).toHaveLength(1);
+    expect(harness.tg.haptics).toEqual(['impact-light']);
+  });
+
+  it('opens the mood check-in from its quick action', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+
+    await user.click(await within(await section('Quick actions')).findByRole('link', { name: 'Mood check-in' }));
+
+    expect(harness.router.route).toEqual({ screen: 'mood-new' });
+  });
+
+  it('offers no dose quick action without the medication consent', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('medication');
+    open(harness);
+
+    const quick = await section('Quick actions');
+    expect(await within(quick).findByRole('button', { name: '+150 ml water' })).toBeTruthy();
+    expect(within(quick).queryByRole('button', { name: /^Taken/ })).toBeNull();
+  });
+
+  it('has no quick actions on another day', async () => {
+    open(createHarness(), '2026-11-13');
+
+    await section('Later');
+    expect(screen.queryByRole('region', { name: 'Quick actions' })).toBeNull();
+  });
+
   it('records one mood number from Today and does not name what the number means', async () => {
     const harness = createHarness();
     const today = '2026-11-12';
