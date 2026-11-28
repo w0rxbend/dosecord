@@ -11,7 +11,10 @@ object WizardCopy:
   def fieldName = tr("Name", "Назва")
   def fieldDose = tr("Dose", "Доза")
   def namePlaceholder = tr("e.g. Vitamin D", "напр. Vitamin D")
-  def dosePlaceholder = tr("e.g. 1000 IU", "напр. 1000 IU")
+
+  /** The example dose, its unit word from the catalogue: "1000 IU", "1000 МО" (verification of 2026-11-28). */
+  def dosePlaceholder = tr(s"e.g. $exampleDose", s"напр. $exampleDose")
+  private def exampleDose: String = DoseUnits.count(BigDecimal(1000), "IU")
 
   /** The times step after the form (BOT_UX section 10.1, section 15.6): quick times, Other time, As needed. */
   def timesPrompt = tr(

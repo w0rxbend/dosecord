@@ -26,6 +26,11 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
     "input.duration.out_of_range"
   )
 
+  /** Entries whose example dose takes its unit word from the dose unit catalogue, so the Ukrainian example reads
+    * "1000 МО" where the English reads "1000 IU" (verification of 2026-11-28). Their numbers still match.
+    */
+  private val UnitsFromCatalogue = Set("wizard.add.placeholder.dose")
+
   private val Cyrillic = "\\p{IsCyrillic}".r
 
   test("the locale follows the account's choice, then the client's language tag, then English (R-LOC-1)"):
@@ -101,10 +106,20 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
     val mismatched = ukrainian.filterNot(e => ExamplesDiffer(e.id)).flatMap { entry =>
       val english = en(entry.id)
       val numbersDiffer = Option.when(numbers(english) != numbers(entry.text))(s"${entry.id}: numbers")
-      val wordsLost = userWords.filter(word => english.contains(word) && !entry.text.contains(word))
+      val wordsLost = userWords.filter(word =>
+        english.contains(word) && !entry.text.contains(word) && !UnitsFromCatalogue(entry.id)
+      )
       numbersDiffer.toList ++ wordsLost.map(word => s"${entry.id}: '$word'")
     }
     assertEquals(mismatched, Nil)
+
+  test("the Ukrainian dose example uses the unit the catalogue renders, and reads back as that unit"):
+    val example = Lang.within(Lang.Uk)(WizardCopy.dosePlaceholder)
+    assertEquals(example, "напр. 1000 МО")
+    assertEquals(Lang.within(Lang.En)(WizardCopy.dosePlaceholder), "e.g. 1000 IU")
+    val (amount, unit) = dosegram.core.domain.input.DoseText.parse(example.stripPrefix("напр. "))
+    assertEquals((amount, unit.flatMap(DoseUnits.of).map(_.code)), (Some(BigDecimal(1000)), Some("IU")))
+    assertEquals(Lang.within(Lang.Uk)(DoseUnits.doseText(amount, unit)), Some("1000 МО"))
 
   test("no Ukrainian entry contains a forbidden phrase, and a seeded one is caught (R-LOC-8)"):
     val violations = ukrainian.flatMap(e => ForbiddenPhrases.violations(e.text).map(p => s"${e.id}: '$p'"))
