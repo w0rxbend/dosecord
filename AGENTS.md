@@ -51,15 +51,16 @@ images drawn ahead of their send time, no migration; the fifteenth: two
 periods compared and the native Mini App, no migration), plus the fixes of the verifications of 2026-11-14 (V13),
 2026-11-15 (V18) and 2026-11-27, and V22 (sealed file ids and export
 parameters), and V24 (the order of an answer's messages, 2026-11-28),
-and the leftovers of the verification of 2026-11-28 (no migration).
+and the leftovers of the verification of 2026-11-28 and of `9ac3b88`
+(no migration).
 The migrations are V1 to V19 and V22 to V27, 25 files
 (`scripts/check-frozen-migrations.sh` prints `25 migrations unchanged
 (V1 to V19, V22 to V27)`); V20 and V21 must never be added; V28 to V30
 were assigned to the fifteenth round's tracks and stay unused, so the
 next migration is V28; the highest action id in use is 578. The live
 database is at V27 and runs `26b3f4a` (the deploy of
-`docs/OPERATIONS.md` section 26); section 28 is the owner's deploy of
-the head, with no migration (it replaces section 27; sections 8 to 26
+`docs/OPERATIONS.md` section 26); section 29 is the owner's deploy of
+the head, with no migration (it replaces section 28; sections 8 to 27
 the earlier parts). The Mini App
 is off on live; `docs/DEPLOY_MINIAPP.md` is the owner's switch to turn
 it on.
@@ -344,13 +345,14 @@ Useful next, in this order:
     second round).
 15. What the leftovers of the verification of 2026-11-28 left open
     (ROADMAP Appendix B): a rollback to `4a9b03a` still kills its
-    `sticker_set_removal` rows; a row that follows an unknown-kind (or
-    unknown-op) row waits with it; live sends of the late note. Fixed on
+    `sticker_set_removal` rows; live sends of the late note. Fixed on
     2026-11-28 (fourth round, OPERATIONS sections 27 and 28): the claim leaves a
-    newer op's rows queued, and the month card names the outage days.
+    newer op's rows queued, and the month card names the outage days; and
+    (`3276a3e`, OPERATIONS section 29) a row that follows an unknown-kind or
+    unknown-op row goes 30 minutes after it fell due, without it.
 16. What the fourteenth round left open (ROADMAP Appendix B,
     integration of 2026-11-28, third round): the deploy of the head
-    (OPERATIONS section 28, which replaces section 27; CI is green again
+    (OPERATIONS section 29, which replaces section 28; CI is green again
     since `88aedce`); of G4.7
     the pixel goldens inside the production image, the seeded one-pixel
     change and the contact-sheet review by another reviewer; of VA-PS-08
@@ -374,12 +376,13 @@ Useful next, in this order:
     motion" switches, SecondaryButton and MainButton on Sleep, Water,
     Reports and the day profile; initial JavaScript at 69.79 of the
     70 KB budget; the native-speaker review of the new Ukrainian copy.
-    From the verification of `9ac3b88` (OPERATIONS section 28, rehearsed):
-    in one of three full test runs, the first after a clean build, the
-    tampered-button tests of `TelegramLaunchSuite` and
-    `ProductionPathSuite` got the neutral answer in place of the
-    stale-button toast (cause not found; no change since `26b3f4a` on
-    that path).
+    From the verification of `9ac3b88` (ROADMAP Appendix B, leftovers of
+    that verification): the `ProductionPathSuite` half of the
+    tampered-button flake was a handler toast later than the 300 ms grace
+    (fixed, `471d81b`); the `TelegramLaunchSuite` half can only be the
+    1.5 s watchdog firing before the mediator's check, a stall of the test
+    JVM, and stayed unreproduced in 54 loaded runs; live sends of the
+    every-tap toasts (`tap.*`, BOT_UX section 4.4).
 
 ## Agent workflow
 

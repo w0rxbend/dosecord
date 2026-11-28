@@ -1478,3 +1478,29 @@ in place of `.live/run.sh`:
    `/readyz` with 200; the final scan of every column and the `pg_dump` again found no canary.
 
 Not rehearsed: a real client, the Telegram transport, the step-1 backup taken off the host.
+
+## 29. Deploying `main` after the leftovers of the verification of `9ac3b88` over the live V27 database
+
+This section replaces section 28 as the owner's deploy. The head of `main` at or after the commit that adds this
+section carries everything of section 28 and four fixes (supervisor decisions, 2026-11-28): `471d81b`, `3276a3e`,
+`c84b1e1` and `ab8de49`. There is no migration (V28, V29 and V30 stay unused), no new table, no action id, no
+environment variable, no setting, no binary and no Dockerfile change: the steps of section 28 apply as written with
+`<sha>` that head. What changes for the owner:
+
+- Every tap is answered with words (BOT_UX section 4.4). A tap whose handler gives no toast now shows "Up to date."
+  when it edits its card (changed or not: "7 days" on a card that already shows 7 days), "Sent below." when it sends a
+  new message (a picture, a page), and "Nothing to change here." when it does neither. A handler's own toast is kept
+  ("Snoozed until 09:10.", "This button no longer works. Open /today.").
+- A toast that a slow handler gives is no longer lost: the answer of a tap from the inbox waits until the tap is
+  processed (ADR-019 addendum of 2026-11-28), still bounded by the 1.5 s watchdog. Before, a toast later than 300 ms
+  after the early answer became a short message instead.
+- A month button with a value before January 1970 (only a forged one) answers "This button no longer works" instead of
+  failing the update until the inbox quarantines it.
+- After a rollback, the rows that follow an outbox row of a kind or op the running release does not know go 30
+  minutes after they fell due, in their order, without it (ARCHITECTURE section 7.5); the unknown row still waits,
+  unattempted, for the release that wrote it.
+- The raster worker pool ends a worker it discards off the caller's thread, so a render returns at its deadline
+  instead of after the walk of the process table that killing the worker's children needs.
+
+In the chat, besides step 5 of section 28: a tap on "7 days" of the seven-day `/stats` card shows "Up to date.",
+"Show as image" shows "Sent below." as the picture arrives, and "Snooze 10m" on a closed dose shows a toast. Rollback without a restore: as in section 28, to `26b3f4a`; the toasts above go with the head.
