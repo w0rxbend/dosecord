@@ -26,6 +26,11 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   case MoodStickers extends Pending(3, 3)
   case MoodCheckIn(step: Int) extends Pending(4, step)
   case Stats extends Pending(5, 0)
+
+  /** The comparison card of two periods (VISUALS IMG-27) after the images consent. It shares kind 5: the argument is
+    * the selection's code, never 0, and a card sent before it carried 0 only.
+    */
+  case CompareImage(code: Int) extends Pending(5, code)
   case WaterImage extends Pending(6, 0)
   case DayImage extends Pending(7, 0)
 
@@ -105,7 +110,7 @@ private[capture] object Pending:
       case 2  => Some(WaterAdd(argument))
       case 3  => Some(moodOf(argument))
       case 4  => Some(MoodCheckIn(argument))
-      case 5  => Some(Stats)
+      case 5  => Some(if argument == 0 then Stats else CompareImage(argument))
       case 6  => Some(WaterImage)
       case 7  => Some(statsImageOf(argument))
       case 8  => MedicationScreen.values.find(_.code == argument).map(Medication(_))

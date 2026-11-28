@@ -21,6 +21,7 @@ import dosegram.core.domain.copy.InsightPhrases
 import dosegram.core.domain.copy.MonthCopy
 import dosegram.core.domain.copy.StatsCopy
 import dosegram.core.domain.hydration.WaterAmount
+import dosegram.core.domain.insights.CompareSelection
 import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.DoseRecord
@@ -449,6 +450,24 @@ class StatsQueryServiceSuite extends munit.ScalaCheckSuite:
     assertEquals(view.figures.mood, None)
     assertEquals(view.figures.previousAdherence.shown, Some(Ratio(10, 10)))
     assertEquals(view.figures.medication.map(_.recordedDays), Some(0))
+
+  test("a comparison answers one row per consented area over each period's own days; a month ahead is refused"):
+    val consent = FakeConsent.all(account)
+    val rig = Rig(consent)
+    consent.withdraw(account, ConsentPurpose.Mood)
+    // 30 June 2026 is a Tuesday: last week is 22 to 28 June, this week 29 and 30 June.
+    (2 to 8).foreach(daysAgo => rig.on(daysAgo)(rig.drink(1500, s"w$daysAgo")))
+    rig.on(1)(rig.drink(2000, "w1"))
+    val view = rig.stats.compare(rig.tx, account, CompareSelection.Weeks).toOption.get
+    assertEquals(
+      view.figures.rows.map(_.domain),
+      List(TrendDomain.Medication, TrendDomain.Hydration, TrendDomain.Sleep, TrendDomain.Nutrition)
+    )
+    val water = view.figures.rows(1)
+    assertEquals((water.earlier.recordedDays, water.later.recordedDays), (7, 1))
+    assertEquals(view.figures.laterDays.withRecords, 1)
+    val ahead = CompareSelection.twoMonths(java.time.YearMonth.of(2026, 6), java.time.YearMonth.of(2026, 7)).get
+    assertEquals(rig.stats.compare(rig.tx, account, ahead), Left(StatsRefusal.PeriodAhead))
 
   test("the weekly card counts each day's logged main meals and its snacks, and has no food row without the consent"):
     val consent = FakeConsent.all(account)

@@ -13,18 +13,21 @@
   import GlanceTile from './GlanceTile.svelte';
   import MonthAndPatterns from './MonthAndPatterns.svelte';
   import ShareCards from './ShareCards.svelte';
+  import CompareView from './CompareView.svelte';
   import YearView from './YearView.svelte';
 
   /** Offered until the first answer names the periods the backend computes. */
   const FIRST_RANGES: readonly InsightRange[] = [7, 30];
   /** The Year tab beside the periods (supervisor decision, 2026-11-28): the year of /stats year. */
   const YEAR = 'year';
+  /** The Compare tab (supervisor decision, 2026-11-28): two periods of /stats compare side by side. */
+  const COMPARE = 'compare';
   /** The first overview answer paints these. Later blocks wait until they are near (MA-INS-8). */
   const EAGER_BLOCKS = 2;
   const NEAR_VIEWPORT_PX = 200;
 
   const { api, tg } = useApp();
-  let range = $state<InsightRange | typeof YEAR>(30);
+  let range = $state<InsightRange | typeof YEAR | typeof COMPARE>(30);
   let revealed = $state<string[]>([]);
   const overview = new Resource<InsightsOverview>(() => api.insightsOverview(30));
   const ranges = $derived(overview.data?.ranges ?? FIRST_RANGES);
@@ -66,7 +69,7 @@
   function changeRange(): void {
     tg.haptic('selection');
     const chosen = range;
-    if (chosen === YEAR) return;
+    if (chosen === YEAR || chosen === COMPARE) return;
     void overview.load(() => api.insightsOverview(chosen));
   }
 
@@ -82,7 +85,10 @@
   const withData = (data: InsightsOverview): boolean => data.blocks.some((block) => !block.noDataText);
 </script>
 
-<Screen title={en.insights.title} subtitle={range === YEAR ? undefined : overview.data?.rangeLabel}>
+<Screen
+  title={en.insights.title}
+  subtitle={range === YEAR || range === COMPARE ? undefined : overview.data?.rangeLabel}
+>
   <fieldset class="section">
     <legend class="visually-hidden">{en.insights.range}</legend>
     <div class="segmented">
@@ -96,11 +102,17 @@
         <input type="radio" name="insights-range" value={YEAR} bind:group={range} onchange={changeRange} />
         <span>{en.insights.yearTab}</span>
       </label>
+      <label>
+        <input type="radio" name="insights-range" value={COMPARE} bind:group={range} onchange={changeRange} />
+        <span>{en.insights.compareTab}</span>
+      </label>
     </div>
   </fieldset>
 
   {#if range === YEAR}
     <YearView />
+  {:else if range === COMPARE}
+    <CompareView />
   {:else}
     <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
       {#snippet children(data)}

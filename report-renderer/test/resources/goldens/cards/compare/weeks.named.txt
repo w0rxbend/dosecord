@@ -1,0 +1,29 @@
+file: dosegram-compare.png
+spoiler: false
+caption: Compare two periods · Europe/Kyiv
+Last week, 26 Oct to 1 Nov: days with records 7 of 7
+This week, 2 Nov to 5 Nov: days with records 4 of 4
+A week shows its figure once it has records on 3 days; fewer show those days.
+Each difference is the second period against the first.
+Water, a day with records: Last week 1.6 l (7 days) · This week 1.8 l (4 days) · 0.2 l higher
+Sleep, a night with records: Last week 7 h 05 min (6 nights) · This week records on 2 nights
+Main meals logged, a day with a meal: Last week 2.3 (7 days) · This week 2.3 (4 days) · about the same
+This compares your own days. It does not show a cause.
+alt: Compare two periods · Europe/Kyiv
+Last week, 26 Oct to 1 Nov: days with records 7 of 7
+This week, 2 Nov to 5 Nov: days with records 4 of 4
+A week shows its figure once it has records on 3 days; fewer show those days.
+Each difference is the second period against the first.
+Water, a day with records: Last week 1.6 l (7 days) · This week 1.8 l (4 days) · 0.2 l higher
+Sleep, a night with records: Last week 7 h 05 min (6 nights) · This week records on 2 nights
+Main meals logged, a day with a meal: Last week 2.3 (7 days) · This week 2.3 (4 days) · about the same
+This compares your own days. It does not show a cause.
+full: Compare two periods · Europe/Kyiv
+Last week, 26 Oct to 1 Nov: days with records 7 of 7
+This week, 2 Nov to 5 Nov: days with records 4 of 4
+A week shows its figure once it has records on 3 days; fewer show those days.
+Each difference is the second period against the first.
+Water, a day with records: Last week 1.6 l (7 days) · This week 1.8 l (4 days) · 0.2 l higher
+Sleep, a night with records: Last week 7 h 05 min (6 nights) · This week records on 2 nights
+Main meals logged, a day with a meal: Last week 2.3 (7 days) · This week 2.3 (4 days) · about the same
+This compares your own days. It does not show a cause.

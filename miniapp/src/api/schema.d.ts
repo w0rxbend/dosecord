@@ -643,6 +643,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/insights/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Two periods side by side as /stats compare shows them: one area per domain whose consent is active. */
+        get: operations["getInsightCompare"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reminders": {
         parameters: {
             query?: never;
@@ -1581,6 +1598,52 @@ export interface components {
             summary: string;
             domains?: components["schemas"]["InsightDomain"][];
             nextMonth?: string;
+        };
+        /** InsightCompare */
+        InsightCompare: {
+            selection: string;
+            timeZone: string;
+            earlier: components["schemas"]["InsightComparePeriod"];
+            later: components["schemas"]["InsightComparePeriod"];
+            gateNote?: string;
+            differenceNote: string;
+            areas?: components["schemas"]["InsightCompareArea"][];
+            months?: components["schemas"]["InsightCompareMonth"][];
+            lines?: string[];
+            notice?: string;
+        };
+        /** InsightCompareArea */
+        InsightCompareArea: {
+            id: components["schemas"]["InsightDomain"];
+            title: string;
+            earlier: components["schemas"]["InsightCompareCell"];
+            later: components["schemas"]["InsightCompareCell"];
+            difference?: string;
+        };
+        /** InsightCompareCell */
+        InsightCompareCell: {
+            text: string;
+            /** Format: int32 */
+            recordedDays: number;
+            figure?: string;
+            /** Format: double */
+            value?: number;
+        };
+        /** InsightCompareMonth */
+        InsightCompareMonth: {
+            month: string;
+            label: string;
+        };
+        /** InsightComparePeriod */
+        InsightComparePeriod: {
+            label: string;
+            start: string;
+            end: string;
+            /** Format: int32 */
+            days: number;
+            /** Format: int32 */
+            daysWithRecords: number;
+            summary: string;
         };
         /**
          * InsightDomain
@@ -4107,6 +4170,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightYear"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInsightCompare: {
+        parameters: {
+            query?: {
+                /** @description weeks (the default), months, or pair with first and second */
+                period?: string;
+                /** @description YYYY-MM, one month of a pair */
+                first?: string;
+                /** @description YYYY-MM, the other month of a pair */
+                second?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightCompare"];
                 };
             };
             default: {

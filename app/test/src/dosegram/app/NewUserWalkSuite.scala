@@ -2,8 +2,17 @@ package dosegram.app
 
 import dosegram.adapter.telegram.FakeTelegramTransport
 import dosegram.core.domain.copy.CheckInCopy
+import dosegram.core.domain.copy.CompareCopy
 import dosegram.core.domain.copy.ConsentCopy
 import dosegram.core.domain.copy.ExportCopy
+import dosegram.core.domain.copy.YearCopy
+import dosegram.core.domain.insights.ComparedPeriod
+import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.PeriodName
+import dosegram.core.domain.insights.RecordedDays
+import dosegram.core.domain.insights.Stat
+import dosegram.core.domain.insights.TrendDomain
+import dosegram.core.domain.insights.YearCell
 import dosegram.core.domain.copy.IdentityCopy
 import dosegram.core.domain.copy.Labels
 import dosegram.core.domain.copy.Lang
@@ -311,6 +320,29 @@ class NewUserWalkSuite extends PgSuite:
     val sentAsPhoto = after.exists(_.contains("[image], caption:"))
     assert(!sentAsPhoto || drawn.exists(_.contains(s">${SvgEmitter.escape(copy.galleryTitle)}<")), "the gallery was drawn")
 
+  /** `/stats compare` (supervisor decision, 2026-11-28): the walk's Monday is the whole of this week, with a record in
+    * every area but below the gate of 3 days, and last week has none. The card (VISUALS IMG-27) comes as a photo
+    * captioned with the same lines as the chat's text, or as that text on a machine too loaded to draw it in time.
+    */
+  private def assertCompare(lang: Lang, lines: List[String], drawn: List[String], zone: ZoneId): Unit =
+    def l(text: => String): String = Lang.within(lang)(text)
+    val copy = if lang == Lang.Uk then UkrainianImageCopy else EnglishImageCopy
+    val at = lines.indexWhere(_.endsWith("you: /stats compare"))
+    assert(at > 0, "the walk sends /stats compare")
+    val after = lines.drop(at)
+    val header = l(CompareCopy.header(zone))
+    assert(after.exists(_.endsWith(header)), s"the comparison's header: ${after.take(6)}")
+    val monday = DateRange.single(day)
+    val thisWeek = l(CompareCopy.periodLine(ComparedPeriod(PeriodName.ThisWeek, monday), RecordedDays(1, 0)))
+    assertEquals(after.count(_.contains(thisWeek)), 2, s"this week in the text and in the card's caption: $thisWeek")
+    val oneDay = YearCell(1, Stat.Insufficient(1, 3, monday))
+    val water = l(s"${YearCopy.areaName(TrendDomain.Hydration)}: ")
+    val cell = l(s"${CompareCopy.label(PeriodName.ThisWeek)} ${CompareCopy.cell(TrendDomain.Hydration, oneDay, keepGates = true)}")
+    val row = after.find(_.contains(water)).getOrElse(fail(s"the water row: ${after.take(16)}"))
+    assert(row.contains(cell), s"one recorded day is below the week's gate: '$cell' in '$row'")
+    val sentAsPhoto = after.exists(_.contains("[image], caption:"))
+    assert(!sentAsPhoto || drawn.exists(_.contains(s">${SvgEmitter.escape(copy.compare.title)}<")), "the card was drawn")
+
   /** `/settings` (supervisor decision, 2026-11-28; BOT_UX section 17): one card in the whole walk, and every tap on it
     * an edit of that card that names the old and the new value; the walk leaves discreet reminders as it found them.
     */
@@ -455,6 +487,9 @@ class NewUserWalkSuite extends PgSuite:
     chat.note("/stats meds: each medication over 7 days, and its strip")
     chat.say("/stats meds")
     tap(StatsCardCopy.ShowAsImage)
+    chat.note("/stats compare: last week beside this week, then its card (supervisor decision, 2026-11-28)")
+    chat.say("/stats compare")
+    tap(StatsCardCopy.ShowAsImage)
     chat.note("/privacy")
     chat.say("/privacy")
     // Finding 19: /privacy offers the export.
@@ -480,6 +515,7 @@ class NewUserWalkSuite extends PgSuite:
     assertReviewed(Lang.Uk, lines, shown)
     assertAnalytics(Lang.Uk, lines, drawn)
     assertMoodHistory(Lang.Uk, lines, drawn)
+    assertCompare(Lang.Uk, lines, drawn, zone)
     assertSettings(Lang.Uk, lines)
     assert(lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezoneSuggested))), "Kyiv suggested by the language")
     assert(!lines.exists(_.contains(Lang.within(Lang.Uk)(IdentityCopy.timezonePrompt))), "no picker before the suggestion")
@@ -500,5 +536,6 @@ class NewUserWalkSuite extends PgSuite:
     assertReviewed(Lang.En, lines, shown)
     assertAnalytics(Lang.En, lines, drawn)
     assertMoodHistory(Lang.En, lines, drawn)
+    assertCompare(Lang.En, lines, drawn, zone)
     assertSettings(Lang.En, lines)
 end NewUserWalkSuite

@@ -192,6 +192,7 @@ describe('Insights', () => {
       '7',
       '30',
       'year',
+      'compare',
     ]);
   });
 
@@ -304,6 +305,36 @@ describe('Insights', () => {
     expect(within(doses).getByRole('table', { name: 'Doses taken of those answered: By month' })).toBeTruthy();
     expect(within(doses).queryByRole('slider')).toBeNull();
     expect(harness.api.calls).toContain('insights/year');
+  });
+
+  it('opens the Compare tab: both periods in the server\'s words, a table per area, and two picked months', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await block('Medication');
+
+    await user.click(within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Compare'));
+
+    const compare = await block('Compare');
+    expect(within(compare).getByText(/^Last week, .*: days with records \d+ of 7$/)).toBeTruthy();
+    expect(within(compare).getByText(/^This week, /)).toBeTruthy();
+    const table = screen.getByRole('table', { name: 'Both periods by area' });
+    const headers = within(table).getAllByRole('columnheader').map((cell) => cell.textContent);
+    expect(headers).toEqual(['Area', 'Last week', 'This week', 'Difference']);
+    expect(within(table).getByRole('rowheader', { name: 'Water, a day with records' })).toBeTruthy();
+    expect(harness.api.calls).toContain('insights/compare');
+
+    await user.click(within(screen.getByRole('group', { name: 'What to compare' })).getByLabelText('This month'));
+    expect(await within(await block('Compare')).findByText(/^Last month, /)).toBeTruthy();
+
+    await user.click(within(screen.getByRole('group', { name: 'What to compare' })).getByLabelText('Two months'));
+    const first = screen.getByLabelText('First month') as HTMLSelectElement;
+    const second = screen.getByLabelText('Second month') as HTMLSelectElement;
+    await user.selectOptions(first, first.options[2]!.value);
+    await user.selectOptions(second, second.options[0]!.value);
+    await user.click(screen.getByRole('button', { name: 'Compare' }));
+    const months = screen.getByRole('table', { name: 'Both periods by area' });
+    const picked = within(months).getAllByRole('columnheader').map((cell) => cell.textContent);
+    expect(picked.slice(1, 3)).toEqual([first.options[2]!.textContent, second.options[0]!.textContent]);
   });
 
   it('says where comparisons are turned on when they are off, and shows none', async () => {

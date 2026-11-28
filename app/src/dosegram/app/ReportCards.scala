@@ -36,6 +36,7 @@ import dosegram.render.card.PosterDay
 import dosegram.render.card.SleepEvidence
 import dosegram.render.card.SleepNightBar
 import dosegram.render.card.SleepRegularityData
+import dosegram.render.card.TrendScale
 import dosegram.render.card.WaterProgress
 import dosegram.render.card.WeekData
 import dosegram.render.card.YearCard
@@ -56,6 +57,17 @@ import java.time.LocalDate
 object ReportCards:
 
   private val WeekStart = DayOfWeek.MONDAY
+
+  /** The renderer's domain of a trend's or a comparison's area, and how its values are drawn: mood on its 1 to 5 scale,
+    * every other area from zero (IMG-23, IMG-27).
+    */
+  def trendDomain(domain: TrendDomain): (Domain, TrendScale) =
+    domain match
+      case TrendDomain.Medication => Domain.Medication -> TrendScale.FromZero
+      case TrendDomain.Hydration  => Domain.Water -> TrendScale.FromZero
+      case TrendDomain.Mood       => Domain.Mood -> TrendScale.Levels
+      case TrendDomain.Sleep      => Domain.Sleep -> TrendScale.FromZero
+      case TrendDomain.Nutrition  => Domain.Food -> TrendScale.FromZero
 
   /** IMG-13 draws a comparison whose outcome is the daily mood; other outcomes have no card. */
   def insight(shown: Comparison.Shown): Option[InsightData] =

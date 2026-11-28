@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<rect width="1080" height="1350" fill="#0f222b"/>
+<text x="64" y="120" font-family="Geologica" font-weight="600" font-size="64" fill="#e8f0f4">Two periods side by side</text>
+<text x="1016" y="120" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#b1c0c8" text-anchor="end"></text>
+<text x="140" y="188" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Sep 2026</text>
+<text x="140" y="232" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">1 to 30 Sep</text>
+<text x="594" y="188" font-family="IBM Plex Sans" font-weight="500" font-size="44" fill="#e8f0f4">Oct 2026</text>
+<text x="594" y="232" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">1 to 31 Oct</text>
+<g>
+  <rect x="73.33" y="269.33" width="37.33" height="37.33" rx="10.5" fill="none" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="82.67" y1="288" x2="101.33" y2="288" stroke="#2cab88" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="300" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Medication</text>
+<text x="1016" y="300" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4" text-anchor="end">6 percentage points higher</text>
+<text x="140" y="356" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">88%</text>
+<text x="562" y="356" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">30 days</text>
+<g>
+  <rect x="140" y="372" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="140" y="372" width="395.06" height="28" rx="8" fill="#2cab88"/>
+</g>
+<text x="594" y="356" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">94%</text>
+<text x="1016" y="356" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">29 days</text>
+<g>
+  <rect x="594" y="372" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="594" y="372" width="422" height="28" rx="8" fill="#2cab88"/>
+</g>
+<g>
+  <path d="M92 424 C85.93 432.4 76.83 442.67 76.83 450.83 A15.17 15.17 0 0 0 107.17 450.83 C107.17 442.67 98.07 432.4 92 424 Z" fill="none" stroke="#0072be" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="457" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Water</text>
+<text x="1016" y="457" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4" text-anchor="end">0.3 l lower</text>
+<text x="140" y="513" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">1.9 l</text>
+<text x="562" y="513" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">26 days</text>
+<g>
+  <rect x="140" y="529" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="140" y="529" width="422" height="28" rx="8" fill="#0072be"/>
+</g>
+<text x="594" y="513" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">1.6 l</text>
+<text x="1016" y="513" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">24 days</text>
+<g>
+  <rect x="594" y="529" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="594" y="529" width="355.37" height="28" rx="8" fill="#0072be"/>
+</g>
+<g>
+  <path d="M92 581.93 C96.45 581.93 102.24 590.33 105.34 595.7 C108.44 601.07 112.81 610.28 110.59 614.13 C108.37 617.98 98.2 618.8 92 618.8 C85.8 618.8 75.63 617.98 73.41 614.13 C71.19 610.28 75.56 601.07 78.66 595.7 C81.76 590.33 87.55 581.93 92 581.93 Z" fill="none" stroke="#b45689" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="614" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Mood</text>
+<text x="1016" y="614" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4" text-anchor="end">0.4 levels higher</text>
+<text x="140" y="670" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">3.2</text>
+<text x="562" y="670" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">18 days</text>
+<g>
+  <rect x="140" y="686" width="422" height="28" rx="8" fill="#2f434d"/>
+  <circle cx="370.7" cy="700" r="14" fill="#b45689"/>
+</g>
+<text x="594" y="670" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">3.6</text>
+<text x="1016" y="670" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">22 days</text>
+<g>
+  <rect x="594" y="686" width="422" height="28" rx="8" fill="#2f434d"/>
+  <circle cx="864.1" cy="700" r="14" fill="#b45689"/>
+</g>
+<g>
+  <path d="M109.5 764.13 A19.13 19.13 0 1 1 86.87 741.5 A15.4 15.4 0 0 0 109.5 764.13 Z" fill="none" stroke="#9d7aef" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="771" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Sleep</text>
+<text x="1016" y="771" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#e8f0f4" text-anchor="end">25 min shorter</text>
+<text x="140" y="827" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">7 h 20 min</text>
+<text x="562" y="827" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">27 nights</text>
+<g>
+  <rect x="140" y="843" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="140" y="843" width="422" height="28" rx="8" fill="#9d7aef"/>
+</g>
+<text x="594" y="827" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">6 h 55 min</text>
+<text x="1016" y="827" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">25 nights</text>
+<g>
+  <rect x="594" y="843" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="594" y="843" width="398.02" height="28" rx="8" fill="#9d7aef"/>
+</g>
+<g>
+  <circle cx="92" cy="916" r="21" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 905.5 A10.5 10.5 0 0 1 102.5 916" fill="none" stroke="#a86614" stroke-width="4.67" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="140" y="928" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Food</text>
+<text x="562" y="984" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">9 days</text>
+<g>
+  <rect x="142" y="1002" width="418" height="24" rx="4" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="594" y="984" font-family="IBM Plex Sans" font-weight="600" font-size="44" fill="#e8f0f4">2.1 a day</text>
+<text x="1016" y="984" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8" text-anchor="end">16 days</text>
+<g>
+  <rect x="594" y="1000" width="422" height="28" rx="8" fill="#2f434d"/>
+  <rect x="594" y="1000" width="422" height="28" rx="8" fill="#a86614"/>
+</g>
+<g>
+  <rect x="74" y="1063" width="24" height="24" rx="4" fill="none" stroke="#8b9ba3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 12"/>
+</g>
+<text x="120" y="1089" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">No figure: too few recorded days</text>
+<text x="64" y="1145" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Each row on its own scale</text>
+<text x="64" y="1201" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#b1c0c8">Mood: a dot on the 1 to 5 scale</text>
+<text x="64" y="1286" font-family="IBM Plex Sans" font-weight="500" font-size="40" fill="#8b9ba3">Recorded entries only. Not medical advice.</text>
+</svg>

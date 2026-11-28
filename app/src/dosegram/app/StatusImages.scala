@@ -11,7 +11,6 @@ import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.DateRange
 import dosegram.core.domain.insights.HighlightDomain
 import dosegram.core.domain.insights.SleepRegularityFigures
-import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.insights.YearFigures
 import dosegram.core.domain.mood.Valence
@@ -21,6 +20,9 @@ import dosegram.core.ports.CardLook
 import dosegram.core.ports.CardMotion
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.Clock
+import dosegram.core.ports.CompareCardCell
+import dosegram.core.ports.CompareCardColumn
+import dosegram.core.ports.CompareCardView
 import dosegram.core.ports.DayCardView
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.FoodCardView
@@ -50,6 +52,11 @@ import dosegram.render.blob.MoodReading
 import dosegram.render.blob.MoodState
 import dosegram.render.card.CardContext
 import dosegram.render.card.CardOutput
+import dosegram.render.card.CompareCard
+import dosegram.render.card.CompareCell
+import dosegram.render.card.CompareColumn
+import dosegram.render.card.CompareData
+import dosegram.render.card.CompareRow
 import dosegram.render.card.DayCard
 import dosegram.render.card.DayData
 import dosegram.render.card.FoodDayCard
@@ -85,7 +92,6 @@ import dosegram.render.card.SleepRegularityCard
 import dosegram.render.card.SleepWeekCard
 import dosegram.render.card.StripData
 import dosegram.render.card.TrendRow
-import dosegram.render.card.TrendScale
 import dosegram.render.card.TrendsCard
 import dosegram.render.card.TrendsData
 import dosegram.render.card.WaterCard
@@ -316,15 +322,22 @@ final class RenderedStatusCards extends StatusCards:
   override def trends(view: TrendsCardView, look: CardLook): Option[CardPage] =
     Option.when(view.rows.nonEmpty):
       val rows = view.rows.toVector.map: row =>
-        val (domain, scale) = row.domain match
-          case TrendDomain.Medication => Domain.Medication -> TrendScale.FromZero
-          case TrendDomain.Hydration  => Domain.Water -> TrendScale.FromZero
-          case TrendDomain.Mood       => Domain.Mood -> TrendScale.Levels
-          case TrendDomain.Sleep      => Domain.Sleep -> TrendScale.FromZero
-          case TrendDomain.Nutrition  => Domain.Food -> TrendScale.FromZero
+        val (domain, scale) = ReportCards.trendDomain(row.domain)
         TrendRow(domain, row.figure, row.buckets.toVector, scale)
       val data = TrendsData(view.window.start, view.window.end, view.byWeek, rows, view.text)
       page(look)(TrendsCard.render(data, contextOf(look)))
+
+  /** IMG-27 (supervisor decision, 2026-11-28): mood is a dot on its 1 to 5 track, every other area a bar from zero. */
+  override def compare(view: CompareCardView, look: CardLook): Option[CardPage] =
+    Option.when(view.rows.nonEmpty):
+      def column(head: CompareCardColumn) = CompareColumn(head.label, head.window.start, head.window.end)
+      def cell(of: CompareCardCell) =
+        CompareCell(of.figure.zip(of.value), of.days)
+      val rows = view.rows.toVector.map: row =>
+        val (domain, scale) = ReportCards.trendDomain(row.domain)
+        CompareRow(domain, cell(row.earlier), cell(row.later), row.difference, scale)
+      val data = CompareData(column(view.earlier), column(view.later), rows, view.text)
+      page(look)(CompareCard.render(data, contextOf(look)))
 
   /** IMG-07 (supervisor decision, 2026-11-27): the chat draws no name (L1), so the rows are "Item 1" onward in registry
     * order; each day holds its scheduled doses, then one as-needed glyph per log.

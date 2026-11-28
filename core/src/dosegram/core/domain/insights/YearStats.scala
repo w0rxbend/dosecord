@@ -46,6 +46,9 @@ final case class YearFigures(
   def hasRecords: Boolean = daysWithRecords > 0
   def previousHasRecords: Boolean = rows.exists(_.previous.recordedDays > 0)
 
+/** The days of a window with a record in any shown area, and those whose only doses have no record (an outage). */
+final case class RecordedDays(withRecords: Int, outageOnly: Int)
+
 /** What the year reads, per area: `None` without its consent. Each map holds the days of the year and of the year
   * before it; a day outside both is ignored.
   */
@@ -76,20 +79,39 @@ object YearStats:
   def of(year: Int, today: LocalDate, sources: YearSources): YearFigures =
     val range = window(year, today)
     val before = DateRange.between(LocalDate.of(year - 1, 1, 1), LocalDate.of(year - 1, 12, 31))
-    val areas = List(
+    val areas = areasOf(sources)
+    val rows = areas.map(_.row(range, before))
+    val recordedDays = recordedIn(areas, range)
+    val records = daysWithRecords(sources, range)
+    YearFigures(year, range, records.withRecords, rows, recordedDays, records.outageOnly)
+
+  /** One cell per area whose source is given, over `range`, each figure behind `gate`: the columns of the comparison of
+    * two periods (supervisor decision, 2026-11-28), in the order of the year's rows.
+    */
+  def cells(sources: YearSources, range: DateRange, gate: MinimumSample): List[(TrendDomain, YearCell)] =
+    areasOf(sources).map(area => area.domain -> area.cell(range, gate))
+
+  /** The days of `range` with a record in any area whose source is given, and the days whose only doses have no record
+    * (a service outage), which are not the user's records (verification of 2026-11-28).
+    */
+  def daysWithRecords(sources: YearSources, range: DateRange): RecordedDays =
+    val withRecords = recordedIn(areasOf(sources), range).values.flatten.toSet
+    val outageOnly = sources.medication.fold(Set.empty[LocalDate])(days =>
+      MedicationDay.outageOnly(days.filter((date, _) => range.contains(date)), withRecords)
+    )
+    RecordedDays(withRecords.size, outageOnly.size)
+
+  private def areasOf(sources: YearSources): List[Area[?]] =
+    List(
       sources.medication.map(days => Area(TrendDomain.Medication, MedicationDay.recorded(days), medication)),
       sources.hydration.map(days => Area(TrendDomain.Hydration, recorded(days)(_.entries > 0), water)),
       sources.mood.map(days => Area(TrendDomain.Mood, recorded(days)(_.n > 0), mood)),
       sources.sleep.map(days => Area(TrendDomain.Sleep, days, sleep)),
       sources.food.map(days => Area(TrendDomain.Nutrition, recorded(days)(_.meals > 0), food))
     ).flatten
-    val rows = areas.map(_.row(range, before))
-    val recordedDays = areas.map(area => area.domain -> area.days.keySet.filter(range.contains)).toMap
-    val withRecords = recordedDays.values.flatten.toSet
-    val outageOnly = sources.medication.fold(Set.empty[LocalDate])(days =>
-      MedicationDay.outageOnly(days.filter((date, _) => range.contains(date)), withRecords)
-    )
-    YearFigures(year, range, withRecords.size, rows, recordedDays, outageOnly.size)
+
+  private def recordedIn(areas: List[Area[?]], range: DateRange): Map[TrendDomain, Set[LocalDate]] =
+    areas.map(area => area.domain -> area.days.keySet.filter(range.contains)).toMap
 
   /** The weeks of a window from the week of its first day, each starting on `weekStart` and cut at the window's edges:
     * the columns of the one-year card (VISUALS IMG-30) and of the Mini App's year (MINI_APP section 7.11).
@@ -119,39 +141,38 @@ object YearStats:
   private final case class Area[A](
       domain: TrendDomain,
       days: Map[LocalDate, A],
-      figure: (List[A], DateRange) => Stat[YearFigure]
+      figure: (List[A], DateRange, MinimumSample) => Stat[YearFigure]
   ):
-    def cell(range: DateRange): YearCell =
+    def cell(range: DateRange, gate: MinimumSample = Gate): YearCell =
       val inside = days.view.filterKeys(range.contains).values.toList
-      YearCell(inside.size, figure(inside, range))
+      YearCell(inside.size, figure(inside, range, gate))
 
     def row(range: DateRange, before: DateRange): YearRow =
       YearRow(domain, months(range).map(month => YearMonth.from(month.start) -> cell(month)), cell(range), cell(before))
 
-  private def gated(days: Int, range: DateRange, basis: Basis)(figure: => YearFigure): Stat[YearFigure] =
-    Stat.gated(days, Gate, range, basis)(figure)
-
   private def mean(values: List[Double]): Double = values.sum / values.size.toDouble
 
-  private def medication(days: List[MedicationDay], range: DateRange): Stat[YearFigure] =
-    if days.size < Gate.required then Stat.Insufficient(days.size, Gate.required, range)
+  private def medication(days: List[MedicationDay], range: DateRange, gate: MinimumSample): Stat[YearFigure] =
+    if days.size < gate.required then Stat.Insufficient(days.size, gate.required, range)
     else
       val counts = MedicationStats.total(days).resolved
       Stat.gated(counts.resolved, MinimumSample.PercentageDenominator, range, Basis.Recorded)(
         YearFigure.Taken(Ratio(counts.taken, counts.resolved))
       )
 
-  private def water(days: List[HydrationDay], range: DateRange): Stat[YearFigure] =
-    gated(days.size, range, Basis.Recorded)(YearFigure.WaterMean(Math.round(mean(days.map(_.totalMl.toDouble))).toInt))
+  private def water(days: List[HydrationDay], range: DateRange, gate: MinimumSample): Stat[YearFigure] =
+    Stat.gated(days.size, gate, range, Basis.Recorded)(
+      YearFigure.WaterMean(Math.round(mean(days.map(_.totalMl.toDouble))).toInt)
+    )
 
-  private def mood(days: List[MoodDay], range: DateRange): Stat[YearFigure] =
-    gated(days.size, range, Basis.SelfReported)(YearFigure.MoodMean(mean(days.map(_.mean))))
+  private def mood(days: List[MoodDay], range: DateRange, gate: MinimumSample): Stat[YearFigure] =
+    Stat.gated(days.size, gate, range, Basis.SelfReported)(YearFigure.MoodMean(mean(days.map(_.mean))))
 
-  private def sleep(nights: List[SleepNight], range: DateRange): Stat[YearFigure] =
-    gated(nights.size, range, Basis.SelfReported)(
+  private def sleep(nights: List[SleepNight], range: DateRange, gate: MinimumSample): Stat[YearFigure] =
+    Stat.gated(nights.size, gate, range, Basis.SelfReported)(
       YearFigure.SleepMean(Math.round(mean(nights.map(_.minutes.toDouble))).toInt)
     )
 
-  private def food(days: List[MealDay], range: DateRange): Stat[YearFigure] =
-    gated(days.size, range, Basis.Recorded)(YearFigure.MealsMean(mean(days.map(_.mainMeals.toDouble))))
+  private def food(days: List[MealDay], range: DateRange, gate: MinimumSample): Stat[YearFigure] =
+    Stat.gated(days.size, gate, range, Basis.Recorded)(YearFigure.MealsMean(mean(days.map(_.mainMeals.toDouble))))
 end YearStats

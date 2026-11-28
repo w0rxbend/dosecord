@@ -790,10 +790,117 @@ object Samples:
     )
   )
 
+  // The comparison of two periods (IMG-27, supervisor decision, 2026-11-28): last week and this week with one area
+  // below the gate of 3 days (square), and two months of all five areas with mood on its scale (portrait). The words are
+  // the core's, as the chat prints them in each language.
+  private def compareWeeks(copy: ImageCopy): CompareData =
+    val uk = copy == UkrainianImageCopy
+    def words(en: String, ukrainian: String): String = if uk then ukrainian else en
+    val text = words(
+      "Compare two periods · Europe/Kyiv\nLast week, 26 Oct to 1 Nov: days with records 7 of 7\n" +
+        "This week, 2 Nov to 5 Nov: days with records 4 of 4\n" +
+        "A week shows its figure once it has records on 3 days; fewer show those days.\n" +
+        "Each difference is the second period against the first.\n" +
+        "Water, a day with records: Last week 1.6 l (7 days) · This week 1.8 l (4 days) · 0.2 l higher\n" +
+        "Sleep, a night with records: Last week 7 h 05 min (6 nights) · This week records on 2 nights\n" +
+        "Main meals logged, a day with a meal: Last week 2.3 (7 days) · This week 2.3 (4 days) · about the same\n" +
+        "This compares your own days. It does not show a cause.",
+      "Порівняння двох періодів · Europe/Kyiv\nМинулий тиждень, 26 жовтня – 1 листопада: днів із записами 7 з 7\n" +
+        "Цей тиждень, 2 листопада – 5 листопада: днів із записами 4 з 4\n" +
+        "Тиждень показує цифру, коли записи є щонайменше за 3 дні; якщо менше, показано дні із записами.\n" +
+        "Кожна різниця — другий період порівняно з першим.\n" +
+        "Вода, за день із записами: Минулий тиждень 1,6 л (7 днів) · Цей тиждень 1,8 л (4 дні) · на 0,2 л більше\n" +
+        "Сон, за ніч із записами: Минулий тиждень 7 год 05 хв (6 ночей) · Цей тиждень записи за 2 ночі\n" +
+        "Записані основні прийоми їжі, за день із їжею: Минулий тиждень 2,3 (7 днів) · Цей тиждень 2,3 (4 дні) · " +
+        "приблизно так само\nЦе порівняння ваших власних днів. Воно не показує причину."
+    )
+    CompareData(
+      CompareColumn(words("Last week", "Минулий тиждень"), LocalDate.of(2026, 10, 26), LocalDate.of(2026, 11, 1)),
+      CompareColumn(words("This week", "Цей тиждень"), LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 5)),
+      Vector(
+        CompareRow(
+          Domain.Water,
+          CompareCell(Some(words("1.6 l", "1,6 л") -> 1600.0), words("7 days", "7 днів")),
+          CompareCell(Some(words("1.8 l", "1,8 л") -> 1800.0), words("4 days", "4 дні")),
+          Some(words("0.2 l higher", "на 0,2 л більше")),
+          TrendScale.FromZero
+        ),
+        CompareRow(
+          Domain.Sleep,
+          CompareCell(Some(words("7 h 05 min", "7 год 05 хв") -> 425.0), words("6 nights", "6 ночей")),
+          CompareCell(None, words("2 nights", "2 ночі")),
+          None,
+          TrendScale.FromZero
+        ),
+        CompareRow(
+          Domain.Food,
+          CompareCell(Some(words("2.3 a day", "2,3 на день") -> 2.3), words("7 days", "7 днів")),
+          CompareCell(Some(words("2.3 a day", "2,3 на день") -> 2.3), words("4 days", "4 дні")),
+          Some(words("about the same", "приблизно так само")),
+          TrendScale.FromZero
+        )
+      ),
+      text
+    )
+
+  private def compareMonths(copy: ImageCopy): CompareData =
+    val uk = copy == UkrainianImageCopy
+    def words(en: String, ukrainian: String): String = if uk then ukrainian else en
+    val text = words(
+      "Compare two periods · Europe/Kyiv\nSep 2026, 1 Sep to 30 Sep: days with records 30 of 30\n" +
+        "Oct 2026, 1 Oct to 31 Oct: days with records 29 of 31\n" +
+        "A month shows its figure once it has records on 14 days; fewer show those days.\n" +
+        "Each difference is the second period against the first.\n" +
+        "Doses taken of those answered: Sep 2026 88% (30 days) · Oct 2026 94% (29 days) · 6 percentage points higher\n" +
+        "Water, a day with records: Sep 2026 1.9 l (26 days) · Oct 2026 1.6 l (24 days) · 0.3 l lower\n" +
+        "Mood, average of the days with a check-in: Sep 2026 3.2 (neutral) (18 days) · " +
+        "Oct 2026 3.6 (pleasant) (22 days) · 0.4 levels higher\n" +
+        "Sleep, a night with records: Sep 2026 7 h 20 min (27 nights) · Oct 2026 6 h 55 min (25 nights) · 25 min shorter\n" +
+        "Main meals logged, a day with a meal: Sep 2026 records on 9 days · Oct 2026 2.1 (16 days)\n" +
+        "This compares your own days. It does not show a cause.",
+      "Порівняння двох періодів · Europe/Kyiv\nвер. 2026, 1 вересня – 30 вересня: днів із записами 30 з 30\n" +
+        "жовт. 2026, 1 жовтня – 31 жовтня: днів із записами 29 з 31\n" +
+        "Місяць показує цифру, коли записи є щонайменше за 14 днів; якщо менше, показано дні із записами.\n" +
+        "Кожна різниця — другий період порівняно з першим.\n" +
+        "Прийняті дози з тих, на які є відповідь: вер. 2026 88% (30 днів) · жовт. 2026 94% (29 днів) · " +
+        "на 6 відсоткових пунктів більше\n" +
+        "Вода, за день із записами: вер. 2026 1,9 л (26 днів) · жовт. 2026 1,6 л (24 дні) · на 0,3 л менше\n" +
+        "Настрій, середнє днів із позначкою: вер. 2026 3,2 (нейтрально) (18 днів) · " +
+        "жовт. 2026 3,6 (приємно) (22 дні) · на 0,4 рівня більше\n" +
+        "Сон, за ніч із записами: вер. 2026 7 год 20 хв (27 ночей) · жовт. 2026 6 год 55 хв (25 ночей) · на 25 хв коротше\n" +
+        "Записані основні прийоми їжі, за день із їжею: вер. 2026 записи за 9 днів · жовт. 2026 2,1 (16 днів)\n" +
+        "Це порівняння ваших власних днів. Воно не показує причину."
+    )
+    def cell(figure: (String, String), value: Double, days: (String, String)) =
+      CompareCell(Some(words(figure._1, figure._2) -> value), words(days._1, days._2))
+    CompareData(
+      CompareColumn(words("Sep 2026", "вер. 2026"), LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30)),
+      CompareColumn(words("Oct 2026", "жовт. 2026"), LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)),
+      Vector(
+        CompareRow(Domain.Medication, cell(("88%", "88%"), 88, ("30 days", "30 днів")), cell(("94%", "94%"), 94, ("29 days", "29 днів")),
+          Some(words("6 percentage points higher", "на 6 відсоткових пунктів більше")), TrendScale.FromZero),
+        CompareRow(Domain.Water, cell(("1.9 l", "1,9 л"), 1900, ("26 days", "26 днів")), cell(("1.6 l", "1,6 л"), 1600, ("24 days", "24 дні")),
+          Some(words("0.3 l lower", "на 0,3 л менше")), TrendScale.FromZero),
+        CompareRow(Domain.Mood, cell(("3.2", "3,2"), 3.2, ("18 days", "18 днів")), cell(("3.6", "3,6"), 3.6, ("22 days", "22 дні")),
+          Some(words("0.4 levels higher", "на 0,4 рівня більше")), TrendScale.Levels),
+        CompareRow(Domain.Sleep, cell(("7 h 20 min", "7 год 20 хв"), 440, ("27 nights", "27 ночей")),
+          cell(("6 h 55 min", "6 год 55 хв"), 415, ("25 nights", "25 ночей")), Some(words("25 min shorter", "на 25 хв коротше")),
+          TrendScale.FromZero),
+        CompareRow(Domain.Food, CompareCell(None, words("9 days", "9 днів")), cell(("2.1 a day", "2,1 на день"), 2.1, ("16 days", "16 днів")),
+          None, TrendScale.FromZero)
+      ),
+      text
+    )
+
+  val compares: Vector[Fixture] = Vector(
+    Fixture("compare/weeks", context => Vector(CompareCard.render(compareWeeks(context.copy), context))),
+    Fixture("compare/months", context => Vector(CompareCard.render(compareMonths(context.copy), context)))
+  )
+
   val all: Vector[Fixture] =
     moods ++ days ++ waters ++ calendars ++ strips ++ weeks ++ milestones ++ sleeps ++ months ++ insights ++
       moreInsights ++ moodCards ++ monthPages ++ foods ++ shares ++ glances ++ waterWeeks ++ sleepWeeks ++ moodWeekdays ++
-      refills ++ trends ++ posters ++ galleries ++ highlights ++ years
+      refills ++ trends ++ posters ++ galleries ++ highlights ++ years ++ compares
 
   /** Every card the contact sheet and the golden suite show. */
   val review: Vector[Fixture] = all

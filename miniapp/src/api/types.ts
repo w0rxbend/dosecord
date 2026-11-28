@@ -406,6 +406,52 @@ export interface InsightYear {
   readonly notice?: string;
 }
 
+/** One period of an area: `text` as `/stats compare` prints it; below the gate no `figure` and no `value`. */
+export interface InsightCompareCell {
+  readonly text: string;
+  readonly recordedDays: number;
+  readonly figure?: string;
+  readonly value?: number;
+}
+
+/** One area of a comparison: both periods and the difference in words when both show a figure. */
+export interface InsightCompareArea {
+  readonly id: Domain;
+  readonly title: string;
+  readonly earlier: InsightCompareCell;
+  readonly later: InsightCompareCell;
+  readonly difference?: string;
+}
+
+/** One side of a comparison: its name, its days and its days with records. */
+export interface InsightComparePeriod {
+  readonly label: string;
+  readonly start: LocalDate;
+  readonly end: LocalDate;
+  readonly days: number;
+  readonly daysWithRecords: number;
+  readonly summary: string;
+}
+
+/** What a comparison puts side by side: the fixed pairs, or two months (YYYY-MM) in either order. */
+export type CompareChoice =
+  | { readonly kind: 'weeks' }
+  | { readonly kind: 'months' }
+  | { readonly kind: 'pair'; readonly first: string; readonly second: string };
+
+/** Two periods of `/stats compare` (MINI_APP 7.11, the Compare view); `lines` are the chat's text word for word. */
+export interface InsightCompare {
+  readonly selection: CompareChoice['kind'];
+  readonly earlier: InsightComparePeriod;
+  readonly later: InsightComparePeriod;
+  readonly gateNote?: string;
+  readonly differenceNote: string;
+  readonly areas: readonly InsightCompareArea[];
+  readonly months: readonly { readonly month: string; readonly label: string }[];
+  readonly lines: readonly string[];
+  readonly notice?: string;
+}
+
 export interface InsightList {
   readonly windowLabel: string;
   readonly crossDomain: boolean;

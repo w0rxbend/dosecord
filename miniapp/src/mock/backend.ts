@@ -27,6 +27,7 @@ import { MockImports } from './imports';
 import { buildInsightList, buildMonth, buildOverview, doseHistory } from './insights';
 import { buildPreview } from './preview';
 import { buildYear } from './year';
+import { buildCompare } from './compare';
 import { MockReminders } from './reminders';
 import { MockTracking } from './tracking';
 
@@ -480,6 +481,9 @@ export class MockBackend implements ApiClient {
       }
       return buildYear(year, this.localToday(), this.tracking);
     });
+
+  insightCompare: ApiClient['insightCompare'] = (choice) =>
+    this.respond('insights/compare', () => buildCompare(choice, this.localToday(), this.tracking));
 
   private preview(medicationId: string, draft: ScheduleDraft) {
     const { doseUnit } = this.find(medicationId).medication;

@@ -50,6 +50,9 @@ trait ImageCopy:
 
   /** The one-year card (IMG-30), one block per language. */
   def year: YearImageCopy
+
+  /** The comparison of two periods (IMG-27), one block per language. */
+  def compare: CompareImageCopy
   def domainName(domain: Domain): String
   def itemLabel(position: Int): String
   def dayDate(date: LocalDate): String

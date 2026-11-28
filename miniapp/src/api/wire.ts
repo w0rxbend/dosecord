@@ -20,6 +20,7 @@ import type {
   InsightMonth,
   InsightRange,
   InsightYear,
+  InsightCompare,
   InsightsOverview,
   Meal,
   MealRecorded,
@@ -404,6 +405,27 @@ export function toInsightYear(wire: Wire['InsightYear']): InsightYear {
       total: area.total,
       heat: area.heat && toChart(area.heat),
     })),
+    lines: wire.lines ?? [],
+    notice: wire.notice,
+  };
+}
+
+/** Two periods in the server's words: per area both cells and the difference. */
+export function toInsightCompare(wire: Wire['InsightCompare']): InsightCompare {
+  return {
+    selection: wire.selection as InsightCompare['selection'],
+    earlier: { ...wire.earlier },
+    later: { ...wire.later },
+    gateNote: wire.gateNote,
+    differenceNote: wire.differenceNote,
+    areas: (wire.areas ?? []).map((area) => ({
+      id: area.id,
+      title: area.title,
+      earlier: { ...area.earlier },
+      later: { ...area.later },
+      difference: area.difference,
+    })),
+    months: (wire.months ?? []).map((month) => ({ ...month })),
     lines: wire.lines ?? [],
     notice: wire.notice,
   };
