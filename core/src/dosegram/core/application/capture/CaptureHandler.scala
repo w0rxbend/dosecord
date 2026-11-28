@@ -170,6 +170,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
     if argument.isEmpty then consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodPrompt)(mood.prompt(turn))
     else if HistoryArguments(argument) then
       consent.guarded(turn, ConsentPurpose.Mood, Pending.MoodHistory)(mood.history(turn))
+    else if StickerArguments(argument) then imageOf(turn, Pending.MoodStickers)(mood.stickers(turn))
     else
       argument.toIntOption.flatMap(Valence.of) match
         case Some(valence) => recordMood(turn, valence)
@@ -300,6 +301,7 @@ final class CaptureHandler(codec: CallbackCodec, clock: Clock, parts: CapturePar
       case Pending.MoodCheckIn(step)     => Valence.of(step).map(mood.checkIn(fresh, _)).getOrElse(stale(turn))
       case Pending.MoodHistory           => mood.history(fresh)
       case Pending.MoodHistoryImage      => moodShown(fresh)(mood.historyImage(fresh))
+      case Pending.MoodStickers          => mood.stickers(fresh)
       case Pending.Stats                 => stats.card(fresh, StatsPeriod.Last7Days)
       case Pending.WaterImage            => water.image(fresh)
       case Pending.DayImage              => stats.dayImage(fresh, dosesToday(fresh))
@@ -416,6 +418,9 @@ private object CaptureHandler:
 
   /** `/mood history`, in either shipped language. */
   val HistoryArguments: Set[String] = Set("history", "історія")
+
+  /** `/mood stickers` ("My mood stickers"), in either shipped language. */
+  val StickerArguments: Set[String] = Set("stickers", "стікери")
 
   private val MoodLine = """(?iu)(?:mood|настрій)\s+(\d)""".r
 

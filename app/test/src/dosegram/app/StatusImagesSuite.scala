@@ -253,6 +253,24 @@ class StatusImagesSuite extends munit.FunSuite:
     assertEquals(answer.kind, MediaKind.Photo)
     assertEquals(rig.log.toList, List("animation not drawn, still sent: template=card.mood.v1 reason=NotPng"))
 
+  test("a shared picture already stored or uploaded is ready without drawing; a personal card never is"):
+    val rasteriser = CountingRasteriser()
+    val rig = Rig(rasteriser)
+    val animated = light.copy(isAnimated = true)
+    val page = rig.images.cards.mood(MoodCardView(pleasant, None), animated).get
+    assertEquals(rig.images.drawing.ready(page), None, "nothing is drawn yet")
+    rig.images.drawing.draw(page, None)
+    val drawnCount = rasteriser.documents.size
+    assertEquals(rig.images.drawing.ready(page).map(_.kind), Some(MediaKind.Photo), "the still is stored, its video is not")
+    rig.images.fileIds.put(page.motion.get.sharedKey, MediaKind.Animation, "uploaded-animation")
+    val ready = rig.images.drawing.ready(page).getOrElse(fail("not ready"))
+    assertEquals((ready.kind, ready.assetKey), (MediaKind.Animation, page.motion.get.sharedKey))
+    assertEquals(ready.still.map(_.assetKey), page.sharedKey, "the animation carries its still")
+    assertEquals(rasteriser.documents.size, drawnCount, "ready draws nothing")
+    val personal = rig.images.cards.water(water, light).get
+    rig.images.drawing.draw(personal, None)
+    assertEquals(rig.images.drawing.ready(personal), None)
+
   test("a water card is keyed by its bytes and carries the day's figures as its text equivalent"):
     val rig = Rig(CountingRasteriser())
     val card = rig.images.drawn.water(water, light).get
@@ -444,6 +462,36 @@ class StatusImagesSuite extends munit.FunSuite:
       val png = images.store.load(card.get.assetKey).get
       assertEquals(png.take(4).toList, List(0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))
       assert(png.length > 5000, s"${card.get.assetKey}: ${png.length} bytes")
+
+  test("with the long-lived worker of this machine a mood sticker is a 512 px PNG, transparent around the blob"):
+    val worker = sys.env
+      .get("DOSEGRAM_RASTER_WORKER")
+      .map(Path.of(_))
+      .orElse(sys.env.getOrElse("PATH", "").split(':').iterator.filter(_.nonEmpty).map(Path.of(_, "dosegram-raster")).find(Files.isExecutable(_)))
+    if sys.env.get("DOSEGRAM_REQUIRE_RESVG").contains("true") then assert(worker.isDefined, "no dosegram-raster")
+    else assume(worker.isDefined, "no dosegram-raster")
+    val log = mutable.ListBuffer.empty[String]
+    val settings = RenderSettings("/bin/sh", sys.env("DOSEGRAM_FONTS_DIR"), Some(worker.get.toString))
+    val images = StatusImages.from(Some(settings), StatusImages.Stores.inMemory, log += _)
+    Valence.steps.foreach: step =>
+      val page = images.cards.moodSticker(step).getOrElse(fail("no sticker"))
+      val sticker = images.drawing.draw(page, None).getOrElse(fail(s"step ${step.step} not drawn: $log"))
+      val png = images.store.load(sticker.assetKey).get
+      assert(png.length <= 512 * 1024, s"a static sticker is at most 512 KB: ${png.length}")
+      val image = javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(png))
+      assertEquals((image.getWidth, image.getHeight), (512, 512))
+      assert(image.getColorModel.hasAlpha, "a sticker has an alpha channel")
+      assertEquals(image.getRGB(0, 0) >>> 24, 0, "the corner is transparent")
+      assertEquals(image.getRGB(256, 250) >>> 24, 255, "the blob is opaque")
+    assertEquals(log.toList, Nil)
+
+  test("a mood sticker is a shared picture keyed by its revisions and state, with the level name as its alt text"):
+    val rig = Rig(CountingRasteriser())
+    val page = rig.images.cards.moodSticker(pleasant).get
+    assertEquals(page.sharedKey, Some("mood.sticker.dg-blob-2.dg-sticker-1.blob.v6.e3"))
+    assertEquals((page.templateId, page.altText, page.fileName), ("card.mood.sticker.v1", "Pleasant", "dosegram-mood-sticker.png"))
+    assertEquals(Lang.within(Lang.Uk)(rig.images.cards.moodSticker(pleasant)).get.sharedKey, page.sharedKey)
+    assert(!page.svg.contains("<rect"), "no background")
 
   test("with the long-lived worker of this machine an animated mood answer is an MP4 loop with its still"):
     val worker = sys.env

@@ -23,6 +23,14 @@ object ReportStatus:
   def fromDb(db: String): ReportStatus =
     values.find(_.db == db).getOrElse(throw IllegalArgumentException(s"unknown report status '$db'"))
 
+/** A personal sticker set made of the drawn pages instead of sending them ("My mood stickers", supervisor decision of
+  * 2026-11-28): the set's key and the emoji of each page, in page order. The first page's message is the answer, with
+  * the link that adds the set or the line that says it could not be made.
+  */
+final case class StickerSetJob(setKey: String, emojis: List[String]):
+  require(StickerSets.isValidKey(setKey), "a set key of letters, digits and single underscores")
+  require(emojis.nonEmpty && emojis.forall(_.nonEmpty), "every sticker answers to an emoji")
+
 /** What an event queues: the pages of one answer, in order, for one chat. Past `deadlineAt` they are sent as text. */
 final case class NewReportRequest(
     id: UUID,
@@ -30,9 +38,11 @@ final case class NewReportRequest(
     chat: ChatRef,
     pages: List[ReportPage],
     createdAt: Instant,
-    deadlineAt: Instant
+    deadlineAt: Instant,
+    stickers: Option[StickerSetJob] = None
 ):
   require(pages.nonEmpty, "a request has at least one page")
+  require(stickers.forall(_.emojis.size == pages.size), "one emoji per sticker page")
 
 /** A claimed request. `attempts` counts the claims, this one included: more than one means a worker took it before and
   * did not finish.
@@ -44,7 +54,8 @@ final case class ReportRequest(
     pages: List[ReportPage],
     createdAt: Instant,
     deadlineAt: Instant,
-    attempts: Int
+    attempts: Int,
+    stickers: Option[StickerSetJob] = None
 )
 
 /** The report preparation queue of ROADMAP G4.3 (ARCHITECTURE section 12.1). An event writes its request on its own

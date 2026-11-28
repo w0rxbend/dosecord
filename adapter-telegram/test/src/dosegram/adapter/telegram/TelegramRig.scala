@@ -66,6 +66,8 @@ final class TelegramRig(config: TelegramConfig = TelegramRig.webhook, inbox: Opt
 
   def storeAsset(key: String, bytes: Array[Byte]): Unit = { assets.put(key, bytes); () }
 
+  def loadAsset(key: String): Option[Array[Byte]] = Option(assets.get(key))
+
   /** Starts the adapter and forgets the calls of the start-up (`getMe`, the default menu button). */
   def started(): TelegramRig =
     adapter.start(sink, None)

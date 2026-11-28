@@ -10,6 +10,7 @@ import dosegram.core.ports.CardPage
 import dosegram.core.ports.NewReportRequest
 import dosegram.core.ports.ReportPage
 import dosegram.core.ports.ReportStatus
+import dosegram.core.ports.StickerSetJob
 
 import java.time.Duration
 import java.time.Instant
@@ -108,6 +109,17 @@ class ReportQueuePgSuite extends PgSuite:
     uow.transaction(_.reports.enqueue(queued))
     val claimed = uow.transaction(_.reports.claim(t0, lease)).getOrElse(fail("nothing claimed"))
     assertEquals(claimed.pages.map(_.card.motion), List(Some(motion), None))
+
+  test("a sticker set request keeps its set and emojis sealed with its pages; an image request has none"):
+    val account = fixtures.account()
+    val job = StickerSetJob("mood_0123456789abcdef", List("a", "b"))
+    uow.transaction(_.reports.enqueue(request(account, t0, page(1), page(2)).copy(stickers = Some(job))))
+    val claimed = uow.transaction(_.reports.claim(t0, lease)).getOrElse(fail("nothing claimed"))
+    assertEquals(claimed.stickers, Some(job))
+    assertEquals(withConnection(CanaryScan.columns(_, List("mood_0123456789abcdef"))), Nil, "a column holds the set")
+    val other = fixtures.account()
+    uow.transaction(_.reports.enqueue(request(other, t0.plusSeconds(1), page(3))))
+    assertEquals(uow.transaction(_.reports.claim(t0.plusSeconds(1), lease)).flatMap(_.stickers), None)
 
   test("two workers claiming at once take different requests, oldest first"):
     val account = fixtures.account()

@@ -267,5 +267,8 @@ class BotApiSuite extends munit.FunSuite:
         case "answerCallbackQuery" => api.answerCallbackQuery("q", None)
         case "getMe"               => api.getMe()
         case "getUpdates"          => api.getUpdates(None, Duration.ZERO)
-        case other                 => fail(s"fixture ${fixture.name} names an unexpected method $other")
+        case "getStickerSet"       => api.getStickerSet("mood_x_by_dosegram_dev_bot")
+        case "createNewStickerSet" =>
+          api.createNewStickerSet(7001L, "mood_x_by_dosegram_dev_bot", "t", List(InputSticker(MediaPayload.Cached("f"), List("x"))))
+        case other => fail(s"fixture ${fixture.name} names an unexpected method $other")
       assertEquals(result.left.map(_.productPrefix), Left(fixture.expect), fixture.name)

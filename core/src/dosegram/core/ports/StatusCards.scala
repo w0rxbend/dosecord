@@ -253,6 +253,11 @@ trait StatusCards:
   /** IMG-25, the week highlights, the second photo of the weekly report. */
   def weekHighlights(view: WeekHighlightsView, look: CardLook): Option[CardPage] = None
 
+  /** The sticker of one valence step for "My mood stickers" (supervisor decision of 2026-11-28): the blob alone on a
+    * transparent 512 px square, the same picture for everyone, with no theme and no words; `None` without a renderer.
+    */
+  def moodSticker(valence: Valence): Option[CardPage] = None
+
 object StatusCards:
 
   /** No renderer is wired: every flow answers with its text. */
@@ -270,6 +275,12 @@ object StatusCards:
   */
 trait CardDrawing:
   def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef]
+
+  /** The image of `page` when it needs no drawing: a shared picture already stored or uploaded, and for a page with an
+    * animated form its video too (or its still alone when only the still is). A late request sends such a page as its
+    * image, because the 5-second deadline of VISUALS VA-FB-01 bounds a render (supervisor decision, 2026-11-28).
+    */
+  def ready(page: CardPage): Option[AttachmentRef] = None
 
 object CardDrawing:
 

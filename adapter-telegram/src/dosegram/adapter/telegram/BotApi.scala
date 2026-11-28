@@ -50,6 +50,15 @@ enum MenuButton:
   case Commands
   case WebApp(text: String, url: String)
 
+/** One sticker to put in a set: a static picture (PNG or WEBP, one side 512 px, at most 512 KB), uploaded or by the
+  * `file_id` of an upload, and the 1 to 20 emoji it answers to (research brief 04 section 3.2).
+  */
+final case class InputSticker(payload: MediaPayload, emojis: List[String]):
+  require(emojis.nonEmpty && emojis.size <= InputSticker.MaxEmojis, s"1 to ${InputSticker.MaxEmojis} emoji")
+
+object InputSticker:
+  val MaxEmojis = 20
+
 /** The typed Bot API client (ROADMAP G1.4): one method per Bot API method in use, each returning the decoded result or
   * exactly one [[TelegramError]]. It builds requests and reads responses; it does not pace, retry or log.
   */
@@ -196,6 +205,81 @@ final class BotApi(transport: TelegramTransport, callTimeout: Duration = BotApi.
     val params = ujson.Obj("menu_button" -> menuButtonJson(button))
     chatId.foreach(id => params("chat_id") = id.toDouble)
     call("setChatMenuButton", params).map(_ => ())
+
+  // ---------- Sticker sets ("My mood stickers", supervisor decision of 2026-11-28) ----------
+
+  /** `getStickerSet`: the set's title and the `file_id` of each sticker, in order. A set that does not exist is
+    * `MissingTarget`.
+    */
+  def getStickerSet(name: String): Either[TelegramError, StickerSetInfo] =
+    call("getStickerSet", ujson.Obj("name" -> name)).flatMap(decoded(TelegramModels.decodeStickerSet))
+
+  /** `createNewStickerSet`: a regular set of static stickers owned by `userId`, who must have started the bot. */
+  def createNewStickerSet(
+      userId: Long,
+      name: String,
+      title: String,
+      stickers: List[InputSticker]
+  ): Either[TelegramError, Unit] =
+    val (inputs, files) = stickerInputs(stickers)
+    val params = ujson.Obj(
+      "user_id" -> userId.toDouble,
+      "name" -> name,
+      "title" -> title,
+      "sticker_type" -> "regular",
+      "stickers" -> ujson.Arr.from(inputs)
+    )
+    upload("createNewStickerSet", params, files)
+
+  def addStickerToSet(userId: Long, name: String, sticker: InputSticker): Either[TelegramError, Unit] =
+    val (inputs, files) = stickerInputs(List(sticker))
+    upload("addStickerToSet", ujson.Obj("user_id" -> userId.toDouble, "name" -> name, "sticker" -> inputs.head), files)
+
+  /** Puts `sticker` in the place of the set's sticker `oldFileId`, keeping its position. */
+  def replaceStickerInSet(
+      userId: Long,
+      name: String,
+      oldFileId: String,
+      sticker: InputSticker
+  ): Either[TelegramError, Unit] =
+    val (inputs, files) = stickerInputs(List(sticker))
+    val params = ujson.Obj(
+      "user_id" -> userId.toDouble,
+      "name" -> name,
+      "old_sticker" -> oldFileId,
+      "sticker" -> inputs.head
+    )
+    upload("replaceStickerInSet", params, files)
+
+  def deleteStickerFromSet(fileId: String): Either[TelegramError, Unit] =
+    call("deleteStickerFromSet", ujson.Obj("sticker" -> fileId)).map(_ => ())
+
+  def setStickerSetTitle(name: String, title: String): Either[TelegramError, Unit] =
+    call("setStickerSetTitle", ujson.Obj("name" -> name, "title" -> title)).map(_ => ())
+
+  /** Deletes a set the bot created. A set that does not exist is `MissingTarget`. */
+  def deleteStickerSet(name: String): Either[TelegramError, Unit] =
+    call("deleteStickerSet", ujson.Obj("name" -> name)).map(_ => ())
+
+  /** Each sticker as an `InputSticker` object; an upload goes as the multipart part its `attach://` reference names. */
+  private def stickerInputs(stickers: List[InputSticker]): (List[ujson.Obj], List[WireFile]) =
+    val files = List.newBuilder[WireFile]
+    val inputs = stickers.zipWithIndex.map: (sticker, index) =>
+      val reference = sticker.payload match
+        case MediaPayload.Cached(fileId)                    => fileId
+        case MediaPayload.Upload(fileName, mimeType, bytes) =>
+          val field = s"sticker$index"
+          files += WireFile(field, fileName, mimeType, bytes)
+          s"attach://$field"
+      ujson.Obj(
+        "sticker" -> reference,
+        "format" -> "static",
+        "emoji_list" -> ujson.Arr.from(sticker.emojis.map(ujson.Str(_)))
+      )
+    (inputs, files.result())
+
+  private def upload(method: String, params: ujson.Obj, files: List[WireFile]): Either[TelegramError, Unit] =
+    send(WireRequest(method, params, None, if files.isEmpty then callTimeout else UploadTimeout, files)).map(_ => ())
 
   private def call(method: String, params: ujson.Obj): Either[TelegramError, ujson.Value] =
     send(WireRequest(method, params, None, callTimeout))

@@ -21,6 +21,9 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
 
   /** The blob gallery of `/mood history` (VISUALS IMG-26) after the images consent. */
   case MoodHistoryImage extends Pending(3, 2)
+
+  /** "My mood stickers" (`/mood stickers`) after the images consent. */
+  case MoodStickers extends Pending(3, 3)
   case MoodCheckIn(step: Int) extends Pending(4, step)
   case Stats extends Pending(5, 0)
   case WaterImage extends Pending(6, 0)
@@ -131,6 +134,7 @@ private[capture] object Pending:
     argument match
       case MoodHistory.argument      => MoodHistory
       case MoodHistoryImage.argument => MoodHistoryImage
+      case MoodStickers.argument     => MoodStickers
       case _                         => MoodPrompt
 
   /** An argument of kind 13 below this is a year: the index of January of the year 834 is above it. */

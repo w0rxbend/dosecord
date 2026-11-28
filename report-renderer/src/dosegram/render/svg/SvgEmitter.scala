@@ -32,7 +32,9 @@ object SvgEmitter:
         s"""<svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height" viewBox="0 0 $width $height">"""
       )
         ++ definitions(gradientIds)
-        ++ Vector(s"""<rect width="$width" height="$height" fill="${scene.background.hex}"/>""")
+        ++ Vector(s"""<rect width="$width" height="$height" fill="${scene.background.hex}"/>""").filterNot(_ =>
+          scene.transparent
+        )
         ++ scene.nodes.flatMap(writer.lines(_, 0))
         ++ Vector("</svg>")
     lines.mkString("", "\n", "\n")

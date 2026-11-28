@@ -9,6 +9,7 @@ import dosegram.core.ports.Clock
 import dosegram.core.ports.IdSource
 import dosegram.core.ports.NewReportRequest
 import dosegram.core.ports.ReportPage
+import dosegram.core.ports.StickerSetJob
 import dosegram.core.ports.Tx
 
 import java.time.Duration
@@ -33,9 +34,29 @@ final class CardDelivery(clock: Clock, ids: IdSource):
       val now = clock.now()
       refusal(tx, accountId, now) match
         case None =>
-          tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(Deadline)))
+          val deadline = if pages.exists(_.card.motion.isDefined) then MotionDeadline else Deadline
+          tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(deadline)))
           Nil
         case Some(note) => pages.map(page => textEquivalent(page, note))
+
+  /** The pages of a personal sticker set ("My mood stickers"): queued like an image, so the report worker draws them
+    * and publishes the set; when they cannot be queued, `busy` is the one answer, because a sticker has no text to send
+    * in its place.
+    */
+  def stickers(
+      tx: Tx,
+      accountId: UUID,
+      chat: ChatRef,
+      pages: List[ReportPage],
+      job: StickerSetJob,
+      busy: OutboundMessage
+  ): List[OutboundMessage] =
+    val now = clock.now()
+    refusal(tx, accountId, now) match
+      case None =>
+        tx.reports.enqueue(NewReportRequest(ids.next(now), accountId, chat, pages, now, now.plus(Deadline), Some(job)))
+        Nil
+      case Some(_) => List(busy)
 
   /** Why the pages cannot be queued, with the line to add to their text; `None` when they can. */
   private def refusal(tx: Tx, accountId: UUID, now: Instant): Option[Option[String]] =
@@ -51,6 +72,12 @@ object CardDelivery:
 
   /** VISUALS VA-FB-01: an image not drawn within 5 seconds of the request is sent as its text. */
   val Deadline: Duration = Duration.ofSeconds(5)
+
+  /** An answer with an animated form (VISUALS section 4.6, supervisor decision of 2026-11-28): the 5 seconds of the
+    * still card and the 4 seconds the video may take after it (`StatusImages.MotionBudgetMillis`). A claim inside this
+    * draws the still and then the video; the rehearsal of 2026-11-28 claimed one past the 5 seconds and sent its text.
+    */
+  val MotionDeadline: Duration = Duration.ofSeconds(9)
 
   /** ARCHITECTURE RND-07: the bounded queue of the report worker. */
   val QueueCapacity = 32

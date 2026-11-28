@@ -14,6 +14,7 @@ import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.WeekdayMood
 import dosegram.core.domain.insights.YearFigures
+import dosegram.core.domain.mood.Valence
 import dosegram.core.domain.nutrition.MealType
 import dosegram.core.ports.CardDrawing
 import dosegram.core.ports.CardLook
@@ -31,6 +32,9 @@ import dosegram.core.ports.MoodGalleryView
 import dosegram.core.ports.RefillCardView
 import dosegram.core.ports.ShareCardView
 import dosegram.core.ports.StatusCards
+import dosegram.core.ports.StickerImage
+import dosegram.core.ports.StickerSetFailure
+import dosegram.core.ports.StickerSets
 import dosegram.core.ports.TrendsCardView
 import dosegram.core.ports.WaterCardView
 import dosegram.core.ports.WeekCardView
@@ -66,6 +70,7 @@ import dosegram.render.card.MoodCard
 import dosegram.render.card.MoodGalleryCard
 import dosegram.render.card.MoodGalleryData
 import dosegram.render.card.MoodMotionCard
+import dosegram.render.card.MoodStickerCard
 import dosegram.render.card.MoodWeekdayCard
 import dosegram.render.card.MoodWeekdayData
 import dosegram.render.card.MoodWeekdayRow
@@ -217,6 +222,15 @@ final class RenderedStatusCards extends StatusCards:
 
   override def water(view: WaterCardView, look: CardLook): Option[CardPage] =
     Some(page(look)(WaterCard.render(waterData(view), contextOf(look))))
+
+  /** A sticker of "My mood stickers": the same picture for everyone in the step, so its key names the drawing revisions
+    * and the state, and it is drawn once. Its alt text is in the account's language; the picture has no words.
+    */
+  override def moodSticker(valence: Valence): Option[CardPage] =
+    val state = MoodState.captured(valence.step, None)
+    val look = CardLook(ImageTheme.Dark, isDiscreet = false)
+    val key = s"mood.sticker.${BlobFigure.Revision}.${MoodStickerCard.Revision}.${state.id}"
+    Some(page(look)(MoodStickerCard.render(state, contextOf(look)), Some(key)))
 
   override def day(view: DayCardView, look: CardLook): Option[CardPage] =
     val data = DayData(
@@ -376,6 +390,18 @@ final class RenderedCardDrawing(
   override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
     still(page, chat).map(photo => page.motion.flatMap(animated(_, photo, page, chat)).getOrElse(photo))
 
+  /** A shared still that is stored or uploaded, with its animation when that is too; a personal card is never ready,
+    * because its key is its drawn bytes.
+    */
+  override def ready(page: CardPage): Option[AttachmentRef] =
+    page.sharedKey
+      .filter(isKept(_, MediaKind.Photo))
+      .map: key =>
+        val photo = reference(key, page)
+        page.motion.filter(motion => isKept(motion.sharedKey, MediaKind.Animation)).fold(photo)(animation(_, photo))
+
+  private def isKept(key: String, kind: MediaKind): Boolean = store.holds(key) || fileIds.get(key, kind).isDefined
+
   private def still(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
     page.sharedKey.filter(store.holds) match
       case Some(key) => Right(reference(key, page))
@@ -395,7 +421,7 @@ final class RenderedCardDrawing(
       page: CardPage,
       chat: Option[ChatRef]
   ): Option[AttachmentRef] =
-    val isReady = store.holds(motion.sharedKey) || fileIds.get(motion.sharedKey, MediaKind.Animation).isDefined
+    val isReady = isKept(motion.sharedKey, MediaKind.Animation)
     def drawn: Boolean =
       withNotice(chat)(motions.render(motion.frames.toVector, motion.framesPerSecond)) match
         case Right(video) =>
@@ -404,17 +430,19 @@ final class RenderedCardDrawing(
         case Left(failure) =>
           log(s"animation not drawn, still sent: template=${page.templateId} reason=${failure.productPrefix}")
           false
-    Option.when(isReady || drawn):
-      AttachmentRef(
-        MediaKind.Animation,
-        motion.sharedKey,
-        AssetStore.Mp4,
-        photo.altText,
-        Some(motion.fileName),
-        photo.hasSpoiler,
-        photo.caption,
-        still = Some(photo)
-      )
+    Option.when(isReady || drawn)(animation(motion, photo))
+
+  private def animation(motion: CardMotion, photo: AttachmentRef): AttachmentRef =
+    AttachmentRef(
+      MediaKind.Animation,
+      motion.sharedKey,
+      AssetStore.Mp4,
+      photo.altText,
+      Some(motion.fileName),
+      photo.hasSpoiler,
+      photo.caption,
+      still = Some(photo)
+    )
 
   // A drawing that is still running after a second shows the upload status in its chat (VISUALS VA-FB-02); the
   // rasteriser's own deadline ends it at five seconds, and the worker then sends the text (VA-FB-01).
@@ -521,8 +549,31 @@ final class StatusImages(
     val fileIds: FileIdCache,
     val cards: StatusCards,
     val notices: DrawingNotices = DrawingNotices(_ => ()),
-    val drawing: CardDrawing = CardDrawing.unavailable
+    val drawing: CardDrawing = CardDrawing.unavailable,
+    val stickers: StickerSetsByVendor = StickerSetsByVendor()
 )
+
+/** The personal sticker sets of each vendor that has them ("My mood stickers"), attached by the adapter of that vendor
+  * once it is built, because the adapter is built over the image stores. A vendor without one has no sets.
+  */
+final class StickerSetsByVendor extends StickerSets:
+  private val byVendor = ConcurrentHashMap[String, StickerSets]()
+
+  def attach(vendor: String, sets: StickerSets): Unit =
+    byVendor.put(vendor, sets)
+    ()
+
+  override def publish(
+      chat: ChatRef,
+      setKey: String,
+      title: String,
+      stickers: List[StickerImage]
+  ): Either[StickerSetFailure, String] = of(chat.vendor).publish(chat, setKey, title, stickers)
+
+  override def remove(vendor: String, setKey: String): Either[StickerSetFailure, Unit] =
+    of(vendor).remove(vendor, setKey)
+
+  private def of(vendor: String): StickerSets = Option(byVendor.get(vendor)).getOrElse(StickerSets.unavailable)
 
 object StatusImages:
 

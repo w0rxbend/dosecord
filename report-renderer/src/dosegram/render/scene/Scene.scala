@@ -85,5 +85,14 @@ object Node:
       case leaf         => Vector(leaf)
     }
 
-/** One rendered picture before rasterisation: an opaque, full-bleed background and the nodes painted over it. */
-final case class Scene(templateId: String, size: Size, background: Rgb, nodes: Vector[Node])
+/** One rendered picture before rasterisation: an opaque, full-bleed background and the nodes painted over it. A
+  * `transparent` scene paints no background (a sticker, which sits on the chat's own background); `background` is then
+  * the colour its contrast is judged against.
+  */
+final case class Scene(
+    templateId: String,
+    size: Size,
+    background: Rgb,
+    nodes: Vector[Node],
+    transparent: Boolean = false
+)

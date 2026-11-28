@@ -1,11 +1,21 @@
 package dosegram.core.application.reports
 
 import dosegram.contracts.AttachmentRef
+import dosegram.contracts.Block
+import dosegram.contracts.ChoiceAction
+import dosegram.contracts.Inline
+import dosegram.contracts.Node
 import dosegram.contracts.ChatRef
 import dosegram.contracts.MediaKind
 import dosegram.contracts.OutboundMessage
 import dosegram.core.domain.copy.ImageCopy
+import dosegram.core.domain.copy.StickerCopy
 import dosegram.core.ports.CardDrawing
+import dosegram.core.ports.CardMotion
+import dosegram.core.ports.StickerImage
+import dosegram.core.ports.StickerSetFailure
+import dosegram.core.ports.StickerSetJob
+import dosegram.core.ports.StickerSets
 import dosegram.core.ports.CardPage
 import dosegram.core.ports.ReportStatus
 
@@ -19,13 +29,18 @@ import scala.jdk.CollectionConverters.*
 class ReportWorkerSuite extends munit.FunSuite:
   import ReportFixtures.*
 
-  /** Draws every page as `asset:<svg>` unless its SVG is in `failing`; records what it drew and for which chat. */
-  private final class FakeDrawing(failing: Set[String] = Set.empty) extends CardDrawing:
+  /** Draws every page as `asset:<svg>` unless its SVG is in `failing`; records what it drew and for which chat. A page
+    * whose SVG is in `alreadyDrawn` is ready without drawing.
+    */
+  private final class FakeDrawing(failing: Set[String] = Set.empty, alreadyDrawn: Set[String] = Set.empty)
+      extends CardDrawing:
     val drawn = ConcurrentLinkedQueue[(String, Option[ChatRef])]()
     override def draw(page: CardPage, chat: Option[ChatRef]): Either[String, AttachmentRef] =
       drawn.add(page.svg -> chat)
-      if failing(page.svg) then Left("TimedOut")
-      else Right(AttachmentRef(MediaKind.Photo, s"asset:${page.svg}", "image/png", page.altText, Some(page.fileName)))
+      if failing(page.svg) then Left("TimedOut") else Right(reference(page))
+    override def ready(page: CardPage): Option[AttachmentRef] = Option.when(alreadyDrawn(page.svg))(reference(page))
+    private def reference(page: CardPage): AttachmentRef =
+      AttachmentRef(MediaKind.Photo, s"asset:${page.svg}", "image/png", page.altText, Some(page.fileName))
 
   private final class Fallbacks:
     val templates = ConcurrentLinkedQueue[String]()
@@ -85,6 +100,125 @@ class ReportWorkerSuite extends munit.FunSuite:
     assert(drawing.drawn.isEmpty, "a late request is not drawn")
     assertEquals(outbox(world).map(lines), List(List(ImageCopy.inPlace("Water today: 1 of 2.0 l"), "caption 1")))
     assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.TextFallback))
+
+  test("a late request still sends a page whose picture is already drawn as that image, and draws nothing"):
+    val world = ReportWorld()
+    queue(world, 1, 2)
+    world.clock.at = world.t0.plus(CardDelivery.Deadline).plusSeconds(60)
+    val drawing = FakeDrawing(alreadyDrawn = Set("<svg id='1'/>"))
+    assert(worker(world, drawing).runOnce())
+    assert(drawing.drawn.isEmpty, "a late request is not drawn")
+    assertEquals(outbox(world).map(_.attachment.map(_.assetKey)), List(Some("asset:<svg id='1'/>"), None))
+    assertEquals(lines(outbox(world)(1)), List(ImageCopy.inPlace("Water today: 2 of 2.0 l"), "caption 2"))
+    assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.TextFallback))
+
+  test("an animated answer has its own deadline: the still and the video's budget (VISUALS section 4.6)"):
+    val world = ReportWorld()
+    val motion = CardMotion(List("<svg id='frame'/>"), 20, "mood.motion.test", "dosegram-mood.mp4")
+    val animated = page(1, "card.mood.v1")
+    world.uow.transaction(tx =>
+      CardDelivery(world.clock, world.ids)
+        .answer(tx, world.account, world.chat, List(animated.copy(card = animated.card.copy(motion = Some(motion)))))
+    )
+    assertEquals(CardDelivery.MotionDeadline, CardDelivery.Deadline.plusSeconds(4))
+    world.clock.at = world.t0.plus(CardDelivery.Deadline).plusSeconds(2)
+    val drawing = FakeDrawing()
+    assert(worker(world, drawing).runOnce())
+    assertEquals(drawing.drawn.asScala.toList.map(_._1), List("<svg id='1'/>"), "claimed inside its own deadline, it is drawn")
+    assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.Sent))
+
+  test("an animated answer claimed after its own deadline is not drawn"):
+    val world = ReportWorld()
+    val motion = CardMotion(List("<svg id='frame'/>"), 20, "mood.motion.test", "dosegram-mood.mp4")
+    val animated = page(1, "card.mood.v1")
+    world.uow.transaction(tx =>
+      CardDelivery(world.clock, world.ids)
+        .answer(tx, world.account, world.chat, List(animated.copy(card = animated.card.copy(motion = Some(motion)))))
+    )
+    world.clock.at = world.t0.plus(CardDelivery.MotionDeadline)
+    val drawing = FakeDrawing()
+    assert(worker(world, drawing).runOnce())
+    assert(drawing.drawn.isEmpty)
+    assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.TextFallback))
+
+  /** A vendor with sticker sets that records what it was asked to publish. */
+  private final class FakeStickers(answer: Either[StickerSetFailure, String]) extends StickerSets:
+    val published = ConcurrentLinkedQueue[(ChatRef, String, String, List[StickerImage])]()
+    override def publish(
+        chat: ChatRef,
+        setKey: String,
+        title: String,
+        stickers: List[StickerImage]
+    ): Either[StickerSetFailure, String] =
+      published.add((chat, setKey, title, stickers))
+      answer
+    override def remove(vendor: String, setKey: String): Either[StickerSetFailure, Unit] = Right(())
+
+  private def queueStickers(world: ReportWorld): Unit =
+    val pages = List(1, 2).map(n => page(n, "card.mood.sticker.v1"))
+    val busy = page(9).message
+    world.uow.transaction(tx =>
+      CardDelivery(world.clock, world.ids)
+        .stickers(tx, world.account, world.chat, pages, StickerSetJob("mood_ab12", List("a", "b")), busy)
+    )
+    ()
+
+  private def stickerWorker(world: ReportWorld, drawing: CardDrawing, stickers: StickerSets) =
+    ReportWorker(world.uow, drawing, world.clock, world.ids, _ => (), _ => (), stickers)
+
+  test("a sticker request draws its pages and publishes them as the set, in order; the answer carries its link"):
+    val world = ReportWorld()
+    queueStickers(world)
+    val stickers = FakeStickers(Right("https://example.test/addstickers/mood_ab12"))
+    assert(stickerWorker(world, FakeDrawing(), stickers).runOnce())
+    val List((chat, setKey, title, images)) = stickers.published.asScala.toList: @unchecked
+    assertEquals((chat, setKey, title), (world.chat, "mood_ab12", StickerCopy.title))
+    assertEquals(images, List(StickerImage("asset:<svg id='1'/>", "a"), StickerImage("asset:<svg id='2'/>", "b")))
+    val List(answer) = outbox(world): @unchecked
+    assertEquals(answer.attachment, None, "the stickers are the set, not photos")
+    assertEquals(lines(answer).head, StickerCopy.ready)
+    val links = answer.body.flatMap { case Node.Paragraph(inlines) => inlines; case _ => Nil }.collect {
+      case Inline.Link(_, url) => url
+    }
+    assertEquals(links, List("https://example.test/addstickers/mood_ab12"))
+    val buttons = answer.blocks.collect { case Block.Choices(set) => set.choices.map(c => c.label -> c.action) }.flatten
+    assertEquals(buttons, List(StickerCopy.Add -> ChoiceAction.OpenUrl("https://example.test/addstickers/mood_ab12")))
+    assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.Sent))
+
+  test("a set the vendor refuses is answered with the line that says so; a late request publishes nothing"):
+    val refused = ReportWorld()
+    queueStickers(refused)
+    assert(stickerWorker(refused, FakeDrawing(), FakeStickers(Left(StickerSetFailure.Refused))).runOnce())
+    assertEquals(outbox(refused).map(lines), List(List(StickerCopy.failed)))
+    assertEquals(refused.uow.reports.all.map(_.status), List(ReportStatus.TextFallback))
+
+    val late = ReportWorld()
+    queueStickers(late)
+    late.clock.at = late.t0.plus(CardDelivery.Deadline)
+    val drawing = FakeDrawing()
+    val stickers = FakeStickers(Right("https://example.test/x"))
+    assert(stickerWorker(late, drawing, stickers).runOnce())
+    assert(drawing.drawn.isEmpty && stickers.published.isEmpty)
+    assertEquals(outbox(late).map(lines), List(List(StickerCopy.failed)))
+
+  test("a sticker page that cannot be drawn publishes no set"):
+    val world = ReportWorld()
+    queueStickers(world)
+    val stickers = FakeStickers(Right("https://example.test/x"))
+    assert(stickerWorker(world, FakeDrawing(failing = Set("<svg id='1'/>")), stickers).runOnce())
+    assert(stickers.published.isEmpty)
+    assertEquals(outbox(world).map(lines), List(List(StickerCopy.failed)))
+
+  test("an account with an image underway is answered busy at once, and nothing more is queued"):
+    val world = ReportWorld()
+    queue(world, 1)
+    val busy = page(9).message
+    val answer = world.uow.transaction(tx =>
+      CardDelivery(world.clock, world.ids)
+        .stickers(tx, world.account, world.chat, List(page(1)), StickerSetJob("mood_ab12", List("a")), busy)
+    )
+    assertEquals(answer, List(busy))
+    assertEquals(world.uow.reports.all.size, 1)
 
   test("a request a crashed worker left is claimed again once its claim lapsed, and sent once, as text"):
     val world = ReportWorld()

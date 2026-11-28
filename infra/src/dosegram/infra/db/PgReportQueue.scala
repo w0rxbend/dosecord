@@ -10,6 +10,7 @@ import dosegram.core.ports.ReportPage
 import dosegram.core.ports.ReportQueue
 import dosegram.core.ports.ReportRequest
 import dosegram.core.ports.ReportStatus
+import dosegram.core.ports.StickerSetJob
 import dosegram.infra.db.SealedColumns.CardPages
 
 import java.sql.Connection
@@ -27,7 +28,7 @@ final class PgReportQueue(conn: Connection, keys: KeyService) extends ReportQueu
 
   private given RowMapper[ReportRequest] = rs =>
     val (id, accountId) = (rs.uuid("id"), rs.uuid("account_id"))
-    val (chat, pages) =
+    val (chat, pages, stickers) =
       PgReportQueue.decode(keys.openText(CardPages.forAccount(accountId, id), rs.getBytes("params_enc")))
     ReportRequest(
       id = id,
@@ -36,13 +37,14 @@ final class PgReportQueue(conn: Connection, keys: KeyService) extends ReportQueu
       pages = pages,
       createdAt = rs.instant("created_at"),
       deadlineAt = rs.instant("deadline_at"),
-      attempts = rs.getInt("attempts")
+      attempts = rs.getInt("attempts"),
+      stickers = stickers
     )
 
   override def enqueue(request: NewReportRequest): Unit =
     val params = keys.sealText(
       CardPages.forAccount(request.accountId, request.id),
-      PgReportQueue.encode(request.chat, request.pages)
+      PgReportQueue.encode(request.chat, request.pages, request.stickers)
     )
     sql"""INSERT INTO report_requests (id, account_id, card_kind, params_enc, status, deadline_at, created_at)
           VALUES (${request.id}, ${request.accountId}, ${request.pages.head.card.templateId}, $params, 'queued',
@@ -88,10 +90,13 @@ final class PgReportQueue(conn: Connection, keys: KeyService) extends ReportQueu
 
 object PgReportQueue:
 
-  private[db] def encode(chat: ChatRef, pages: List[ReportPage]): String =
+  private[db] def encode(chat: ChatRef, pages: List[ReportPage], stickers: Option[StickerSetJob] = None): String =
     ujson.write(
       ujson.Obj(
         "chat" -> upickle.default.writeJs(chat),
+        "stickers" -> stickers.fold[ujson.Value](ujson.Null)(job =>
+          ujson.Obj("set" -> job.setKey, "emojis" -> ujson.Arr.from(job.emojis.map(ujson.Str(_))))
+        ),
         "pages" -> ujson.Arr.from(pages.map: page =>
           ujson.Obj(
             "template" -> page.card.templateId,
@@ -107,7 +112,7 @@ object PgReportQueue:
       )
     )
 
-  private[db] def decode(params: String): (ChatRef, List[ReportPage]) =
+  private[db] def decode(params: String): (ChatRef, List[ReportPage], Option[StickerSetJob]) =
     val json = ujson.read(params)
     val pages = json("pages").arr.toList.map: page =>
       val card = CardPage(
@@ -123,7 +128,12 @@ object PgReportQueue:
         motion = page.obj.get("motion").filterNot(_.isNull).map(motionOf)
       )
       ReportPage(card, OutboundMessage.fromJson(ujson.write(page("message"))))
-    (upickle.default.read[ChatRef](json("chat")), pages)
+    // A request queued before sticker sets has none.
+    val stickers = json.obj
+      .get("stickers")
+      .filterNot(_.isNull)
+      .map(job => StickerSetJob(job("set").str, job("emojis").arr.toList.map(_.str)))
+    (upickle.default.read[ChatRef](json("chat")), pages, stickers)
 
   private def motionJson(motion: CardMotion): ujson.Value =
     ujson.Obj(
