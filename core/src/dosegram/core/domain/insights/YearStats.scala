@@ -1,7 +1,9 @@
 package dosegram.core.domain.insights
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.TemporalAdjusters
 
 /** The figure of one area over a month or a year of `/stats year` (supervisor decision, 2026-11-28, analytics round 6).
   * Each is the user's own record, never judged against a norm.
@@ -88,6 +90,19 @@ object YearStats:
       MedicationDay.outageOnly(days.filter((date, _) => range.contains(date)), withRecords)
     )
     YearFigures(year, range, withRecords.size, rows, recordedDays, outageOnly.size)
+
+  /** The weeks of a window from the week of its first day, each starting on `weekStart` and cut at the window's edges:
+    * the columns of the one-year card (VISUALS IMG-30) and of the Mini App's year (MINI_APP section 7.11).
+    */
+  def weeks(range: DateRange, weekStart: DayOfWeek): List[DateRange] =
+    Iterator
+      .iterate(range.start.`with`(TemporalAdjusters.previousOrSame(weekStart)))(_.plusWeeks(1))
+      .takeWhile(!_.isAfter(range.end))
+      .map(start =>
+        DateRange
+          .between(Ordering[LocalDate].max(start, range.start), Ordering[LocalDate].min(start.plusDays(6), range.end))
+      )
+      .toList
 
   /** The months of a window from January: the last one is cut at the window's end. */
   private def months(range: DateRange): List[DateRange] =

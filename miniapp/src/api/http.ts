@@ -9,6 +9,7 @@ import {
   toInventory,
   toFieldError,
   toInsightList,
+  toInsightYear,
   toInsightMonth,
   toInsightsOverview,
   toMeal,
@@ -402,6 +403,10 @@ export function createHttpApi(config: HttpApiConfig): HttpApi {
       return toInsightMonth(await request<Wire['InsightMonth']>(`insights/month${query}`));
     },
     insightList: async () => toInsightList(await request<Wire['InsightList']>('insights/correlations')),
+    insightYear: async (year) => {
+      const query = year === undefined ? '' : `?year=${year}`;
+      return toInsightYear(await request<Wire['InsightYear']>(`insights/year${query}`));
+    },
     reportCards: async () => {
       const read = await request<Wire['ReportCards']>('report-cards');
       return {

@@ -7,6 +7,7 @@ import type {
   Domain,
   InsightCalendar,
   InsightList,
+  InsightYear,
   InsightMonth,
   InsightRange,
   MoodCheckin,
@@ -208,6 +209,8 @@ export interface ApiClient {
   insightMonth(month?: string): Promise<InsightMonth>;
   /** The patterns of the last 28 days. */
   insightList(): Promise<InsightList>;
+  /** One calendar year as /stats year shows it; absent is the current year. */
+  insightYear(year?: number): Promise<InsightYear>;
 
   // exports (MINI_APP S-14): a request is confirmed in the chat before anything is made (MA-STEP-1).
   exports(): Promise<readonly ExportItem[]>;

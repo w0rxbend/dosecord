@@ -91,6 +91,8 @@ export class MockTracking {
     timeZone: 'Europe/Kyiv',
     imageTheme: 'auto',
     animatedMood: false,
+    countsInReports: true,
+    whatsNew: true,
     version: 1,
   };
   private notifications: NotificationSettings = {

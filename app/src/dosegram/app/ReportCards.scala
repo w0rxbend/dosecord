@@ -11,6 +11,7 @@ import dosegram.core.domain.insights.MoodDay
 import dosegram.core.domain.insights.SleepRegularityFigures
 import dosegram.core.domain.insights.TrendDomain
 import dosegram.core.domain.insights.YearFigures
+import dosegram.core.domain.insights.YearStats
 import dosegram.core.ports.DoseMark
 import dosegram.core.ports.MonthCardView
 import dosegram.core.ports.WeekCardView
@@ -47,8 +48,6 @@ import dosegram.render.tokens.Domain
 
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAdjusters
 
 /** The view models of the report cards, built from the core's figures (ADR-022: the core never sees the renderer).
   * Every figure here is one the core computed; this object only changes its shape. A domain the core left out (no
@@ -171,8 +170,7 @@ object ReportCards:
     val shown = YearCard.Order.flatMap(domain => figures.recorded.get(areas(domain)).map(domain -> _))
     val drawn = shown.flatMap(_._2).toSet
     Option.when(drawn.nonEmpty):
-      val start = window.start.`with`(TemporalAdjusters.previousOrSame(WeekStart))
-      val byWeek = window.dates.groupBy(date => ChronoUnit.WEEKS.between(start, date)).toVector.sortBy(_._1).map(_._2)
+      val byWeek = YearStats.weeks(window, WeekStart).map(_.dates)
       def row(domain: Domain, days: Set[LocalDate]): YearStripRow =
         val weeks = byWeek.map(week => YearWeek(week.count(days), week.size)).toVector
         val months = (1 to window.end.getMonthValue).toVector.map(month => days.count(_.getMonthValue == month))

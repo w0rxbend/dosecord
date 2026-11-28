@@ -39,7 +39,12 @@ const CORRECTION_STEPS = 12;
 const BLACK = '#000000';
 const WHITE = '#ffffff';
 
-/** Dosegram's own values for absent keys (MINI_APP 5.2, 5.4). Not Telegram's defaults. */
+/**
+ * Dosegram's own values for absent keys (MINI_APP 5.2, 5.4). Not Telegram's defaults. The domain
+ * hues are the R5 palette of the images (VISUALS 3.3.2; supervisor decision, 2026-11-28), dark Tide
+ * one ramp step lighter (Tide 500) for the lighter dark surface of the app; palette.test.ts holds
+ * each at 3:1 on every surface for every reader.
+ */
 export const FALLBACK: Readonly<Record<ColorScheme, Palette>> = {
   light: {
     bg: '#f0f2f5',
@@ -54,11 +59,11 @@ export const FALLBACK: Readonly<Record<ColorScheme, Palette>> = {
     'accent-text': '#1f6fd0',
     danger: '#c62828',
     'bottom-bar': '#f0f2f5',
-    'domain-medication': '#2456c8',
-    'domain-hydration': '#0b7f8c',
-    'domain-nutrition': '#a85a00',
-    'domain-mood': '#b0307a',
-    'domain-sleep': '#6a42c2',
+    'domain-medication': '#0d9675',
+    'domain-hydration': '#02558f',
+    'domain-nutrition': '#955907',
+    'domain-mood': '#940f52',
+    'domain-sleep': '#8a66d9',
     recorded: '#1f7a4d',
   },
   dark: {
@@ -74,11 +79,11 @@ export const FALLBACK: Readonly<Record<ColorScheme, Palette>> = {
     'accent-text': '#6cb0ff',
     danger: '#ff6b6b',
     'bottom-bar': '#0f1113',
-    'domain-medication': '#7fa6ff',
-    'domain-hydration': '#4cc4d2',
-    'domain-nutrition': '#f0a04b',
-    'domain-mood': '#f07ab8',
-    'domain-sleep': '#b49cff',
+    'domain-medication': '#2cab88',
+    'domain-hydration': '#1e85d4',
+    'domain-nutrition': '#a86614',
+    'domain-mood': '#b45689',
+    'domain-sleep': '#9d7aef',
     recorded: '#5fcf94',
   },
 };

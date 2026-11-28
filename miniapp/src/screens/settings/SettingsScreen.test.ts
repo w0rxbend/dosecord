@@ -96,6 +96,24 @@ describe('Settings', () => {
     }
   });
 
+  it('switches "Counts in reports" and "Notes after updates", the two switches of the chat\'s /settings', async () => {
+    const harness = createHarness();
+    const user = open(SettingsScreen, harness);
+
+    const reports = await screen.findByRole('region', { name: 'Reports and notes' });
+    const counts = within(reports).getByRole('switch', { name: /Counts in reports/ }) as HTMLInputElement;
+    const notes = within(reports).getByRole('switch', { name: /Notes after updates/ }) as HTMLInputElement;
+    expect([counts.checked, notes.checked]).toEqual([true, true]);
+
+    await user.click(counts);
+    expect(await screen.findByText('Saved')).toBeTruthy();
+    await user.click(within(reports).getByRole('switch', { name: /Notes after updates/ }));
+
+    const saved = await harness.api.settings();
+    expect([saved.countsInReports, saved.whatsNew]).toEqual([false, false]);
+    expect(saved.imageTheme).toBe('auto');
+  });
+
   it('puts the previous value back with an inline error when the save fails', async () => {
     const harness = createHarness();
     harness.api.saveNotificationSettings = () => Promise.reject(new ApiError('server', 'REF-2'));

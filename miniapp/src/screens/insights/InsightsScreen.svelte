@@ -13,15 +13,18 @@
   import GlanceTile from './GlanceTile.svelte';
   import MonthAndPatterns from './MonthAndPatterns.svelte';
   import ShareCards from './ShareCards.svelte';
+  import YearView from './YearView.svelte';
 
   /** Offered until the first answer names the periods the backend computes. */
   const FIRST_RANGES: readonly InsightRange[] = [7, 30];
+  /** The Year tab beside the periods (supervisor decision, 2026-11-28): the year of /stats year. */
+  const YEAR = 'year';
   /** The first overview answer paints these. Later blocks wait until they are near (MA-INS-8). */
   const EAGER_BLOCKS = 2;
   const NEAR_VIEWPORT_PX = 200;
 
   const { api, tg } = useApp();
-  let range = $state<InsightRange>(30);
+  let range = $state<InsightRange | typeof YEAR>(30);
   let revealed = $state<string[]>([]);
   const overview = new Resource<InsightsOverview>(() => api.insightsOverview(30));
   const ranges = $derived(overview.data?.ranges ?? FIRST_RANGES);
@@ -63,6 +66,7 @@
   function changeRange(): void {
     tg.haptic('selection');
     const chosen = range;
+    if (chosen === YEAR) return;
     void overview.load(() => api.insightsOverview(chosen));
   }
 
@@ -78,7 +82,7 @@
   const withData = (data: InsightsOverview): boolean => data.blocks.some((block) => !block.noDataText);
 </script>
 
-<Screen title={en.insights.title} subtitle={overview.data?.rangeLabel}>
+<Screen title={en.insights.title} subtitle={range === YEAR ? undefined : overview.data?.rangeLabel}>
   <fieldset class="section">
     <legend class="visually-hidden">{en.insights.range}</legend>
     <div class="segmented">
@@ -88,41 +92,49 @@
           <span class="numeric">{en.insights.days(option)}</span>
         </label>
       {/each}
+      <label>
+        <input type="radio" name="insights-range" value={YEAR} bind:group={range} onchange={changeRange} />
+        <span>{en.insights.yearTab}</span>
+      </label>
     </div>
   </fieldset>
 
-  <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
-    {#snippet children(data)}
-      {#if data.notice}<p class="muted notice">{data.notice}</p>{/if}
-      <!-- The week's hit days with the counts switch on (ROADMAP G9.4): a count of days with records, nothing to keep. -->
-      {#if data.counts}<p class="muted notice">{data.counts}</p>{/if}
-      {#if data.blocks.length > 0 && !withData(data)}
-        <div class="section"><EmptyState message={en.insights.empty} art="all" /></div>
-      {/if}
-      {#if data.blocks.length > 1}
-        <nav class="section glance" aria-label={en.insights.glance}>
-          {#each data.blocks as block (block.id)}
-            <GlanceTile {block} onOpen={(chosen) => void open(chosen)} />
+  {#if range === YEAR}
+    <YearView />
+  {:else}
+    <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
+      {#snippet children(data)}
+        {#if data.notice}<p class="muted notice">{data.notice}</p>{/if}
+        <!-- The week's hit days with the counts switch on (ROADMAP G9.4): a count of days with records, nothing to keep. -->
+        {#if data.counts}<p class="muted notice">{data.counts}</p>{/if}
+        {#if data.blocks.length > 0 && !withData(data)}
+          <div class="section"><EmptyState message={en.insights.empty} art="all" /></div>
+        {/if}
+        {#if data.blocks.length > 1}
+          <nav class="section glance" aria-label={en.insights.glance}>
+            {#each data.blocks as block (block.id)}
+              <GlanceTile {block} onOpen={(chosen) => void open(chosen)} />
+            {/each}
+          </nav>
+        {/if}
+        <div class="blocks" aria-busy={overview.loading}>
+          {#each data.blocks as block, index (block.id)}
+            {#if index < EAGER_BLOCKS || revealed.includes(block.id) || !deferLowerBlocks}
+              <DomainBlock {block} />
+            {:else}
+              <div class="later" data-insight-lazy={block.id} use:watch={block.id}></div>
+            {/if}
           {/each}
-        </nav>
-      {/if}
-      <div class="blocks" aria-busy={overview.loading}>
-        {#each data.blocks as block, index (block.id)}
-          {#if index < EAGER_BLOCKS || revealed.includes(block.id) || !deferLowerBlocks}
-            <DomainBlock {block} />
-          {:else}
-            <div class="later" data-insight-lazy={block.id} use:watch={block.id}></div>
-          {/if}
-        {/each}
-      </div>
-      {#if data.blocks.length > 0}<MonthAndPatterns />{/if}
-      {#if withData(data)}<ShareCards />{/if}
-      <div class="section section-body">
-        <LinkRow path="/insights/history" label={en.insights.history} hint={en.insights.historyHint} />
-        <LinkRow path="/insights/reports" label={en.reports.title} hint={en.reports.hint} />
-      </div>
-    {/snippet}
-  </AsyncView>
+        </div>
+        {#if data.blocks.length > 0}<MonthAndPatterns />{/if}
+        {#if withData(data)}<ShareCards />{/if}
+        <div class="section section-body">
+          <LinkRow path="/insights/history" label={en.insights.history} hint={en.insights.historyHint} />
+          <LinkRow path="/insights/reports" label={en.reports.title} hint={en.reports.hint} />
+        </div>
+      {/snippet}
+    </AsyncView>
+  {/if}
 </Screen>
 
 <style>

@@ -19,7 +19,9 @@ final case class LanguageChoice(code: String, label: String) derives ReadWriter,
 
 /** `languages` are the shipped locales; `imageTheme` is the theme of the images the bot sends, not of the app (MINI_APP
   * MA-THEME-2); `animatedMood` is "Animated mood": the answer to a mood check-in in the chat moves (VISUALS section
-  * 4.6). It has no effect while discreet mode is on.
+  * 4.6). It has no effect while discreet mode is on. `countsInReports` is "Counts in reports" (PRODUCT_SPEC R-GAM-5)
+  * and `whatsNew` "Notes after updates" (BOT_UX section 6.5): the same stored values as the switches of the chat's
+  * `/settings` (BOT_UX section 17).
   */
 final case class SettingsView(
     language: String,
@@ -27,18 +29,23 @@ final case class SettingsView(
     timeZone: String,
     imageTheme: ImageThemeChoice,
     animatedMood: Boolean,
+    countsInReports: Boolean,
+    whatsNew: Boolean,
     version: Long
 ) derives ReadWriter,
       Schema
 
-/** The editable set; every member is sent, except `animatedMood`, which a client written before it may leave out to
-  * keep the stored choice. A new time zone moves the schedules that follow the account.
+/** The editable set; every member is sent, except `animatedMood`, `countsInReports` and `whatsNew`, which a client
+  * written before them may leave out to keep the stored choice. A new time zone moves the schedules that follow the
+  * account.
   */
 final case class SettingsInput(
     language: String,
     timeZone: String,
     imageTheme: ImageThemeChoice,
-    animatedMood: Option[Boolean] = None
+    animatedMood: Option[Boolean] = None,
+    countsInReports: Option[Boolean] = None,
+    whatsNew: Option[Boolean] = None
 ) derives ReadWriter,
       Schema
 

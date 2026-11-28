@@ -81,14 +81,17 @@ object YearCopy:
       case TrendDomain.Sleep => tr(StatsCopy.count(days, "night"), UkNouns.Nights.count(days))
       case _                 => tr(StatsCopy.count(days, "day"), UkNouns.Days.count(days))
 
-  private def month(cell: YearCell, keepGates: Boolean): String =
+  /** A month as `/stats year` prints it: its figure from 14 recorded days, else those days in brackets while the gates
+    * are kept, else a dash.
+    */
+  def cell(cell: YearCell, keepGates: Boolean): String =
     cell.figure.shown match
       case Some(value)                                => figure(value)
       case None if cell.recordedDays > 0 && keepGates => s"(${cell.recordedDays})"
       case None                                       => NoRecord
 
   /** "2026: 1.8 l (180 days)", with the year before after it only when that year has a figure (VISUALS VA-PR-07). */
-  private def years(year: Int, row: YearRow): Option[String] =
+  def totals(year: Int, row: YearRow): Option[String] =
     def one(name: Int, cell: YearCell): Option[String] =
       cell.figure.shown.map(value => s"$name: ${figure(value)} (${daysOf(row.domain, cell.recordedDays)})")
     val both = one(year, row.year).toList ++ one(year - 1, row.previous).toList
@@ -98,9 +101,9 @@ object YearCopy:
     val name = areaName(row.domain)
     val months = row.months.dropWhile(_._2.recordedDays == 0)
     val line = Option.when(months.nonEmpty)(
-      s"$name: ${months.map((month, cell) => s"${monthName(month)} ${this.month(cell, keepGates)}").mkString(" · ")}"
+      s"$name: ${months.map((month, shown) => s"${monthName(month)} ${cell(shown, keepGates)}").mkString(" · ")}"
     )
-    (line, years(figures.year, row)) match
+    (line, totals(figures.year, row)) match
       case (Some(first), total) => first :: total.toList
       case (None, Some(total))  => List(s"$name: $total")
       case (None, None)         => Nil

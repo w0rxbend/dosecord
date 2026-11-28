@@ -69,8 +69,12 @@ final case class InsightMonth(
 ) derives ReadWriter,
       Schema
 
-/** One insight that passed every check, in the server's words, with how it was worked out (VISUALS VA-IN-03). */
-final case class InsightItem(id: String, text: String, howWorkedOut: List[String]) derives ReadWriter, Schema
+/** One insight that passed every check, in the server's words, with how it was worked out (VISUALS VA-IN-03). `chart`
+  * is its pattern card: each group's mood mean with its days, for the rules that have one (IR-05).
+  */
+final case class InsightItem(id: String, text: String, howWorkedOut: List[String], chart: Option[Chart] = None)
+    derives ReadWriter,
+      Schema
 
 /** `GET /insights/correlations`: up to five insights in rank order, the rules close to their minimum data, and whether
   * comparisons across areas are on. The app records no consent: it says where the chat asks for it.
@@ -138,7 +142,18 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
       case Insight.Pattern(comparison, _) => s"${comparison.rule.id}.${comparison.rule.outcome.toString}"
       case Insight.Timing(_, _)           => "IR-07"
       case Insight.Baseline(statement, _) => s"IR-11.${statement.metric.toString}"
-    InsightItem(id, InsightCopy.text(insight), InsightCopy.howWorkedOut(insight))
+    InsightItem(id, InsightCopy.text(insight), InsightCopy.howWorkedOut(insight), cardOf(insight))
+
+  /** The pattern card of a comparison whose rule has one, from the same groups as its sentence. */
+  private def cardOf(insight: Insight): Option[Chart] =
+    insight match
+      case Insight.Pattern(shown, _) =>
+        InsightCopy
+          .cardGroups(shown.rule)
+          .map(names =>
+            Charts.patternGroups(shown.rule.id, names, (shown.first, shown.second), InsightCopy.text(insight))
+          )
+      case _ => None
 
   private def domainsOf(figures: MonthFigures, countsOn: Boolean): List[InsightMonthDomain] =
     def block[P](domain: InsightDomain, name: String, source: Option[MonthDomain[P]])(lines: P => List[String]) =

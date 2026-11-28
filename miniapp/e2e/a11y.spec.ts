@@ -15,6 +15,11 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 async function findings(page: Page, screen: string): Promise<string[]> {
   await page.waitForLoadState('networkidle');
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  // A control just changed is measured at rest: a segment's colours ease over 200 ms (base.css), and a contrast taken
+  // half-way through is neither the old nor the new state.
+  await page.waitForFunction(() =>
+    document.getAnimations().every((animation) => !(animation instanceof CSSTransition) || animation.playState !== 'running'),
+  );
   const result = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   return result.violations
     .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
@@ -31,6 +36,12 @@ test('no serious accessibility finding on any screen, in the light and the dark 
     for (const [name, path] of SCREENS) {
       await routeTo(page, path);
       found.push(...(await findings(page, `${scheme} ${name}`)));
+      if (path !== '/insights') continue;
+      // The Year tab of Insights is a state of its screen, not a route (supervisor decision, 2026-11-28): one more
+      // read, so the scan stays inside the 120 reads a minute of a session (ARCHITECTURE API-18).
+      await page.getByRole('group', { name: 'Period' }).getByLabel('Year').check();
+      await expect(page.getByRole('region', { name: 'Year' })).toBeVisible();
+      found.push(...(await findings(page, `${scheme} ${name}-year`)));
     }
   }
   expect(found).toEqual([]);

@@ -19,6 +19,7 @@ import type {
   InsightList,
   InsightMonth,
   InsightRange,
+  InsightYear,
   InsightsOverview,
   Meal,
   MealRecorded,
@@ -372,8 +373,38 @@ export function toInsightList(wire: Wire['InsightList']): InsightList {
   return {
     windowLabel: wire.windowLabel,
     crossDomain: wire.crossDomain,
-    items: (wire.items ?? []).map((item) => ({ id: item.id, text: item.text, howWorkedOut: item.howWorkedOut ?? [] })),
+    items: (wire.items ?? []).map((item) => ({
+      id: item.id,
+      text: item.text,
+      howWorkedOut: item.howWorkedOut ?? [],
+      chart: item.chart && toChart(item.chart),
+    })),
     close: wire.close ?? [],
+    notice: wire.notice,
+  };
+}
+
+/** The year in the server's words: tables of months and, but for medication, the weeks as a scene. */
+export function toInsightYear(wire: Wire['InsightYear']): InsightYear {
+  return {
+    year: wire.year,
+    yearLabel: wire.yearLabel,
+    previousYear: wire.previousYear,
+    nextYear: wire.nextYear,
+    days: wire.days,
+    daysWithRecords: wire.daysWithRecords,
+    summary: wire.summary,
+    outageNote: wire.outageNote,
+    gateNote: wire.gateNote,
+    areas: (wire.areas ?? []).map((area) => ({
+      id: area.id,
+      title: area.title,
+      recordedDays: area.recordedDays,
+      months: (area.months ?? []).map((month) => ({ ...month })),
+      total: area.total,
+      heat: area.heat && toChart(area.heat),
+    })),
+    lines: wire.lines ?? [],
     notice: wire.notice,
   };
 }
@@ -553,6 +584,8 @@ export function toAccountSettings(wire: Wire['SettingsView']): AccountSettings {
     timeZone: wire.timeZone,
     imageTheme: wire.imageTheme,
     animatedMood: wire.animatedMood,
+    countsInReports: wire.countsInReports,
+    whatsNew: wire.whatsNew,
     version: wire.version,
   };
 }

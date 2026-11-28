@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { InsightList, InsightMonth } from '../../api/types';
   import { useApp } from '../../app/context';
+  import ChartFigure from '../../charts/ChartFigure.svelte';
   import { t as en } from '../../i18n/index.svelte';
   import { Resource } from '../../state/resource.svelte';
   import AsyncView from '../../ui/AsyncView.svelte';
@@ -35,8 +36,10 @@
         {/if}
         <ul class="plain stack">
           {#each list.items as item (item.id)}
-            <li>
+            <li class="stack">
               <p>{item.text}</p>
+              <!-- A pattern card (IR-05): each group's mood mean with its days, the sentence as its name. -->
+              {#if item.chart}<ChartFigure chart={item.chart} id="pattern-{item.id}" />{/if}
               <details>
                 <summary>{en.insights.howWorkedOut}</summary>
                 {#each item.howWorkedOut as line, index (index)}<p class="muted">{line}</p>{/each}

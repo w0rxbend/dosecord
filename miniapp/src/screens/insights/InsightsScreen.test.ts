@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Chart, InsightsOverview } from '../../api/types';
+import { plannedMealsPattern } from '../../mock/insights';
 import { createHarness, type Harness } from '../../test/harness';
 import InsightsScreen from './InsightsScreen.svelte';
 
@@ -184,9 +185,14 @@ describe('Insights', () => {
     open(harness);
     await block('Medication');
 
-    // The range control of the screen; the share builder below has radios of its own.
+    // The range control of the screen; the share builder below has radios of its own. The Year tab
+    // reads its own route, which every backend serves (supervisor decision, 2026-11-28).
     const range = screen.getByRole('group', { name: 'Period' });
-    expect(within(range).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual(['7', '30']);
+    expect(within(range).getAllByRole('radio').map((radio) => (radio as HTMLInputElement).value)).toEqual([
+      '7',
+      '30',
+      'year',
+    ]);
   });
 
   it('shows a mood block in the words of the server, without a chart', async () => {
@@ -258,6 +264,46 @@ describe('Insights', () => {
     await user.click(screen.getByText('How was this worked out?'));
     expect(screen.getByText('This is a count over your own records. It cannot show a cause.')).toBeTruthy();
     expect(screen.getByText(/^Bedtime and mood: 3 more days/)).toBeTruthy();
+  });
+
+  it('draws the pattern card of IR-05 beside its sentence, with its values by key and as a table', async () => {
+    const harness = createHarness();
+    const list = harness.api.insightList;
+    harness.api.insightList = async () => {
+      const read = await list();
+      return { ...read, items: [...read.items, plannedMealsPattern(['Period: the last 28 days.'])] };
+    };
+    const user = open(harness);
+
+    const card = await screen.findByRole('img', { name: /^On the 10 days you logged every meal you planned/ });
+    const values = screen.getByRole('slider', { name: 'Average mood by group of days: values' });
+    expect(values.getAttribute('aria-valuetext')).toBe('Other days with a meal logged: 3.3 (neutral), 9 days with a check-in');
+    values.focus();
+    await user.keyboard('{Home}');
+    expect(values.getAttribute('aria-valuetext')).toBe('Every planned meal logged: 3.8 (pleasant), 10 days with a check-in');
+    expect(card.closest('figure')).toBeTruthy();
+    await user.click(within(card.closest('figure')!).getByRole('button', { name: 'Show as table' }));
+    expect(screen.getByRole('table', { name: 'Average mood by group of days' })).toBeTruthy();
+  });
+
+  it('opens the Year tab: the year in the server\'s words, a table of months per area, the weeks but never for medication', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await block('Medication');
+
+    await user.click(within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Year'));
+
+    const year = await block('Year');
+    expect(within(year).getByText('2026 · Europe/Kyiv')).toBeTruthy();
+    expect(within(year).getByText(/^Days with records: \d+ of 316$/)).toBeTruthy();
+    const water = await block('Water, a day with records');
+    const months = within(water).getByRole('table', { name: 'Water, a day with records: By month' });
+    expect(within(months).getAllByRole('row')).toHaveLength(12);
+    expect(within(water).getByRole('slider', { name: 'Days with a record, week by week: values' })).toBeTruthy();
+    const doses = await block('Doses taken of those answered');
+    expect(within(doses).getByRole('table', { name: 'Doses taken of those answered: By month' })).toBeTruthy();
+    expect(within(doses).queryByRole('slider')).toBeNull();
+    expect(harness.api.calls).toContain('insights/year');
   });
 
   it('says where comparisons are turned on when they are off, and shows none', async () => {

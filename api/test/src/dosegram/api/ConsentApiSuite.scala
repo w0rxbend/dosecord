@@ -146,9 +146,9 @@ object ConsentApiSuite:
         "updateDayProfile",
         "getReminderTimeline"
       ) ++
-      // The month and the patterns leave out each domain without its consent, as the overview does
-      // (InsightsApiSuite).
-      Set("getInsightMonth", "listInsightCorrelations") ++
+      // The month, the patterns and the year leave out each domain without its consent, as the overview does
+      // (InsightsApiSuite, InsightYearApiSuite).
+      Set("getInsightMonth", "listInsightCorrelations", "getInsightYear") ++
       // The export is the right of access to every record, whatever is turned on (PRODUCT_SPEC R-IMX-1); the record
       // summary leaves out a domain without its consent (ExportChatPgSuite).
       ExportEndpoints.documented.flatMap(_.info.name).toSet ++

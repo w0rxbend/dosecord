@@ -4,6 +4,8 @@ import dosegram.contracts.HhMm
 import dosegram.core.application.settings.AccountSettingsEdits
 import dosegram.core.domain.QuietHours
 import dosegram.core.domain.copy.Formats
+import dosegram.core.domain.copy.Lang
+import dosegram.core.domain.copy.LanguageCopy
 import dosegram.core.domain.copy.tr
 import dosegram.core.ports.AccountSettings
 import dosegram.core.ports.AuditChannel
@@ -54,7 +56,16 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
             imageTheme = themeOf(input.imageTheme),
             animatedMood = input.animatedMood.getOrElse(settings.animatedMood)
           )
-        settingsView(Stored(zone.getId, saved.fold(current.settings)(_.after)))
+        input.countsInReports.foreach(edits.setCounts(tx, accountId, AuditChannel.MiniApp, _))
+        input.whatsNew.foreach(edits.setWhatsNew(tx, accountId, AuditChannel.MiniApp, _))
+        settingsView(
+          current.copy(
+            zone = zone.getId,
+            settings = saved.fold(current.settings)(_.after),
+            counts = input.countsInReports.getOrElse(current.counts),
+            notes = input.whatsNew.getOrElse(current.notes)
+          )
+        )
 
   def notifications(accountId: UUID): Either[ApiFailure, NotificationSettingsView] =
     uow.transactionAs(accountId)(stored(_, accountId).map(notificationView))
@@ -124,12 +135,14 @@ final class AccountSettingsApi(uow: UnitOfWork, clock: Clock):
     for
       zone <- tx.accounts.timezoneOf(accountId).toRight(ApiFailure.notFound())
       settings <- tx.accounts.settingsOf(accountId).toRight(ApiFailure.notFound())
-    yield Stored(zone, settings)
+    yield Stored(zone, settings, tx.accounts.gamificationOf(accountId), tx.accounts.whatsNewOf(accountId).enabled)
 
 object AccountSettingsApi:
 
-  /** The locales the product ships (MINI_APP section 5.7), each named in itself (ROADMAP G2.22). */
-  val Languages: List[LanguageChoice] = List(LanguageChoice("en", "English"), LanguageChoice("uk", "Українська"))
+  /** The locales the product ships (MINI_APP section 5.7), each named in itself as the chat names it (ROADMAP G2.22).
+    */
+  val Languages: List[LanguageChoice] =
+    Lang.values.toList.map(lang => LanguageChoice(lang.code, LanguageCopy.name(lang)))
   private val DefaultLanguage = "en"
 
   private val ClockTime = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
@@ -141,14 +154,23 @@ object AccountSettingsApi:
       .filter(id => id.contains('/') && !id.startsWith("Etc/") && !id.startsWith("SystemV/"))
       .sorted
 
-  private final case class Stored(zone: String, settings: AccountSettings)
+  /** The stored settings with the two switches kept in their own columns: "Counts in reports" and the notes. */
+  private final case class Stored(zone: String, settings: AccountSettings, counts: Boolean, notes: Boolean)
 
   private def settingsView(stored: Stored): SettingsView =
     val language = stored.settings.locale.filter(code => Languages.exists(_.code == code)).getOrElse(DefaultLanguage)
     val theme = choiceOf(stored.settings.imageTheme)
     val animated = stored.settings.animatedMood
-    val version = ContentVersion.of(language, stored.zone, theme.wire, animated.toString)
-    SettingsView(language, Languages, stored.zone, theme, animated, version)
+    val version =
+      ContentVersion.of(
+        language,
+        stored.zone,
+        theme.wire,
+        animated.toString,
+        stored.counts.toString,
+        stored.notes.toString
+      )
+    SettingsView(language, Languages, stored.zone, theme, animated, stored.counts, stored.notes, version)
 
   private def notificationView(stored: Stored): NotificationSettingsView =
     val quiet = stored.settings.quietHours.map(hours => QuietHoursView(hours.start.value, hours.end.value))

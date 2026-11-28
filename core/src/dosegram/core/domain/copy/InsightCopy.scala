@@ -122,6 +122,21 @@ object InsightCopy:
             s"(${UkNouns.Days.count(second.days)}) — ${meanWithLevel(second.mean)}."
         )
 
+  /** The two groups of a pattern card in the Mini App's patterns (supervisor decision, 2026-11-28): the group the rule
+    * names, then the other days, each as the user did it, never as a cause. IR-05 has its card there; the mood rules of
+    * IMG-13 keep theirs in the chat, so they have none here yet.
+    */
+  def cardGroups(rule: InsightRule): Option[(String, String)] =
+    rule match
+      case InsightRule.PlannedMealsAndMood =>
+        Some(
+          tr(
+            ("Every planned meal logged", "Other days with a meal logged"),
+            ("Усі заплановані прийоми їжі записано", "Інші дні із записаною їжею")
+          )
+        )
+      case _ => None
+
   /** What a rule pairs, for the line that says how many days it still needs. */
   def recordsOf(rule: InsightRule): String =
     rule match
@@ -368,6 +383,10 @@ object InsightCopy:
         CopyEntry("insight.ir06.water", shown(InsightRule.WorkDaysAndWater, 2100, 1600)),
         CopyEntry("insight.ir06.mood", shown(InsightRule.WorkDaysAndMood, 3.2, 3.9)),
         CopyEntry("insight.ir05", shown(InsightRule.PlannedMealsAndMood, 3.8, 3.3)),
+        CopyEntry(
+          "insight.ir05.groups",
+          cardGroups(InsightRule.PlannedMealsAndMood).fold("")((first, second) => s"$first\n$second")
+        ),
         CopyEntry("insight.ir07", timingSample),
         CopyEntry("insight.gap.days", gap(InsightGap.Pattern(InsightRule.SleepGoalAndMood, 4, inSmallerGroup = false))),
         CopyEntry("insight.gap.group", gap(InsightGap.Pattern(InsightRule.WorkDaysAndMood, 2, inSmallerGroup = true))),
