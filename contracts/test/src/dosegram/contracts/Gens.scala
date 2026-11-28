@@ -203,10 +203,16 @@ object Gens:
   given Arbitrary[AppRoute] = Arbitrary(genText.map(AppRoute.apply))
   given Arbitrary[MediaKind] = Arbitrary(Gen.oneOf(MediaKind.values.toList))
   given Arbitrary[MediaRef] = Arbitrary(genText.map(MediaRef.apply))
-  given Arbitrary[AttachmentRef] = Arbitrary(
+  private def genAttachment(kind: Gen[MediaKind]): Gen[AttachmentRef] =
     Gen
-      .zip(Arbitrary.arbitrary[MediaKind], genText, genText, genText, genOptText, Arbitrary.arbitrary[Boolean], genOptText)
-      .map(AttachmentRef.apply)
+      .zip(kind, genText, genText, genText, genOptText, Arbitrary.arbitrary[Boolean], genOptText)
+      .map((kind, key, mime, alt, file, spoiler, caption) => AttachmentRef(kind, key, mime, alt, file, spoiler, caption))
+  // An animation carries the photo of its still, or none.
+  given Arbitrary[AttachmentRef] = Arbitrary(
+    for
+      attachment <- genAttachment(Arbitrary.arbitrary[MediaKind])
+      still <- Gen.option(genAttachment(Gen.const(MediaKind.Photo)))
+    yield if attachment.kind == MediaKind.Animation then attachment.copy(still = still) else attachment
   )
   given Arbitrary[ChoiceAction] = Arbitrary(
     Gen.oneOf(

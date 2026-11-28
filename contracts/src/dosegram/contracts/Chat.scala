@@ -65,6 +65,9 @@ object StartPayload:
 enum MediaKind derives ReadWriter:
   case Photo, Document
 
+  /** A short silent video that loops in the chat (the animated mood blob, VISUALS section 4.6). Only ever sent. */
+  case Animation
+
 /** An opaque handle to media a user sent; the bytes stay with the vendor until an adapter fetches them. */
 final case class MediaRef(mediaId: String) derives ReadWriter:
   require(mediaId.nonEmpty, "mediaId must not be empty")
@@ -291,7 +294,8 @@ enum Block derives ReadWriter:
   * without media shows it in place of the image. `hasSpoiler` asks a profile that can blur an image until it is tapped
   * to do so (discreet mode, BOT_UX BUX-IMG-05); it is a preview control, not protection. `caption` is what an album
   * shows under this photo when it is not the alt text: the generic line of a card laid out in discreet mode (VISUALS
-  * VA-PV-03), which says nothing the spoiler hides.
+  * VA-PV-03), which says nothing the spoiler hides. `still` is the photo of the same picture that an animation is sent
+  * as when the profile cannot play it, its bytes are gone or the vendor refuses it.
   */
 final case class AttachmentRef(
     kind: MediaKind,
@@ -300,7 +304,8 @@ final case class AttachmentRef(
     altText: String,
     fileName: Option[String] = None,
     hasSpoiler: Boolean = false,
-    caption: Option[String] = None
+    caption: Option[String] = None,
+    still: Option[AttachmentRef] = None
 ) derives ReadWriter:
   require(assetKey.nonEmpty, "assetKey must not be empty")
   require(mimeType.nonEmpty, "mimeType must not be empty")
@@ -312,6 +317,7 @@ final case class AttachmentRef(
     caption.forall(line => line.nonEmpty && line.length <= AttachmentRef.MaxAltTextChars),
     s"caption must be 1-${AttachmentRef.MaxAltTextChars} chars"
   )
+  require(still.forall(photo => photo.kind == MediaKind.Photo && photo.still.isEmpty), "a still is one photo")
 
   /** The words under the photo in an album. */
   def albumCaption: String = caption.getOrElse(altText)

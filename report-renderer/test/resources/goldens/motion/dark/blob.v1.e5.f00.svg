@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+  <radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="210.4" cy="177.6" r="167.2"><stop offset="0" stop-color="#615ba4"/><stop offset="1" stop-color="#3f2e8d"/></radialGradient>
+</defs>
+<rect width="512" height="512" fill="#222234"/>
+<g>
+  <ellipse cx="256" cy="419.36" rx="76" ry="4.56" fill="#2f434d"/>
+  <path d="M410.15 238.4 C409.44 252.93 389.03 302.99 381.58 315.26 C374.14 327.53 340.42 363.64 328.91 372.26 C317.4 380.88 270.27 407.62 256 409.28 C241.73 410.94 183.99 399.46 173.22 390.38 C162.46 381.3 144.93 324.21 138.56 310.28 C132.19 296.35 105.17 252.46 103.74 238.4 C102.31 224.35 115.77 169.41 122.96 156.99 C130.16 144.57 170 111.23 182.2 102.9 C194.39 94.57 242.51 66.01 256 66.09 C269.49 66.17 317.08 95.5 329.31 103.82 C341.53 112.13 381.96 144.45 389.37 156.78 C396.78 169.12 410.87 223.88 410.15 238.4 Z" fill="url(#g1)" stroke="#b1c0c8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="214.96" cy="223.2" rx="11.4" ry="11.4" fill="#e8f0f4"/>
+  <circle cx="211.01" cy="218.64" r="3.95" fill="#3f2e8d"/>
+  <ellipse cx="297.04" cy="223.2" rx="11.4" ry="11.4" fill="#e8f0f4"/>
+  <circle cx="293.09" cy="218.64" r="3.95" fill="#3f2e8d"/>
+  <path d="M217.54 274.88 Q256 255.12 294.46 274.88" fill="none" stroke="#e8f0f4" stroke-width="6.84" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="203.16" y1="195.94" x2="226.76" y2="201.83" stroke="#e8f0f4" stroke-width="6.84" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="308.84" y1="195.94" x2="285.24" y2="201.83" stroke="#e8f0f4" stroke-width="6.84" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

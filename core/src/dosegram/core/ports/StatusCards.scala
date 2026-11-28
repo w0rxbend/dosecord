@@ -150,13 +150,26 @@ final case class WeekObservation(windowDays: Int, sentence: String)
   */
 final case class WeekHighlightsView(from: LocalDate, rows: List[DayHighlight], observation: Option[WeekObservation])
 
-/** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3) and discreet mode
-  * (VA-PV-03). Both are account settings the Mini App changes.
+/** How the account wants its images drawn: the image theme (VISUALS_AND_ANALYTICS section 3.3.3), discreet mode
+  * (VA-PV-03) and whether a mood answer moves (VISUALS section 4.6). All are account settings the Mini App changes.
   */
-final case class CardLook(theme: ImageTheme, isDiscreet: Boolean)
+final case class CardLook(theme: ImageTheme, isDiscreet: Boolean, isAnimated: Boolean = false)
 
 object CardLook:
-  def of(settings: AccountSettings): CardLook = CardLook(settings.imageTheme, settings.isDiscreet)
+
+  /** Discreet mode keeps every image still (supervisor decision, 2026-11-28): a moving picture draws the eye to a chat
+    * the user asked to keep quiet, so the still card is sent as before.
+    */
+  def of(settings: AccountSettings): CardLook =
+    CardLook(settings.imageTheme, settings.isDiscreet, isAnimated = settings.animatedMood && !settings.isDiscreet)
+
+/** The animated form of a card (VISUALS section 4.6): its frames as SVG documents of profile 1, the frame rate, the key
+  * of the picture, which is the same for everyone (a mood state, VA-BL-11), and a neutral file name. The report worker
+  * draws it after the still card it belongs to and sends the still in its place when the video cannot be made in time.
+  */
+final case class CardMotion(frames: List[String], framesPerSecond: Int, sharedKey: String, fileName: String):
+  require(frames.nonEmpty, "an animation has frames")
+  require(framesPerSecond > 0, "a positive frame rate")
 
 /** One card as an event lays it out (stages 2 to 4 of ARCHITECTURE section 12.1, pure and without input or output): the
   * SVG document of profile 1, its text equivalent, a neutral file name and the spoiler flag. It holds no image bytes
@@ -164,7 +177,8 @@ object CardLook:
   * picture that is the same for every account, a mood state (VISUALS VA-BL-11), which is drawn and uploaded once under
   * that key; a personal card has none and is keyed by its bytes. `discreetCaption` is the card's own generic line when
   * it was laid out in discreet mode (VISUALS VA-PV-03): a message that carries the card shows it in place of its own
-  * text, so a spoilered photo does not say under it what it shows.
+  * text, so a spoilered photo does not say under it what it shows. `motion` is the card's animated form, laid out only
+  * when the account asked for it ([[CardLook.isAnimated]]).
   */
 final case class CardPage(
     templateId: String,
@@ -173,7 +187,8 @@ final case class CardPage(
     fileName: String,
     hasSpoiler: Boolean,
     sharedKey: Option[String] = None,
-    discreetCaption: Option[String] = None
+    discreetCaption: Option[String] = None,
+    motion: Option[CardMotion] = None
 )
 
 /** The status images of VISUALS_AND_ANALYTICS as the chat flows ask for them, laid out in the account's [[CardLook]]

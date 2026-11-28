@@ -549,6 +549,23 @@ Motion mapping for the animated form (limits VERIFIED, P10; playback on clients 
 | Valence | V1 to V3 use 70 percent of the amplitudes above and a slower ease. |
 | Safety | No flashing, no change of fill lightness over time, no motion faster than 3 cycles per loop. |
 
+Supervisor decision, 2026-11-28 (the living mood blob, ROADMAP G12.10 ahead of its outline). The first animated form
+is a captioned video, not the sticker: a silent H.264 MP4 sent with `sendAnimation`, which takes a caption, a keyboard
+and `has_spoiler` (research brief 04 section 10), so the answer to a check-in keeps its words, its "Add energy" and
+"Undo" and one message, exactly like the still card. The TGS sticker of the row above stays the later option; its
+spike S5 is still open.
+
+| Item | Rule |
+|---|---|
+| Template | `card.mood.motion.v1` (`MoodMotionCard`): the blob of the state on its tinted background (section 4.5), 512 by 512 px, centre (256, 240), radius 152, no words. The caption of the message is the still card's text equivalent with the time, so the valence name (and the energy name when given) is in the caption (VA-BL-04). |
+| Motion | The table above, frame by frame: 60 frames at 20 per second, 3 seconds (`BlobMotion`). Wobble turns every harmonic phase by one full turn per loop; breathing and bounce follow it; bounce is never below the rest position; one blink at 1.9 s for 100 ms (frames 38 and 39); V1 to V3 move with 70 percent of the amplitudes on a smoothstep ease, so the loop starts and ends slowly. Ground mark, colours and outline width never change. |
+| Pipeline | Each frame is a scene, emitted as SVG of profile 1, drawn by the same rasteriser as every card, read back from its PNG without AWT and encoded inside the JVM by JCodec 0.2.5 (BSD, a Maven dependency that passes the licence gate): Baseline profile, one key frame, quantisers 24 and 28, BT.601 limited range. No video binary is installed, so the container does not change. |
+| Delivery | The report worker draws the still card first, then the video within a budget of 4 seconds (`StatusImages.MotionBudgetMillis`); a video that cannot be made in time or at all leaves the still card as the answer, logged by template and failure kind only. The video is stored like a card (`render_assets`, `video/mp4`) and its file id kept as `animation` (`telegram_file_cache`) under `mood.motion.<blob revision>.<motion revision>.<state>.<theme>`: one video per state and theme for every account and language, drawn once. The attachment carries its still; an animation whose bytes are gone, or whose upload the Bot API refuses, is sent as that still photo. |
+| Opt-in | "Animated mood" in the Mini App settings (S-15, MINI_APP MA-SET-12), `users.animated_mood` (V25), off by default. Discreet mode keeps every image still: with discreet reminders on, the still card is sent and no frame is drawn. Under reduced motion (MINI_APP MA-DS-5) the switch can be turned off but not on. The chat has no reduced-motion signal of its own. |
+| Measured | On the development host with `dosegram-raster` 0.49.0: a loop of `blob.v7.e5` in 1.9 to 2.1 s after warm-up and 380 to 480 KB (every pixel of the blob changes as its gradient breathes, so a higher quantiser saves little); the 60 frames are laid out in 8 ms (p50) on the check-in's transaction, about 96 KB of SVG in the report request. A cold JVM can need more than the budget for its first loop, which is then the still card. PERFORMANCE.md section 4.7. |
+| Goldens | SVG goldens of frames 0, 15 and 38 of `blob.v1.e5`, `blob.v2.e1`, `blob.v4.e3` and `blob.v7.e5` in the dark theme (`goldens/motion/dark`), the SHA-256 of their decoded pixels with the pinned worker (`report-renderer/motion`), and `BlobMotionSuite` for the loop, the mapping, the face inside the outline in every frame, the lints and the profile. |
+| Open | Playback on real clients (Android, iOS, Desktop, Web), the inline loop and the caption, and the size Telegram stores after its own processing: a live check of the owner, not done. |
+
 ### 4.7 The day blob: daily overall status
 
 The day blob answers "how is today going" for the daily summary card (IMG-03) and the Mini App Today screen. It is the mood blob surrounded by a halo.

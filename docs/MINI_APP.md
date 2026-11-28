@@ -1782,6 +1782,8 @@ MA-SET-10. Reminders (ADR-023, route `/settings/reminders`, start parameter `rem
 
 MA-SET-11. Settings complete (supervisor decision, 2026-11-14, owner asleep). The day profile also has its own page, `/settings/day` (start parameter `set_day`), reached from the Reminders section, with the same form, the same version rule and the same refusal of work that ends before it starts as MA-SET-10. A section "Your data" holds "Export everything" (S-14) and "Set up Dosegram" (S-19). The language choice lists the locales the server offers in `settings.languages`; English is the default and the only locale until the localisation track adds another. "Reduce motion" and "Vibration" are not built: without a `CloudStorage` member in `TelegramPort` they could not outlive the session. [M]
 
+MA-SET-12. "Animated mood" (supervisor decision, 2026-11-28; VISUALS section 4.6). A switch under "Images in chat", off by default, saved with the account settings (`animatedMood` of `GET` and `PATCH /settings`; a body without it keeps the stored choice). On, the answer to a mood check-in in the chat is the blob moving for 3 seconds in a loop, with the same caption and buttons; it has no effect while discreet reminders are on, and the help line says so. Under reduced motion (MA-DS-5) the switch can be turned off but not on, and the help line reads "Off while reduced motion is on for this device." [M]
+
 ### 7.17 S-19 Set-up (supervisor decision, 2026-11-14, owner asleep)
 
 Purpose: the first visit to the app after onboarding in chat. The account and the first consent exist (MA-ROLE-2); set-up explains the rest and leads to the screens that hold each setting. Identifier S-19 because S-17 and S-18 are reserved for measurements and symptoms.
@@ -2337,7 +2339,7 @@ This section maps each screen to the API resources it needs. Paths are relative 
 |---|---|---|---|
 | `session` | Create from `initData` (returns token and bootstrap); delete | Launch, S-15 | MVP |
 | `session/keepalive` | Touch | MA-SESSION-1 | MVP |
-| `settings` | Read; change language, units, clock, week start, time zone, image theme, names in images, image protection, privacy curtain, reduce motion | S-15 | MVP |
+| `settings` | Read; change language, units, clock, week start, time zone, image theme, animated mood, names in images, image protection, privacy curtain, reduce motion | S-15 | MVP |
 | `time-zones` | Read the zone list with offsets | S-05, S-15 | MVP |
 | `time-zone-previews` | Create a preview of the effect of a zone change on schedules | S-15 | MVP |
 | `time-zone-prompts` | Record that a device zone was declined | Launch banner | MVP |

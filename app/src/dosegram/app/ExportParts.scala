@@ -58,7 +58,7 @@ object PdfRecordSummaryRenderer:
   * (ROADMAP G10.5); every other key is an image of `images`.
   */
 final class ExportAssetStore(uow: UnitOfWork, clock: Clock, images: AssetStore) extends AssetStore:
-  override def put(assetKey: String, png: Array[Byte]): Unit = images.put(assetKey, png)
+  override def put(assetKey: String, bytes: Array[Byte], mime: String): Unit = images.put(assetKey, bytes, mime)
   override def holds(assetKey: String): Boolean = ImportChat.templateOf(assetKey).isDefined || images.holds(assetKey)
 
   override def load(assetKey: String): Option[Array[Byte]] =

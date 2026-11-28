@@ -56,6 +56,17 @@ class ChatAdditionsSuite extends munit.FunSuite:
     assert(!earlier.contains("caption"), earlier)
     assertEquals(OutboundMessage.fromJson(earlier).album.map(_.caption), List(None, None))
 
+  test("an animation carries the photo of its still; a payload written before animations reads back without one"):
+    val still = AttachmentRef(MediaKind.Photo, "mood.still", "image/png", "Mood: Good.", Some("dosegram-mood.png"))
+    val animation = AttachmentRef(MediaKind.Animation, "mood.motion", "video/mp4", "Mood: Good.", Some("dosegram-mood.mp4"), still = Some(still))
+    val message = OutboundMessage(body = Nil, attachment = Some(animation), dedupeKey = "k", correlationId = "c")
+    assertEquals(OutboundMessage.fromJson(OutboundMessage.toJson(message)), message)
+    val earlier = OutboundMessage.toJson(message.copy(attachment = Some(still)))
+    assert(!earlier.contains("\"still\""), earlier)
+    assertEquals(OutboundMessage.fromJson(earlier).attachment.flatMap(_.still), None)
+    intercept[IllegalArgumentException](animation.copy(still = Some(animation.copy(still = None))))
+    intercept[IllegalArgumentException](animation.copy(still = Some(still.copy(still = Some(still)))))
+
   test("a rendered message may have no text only when it carries an attachment"):
     val photo = AttachmentRef(MediaKind.Photo, "asset-1", "image/png", "A chart.")
     assertEquals(RenderedMessage(chunks = Nil, attachment = Some(photo)).chunks, Nil)

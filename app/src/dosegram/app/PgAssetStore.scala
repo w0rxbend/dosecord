@@ -7,6 +7,7 @@ import dosegram.infra.db.PgRenderAssets
   * in this process or in another one, for at most one hour.
   */
 final class PgAssetStore(assets: PgRenderAssets, clock: Clock) extends AssetStore:
-  override def put(assetKey: String, png: Array[Byte]): Unit = assets.put(assetKey, png, clock.now())
+  override def put(assetKey: String, bytes: Array[Byte], mime: String): Unit =
+    assets.put(assetKey, bytes, clock.now(), mime)
   override def holds(assetKey: String): Boolean = assets.holds(assetKey, clock.now())
   override def load(assetKey: String): Option[Array[Byte]] = assets.load(assetKey, clock.now())

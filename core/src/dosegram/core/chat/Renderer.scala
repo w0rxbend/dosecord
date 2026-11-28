@@ -129,8 +129,8 @@ object Renderer:
   /** The text equivalent shown in place of an attachment (ADR-015 CON-02). */
   private def textEquivalent(attachment: AttachmentRef): Node =
     val label = attachment.kind match
-      case MediaKind.Photo    => "image"
-      case MediaKind.Document => "document"
+      case MediaKind.Photo | MediaKind.Animation => "image"
+      case MediaKind.Document                    => "document"
     Node.Paragraph(List(Inline.Text(s"[$label: ${attachment.altText}]")))
 
   private def renderForm(form: Form): RenderedForm =

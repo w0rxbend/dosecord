@@ -86,10 +86,10 @@ final class FakeTelegramTransport(
 
   private def answer(request: WireRequest): WireReply =
     request.method match
-      case "getMe"                                      => ok(identityJson)
-      case "getUpdates"                                 => ok(ujson.Arr.from(takeUpdates(request.params)))
-      case "sendMessage" | "sendPhoto" | "sendDocument" => floodChecked(request)(sentMessage(request))
-      case "sendMediaGroup"                             => floodChecked(request)(sentAlbum(request))
+      case "getMe"      => ok(identityJson)
+      case "getUpdates" => ok(ujson.Arr.from(takeUpdates(request.params)))
+      case "sendMessage" | "sendPhoto" | "sendDocument" | "sendAnimation" => floodChecked(request)(sentMessage(request))
+      case "sendMediaGroup"                                               => floodChecked(request)(sentAlbum(request))
       case "editMessageText" | "editMessageCaption" | "editMessageReplyMarkup" | "deleteMessage" =>
         floodChecked(request)(ok(ujson.True))
       case "setMyCommands" =>
@@ -123,7 +123,11 @@ final class FakeTelegramTransport(
         message("photo") =
           ujson.Arr(ujson.Obj("file_id" -> s"fake-photo-$messageSeq", "width" -> 1280, "height" -> 853))
       case "sendDocument" => message("document") = ujson.Obj("file_id" -> s"fake-document-$messageSeq")
-      case _              => ()
+      // The Bot API answers an animation with both objects; the document names the same file.
+      case "sendAnimation" =>
+        message("animation") = ujson.Obj("file_id" -> s"fake-animation-$messageSeq", "width" -> 512, "height" -> 512)
+        message("document") = ujson.Obj("file_id" -> s"fake-animation-$messageSeq")
+      case _ => ()
     ok(message)
 
   /** One photo message per item of the group, each with its own `message_id` and `file_id`, as the reference answers.

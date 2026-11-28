@@ -307,16 +307,29 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
       case Some(Left(error)) => failed(error, envelope.chatId, "send")
       case None              => upload(envelope, attachment, caption)
 
+  /** An animation whose bytes are gone, or whose upload the API refuses, is sent as its still photo (VISUALS section
+    * 4.6), so the user still sees the picture; without a still it is the text equivalent, as for a photo.
+    */
   private def upload(envelope: Envelope, attachment: AttachmentRef, caption: Option[String]): MessageRef =
     runtime.media.load(attachment.assetKey) match
       case None =>
-        runtime.log(s"telegram asset unavailable: sent the text equivalent (kind=${attachment.kind})")
-        sendText(envelope, textEquivalent(attachment, caption))
+        attachment.still match
+          case Some(photo) =>
+            runtime.log(s"telegram asset unavailable: sent its still (kind=${attachment.kind})")
+            sendMedia(envelope, photo, caption)
+          case None =>
+            runtime.log(s"telegram asset unavailable: sent the text equivalent (kind=${attachment.kind})")
+            sendText(envelope, textEquivalent(attachment, caption))
       case Some(bytes) =>
         val payload = MediaPayload.Upload(fileNameOf(attachment), attachment.mimeType, bytes)
-        val sent = sentOrThrow(trySend(envelope, attachment, caption, payload), envelope.chatId, "send")
-        sent.fileId.foreach(runtime.fileIds.put(attachment.assetKey, attachment.kind, _))
-        mediaRef(sent)
+        (trySend(envelope, attachment, caption, payload), attachment.still) match
+          case (Left(TelegramError.BadMedia | TelegramError.BadRequest), Some(photo)) =>
+            runtime.log(s"telegram refused the upload: sent its still (kind=${attachment.kind})")
+            sendMedia(envelope, photo, caption)
+          case (outcome, _) =>
+            val sent = sentOrThrow(outcome, envelope.chatId, "send")
+            sent.fileId.foreach(runtime.fileIds.put(attachment.assetKey, attachment.kind, _))
+            mediaRef(sent)
 
   private def trySend(
       envelope: Envelope,
@@ -395,8 +408,8 @@ final class TelegramAdapter(api: BotApi, config: TelegramConfig, runtime: Telegr
 
   private def textEquivalent(attachment: AttachmentRef, caption: Option[String]): String =
     val label = attachment.kind match
-      case MediaKind.Photo    => "image"
-      case MediaKind.Document => "document"
+      case MediaKind.Photo | MediaKind.Animation => "image"
+      case MediaKind.Document                    => "document"
     val alternative = VendorMarkup.render(plain(s"[$label: ${attachment.altText}]"), capabilities.markup)
     (alternative :: caption.toList).mkString("\n\n")
 
@@ -554,6 +567,7 @@ object TelegramAdapter:
   private def fileNameOf(attachment: AttachmentRef): String =
     attachment.fileName.getOrElse:
       attachment.kind match
-        case MediaKind.Photo    => "image.png"
-        case MediaKind.Document => "document"
+        case MediaKind.Photo     => "image.png"
+        case MediaKind.Document  => "document"
+        case MediaKind.Animation => "animation.mp4"
 end TelegramAdapter

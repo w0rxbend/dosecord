@@ -203,7 +203,7 @@ class SealingBackfillPgSuite extends PgSuite:
       val seed = seedAtV9(ds)
       val (result, lines) = logged(SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), _ => ()))
       assertEquals(result.schemaVersion, "26")
-      assertEquals(result.migrationsExecuted, 14)
+      assertEquals(result.migrationsExecuted, 15)
       assertEquals(result.valuesSealed, 1 + 1 + 2 + 1 + 3 + 1 + 1 + 1 + 1 + 1, "name, instructions, two snapshots, the note, three meals, the file, the image, the answer, the dose unit, the export's parameters")
       assertEquals(keyEvents(ds), List("key.backfill.completed system:migrate"), "the backfill is audited once V12 exists")
 
@@ -294,7 +294,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, DataKeys(kek, MutableClock(t0)), line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("26", 11, 4))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("26", 12, 4))
       assert(lines.result().contains("sealing: vacuumed outbox_messages, inbound_events"), lines.result().toString)
 
       val check = ds.getConnection
@@ -395,7 +395,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, keys, line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted), ("26", 5))
+      assertEquals((result.schemaVersion, result.migrationsExecuted), ("26", 6))
       assertEquals(result.valuesSealed, 1 + 2 + 1 + 2 + 4 + 1 + 1, "inbox, session, form, slots, events, reminder, unit")
       assert(lines.result().exists(_.startsWith("sealing: vacuumed ")), lines.result().toString)
 
@@ -461,7 +461,7 @@ class SealingBackfillPgSuite extends PgSuite:
 
       val lines = List.newBuilder[String]
       val result = SchemaUpgrade.run(ds, keys, line => lines += line)
-      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("26", 4, 3))
+      assertEquals((result.schemaVersion, result.migrationsExecuted, result.valuesSealed), ("26", 5, 3))
       assert(lines.result().contains("sealing: vacuumed telegram_file_cache, export_jobs"), lines.result().toString)
 
       val cache = PgTelegramFileCache(ds, 7000000004L, keys)

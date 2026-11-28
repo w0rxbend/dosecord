@@ -153,7 +153,9 @@ object TelegramModels:
   def decodeSent(json: ujson.Value): Option[SentMessage] =
     long(json, "message_id").map: messageId =>
       val photo = list(json, "photo").flatMap(decodePhotoSize).maxByOption(_.longSide).map(_.fileId)
-      SentMessage(messageId, photo.orElse(field(json, "document").flatMap(str(_, "file_id"))))
+      // An animation also carries a `document`; its own `animation` is the file to reuse with `sendAnimation`.
+      val file = photo.orElse(field(json, "animation").flatMap(str(_, "file_id")))
+      SentMessage(messageId, file.orElse(field(json, "document").flatMap(str(_, "file_id"))))
 
   def decodeCommands(json: ujson.Value): List[BotCommand] =
     json.arrOpt.toList.flatten.flatMap: entry =>

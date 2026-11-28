@@ -13,6 +13,15 @@ import dosegram.render.tokens.Tokens
 /** Where and how large a blob is drawn. */
 final case class BlobFrame(center: Point, radius: Double)
 
+/** How the blob stands in one frame of its animated form (VISUALS section 4.6), in units of the radius: the breathing
+  * scale, the lift off the ground, the turn of the wobble in radians and how open the eyes are. The still blob stands
+  * at [[BlobPose.Rest]].
+  */
+final case class BlobPose(scale: Double, lift: Double, phaseShift: Double, eyeOpenness: Double)
+
+object BlobPose:
+  val Rest: BlobPose = BlobPose(scale = 1.0, lift = 0.0, phaseShift = 0.0, eyeOpenness = 1.0)
+
 /** One eye in units of the radius: an ellipse, and the glint of light in it when the eye is open. */
 final case class BlobEye(center: Point, radiusX: Double, radiusY: Double, glint: Option[BlobGlint])
 
@@ -108,9 +117,9 @@ object BlobFigure:
   def hasBrows(state: MoodState): Boolean = browKind(state).isDefined
   def hasCheeks(state: MoodState): Boolean = state.valence >= FirstCheekValence
 
-  /** The face of a state in units of the radius. */
-  def face(state: MoodState): BlobFace =
-    val opening = eyeOpening(state.energy)
+  /** The face of a state in units of the radius; `eyeOpenness` closes the eyes for a blink of the animated form. */
+  def face(state: MoodState, eyeOpenness: Double = 1.0): BlobFace =
+    val opening = eyeOpening(state.energy) * eyeOpenness
     val eyes = Vector(-1.0, 1.0).map { side =>
       val center = Point(side * EyeOffsetX, EyeOffsetY)
       val glint = Option.when(opening >= GlintFromOpening)(
@@ -138,20 +147,24 @@ object BlobFigure:
       cheekColour = BlobPalette.cheek(state)
     )
 
-  /** The blob of a mood state with its ground mark. */
-  def of(state: MoodState, frame: BlobFrame, tokens: Tokens): Node =
+  /** The blob of a mood state with its ground mark. A `pose` other than rest moves the body and the face, never the
+    * ground mark, the colours or the outline width (VISUALS section 4.6: no change of lightness over time).
+    */
+  def of(state: MoodState, frame: BlobFrame, tokens: Tokens, pose: BlobPose = BlobPose.Rest): Node =
+    val posed = BlobFrame(Point(frame.center.x, frame.center.y - pose.lift * frame.radius), frame.radius * pose.scale)
     val gradient = Paint.Radial(
-      Point(frame.center.x - 0.3 * frame.radius, frame.center.y - 0.4 * frame.radius),
-      1.1 * frame.radius,
+      Point(posed.center.x - 0.3 * posed.radius, posed.center.y - 0.4 * posed.radius),
+      1.1 * posed.radius,
       BlobPalette.highlight(state),
       BlobPalette.fill(state)
     )
     val body = Node.Path(
-      BlobGeometry.outline(state).placed(frame.center, frame.radius),
+      BlobGeometry.outline(state, pose.phaseShift).placed(posed.center, posed.radius),
       Some(gradient),
       Some(Stroke.solid(tokens.ink2, outlineWidth(frame)))
     )
-    Node.Mark(Mark, Vector(ground(GroundWidth(state.energy - 1), frame, tokens), body) ++ faceNodes(face(state), frame))
+    val faces = faceNodes(face(state, pose.eyeOpenness), posed)
+    Node.Mark(Mark, Vector(ground(GroundWidth(state.energy - 1), frame, tokens), body) ++ faces)
 
   /** The "no entry" blob: flat neutral fill, dotted outline, no face (VA-BL-02). */
   def noEntry(frame: BlobFrame, tokens: Tokens): Node =

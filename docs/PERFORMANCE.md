@@ -187,3 +187,21 @@ for a busy slot) before anything is read or drawn, and the Mini App shows its "t
 8 previews at the same moment, 2 were drawn and 6 answered 429, in 23 ms with the worker and 77 ms with one process per
 card. The minute's count is in memory, like the request limits of API-18, and so is valid while one process serves the
 API.
+
+### 4.7 The animated mood blob
+
+Measured on 2026-11-28 on the `feat/animated-blob` branch, development host, `dosegram-raster` 0.49.0 built from the
+pinned sources, after a warm-up loop (VISUALS section 4.6). One loop is 60 frames of 512 by 512 px.
+
+| Probe | Result |
+|---|---|
+| Layout of the 60 frames as SVG on the check-in's transaction | 7.7 ms p50, 14.5 ms p95 over 30 runs; 96 KB of SVG |
+| Draw, read back and encode one loop (`MotionSuite`, `StatusImagesSuite`) | 1.87 to 2.06 s; of it about 1.4 s is the H.264 encoding in the JVM |
+| Size of one loop | 378 to 476 KB for six states and both themes; quantisers 20/26 to 30/34 change it by under 15 percent |
+| Luma PSNR against the frames | 38 dB or more in every frame at the chosen quantisers 24/28 |
+
+The report worker gives one loop 4 seconds (`StatusImages.MotionBudgetMillis`) and sends the still card when it runs
+out; a cold JVM took 5.4 s for its first encoding, so on a fresh start the first animated answer of a state can be the
+still card. A loop is drawn once per state and theme and then sent by its file id, so the cost is paid at most 70
+times per bot. Frames are encoded as they are drawn, so a loop holds one frame of pixels (768 KB) and the compressed
+video, not 60 frames.

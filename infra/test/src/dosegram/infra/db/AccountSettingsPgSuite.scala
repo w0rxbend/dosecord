@@ -44,6 +44,15 @@ class AccountSettingsPgSuite extends PgSuite:
     uow.transaction(_.accounts.saveSettings(account, chosen.copy(quietHours = None, locale = None), t0))
     assertEquals(settingsOf(account).map(saved => (saved.quietHours, saved.locale)), Some((None, None)))
 
+  test("Animated mood is off for a new account, and a saved choice is read back (V25)"):
+    val account = fixtures.account("Europe/Kyiv")
+    assertEquals(settingsOf(account).map(_.animatedMood), Some(false))
+    val chosen = AccountSettings(None, None, isDiscreet = false, ImageTheme.Light, animatedMood = true)
+    uow.transaction(_.accounts.saveSettings(account, chosen, t0))
+    assertEquals(settingsOf(account), Some(chosen))
+    uow.transaction(_.accounts.saveSettings(account, chosen.copy(animatedMood = false), t0))
+    assertEquals(settingsOf(account).map(_.animatedMood), Some(false))
+
   test("the quiet hours saved here are the ones the reminder decision reads"):
     val account = fixtures.account("Europe/Kyiv")
     uow.transaction(_.accounts.saveSettings(account, AccountSettings(None, Some(night), false, ImageTheme.Auto), t0))

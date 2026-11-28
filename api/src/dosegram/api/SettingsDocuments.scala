@@ -18,20 +18,28 @@ object ImageThemeChoice:
 final case class LanguageChoice(code: String, label: String) derives ReadWriter, Schema
 
 /** `languages` are the shipped locales; `imageTheme` is the theme of the images the bot sends, not of the app (MINI_APP
-  * MA-THEME-2).
+  * MA-THEME-2); `animatedMood` is "Animated mood": the answer to a mood check-in in the chat moves (VISUALS section
+  * 4.6). It has no effect while discreet mode is on.
   */
 final case class SettingsView(
     language: String,
     languages: List[LanguageChoice],
     timeZone: String,
     imageTheme: ImageThemeChoice,
+    animatedMood: Boolean,
     version: Long
 ) derives ReadWriter,
       Schema
 
-/** The editable set; every member is sent. A new time zone moves the schedules that follow the account. */
-final case class SettingsInput(language: String, timeZone: String, imageTheme: ImageThemeChoice)
-    derives ReadWriter,
+/** The editable set; every member is sent, except `animatedMood`, which a client written before it may leave out to
+  * keep the stored choice. A new time zone moves the schedules that follow the account.
+  */
+final case class SettingsInput(
+    language: String,
+    timeZone: String,
+    imageTheme: ImageThemeChoice,
+    animatedMood: Option[Boolean] = None
+) derives ReadWriter,
       Schema
 
 /** Local times `HH:MM`; the range may cross midnight (MINI_APP MA-SET-4). */

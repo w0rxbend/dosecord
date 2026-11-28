@@ -21,13 +21,15 @@ object ImageTheme:
     values.find(_.dbValue == value).getOrElse(throw new IllegalArgumentException(s"unknown image theme '$value'"))
 
 /** What an account set for itself besides its time zone: the locale (absent until the user chooses one), the quiet
-  * hours (absent when off), discreet reminders and the image theme.
+  * hours (absent when off), discreet reminders, the image theme and "Animated mood" (VISUALS section 4.6, off until the
+  * user turns it on).
   */
 final case class AccountSettings(
     locale: Option[String],
     quietHours: Option[QuietHours],
     isDiscreet: Boolean,
-    imageTheme: ImageTheme
+    imageTheme: ImageTheme,
+    animatedMood: Boolean = false
 ):
   /** The language of everything sent to the account; English until it has chosen one (PRODUCT_SPEC R-LOC-1). */
   def lang: Lang = Lang.resolve(locale, None)
