@@ -1080,43 +1080,125 @@ This section replaces section 22 as the owner's deploy: the head of `main` carri
 deadline of an animated answer (merge of `feat/mood-stickers`). Neither track added a migration,
 so V27 is the only one; V28 and V29 stay unused. No environment variable is added or made
 required, no binary is added and the Dockerfile is unchanged. Every step is the owner's;
-`<sha>` is the head of `main` at or after the commit that adds this section, and `<pg>` is
-`dosegram-live-pg`:
+`<sha>` is the head of `main` at or after the commit that adds the rehearsal record below, and
+`<pg>` is `dosegram-live-pg`. These are the steps the rehearsal of 2026-11-28 (second round)
+followed, in this order:
 
-1. Back up as in step 1 of section 21, named `dosegram-v26-$(date -u +%F).dump` (mode 600). It is
-   the V26 restore point. Check the purge list and note the quarantined count as in step 2 of
-   section 21.
-2. Build and start the head as in steps 3 and 4 of section 21. Its log shows what step 2 of
-   section 22 lists: 25 `sealing:` lines, the vacuum, `migrate: 1 migration(s) applied, schema 27`
-   and, on the first start only, `rollups: queued N day(s) stored by an earlier version`.
-3. Check, read-only, as in step 3 of section 22: both sealed-column counts return 0, the
-   quarantined count is that of step 1, and `/readyz` answers 200.
-4. In the chat:
-   - the answer to the next command (not `/start`) is followed once by the "What's new" note of
-     release 2, which names `/settings` (BOT_UX section 6.5); the command menu lists `/settings`
-     (registered with `setMyCommands` at start-up);
+1. Back up, with the bot still running:
+   `umask 077; docker exec -u postgres <pg> pg_dump -U dosegram -d dosegram_v2 -Fc > <off-host dir>/dosegram-v26-$(date -u +%F).dump`.
+   The file has mode 600; it is the V26 restore point.
+2. `stat -c %a .live/purge-list` prints `600`, or the file does not exist. Note the number of
+   quarantined updates:
+   `docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c "SELECT count(*) FROM inbound_inbox WHERE status = 'quarantined';"`.
+3. Build the release next to the running one:
+   `git worktree add --detach .live/wt-<sha> <sha>`, then `(cd .live/wt-<sha> && ./mill app.assembly)`.
+4. Stop the running bot (Ctrl-C or SIGTERM to its `java` process; the log ends with
+   `shutdown: pool closed`), then start `LIVE_WT="$PWD/.live/wt-<sha>" .live/run.sh`. Its log
+   shows 25 `sealing:` lines; those of `rendered_messages.choice_map` and `report_requests.params`
+   say how many values were sealed (every kept button label; a waiting image request only if one
+   was queued when the bot stopped), then `sealing: vacuumed rendered_messages` (with
+   `, report_requests` when a request was sealed),
+   `migrate: 1 migration(s) applied, schema 27, <n> value(s) sealed, 0 key(s) rewrapped`,
+   `purge: replayed 0 deletion(s) of the purge list`,
+   `rollups: queued <n> day(s) stored by an earlier version` (the daily figures rebuilt under the
+   ADR-012 addendum of 2026-11-28) and the health listener on `127.0.0.1:18081`.
+5. Check, read-only (`docker exec -u postgres <pg> psql -U dosegram -d dosegram_v2 -tA -c '...'`):
+   - `SELECT string_agg(version, ',' ORDER BY installed_rank) FROM flyway_schema_history WHERE success AND version::int > 26;`
+     returns `27`;
+   - `SELECT count(*) FROM rendered_messages WHERE choice_map IS NOT NULL;` and
+     `SELECT count(*) FROM report_requests WHERE params IS NOT NULL;` return 0;
+   - the quarantined count is that of step 2, and `curl -fsS http://127.0.0.1:18081/readyz`
+     answers 200.
+6. In the chat:
+   - `/meds` lists the medications with their named toggles ("Pause · <name>"), and the answer
+     to this first command (not `/start`) is followed once by the "What's new" note of release
+     2, which names `/settings` (BOT_UX section 6.5); the next command has no note, and
+     `/whatsnew` shows it again. The command menu lists `/settings` (registered with
+     `setMyCommands` at start-up);
    - `/settings` sends one card with the language, time zone, day, images and reports sections;
      a tap edits that card in place and its first line reads "Saved. X: new (was old)."; with the
      mood consent the card shows "Animated mood", the first chat switch for it (BOT_UX section
      17.1);
    - with "Animated mood" on and discreet mode off, a mood check-in is answered with the moving
-     blob (`sendAnimation`), and a late answer is still the image when its still or loop is stored
+     blob (`sendAnimation`); a late answer is the still card when its still is stored
      (ARCHITECTURE section 12.1);
    - `/mood stickers` after the images consent answers "Your mood stickers are ready" with the
      "Add the stickers" button, the link to the account's own set of five blob stickers,
      `mood_<16 hex>_by_<bot username>`; a second request updates the same set. Without the
-     rasteriser it answers "Mood stickers are not available here." The name carries the bot's username, so a renamed bot cannot find or delete the sets
-     made under the old name.
-5. Clear the older WAL as in step 4 of section 22.
+     rasteriser it answers "Mood stickers are not available here." The name carries the bot's
+     username, so a renamed bot cannot find or delete the sets made under the old name;
+   - buttons sent by the previous release still answer ("Pause · <name>" on an old `/meds`
+     list, Taken on an open dose, "7 days" and "Show as image" on an old `/stats meds`).
+7. Clear the older WAL as in section 14 ("The WAL after sealing"): the WAL written before this
+   start and the sealing's full-page images still hold the labels.
+8. Delete the old worktree only after a day of normal use.
 
 Audit behaviour changes with the settings hub: re-picking the same language or time zone, or
 saving unchanged Mini App settings, writes no audit row, and changes to "Counts in reports" and the
 "What's new" switch write rows with the codes `counts` and `whats_new`, which the existing
 `changed_fields` check accepts.
 
-Rollback without a restore: as in section 22 (wait until no report request is `queued` or
-`rendering`, stop the bot, start `LIVE_WT="$PWD/.live/wt-4a9b03a" .live/run.sh`). A report
-request queued by the head may carry a `stickers` field in its sealed parameters; the previous
-release cannot read a sealed request at all, which is why the wait comes first. A sticker set
-already made stays on Telegram until the account is deleted from a release that has the
-stickers. Restore the backup of step 1 only if V26 itself must come back.
+Rollback without a restore: wait until
+`SELECT count(*) FROM report_requests WHERE status IN ('queued', 'rendering');` returns 0 (the
+previous release cannot read a sealed request), stop the bot and start
+`LIVE_WT="$PWD/.live/wt-4a9b03a" .live/run.sh`. It logs
+`migrate: 0 migration(s) applied, schema 27` and answers `/readyz` with 200. It writes plaintext
+labels and pages again, which the next start of the head seals (its log then shows the sealed
+counts and, because the previous release writes daily figures of the older version, the
+`rollups: queued` line once more); until then a typed number or label on a message the head sent
+does not resolve. A sticker set already made stays on Telegram until the account is deleted from
+a release that has the stickers. Restore the backup of step 1 only if V26 itself must come back.
+
+Rehearsed on 2026-11-28 (second round) against a throwaway `postgres:18-alpine` container on a
+free port, with a key file (`KEK_FILE`, mode 600), a purge-list path in a directory of mode 700
+and `ENVIRONMENT=production`. `4a9b03a`, assembled as `Main` assembles it (settings from the
+environment, `SchemaUpgrade` with the key, the purge-list replay, `Launch.start`) with the
+Telegram adapter on the fake wire, a stepped clock and resvg 0.49.0 drawing, built a V26 database
+through the chat (`migrate: 24 migration(s) applied, schema 26`): two accounts, one in English
+(Europe/London) with onboarding, two medications with a name, a dose and instructions, `/meds`
+listing both ("Pause · <name>"), water with a plan, mood, a night, a meal with words, a dose
+taken, one snoozed then skipped, the images consent with two cards, the mood gallery, the morning
+summary, `/stats meds` and its strip, an export, a dose left open and an add-medication form left
+after its first answer; one in Ukrainian (Europe/Kyiv) with water and mood. The database then held
+41 plaintext label sets, 2 of them naming a medication, and one image request left `queued` by
+halting the release right after its tap. Steps 1 to 5 as written, with the assemblies started by
+`java -jar out/app/assembly.dest/out.jar run` on the console adapter in place of `.live/run.sh`:
+`4a9b03a` answered `/readyz` with 200, the backup was written with mode 600 while it ran (a
+`pg_restore` of it into a scratch database gave schema 26 and the 41 plaintext label sets), no
+purge list existed, nothing was quarantined, and SIGTERM ended it with `shutdown: pool closed`.
+The head (`067c3e5`) logged the 25 `sealing:` lines with `rendered_messages.choice_map sealed 41
+value(s)` and `report_requests.params sealed 1 value(s)`, `sealing: vacuumed rendered_messages,
+report_requests`, `migrate: 1 migration(s) applied, schema 27, 42 value(s) sealed, 0 key(s)
+rewrapped`, `purge: replayed 0 deletion(s) of the purge list` and `rollups: queued 14 day(s)
+stored by an earlier version`; the checks of step 5 returned `27`, 0, 0, 0 and 200. Every sealed
+label set (41) opened through the release's own `PgRenderedMessageRepository` and key service,
+two of them naming a medication. A scan of every column (600) and a `pg_dump`, as text and as
+hex, found no medication name, instruction, unfinished form answer, meal words or first name; the
+zone name (the positive control) was found. 45 tables have forced row-level security,
+`rendered_messages` and `report_requests` among them, and `dosegram_app` without a claim saw no
+row of `users`, `medications`, `mood_checkins`, `rendered_messages` or `report_requests`. Step 6,
+on the fake wire: no onboarding question, the catch-up digest, both names in `/meds` followed
+once by the release 2 note, no note after `/today`; `/settings` with "Animated mood" turned on
+and off and "Counts" turned off, each edit "Saved. X: new (was old)."; `/mood stickers` created
+`mood_<16 hex>_by_<bot username>` and answered with its link; `/stats year` with its card,
+`/stats meds` with its strip, a mood check-in, a water entry, `/reminders`, `/whatsnew`, the next
+morning's summary; and the old buttons of step 6 answered. Nothing was quarantined and no outbox
+row died. A second start logged `migrate: 0 migration(s) applied, schema 27` and no `rollups:`
+line, answered `/readyz` with 200 and stopped cleanly. Rollback: with no request waiting,
+`4a9b03a` over the upgraded database logged `migrate: 0 migration(s) applied, schema 27`,
+answered `/readyz` with 200, then on the fake wire `/meds`, a mood check-in with its card,
+`/reminders`, `/stats`, a water entry and `/today`, with nothing quarantined or dead, and left one
+more request waiting. The head's next start sealed what the previous release had written (8
+label sets, 2 request parameters), every one opened again, its report worker opened the waiting
+request it had sealed and sent it as its text (late), it logged `rollups: queued 13 day(s)` and it sent no second note. The final
+scan of every column and the `pg_dump` again found no canary.
+
+Not rehearsed: a real client, the Telegram transport, the WAL step, and `sendAnimation` in a
+chat (the stepped clock made the report worker claim the check-in after its 9-second deadline,
+so it sent the stored still card, as ARCHITECTURE section 12.1 says; `CaptureLaunchSuite` covers
+the moving answer on the fake wire with a controlled clock). Found by the rehearsal and fixed in
+the commit after it (supervisor decision, 2026-11-28, BOT_UX section 12): `/stats year` read
+before the day's first answer counted today, whose only dose was still open, as a day with
+records ("Days with records: 2 of 332" beside the card's "1 of 332"); a day whose only doses are
+open no longer counts. That commit changes only that count, so the assembly the owner builds
+starts the same way.
