@@ -75,7 +75,7 @@ object YearStats:
     val range = window(year, today)
     val before = DateRange.between(LocalDate.of(year - 1, 1, 1), LocalDate.of(year - 1, 12, 31))
     val areas = List(
-      sources.medication.map(days => Area(TrendDomain.Medication, recorded(days)(isUsersRecord), medication)),
+      sources.medication.map(days => Area(TrendDomain.Medication, MedicationDay.recorded(days), medication)),
       sources.hydration.map(days => Area(TrendDomain.Hydration, recorded(days)(_.entries > 0), water)),
       sources.mood.map(days => Area(TrendDomain.Mood, recorded(days)(_.n > 0), mood)),
       sources.sleep.map(days => Area(TrendDomain.Sleep, days, sleep)),
@@ -85,15 +85,9 @@ object YearStats:
     val recordedDays = areas.map(area => area.domain -> area.days.keySet.filter(range.contains)).toMap
     val withRecords = recordedDays.values.flatten.toSet
     val outageOnly = sources.medication.fold(Set.empty[LocalDate])(days =>
-      days.collect { case (date, day) if range.contains(date) && day.total.unknown > 0 => date }.toSet
-    ) -- withRecords
+      MedicationDay.outageOnly(days.filter((date, _) => range.contains(date)), withRecords)
+    )
     YearFigures(year, range, withRecords.size, rows, recordedDays, outageOnly.size)
-
-  /** A medication day is the user's record when it has a dose other than one with no record or one still open: an
-    * unknown dose is the service's gap (an outage), and an open dose can still be answered; neither is something the
-    * user did or left undone.
-    */
-  private def isUsersRecord(day: MedicationDay): Boolean = !day.total.copy(unknown = 0, open = 0).isEmpty
 
   /** The months of a window from January: the last one is cut at the window's end. */
   private def months(range: DateRange): List[DateRange] =

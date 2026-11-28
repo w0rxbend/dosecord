@@ -460,7 +460,7 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
     def when(purpose: ConsentPurpose)(days: => Iterable[LocalDate]): Option[(ConsentPurpose, Set[LocalDate])] =
       Option.when(tx.consents.isGranted(accountId, purpose))(purpose -> days.toSet)
     List(
-      when(ConsentPurpose.Medication)(medicationDays(tx, accountId, range).filter((_, d) => !d.total.isEmpty).keys),
+      when(ConsentPurpose.Medication)(MedicationDay.recorded(medicationDays(tx, accountId, range)).keys),
       when(ConsentPurpose.Hydration)(hydrationDays(tx, accountId, range).filter((_, d) => d.entries > 0).keys),
       when(ConsentPurpose.Mood)(moodDays(tx, accountId, range).filter((_, d) => d.n > 0).keys),
       when(ConsentPurpose.Sleep)(sleepDays(tx, accountId, range).keys),

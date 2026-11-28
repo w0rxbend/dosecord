@@ -61,6 +61,27 @@ object DoseBuckets:
 final case class MedicationDay(perMedication: Map[UUID, DoseBuckets]):
   def total: DoseBuckets = perMedication.values.foldLeft(DoseBuckets.zero)(_.combine(_))
 
+  /** The one rule of "days with records" for medication, in every period (supervisor decision, 2026-11-28): the day has
+    * a dose the user answered or that closed as missed, or an as-needed log. A dose with no record (`unknown`, the
+    * service's gap) and a dose still open (it can still be answered) are not something the user did or left undone.
+    */
+  def isUsersRecord: Boolean = !total.copy(unknown = 0, open = 0).isEmpty
+
+  /** The day has doses with no record: a service outage. */
+  def hasOutage: Boolean = total.unknown > 0
+
+object MedicationDay:
+
+  /** The days of `days` that are the user's records ([[MedicationDay.isUsersRecord]]). */
+  def recorded(days: Map[LocalDate, MedicationDay]): Map[LocalDate, MedicationDay] =
+    days.filter((_, day) => day.isUsersRecord)
+
+  /** The days of `days` with doses with no record and no record of any area (`withRecords`): left out of "days with
+    * records" and counted apart, so the text can say so (`stats.year.outage_days`).
+    */
+  def outageOnly(days: Map[LocalDate, MedicationDay], withRecords: Set[LocalDate]): Set[LocalDate] =
+    days.collect { case (date, day) if day.hasOutage => date }.toSet -- withRecords
+
 /** The rates of one set of buckets, each behind its minimum sample. */
 final case class MedicationFigures(
     buckets: DoseBuckets,

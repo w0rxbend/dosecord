@@ -46,6 +46,13 @@ object MonthCopy:
   def daysWithRecords(days: Int): String =
     tr(s"${StatsCopy.count(days, "day")} with records", s"${UkNouns.Days.count(days)} із записами")
 
+  /** The days with records and, when the month has days whose only doses have no record, the line that says they are
+    * not counted (the year's line, supervisor decision of 2026-11-28).
+    */
+  def summary(figures: MonthFigures): List[String] =
+    daysWithRecords(figures.daysWithRecords) ::
+      Option.when(figures.outageOnlyDays > 0)(StatsCopy.outageDaysNotCounted(figures.outageOnlyDays)).toList
+
   def gate(domainName: String, domain: MonthDomain[?]): String =
     tr(
       s"$domainName: ${more(domain.missingDays, "day")} with records for the month's figures " +
@@ -102,7 +109,7 @@ object MonthCopy:
           closed(domain, tr("Food", "Їжа"))(period => FoodCopy.statsPeriod(period).toList)
         )
     val intro = if figures.isReportable || !keepGates then Nil else List(gateTitle)
-    header(figures.month, zone) :: daysWithRecords(figures.daysWithRecords) :: intro ++ blocks
+    header(figures.month, zone) :: summary(figures) ++ intro ++ blocks
 
   def entries: List[CopyEntry] = Samples.entries
 

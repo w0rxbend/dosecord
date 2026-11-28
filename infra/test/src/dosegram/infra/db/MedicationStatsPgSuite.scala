@@ -327,6 +327,36 @@ class MedicationStatsPgSuite extends PgSuite, munit.ScalaCheckSuite:
     )
     assertEquals(week.flatMap(InsightPhrases.violations), Nil)
 
+  test("the month, the year and the week's hit days leave out days whose only doses have no record or are open"):
+    // Leftover 1 of the verification of 2026-11-28: the month still counted such days, which `/stats year` did not.
+    val rig = Rig()
+    fixtures.uow.transaction(
+      _.occurrences.cancel(rig.occurrences.filter(_.status.isOpen).map(_.id), CancelReason.Paused, rig.clock.now())
+    )
+    def doseOn(date: String, status: OccurrenceStatus): Unit =
+      val at = java.time.LocalDateTime.parse(s"${date}T09:00").atZone(kyiv).toInstant
+      fixtures.occurrenceAt(rig.schedule.scheduleId, at, s"d$date", status)
+      ()
+    doseOn("2026-10-10", OccurrenceStatus.Unknown)
+    doseOn("2026-10-11", OccurrenceStatus.Unknown)
+    doseOn("2026-10-12", OccurrenceStatus.Taken)
+    // Today, 20 October at 09:00 in Kyiv: due and not answered yet.
+    doseOn("2026-10-20", OccurrenceStatus.Due)
+    rig.settled()
+    val (month, year, hitDays) = rig.uow.transaction: tx =>
+      (
+        rig.tracking.statsService.month(tx, rig.account, java.time.YearMonth.of(2026, 10)).toOption.get.figures,
+        rig.tracking.statsService.year(tx, rig.account, 2026).toOption.get.figures,
+        rig.tracking.statsService.recordedDays(tx, rig.account, DateRange.between(LocalDate.parse("2026-10-10"), LocalDate.parse("2026-10-20")))
+      )
+    assertEquals((month.daysWithRecords, month.outageOnlyDays), (1, 2))
+    assertEquals((year.daysWithRecords, year.outageOnlyDays), (1, 2))
+    assertEquals(month.medication.map(_.recordedDays), Some(1))
+    assertEquals(hitDays(dosegram.core.ports.ConsentPurpose.Medication), Set(LocalDate.parse("2026-10-12")))
+    val text = dosegram.core.domain.copy.MonthCopy.lines(month, kyiv)
+    assertEquals(text.slice(1, 3), List("1 day with records",
+      "Not counted: 2 days whose only doses have no record (a service outage)"))
+
   test("a period with fewer than five resolved doses prints counts, and one with only unknown rows prints No data"):
     val rig = Rig()
     fixtures.occurrenceAt(rig.schedule.scheduleId, start.minus(Duration.ofDays(1)), "u1", OccurrenceStatus.Unknown)

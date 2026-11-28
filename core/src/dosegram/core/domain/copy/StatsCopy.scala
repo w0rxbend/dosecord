@@ -46,6 +46,15 @@ object StatsCopy:
   /** An empty period explains the absence (BOT_UX BUX-STAT-02). */
   def Empty: String = tr("Nothing was recorded in this period.", "За цей період нічого не записано.")
 
+  /** The days a period's "days with records" leaves out because their only doses have no record (verification of
+    * 2026-11-28): the line after the count of `/stats year` and of the month, the same words for both.
+    */
+  def outageDaysNotCounted(days: Int): String =
+    tr(
+      s"Not counted: ${count(days, "day")} whose only doses have no record (a service outage)",
+      s"Не враховано: ${UkNouns.Days.count(days)}, коли всі дози без запису (перебій сервісу)"
+    )
+
   def header(period: StatsPeriod, zone: ZoneId): String =
     val name = period match
       case StatsPeriod.Today      => tr("Today", "Сьогодні")

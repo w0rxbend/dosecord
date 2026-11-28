@@ -109,7 +109,7 @@ final class InsightReports(uow: UnitOfWork, tracking: TrackingUseCases, clock: C
           timeZone = zone.getId,
           reportable = figures.isReportable,
           daysWithRecords = figures.daysWithRecords,
-          summary = MonthCopy.daysWithRecords(figures.daysWithRecords),
+          summary = MonthCopy.summary(figures).mkString(" · "),
           domains = domains,
           medications = figures.medication.toList.flatMap(domain => medicationRows(tx, accountId, domain)),
           notice = Option

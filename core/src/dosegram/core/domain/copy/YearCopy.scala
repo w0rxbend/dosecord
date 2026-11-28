@@ -40,13 +40,6 @@ object YearCopy:
   def daysWithRecords(days: Int, of: Int): String =
     tr(s"Days with records: $days of $of", s"Днів із записами: $days з $of")
 
-  /** The days left out of the count above because their only doses have no record (verification of 2026-11-28). */
-  def outageDaysNotCounted(days: Int): String =
-    tr(
-      s"Not counted: ${StatsCopy.count(days, "day")} whose only doses have no record (a service outage)",
-      s"Не враховано: ${UkNouns.Days.count(days)}, коли всі дози без запису (перебій сервісу)"
-    )
-
   def gateNote: String = tr(
     s"A month shows its figure once it has records on ${MinimumSample.MonthlyReportDays.required} days; " +
       "fewer show those days in brackets.",
@@ -121,7 +114,7 @@ object YearCopy:
   private def render(figures: YearFigures, zone: ZoneId, keepGates: Boolean): List[String] =
     val blocks = figures.rows.flatMap(block(figures, _, keepGates))
     val head = List(header(figures.year, zone), daysWithRecords(figures.daysWithRecords, figures.window.days)) ++
-      Option.when(figures.outageOnlyDays > 0)(outageDaysNotCounted(figures.outageOnlyDays)).toList
+      Option.when(figures.outageOnlyDays > 0)(StatsCopy.outageDaysNotCounted(figures.outageOnlyDays)).toList
     if blocks.isEmpty then head :+ none(figures.year)
     else head ++ (if keepGates then List(gateNote) else Nil) ++ blocks
 
@@ -167,7 +160,7 @@ object YearCopy:
         CopyEntry("stats.year", lines(figures, kyiv).mkString("\n")),
         CopyEntry("stats.year.none", none(2026)),
         CopyEntry("stats.year.gate", gateNote),
-        CopyEntry("stats.year.outage_days", outageDaysNotCounted(3))
+        CopyEntry("stats.year.outage_days", StatsCopy.outageDaysNotCounted(3))
       ) ++ TrendDomain.values.toList.map(domain =>
         CopyEntry(s"stats.year.area.${domain.toString.toLowerCase(Locale.ROOT)}", areaName(domain))
       )

@@ -95,6 +95,31 @@ class MonthStatsSuite extends munit.FunSuite:
     val figures = month(medicationDays = Some(days(1 to 20)(day => if day <= 15 then doses(1, 0) else MedicationDay(Map.empty))))
     assertEquals(figures.medication.get.recordedDays, 15)
 
+  test("a day whose only doses have no record or are still open is no day with records; outage days are counted apart"):
+    // Leftover 1 of the verification of 2026-11-28: the month counted such days, which `/stats year` does not.
+    val outage = MedicationDay(Map(medication -> DoseBuckets.zero.copy(unknown = 2)))
+    val open = MedicationDay(Map(medication -> DoseBuckets.zero.copy(open = 1)))
+    val medicationDays = days(1 to 3)(_ => outage) ++ days(4 to 5)(_ => doses(1, 0)) ++ days(List(6))(_ => open) ++
+      days(List(7))(_ => outage)
+    // 7 October also has water, so it is a day with records all the same.
+    val figures = month(Some(medicationDays), hydration = Some(days(List(7))(_ => HydrationDay(500, 1, None))))
+    assertEquals(figures.daysWithRecords, 3)
+    assertEquals(figures.outageOnlyDays, 3)
+    assertEquals(figures.medication.map(_.recordedDays), Some(2))
+    assertEquals(figures.weeks.head.doses.unknown, 6, "the week rows still show the doses with no record")
+    assertEquals(month(Some(days(1 to 2)(_ => doses(1, 0)))).outageOnlyDays, 0)
+
+  test("the month and the year read days with records by the one shared rule"):
+    val outage = MedicationDay(Map(medication -> DoseBuckets.zero.copy(unknown = 1)))
+    val open = MedicationDay(Map(medication -> DoseBuckets.zero.copy(open = 1)))
+    val asNeeded = MedicationDay(Map(medication -> DoseBuckets.zero.copy(asNeeded = 1)))
+    assert(!outage.isUsersRecord && !open.isUsersRecord && !MedicationDay(Map.empty).isUsersRecord)
+    assert(asNeeded.isUsersRecord && doses(0, 1).isUsersRecord)
+    val medicationDays = days(1 to 4)(day => List(outage, open, asNeeded, doses(1, 0))(day - 1))
+    val year = YearStats.of(2026, october.atEndOfMonth, YearSources(Some(medicationDays), None, None, None, None))
+    val figures = month(Some(medicationDays))
+    assertEquals((figures.daysWithRecords, figures.outageOnlyDays), (year.daysWithRecords, year.outageOnlyDays))
+
   test("records outside the month are left out"):
     val september = Map(october.minusMonths(1).atEndOfMonth -> HydrationDay(5000, 1, None))
     val figures = month(hydration = Some(september ++ days(1 to 2)(_ => HydrationDay(1000, 1, None))))

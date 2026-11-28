@@ -25,6 +25,8 @@ final case class MonthDomain[+P](recordedDays: Int, figures: P):
 
 /** The figures of a calendar month (VISUALS section 6.6, IMG-05): one block per domain whose consent is active (`None`
   * otherwise), the week rows, the days behind the calendars, and the user's own previous month as the only baseline.
+  * `daysWithRecords` and the medication block's recorded days follow [[MedicationDay.isUsersRecord]], as the year does;
+  * `outageOnlyDays` are the days left out because their only doses have no record (supervisor decision, 2026-11-28).
   */
 final case class MonthFigures(
     month: YearMonth,
@@ -40,7 +42,8 @@ final case class MonthFigures(
     sleepDays: Map[LocalDate, SleepNight],
     previousAdherence: Stat[Ratio],
     food: Option[MonthDomain[MealPeriod]] = None,
-    mealDays: Map[LocalDate, MealDay] = Map.empty
+    mealDays: Map[LocalDate, MealDay] = Map.empty,
+    outageOnlyDays: Int = 0
 ):
   /** PRODUCT_SPEC R-INS-11: a month in which no domain meets the gate produces no report. */
   def isReportable: Boolean =
@@ -84,8 +87,9 @@ object MonthStats:
     val moodDays = mood.map(inMonth)
     val sleepDays = sleep.map(inMonth)
     val mealDays = food.map(days => inMonth(days).filter((_, day) => day.meals > 0))
+    val usersMedicationDays = medicationDays.map(MedicationDay.recorded)
     val recorded =
-      List(medicationDays, hydrationDays, moodDays, sleepDays, mealDays).flatten.flatMap(_.keySet).toSet
+      List(usersMedicationDays, hydrationDays, moodDays, sleepDays, mealDays).flatten.flatMap(_.keySet).toSet
     val previousWindow = window(month.minusMonths(1))
     MonthFigures(
       month = month,
@@ -93,7 +97,7 @@ object MonthStats:
       weeks = weeks(month, weekStart).map(weekOf(_, medicationDays, hydrationDays, moodDays, sleepDays)),
       daysWithRecords = recorded.size,
       medication = medication.map((days, doses) =>
-        MonthDomain(medicationDays.fold(0)(_.size), MedicationStats.period(inMonth(days), doses, range))
+        MonthDomain(usersMedicationDays.fold(0)(_.size), MedicationStats.period(inMonth(days), doses, range))
       ),
       hydration = hydrationDays.map(days => MonthDomain(days.size, HydrationStats.period(days, range))),
       mood = moodDays.map(days => MonthDomain(days.size, MoodStats.period(days, range))),
@@ -108,7 +112,8 @@ object MonthStats:
             MedicationStats.adherence(MedicationStats.total(inPrevious).resolved, previousWindow)
         },
       food = mealDays.map(days => MonthDomain(days.size, MealStats.period(days, range))),
-      mealDays = mealDays.getOrElse(Map.empty)
+      mealDays = mealDays.getOrElse(Map.empty),
+      outageOnlyDays = medicationDays.fold(0)(MedicationDay.outageOnly(_, recorded).size)
     )
 
   private def weekOf(

@@ -92,4 +92,20 @@ class InsightCopySuite extends munit.FunSuite:
       "Не враховано: 1 день, коли всі дози без запису (перебій сервісу)")
     assert(!Lang.within(Lang.En)(YearCopy.lines(year(0), zone)).exists(_.startsWith("Not counted")))
 
+  test("the month says that days with only doses with no record are not counted, in the year's words"):
+    val medication = java.util.UUID.fromString("00000000-0000-7000-8000-000000000001")
+    val outage = MedicationDay(Map(medication -> DoseBuckets.zero.copy(unknown = 1)))
+    val october = java.time.YearMonth.of(2026, 10)
+    def month(days: Int) =
+      val outages = (1 to days).map(day => october.atDay(day) -> outage).toMap
+      dosegram.core.domain.insights.MonthStats
+        .of(october, java.time.DayOfWeek.MONDAY, Some(outages -> Nil), None, None, None, None)
+    val zone = java.time.ZoneId.of("Europe/Kyiv")
+    val english = Lang.within(Lang.En)(MonthCopy.lines(month(3), zone))
+    assertEquals(english.take(3), List("October 2026 · Europe/Kyiv", "0 days with records",
+      "Not counted: 3 days whose only doses have no record (a service outage)"))
+    assertEquals(Lang.within(Lang.Uk)(MonthCopy.linesOmittingGates(month(1), zone))(2),
+      "Не враховано: 1 день, коли всі дози без запису (перебій сервісу)")
+    assert(!Lang.within(Lang.En)(MonthCopy.lines(month(0), zone)).exists(_.startsWith("Not counted")))
+
 end InsightCopySuite
