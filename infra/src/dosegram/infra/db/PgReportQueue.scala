@@ -83,10 +83,8 @@ final class PgReportQueue(conn: Connection, keys: KeyService) extends ReportQueu
           WHERE id = $id AND status = 'rendering'""".execute()
     ()
 
-  override def purge(before: Instant, unfinishedBefore: Instant): Int =
-    sql"""DELETE FROM report_requests
-          WHERE created_at < (CASE WHEN status IN ('queued', 'rendering') THEN $unfinishedBefore ELSE $before END)"""
-      .execute()
+  override def purge(before: Instant): Int =
+    sql"""DELETE FROM report_requests WHERE status IN ('sent', 'text_fallback') AND created_at < $before""".execute()
 
 object PgReportQueue:
 

@@ -13,8 +13,15 @@ object ImageCopy:
       s"Денний ліміт зображень ($limit) вичерпано, тож це надіслано текстом. Наступне зображення можна буде створити після $time."
     )
 
+  /** An answer the report worker sends long after it was asked, on the same day (the app was not running); `time` is
+    * the local time it was asked (supervisor decision, 2026-11-28).
+    */
+  def lateAnswer(time: String): String =
+    tr(s"Sent late: you asked for this at $time.", s"Надіслано із запізненням: ви просили це о $time.")
+
   def entries: List[CopyEntry] =
     List(
       CopyEntry("image.in_place", inPlace("Water today: 1.2 of 2.0 l (60%)")),
-      CopyEntry("image.daily_limit", dailyLimit(20, "14:05"))
+      CopyEntry("image.daily_limit", dailyLimit(20, "14:05")),
+      CopyEntry("image.late", lateAnswer("14:05"))
     )

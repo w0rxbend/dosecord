@@ -64,9 +64,9 @@ final class InMemoryReportQueue extends ReportQueue:
   ): Unit = synchronized:
     rows.get(id).foreach(row => rows.put(id, row.copy(status = status, leaseUntil = None, pagesKept = false)))
 
-  override def purge(before: Instant, unfinishedBefore: Instant): Int = synchronized:
+  override def purge(before: Instant): Int = synchronized:
     val old = rows.values
-      .filter(row => row.request.createdAt.isBefore(if open(row.status) then unfinishedBefore else before))
+      .filter(row => !open(row.status) && row.request.createdAt.isBefore(before))
       .map(_.request.id)
       .toList
     old.foreach(rows.remove)

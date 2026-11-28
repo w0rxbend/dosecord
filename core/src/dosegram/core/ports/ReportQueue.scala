@@ -80,7 +80,7 @@ trait ReportQueue:
   /** Ends a claimed request and drops its pages: what stays is what the limits count. */
   def finish(id: UUID, status: ReportStatus, errorClass: Option[String], renderMillis: Option[Long], now: Instant): Unit
 
-  /** Deletes the finished requests made before `before` and the unfinished ones made before `unfinishedBefore`; returns
-    * how many.
+  /** Deletes the finished requests made before `before`; returns how many. An unfinished request is never deleted here:
+    * the report worker answers it or drops it, however old (verification of 2026-11-28).
     */
-  def purge(before: Instant, unfinishedBefore: Instant): Int
+  def purge(before: Instant): Int

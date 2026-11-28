@@ -273,7 +273,8 @@ final class Workers(settings: Settings, dataSource: DataSource, parts: Launch.Pa
       IdSource.uuidV7(java.security.SecureRandom()),
       log,
       MicrometerImageMetrics.textFallback,
-      parts.images.stickers
+      parts.images.stickers,
+      MicrometerImageMetrics.dropped
     )
     (1 to Workers.ReportWorkers).foreach: n =>
       fork:

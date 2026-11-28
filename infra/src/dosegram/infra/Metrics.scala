@@ -41,6 +41,20 @@ object Metrics:
       )
       .increment()
 
+  private val reportDroppedCounters =
+    new java.util.concurrent.ConcurrentHashMap[String, Counter]()
+
+  /** `dosegram_report_requests_dropped_total{template}` (supervisor decision, 2026-11-28): image answers the report
+    * worker found unfinished from an earlier local day of their account (the app was down) and did not send.
+    */
+  def reportDropped(templateId: String): Unit =
+    reportDroppedCounters
+      .computeIfAbsent(
+        templateId,
+        t => Counter.builder("dosegram_report_requests_dropped_total").tag("template", t).register(registry)
+      )
+      .increment()
+
   /** `dosegram_unknown_total{reason}` (DESIGN.md section 10, ROADMAP M1.8): occurrences marked `unknown`, tagged by
     * reason (`outage` when no worker was healthy across the due window, `undelivered` when workers were healthy but no
     * reminder was confirmed sent); incremented by the reminder loop's catch-up collapse and the materialiser's outage
@@ -125,9 +139,10 @@ object Metrics:
 
   def scrape(): String = registry.scrape()
 
-/** The report worker's count of images sent as text (ROADMAP G4.3, VISUALS VA-FB-01). */
+/** The report worker's counts of images sent as text (ROADMAP G4.3, VISUALS VA-FB-01) and of stale ones dropped. */
 object MicrometerImageMetrics:
   def textFallback(templateId: String): Unit = Metrics.imageTextFallback(templateId)
+  def dropped(templateId: String): Unit = Metrics.reportDropped(templateId)
 
 /** The dispatcher's metrics port over the shared registry (ROADMAP M1.7). A retried, failed or dead row is also one log
   * line of fixed words: the vendor, the row's kind and the reason code, never the row's stored error or payload.

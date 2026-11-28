@@ -234,14 +234,52 @@ class ReportWorkerSuite extends munit.FunSuite:
     assert(!worker(world, drawing).runOnce(), "and it is finished")
     assertEquals(world.uow.outbox.allEnqueued.size, 1)
 
-  test("the purge deletes the requests made more than an hour ago, finished or not"):
+  // Leftover 2 of the verification of 2026-11-28: a request older than an hour when the app started was purged unsent.
+  test("the purge never deletes an unfinished request, however old: the worker answers or drops it"):
     val world = ReportWorld()
     queue(world, 1)
-    world.clock.at = world.t0.plus(Duration.ofMinutes(59))
+    world.clock.at = world.t0.plus(Duration.ofDays(3))
     assertEquals(worker(world, FakeDrawing()).purge(), 0)
-    world.clock.at = world.t0.plus(ReportWorker.Retention).plusSeconds(1)
-    assertEquals(worker(world, FakeDrawing()).purge(), 1)
-    assertEquals(world.uow.reports.all, Nil)
+    assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.Queued))
+
+  test("a request claimed long after it was made, on the same local day, is sent with a note naming when it was asked"):
+    val world = ReportWorld()
+    queue(world, 1, 2)
+    // 12:00 in Kyiv when it was asked, 21:00 when the worker takes it.
+    world.clock.at = world.t0.plus(Duration.ofHours(9))
+    val drawing = FakeDrawing(alreadyDrawn = Set("<svg id='1'/>"))
+    assert(worker(world, drawing).runOnce())
+    assertEquals(outbox(world).map(_.attachment.map(_.assetKey)), List(Some("asset:<svg id='1'/>"), None))
+    assertEquals(outbox(world).map(lines), List(
+      List("caption 1", ImageCopy.lateAnswer("12:00")),
+      List(ImageCopy.inPlace("Water today: 2 of 2.0 l"), "caption 2")
+    ), "one note, on the answer's first message")
+    assertEquals(ImageCopy.lateAnswer("12:00"), "Sent late: you asked for this at 12:00.")
+    assertEquals(world.uow.reports.all.map(_.status), List(ReportStatus.TextFallback))
+
+  test("a request claimed within two minutes of being made has no late note"):
+    val world = ReportWorld()
+    queue(world, 1)
+    world.clock.at = world.t0.plus(ReportWorker.LateNoteAfter)
+    assert(worker(world, FakeDrawing()).runOnce())
+    assertEquals(outbox(world).map(lines), List(List(ImageCopy.inPlace("Water today: 1 of 2.0 l"), "caption 1")))
+
+  test("a request of an earlier local day is not sent: it is finished as stale, counted and logged by id only"):
+    val world = ReportWorld()
+    queue(world, 1)
+    // 12:00 in Kyiv when it was asked; 00:30 on the next day in Kyiv when the worker takes it.
+    world.clock.at = world.t0.plus(Duration.ofMinutes(12 * 60 + 30))
+    val log = ConcurrentLinkedQueue[String]()
+    val dropped = ConcurrentLinkedQueue[String]()
+    val drawing = FakeDrawing(alreadyDrawn = Set("<svg id='1'/>"))
+    val stale = ReportWorker(world.uow, drawing, world.clock, world.ids, line => log.add(line): Unit, _ => (),
+      dropped = template => dropped.add(template): Unit)
+    assert(stale.runOnce())
+    assertEquals(world.uow.outbox.allEnqueued, Nil, "yesterday's figures are not sent as today's answer")
+    assertEquals(world.uow.reports.all.map(r => (r.status, r.pagesKept)), List((ReportStatus.TextFallback, false)))
+    assertEquals(dropped.asScala.toList, List("water"))
+    assertEquals(log.asScala.toList.map(_.replaceAll("[0-9a-f-]{36}", "<id>")), List("report <id>: dropped: Stale"))
+    assert(!stale.runOnce(), "and it is finished")
 
   test("a finished request keeps no pages and stays 24 hours, for the daily limit"):
     val world = ReportWorld()

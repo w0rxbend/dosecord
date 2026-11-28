@@ -34,6 +34,7 @@ import dosegram.infra.db.sql
 import dosegram.render.PngImage
 import dosegram.render.RasterFailure
 import dosegram.render.Rasteriser
+import dosegram.infra.Metrics
 import ox.supervised
 
 import java.nio.charset.StandardCharsets.UTF_8
@@ -43,6 +44,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
+import scala.jdk.CollectionConverters.*
 import scala.language.implicitConversions
 
 /** The tracks together: the assembled application of [[Launch.start]] on Testcontainers Postgres, the Telegram adapter
@@ -826,4 +828,37 @@ class CaptureLaunchSuite extends PgSuite:
       assertEquals(bot.photos, Nil)
       assertEquals(restarted.count, 0, "a request a crashed worker held is not drawn again")
       assertEquals(strings("SELECT status || ':' || attempts FROM report_requests"), List("text_fallback:2"))
+
+  /** A "Show as image" request cut off by a crash while it was drawn, so the next start finds it unfinished. */
+  private def requestCutOffByACrash(): Unit =
+    withStats(seedOwner())
+    val hanging = HangingRasteriser()
+    launchedFrom(firstUpdate = 500L, drawingWith = Some(hanging)): bot =>
+      bot.say("300 ml", expected = 1)
+      val List(stats) = bot.say("/stats today", expected = 1): @unchecked
+      bot.tap(stats, "Show as image", expected = 0)
+      eventually("the drawing started")(hanging.started.get() == 1)
+    assertEquals(strings("SELECT status FROM report_requests"), List("rendering"))
+
+  // Leftover 2 of the verification of 2026-11-28: a request older than an hour when the app started was purged unsent.
+  test("a request the app was down for hours on the same day is sent at the next start, as its text with a late note"):
+    requestCutOffByACrash()
+    val restarted = NumberingRasteriser()
+    launchedFrom(firstUpdate = 900L, lastMessageId = 100L, drawingWith = Some(restarted), at = monday.plus(Duration.ofHours(3))): bot =>
+      eventually("the text equivalent is sent")(bot.messages.exists(call => bot.body(call).startsWith("[image: Mon 21 Sep.")))
+      val List(answer) = bot.messages.filter(call => bot.body(call).startsWith("[image:")): @unchecked
+      assert(bot.body(answer).endsWith("Sent late: you asked for this at 08:00."), bot.body(answer))
+      assertEquals(strings("SELECT status || ':' || coalesce(error_class, '') FROM report_requests"), List("text_fallback:Late"))
+
+  test("a request of an earlier day is not sent at the next start: it is finished as stale and counted, not deleted"):
+    requestCutOffByACrash()
+    val restarted = NumberingRasteriser()
+    val before = Metrics.registry.find("dosegram_report_requests_dropped_total").counters().asScala.map(_.count()).sum
+    launchedFrom(firstUpdate = 900L, lastMessageId = 100L, drawingWith = Some(restarted), at = monday.plus(Duration.ofHours(17))): bot =>
+      eventually("the request is finished")(strings("SELECT status FROM report_requests") == List("text_fallback"))
+      assertEquals(strings("SELECT coalesce(error_class, '') FROM report_requests"), List("Stale"))
+      Thread.sleep(500)
+      assertEquals(bot.messages.filter(call => bot.body(call).startsWith("[image:")), Nil, "yesterday's figures are not sent")
+      val after = Metrics.registry.find("dosegram_report_requests_dropped_total").counters().asScala.map(_.count()).sum
+      assertEquals(after - before, 1.0)
 end CaptureLaunchSuite

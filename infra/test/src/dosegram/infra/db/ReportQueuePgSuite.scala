@@ -148,13 +148,12 @@ class ReportQueuePgSuite extends PgSuite:
     assertEquals(uow.transaction(_.reports.requestedSince(account, t0)), List(t0), "a request made at the edge counts")
     assertEquals(uow.transaction(_.reports.requestedSince(account, t0.plusMillis(1))), Nil)
 
-  test("the purge deletes the unfinished requests made before its second instant"):
+  test("the purge deletes no unfinished request, however old: the worker answers it (verification of 2026-11-28)"):
     val account = fixtures.account()
     uow.transaction(_.reports.enqueue(request(account, t0, page(1))))
     uow.transaction(_.reports.enqueue(request(account, t0.plusSeconds(60), page(2))))
-    assertEquals(uow.transaction(_.reports.purge(t0, t0)), 0)
-    assertEquals(uow.transaction(_.reports.purge(t0, t0.plusSeconds(1))), 1)
-    assertEquals(uow.transaction(_.reports.waiting()), 1)
+    assertEquals(uow.transaction(_.reports.purge(t0.plus(Duration.ofDays(30)))), 0)
+    assertEquals(uow.transaction(_.reports.waiting()), 2)
 
   test("a finished request keeps no pages and is deleted only after the first instant, for the daily limit"):
     val account = fixtures.account()
@@ -165,6 +164,6 @@ class ReportQueuePgSuite extends PgSuite:
       val rs = conn.createStatement().executeQuery("SELECT params IS NULL AND params_enc IS NULL FROM report_requests")
       rs.next()
       assert(rs.getBoolean(1), "the SVG and the captions go when the request is finished")
-    assertEquals(uow.transaction(_.reports.purge(t0, t0.plusSeconds(60))), 0, "a finished request outlives the hour")
+    assertEquals(uow.transaction(_.reports.purge(t0)), 0, "a finished request outlives the hour")
     assertEquals(uow.transaction(_.reports.requestedSince(account, t0)), List(t0))
-    assertEquals(uow.transaction(_.reports.purge(t0.plusSeconds(1), t0.plusSeconds(60))), 1)
+    assertEquals(uow.transaction(_.reports.purge(t0.plusSeconds(1))), 1)
