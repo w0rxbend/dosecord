@@ -452,6 +452,29 @@ export interface InsightCompare {
   readonly notice?: string;
 }
 
+/** One area of the rhythm: `text` as `/stats rhythm` prints it; from its 14-day gate the 24 hours from 00:00. */
+export interface InsightRhythmArea {
+  readonly id: Domain;
+  readonly title: string;
+  /** What `hours` counts: entries, check-ins, doses taken, nights asleep, meals. */
+  readonly counts: string;
+  readonly recordedDays: number;
+  readonly days: string;
+  readonly text: string;
+  readonly summary?: string;
+  readonly hours?: readonly number[];
+}
+
+/** The rhythm of the day of `/stats rhythm` (MINI_APP 7.11, the Rhythm view); `lines` are the chat's text. */
+export interface InsightRhythm {
+  readonly summary: string;
+  readonly gateNote?: string;
+  readonly clockNote: string;
+  readonly areas: readonly InsightRhythmArea[];
+  readonly lines: readonly string[];
+  readonly notice?: string;
+}
+
 export interface InsightList {
   readonly windowLabel: string;
   readonly crossDomain: boolean;

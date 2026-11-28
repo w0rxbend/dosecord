@@ -7,7 +7,7 @@ class InsightPhrasesSuite extends munit.FunSuite:
 
   private val linted: List[CopyEntry] =
     StatsCopy.entries ++ MoodLabels.entries ++ InsightCopy.entries ++ MonthCopy.entries ++ YearCopy.entries ++
-      CompareCopy.entries
+      CompareCopy.entries ++ RhythmCopy.entries
 
   test("every statistic, insight and mood label string is free of causal, evaluative and clinical wording"):
     val violations = linted.flatMap(entry => InsightPhrases.violations(entry.text).map(p => s"${entry.id}: '$p'"))

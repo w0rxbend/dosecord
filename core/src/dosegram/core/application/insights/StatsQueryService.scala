@@ -13,6 +13,7 @@ import dosegram.core.domain.insights.Comparison
 import dosegram.core.domain.insights.Comparisons
 import dosegram.core.domain.insights.Consistency
 import dosegram.core.domain.insights.DateRange
+import dosegram.core.domain.insights.DayRhythm
 import dosegram.core.domain.insights.HydrationDay
 import dosegram.core.domain.insights.HydrationPeriod
 import dosegram.core.domain.insights.HydrationStats
@@ -33,6 +34,8 @@ import dosegram.core.domain.insights.MoodPeriod
 import dosegram.core.domain.insights.MoodStats
 import dosegram.core.domain.insights.NightFacts
 import dosegram.core.domain.insights.PeriodComparisons
+import dosegram.core.domain.insights.RhythmFigures
+import dosegram.core.domain.insights.RhythmSources
 import dosegram.core.domain.insights.RollupDomain
 import dosegram.core.domain.insights.RollupMetrics
 import dosegram.core.domain.insights.SleepNight
@@ -100,6 +103,11 @@ final case class YearView(zone: ZoneId, today: LocalDate, figures: YearFigures)
   * account's current local day, the last month the picker offers.
   */
 final case class CompareView(zone: ZoneId, today: LocalDate, figures: CompareFigures)
+
+/** The rhythm of the day over the last 30 days (supervisor decision, 2026-11-28): the figures and the zone they were
+  * computed in.
+  */
+final case class RhythmView(zone: ZoneId, figures: RhythmFigures)
 
 /** The current insights of an account and whether cross-domain comparisons are on (VISUALS VA-IN-01). */
 final case class InsightsView(zone: ZoneId, list: InsightList, crossDomain: Boolean)
@@ -367,6 +375,33 @@ final class StatsQueryService(rollups: RollupService, clock: Clock):
             food = over(ConsentPurpose.Nutrition)(mealDays(tx, accountId, _))
           )
           CompareView(zone, today, PeriodComparisons.of(frame, sources))
+
+  /** The rhythm of the day (supervisor decision, 2026-11-28): the one source of `/stats rhythm`, its card and
+    * `GET /insights/rhythm`. One row per area whose consent is active, over the last 30 local days: the days with
+    * records from the same days every period reads, the clock times from the area's own live records.
+    */
+  def rhythm(tx: Tx, accountId: UUID): Either[StatsRefusal, RhythmView] =
+    zoneOf(tx, accountId).map: zone =>
+      val window = DayRhythm.window(LocalDays.dateOf(clock.now(), zone))
+      def granted(purpose: ConsentPurpose): Boolean = tx.consents.isGranted(accountId, purpose)
+      def records[A](purpose: ConsentPurpose)(read: => List[A]): List[A] = if granted(purpose) then read else Nil
+      val days = YearSources(
+        medication = Option.when(granted(ConsentPurpose.Medication))(medicationDays(tx, accountId, window)),
+        hydration = Option.when(granted(ConsentPurpose.Hydration))(hydrationDays(tx, accountId, window)),
+        mood = Option.when(granted(ConsentPurpose.Mood))(moodDays(tx, accountId, window)),
+        sleep = Option.when(granted(ConsentPurpose.Sleep))(sleepDays(tx, accountId, window)),
+        food = Option.when(granted(ConsentPurpose.Nutrition))(mealDays(tx, accountId, window))
+      )
+      val sources = RhythmSources(
+        days = days,
+        zone = zone,
+        doses = records(ConsentPurpose.Medication)(dosesOf(tx, accountId, zone, window)),
+        water = records(ConsentPurpose.Hydration)(tx.tracking.hydration.listLive(accountId, window)),
+        mood = records(ConsentPurpose.Mood)(tx.tracking.mood.listLive(accountId, window)),
+        sleep = records(ConsentPurpose.Sleep)(tx.tracking.sleep.liveEpisodes(accountId, window)),
+        meals = records(ConsentPurpose.Nutrition)(tx.tracking.meals.listLive(accountId, window))
+      )
+      RhythmView(zone, DayRhythm.of(window, sources))
 
   /** The current insights (VISUALS section 8.5): every rule of the registry whose sources have consent, over the last
     * `window` local days; the baseline statements read the last five weeks. Cross-domain rules run only with the

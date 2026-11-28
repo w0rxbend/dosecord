@@ -660,6 +660,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/insights/rhythm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The rhythm of the day as /stats rhythm shows it: per area whose consent is active, records by hour over 30 days. */
+        get: operations["getInsightRhythm"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reminders": {
         parameters: {
             query?: never;
@@ -1706,6 +1723,34 @@ export interface components {
             meetsGate: boolean;
             lines?: string[];
             gateText?: string;
+        };
+        /** InsightRhythm */
+        InsightRhythm: {
+            timeZone: string;
+            start: string;
+            end: string;
+            /** Format: int32 */
+            days: number;
+            /** Format: int32 */
+            daysWithRecords: number;
+            summary: string;
+            gateNote?: string;
+            clockNote: string;
+            areas?: components["schemas"]["InsightRhythmArea"][];
+            lines?: string[];
+            notice?: string;
+        };
+        /** InsightRhythmArea */
+        InsightRhythmArea: {
+            id: components["schemas"]["InsightDomain"];
+            title: string;
+            counts: string;
+            /** Format: int32 */
+            recordedDays: number;
+            days: string;
+            text: string;
+            summary?: string;
+            hours?: number[];
         };
         /** InsightVessel */
         InsightVessel: {
@@ -4205,6 +4250,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightCompare"];
+                };
+            };
+            default: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInsightRhythm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightRhythm"];
                 };
             };
             default: {

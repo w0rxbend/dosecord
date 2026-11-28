@@ -42,6 +42,7 @@ class ConsentRequestSuite extends munit.ScalaCheckSuite:
         )
         .get
     ).map(selection => Pending.CompareImage(selection.code)),
+    Gen.const(Pending.RhythmImage),
     Gen.const(Pending.FoodCard),
     Gen.const(Pending.FoodImage),
     Gen.choose(0, 3).map(Pending.FoodLog(_))

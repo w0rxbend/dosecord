@@ -75,6 +75,7 @@ final class ApiModule(
   private val insightReports = InsightReports(uow, tracking, clock)
   private val insightYears = InsightYears(uow, tracking, clock)
   private val insightCompares = InsightCompares(uow, tracking)
+  private val insightRhythms = InsightRhythms(uow, tracking)
   private val history = History(uow, tracking, clock)
   private val hydration = Hydration(uow, tracking)
   private val mood = Mood(uow, tracking, blobStates)
@@ -274,7 +275,10 @@ final class ApiModule(
       .handleSecurity(authenticate)
       .handle(session =>
         (period, first, second) => guarded(insightCompares.compare(session.accountId, period, first, second))
-      )
+      ),
+    Endpoints.insightRhythm
+      .handleSecurity(authenticate)
+      .handle(session => _ => guarded(insightRhythms.rhythm(session.accountId)))
   )
 
   private def languageOf(session: Session): Lang =

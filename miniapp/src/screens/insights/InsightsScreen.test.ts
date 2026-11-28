@@ -252,6 +252,7 @@ describe('Insights', () => {
       '30',
       'year',
       'compare',
+      'rhythm',
     ]);
   });
 
@@ -394,6 +395,37 @@ describe('Insights', () => {
     const months = screen.getByRole('table', { name: 'Both periods by area' });
     const picked = within(months).getAllByRole('columnheader').map((cell) => cell.textContent);
     expect(picked.slice(1, 3)).toEqual([first.options[2]!.textContent, second.options[0]!.textContent]);
+  });
+
+  it('opens the Rhythm tab: each area in the server\'s words, its band, and a table of records by hour', async () => {
+    const harness = createHarness();
+    const user = open(harness);
+    await block('Medication');
+
+    await user.click(within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Rhythm'));
+
+    const rhythm = await block('Rhythm');
+    expect(within(rhythm).getByText(/: days with records \d+ of 30$/)).toBeTruthy();
+    expect(within(rhythm).getByText(/^\d+ entries, most often \d\d:00 to \d\d:00 · morning \d+/)).toBeTruthy();
+    const table = screen.getByRole('table', { name: 'Records by hour' });
+    const headers = within(table).getAllByRole('columnheader').map((cell) => cell.textContent);
+    expect(headers).toEqual(['Hour', 'Water entries']);
+    expect(within(table).getAllByRole('rowheader')).toHaveLength(24);
+    expect(within(table).getByRole('rowheader', { name: '09:00–10:00' })).toBeTruthy();
+    expect(harness.api.calls).toContain('insights/rhythm');
+  });
+
+  it('says where the rhythm is turned on when no area is on', async () => {
+    const harness = createHarness();
+    harness.api.tracking.withdraw('hydration');
+    const user = open(harness);
+    await block('Medication');
+
+    await user.click(within(screen.getByRole('group', { name: 'Period' })).getByLabelText('Rhythm'));
+
+    const rhythm = await block('Rhythm');
+    expect(within(rhythm).getByText('Statistics appear here for the records you turned on in the chat.')).toBeTruthy();
+    expect(screen.queryByRole('table', { name: 'Records by hour' })).toBeNull();
   });
 
   it('says where comparisons are turned on when they are off, and shows none', async () => {

@@ -172,7 +172,11 @@ object ActionRegistry:
     // IMG-27) with the same value; the month picker, value 0 for the first month, else the first month's index.
     ActionEntry(576, "stats.compare", requiresSession = false),
     ActionEntry(577, "stats.compare_image", requiresSession = false),
-    ActionEntry(578, "stats.compare_pick", requiresSession = false)
+    ActionEntry(578, "stats.compare_pick", requiresSession = false),
+    // The rhythm of the day (rhythm track, 589 to 608; supervisor decision, 2026-11-28): /stats rhythm from the 30-day
+    // card, direct mode on the account, value 0; its card (VISUALS IMG-28), value 0.
+    ActionEntry(589, "stats.rhythm", requiresSession = false),
+    ActionEntry(590, "stats.rhythm_image", requiresSession = false)
   )
 
   require(entries.forall(e => e.id >= 0 && e.id <= 0xffff), "action ids are UInt16")

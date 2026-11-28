@@ -149,6 +149,8 @@ object ConsentApiSuite:
       // The month, the patterns, the year and the comparison of two periods leave out each domain without its consent,
       // as the overview does (InsightsApiSuite, InsightYearApiSuite, InsightCompareApiSuite).
       Set("getInsightMonth", "listInsightCorrelations", "getInsightYear", "getInsightCompare") ++
+      // The rhythm of the day leaves out each domain without its consent too (InsightRhythmApiSuite).
+      Set("getInsightRhythm") ++
       // The export is the right of access to every record, whatever is turned on (PRODUCT_SPEC R-IMX-1); the record
       // summary leaves out a domain without its consent (ExportChatPgSuite).
       ExportEndpoints.documented.flatMap(_.info.name).toSet ++

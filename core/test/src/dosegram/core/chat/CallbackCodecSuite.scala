@@ -336,7 +336,10 @@ class CallbackCodecSuite extends munit.ScalaCheckSuite:
         // Two periods compared (supervisor decision, 2026-11-28).
         576 -> "stats.compare",
         577 -> "stats.compare_image",
-        578 -> "stats.compare_pick"
+        578 -> "stats.compare_pick",
+        // The rhythm of the day (supervisor decision, 2026-11-28).
+        589 -> "stats.rhythm",
+        590 -> "stats.rhythm_image"
       )
     )
 

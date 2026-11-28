@@ -14,20 +14,21 @@
   import MonthAndPatterns from './MonthAndPatterns.svelte';
   import ShareCards from './ShareCards.svelte';
   import CompareView from './CompareView.svelte';
+  import RhythmView from './RhythmView.svelte';
   import YearView from './YearView.svelte';
-  import { DEFAULT_RANGE, RANGE_KEY, YEAR, overviewDays, shownOf, type Shown } from './range-preference';
+  import { rhythmWords } from '../../i18n/rhythm';
+  import { COMPARE, DEFAULT_RANGE, RANGE_KEY, RHYTHM, YEAR, overviewDays, shownOf, type Shown } from './range-preference';
 
   /** Offered until the first answer names the periods the backend computes. */
   const FIRST_RANGES: readonly InsightRange[] = [7, 30];
-  /** The Compare tab (supervisor decision, 2026-11-28): two periods of /stats compare side by side. */
-  const COMPARE = 'compare';
   /** The first overview answer paints these. Later blocks wait until they are near (MA-INS-8). */
   const EAGER_BLOCKS = 2;
   const NEAR_VIEWPORT_PX = 200;
 
   const { api, tg } = useApp();
-  // Compare is not remembered: the stored key keeps a period or the Year tab only (MINI_APP 6.6).
-  let range = $state<Shown | typeof COMPARE>(DEFAULT_RANGE);
+  // Compare and Rhythm are not remembered: the stored key keeps a period or the Year tab only (MINI_APP 6.6).
+  let range = $state<Shown | typeof COMPARE | typeof RHYTHM>(DEFAULT_RANGE);
+  const tabs = $derived([[YEAR, en.insights.yearTab], [COMPARE, en.insights.compareTab], [RHYTHM, rhythmWords().tab]]);
   let revealed = $state<string[]>([]);
   // The first read waits for the stored choice (at most 500 ms, MA-STORE-2), so it asks for that period only.
   const overview = new Resource<InsightsOverview>(async () => {
@@ -74,7 +75,7 @@
   function changeRange(): void {
     tg.haptic('selection');
     const chosen = range;
-    if (chosen === COMPARE) return;
+    if (chosen === COMPARE || chosen === RHYTHM) return;
     tg.preferences.set(RANGE_KEY, String(chosen));
     if (chosen === YEAR) return;
     void overview.load(() => api.insightsOverview(chosen));
@@ -92,10 +93,7 @@
   const withData = (data: InsightsOverview): boolean => data.blocks.some((block) => !block.noDataText);
 </script>
 
-<Screen
-  title={en.insights.title}
-  subtitle={range === YEAR || range === COMPARE ? undefined : overview.data?.rangeLabel}
->
+<Screen title={en.insights.title} subtitle={typeof range === 'number' ? overview.data?.rangeLabel : undefined}>
   <fieldset class="section">
     <legend class="visually-hidden">{en.insights.range}</legend>
     <div class="segmented">
@@ -105,14 +103,12 @@
           <span class="numeric">{en.insights.days(option)}</span>
         </label>
       {/each}
-      <label>
-        <input type="radio" name="insights-range" value={YEAR} bind:group={range} onchange={changeRange} />
-        <span>{en.insights.yearTab}</span>
-      </label>
-      <label>
-        <input type="radio" name="insights-range" value={COMPARE} bind:group={range} onchange={changeRange} />
-        <span>{en.insights.compareTab}</span>
-      </label>
+      {#each tabs as [value, label] (value)}
+        <label>
+          <input type="radio" name="insights-range" {value} bind:group={range} onchange={changeRange} />
+          <span>{label}</span>
+        </label>
+      {/each}
     </div>
   </fieldset>
 
@@ -120,6 +116,8 @@
     <YearView />
   {:else if range === COMPARE}
     <CompareView />
+  {:else if range === RHYTHM}
+    <RhythmView />
   {:else}
     <AsyncView resource={overview} loadingLabel={en.insights.loading} skeletonRows={4}>
       {#snippet children(data)}

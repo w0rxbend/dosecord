@@ -176,6 +176,7 @@ class UkrainianCatalogueSuite extends munit.FunSuite:
           "stats.compare.button.month" -> CompareCopy.ThisMonth,
           "stats.compare.button.pick" -> CompareCopy.PickMonths,
           "stats.compare.button.open" -> CompareCopy.ComparePeriods,
+          "stats.rhythm.button" -> RhythmCopy.Rhythm,
           "stats.compare.button.month_label" -> CompareCopy.monthLabel(java.time.YearMonth.of(2026, 9)),
           "insight.compare" -> InsightCopy.CompareAcrossAreas,
           "export.data" -> ExportCopy.ExportMyData,

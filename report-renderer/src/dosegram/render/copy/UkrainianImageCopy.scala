@@ -88,6 +88,7 @@ object UkrainianImageCopy extends ImageCopy:
   def detailsBelow: String = "Подробиці нижче."
   def year: YearImageCopy = UkrainianYearImageCopy
   def compare: CompareImageCopy = UkrainianCompareImageCopy
+  def rhythm: RhythmImageCopy = UkrainianRhythmImageCopy
 
   def domainName(domain: Domain): String =
     domain match

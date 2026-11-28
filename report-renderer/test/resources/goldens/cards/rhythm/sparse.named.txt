@@ -1,0 +1,23 @@
+file: dosegram-rhythm.png
+spoiler: false
+caption: Rhythm of the day · last 30 days · Europe/Kyiv
+28 Oct to 26 Nov: days with records 16 of 30
+An area shows its rhythm once it has records on 14 of the 30 days; fewer show those days.
+Times are the local clock times of your records.
+Water (15 days): 15 entries, most often 08:00 to 09:00 · morning 6, afternoon 5, evening 4, night 0
+Mood check-ins: records on 5 days
+These are the times of your own records. They set no target and show no cause.
+alt: Rhythm of the day · last 30 days · Europe/Kyiv
+28 Oct to 26 Nov: days with records 16 of 30
+An area shows its rhythm once it has records on 14 of the 30 days; fewer show those days.
+Times are the local clock times of your records.
+Water (15 days): 15 entries, most often 08:00 to 09:00 · morning 6, afternoon 5, evening 4, night 0
+Mood check-ins: records on 5 days
+These are the times of your own records. They set no target and show no cause.
+full: Rhythm of the day · last 30 days · Europe/Kyiv
+28 Oct to 26 Nov: days with records 16 of 30
+An area shows its rhythm once it has records on 14 of the 30 days; fewer show those days.
+Times are the local clock times of your records.
+Water (15 days): 15 entries, most often 08:00 to 09:00 · morning 6, afternoon 5, evening 4, night 0
+Mood check-ins: records on 5 days
+These are the times of your own records. They set no target and show no cause.

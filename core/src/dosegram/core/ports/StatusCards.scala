@@ -148,6 +148,17 @@ final case class CompareCardView(
     text: String
 )
 
+/** One area of IMG-28: its records in each hour of the local day (absent below the 14-day gate), the summary under its
+  * band as the caller words it, and its recorded days.
+  */
+final case class RhythmCardRow(domain: TrendDomain, hours: Option[List[Int]], summary: String, days: String):
+  require(hours.forall(_.size == 24), "a band has 24 hours")
+
+/** IMG-28 (supervisor decision, 2026-11-28): the rhythm of the day, one 24-hour band per area on one page; `text` is
+  * the card's text equivalent, written by the caller from the same values.
+  */
+final case class RhythmCardView(window: DateRange, rows: List[RhythmCardRow], text: String)
+
 /** One medication of IMG-07 (VISUALS section 6.8): its name, whether it is taken as needed, and for each day of the
   * strip the marks of its scheduled doses in schedule order and the number of as-needed logs.
   */
@@ -273,6 +284,9 @@ trait StatusCards:
 
   /** IMG-27, two periods side by side; `None` when there is nothing to draw. */
   def compare(view: CompareCardView, look: CardLook): Option[CardPage] = None
+
+  /** IMG-28, the rhythm of the day; `None` when there is nothing to draw. */
+  def rhythm(view: RhythmCardView, look: CardLook): Option[CardPage] = None
 
   /** IMG-07, the per-medication strip: one page per six medications at most; empty when none can be laid out. */
   def medicationStrip(view: MedicationStripView, look: CardLook): List[CardPage] = Nil

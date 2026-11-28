@@ -49,6 +49,11 @@ private[capture] enum Pending(val kind: Int, val argument: Int):
   /** The trends card of 30 or 90 days (VISUALS IMG-23); the argument is the period's days. */
   case TrendsImage(days: Int) extends Pending(7, days)
 
+  /** The rhythm of the day (VISUALS IMG-28) after the images consent. Kind 7 is shared; its argument is no period's
+    * days and below [[Pending.MedsImageBase]].
+    */
+  case RhythmImage extends Pending(7, 28)
+
   case SleepCard extends Pending(9, 0)
 
   /** A typed night or nap. Its times do not fit in a button, so it is held, sealed, until the confirming tap (finding 2
@@ -131,6 +136,7 @@ private[capture] object Pending:
       case WaterWeekImage.argument                                    => WaterWeekImage
       case SleepWeekImage.argument                                    => SleepWeekImage
       case MoodWeekdayImage.argument                                  => MoodWeekdayImage
+      case RhythmImage.argument                                       => RhythmImage
       case days if TrendPeriod.of(days).exists(_ != TrendPeriod.Week) => TrendsImage(days)
       case days if days > MedsImageBase                               => MedsImage(days - MedsImageBase)
       case _                                                          => DayImage

@@ -10,6 +10,7 @@ import dosegram.core.domain.EntryDay
 import dosegram.core.domain.copy.CompareCopy
 import dosegram.core.domain.copy.ReminderCopy
 import dosegram.core.domain.copy.ReportCopy
+import dosegram.core.domain.copy.RhythmCopy
 import dosegram.core.domain.copy.StatsCardCopy
 import dosegram.core.domain.insights.CompareSelection
 import dosegram.core.domain.insights.DateRange
@@ -209,6 +210,10 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
         tokens.direct(CaptureActions.StatsTrends, turn.accountId, TrendPeriod.Month.days.toLong)
       )
     )
+    // The 30 days lead on to the rhythm of their days as well (supervisor decision, 2026-11-28).
+    val rhythm = Option.when(period == StatsPeriod.Last30Days)(
+      Choice.callback(RhythmCopy.Rhythm, tokens.direct(CaptureActions.StatsRhythm, turn.accountId, 0))
+    )
     // IMG-20 to IMG-22 sit on their own row of the seven days, after the glance and the share.
     val weekCards = Option.when(period == StatsPeriod.Last7Days)(
       List(
@@ -217,7 +222,7 @@ private[capture] final class StatsChat(parts: CaptureParts, tokens: Tokens, shar
         weekCard(turn, StatsCardCopy.MoodWeekday, Pending.MoodWeekdayImage)
       )
     )
-    List(periods, image.toList ++ shareable.toList ++ trends.toList) ++ weekCards.toList
+    List(periods, image.toList ++ shareable.toList ++ trends.toList ++ rhythm.toList) ++ weekCards.toList
 
   private def weekCard(turn: Turn, label: String, pending: Pending): Choice =
     Choice.callback(label, tokens.direct(CaptureActions.StatsImage, turn.accountId, pending.argument.toLong))
